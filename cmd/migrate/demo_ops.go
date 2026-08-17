@@ -349,12 +349,20 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 // seedFeeStructure gives the demand-generation screen something to raise
 // against: one structure per class, with three instalments of real heads.
 func seedFeeStructure(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (int, error) {
-	var existing int
+	/* Guard on structures, not items. One structure with items already existed,
+	   which meant the demand-generation screen offered a single line where a
+	   school has one per class. Skipping only once every class has one lets a
+	   part-seeded school top up without duplicating. */
+	var structures, classes int
 	if err := tx.QueryRow(ctx,
-		`SELECT count(*) FROM fee_structure_items WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
+		`SELECT count(*) FROM fee_structures WHERE institution_id = $1`, inst).Scan(&structures); err != nil {
 		return 0, err
 	}
-	if existing > 0 {
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM classes WHERE institution_id = $1`, inst).Scan(&classes); err != nil {
+		return 0, err
+	}
+	if classes == 0 || structures >= classes {
 		return 0, nil
 	}
 
@@ -382,8 +390,12 @@ func seedFeeStructure(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UU
 		return 0, nil
 	}
 
-	classes, err := tx.Query(ctx,
-		`SELECT id, name FROM classes WHERE institution_id = $1 ORDER BY level`, inst)
+	rowsC, err := tx.Query(ctx, `
+		SELECT c.id, c.name FROM classes c
+		 WHERE c.institution_id = $1
+		   AND NOT EXISTS (SELECT 1 FROM fee_structures fs
+		                    WHERE fs.institution_id = $1 AND fs.class_id = c.id)
+		 ORDER BY c.level`, inst)
 	if err != nil {
 		return 0, err
 	}
@@ -392,15 +404,15 @@ func seedFeeStructure(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UU
 		name string
 	}
 	var ks []klass
-	for classes.Next() {
+	for rowsC.Next() {
 		var k klass
-		if err := classes.Scan(&k.id, &k.name); err != nil {
-			classes.Close()
+		if err := rowsC.Scan(&k.id, &k.name); err != nil {
+			rowsC.Close()
 			return 0, err
 		}
 		ks = append(ks, k)
 	}
-	classes.Close()
+	rowsC.Close()
 
 	n := 0
 	for i, k := range ks {
@@ -494,10 +506,10 @@ func seedPipeline(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (in
 			                          class_sought, parent_name, parent_phone, status,
 			                          created_at)
 			SELECT $1, $2, $3, $4, $5,
-			       CURRENT_DATE - INTERVAL '11 years' - ($6 * INTERVAL '37 days'),
-			       CASE WHEN $6 % 2 = 0 THEN 'female' ELSE 'male' END,
+			       CURRENT_DATE - INTERVAL '11 years' - ($6::int * INTERVAL '37 days'),
+			       CASE WHEN $6::int % 2 = 0 THEN 'female' ELSE 'male' END,
 			       (SELECT id FROM classes WHERE institution_id = $1 ORDER BY level LIMIT 1),
-			       $7, $8, $9, now() - ($6 * INTERVAL '3 days')
+			       $7, $8, $9, now() - ($6::int * INTERVAL '3 days')
 			 WHERE NOT EXISTS (
 			   SELECT 1 FROM applications WHERE institution_id = $1 AND application_no = $3)`,
 			inst, campus, fmt.Sprintf("APP-2026-%03d", i+1),
