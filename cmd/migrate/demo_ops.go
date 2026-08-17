@@ -69,57 +69,32 @@ func seedDemoOperations(ctx context.Context, db *database.DB) error {
 // every enrolled student, so the gradebook and report cards have something to
 // show.
 func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (int, error) {
-	var existing int
+	/* Guard on marks, not on papers.
+
+	   The first version asked whether exam_subjects had rows and skipped if so.
+	   This school had 20 papers and one mark: the exam existed, the gradebook
+	   was empty, and the check reported everything present. What a gradebook
+	   needs is marks, so that is what to count. */
+	var marks, papers int
 	if err := tx.QueryRow(ctx,
-		`SELECT count(*) FROM exam_subjects WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
+		`SELECT count(*) FROM marks WHERE institution_id = $1`, inst).Scan(&marks); err != nil {
 		return 0, err
 	}
-	// A school seeded before this existed may carry one stray paper from the
-	// original fixture; that is not a seeded exam and should not block one.
-	if existing > 5 {
+	if marks > 50 {
 		return 0, nil
 	}
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM exam_subjects WHERE institution_id = $1`, inst).Scan(&papers); err != nil {
+		return 0, err
+	}
 
-	var scale uuid.UUID
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO grading_scales (institution_id, name, is_default)
-		VALUES ($1, 'CBSE Scholastic', true)
-		ON CONFLICT DO NOTHING
-		RETURNING id`, inst).Scan(&scale); err != nil {
-		// Already present: reuse it rather than failing the whole seed.
-		if err := tx.QueryRow(ctx,
-			`SELECT id FROM grading_scales WHERE institution_id = $1 LIMIT 1`,
-			inst).Scan(&scale); err != nil {
+	if papers == 0 {
+		if err := seedExamPapers(ctx, tx, inst, campus, year); err != nil {
 			return 0, err
 		}
 	}
 
-	var exam uuid.UUID
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO exams (institution_id, campus_id, academic_year_id, name, kind,
-		                   weightage, starts_on, ends_on, grading_scale_id, is_published)
-		VALUES ($1,$2,$3,'Unit Test I','unit',20,
-		        CURRENT_DATE - 21, CURRENT_DATE - 14, $4, false)
-		RETURNING id`, inst, campus, year, scale).Scan(&exam); err != nil {
-		return 0, err
-	}
-
-	// One paper per class-subject, sat over the exam week.
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id, exam_date,
-		                           starts_at, duration_minutes, max_marks, pass_marks)
-		SELECT $1, $2, cs.id,
-		       CURRENT_DATE - 21 + (row_number() OVER (ORDER BY cs.id) % 7),
-		       '09:30', 90, 50, 17
-		  FROM class_subjects cs WHERE cs.institution_id = $1`, inst, exam); err != nil {
-		return 0, err
-	}
-
-	/* Marks for every enrolled student on every paper their class sat.
-
-	   Spread deterministically off the student and paper ids rather than at
-	   random, so re-seeding a demo produces the same distribution and a
-	   screenshot taken today still matches the data tomorrow. */
+	// Marks for every paper that has none, whoever created it.
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO marks (institution_id, exam_subject_id, student_id, marks_obtained,
 		                   is_absent, entered_at)
@@ -130,13 +105,57 @@ func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (in
 		  JOIN class_subjects cs ON cs.id = es.class_subject_id
 		  JOIN sections sec      ON sec.class_id = cs.class_id
 		  JOIN enrollments e     ON e.section_id = sec.id AND e.status = 'active'
-		 WHERE es.institution_id = $1 AND es.exam_id = $2
-		ON CONFLICT DO NOTHING`, inst, exam)
+		 WHERE es.institution_id = $1
+		   AND NOT EXISTS (
+		       SELECT 1 FROM marks m
+		        WHERE m.exam_subject_id = es.id AND m.student_id = e.student_id)
+		ON CONFLICT DO NOTHING`, inst)
 	if err != nil {
 		return 0, err
 	}
 	return int(tag.RowsAffected()), nil
 }
+
+// seedExamPapers creates a term exam with one paper per class-subject.
+func seedExamPapers(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) error {
+	var scale uuid.UUID
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO grading_scales (institution_id, name, is_default)
+		VALUES ($1, 'CBSE Scholastic', true)
+		ON CONFLICT DO NOTHING
+		RETURNING id`, inst).Scan(&scale); err != nil {
+		// Already present: reuse it rather than failing the whole seed.
+		if err := tx.QueryRow(ctx,
+			`SELECT id FROM grading_scales WHERE institution_id = $1 LIMIT 1`,
+			inst).Scan(&scale); err != nil {
+			return err
+		}
+	}
+
+	var exam uuid.UUID
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO exams (institution_id, campus_id, academic_year_id, name, kind,
+		                   weightage, starts_on, ends_on, grading_scale_id, is_published)
+		VALUES ($1,$2,$3,'Unit Test I','unit',20,
+		        CURRENT_DATE - 21, CURRENT_DATE - 14, $4, false)
+		RETURNING id`, inst, campus, year, scale).Scan(&exam); err != nil {
+		return err
+	}
+
+	// One paper per class-subject, sat over the exam week. row_number() is
+	// bigint and date arithmetic wants integer.
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id, exam_date,
+		                           starts_at, duration_minutes, max_marks, pass_marks)
+		SELECT $1, $2, cs.id,
+		       CURRENT_DATE - 21 + ((row_number() OVER (ORDER BY cs.id)) % 7)::int,
+		       '09:30', 90, 50, 17
+		  FROM class_subjects cs WHERE cs.institution_id = $1`, inst, exam); err != nil {
+		return err
+	}
+	return nil
+}
+
 
 // seedStaffAttendance marks the last three weeks for every employee, with a
 // scattering of absences so the HR register and the "teachers absent" probe
@@ -234,8 +253,8 @@ func seedLibrary(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (int
 		)
 		INSERT INTO library_loans (institution_id, copy_id, student_id, issued_on, due_on)
 		SELECT $1, p.id, p.student_id,
-		       CURRENT_DATE - (10 + p.rn % 20),
-		       CURRENT_DATE - (10 + p.rn % 20) + 14
+		       CURRENT_DATE - (10 + p.rn % 20)::int,
+		       CURRENT_DATE - (10 + p.rn % 20)::int + 14
 		  FROM picked p WHERE p.rn % 5 = 0`, inst); err != nil {
 		return n, err
 	}
