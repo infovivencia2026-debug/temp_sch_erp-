@@ -19,6 +19,18 @@ type profile struct {
 	Status      string  `json:"status"`
 	LastLoginAt *string `json:"last_login_at,omitempty"`
 	MFAEnabled  bool    `json:"mfa_enabled"`
+	// Enrolment is set when this account is a student. "Which class am I in"
+	// is the first thing a child or a parent checks on their own record, and
+	// the profile answered every question except that one.
+	Enrolment *enrolment `json:"enrolment,omitempty"`
+}
+
+type enrolment struct {
+	AdmissionNo string `json:"admission_no"`
+	ClassName   string `json:"class_name,omitempty"`
+	SectionName string `json:"section_name,omitempty"`
+	RollNo      *int32 `json:"roll_no,omitempty"`
+	Status      string `json:"status,omitempty"`
 }
 
 func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +45,27 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 			Scan(&p.ID, &p.FullName, &p.Email, &p.Phone, &p.AvatarKey,
 				&p.Status, &p.LastLoginAt, &p.MFAEnabled)
 	})
+	if err == nil {
+		// A miss is the normal case for staff, so it is not an error.
+		var e enrolment
+		if lookupErr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(), `
+				SELECT st.admission_no, c.name, sec.name, en.roll_no, en.status
+				  FROM students st
+				  LEFT JOIN LATERAL (
+				      SELECT e.class_id, e.section_id, e.roll_no, e.status
+				        FROM enrollments e
+				       WHERE e.student_id = st.id
+				       ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  LEFT JOIN classes  c   ON c.id = en.class_id
+				  LEFT JOIN sections sec ON sec.id = en.section_id
+				 WHERE st.user_id = $1`, id.UserID).
+				Scan(&e.AdmissionNo, &e.ClassName, &e.SectionName, &e.RollNo, &e.Status)
+		}); lookupErr == nil {
+			p.Enrolment = &e
+		}
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

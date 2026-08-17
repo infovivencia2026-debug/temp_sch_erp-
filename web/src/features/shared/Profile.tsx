@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Card, CardHeader, Button, Loading, ErrorState, Badge } from '@/components/ui'
+import {
+  Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
+} from '@/components/ui'
 import { useSession } from '@/lib/session'
 
 interface Profile {
   id: string; full_name: string; email?: string; phone?: string
   status: string; last_login_at?: string; mfa_enabled: boolean
+  enrolment?: {
+    admission_no: string; class_name?: string; section_name?: string
+    roll_no?: number; status?: string
+  }
 }
 
 export default function ProfileView() {
@@ -19,6 +25,33 @@ export default function ProfileView() {
 
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
+
+  /* Editing was never wired up.
+
+     PUT /api/v1/profile has accepted a name and a phone since the endpoint was
+     written, and the screen showed both as read-only rows -- so a student whose
+     number changed had no way to say so, on the one screen that is entirely
+     about them. Email stays read-only on purpose: it is a login identifier and
+     changing it needs a verification round trip, not a PUT. */
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put('/api/v1/profile', { full_name: name.trim(), phone: phone.trim() || null }),
+    onSuccess: () => {
+      setEditing(false)
+      qc.invalidateQueries({ queryKey: ['profile'] })
+      qc.invalidateQueries({ queryKey: ['session'] })
+    },
+  })
+
+  function startEditing() {
+    setName(data?.full_name ?? '')
+    setPhone(data?.phone ?? '')
+    setEditing(true)
+  }
 
   const change = useMutation({
     mutationFn: () => api.post('/api/v1/profile/password', {
@@ -36,16 +69,61 @@ export default function ProfileView() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
-        <CardHeader title="Profile" />
+        <CardHeader
+          title="Profile"
+          action={
+            editing ? undefined : (
+              <Button size="sm" variant="secondary" onClick={startEditing}>Edit</Button>
+            )
+          }
+        />
+
+        {editing ? (
+          <div className="flex flex-col gap-4 p-5">
+            <Field label="Name">
+              <Input value={name} onChange={setName} placeholder="Your full name" />
+            </Field>
+            <Field label="Phone" hint="Used for attendance and fee alerts.">
+              <Input value={phone} onChange={setPhone} placeholder="98xxxxxxxx" />
+            </Field>
+            <p className="text-[12.5px] text-muted-foreground">
+              Email is your sign-in and cannot be changed here.
+            </p>
+            <FormNotice error={save.error} />
+            <div className="flex gap-2">
+              <Button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>
+                {save.isPending ? 'Saving…' : 'Save changes'}
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
         <dl className="divide-y text-sm">
           <Row label="Name" value={data?.full_name} />
           <Row label="Email" value={data?.email ?? '—'} />
           <Row label="Phone" value={data?.phone ?? '—'} />
+          {data?.enrolment && (
+            <>
+              <Row label="Admission no." value={data.enrolment.admission_no} />
+              <Row
+                label="Class"
+                value={
+                  data.enrolment.class_name
+                    ? `${data.enrolment.class_name}${data.enrolment.section_name ? `-${data.enrolment.section_name}` : ''}`
+                    : 'Not placed'
+                }
+              />
+              {data.enrolment.roll_no != null && (
+                <Row label="Roll no." value={String(data.enrolment.roll_no)} />
+              )}
+            </>
+          )}
           <Row label="Status" value={<Badge tone="success">{data?.status}</Badge>} />
           <Row label="Two-factor" value={data?.mfa_enabled ? 'Enabled' : 'Not set up'} />
           <Row label="Roles" value={session.user?.roles.join(', ') || '—'} />
           <Row label="Permissions" value={`${session.permissions.length} granted`} />
         </dl>
+        )}
       </Card>
 
       <Card>
@@ -57,8 +135,8 @@ export default function ProfileView() {
           className="space-y-3 p-4"
           onSubmit={(e) => { e.preventDefault(); change.mutate() }}
         >
-          <Field label="Current password" value={current} onChange={setCurrent} />
-          <Field label="New password" value={next} onChange={setNext} hint="At least 12 characters." />
+          <PasswordField label="Current password" value={current} onChange={setCurrent} />
+          <PasswordField label="New password" value={next} onChange={setNext} hint="At least 12 characters." />
           {change.isError && (
             <p className="text-xs text-destructive">
               {change.error instanceof Error ? change.error.message : 'Could not change password'}
@@ -83,7 +161,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function Field({ label, value, onChange, hint }: {
+function PasswordField({ label, value, onChange, hint }: {
   label: string; value: string; onChange: (v: string) => void; hint?: string
 }) {
   return (
