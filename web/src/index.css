@@ -40,9 +40,20 @@
   :root {
     color-scheme: light;
 
-    /* Surfaces, lightest content sitting on a slightly darker page. */
-    --ground: 0 0% 98%;          /* #FAFAFA page */
-    --background: 0 0% 98%;
+    /* Surfaces.
+
+       Separation comes from tone, not from lines. Four steps -- ground,
+       sidebar, subtle, surface -- carry the whole layout, so a page can stop
+       drawing a border around everything to say where one region ends.
+
+       The sidebar is a shade off the ground rather than white: white sidebar
+       on white page separated by a grey line is three rectangles, and the eye
+       reads the line before the content. */
+    --ground: 220 20% 97%;       /* #F7F8FA page */
+    --background: 220 20% 97%;
+    --sidebar: 220 22% 98%;      /* #F8F9FB */
+    --surface-subtle: 220 20% 99%; /* #FAFBFC */
+    --surface-hover: 220 16% 95%;  /* #F2F4F7 */
     --card: 0 0% 100%;           /* #FFFFFF surface */
     --card-foreground: 221 39% 11%;
     --popover: 0 0% 100%;
@@ -59,11 +70,14 @@
     --muted-foreground: 220 9% 47%;
 
     --border: 220 13% 91%;       /* #E5E7EB */
+    --border-strong: 220 14% 83%; /* #D1D5DB, for the rare line that must read */
     --input: 220 13% 91%;
 
     /* The single accent. Used for primary actions, selection and one series
        in a chart — not for headings, icons or decoration. */
     --primary: 217 91% 60%;      /* #2563EB */
+    --primary-hover: 221 83% 53%; /* #1D4ED8 */
+    --primary-soft: 214 100% 97%; /* #EFF6FF */
     --primary-foreground: 0 0% 100%;
     --ring: 217 91% 60%;
 
@@ -83,14 +97,17 @@
     /* Navigation is a quiet surface, not an inverted slab. Only the active
        item is emphasised; making every item look like a button is what turns
        a sidebar into noise. */
-    --rail: 0 0% 100%;
+    --rail: 220 22% 98%;
     --rail-foreground: 220 9% 34%;
+    /* The active navigation item. A restrained tonal step, not a filled blue
+       pill: the sidebar is where you are, not what you are doing. */
+    --nav-active: 218 27% 94%;   /* #EEF2F7 */
 
     /* Radius scale, by component weight. */
-    --radius-control: 6px;
+    --radius-control: 7px;
     --radius-input: 8px;
-    --radius-card: 10px;
-    --radius-dialog: 12px;
+    --radius-card: 11px;
+    --radius-dialog: 14px;
     --radius: var(--radius-card);
   }
 
@@ -100,6 +117,9 @@
     /* Four tonal steps rather than black-and-white. */
     --ground: 0 0% 4%;           /* #0A0A0A */
     --background: 0 0% 4%;
+    --sidebar: 0 0% 6%;          /* #0F0F0F, a step off the ground */
+    --surface-subtle: 0 0% 8%;
+    --surface-hover: 0 0% 12%;
     --card: 0 0% 7%;             /* #111111 */
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 9%;          /* #181818 */
@@ -111,9 +131,12 @@
     --muted-foreground: 240 4% 55%;
 
     --border: 0 0% 15%;          /* #272727 */
+    --border-strong: 0 0% 22%;
     --input: 0 0% 15%;
 
     --primary: 217 91% 62%;
+    --primary-hover: 217 91% 70%;
+    --primary-soft: 217 60% 14%;
     --primary-foreground: 0 0% 100%;
     --ring: 217 91% 62%;
 
@@ -128,8 +151,9 @@
     --accent: 0 0% 13%;
     --accent-foreground: 0 0% 98%;
 
-    --rail: 0 0% 7%;
+    --rail: 0 0% 6%;
     --rail-foreground: 240 5% 65%;
+    --nav-active: 0 0% 14%;
   }
 
   /* Row padding is a document-level dial so every table responds to the
@@ -194,6 +218,22 @@
     background: hsl(var(--card));
     color: hsl(var(--card-foreground));
     transition: border-color 0.2s ease;
+  }
+
+  /* A table header is a label row, not a band. The tint is enough to hold the
+     header still while the body scrolls under it. */
+  .responsive-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: hsl(var(--surface-subtle));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .responsive-table tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .responsive-table tbody tr:hover {
+    background: hsl(var(--surface-hover) / 0.6);
   }
 
   /* A row of metrics sharing one outline, separated by 1px of the border
@@ -277,14 +317,13 @@
   /* Content settles in once, on mount. Short and small: a long slide is
      theatre, and an operator opening the same screen forty times a day will
      notice it forty times. */
-  .reveal {
-    opacity: 0;
-    transform: translateY(4px);
-    animation: reveal 0.25s ease-out forwards;
-  }
-  .reveal-1 { animation-delay: 40ms; }
-  .reveal-2 { animation-delay: 80ms; }
-  .reveal-3 { animation-delay: 120ms; }
+  /* Navigation should feel instantaneous; interaction can move.
+
+     The staggered rise ran on every screen including the ones an operator
+     opens forty times a day, so the fade was the slowest part of navigating.
+     Kept as a no-op class so call sites need not change. */
+  .reveal { opacity: 1; transform: none; }
+  .reveal-1, .reveal-2, .reveal-3 { animation-delay: 0ms; }
 }
 
 @keyframes reveal {
@@ -403,11 +442,14 @@
   }
   .card,
   .cell-grid,
-  .cell {
+  .cell,
+  .responsive-table thead th {
     border-color: #999 !important;
     background: #fff !important;
     box-shadow: none !important;
   }
+  /* Sticky headers become fixed banners on paper. */
+  .responsive-table thead th { position: static !important; }
 
   /* The page fills the sheet; the app's max width is a screen concern. */
   main,

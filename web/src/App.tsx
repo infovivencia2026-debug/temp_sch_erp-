@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
 import { CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
-import { PageHead, PageBody, Card, Loading, EmptyState, Badge } from '@/components/ui'
+import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
 import NeedsAttention from '@/components/NeedsAttention'
@@ -60,7 +60,7 @@ function FeatureRoute() {
       <>
         <PageHead eyebrow={section.name} title={feature.name} description={feature.summary} />
         <PageBody>
-          <EmptyState
+          <UnavailableState
             title="Nothing in your scope"
             body={`You can use this feature, but no ${scopeNoun(feature.scope)} is assigned to your account yet.`}
           />
@@ -133,27 +133,16 @@ function CataloguedStub({
 }) {
   return (
     <>
-      <PageHead
-        eyebrow={sectionName}
-        title={feature.name}
-        description={feature.summary}
-        actions={<Badge tone="warning">Not built yet</Badge>}
-      />
+      <PageHead eyebrow={sectionName} title={feature.name} description={feature.summary} />
       <PageBody>
-        <Card className="p-8">
-          <p className="text-[13px] font-medium">Catalogued, not implemented</p>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-            This feature is registered in the catalog with its permission and data scope, and your
-            role grants it — but no screen has been built for it yet. It is listed here rather than
-            hidden so the workspace reflects the full specification.
-          </p>
-          <dl className="mt-6 grid max-w-md grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[12px]">
-            <dt className="text-muted-foreground">Permission key</dt>
-            <dd className="font-mono text-[11px]">{feature.key}</dd>
-            <dt className="text-muted-foreground">Data scope</dt>
-            <dd>{feature.scope}</dd>
-          </dl>
-        </Card>
+        <UnavailableState
+          title="Not available yet"
+          body={`${feature.name} is set up for this workspace, but its screen has not been built. It is listed here rather than hidden so the workspace reflects the full specification.`}
+          technical={[
+            { label: 'Permission', value: feature.key },
+            { label: 'Data scope', value: feature.scope },
+          ]}
+        />
       </PageBody>
     </>
   )

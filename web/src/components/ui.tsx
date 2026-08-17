@@ -1,6 +1,9 @@
-import { Children, cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from 'react'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Download, Printer, X,
+  Children, cloneElement, Fragment, isValidElement, useState,
+  type ReactElement, type ReactNode,
+} from 'react'
+import {
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Printer, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -47,25 +50,31 @@ export function PageHead({
   title,
   description,
   actions,
+  width = 'operational',
 }: {
   /** The section this screen sits under — rendered as a breadcrumb. */
   eyebrow?: string
   title: string
   description?: string
   actions?: ReactNode
+  /** Must match the PageBody beneath it, or the two edges disagree. */
+  width?: Width
 }) {
   return (
-    <div className="border-b px-6 pb-5 pt-5 sm:px-8">
+    /* No bottom border. The rule under a page title is the most-repeated line
+       in the product and it separates a heading from its own content -- the
+       28px of space below does the same job without drawing anything. */
+    <div className={cn('px-5 pb-6 pt-5 sm:px-7', WIDTH[width])}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           {eyebrow && (
-            <nav className="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <nav className="mb-1 flex items-center gap-1 text-[12.5px] text-muted-foreground">
               <span>{eyebrow}</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <span aria-hidden className="text-muted-foreground/50">/</span>
               <span className="text-secondary-foreground">{title}</span>
             </nav>
           )}
-          <h1 className="text-[24px] font-semibold tracking-[-0.02em]">{title}</h1>
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
           {description && (
             <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
               {description}
@@ -78,9 +87,94 @@ export function PageHead({
   )
 }
 
+/* Page width is contextual, not one number.
+
+   Everything used to stretch to 1600px, which left a settings form with two
+   fields floating in a metre of nothing. A ledger wants the room; a form
+   wants a readable measure. */
+export type Width = 'form' | 'operational' | 'wide' | 'full'
+
+const WIDTH: Record<Width, string> = {
+  form: 'mx-auto w-full max-w-[1120px]',
+  operational: 'mx-auto w-full max-w-[1360px]',
+  wide: 'mx-auto w-full max-w-[1520px]',
+  full: 'w-full',
+}
+
 /** Standard body padding beneath a PageHead. */
-export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="space-y-6 px-6 py-6 sm:px-8">{children}</div>
+export function PageBody({
+  children,
+  width = 'operational',
+}: {
+  children: ReactNode
+  width?: Width
+}) {
+  return <div className={cn('space-y-7 px-5 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
+}
+
+/* A panel: white where content needs containing, and nothing where it does
+   not. Distinct from Card only in intent -- Card is the legacy name and stays
+   for the screens already using it. */
+export function Panel({
+  className,
+  children,
+}: {
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('rounded-[10px] border bg-card', className)}>{children}</div>
+  )
+}
+
+/* Not available yet.
+
+   Was a full-width bordered card containing four lines and two developer
+   fields, so the emptiest screens in the product looked the most elaborate.
+   Neutral, not amber: "not implemented" is product metadata, not a warning
+   about anything the person in front of it did. */
+export function UnavailableState({
+  title,
+  body,
+  technical,
+}: {
+  title: string
+  body?: string
+  technical?: { label: string; value: string }[]
+}) {
+  return (
+    <div className="max-w-[720px]">
+      <div className="flex items-start gap-3">
+        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium">{title}</p>
+          {body && (
+            <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">{body}</p>
+          )}
+        </div>
+      </div>
+
+      {technical && technical.length > 0 && (
+        /* Permission keys and scopes are implementation language. A finance
+           clerk should never meet them; the person debugging a grant needs
+           them in one click. */
+        <details className="group mt-5">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+            <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+            Technical information
+          </summary>
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[12.5px]">
+            {technical.map((t) => (
+              <Fragment key={t.label}>
+                <dt className="text-muted-foreground">{t.label}</dt>
+                <dd className="font-mono text-[11.5px]">{t.value}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </details>
+      )}
+    </div>
+  )
 }
 
 /**
