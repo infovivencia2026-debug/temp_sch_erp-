@@ -82,7 +82,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.home.follow_ups': lazy(() => import('./admissions/Dashboard')),
   'hr.home.hr_kpis': lazy(() => import('./hr/Dashboard')),
   'hr.records.employee_master': lazy(() => import('./hr/Dashboard')),
-  'institution_admin.transport.vehicle_master_registry': lazy(() => import('./operations/Workspace')),
   'student.home.my_day': lazy(() => import('./portal/Portal')),
   'student.home.action_reminders': lazy(() => import('./portal/Portal')),
   'student.attendance.attendance': lazy(() => import('./portal/Portal')),
@@ -117,10 +116,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.payroll.payroll': lazy(() => import('./payroll/Payroll')),
   'hr.payroll.payslip_generation_email_dispatch': lazy(() => import('./payroll/Payroll')),
   'hr.payroll.salary_structure_builder': lazy(() => import('./payroll/Payroll')),
-  'institution_admin.hostel.room_allocation_engine': lazy(() => import('./ops2/Hostel')),
-  'institution_admin.hostel.hostel_building_room_setup': lazy(() => import('./ops2/Hostel')),
-  'institution_admin.stores.item_category_store_setup': lazy(() => import('./ops2/Inventory')),
-  'institution_admin.stores.department_stock_issuance': lazy(() => import('./ops2/Inventory')),
 
   /* --- the six workspaces added for roles that had permissions and no menu --
 
@@ -154,11 +149,29 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Transport Manager, Librarian, Hostel Warden — the operations umbrella
   // split into the three jobs a larger school staffs separately.
-  'institution_admin.transport.vehicles': lazy(() => import('./operations/Workspace')),
 
 
-  'institution_admin.hostel.buildings_rooms': lazy(() => import('./ops2/Hostel')),
-  'institution_admin.hostel.room_allocation': lazy(() => import('./ops2/Hostel')),
+
+  /* Operations. Four screens for the school's physical side, each collapsing
+     the catalogue's many entries onto the one place the work happens. */
+  'institution_admin.hostel.buildings_rooms': lazy(() => import('./operations/Hostel')),
+  'institution_admin.hostel.hostel_building_room_setup': lazy(() => import('./operations/Hostel')),
+  'institution_admin.hostel.room_allocation': lazy(() => import('./operations/Hostel')),
+  'institution_admin.hostel.room_allocation_engine': lazy(() => import('./operations/Hostel')),
+  'institution_admin.hostel.roll_call': lazy(() => import('./operations/Hostel')),
+  'institution_admin.hostel.hostel_roll_call_attendance': lazy(() => import('./operations/Hostel')),
+
+  'institution_admin.stores.item_category_store_setup': lazy(() => import('./operations/Stores')),
+  'institution_admin.stores.department_stock_issuance': lazy(() => import('./operations/Stores')),
+
+  'institution_admin.infirmary.student_health_master_file': lazy(() => import('./operations/Infirmary')),
+  'institution_admin.infirmary.emergency_health_alerts': lazy(() => import('./operations/Infirmary')),
+
+  'institution_admin.transport.vehicles': lazy(() => import('./operations/Transport')),
+  'institution_admin.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
+  'institution_admin.transport.routes_stops': lazy(() => import('./operations/Transport')),
+  'institution_admin.transport.route_pickup_stop_mapping': lazy(() => import('./operations/Transport')),
+  'institution_admin.transport.route_distance_fee_slabs': lazy(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --
      do we have it, who has it, what do they owe -- so the catalogue, the

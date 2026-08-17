@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 137 of the catalog's features are implemented.
+// 144 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.enrollment_handoff":                           true,
 	"admissions.admissions.merit_list_generation":                        true,
@@ -81,8 +81,12 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.home.needs_attention":                             true,
 	"institution_admin.hostel.buildings_rooms":                           true,
 	"institution_admin.hostel.hostel_building_room_setup":                true,
+	"institution_admin.hostel.hostel_roll_call_attendance":               true,
+	"institution_admin.hostel.roll_call":                                 true,
 	"institution_admin.hostel.room_allocation":                           true,
 	"institution_admin.hostel.room_allocation_engine":                    true,
+	"institution_admin.infirmary.emergency_health_alerts":                true,
+	"institution_admin.infirmary.student_health_master_file":             true,
 	"institution_admin.library.accession_register":                       true,
 	"institution_admin.library.book_cataloging_accession_register":       true,
 	"institution_admin.library.book_issue_return_terminal":               true,
@@ -104,6 +108,9 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.students.enrollment_lifecycle":                    true,
 	"institution_admin.students.student_directory":                       true,
 	"institution_admin.students.student_directory_student_360":           true,
+	"institution_admin.transport.route_distance_fee_slabs":               true,
+	"institution_admin.transport.route_pickup_stop_mapping":              true,
+	"institution_admin.transport.routes_stops":                           true,
 	"institution_admin.transport.vehicle_master_registry":                true,
 	"institution_admin.transport.vehicles":                               true,
 	"parent.academics.homework_academics":                                true,

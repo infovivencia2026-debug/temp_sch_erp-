@@ -902,8 +902,13 @@ func (s *Server) allocateHostelBed(w http.ResponseWriter, r *http.Request) {
 }
 
 type hostelRow struct {
+	// RoomID was missing, which made the occupancy list unusable for the one
+	// thing a warden does with it: put a child in a free bed. Every row named
+	// a room the client could not then refer to.
+	RoomID   string  `json:"room_id"`
 	Block    string  `json:"block"`
 	RoomNo   string  `json:"room_no"`
+	Floor    *int    `json:"floor,omitempty"`
 	Beds     int     `json:"beds"`
 	Occupied int     `json:"occupied"`
 	Free     int     `json:"free"`
@@ -912,7 +917,7 @@ type hostelRow struct {
 
 func (s *Server) listHostelOccupancy(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT hb.name, hr.room_no, hr.beds,
+		SELECT hr.id::text, hb.name, hr.room_no, hr.floor, hr.beds,
 		       (SELECT count(*) FROM hostel_allocations ha
 		         WHERE ha.room_id = hr.id AND ha.vacated_on IS NULL)::int,
 		       (hr.beds - (SELECT count(*) FROM hostel_allocations ha
@@ -923,7 +928,8 @@ func (s *Server) listHostelOccupancy(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY hb.name, hr.room_no`, nil,
 		func(rows pgx.Rows) (hostelRow, error) {
 			var v hostelRow
-			return v, rows.Scan(&v.Block, &v.RoomNo, &v.Beds, &v.Occupied, &v.Free, &v.Gender)
+			return v, rows.Scan(&v.RoomID, &v.Block, &v.RoomNo, &v.Floor, &v.Beds,
+				&v.Occupied, &v.Free, &v.Gender)
 		})
 	respond(w, r, items, err)
 }
@@ -1107,6 +1113,170 @@ func (s *Server) listTitleCopies(w http.ResponseWriter, r *http.Request) {
 			var v copyRow
 			return v, rows.Scan(&v.ID, &v.AccessionNo, &v.Barcode, &v.Rack,
 				&v.OnLoanTo, &v.DueOn)
+		})
+	respond(w, r, items, err)
+}
+
+// --- hostel boarders ----------------------------------------------------------
+
+type boarderRow struct {
+	AllocationID string `json:"allocation_id"`
+	StudentID    string `json:"student_id"`
+	Name         string `json:"name"`
+	AdmissionNo  string `json:"admission_no"`
+	BedNo        int    `json:"bed_no"`
+	AllocatedOn  string `json:"allocated_on"`
+	Class        string `json:"class_name,omitempty"`
+}
+
+// listRoomBoarders names who is in a room. Occupancy counts tell a warden a
+// bed is taken; roll call needs to know by whom.
+func (s *Server) listRoomBoarders(w http.ResponseWriter, r *http.Request) {
+	roomID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid room id")
+		return
+	}
+	items, err := collect(s, r, `
+		SELECT ha.id::text, st.id::text,
+		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
+		       ha.bed_no, to_char(ha.allocated_on,'YYYY-MM-DD'),
+		       COALESCE(c.name || '-' || sec.name, '')
+		  FROM hostel_allocations ha
+		  JOIN students st ON st.id = ha.student_id
+		  LEFT JOIN LATERAL (
+		      SELECT e.class_id, e.section_id FROM enrollments e
+		       WHERE e.student_id = st.id AND e.status = 'active' LIMIT 1
+		  ) en ON true
+		  LEFT JOIN classes  c   ON c.id = en.class_id
+		  LEFT JOIN sections sec ON sec.id = en.section_id
+		 WHERE ha.room_id = $1 AND ha.vacated_on IS NULL
+		 ORDER BY ha.bed_no`, []any{roomID},
+		func(rows pgx.Rows) (boarderRow, error) {
+			var v boarderRow
+			return v, rows.Scan(&v.AllocationID, &v.StudentID, &v.Name, &v.AdmissionNo,
+				&v.BedNo, &v.AllocatedOn, &v.Class)
+		})
+	respond(w, r, items, err)
+}
+
+// --- infirmary ----------------------------------------------------------------
+
+type healthRow struct {
+	StudentID   string  `json:"student_id"`
+	Name        string  `json:"name"`
+	AdmissionNo string  `json:"admission_no"`
+	Class       string  `json:"class_name,omitempty"`
+	BloodGroup  *string `json:"blood_group,omitempty"`
+	Allergies   *string `json:"allergies,omitempty"`
+	Chronic     *string `json:"chronic_conditions,omitempty"`
+	Doctor      *string `json:"doctor_name,omitempty"`
+	DoctorPhone *string `json:"doctor_phone,omitempty"`
+}
+
+/*
+listHealthRecords is the clinic's master file.
+
+	Ordered so that the children with something recorded come first. A nurse
+	opening this in an emergency is looking for the allergy or the chronic
+	condition, and burying those under a hundred blank rows is the difference
+	between finding it and not.
+*/
+func (s *Server) listHealthRecords(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	onlyFlagged := r.URL.Query().Get("flagged") == "true"
+	items, err := collect(s, r, `
+		SELECT st.id::text, concat_ws(' ', st.first_name, st.last_name),
+		       st.admission_no, COALESCE(c.name || '-' || sec.name, ''),
+		       st.blood_group, sh.allergies, sh.chronic_conditions,
+		       sh.doctor_name, sh.doctor_phone
+		  FROM students st
+		  LEFT JOIN student_health sh ON sh.student_id = st.id
+		  LEFT JOIN LATERAL (
+		      SELECT e.class_id, e.section_id FROM enrollments e
+		       WHERE e.student_id = st.id AND e.status = 'active' LIMIT 1
+		  ) en ON true
+		  LEFT JOIN classes  c   ON c.id = en.class_id
+		  LEFT JOIN sections sec ON sec.id = en.section_id
+		 WHERE ($1 = '' OR concat_ws(' ', st.first_name, st.last_name) ILIKE '%' || $1 || '%'
+		                OR st.admission_no ILIKE '%' || $1 || '%')
+		   AND (NOT $2::bool
+		        OR sh.allergies IS NOT NULL OR sh.chronic_conditions IS NOT NULL)
+		 ORDER BY (sh.allergies IS NULL AND sh.chronic_conditions IS NULL),
+		          st.admission_no
+		 LIMIT 300`, []any{q, onlyFlagged},
+		func(rows pgx.Rows) (healthRow, error) {
+			var v healthRow
+			return v, rows.Scan(&v.StudentID, &v.Name, &v.AdmissionNo, &v.Class,
+				&v.BloodGroup, &v.Allergies, &v.Chronic, &v.Doctor, &v.DoctorPhone)
+		})
+	respond(w, r, items, err)
+}
+
+// --- transport routes ---------------------------------------------------------
+
+type routeRow struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Code      *string `json:"code,omitempty"`
+	Vehicle   *string `json:"vehicle,omitempty"`
+	DistanceK *string `json:"distance_km,omitempty"`
+	Stops     int     `json:"stops"`
+	Riders    int     `json:"riders"`
+	Active    bool    `json:"is_active"`
+}
+
+// listRoutes gives the transport office its routes with the two numbers that
+// decide everything: how many stops, and how many children ride.
+func (s *Server) listRoutes(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT rt.id::text, rt.name, rt.code, v.registration_no,
+		       rt.distance_km::text,
+		       (SELECT count(*) FROM route_stops rs WHERE rs.route_id = rt.id)::int,
+		       (SELECT count(*) FROM transport_allocations ta
+		         WHERE ta.route_id = rt.id AND ta.valid_to IS NULL)::int,
+		       rt.is_active
+		  FROM routes rt
+		  LEFT JOIN vehicles v ON v.id = rt.vehicle_id
+		 ORDER BY rt.name`, nil,
+		func(rows pgx.Rows) (routeRow, error) {
+			var v routeRow
+			return v, rows.Scan(&v.ID, &v.Name, &v.Code, &v.Vehicle, &v.DistanceK,
+				&v.Stops, &v.Riders, &v.Active)
+		})
+	respond(w, r, items, err)
+}
+
+type stopRow struct {
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	Sequence   int     `json:"sequence"`
+	PickupTime *string `json:"pickup_time,omitempty"`
+	DropTime   *string `json:"drop_time,omitempty"`
+	FarePaise  int64   `json:"fare_paise"`
+	Riders     int     `json:"riders"`
+}
+
+// listRouteStops is the run in order, with who boards where.
+func (s *Server) listRouteStops(w http.ResponseWriter, r *http.Request) {
+	routeID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid route id")
+		return
+	}
+	items, err := collect(s, r, `
+		SELECT rs.id::text, rs.name, rs.sequence,
+		       to_char(rs.pickup_time,'HH24:MI'), to_char(rs.drop_time,'HH24:MI'),
+		       COALESCE(rs.fare_paise,0),
+		       (SELECT count(*) FROM transport_allocations ta
+		         WHERE ta.pickup_stop_id = rs.id AND ta.valid_to IS NULL)::int
+		  FROM route_stops rs
+		 WHERE rs.route_id = $1
+		 ORDER BY rs.sequence`, []any{routeID},
+		func(rows pgx.Rows) (stopRow, error) {
+			var v stopRow
+			return v, rows.Scan(&v.ID, &v.Name, &v.Sequence, &v.PickupTime,
+				&v.DropTime, &v.FarePaise, &v.Riders)
 		})
 	respond(w, r, items, err)
 }

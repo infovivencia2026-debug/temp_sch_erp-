@@ -3144,25 +3144,25 @@
   "description": "Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "operations/Workspace",
+  "component": "operations/Transport",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/operations/dashboard",
+    "path": "/api/v1/ops/transport/routes",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/library/loans",
+    "path": "/api/v1/ops/transport/routes/:param/stops",
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    },
    {
-    "path": "/api/v1/operations/transport/vehicles",
+    "path": "/api/v1/ops/transport/vehicles",
     "methods": [
      "GET"
     ],
@@ -3192,9 +3192,31 @@
   "description": "Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Transport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/transport/routes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/transport/routes/:param/stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/transport/vehicles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.student_route_assignment",
@@ -3218,9 +3240,31 @@
   "description": "Define transport fee slabs by route distance and auto-apply them to the student's fee structure.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Transport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/transport/routes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/transport/routes/:param/stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/transport/vehicles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.transport_attendance_scans",
@@ -3361,25 +3405,25 @@
   "description": "The vehicle register: registration, capacity, permit, insurance and fitness expiry.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "operations/Workspace",
+  "component": "operations/Transport",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/operations/dashboard",
+    "path": "/api/v1/ops/transport/routes",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/library/loans",
+    "path": "/api/v1/ops/transport/routes/:param/stops",
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    },
    {
-    "path": "/api/v1/operations/transport/vehicles",
+    "path": "/api/v1/ops/transport/vehicles",
     "methods": [
      "GET"
     ],
@@ -3409,9 +3453,31 @@
   "description": "Route definitions, the stops on each and the timing between them.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Transport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/transport/routes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/transport/routes/:param/stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/transport/vehicles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.student_allocation",
@@ -3474,15 +3540,36 @@
   "description": "Define hostel blocks, floors, room types (Single, Shared), and total bed capacity.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "ops2/Hostel",
+  "component": "operations/Hostel",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/hostel/occupancy",
     "methods": [
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -3495,15 +3582,36 @@
   "description": "Assign students to specific rooms/beds, view room occupancy rate, and handle room changes.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "ops2/Hostel",
+  "component": "operations/Hostel",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/hostel/occupancy",
     "methods": [
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -3529,9 +3637,38 @@
   "description": "Take daily evening hostel attendance, track present boarders, and alert warden of missing students.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Hostel",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/occupancy",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.night_study_room_attendance",
@@ -3620,15 +3757,36 @@
   "description": "Blocks, rooms and beds, with the condition of each.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "ops2/Hostel",
+  "component": "operations/Hostel",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/hostel/occupancy",
     "methods": [
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -3641,15 +3799,36 @@
   "description": "Which boarder is in which bed, and the moves waiting to happen.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "ops2/Hostel",
+  "component": "operations/Hostel",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/hostel/occupancy",
     "methods": [
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -3662,9 +3841,38 @@
   "description": "Morning and night attendance for the hostel, separate from the school register.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Hostel",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/occupancy",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/rooms/:param/boarders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.outpass_leave",
@@ -4115,9 +4323,17 @@
   "description": "Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Infirmary",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/health/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.daily_nurse_visit_log",
@@ -4154,9 +4370,17 @@
   "description": "Send immediate SMS/Call alerts to parents and principal during medical emergencies.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Infirmary",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/health/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.annual_health_checkup_records",
@@ -4193,9 +4417,16 @@
   "description": "Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "ops2/Inventory",
+  "component": "operations/Stores",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/inventory/movements",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/inventory/stock",
     "methods": [
@@ -4227,9 +4458,16 @@
   "description": "Issue stock items to specific teachers or departments and track active stock balances.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "ops2/Inventory",
+  "component": "operations/Stores",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/ops/inventory/movements",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/ops/inventory/stock",
     "methods": [
