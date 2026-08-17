@@ -219,6 +219,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/dashboard", s.getHRDashboard)
 			r.Get("/employees", s.listEmployees)
 			r.Get("/leave", s.listLeaveRequests)
+			r.Get("/documents", s.listEmployeeDocuments)
 		})
 
 		// --- Operations Staff -----------------------------------------------

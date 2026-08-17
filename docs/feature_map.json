@@ -9547,11 +9547,11 @@
   "description": "Employee/faculty profiles, department, designation, documents and employment status.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "hr/Dashboard",
+  "component": "hr/Employees",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/hr/dashboard",
+    "path": "/api/v1/hr/documents",
     "methods": [
      "GET"
     ],
@@ -9575,9 +9575,24 @@
   "description": "Contracts, IDs and configured employment documents.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Employees",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/documents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.records.employee_document_expiry_alerts",
@@ -9588,9 +9603,24 @@
   "description": "Receive alerts for upcoming visa, teaching license, or contract renewal expiration dates.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Employees",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/documents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.records.staff_id_card_printing",
@@ -9601,9 +9631,24 @@
   "description": "Design and bulk-print plastic ID cards with barcodes, RFID chips, and staff photos.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Employees",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/documents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.records.teacher_qualification_register",
@@ -9731,9 +9776,24 @@
   "description": "Employee attendance, late/early records and attendance reports.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/StaffAttendance",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/workflow/staff-attendance",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/staff-register",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.attendance.biometric_machine_attendance_sync",

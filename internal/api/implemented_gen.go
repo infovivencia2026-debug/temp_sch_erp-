@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 159 of the catalog's features are implemented.
+// 163 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -64,13 +64,17 @@ var implementedFeatures = map[string]bool{
 	"finance.student_dues.defaulters_reminders":                          true,
 	"finance.student_dues.post_dated_cheques_pdc_registry":               true,
 	"finance.student_dues.student_ledger":                                true,
+	"hr.attendance.staff_attendance":                                     true,
 	"hr.home.hr_kpis":                                                    true,
 	"hr.leave.leave":                                                     true,
 	"hr.leave.staff_leave_application_management":                        true,
 	"hr.payroll.payroll":                                                 true,
 	"hr.payroll.payslip_generation_email_dispatch":                       true,
 	"hr.payroll.salary_structure_builder":                                true,
+	"hr.records.employee_document_expiry_alerts":                         true,
+	"hr.records.employee_documents":                                      true,
 	"hr.records.employee_master":                                         true,
+	"hr.records.staff_id_card_printing":                                  true,
 	"institution_admin.academics.academic_structure":                     true,
 	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,

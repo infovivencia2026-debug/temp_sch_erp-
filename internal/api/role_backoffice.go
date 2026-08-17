@@ -479,3 +479,50 @@ func (s *Server) listVehicles(w http.ResponseWriter, r *http.Request) {
 		})
 	respond(w, r, items, err)
 }
+
+// --- employee documents -------------------------------------------------------
+
+type employeeDocRow struct {
+	ID        string  `json:"id"`
+	Employee  string  `json:"employee"`
+	Code      string  `json:"employee_code"`
+	DocType   string  `json:"doc_type"`
+	ExpiresOn *string `json:"expires_on,omitempty"`
+	DaysLeft  *int    `json:"days_left,omitempty"`
+	Uploaded  string  `json:"uploaded_on"`
+}
+
+/*
+listEmployeeDocuments doubles as the expiry register.
+
+	A school keeps staff papers because an inspector asks for them and because
+	some of them lapse: a teaching licence, a medical fitness certificate, a
+	driver's police verification. Sorting by what expires soonest — with
+	already-expired first — is the only ordering that makes the list worth
+	opening, since a document with years left needs nobody's attention.
+
+	Documents with no expiry are real and sort last: a degree certificate does
+	not lapse.
+*/
+func (s *Server) listEmployeeDocuments(w http.ResponseWriter, r *http.Request) {
+	onlyExpiring := r.URL.Query().Get("expiring") == "true"
+	items, err := collect(s, r, `
+		SELECT ed.id::text,
+		       concat_ws(' ', e.first_name, e.last_name), e.employee_code,
+		       ed.doc_type, to_char(ed.expires_on,'YYYY-MM-DD'),
+		       CASE WHEN ed.expires_on IS NULL THEN NULL
+		            ELSE (ed.expires_on - CURRENT_DATE)::int END,
+		       to_char(ed.created_at,'YYYY-MM-DD')
+		  FROM employee_documents ed
+		  JOIN employees e ON e.id = ed.employee_id
+		 WHERE NOT $1::bool
+		    OR (ed.expires_on IS NOT NULL AND ed.expires_on <= CURRENT_DATE + 60)
+		 ORDER BY ed.expires_on IS NULL, ed.expires_on
+		 LIMIT 300`, []any{onlyExpiring},
+		func(rows pgx.Rows) (employeeDocRow, error) {
+			var v employeeDocRow
+			return v, rows.Scan(&v.ID, &v.Employee, &v.Code, &v.DocType,
+				&v.ExpiresOn, &v.DaysLeft, &v.Uploaded)
+		})
+	respond(w, r, items, err)
+}
