@@ -88,7 +88,7 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
       : dim
         // Unbuilt, and only on screen because the roadmap toggle is on. A
         // lighter weight says so without a chip beside every second label.
-        ? 'text-muted-foreground/70 hover:bg-surface-hover hover:text-muted-foreground'
+        ? 'text-muted-foreground/70 hover:bg-surface-hover hover:text-secondary-foreground'
         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
   )
 }

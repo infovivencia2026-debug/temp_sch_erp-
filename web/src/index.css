@@ -62,19 +62,31 @@
     --card: 0 0% 100%;           /* #FFFFFF  comes forward */
     --surface-subtle: 220 20% 98.5%;
     --surface-hover: 220 14% 90%;  /* on the sidebar, so a step darker again */
-    --card-foreground: 221 39% 11%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 221 39% 11%;
+    --popover-foreground: 0 0% 0%;
     --elevated: 0 0% 100%;
 
-    /* Text, three steps: primary, secondary, muted. */
-    --foreground: 221 39% 11%;   /* #111827 */
-    --secondary-foreground: 220 9% 34%;  /* #4B5563 */
+    /* Text, three steps: primary, secondary, muted.
+
+       Primary is true black. It was #111827 -- a near-black carrying a blue
+       cast, which is a common way to soften an interface and which read as
+       slightly washed against these surfaces. Black is what a printed register
+       uses and what this is read like.
+
+       The two greys below it are neutral rather than blue-tinted, so the three
+       steps sit on one axis instead of drifting in hue as they lighten. */
+    --foreground: 0 0% 0%;       /* #000000 */
+    --secondary-foreground: 0 0% 28%;    /* #474747 */
     /* 47% is the lightest this can be and still clear 4.5:1 on white, which
        muted text has to: it is used for "soon" navigation items, table
        headers and hints, all of which are read rather than decorative. 55%
        measured 3.5:1 and was quietly failing. */
-    --muted-foreground: 220 9% 47%;
+    /* 41% is the lightest this can be and still clear 4.5:1 on the *sidebar*,
+       which is the darkest of the three planes it has to sit on. Checking it
+       against white alone was how the previous value passed while the group
+       labels in the rail quietly failed. */
+    --muted-foreground: 0 0% 41%;
 
     --border: 220 13% 91%;       /* #E5E7EB */
     --border-strong: 220 14% 83%; /* #D1D5DB, for the rare line that must read */
@@ -99,7 +111,7 @@
     --secondary: 220 14% 96%;
     --muted: 220 14% 96%;
     --accent: 220 14% 96%;
-    --accent-foreground: 221 39% 11%;
+    --accent-foreground: 0 0% 0%;
 
     /* Navigation is a quiet surface, not an inverted slab. Only the active
        item is emphasised; making every item look like a button is what turns
