@@ -420,7 +420,10 @@ func seedFeeStructure(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UU
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO fee_structures (institution_id, campus_id, academic_year_id, class_id,
 			                            name, applies_to, is_active)
-			VALUES ($1,$2,$3,$4,$5,'class',true)
+			-- applies_to is the student category, not the class: the class is
+			-- already class_id. Allowed values are all/rte/hosteller/
+			-- day_scholar/transport.
+			VALUES ($1,$2,$3,$4,$5,'all',true)
 			RETURNING id`, inst, campus, year, k.id,
 			fmt.Sprintf("%s — Annual fees", k.name)).Scan(&sid); err != nil {
 			return n, err
