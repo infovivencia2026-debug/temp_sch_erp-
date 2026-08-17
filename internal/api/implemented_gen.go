@@ -6,14 +6,21 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 152 of the catalog's features are implemented.
+// 159 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
+	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
+	"admissions.admissions.medium_of_instruction_selection":              true,
 	"admissions.admissions.merit_list_generation":                        true,
 	"admissions.admissions.offers_admission_decisions":                   true,
+	"admissions.admissions.provisional_offer_letters":                    true,
 	"admissions.admissions.rte_right_to_education_quota_tracking":        true,
 	"admissions.admissions.seat_allocation_management":                   true,
+	"admissions.admissions.transfer_certificate_intake":                  true,
+	"admissions.applications.applicant_documents":                        true,
 	"admissions.applications.applications":                               true,
+	"admissions.applications.entrance_exam_scheduling":                   true,
+	"admissions.applications.interview_interaction_scheduler":            true,
 	"admissions.enquiries.counselor_activity_follow_ups":                 true,
 	"admissions.enquiries.enquiries_leads":                               true,
 	"admissions.enquiries.inquiry_lead_entry":                            true,

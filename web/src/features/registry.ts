@@ -91,7 +91,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.home.child_summary': lazy(() => import('./portal/Portal')),
   'parent.home.needs_attention': lazy(() => import('./portal/Portal')),
   'parent.attendance.attendance': lazy(() => import('./portal/Portal')),
-  'admissions.applications.applications': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.merit_list_generation': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.seat_allocation_management': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.offers_admission_decisions': lazy(() => import('./admissions/Pipeline')),
@@ -198,6 +197,19 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.library.overdue_fine_calculation': lazy(() => import('./operations/Library')),
   'institution_admin.library.fines': lazy(() => import('./operations/Library')),
   'institution_admin.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
+
+  /* The application ladder: submitted through to enrolled. Four endpoints
+     existed for this and only the list had a caller, so an application could
+     be taken and never moved. Distinct from Pipeline, which is merit ranking
+     and seat matrix -- a different question about the same applicants. */
+  'admissions.applications.applications': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.applicant_documents': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.entrance_exam_scheduling': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.interview_interaction_scheduler': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.provisional_offer_letters': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.transfer_certificate_intake': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.medium_of_instruction_selection': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.child_info_id_capture': lazy(() => import('./admissions/Applications')),
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Enquiries')),

@@ -8557,13 +8557,27 @@
   "description": "Create/review applications and track status.",
   "scope": "Assigned institution/campus admissions scope",
   "scope_key": "institution",
-  "component": "admissions/Pipeline",
+  "component": "admissions/Applications",
   "built": true,
   "endpoints": [
    {
     "path": "/api/v1/academics/sections",
     "methods": [
      "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
     ],
     "conditional": false
    },
@@ -8578,27 +8592,6 @@
     "path": "/api/v1/admissions/workflow/applications/:param/enrol",
     "methods": [
      "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/admissions/workflow/funnel",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/admissions/workflow/merit",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/admissions/workflow/seats",
-    "methods": [
-     "GET"
     ],
     "conditional": false
    }
@@ -8626,9 +8619,45 @@
   "description": "Collect and verify required admission documents.",
   "scope": "Assigned institution/campus admissions scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.applications.entrance_exam_scheduling",
@@ -8639,9 +8668,45 @@
   "description": "Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.applications.interview_interaction_scheduler",
@@ -8652,9 +8717,45 @@
   "description": "Book interview slots for parents/students with principal/management and record scores.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.applications.applicant_medical_fitness_declaration",
@@ -8859,9 +8960,45 @@
   "description": "Generate and email/SMS provisional admission offer letters with payment deadline links.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.admissions.admission_waitlist_management",
@@ -9062,9 +9199,45 @@
   "description": "Record the previous school's TC number, board and issue date, and verify against the prior UDISE record.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.admissions.medium_of_instruction_selection",
@@ -9075,9 +9248,45 @@
   "description": "Capture the medium the applicant is admitted into and the language combination chosen.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.admissions.child_info_id_capture",
@@ -9088,9 +9297,45 @@
   "description": "Record the Telangana Child Info ID at admission and verify it against the state register.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Applications",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/applications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/assessment",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/decision",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/applications/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.visitors.visitor_gate_pass_generation",
