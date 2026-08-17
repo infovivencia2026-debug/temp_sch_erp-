@@ -314,10 +314,13 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 		}
 		for i, stop := range r.stops {
 			if _, err := tx.Exec(ctx, `
+				-- $4 is both the sequence column and an interval multiplier, so
+				-- it needs an explicit type or Postgres deduces two.
 				INSERT INTO route_stops (institution_id, route_id, name, sequence,
 				                         pickup_time, drop_time, fare_paise)
-				VALUES ($1,$2,$3,$4, ('07:00'::time + ($4 * INTERVAL '8 min')),
-				        ('15:30'::time + ($4 * INTERVAL '8 min')), $5)`,
+				VALUES ($1,$2,$3,$4::int,
+				        ('07:00'::time + ($4::int * INTERVAL '8 min')),
+				        ('15:30'::time + ($4::int * INTERVAL '8 min')), $5)`,
 				inst, routeID, stop, i+1, int64(90000+i*10000)); err != nil {
 				return n, err
 			}
