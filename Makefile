@@ -120,6 +120,13 @@ deploy-app: ## Upload binaries, run migrations, restart services
 	ssh $(HOST) 'FQDN=$(FQDN) APP_DIR=$(REMOTE_DIR) SERVICE=$(SERVICE) WEBROOT=$(WEBROOT) \
 		bash /tmp/$(SERVICE)-dist/deploy.sh'
 
+deploy-server: ## Build and deploy ON the server from git (no local toolchain needed)
+	@# Everything happens on the box: git pull, go build, npm build, migrate,
+	@# restart. The only local requirement is ssh, which is the point --
+	@# cross-compiling meant whoever deployed also had to carry a Go toolchain
+	@# and whatever was in their working tree.
+	ssh $(HOST) 'BRANCH=$(or $(BRANCH),operational-erp) bash -s' < scripts/build-on-server.sh
+
 deploy-ui: ## Upload the SPA bundle
 	ssh $(HOST) 'mkdir -p $(WEBROOT)'
 	rsync -az --delete web/dist/ $(HOST):$(WEBROOT)/
