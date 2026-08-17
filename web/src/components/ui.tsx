@@ -1,0 +1,884 @@
+import { Children, cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from 'react'
+import {
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Download, Printer, X,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+/* Primitives in the "pulse" language: hairline borders, no shadows, mint used
+   as an accent and near-black ink for solid actions. */
+
+export function Card({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={cn('card', className)}>{children}</div>
+}
+
+export function CardHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string
+  description?: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-5 py-4">
+      <div className="min-w-0">
+        <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
+        {description && (
+          <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
+    </div>
+  )
+}
+
+/**
+ * The page header: where you are, what this is, what you can do.
+ *
+ * It used to open with a 34px display title and a large eyebrow, which is a
+ * magazine masthead — fine for a landing page, wrong for the seventh screen
+ * someone opens before lunch. 24px semibold with a breadcrumb above it says
+ * the same thing in a third of the vertical space, and the space goes to the
+ * data instead.
+ */
+export function PageHead({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  /** The section this screen sits under — rendered as a breadcrumb. */
+  eyebrow?: string
+  title: string
+  description?: string
+  actions?: ReactNode
+}) {
+  return (
+    <div className="border-b px-6 pb-5 pt-5 sm:px-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 max-w-3xl">
+          {eyebrow && (
+            <nav className="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+              <span>{eyebrow}</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="text-secondary-foreground">{title}</span>
+            </nav>
+          )}
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em]">{title}</h1>
+          {description && (
+            <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** Standard body padding beneath a PageHead. */
+export function PageBody({ children }: { children: ReactNode }) {
+  return <div className="space-y-6 px-6 py-6 sm:px-8">{children}</div>
+}
+
+/**
+ * The signature pulse grid: cells separated by the background showing through
+ * a 1px gap, rather than each cell drawing its own border.
+ */
+export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: ReactNode }) {
+  return (
+    <div
+      className={cn(
+        'cell-grid reveal grid-cols-1 sm:grid-cols-2',
+        cols === 3 && 'md:grid-cols-3',
+        cols === 4 && 'md:grid-cols-3 xl:grid-cols-4',
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Stat({
+  label,
+  value,
+  delta,
+  icon: Icon,
+  hint,
+  period,
+}: {
+  label: string
+  value: ReactNode
+  delta?: { value: string; positive?: boolean }
+  icon?: React.ComponentType<{ className?: string }>
+  hint?: string
+  /* What span this number covers.
+
+     Stated on every card once metrics became range-aware, because otherwise a
+     dashboard set to "last term" shows a balance and a collection total side
+     by side and nothing says that only one of them moved. A balance is true
+     now; a total belongs to a period. Silence there is how somebody reports
+     the wrong figure to a trustee. */
+  period?: string
+}) {
+  return (
+    <div className="cell">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] text-muted-foreground">{label}</p>
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+      </div>
+      <p className="stat">{value}</p>
+      {delta && (
+        <p
+          className={cn(
+            'mt-1.5 text-[13px]',
+            delta.positive === false ? 'text-destructive' : 'text-success',
+          )}
+        >
+          {delta.value}
+        </p>
+      )}
+      {hint && !delta && <p className="mt-1.5 text-[13px] text-muted-foreground">{hint}</p>}
+      {period && (
+        <p className="mt-1.5 text-[12px] text-muted-foreground/80">{period}</p>
+      )}
+    </div>
+  )
+}
+
+/* Sorting.
+
+   Not a single table sorted. A clerk looking for the oldest unpaid invoice in
+   a list of forty read all forty, every time — and the data was already in the
+   browser, so the cost was pure omission.
+
+   Done as a hook over the caller's own array rather than inside Table,
+   because a table cell is an arbitrary React node: sorting the rendered rows
+   would mean comparing JSX. The caller knows the shape of its data and hands
+   over a key; everything else is shared.
+
+   Undefined always sinks, whichever direction is chosen. A blank due date is
+   not "earliest" and floating it to the top of an ascending sort is how a
+   defaulter list starts with rows that owe nothing. */
+
+export type SortDir = 'asc' | 'desc'
+
+export function useSort<T>(
+  rows: T[],
+  pick: (row: T, key: string) => string | number | null | undefined,
+  initial?: { key: string; dir?: SortDir },
+) {
+  const [key, setKey] = useState(initial?.key ?? '')
+  const [dir, setDir] = useState<SortDir>(initial?.dir ?? 'asc')
+
+  const toggle = (k: string) => {
+    if (k === key) {
+      setDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setKey(k)
+    setDir('asc')
+  }
+
+  const sorted = key
+    ? [...rows].sort((a, b) => {
+        const av = pick(a, key)
+        const bv = pick(b, key)
+        if (av == null && bv == null) return 0
+        if (av == null) return 1
+        if (bv == null) return -1
+        const cmp =
+          typeof av === 'number' && typeof bv === 'number'
+            ? av - bv
+            : // localeCompare with numeric so "Class 10" sorts after "Class 9"
+              String(av).localeCompare(String(bv), undefined, { numeric: true })
+        return dir === 'asc' ? cmp : -cmp
+      })
+    : rows
+
+  return { sorted, sortKey: key, dir, toggle }
+}
+
+/** A column heading. A plain string is not sortable; give it a key to make it so. */
+export type Column = string | { label: string; key?: string; align?: 'right' }
+
+/**
+ * A table that stops being a table on a phone.
+ *
+ * Below `sm` each row becomes a stacked card and every cell grows a label from
+ * the column header, because a nine-column fee ledger scrolled sideways on a
+ * 360px screen is unreadable — and a parent checking a due date is the single
+ * most common phone session this system will ever serve.
+ *
+ * The labels are injected here rather than passed at each of the twenty-odd
+ * call sites: a header and its cells are already required to line up, so
+ * asking every caller to repeat the header on each cell would only create a
+ * second place for them to disagree.
+ */
+export function Table({
+  head,
+  children,
+  empty,
+  emptyLabel = 'Nothing to show.',
+  sort,
+}: {
+  head: Column[]
+  children: ReactNode
+  empty?: boolean
+  emptyLabel?: string
+  /** Supply what useSort returned to make keyed columns clickable. */
+  sort?: { sortKey: string; dir: SortDir; toggle: (k: string) => void }
+}) {
+  const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
+  return (
+    <div className="overflow-x-auto">
+      <table className="responsive-table w-full text-[14px]">
+        <thead>
+          <tr>
+            {head.map((h) => {
+              const label = typeof h === 'string' ? h : h.label
+              const key = typeof h === 'string' ? undefined : h.key
+              const active = !!key && sort?.sortKey === key
+              // 12px medium, sentence case. Uppercase letter-spaced headers
+              // shout across a table that is trying to be read quietly.
+              return (
+                <th
+                  key={label}
+                  aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="whitespace-nowrap px-5 py-2.5 text-left text-[12px] font-medium text-muted-foreground"
+                >
+                  {key && sort ? (
+                    <button
+                      type="button"
+                      onClick={() => sort.toggle(key)}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-sm transition-colors',
+                        'hover:text-foreground',
+                        active && 'text-foreground',
+                      )}
+                    >
+                      {label}
+                      {/* The arrow only appears on the sorted column. A chevron
+                          on every header is a row of noise pointing nowhere. */}
+                      {active &&
+                        (sort.dir === 'asc' ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        ))}
+                    </button>
+                  ) : (
+                    label
+                  )}
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {empty ? (
+            <tr>
+              <td colSpan={head.length} className="px-5 py-12 text-center text-[14px] text-muted-foreground">
+                {emptyLabel}
+              </td>
+            </tr>
+          ) : (
+            labelCells(children, labels)
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/**
+ * Walks the rows and hands each cell the header above it.
+ *
+ * A cell that spans columns gets no label — it is a full-width note, not a
+ * field, and labelling it with whichever header it happens to start under
+ * would be worse than leaving it bare.
+ */
+function labelCells(rows: ReactNode, head: string[]): ReactNode {
+  return Children.map(rows, (row) => {
+    if (!isValidElement(row)) return row
+    const props = row.props as { children?: ReactNode }
+    let column = 0
+    const cells = Children.map(props.children, (cell) => {
+      if (!isValidElement(cell)) return cell
+      const cellProps = cell.props as { colSpan?: number }
+      const label = cellProps.colSpan && cellProps.colSpan > 1 ? undefined : head[column]
+      column += cellProps.colSpan ?? 1
+      return cloneElement(cell as ReactElement<{ label?: string }>, { label })
+    })
+    return cloneElement(row as ReactElement<{ children?: ReactNode }>, {}, cells)
+  })
+}
+
+export function Td({
+  children,
+  className,
+  colSpan,
+  label,
+}: {
+  children?: ReactNode
+  className?: string
+  colSpan?: number
+  /** Injected by Table; surfaced as the field name in the stacked layout. */
+  label?: string
+}) {
+  return (
+    <td
+      colSpan={colSpan}
+      data-label={label}
+      className={cn('px-5 [padding-block:var(--row-py)]', className)}
+    >
+      {children}
+    </td>
+  )
+}
+
+const TONES = {
+  neutral: 'bg-muted-foreground',
+  success: 'bg-success',
+  danger: 'bg-destructive',
+  primary: 'bg-primary',
+  warning: 'bg-warning',
+  info: 'bg-info',
+} as const
+
+/**
+ * A status: a coloured dot and a word.
+ *
+ * This used to be a filled lozenge, and a table of them read as a colour chart
+ * — the eye went to the brightest cell rather than to the row that mattered.
+ * The dot carries the state, the label carries the meaning, and the row stays
+ * scannable. `solid` is available for the rare case that has to survive being
+ * glanced at across a counter.
+ */
+export function Badge({
+  children,
+  tone = 'neutral',
+  solid,
+}: {
+  children: ReactNode
+  tone?: keyof typeof TONES
+  solid?: boolean
+}) {
+  if (solid) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center rounded-sm px-1.5 py-0.5 text-[12px] font-medium',
+          tone === 'success' && 'bg-success/12 text-success',
+          tone === 'danger' && 'bg-destructive/12 text-destructive',
+          tone === 'warning' && 'bg-warning/15 text-warning',
+          tone === 'primary' && 'bg-primary/12 text-primary',
+          tone === 'info' && 'bg-info/12 text-info',
+          tone === 'neutral' && 'bg-muted text-secondary-foreground',
+        )}
+      >
+        {children}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]">
+      <span className={cn('status-dot', TONES[tone])} />
+      {children}
+    </span>
+  )
+}
+
+export function Button({
+  children,
+  onClick,
+  disabled,
+  variant = 'primary',
+  type = 'button',
+  title,
+  size = 'md',
+  tone,
+  className,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  variant?: 'primary' | 'secondary' | 'ghost' | 'ink' | 'outline'
+  type?: 'button' | 'submit'
+  title?: string
+  size?: 'sm' | 'md'
+  /** Destructive actions borrow the semantic red rather than the accent. */
+  tone?: 'danger'
+  className?: string
+}) {
+  // `ink` and `outline` are the previous names; kept resolving so a missed
+  // call site degrades to the right level instead of to an unstyled button.
+  const level =
+    variant === 'ink' ? 'primary' : variant === 'outline' ? 'secondary' : variant
+
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-sm font-medium',
+        'transition-colors duration-150',
+        'disabled:pointer-events-none disabled:opacity-50',
+        size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-9 px-3.5 text-[14px]',
+        level === 'primary' &&
+          (tone === 'danger'
+            ? 'bg-destructive text-white hover:bg-destructive/90'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'),
+        level === 'secondary' &&
+          cn(
+            'border bg-card hover:bg-accent',
+            tone === 'danger' && 'border-destructive/30 text-destructive hover:bg-destructive/5',
+          ),
+        level === 'ghost' &&
+          cn(
+            'text-secondary-foreground hover:bg-accent hover:text-foreground',
+            tone === 'danger' && 'text-destructive hover:bg-destructive/5',
+          ),
+        className,
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * A button that asks once before doing something you cannot undo.
+ *
+ * Two-step inline rather than window.confirm: the browser dialog cannot be
+ * styled, blocks the whole tab, and — the part that matters — says nothing
+ * about *what* is about to happen, so people learn to dismiss it. Here the
+ * question replaces the button in place and names the consequence.
+ *
+ * The confirm state resets on blur and on Escape, so an accidental click is
+ * one keystroke away from harmless.
+ */
+export function ConfirmButton({
+  children,
+  confirmLabel,
+  question,
+  onConfirm,
+  disabled,
+  variant = 'secondary',
+  size = 'sm',
+  tone,
+}: {
+  children: ReactNode
+  /** What the confirming button says — a verb, not "OK". */
+  confirmLabel: string
+  /** The consequence, in one short line. */
+  question: string
+  onConfirm: () => void
+  disabled?: boolean
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md'
+  tone?: 'danger'
+}) {
+  const [asking, setAsking] = useState(false)
+
+  if (!asking) {
+    return (
+      <Button variant={variant} size={size} disabled={disabled} onClick={() => setAsking(true)}>
+        {children}
+      </Button>
+    )
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-1.5 py-1"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setAsking(false)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') setAsking(false)
+      }}
+    >
+      <span className="px-1 text-[13px] text-muted-foreground">{question}</span>
+      <button
+        type="button"
+        autoFocus
+        disabled={disabled}
+        onClick={() => {
+          setAsking(false)
+          onConfirm()
+        }}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[13px] font-medium',
+          'disabled:pointer-events-none disabled:opacity-40',
+          tone === 'danger'
+            ? 'bg-destructive text-white hover:bg-destructive/90'
+            : 'bg-ink text-ink-foreground hover:bg-ink/90',
+        )}
+      >
+        <Check className="h-3 w-3" strokeWidth={3} />
+        {confirmLabel}
+      </button>
+      <button
+        type="button"
+        onClick={() => setAsking(false)}
+        aria-label="Cancel"
+        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  )
+}
+
+/** A labelled checkbox. A bare box with text beside it is not clickable text. */
+export function Checkbox({
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  hint?: string
+}) {
+  return (
+    <label className="inline-flex cursor-pointer items-start gap-2 text-[13px]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-[hsl(var(--ink))]"
+      />
+      <span>
+        {label}
+        {hint && <span className="block text-[12px] text-muted-foreground">{hint}</span>}
+      </span>
+    </label>
+  )
+}
+
+export function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="field cursor-pointer pr-8"
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+export function Input({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  className,
+  list,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: string
+  className?: string
+  /** id of a <datalist> to suggest from, without constraining the input. */
+  list?: string
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      list={list}
+      className={cn('field', className)}
+    />
+  )
+}
+
+/**
+ * A labelled control.
+ *
+ * `hint` carries the thing a school admin cannot be expected to know — that a
+ * UDISE code is eleven digits, that the Telangana year runs June to April.
+ * Putting it under the field rather than in documentation is the difference
+ * between a form that teaches and one that rejects.
+ */
+export function Field({
+  label,
+  hint,
+  required,
+  children,
+  wide,
+}: {
+  label: string
+  hint?: string
+  required?: boolean
+  children: ReactNode
+  wide?: boolean
+}) {
+  return (
+    <label className={cn('block', wide && 'sm:col-span-2')}>
+      <span className="mb-1.5 block text-[13px] font-medium text-secondary-foreground">
+        {label}
+        {required && <span className="ml-1 text-destructive">*</span>}
+      </span>
+      {children}
+      {hint && <span className="mt-1.5 block text-[13px] text-muted-foreground">{hint}</span>}
+    </label>
+  )
+}
+
+/** Two-column form grid that collapses to one on a phone. */
+export function FormGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-5 sm:grid-cols-2">{children}</div>
+}
+
+/** Inline result of a save: the server's own words, not a generic toast. */
+export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
+  if (error) {
+    const msg = error instanceof Error ? error.message : 'Could not save'
+    return (
+      <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
+        {msg}
+      </p>
+    )
+  }
+  if (ok)
+    return (
+      <p className="rounded-md border border-success/25 bg-success/5 px-3 py-2 text-[13px] text-success">
+        {ok}
+      </p>
+    )
+  return null
+}
+
+export function ErrorState({ error }: { error: unknown }) {
+  const msg = error instanceof Error ? error.message : 'Unexpected error'
+  return (
+    <Card className="p-8 text-center">
+      <p className="text-[14px] text-destructive">{msg}</p>
+    </Card>
+  )
+}
+
+export function Loading({ label = 'Loading…' }: { label?: string }) {
+  return <p className="px-5 py-12 text-center text-[14px] text-muted-foreground">{label}</p>
+}
+
+/**
+ * A placeholder the shape of the thing being loaded.
+ *
+ * "Loading…" centred in an empty card means the page jumps when the data
+ * lands and every element moves — which is how somebody clicks the wrong row.
+ * Holding the space costs nothing and keeps the layout still.
+ */
+export function Skeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-2 p-5" aria-hidden>
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="h-9 animate-pulse rounded-sm bg-muted"
+          // Staggered widths so it reads as content rather than as a bar chart.
+          style={{ width: `${92 - (i % 3) * 9}%`, animationDelay: `${i * 60}ms` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Print this page.
+ *
+ * The print stylesheet drops the navigation and the colour; this is the button
+ * that admits printing is a first-class action in a school rather than
+ * something the browser menu handles. Hidden from the printout itself.
+ */
+export function PrintButton({ label = 'Print' }: { label?: string }) {
+  return (
+    <Button variant="secondary" size="sm" onClick={() => window.print()} className="no-print">
+      <Printer className="h-3.5 w-3.5" />
+      {label}
+    </Button>
+  )
+}
+
+export function EmptyState({ title, body }: { title: string; body?: string }) {
+  return (
+    <Card className="p-10 text-center">
+      <p className="text-[15px] font-semibold">{title}</p>
+      {body && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-muted-foreground">{body}</p>}
+    </Card>
+  )
+}
+
+/**
+ * Download link for a server-streamed CSV.
+ *
+ * A plain anchor, not a fetch-and-blob: the browser's own download handling
+ * streams the file straight to disk, which matters when a whole-school
+ * attendance export is tens of thousands of rows.
+ */
+export function ExportButton({ report, label }: { report: string; label?: string }) {
+  return (
+    <a href={`/api/v1/export/${report}`} download>
+      <Button variant="outline" size="sm">
+        <Download className="h-3.5 w-3.5" />
+        {label ?? 'Export CSV'}
+      </Button>
+    </a>
+  )
+}
+
+/* Which period the numbers cover.
+
+   Every dashboard had its period welded into the SQL — attendance always
+   today, collection always this calendar month — so "how did we do last term"
+   meant an export and a spreadsheet.
+
+   The presets come from the server rather than a list kept here, because the
+   resolver and the picker have to agree on what "this term" means; two copies
+   would drift the first time a school's year was configured differently. The
+   grouping (Recent / Calendar / School / Custom) exists because an Indian
+   school asks in three different calendars: the academic year runs June to
+   April, the financial year April to March, and neither is the calendar year.
+*/
+
+export interface RangeOption {
+  value: string
+  label: string
+  group: string
+}
+
+export interface ActiveRange {
+  period: string
+  from?: string
+  to?: string
+  label?: string
+}
+
+/** Turns a range into the query string every metric endpoint understands. */
+export function rangeQuery(r: ActiveRange): string {
+  if (r.period === 'custom' && r.from && r.to) {
+    return `from=${r.from}&to=${r.to}`
+  }
+  return `period=${r.period}`
+}
+
+export function RangePicker({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: ActiveRange
+  onChange: (r: ActiveRange) => void
+  options: RangeOption[]
+  /** The server's description of the resolved period — "August 2026", not "this month". */
+  label?: string
+}) {
+  const [custom, setCustom] = useState(value.period === 'custom')
+  const groups = [...new Set(options.map((o) => o.group))]
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <select
+        value={value.period}
+        onChange={(e) => {
+          const period = e.target.value
+          setCustom(period === 'custom')
+          // A custom range is not applied until both ends are given, so the
+          // numbers do not flicker through a nonsensical window on the way.
+          if (period !== 'custom') onChange({ period })
+        }}
+        className="field w-auto cursor-pointer pr-8"
+      >
+        {groups.map((g) => (
+          <optgroup key={g} label={g}>
+            {options
+              .filter((o) => o.group === g)
+              .map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+
+      {custom && (
+        <>
+          <input
+            type="date"
+            value={value.from ?? ''}
+            onChange={(e) => onChange({ ...value, period: 'custom', from: e.target.value })}
+            className="field w-auto"
+            aria-label="From"
+          />
+          <span className="text-[13px] text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={value.to ?? ''}
+            onChange={(e) => onChange({ ...value, period: 'custom', to: e.target.value })}
+            className="field w-auto"
+            aria-label="To"
+          />
+        </>
+      )}
+
+      {label && !custom && (
+        <span className="text-[13px] text-muted-foreground">{label}</span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Remembers the chosen period across screens and reloads.
+ *
+ * Per browser rather than per screen: somebody reviewing last term looks at
+ * four dashboards in a row, and having each one snap back to "this month"
+ * turns one question into four re-selections.
+ */
+export function useRange(): [ActiveRange, (r: ActiveRange) => void] {
+  const [range, setRange] = useState<ActiveRange>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('erp.range') ?? '') as ActiveRange
+    } catch {
+      return { period: 'this_month' }
+    }
+  })
+  const set = (r: ActiveRange) => {
+    setRange(r)
+    try {
+      localStorage.setItem('erp.range', JSON.stringify(r))
+    } catch {
+      /* private browsing; the default returns next time */
+    }
+  }
+  return [range, set]
+}

@@ -1,0 +1,14 @@
+/dist/
+/web/dist/
+/web/node_modules/
+.env
+*.log
+
+# Compiled binaries. `make dist` cross-compiles these for the server; 59MB of
+# build output does not belong in source, and a stale binary in a checkout is
+# worse than no binary at all.
+/bin/
+
+# A previously deployed copy of the SPA bundle. web/dist is the real build
+# output and is already ignored; this is the same thing under another name.
+/spa/

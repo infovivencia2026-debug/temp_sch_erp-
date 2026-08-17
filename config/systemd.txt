@@ -1,0 +1,87 @@
+# /etc/systemd/system/school-erp-web.service
+[Unit]
+Description=School ERP web server (Go)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=schoolerp
+Group=schoolerp
+WorkingDirectory=/opt/school-erp
+EnvironmentFile=/etc/school-erp.env
+ExecStart=/opt/school-erp/web
+Restart=always
+RestartSec=5s
+
+# The binary embeds its templates and static assets, so it needs no write
+# access to its own directory. Everything user-uploaded goes to R2.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/school-erp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+# This box has 1 vCPU and 3.8 GB shared with Postgres. Capping memory means a
+# runaway report build gets killed instead of triggering the OOM killer, which
+# would otherwise be as likely to pick Postgres.
+MemoryMax=768M
+CPUWeight=100
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=school-erp-web
+
+[Install]
+WantedBy=multi-user.target
+
+# /etc/systemd/system/school-erp-worker.service
+[Unit]
+Description=School ERP background worker (Go)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=schoolerp
+Group=schoolerp
+WorkingDirectory=/opt/school-erp
+EnvironmentFile=/etc/school-erp.env
+ExecStart=/opt/school-erp/worker
+Restart=always
+RestartSec=5s
+
+# The binary embeds its templates and static assets, so it needs no write
+# access to its own directory. Everything user-uploaded goes to R2.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/school-erp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+# This box has 1 vCPU and 3.8 GB shared with Postgres. Capping memory means a
+# runaway report build gets killed instead of triggering the OOM killer, which
+# would otherwise be as likely to pick Postgres.
+MemoryMax=512M
+CPUWeight=50
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=school-erp-worker
+
+[Install]
+WantedBy=multi-user.target

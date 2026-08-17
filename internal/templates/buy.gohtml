@@ -1,0 +1,147 @@
+{{define "buy.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School ERP — pricing and enquiry</title>
+<meta name="description" content="A complete school ERP for Indian K-12 schools: admissions, attendance, fees, examinations, payroll and the UDISE+ return. Priced per year, unlimited users.">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+</head>
+<body class="marketing">
+
+<header class="topbar">
+  <span class="wordmark">School ERP</span>
+  <a class="quiet" href="/login">Sign in</a>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Everything a school runs on, in one place</h1>
+    <p>
+      Admissions through to the UDISE+ return: attendance, fees and receipts,
+      examinations and report cards, payroll, transport and the parent app.
+      Built for Indian K-12 schools, priced per year, with no limit on how many
+      teachers or parents use it.
+    </p>
+    <a class="cta" href="#enquire">Talk to us about your school</a>
+    <p class="fineprint">
+      No card, no sign-up form that creates an account you did not ask for. We
+      speak to you first, then set the school up for you.
+    </p>
+  </section>
+
+  <section class="plans" aria-label="Plans">
+    {{range .Plans}}
+    <article class="plan{{if .Featured}} featured{{end}}">
+      {{if .Featured}}<span class="tag">Most schools choose this</span>{{end}}
+      <h2>{{.Name}}</h2>
+      <p class="price"><span class="rupee">₹</span>{{.Rupees}}<span class="per">per year</span></p>
+      <p class="cap">{{.MaxStudents}}</p>
+      <ul>
+        {{range .Modules}}<li>{{.}}</li>{{end}}
+      </ul>
+      <a class="choose" href="#enquire" data-plan="{{.Code}}">Choose {{.Name}}</a>
+    </article>
+    {{end}}
+  </section>
+
+  <section class="included">
+    <h2>In every plan</h2>
+    <ul>
+      <li>Unlimited staff, student and parent accounts</li>
+      <li>Role-based access, so a teacher sees their classes and nobody else's</li>
+      <li>Daily backups, and your data stays in India</li>
+      <li>UDISE+ and APAAR fields on every student record</li>
+      <li>An audit trail of every change, which is what an inspection asks for</li>
+      <li>Setup and staff training included in the first year</li>
+    </ul>
+  </section>
+
+  <section class="enquire" id="enquire">
+    <h2>Tell us about your school</h2>
+    <p class="lede">
+      We will call you back, show you the software with your own classes in it,
+      and set it up if you go ahead. Usually a week from this form to your staff
+      using it.
+    </p>
+
+    {{if .Sent}}
+      <div class="sent" role="status">
+        <h3>Thank you — we have your enquiry</h3>
+        <p>
+          We will be in touch about <strong>{{.School}}</strong> within one
+          working day. If it is urgent, sign in details and a phone number are
+          on the email we are sending now.
+        </p>
+      </div>
+    {{else}}
+      {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+      <form method="post" action="/buy">
+        <div class="row">
+          <label for="school_name">School name<span aria-hidden="true">*</span></label>
+          <input id="school_name" name="school_name" required value="{{.School}}"
+                 placeholder="Bharat Public School, Warangal">
+        </div>
+        <div class="grid">
+          <div class="row">
+            <label for="contact_name">Your name<span aria-hidden="true">*</span></label>
+            <input id="contact_name" name="contact_name" required value="{{.Contact}}">
+          </div>
+          <div class="row">
+            <label for="district">District</label>
+            <input id="district" name="district" value="{{.District}}">
+          </div>
+          <div class="row">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" value="{{.Email}}">
+          </div>
+          <div class="row">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" value="{{.Phone}}" placeholder="98480 12345">
+          </div>
+          <div class="row">
+            <label for="students">How many students</label>
+            <input id="students" name="students" inputmode="numeric" value="{{.Students}}">
+          </div>
+          <div class="row">
+            <label for="plan_code">Plan you are considering</label>
+            <select id="plan_code" name="plan_code">
+              <option value="">Not sure yet</option>
+              {{$sel := .Plan}}
+              {{range .Plans}}
+              <option value="{{.Code}}"{{if eq .Code $sel}} selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <label for="message">Anything we should know</label>
+          <textarea id="message" name="message" rows="3"
+                    placeholder="Two campuses, moving off paper registers, need Telugu report cards…">{{.Message}}</textarea>
+        </div>
+        <p class="fineprint">
+          One of the two contact fields is enough. We use these details to reply
+          to this enquiry and nothing else.
+        </p>
+        <button type="submit">Send enquiry</button>
+      </form>
+    {{end}}
+  </section>
+</main>
+
+<footer>
+  <p>School ERP · Hyderabad · Already a customer? <a href="/login">Sign in</a></p>
+</footer>
+
+<script>
+  /* Choosing a plan scrolls to the form with that plan already selected, so
+     the answer to "which one?" is not asked twice. */
+  document.querySelectorAll('.choose').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var sel = document.getElementById('plan_code')
+      if (sel) sel.value = a.dataset.plan
+    })
+  })
+</script>
+</body>
+</html>{{end}}

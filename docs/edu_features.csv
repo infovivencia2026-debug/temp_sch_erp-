@@ -1,0 +1,488 @@
+Role,Section,Feature,What User Sees & Does,Data Scope,Priority
+Super Admin,Dashboard,Campus cards,"Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,All campuses summary,"A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Alerts,"Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.",All institutions / all campuses,Must-Have
+Super Admin,Institution Setup,Institutions & campuses,"Create/edit institution and campuses; address, timezone, academic model, contact details and status.",All institutions / all campuses,Should-Have
+Super Admin,Institution Setup,Academic year defaults,Set active academic year/term defaults per campus; actual academic structure remains with institution admins.,All institutions / all campuses,Should-Have
+Super Admin,Institution Setup,Branding,"Logo, institution name, colors and portal identity per tenant/campus.",All institutions / all campuses,Must-Have
+Super Admin,Access & Security,Users,"Create, activate, suspend and search users.",All users,Must-Have
+Super Admin,Access & Security,Roles & permissions,"Assign roles and define data scope such as institution, campus, department, class or self.",All users,Must-Have
+Super Admin,Access & Security,Login & session audit,"View login history, active sessions and suspicious access.",All users,Must-Have
+Super Admin,Access & Security,SSO / MFA,Configure single sign-on and multi-factor authentication when required.,All users,Must-Have
+Super Admin,Platform Configuration,Module configuration,Enable/disable modules by institution so users only see what their institution uses.,All institutions / all campuses,Should-Have
+Super Admin,Platform Configuration,Integrations,"Configure payment gateway, email/SMS/WhatsApp, biometric devices, Google/Microsoft and other connectors.",All institutions / all campuses,Must-Have
+Super Admin,Platform Configuration,Numbering & templates,"Configure receipt, admission, student ID and certificate numbering/templates.",All institutions / all campuses,Must-Have
+Super Admin,Platform Configuration,Audit log,Search critical configuration and data-change history.,All institutions / all campuses,Must-Have
+Super Admin,Platform Configuration,Data operations,"Controlled import/export, archival, retention and backup/restore administration.",All institutions / all campuses,Must-Have
+Institution Admin / Principal,Dashboard,Executive KPIs,"Students, faculty/staff, attendance today, fee collection, outstanding fees and admissions. Show only 5-7 cards.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Dashboard,Needs attention,"Pending approvals, attendance shortage, absent faculty, timetable conflicts, marks not submitted and overdue fees.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Dashboard,Today,Today's classes/exams/events and important announcements.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Students & Admissions,Student directory & Student 360,"Search students and view enrollment, guardian, attendance, academic, fee-summary, documents and status based on permission.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Students & Admissions,Admissions overview,"Monitor enquiries/applications, admitted students and enrollment conversion.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Students & Admissions,Enrollment lifecycle,"Enroll, promote/roll over, transfer, withdraw and graduate students.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Students & Admissions,Certificates & documents,"Approve/issue bonafide, transfer/leaving and other configured certificates.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Academic structure,"Programs/classes, departments, subjects/courses, batches/sections, years/terms and rooms.",Assigned institution/campus,Should-Have
+Institution Admin / Principal,Academics,Faculty allocation,Assign faculty to subject/class and review unassigned subjects.,Assigned institution/campus,Should-Have
+Institution Admin / Principal,Academics,Timetable,"View/manage class, faculty and room timetable; resolve conflicts and substitutions.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Academic calendar,"Manage holidays, teaching days, exams, PTMs and institutional events.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academic Monitoring,Attendance monitoring,"Institution/class/department attendance, absent list, shortage list and trends.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academic Monitoring,Attendance corrections,Review correction requests according to workflow.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academic Monitoring,Exams & result status,"Exam schedule, marks-entry completion, result publishing status and report cards.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academic Monitoring,Performance overview,"Pass rate, subject performance, at-risk students and backlog summary.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Fee overview,"Collection, outstanding, defaulters, discounts/scholarships summary; detailed accounting stays with Finance.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Staff overview,"Employees/faculty, attendance, leave and workload summary.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Approvals center,"Approve leave, academic requests, marks/result workflows, certificates and configured operational requests.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Communication,"Publish announcements/circulars to targeted students, parents and staff.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Reports,"Core enrollment, attendance, academic, fee and staff reports.",Assigned institution/campus,Must-Have
+HOD / Department Head,Dashboard,Department KPIs,"Department students, faculty, today's classes, student attendance, faculty attendance and pending approvals.",Assigned department only,Must-Have
+HOD / Department Head,Dashboard,Needs attention,"Attendance shortage, unassigned subjects, faculty overload, timetable conflicts, pending marks and students at academic risk.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Department academics,"Programs, courses/subjects, batches/sections and department academic calendar.",Assigned department only,Should-Have
+HOD / Department Head,Department Workspace,Faculty directory,"Department faculty with assigned subjects, timetable, attendance and workload.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Faculty allocation & workload,Allocate subjects/classes and balance teaching load; identify overload and gaps.,Assigned department only,Should-Have
+HOD / Department Head,Department Workspace,Department timetable,View class/faculty/room timetable and manage department substitutions within permission.,Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Department students,"Search students in the department; view attendance, results, CGPA/backlogs and advisor.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Attendance monitoring,"Class, subject and student attendance; shortage list and correction approvals.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Exams & marks monitoring,"Track marks-entry completion, review/approve internal marks where workflow requires, results and backlogs.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Performance analytics,"Subject pass rate, semester trends, at-risk students and department performance.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Approvals,"Faculty leave, attendance corrections, marks submissions, add/drop and department requests.",Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,Communication,Send department announcements to selected faculty/student groups.,Assigned department only,Must-Have
+HOD / Department Head,Department Workspace,OBE / outcomes,"CO/PO mapping, attainment and gap analysis when enabled for higher education.",Assigned department only,Should-Have
+HOD / Department Head,Department Workspace,Department reports,"Attendance, workload, results, backlogs and department summary reports.",Assigned department only,Must-Have
+Faculty / Teacher,Dashboard,Today's classes,"Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Dashboard,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,My timetable,"Daily/weekly teaching schedule, rooms/labs and substitutions.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Take attendance,Fast daily or period/subject-wise attendance for assigned students.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Attendance correction,Request or process correction within permitted window/workflow.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Homework / classwork,"Create homework/classwork with due date, attachments and instructions.",Self + assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Assignments & submissions,"Create assignments, review submissions, grade and add feedback.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Lesson plans / content,Plan lessons and attach learning resources when LMS/lesson planning is enabled.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Marks entry,Enter internal/exam marks for assigned subjects; validate before submission.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Gradebook,View student marks/grades for assigned subjects and assessment components.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Remarks,Add permitted academic/class remarks and observations.,Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Communication,"Announcements/messages to assigned classes, students or parents based on policy.",Self + assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have
+Student,Dashboard,My day,"Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",Self only,Must-Have
+Student,Dashboard,Action reminders,"Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam.",Self only,Must-Have
+Student,Student Self Service,Timetable,Daily/weekly class timetable and exam timetable.,Self only,Must-Have
+Student,Student Self Service,Attendance,"Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",Self only,Must-Have
+Student,Student Self Service,Courses / subjects,"Current enrolled courses/subjects, teacher and learning resources.",Self only,Must-Have
+Student,Student Self Service,Homework & assignments,View due/overdue/submitted work; submit files/text where enabled.,Self only,Must-Have
+Student,Student Self Service,Exams & grades,"Exam schedule, marks, grades, published results and report cards.",Self only,Must-Have
+Student,Student Self Service,Academic record,"Current/previous grades, transcript/academic history when published.",Self only,Must-Have
+Student,Student Self Service,Fees,"Current dues, fee history, payment status, online payment and receipts.",Self only,Must-Have
+Student,Student Self Service,Calendar,"Academic calendar, holidays, events and deadlines.",Self only,Must-Have
+Student,Student Self Service,Requests,"Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type.",Self only,Must-Have
+Student,Student Self Service,Documents,"Access published certificates, receipts, report cards and permitted personal documents.",Self only,Must-Have
+Student,Student Self Service,Announcements & messages,Institution/class announcements and permitted teacher communication.,Self only,Must-Have
+Student,Student Self Service,Profile,View personal/enrollment information and submit allowed update requests.,Self only,Must-Have
+Parent / Guardian,Dashboard,Child switcher,Switch between linked children without separate accounts.,Linked child/children only,Must-Have
+Parent / Guardian,Dashboard,Child summary,"Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.",Linked child/children only,Must-Have
+Parent / Guardian,Dashboard,Needs attention,"Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Attendance,Daily/monthly attendance and absence history for the selected child.,Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Homework & academics,"Homework, classwork, subjects and published academic progress.",Linked child/children only,Should-Have
+Parent / Guardian,Parent Self Service,Results & report cards,"Exam schedule, marks/grades and downloadable published report cards.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Fees & payments,"Dues, installments, online payment, payment history and receipts.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Calendar & PTM,"Exams, holidays, events, parent-teacher meetings and booking where enabled.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Communication,"Circulars, announcements and permitted teacher/school messages.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Consent & acknowledgement,"Acknowledge circulars, permissions, trips and configured consent forms.",Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Requests,Submit leave/permission/certificate/help requests on behalf of child where allowed.,Linked child/children only,Must-Have
+Parent / Guardian,Parent Self Service,Transport snapshot,Bus route/stop/tracking only when transport module is enabled.,Linked child/children only,Should-Have
+Accounts & Finance,Dashboard,Finance KPIs,"Today's collection, month collection, outstanding, overdue, refunds pending and failed/unreconciled online payments.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Dashboard,Needs attention,"Defaulters, failed payments, unreconciled gateway transactions, refunds and fee setup issues.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Fee structures & schedules,"Define tuition/fee components, installments, due dates and applicable student groups.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Demand / invoice generation,Generate student fee demands/invoices for applicable periods.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Student ledger,"Single account view of charges, payments, credits, refunds and outstanding balance.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Collect payment,Record cash/bank/online/manual payments with controls and receipt generation.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Online payments,Track gateway payments and payment status.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Receipts,"Generate, reprint and verify fee receipts.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Partial & advance payments,"Handle permitted partial collection, advances and credit application.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Discounts / scholarships,"Apply approved concessions, scholarships and sibling discounts with audit trail.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Refunds,Create and process approved refunds.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Defaulters & reminders,Filter overdue balances and send configured reminders.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Reconciliation,Reconcile payment gateway/bank collections and identify mismatches.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Expenses / accounting,Basic institutional expense/account views if accounting is part of the ERP; otherwise integrate with finance system.,Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Fee & Finance Workspace,Finance reports,"Daily collection, outstanding, aging/defaulters, student ledger, payment mode, discount and refund reports.",Assigned institution/campus finance scope,Must-Have
+Admissions & Front Office,Dashboard,Admissions KPIs,"New enquiries, applications received, incomplete applications, interviews/tests today, offers pending and enrollments.",Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Dashboard,Follow-ups,"Applications needing documents, review, payment or follow-up.",Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Enquiries / leads,Capture prospective student enquiries and source/campaign.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Applications,Create/review applications and track status.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Applicant documents,Collect and verify required admission documents.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Entrance tests / interviews,Schedule tests/interviews and record outcomes.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Offers / admission decisions,Issue offers/admission decisions based on configured workflow.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Admission fee status,View required application/admission payment status without exposing full finance.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Enrollment handoff,Convert admitted applicant to student/enrollment without duplicate data entry.,Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Applicant communication,"Send status updates, reminders and admission instructions.",Assigned institution/campus admissions scope,Must-Have
+Admissions & Front Office,Admissions Workspace,Admissions reports,"Funnel, source, application status and conversion reports.",Assigned institution/campus admissions scope,Must-Have
+HR & Payroll,Dashboard,HR KPIs,"Headcount, present/absent today, leave pending, new joiners and payroll status if payroll enabled.",Assigned institution/campus employees,Must-Have
+HR & Payroll,HR Workspace,Employee master,"Employee/faculty profiles, department, designation, documents and employment status.",Assigned institution/campus employees,Should-Have
+HR & Payroll,HR Workspace,Staff attendance,"Employee attendance, late/early records and attendance reports.",Assigned institution/campus employees,Must-Have
+HR & Payroll,HR Workspace,Leave,"Leave balances, requests, approvals and holiday calendar.",Assigned institution/campus employees,Should-Have
+HR & Payroll,HR Workspace,Recruitment,"Openings, candidates, interviews and offers when ATS is enabled.",Assigned institution/campus employees,Should-Have
+HR & Payroll,HR Workspace,Payroll,"Salary structures, payroll runs, payslips, deductions and reimbursements when payroll is enabled.",Assigned institution/campus employees,Must-Have
+HR & Payroll,HR Workspace,Employee documents,"Contracts, IDs and configured employment documents.",Assigned institution/campus employees,Should-Have
+HR & Payroll,HR Workspace,HR reports,"Headcount, attendance, leave and payroll summaries.",Assigned institution/campus employees,Must-Have
+Operations Staff,Specialist Workspace,Role-specific home,"Same staff application, but dashboard changes by permission: Librarian sees issues/returns/overdues; Transport sees routes/vehicles; Hostel sees occupancy; Store sees low stock; Front Office sees visitors/enquiries.",Only assigned operational module/campus,Must-Have
+Operations Staff,Specialist Workspace,Library role,"Catalog, issue/return, reservation, fines and library reports.",Only assigned operational module/campus,Must-Have
+Operations Staff,Specialist Workspace,Transport role,"Routes, stops, vehicles, drivers/attendants, student assignment and tracking when enabled.",Only assigned operational module/campus,Must-Have
+Operations Staff,Specialist Workspace,Hostel role,"Rooms/beds, allocations, hostel attendance/fees, visitors and complaints when enabled.",Only assigned operational module/campus,Must-Have
+Operations Staff,Specialist Workspace,Inventory / Stores role,"Items, stock, receipts, issues, transfers, reorder and stock audit.",Only assigned operational module/campus,Must-Have
+Operations Staff,Specialist Workspace,Front Office role,"Visitors, gate passes, walk-in enquiries, phone/postal log and student checkout.",Only assigned operational module/campus,Must-Have
+Super Admin,Platform Setup,Multi-Campus Configuration,"Create, edit, and toggle active status for multiple campuses and branches.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,Academic Year Defaults,"Define active academic years, start/end dates, terms, and semester defaults across campuses.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,Role & Permission Matrix,"Create custom user roles and set granular module/screen level read, write, edit, delete access.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,User Directory & Provisioning,"Provision Super Admin, Principal, Teacher, Accountant, and Operations user accounts centrally.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,Franchise Management,"Centralized administrative oversight, asset sharing, and brand compliance for franchise chains.",All institutions / all campuses,Nice-to-Have
+Super Admin,Platform Setup,White-Label Branding,"Configure custom logos, domain names, color themes, login portal banners, and email header templates.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,SMS Gateway Integration,"Configure gateway API credentials, sender IDs, DLTI templates, and SMS delivery logs.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,WhatsApp API Integration,"Connect WhatsApp Business API, manage template approvals, automated triggers, and delivery logs.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Email Server (SMTP) Integration,"Configure SMTP credentials, send grid settings, DKIM/SPF verification, and email dispatch logs.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Payment Gateway Connectors,"Manage credentials for Razorpay, Paytm, CCAvenue, BillDesk, Easebuzz, and CCAvenue.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Biometric Device Integration,"Connect biometric fingerprint, facial recognition, and RFID hardware machines via IP/Webhooks.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,GPS Hardware Integration,"Configure bus GPS tracker hardware protocols, IMEI mapping, and refresh intervals.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Virtual Classroom Integration,"Connect Zoom, Google Meet, and Microsoft Teams tenant accounts for seamless live streaming.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Tally ERP / Prime Connector,"Configure ledger XML exports, cost-center mapping, and automated batch voucher sync.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Meritto / LeadSquared Sync,"Map lead sources, counselor assignments, and multi-touch lead status sync with external CRMs.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,SQAA Framework Management,Configure School Quality Assessment and Assurance standards and self-assessment checklists.,All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,Automated Trigger Rules,"Set trigger conditions for instant automated notifications on absence, fee due, or bus delay.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Login & Session Audit Logs,"View real-time user login timestamps, IP addresses, browser agents, and active sessions.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Data Backup & Restore,Schedule automated cloud database backups and manage point-in-time recovery archives.,All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,System Health & Integration Alerts,"Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Multi-Branch Revenue Analytics,"View aggregate fee collection, outstanding balances, and comparative revenue across branches.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Campus Cards Overview,"Show individual cards per campus detailing total students, fee collected, and active staff.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Central Admission Funnel KPI,"Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.",All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Global Attendance Heatmap,Monitor real-time student and staff attendance percentages across all campus locations.,All institutions / all campuses,Must-Have
+Super Admin,Dashboard,Executive System Alerts,"Display system-critical alerts including integration downtime, security breaches, and pending audits.",All institutions / all campuses,Must-Have
+Institution Admin / Principal,Dashboard,Campus KPI Overview,"View daily student attendance, total staff present, today's fee collection, and critical alerts.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Dashboard,Needs Attention Widget,"View pending approvals for staff leave, fee concessions, timetable overrides, and complaints.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Master Timetable Generation,Auto-generate clash-free class/faculty timetables with room and subject constraints.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Faculty Substitution Engine,View absent teachers and assign available proxy teachers based on free periods and expertise.,Assigned institution/campus,Should-Have
+Institution Admin / Principal,Academics,Subject & Chapter Planner,"Define master subject structures, chapters, learning outcomes, and target completion dates.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Lesson Plan Approval Queue,"Review, comment, approve, or reject daily/weekly lesson plans submitted by faculty.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Syllabus Coverage Tracking,Monitor real-time percentage completion of syllabus against academic calendar deadlines.,Assigned institution/campus,Should-Have
+Institution Admin / Principal,Academics,Academic Calendar Management,"Create school calendar events, exam periods, holiday lists, and PTM dates.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Class & Section Promotion,"Bulk promote students to higher academic years, manage retentions, and section shuffling.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Academics,Baseline Performance Analysis,Analyze baseline student entry performance against end-of-term academic growth.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Reports,Comprehensive Attendance Report,"Export daily, monthly, and yearly student and staff attendance trend reports.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Reports,Exam & Grade Analytics,"Analyze grade distribution charts, subject pass percentages, toppers, and low performers.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Reports,Fee Collection Summaries,"View real-time fee collection breakdown by class, payment mode, and outstanding aging.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Reports,Custom Report Builder,"Build custom drag-and-drop reports selecting desired data fields, filters, and export formats.",Assigned institution/campus,Should-Have
+Institution Admin / Principal,School Culture,School Achievements Showcase,"Log awards, sports victories, academic honors, and publish them to parent/student portals.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,School Culture,Student Council Management,"Define student council positions, log elected candidates, and track student leadership duties.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Staff Allocation & Workload,"View teacher period allocations, weekly teaching load, and balance faculty workloads.",Assigned institution/campus,Should-Have
+Institution Admin / Principal,Administration,Certificates & Document Templates,"Design and configure print templates for Transfer Certificates (TC), Bonafide, and Conduct cards.",Assigned institution/campus,Should-Have
+Institution Admin / Principal,Administration,Digital Certificate Generation,"Approve and issue digitally signed Transfer Certificates, Character Certificates, and Transcripts.",Assigned institution/campus,Should-Have
+Institution Admin / Principal,Administration,Circular & Announcement Dispatch,"Draft official school circulars and broadcast via app push, WhatsApp, SMS, and portal.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,SQAA Compliance Tracking,"Track internal audit checklists, document evidence, and evaluate board compliance ratings.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,360 Evaluation Oversight,"Monitor teacher peer reviews, principal observations, and parent feedback ratings.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Parent Feedback & Grievance Hub,"Review escalated parent complaints, assign resolution owners, and track resolution SLA.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Disciplinary Incident Log,"Record student disciplinary actions, counseling notes, parent meeting logs, and suspensions.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Administration,Alumni Program Oversight,"Track annual graduating batch directory, alumni events, and alumni contribution funds.",Assigned institution/campus,Nice-to-Have
+Admissions & Front Office,Admissions Workspace,Inquiry / Lead Entry,"Record walk-in, phone, or web inquiry details, student demographics, and desired grade.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Lead Source Tracking,"Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in).",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Counselor Lead Assignment,Automatically or manually route incoming admission inquiries to specific admission counselors.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Counselor Activity & Follow-ups,"Log call notes, schedule follow-up reminders, and log candidate visit outcomes.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Multi-Touch Campaign Sequences,"Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Online Application Form Builder,Configure custom digital admission application forms with file upload rules and field validation.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Application Document Verification,"Review, approve, or request re-upload for birth certificates, prior report cards, and identity proofs.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Admission Fee Collection,"Collect prospectus and application form fees via cash, POS, or integrated payment gateway.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Entrance Exam Scheduling,"Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Interview & Interaction Scheduler,Book interview slots for parents/students with principal/management and record scores.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Merit List Generation,"Calculate weighted scores based on prior marks, entrance exam, and interview to publish merit lists.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Seat Allocation Management,"Manage class/section seat quotas (General, RTE, Management, Sports, Sibling) and availability.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Provisional Offer Letters,Generate and email/SMS provisional admission offer letters with payment deadline links.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Admitted Student Handoff,Transfer confirmed applicants directly into the active SIS database with auto-generated Roll IDs.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,24/7 Admission Chatbot,"Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads.",Assigned institution/campus,Nice-to-Have
+Admissions & Front Office,Admissions Workspace,AI Voice Agent Integration,Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up.,Assigned institution/campus,Nice-to-Have
+Admissions & Front Office,Admissions Workspace,Admission Conversion Reports,View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Lost Lead Reason Analysis,"Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school).",Assigned institution/campus,Must-Have
+Admissions & Front Office,Front Office,Visitor Gate Pass Generation,"Log guest photo, phone number, host staff member, visit reason, and print paper/digital badge.",Assigned institution/campus,Should-Have
+Admissions & Front Office,Front Office,Visitor Checkout Tracking,Scan visitor barcode or log exit time to ensure no unauthorized visitors remain on campus.,Assigned institution/campus,Should-Have
+Admissions & Front Office,Front Office,Postal & Courier Log,"Record inbound and outbound official mail, courier tracking numbers, recipient, and handover status.",Assigned institution/campus,Should-Have
+Admissions & Front Office,Front Office,Front Office Calls Register,"Maintain daily telephone call logs, caller identity, inquiry nature, and message forwarding.",Assigned institution/campus,Should-Have
+Admissions & Front Office,Front Office,Parent Appointment Booking,Schedule formal parent meetings with staff/admin to prevent unscheduled office crowding.,Assigned institution/campus,Should-Have
+Admissions & Front Office,Front Office,Gate RFID Entry Management,Monitor real-time student/staff gate scans for late arrivals or early departures.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Front Office,Emergency Gate Lockout,Trigger gate security alerts for unapproved exits or blacklisted visitors.,Assigned institution/campus,Must-Have
+Faculty / Teacher,Teaching Workspace,Daily Timetable View,"View daily and weekly assigned class schedule, subject, assigned classroom, and substitutes.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Period-wise Student Attendance,"Mark student attendance (Present, Absent, Late, On Duty) via web or mobile app in <30 seconds.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Daily Attendance Correction,Submit attendance correction requests for administrative approval if marked erroneously.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Teacher Digital Diary,"Log daily topics taught, class behavior, homework assigned, and personal teaching notes.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Syllabus Progress Tracker,"Update chapter completion status, syllabus coverage percentage, and lab practical completion.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Lesson Plan Creation,"Create detailed lesson plans including learning objectives, tools, teaching aids, and bloom levels.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Homework & Classwork Publisher,"Publish homework with attachment files, instructions, due dates, and submission types.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Assignment Evaluation & Grading,"View submitted digital homework, add inline comments, grade work, and send feedback to parents.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,LMS Study Material Upload,"Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Live Virtual Class Launcher,Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Question Bank Management,"Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,AI Examcell Paper Generator,"Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",Assigned classes/subjects,Nice-to-Have
+Faculty / Teacher,Teaching Workspace,Ved AI Assessment Assistant,"Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",Assigned classes/subjects,Nice-to-Have
+Faculty / Teacher,Teaching Workspace,Objective Online Test Creation,"Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,No-OMR Exam Grading,Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,CBSE Gradebook Marks Entry,"Enter scholastic (Unit Tests, Term) and co-scholastic marks compliant with CBSE guidelines.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,ICSE Gradebook Entry,"Input continuous internal assessment scores, projects, and term exam marks per ICSE norms.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,State Board Gradebook Entry,Record marks as per local state education board evaluation structures and grading scales.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Cambridge Gradebook Entry,Record criterion-based grades and progression scores for Cambridge Primary/Lower Secondary.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,IB (PYP/MYP/DP) Gradebook,"Assess students against IB criterion rubrics (A, B, C, D) and approaches to learning (ATL).",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,NEP Holistic Progress Card (HPC),"Evaluate student cognitive, affective, psychomotor domains, self-assessment, and peer reviews.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Montessori & Early Years Tracking,"Log developmental milestones, sensory skills, motor skills, and social behavior observations.",Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Student Behavior & Demerits,"Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Student Portfolio Builder,"Upload student artwork, project photos, certificates, and audio files into digital portfolios.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Anecdotal Records,Maintain private qualitative observation notes regarding individual student behavioral growth.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Class Teacher Remarks,Enter term-end qualitative report card remarks and principal summary comments.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,PTM Notes & Action Items,"Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Student At-Risk Identification,"View AI alerts for students suffering academic drop, attendance risk, or fee delinquency.",Assigned classes/subjects,Nice-to-Have
+Faculty / Teacher,Teaching Workspace,Substitution Request Submission,Request advance leave and propose peer faculty substitution for approval.,Assigned classes/subjects,Should-Have
+Faculty / Teacher,Teaching Workspace,Classroom Communication Broadcasting,Send class-wide or student-specific notices directly to parents via app messenger.,Assigned classes/subjects,Must-Have
+Accounts & Finance,Fee Workspace,Fee Head & Group Setup,"Define fee heads (Tuition, Transport, Admission, Lab, Sports) and frequency schedules.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Class-Wise Fee Structure Configuration,"Map fee components, installment amounts, and due dates per class, section, or quota.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Fee Demand / Invoice Generation,Bulk generate digital fee invoices and post them to student ledgers at the start of terms.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Counter Fee Collection,"Search student, select installments, collect cash/card/UPI, and print official fee receipt.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Partial & Advance Payment Rules,Accept partial fee installments or record advance payments carried forward to next terms.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Late Fine Rules Engine,"Configure daily, fixed, or percentage-based late fee fines with grace period thresholds.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Concession & Scholarship Management,"Apply sibling discounts, staff concessions, merit scholarships, and RTE fee waivers.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Multi-Level Concession Approvals,Route high-value fee concession requests to Principal/Management for digital sign-off.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Online Payment Gateway Auto-Sync,Automatically update student ledgers and generate digital receipts upon gateway success.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Payment Gateway Reconciliation,"Upload gateway settlement reports to auto-reconcile pending, failed, or processing payments.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Defaulter Tracking & Aging,Generate real-time defaulter lists categorized by 30/60/90 days overdue balances.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Automated Fee Reminders,"Schedule automated WhatsApp, SMS, and app push reminders to parents of defaulter students.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Post-Dated Cheques (PDC) Registry,"Record PDC entries, track clearance dates, handle bank deposit slips, and log bounced cheques.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Cheque Bounce Fine Engine,Automatically levy penalty charges to student ledger upon cheque dishonor notice.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Fee Refund Processing,"Process caution money, security deposit, or excess fee refunds with digital approval vouchers.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Student Ledger 360,"View complete chronological financial history, debit invoices, credit receipts, and balance.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Connected Banking Payouts,Execute direct vendor payments and staff refund transfers directly from ERP via API.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Student Loan Assistance Portal,Initiate and track third-party NBFC/Bank education loan application workflows.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Cashless Campus Wallet,Manage student smart card balances for cashless purchases in school canteen and store.,Assigned campus,Must-Have
+Accounts & Finance,Fee Workspace,POS Canteen Terminal Integration,"Manage daily canteen meal purchases, card swipes, diet restrictions, and wallet debits.",Assigned campus,Must-Have
+Accounts & Finance,Fee Workspace,School Store & Merchandise Sales,"Sell uniforms, stationery, books, and track stock debits against student billing.",Assigned campus,Must-Have
+Accounts & Finance,Finance Workspace,Chart of Accounts Setup,"Define primary ledgers, income heads, expense heads, and asset/liability structure.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Petty Cash Voucher Management,"Log daily cash expenses, upload paper receipts, and enforce petty cash limit approvals.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Vendor Management & Accounts Payable,"Maintain vendor directory, log purchase bills, track due dates, and issue payment vouchers.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Budgeting & Variance Analysis,Set annual departmental budgets and track real-time actual spend versus allocated budget.,Assigned institution/campus,Should-Have
+Accounts & Finance,Finance Workspace,Bank Reconciliation Statement (BRS),Reconcile internal cashbook entries against official bank statement passbooks.,Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Daybook & Cashbook Reports,"Generate daily cashbook transactions, summary collections, and closing cash register.",Assigned institution/campus,Should-Have
+Accounts & Finance,Finance Workspace,Tally Prime XML Export,"Export daybook vouchers, fee sales, and cash receipts in Tally-compatible XML format.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Financial Year Closing,"Execute year-end financial closing, carry forward balances, and lock prior accounting periods.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Taxation & Audit Reports,"Export GST summaries, TDS collection reports, and audited financial statements.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Employee Master Directory,"Maintain complete employee profile, contact, qualification, bank account, and document archive.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Onboarding & KYC Verification,"Collect online employee onboarding forms, Aadhaar/PAN verification, and contract letters.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Biometric Machine Attendance Sync,Real-time automated fetch of staff check-in/out logs from biometric hardware.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Staff Shift & Rostering,"Configure morning, afternoon, or administrative staff shift timings and rotational rosters.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Leave Policy Configuration,"Define Casual Leave, Sick Leave, Earned Leave, Maternity Leave rules and carry-forward limits.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Leave Application Management,"Review staff leave applications, view substitute availability, and approve or reject.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Late Arrival & Loss of Pay (LOP),Configure auto-deduction rules for late arrivals or unexcused absences leading to LOP.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Salary Structure Builder,"Define Basic Pay, HRA, DA, Special Allowances, PF, ESI, Professional Tax, and Income Tax.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Payroll Calculation Engine,"Run monthly payroll calculations accounting for active days, paid leaves, LOP, and overtime.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Payslip Generation & Email Dispatch,"Generate PDF payslips, publish to employee portals, and dispatch password-protected PDFs.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Direct Bank Payroll Transfer File,Export bank-specific bulk salary transfer text/excel files for instant bank disbursement.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,PF & ESI Statutory Compliance,"Generate monthly Provident Fund (ECR) files, ESI returns, and statutory deduction registers.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Income Tax & Form 16 Generator,"Manage investment proofs, compute annual income tax TDS, and generate Form 16.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Loan & Advance Management,Process employee salary advance requests and set auto-deduction installments in monthly payroll.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Annual Performance Appraisal (KPI),"Set staff KPIs, collect peer/principal ratings, and process annual increment percentages.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Staff Experience & Relieving Cards,"Generate Relieving Letters, Experience Certificates, and Service Certificates upon exit.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Recruitment & Job Portal,"Post job vacancies, collect candidate resumes, schedule interviews, and track recruitment.",Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Staff Training & Workshop Logs,"Log mandatory teacher professional development hours, workshops attended, and certs.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Birthday & Anniversary Alerts,Trigger automated birthday and work anniversary greetings across app and staff wall.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Recognition & Wall,"Broadcast 'Teacher of the Month' awards, peer praises, and school achievements.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff ID Card Printing,"Design and bulk-print plastic ID cards with barcodes, RFID chips, and staff photos.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Substitute Workload Allowance,Track additional proxy classes taken by teachers and compute extra substitution pay.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Grievance Cell,Confidential ticketing channel for staff members to report workplace issues to management.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Employee Document Expiry Alerts,"Receive alerts for upcoming visa, teaching license, or contract renewal expiration dates.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Staff Exit Interview Management,"Record exit interview feedback, clearance certificates from library/lab, and final settlement.",Assigned institution/campus,Must-Have
+Operations Staff,Transport Management,Vehicle Master Registry,"Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.",Assigned campus,Should-Have
+Operations Staff,Transport Management,Driver & Attendant Profiles,"Store driver licenses, police verification docs, phone numbers, and assigned bus routes.",Assigned campus,Should-Have
+Operations Staff,Transport Management,Route & Pickup Stop Mapping,"Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.",Assigned campus,Must-Have
+Operations Staff,Transport Management,Student Route Assignment,Assign students to specific bus routes and pick-up stops with automated fee mapping.,Assigned campus,Must-Have
+Operations Staff,Transport Management,Real-time Vehicle Tracking (VTS),"View live GPS map of moving school buses, current speed, route adherence, and delay alerts.",Assigned campus,Should-Have
+Operations Staff,Transport Management,Geo-fenced Bus Stop Alerts,Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.,Assigned campus,Should-Have
+Operations Staff,Transport Management,Bus Speeding & Rash Driving Alerts,Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.,Assigned campus,Must-Have
+Operations Staff,Transport Management,Transport Attendance Scans,Scan student RFID tags as they step on and off the bus to confirm safe transit.,Assigned campus,Must-Have
+Operations Staff,Transport Management,Vehicle Fuel & Maintenance Log,"Track fuel purchases, mileage performance, routine servicing, and repair expense logs.",Assigned campus,Should-Have
+Operations Staff,Hostel Management,Hostel Building & Room Setup,"Define hostel blocks, floors, room types (Single, Shared), and total bed capacity.",Assigned campus,Should-Have
+Operations Staff,Hostel Management,Room Allocation Engine,"Assign students to specific rooms/beds, view room occupancy rate, and handle room changes.",Assigned campus,Must-Have
+Operations Staff,Hostel Management,Hostel Roll-Call Attendance,"Take daily evening hostel attendance, track present boarders, and alert warden of missing students.",Assigned campus,Must-Have
+Operations Staff,Hostel Management,Digital Outpass Approval,Process student weekend leave or outing requests with warden and verified parent approval.,Assigned campus,Must-Have
+Operations Staff,Hostel Management,Hostel Visitor Log,"Record parent/relative visits to hostel premises, check-in time, and exit verification.",Assigned campus,Should-Have
+Operations Staff,Hostel Management,Mess Menu & Meal Management,Publish weekly hostel mess meal menu and track daily boarder dining headcounts.,Assigned campus,Should-Have
+Operations Staff,Hostel Management,Hostel Complaint Ticketing,"Log maintenance issues (plumbing, electrical, Wi-Fi) and track resolution by technicians.",Assigned campus,Should-Have
+Operations Staff,Library Management,Book Cataloging & Accession Register,"Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",Assigned campus,Must-Have
+Operations Staff,Library Management,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have
+Operations Staff,Library Management,Book Issue & Return Terminal,Scan student ID and book barcode to issue or return books in <5 seconds.,Assigned campus,Must-Have
+Operations Staff,Library Management,Overdue Fine Calculation,Auto-calculate daily overdue fines for late book returns and post fine to student ledger.,Assigned campus,Must-Have
+Operations Staff,Library Management,OPAC Digital Book Search,Online Public Access Catalog for students to search book availability and reserve books.,Assigned campus,Must-Have
+Operations Staff,Library Management,Library Inventory Audit,Scan shelves with handheld barcode reader to perform annual physical inventory audits.,Assigned campus,Must-Have
+Operations Staff,Infirmary,Student Health Master File,"Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts.",Assigned campus,Must-Have
+Operations Staff,Infirmary,Daily Nurse Visit Log,"Record infirmary visits, symptom observations, temperature, treatments, and resting duration.",Assigned campus,Should-Have
+Operations Staff,Infirmary,Medication Admin Register,Log doctor-prescribed medication administered to boarders/day students during school hours.,Assigned campus,Must-Have
+Operations Staff,Infirmary,Emergency Health Alerts,Send immediate SMS/Call alerts to parents and principal during medical emergencies.,Assigned campus,Should-Have
+Operations Staff,Infirmary,Annual Health Checkup Records,"Record height, weight, BMI, vision test, and dental health scores from annual doctor camps.",Assigned campus,Should-Have
+Operations Staff,Inventory & Stores,Item Category & Store Setup,"Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.",Assigned campus,Should-Have
+Operations Staff,Inventory & Stores,Purchase Order Workflow,"Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.",Assigned campus,Must-Have
+Operations Staff,Inventory & Stores,Department Stock Issuance,Issue stock items to specific teachers or departments and track active stock balances.,Assigned campus,Should-Have
+Parent / Guardian,Parent Mobile App,Real-Time Push Notifications,"Receive instant app push alerts for homework, circulars, fee dues, and attendance.",Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Live Bus Tracking Map,View real-time movement of child's bus on an interactive map with estimated time of arrival.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,One-Touch Online Fee Payment,"Pay fees securely using Credit/Debit cards, Net Banking, or UPI (GPay/PhonePe) instantly.",Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Digital Report Card Downloads,View and download digitally signed term report cards and holistic progress cards.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Child Attendance Calendar,"View daily color-coded attendance history (Green=Present, Red=Absent, Yellow=Late).",Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Homework & Subject Material,"View active homework assignments, teacher attachments, and submission deadlines.",Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Direct Teacher Messaging,Send structured query messages directly to class teacher during designated hours.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Apply Student Leave,Submit digital student leave applications with reason and medical certificate attachments.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,School Photo & Video Gallery,"View high-resolution photos and videos from school sports day, annual day, and events.",Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Parent-Teacher Meeting Booking,Select available PTM time slots to meet subject teachers without queueing.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Concerns & Grievance Ticketing,Raise academic or transport concerns and track resolution comments by school admin.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Digital Parent Consent Slips,"Provide digital signature consent for upcoming field trips, sports events, or health camps.",Specific student,Should-Have
+Student,Student Portal,Student Personalized Dashboard,"View today's timetable, pending homework, upcoming exam schedule, and unread library books.",Specific student,Must-Have
+Student,Student Portal,E-Learning Resource Hub,"Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",Specific student,Must-Have
+Student,Student Portal,Online Exam Attempt Engine,Attempt timed online objective/MCQ tests and view instant automated scoring.,Specific student,Must-Have
+Student,Student Portal,Digital Assignment Upload,"Upload typed essays, project PDFs, or scanned homework photos for teacher evaluation.",Specific student,Must-Have
+Student,Student Portal,Digital Diary & Schedule,"Track personal study schedules, project deadlines, and school calendar events.",Specific student,Must-Have
+Student,Student Portal,Student Wall & Peer Recognition,"View school news, student council announcements, badge achievements, and art features.",Specific student,Must-Have
+Student,Student Portal,Student Portfolio Management,"Maintain personal showcase portfolio containing certificates, creative projects, and sports records.",Specific student,Must-Have
+Student,Student Portal,Alumni Network Registration,Register for the official school alumni network upon passing out to stay connected with batchmates.,Specific student,Nice-to-Have
+Admissions & Front Office,Admissions Workspace,Prospectus & Kit Sales Log,"Track inventory, unit sales, and receipt generation for physical school prospectuses.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Admissions Open Day Scheduler,"Organize school open house events, manage online slot booking, and check in attending parents.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,UTM Tracking & Digital Campaign attribution,"Attribute web inquiries to specific Facebook, Google Ads, or email UTM campaign tags.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Sibling Priority Auto-Matching,Auto-detect existing enrolled siblings during inquiry to apply sibling priority quota.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Alumni Child Quota Allocation,Identify children of alumni applicants and apply institutional alumni quota benefits.,Assigned institution/campus,Nice-to-Have
+Admissions & Front Office,Admissions Workspace,RTE (Right to Education) Quota Tracking,"Manage government RTE quota applications, lottery selection results, and document verification.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Applicant Medical Fitness Declaration,"Collect applicant medical history, vaccination certificates, and physical fitness approvals.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Foreign / NRI Student Visa Documentation,"Track passport details, student visa status, and embassy NOCs for international applicants.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Admission Waitlist Management,"Maintain real-time waitlists per class, auto-promoting candidates as seats open up.",Assigned institution/campus,Must-Have
+Operations Staff,Transport Management,Fuel Sensor & Mileage Telematics,Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage.,Assigned campus,Should-Have
+Operations Staff,Transport Management,Driver Sobriety & Safety Checklist,Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.,Assigned campus,Should-Have
+Operations Staff,Transport Management,Bus Breakdown Emergency Dispatch,Trigger emergency notifications and dispatch replacement buses with auto-route updates.,Assigned campus,Should-Have
+Operations Staff,Transport Management,Seatbelt & CCTV Video Streaming,Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring.,Assigned campus,Must-Have
+Operations Staff,Hostel Management,Night Study Room Attendance,Track boarder attendance in mandatory evening/night supervised study halls.,Assigned campus,Must-Have
+Operations Staff,Hostel Management,Boarder Laundry Tracking,"Log clothes sent to commercial laundry, track token numbers, and manage returns.",Assigned campus,Should-Have
+Operations Staff,Hostel Management,Room Inventory Checklists,"Inspect room furniture, lights, and appliances upon student check-in and check-out.",Assigned campus,Must-Have
+Operations Staff,Library Management,Digital E-Book & Journal Integration,"Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",Assigned campus,Must-Have
+Operations Staff,Library Management,Book Reservation Queue,Auto-notify students when a reserved book is returned and available for collection.,Assigned campus,Must-Have
+Parent / Guardian,Parent Mobile App,Multi-Child Single Login Switch,Seamlessly toggle between profiles of multiple children enrolled in the same or different campuses.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Parent Community Discussion Forum,Participate in moderated class-level parent forums for event coordination.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Digital Student ID Card View,Access child's digital student ID card with QR code directly within the mobile app.,Specific student,Must-Have
+Student,Student Portal,Peer Tutoring & Study Groups,Sign up as student tutors or request peer study group assistance in specific subjects.,Specific student,Must-Have
+Student,Student Portal,Lost & Found Item Board,Post missing items or report found items with photos on the digital lost-and-found board.,Specific student,Must-Have
+Super Admin,AI & Automation,Predictive Dropout Risk Engine,"AI models analyzing attendance, grades, and fee delays to predict student churn risk.",All institutions / all campuses,Nice-to-Have
+Super Admin,AI & Automation,Automated Timetable Optimizer,"Genetic algorithms solving complex multi-variable faculty, room, and elective timetable constraints.",All institutions / all campuses,Nice-to-Have
+Super Admin,AI & Automation,AI Sentiment Analysis on Feedback,Natural Language Processing on parent complaints and reviews to gauge overall campus sentiment.,All institutions / all campuses,Nice-to-Have
+Super Admin,AI & Automation,Automated Exam Question Translation,AI translation engine converting English question banks into regional languages instantly.,All institutions / all campuses,Nice-to-Have
+Super Admin,AI & Automation,Smart Fee Cash Flow Predictor,Predictive modeling forecasting next quarter's fee collections based on historical payment patterns.,All institutions / all campuses,Nice-to-Have
+Parent / Guardian,Parent Mobile App,AI Voice Search for School Notices,Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages.,Specific student,Nice-to-Have
+Parent / Guardian,Parent Mobile App,AI Child Performance Summary Audio,Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.,Specific student,Nice-to-Have
+Student,Student Portal,AI Personal Learning Companion,"24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.",Specific student,Nice-to-Have
+HR & Payroll,HR Workspace,Staff Criminal Background Verification,Upload and verify third-party police verification certificates for all teaching and non-teaching staff.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Medical Fitness Certificate Registry,"Track mandatory annual medical fitness clearances for food handlers, bus drivers, and nannies.",Assigned institution/campus,Should-Have
+Parent / Guardian,Parent Mobile App,IEP Progress Goal Tracker,View real-time progress bars towards child's specific IEP milestones and therapy goals.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Private Counselor Chat Channel,Encrypted communication link with school counselor for sensitive family/child updates.,Specific student,Must-Have
+Student,Student Portal,Wellness & Mood Check-In Widget,"Daily 5-second mood check-in allowing students to express how they feel (Happy, Stressed, Overwhelmed).",Specific student,Must-Have
+Student,Student Portal,Self-Referral to School Counselor,Discreet digital button allowing students to request a private chat or meeting with the counselor.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Live Event Seating Pass,Download barcoded digital entry passes with pre-allocated row/seat numbers for school events.,Specific student,Should-Have
+Student,Student Portal,Digital Hall of Fame,"Showcase historic trophies, school record holders, and national rankers across academic/sports.",Specific student,Must-Have
+Student,Student Portal,Alumni Job & Internship Board,Senior students access exclusive internship and entry-level job posts shared by alumni network.,Specific student,Nice-to-Have
+Student,Student Portal,Global University Guidance Counselor,"Track college application deadlines, essay drafts, and request teacher Letters of Recommendation (LOR).",Specific student,Nice-to-Have
+HR & Payroll,HR Workspace,Biometric Punch In/Out Grace Period,Configure 10-minute grace windows for morning staff check-in before triggering late mark deductions.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Half-Day Leave Deduction Calculation,Auto-calculate half-day salary deductions when staff check out earlier than prescribed shift hours.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Overtime (OT) Rate Setup,Define hourly overtime rates for non-teaching staff working during weekend school events.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,PF Encashment & Loan Deduction,Process Provident Fund loan deductions and track remaining loan payback balances in payslips.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Professional Tax (PT) Slab Configuration,Configure state-specific Professional Tax deduction slabs based on gross monthly salary ranges.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Employee CTC Breakup Calculator,Model complete Gross vs. Net vs. CTC salary packages including employer PF and ESI matches.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Staff Gratuity Liability Estimator,Compute cumulative statutory gratuity liabilities for employees completing >5 years of continuous service.,Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Contractor / Security Staff Bill Verification,Verify outsourced security and cleaning vendor attendance invoices against gate biometric scans.,Assigned institution/campus,Must-Have
+HR & Payroll,HR Workspace,Staff Service Book Digitalization,"Maintain complete service book history including promotion orders, transfers, and disciplinary actions.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Teacher Relieving No-Deduction Clearance,"Verify digital clearance from Library, Science Labs, IT, and Finance prior to final salary settlement.",Assigned institution/campus,Must-Have
+Parent / Guardian,Parent Mobile App,Multi-Language App Interface Toggle,"Switch complete parent mobile app UI between English, Hindi, Telugu, Tamil, Marathi, and regional languages.",Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Child Absence Reporting Button,Notify class teacher in advance of child's planned absence with 1-click reason selection.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Digital Fee Receipt PDF Download,Download official stamped PDF fee receipts directly to parent smartphone storage.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,School Transport Driver Call Button,Direct masked call connection to bus attendant/driver during bus transit hours.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,PTM Appointment Reminder Alert,Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.,Specific student,Should-Have
+Student,Student Portal,Classmate Homework Help Forum,Moderated discussion board where students can post homework questions and share study hints.,Specific student,Must-Have
+Student,Student Portal,Digital Hall Ticket Download,Download and print barcoded exam hall tickets required for entering examination halls.,Specific student,Must-Have
+Student,Student Portal,Target Grade Calculator,Interactive tool calculating required marks in final exams to achieve a desired overall GPA/Grade.,Specific student,Must-Have
+Student,Student Portal,Library Book Hold Request,Reserve available library books online for pickup at the start of the next school day.,Specific student,Must-Have
+Student,Student Portal,Custom Theme Selection,"Customize student portal appearance with dark mode, high-contrast mode, or color themes.",Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Parent Bus Proximity Radius Customizer,"Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away).",Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Digital Parent ID Card for Campus Entry,Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates.,Specific student,Should-Have
+Student,Student Portal,Digital Hall Ticket Verification QR,Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Parent App Biometric Lock (Face ID / Fingerprint),Allow parents to secure mobile app access using smartphone hardware biometric authentication.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Real-time School Bus Live Video Feed Access,Permit authorized parents to view 15-second live video camera check-ins of child's bus during transit.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Child Daily Cafeteria Purchase Timeline,"View exact timestamped items, prices, and nutritional content bought by child in canteen.",Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Parent Delegation for Emergency Pickup,Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.,Specific student,Should-Have
+Parent / Guardian,Parent Mobile App,Parent App Dark Mode & High Contrast Accessibility,Toggle high-contrast text modes and dark UI themes for low-vision parent app users.,Specific student,Nice-to-Have
+Student,Student Portal,Classroom Note-Sharing Repository,"Peer-moderated repository where student notes, summaries, and revision guides are shared and upvoted.",Specific student,Must-Have
+Student,Student Portal,Personal Academic Goal Setting Widget,Students set GPA and assignment score targets and view visual progress bars toward goals.,Specific student,Must-Have
+Student,Student Portal,Gamified Learning Streak Counter,Visual daily login and homework completion streak counter rewarding students with digital badges.,Specific student,Nice-to-Have
+Student,Student Portal,Virtual Classroom Hand-Raise Telemetry,Log student digital hand-raises during live virtual classes to measure real-time engagement.,Specific student,Must-Have
+Student,Student Portal,Digital Locker Combination & Access Log,Manage assigned physical hallway locker numbers and view digital access keycode history.,Specific student,Must-Have
+Parent / Guardian,Parent Mobile App,Parent App Live Bus Tracking Refresh Rate Customizer,"Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery.",Specific student,Should-Have
+Student,Student Portal,Gamified Learning Badge Showcase,"Display earned academic, behavioral, and extracurricular digital badges on public student profile.",Specific student,Nice-to-Have
+Student,Student Portal,Digital Student ID Card NFC Tap Pass,Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.,Specific student,Must-Have
+Student,Student Portal,Student Club Event Ticketing & QR Check-In,"Register for campus drama, music, or science events and generate QR-coded admission tickets.",Specific student,Must-Have
+Student,Student Portal,Lost & Found Photo Board with Claim Verification,View photos of lost items found on campus and submit digital claim proof to reclaim items.,Specific student,Must-Have
+Super Admin,Platform Setup,UDISE+ Data Sync,"Map school, student, teacher and facility fields to the UDISE+ return format and validate data integrity before submission.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,APAAR ID Provisioning,Generate and reconcile APAAR (One Nation One Student) IDs against Aadhaar and the UDISE+ register.,All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,DigiLocker Issuer Integration,"Register as a DigiLocker issuer and push transfer certificates, report cards and mark sheets as verifiable documents.",All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Board Affiliation & Disclosure,"Maintain CBSE/ICSE/State affiliation numbers, mandatory public disclosure documents and renewal dates.",All institutions / all campuses,Should-Have
+Institution Admin / Principal,Compliance,UDISE+ Return Preparation,"Review the annual UDISE+ return, resolve validation errors and lock the submitted snapshot.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,APAAR ID Register,"Track APAAR ID issue status per student, pending Aadhaar consent and reconciliation exceptions.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,RTE 25% Reservation Register,"Maintain the audit-ready RTE quota register with lottery results, verification and reimbursement claims.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,Board Exam LOC Submission,"Prepare the Class X and XII List of Candidates, verify subject combinations and export in board format.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,PARAKH & NEP Credit Framework,Configure NEP 2020 credit-based evaluation and PARAKH holistic assessment parameters.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,Statutory Registers,"Maintain admission and withdrawal registers, EWS/DG register and attendance registers in inspection format.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,GST Compliant Receipt Numbering,"Configure gapless receipt series, GST treatment per fee head and financial-year reset rules.",Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Fee Structure Versioning,Version fee structures across academic years with mid-year revision and pro-rata recalculation.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,NSP Scholarship Reconciliation,Track National Scholarship Portal and state scholarship disbursements against student ledgers.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Aadhaar & APAAR Capture at Admission,"Capture Aadhaar consent, APAAR ID and prior-school UDISE code during the admission form.",Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Transfer Certificate Intake,"Record the previous school's TC number, board and issue date, and verify against the prior UDISE record.",Assigned institution/campus,Must-Have
+Faculty / Teacher,Teaching Workspace,PARAKH Holistic Assessment Entry,Record PARAKH assessment parameters and NEP credits alongside scholastic marks.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Absence Alert to Guardian,"Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window.",Assigned classes/subjects,Must-Have
+Parent / Guardian,Parent Mobile App,DigiLocker Document Pull,Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker.,Specific student,Must-Have
+Student,Student Portal,APAAR ID & Academic Bank of Credits,View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.,Specific student,Must-Have
+Operations Staff,Inventory & Stores,NCERT Textbook Indent,"Raise the annual NCERT textbook indent per class, track receipt and issue to students.",Assigned campus,Must-Have
+Super Admin,Platform Setup,State Board Configuration,"Select the state education board (BSE Telangana SSC, TSBIE Intermediate, CBSE, ICSE) and its grading and assessment rules.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,School Management Type,"Classify each campus as Government, Aided, Private Unaided, Model School, Gurukul or KGBV for state reporting.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,District & Mandal Master,"Maintain state, district, mandal and village/ward codes used by every government return.",All institutions / all campuses,Should-Have
+Super Admin,Platform Setup,Child Info Portal Sync,Map school and student records to the Telangana Child Info portal register and reconcile differences.,All institutions / all campuses,Must-Have
+Super Admin,Platform Setup,Academic Calendar Model,Configure the June-April school year separately from the April-March financial year used for receipts.,All institutions / all campuses,Must-Have
+Institution Admin / Principal,Compliance,Child Info Reconciliation,Compare the school roll against the Telangana Child Info register and resolve mismatches before the state deadline.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,Mid-Day Meal Register,"Record the daily cooked-meal headcount, rice consumption and menu for government and aided schools.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,MDM Utilisation Report,"Reconcile meals served against enrolment and attendance, and generate the monthly utilisation return.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,Working Days & Instructional Hours,Track sanctioned working days and instructional hours against the state academic calendar.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Compliance,Fee Regulatory Committee Filing,Prepare the fee structure justification and supporting accounts required by the state fee regulator.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Examinations,SSC Board Registration,"Register Class 10 candidates with BSE Telangana, capture subject combinations and medium, and submit the nominal roll.",Assigned institution/campus,Must-Have
+Institution Admin / Principal,Examinations,Intermediate Board Registration,Register Class 11 and 12 candidates with TSBIE including group and second language selection.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Examinations,Hall Ticket Issue,Issue and reprint board hall tickets against the accepted nominal roll.,Assigned institution/campus,Must-Have
+Institution Admin / Principal,Examinations,Board Result Import,"Import board results, map them to student records and publish to parents.",Assigned institution/campus,Must-Have
+Faculty / Teacher,Teaching Workspace,CCE Formative Assessment Entry,"Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,CCE Summative Assessment Entry,Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Telugu Medium Marks Entry,Enter marks and remarks in Telugu script for Telugu-medium sections.,Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,Language Subject Allocation,"Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi.",Assigned classes/subjects,Must-Have
+Faculty / Teacher,Teaching Workspace,CWSN Support Plan,"Record children with special needs, disability type and the classroom accommodations agreed.",Assigned classes/subjects,Must-Have
+Admissions & Front Office,Admissions Workspace,Medium of Instruction Selection,Capture the medium the applicant is admitted into and the language combination chosen.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,Child Info ID Capture,Record the Telangana Child Info ID at admission and verify it against the state register.,Assigned institution/campus,Must-Have
+Admissions & Front Office,Admissions Workspace,RTE Online Lottery Import,Import the state RTE 25% lottery allotment list and convert allotted candidates into applications.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Student Bank Account Register,Maintain student bank account and IFSC details for scholarship and incentive direct benefit transfers.,Assigned institution/campus,Must-Have
+Accounts & Finance,Fee Workspace,Government Reimbursement Claims,"Raise and track RTE and fee-reimbursement claims against the state, with sanction and receipt status.",Assigned institution/campus,Must-Have
+Accounts & Finance,Finance Workspace,Grant-in-Aid Accounting,"Track government grant-in-aid receipts, utilisation certificates and unspent balances.",Assigned institution/campus,Must-Have
+Operations Staff,Transport Management,Route Distance Fee Slabs,Define transport fee slabs by route distance and auto-apply them to the student's fee structure.,Assigned campus,Must-Have
+Operations Staff,Infirmary,School Health Programme Camps,"Record state school-health screening camps, referrals and follow-up treatment.",Assigned campus,Should-Have
+HR & Payroll,HR Workspace,Teacher Transfer & Deputation,"Record inter-school transfers, deputations and the seniority list used by the state transfer counselling.",Assigned institution/campus,Should-Have
+HR & Payroll,HR Workspace,Teacher Qualification Register,"Maintain B.Ed, D.El.Ed, TET and subject-competency records required by the board and for inspections.",Assigned institution/campus,Should-Have
+Parent / Guardian,Parent Mobile App,Telugu Language Interface,"Use the parent app entirely in Telugu, including circulars, fee notices and report cards.",Specific student,Must-Have
+Student,Student Portal,Board Hall Ticket Download,Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll.,Specific student,Must-Have
+Accounts & Finance,Finance Workspace,General Ledger & Trial Balance,"Post and review double-entry vouchers, run a trial balance, income and expenditure statement and balance sheet for the year; the books an auditor asks for.",Assigned institution/campus finance scope,Must-Have
+Accounts & Finance,Finance Workspace,Fixed Asset Register & Depreciation,"Track capital assets with purchase value, useful life and location; compute straight-line or WDV depreciation and post the annual charge.",Assigned institution/campus finance scope,Should-Have
+HR & Payroll,Payroll Workspace,Form 12BB & Investment Declarations,"Collect employee investment declarations with proofs, compute the resulting TDS relief and issue Form 12BB for the assessment year.",Assigned institution/campus employees,Must-Have
+Operations Staff,Transport Management,AIS-140 Telematics & VAHAN Compliance,"Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires.",Assigned campus,Nice-to-Have
+Faculty / Teacher,Teaching Workspace,Offline Attendance & Diary Capture,"Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.",Assigned classes/subjects,Nice-to-Have
+Seller Admin,Customers,Tenant Directory,"Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support.",All institutions / all campuses,Must-Have
+Seller Admin,Customers,Provision New School,"Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials.",All institutions / all campuses,Must-Have
+Seller Admin,Customers,Suspend & Reactivate,"Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement.",All institutions / all campuses,Must-Have
+Seller Admin,Customers,Onboarding Progress,"How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation.",All institutions / all campuses,Should-Have
+Seller Admin,Subscriptions & Billing,Plans & Pricing,"Define plans with a student cap, included modules and an annual or per-student price.",All institutions / all campuses,Must-Have
+Seller Admin,Subscriptions & Billing,Subscription Ledger,"Each school's plan, term dates, renewal date and invoice history.",All institutions / all campuses,Must-Have
+Seller Admin,Subscriptions & Billing,Seat Overage & Renewals,"Schools past their student cap or inside the renewal window, with the revenue at risk.",All institutions / all campuses,Must-Have
+Seller Admin,Entitlements,Module Entitlement Matrix,Which modules each plan and each school may use; switching one off hides it from that school's navigation.,All institutions / all campuses,Must-Have
+Seller Admin,Usage & Health,Adoption Metrics,"Sign-ins, active users and transactions per school per week — the leading indicator of renewal.",All institutions / all campuses,Should-Have
+Seller Admin,Usage & Health,Instance Health,"Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.",All institutions / all campuses,Must-Have
+Seller Admin,Support,Support Tickets,"Tickets raised by schools, with the tenant, severity, owner and time open.",All institutions / all campuses,Must-Have
+Seller Admin,Support,Impersonation & Audit,"Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school.",All institutions / all campuses,Must-Have

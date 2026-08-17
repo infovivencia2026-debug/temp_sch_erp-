@@ -1,0 +1,446 @@
+/* Inter, bundled rather than fetched.
+
+   The font stack has named Inter since the first commit and nothing ever
+   loaded it, so every browser quietly fell through to Helvetica Neue or
+   whatever system-ui resolved to — the design looked right on the machine it
+   was built on and subtly wrong everywhere else, which is the hardest class of
+   visual bug to notice.
+
+   Self-hosted through the bundle, not Google Fonts: a school on a thin
+   connection should not wait on a third party to render a fee receipt, the
+   files are then available offline, and no parent's browser announces itself
+   to another company on the way to the attendance register.
+
+   The variable cut carries every weight in one file, including the 450 the
+   editorial styles use, which a static set would need four requests for. */
+@import '@fontsource-variable/inter';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens.
+
+   A neutral admin system in the Linear / Vercel / Stripe register: grey
+   surfaces, 1px borders, almost no shadow, and colour reserved for state.
+   The rough budget is 90% neutral, 7% accent, 3% semantic — a screen where
+   everything is coloured has no way left to say "this one matters".
+
+   What changed from the previous "pulse" palette: mint was the accent over a
+   green-tinted ground, and solid buttons were near-black. Mint on grey reads
+   as a product landing page rather than a tool, and a black primary button
+   leaves nothing for genuine emphasis. Blue is the accent now and the ground
+   is properly neutral.
+
+   Depth comes from tonal steps between surfaces, not from shadows. In dark
+   mode especially: #0A0A0A → #111 → #181818 → #222 gives four legible layers
+   with no elevation at all, where a black page with white cards would just
+   glare. */
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Surfaces, lightest content sitting on a slightly darker page. */
+    --ground: 0 0% 98%;          /* #FAFAFA page */
+    --background: 0 0% 98%;
+    --card: 0 0% 100%;           /* #FFFFFF surface */
+    --card-foreground: 221 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    --elevated: 0 0% 100%;
+
+    /* Text, three steps: primary, secondary, muted. */
+    --foreground: 221 39% 11%;   /* #111827 */
+    --secondary-foreground: 220 9% 34%;  /* #4B5563 */
+    /* 47% is the lightest this can be and still clear 4.5:1 on white, which
+       muted text has to: it is used for "soon" navigation items, table
+       headers and hints, all of which are read rather than decorative. 55%
+       measured 3.5:1 and was quietly failing. */
+    --muted-foreground: 220 9% 47%;
+
+    --border: 220 13% 91%;       /* #E5E7EB */
+    --input: 220 13% 91%;
+
+    /* The single accent. Used for primary actions, selection and one series
+       in a chart — not for headings, icons or decoration. */
+    --primary: 217 91% 60%;      /* #2563EB */
+    --primary-foreground: 0 0% 100%;
+    --ring: 217 91% 60%;
+
+    /* Semantic. Each earns its place by meaning something specific:
+       paid, pending, bounced, informational. */
+    --success: 142 71% 40%;      /* #16A34A */
+    --warning: 32 95% 40%;       /* #D97706 */
+    --destructive: 0 72% 47%;    /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --info: 192 91% 34%;         /* #0891B2 */
+
+    --secondary: 220 14% 96%;
+    --muted: 220 14% 96%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 221 39% 11%;
+
+    /* Navigation is a quiet surface, not an inverted slab. Only the active
+       item is emphasised; making every item look like a button is what turns
+       a sidebar into noise. */
+    --rail: 0 0% 100%;
+    --rail-foreground: 220 9% 34%;
+
+    /* Radius scale, by component weight. */
+    --radius-control: 6px;
+    --radius-input: 8px;
+    --radius-card: 10px;
+    --radius-dialog: 12px;
+    --radius: var(--radius-card);
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Four tonal steps rather than black-and-white. */
+    --ground: 0 0% 4%;           /* #0A0A0A */
+    --background: 0 0% 4%;
+    --card: 0 0% 7%;             /* #111111 */
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;          /* #181818 */
+    --popover-foreground: 0 0% 98%;
+    --elevated: 0 0% 9%;
+
+    --foreground: 0 0% 98%;      /* #FAFAFA */
+    --secondary-foreground: 240 5% 65%;  /* #A1A1AA */
+    --muted-foreground: 240 4% 55%;
+
+    --border: 0 0% 15%;          /* #272727 */
+    --input: 0 0% 15%;
+
+    --primary: 217 91% 62%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 217 91% 62%;
+
+    --success: 142 65% 48%;
+    --warning: 35 90% 55%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --info: 192 80% 48%;
+
+    --secondary: 0 0% 13%;
+    --muted: 0 0% 13%;
+    --accent: 0 0% 13%;
+    --accent-foreground: 0 0% 98%;
+
+    --rail: 0 0% 7%;
+    --rail-foreground: 240 5% 65%;
+  }
+
+  /* Row padding is a document-level dial so every table responds to the
+     density control without threading a size prop through the tree. The
+     comfortable default lands a 14px row at about 48px tall, which is the
+     usual floor for a click target that also has to be scanned in bulk. */
+  :root { --row-py: 0.875rem; }
+  :root[data-density='compact'] { --row-py: 0.5rem; }
+  :root[data-density='comfortable'] { --row-py: 0.875rem; }
+  :root[data-density='spacious'] { --row-py: 1.125rem; }
+
+  * { border-color: hsl(var(--border)); }
+  html, body, #root { height: 100%; }
+  html, body { overflow-x: clip; max-width: 100%; }
+
+  /* 14px is the body baseline for dense enterprise software: small enough to
+     fit a working amount of data on screen, large enough to read all day.
+     The previous 13px was a step too far and looked cramped. */
+  html { font-size: 14px; }
+
+  body {
+    background: hsl(var(--ground));
+    color: hsl(var(--foreground));
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    /* Numbers line up in every table and KPI without per-component classes. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Headings are semibold and only mildly tightened. The display-weight
+     letter-spacing this used to carry belongs on a marketing page. */
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+  h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.35; }
+  h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
+  :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
+
+  /* Horizontal separators only. Vertical rules between every column turn a
+     table into a spreadsheet grid and make it harder to read across a row. */
+  table { border-collapse: collapse; }
+  :where(table) :where(th, td) { border-bottom: 1px solid hsl(var(--border)); }
+  :where(table) tr:last-child :where(td) { border-bottom: 0; }
+
+  svg { stroke-width: 1.75; }
+  * { -webkit-tap-highlight-color: transparent; }
+  button, [role='button'], summary { user-select: none; touch-action: manipulation; }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* A card is a hairline and a surface. No shadow: on a neutral ground the
+     border already separates it, and stacked shadows are what make an admin
+     panel look like a 2016 dashboard. */
+  .card {
+    position: relative;
+    border-radius: var(--radius-card);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    transition: border-color 0.2s ease;
+  }
+
+  /* A row of metrics sharing one outline, separated by 1px of the border
+     colour showing through the gap rather than by each cell drawing its own
+     box. Cheaper visually than four cards side by side. */
+  .cell-grid {
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--border));
+  }
+  .cell {
+    background: hsl(var(--card));
+    padding: 20px;
+    transition: background-color 0.15s ease;
+  }
+  a.cell:hover, button.cell:hover { background: hsl(var(--accent)); }
+
+  .chrome {
+    background: hsl(var(--background) / 0.9);
+    backdrop-filter: blur(8px);
+    border-color: hsl(var(--border));
+  }
+
+  /* A field label, and the column header in a table. Sentence case at 12px:
+     the uppercase letter-spaced treatment this used to have is an editorial
+     device that costs legibility at small sizes and makes a form look like a
+     brochure. */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: hsl(var(--secondary-foreground));
+  }
+
+  /* A headline number. 28px semibold reads as data; the 32px light it was
+     before read as a hero statistic. */
+  .stat {
+    margin-top: 8px;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .field {
+    height: 40px;
+    width: 100%;
+    border-radius: var(--radius-input);
+    padding-inline: 12px;
+    font-size: 14px;
+    border: 1px solid hsl(var(--input));
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field:hover { border-color: hsl(var(--muted-foreground) / 0.4); }
+  .field:focus {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+  }
+  .field::placeholder { color: hsl(var(--muted-foreground)); }
+
+  /* Status as a dot and a word, not a filled pill. A row of saturated
+     lozenges competes with the data for attention and reads as decoration;
+     the dot carries the colour and the label carries the meaning. */
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    flex: none;
+  }
+
+  .page-shell { max-width: 1600px; margin-inline: auto; }
+
+  /* Content settles in once, on mount. Short and small: a long slide is
+     theatre, and an operator opening the same screen forty times a day will
+     notice it forty times. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(4px);
+    animation: reveal 0.25s ease-out forwards;
+  }
+  .reveal-1 { animation-delay: 40ms; }
+  .reveal-2 { animation-delay: 80ms; }
+  .reveal-3 { animation-delay: 120ms; }
+}
+
+@keyframes reveal {
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { animation: none; opacity: 1; transform: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Tables become cards on a phone.
+
+   Every table in the app carries .responsive-table and every cell carries the
+   column header in data-label, injected by the Table component. Below the sm
+   breakpoint the grid collapses: the header row is dropped, each row becomes
+   a bordered card, and each cell prints its own label beside its value.
+
+   Cells whose value is the row's subject — the first one — keep their weight
+   and skip the label, because repeating "Name" above a person's name is
+   noise. Cells with a colSpan get no label at all; they are notes, not
+   fields. */
+@media (max-width: 639px) {
+  .responsive-table,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table tr {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    padding: 0.25rem 0;
+    margin: 0.5rem 0.75rem;
+    background: hsl(var(--card));
+  }
+
+  .responsive-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.3rem 0.85rem;
+    text-align: right;
+  }
+
+  .responsive-table td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: left;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* The first cell is the row's subject — a name, a receipt number. It reads
+     as a heading rather than as one more labelled field. */
+  .responsive-table td:first-child {
+    justify-content: flex-start;
+    padding-top: 0.6rem;
+    text-align: left;
+    font-weight: 500;
+  }
+  .responsive-table td:first-child::before {
+    display: none;
+  }
+
+  /* An empty state still spans the card rather than sitting in a column. */
+  .responsive-table td[colspan] {
+    text-align: center;
+  }
+}
+
+/* Printing.
+
+   A school prints all day — receipts over the counter, hall tickets, report
+   cards, the attendance register for a file. There were no print rules at all,
+   so Ctrl-P produced the sidebar, the icon rail, the search box and a page of
+   grey-on-grey with the actual document somewhere in the middle.
+
+   Two rules do most of the work: hide the chrome, and stop paying for ink on
+   backgrounds. Everything else is making sure a table does not tear across a
+   page boundary, which is what turns a printed register into a puzzle. */
+@media print {
+  /* Navigation, toasts and anything that only exists to click. */
+  aside,
+  header.chrome,
+  .no-print,
+  [role='dialog'],
+  [aria-live] {
+    display: none !important;
+  }
+
+  /* Colour costs money and grey text photocopies badly. */
+  :root {
+    --background: 0 0% 100%;
+    --ground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 15%;
+    --muted-foreground: 0 0% 30%;
+    --border: 0 0% 70%;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+  .card,
+  .cell-grid,
+  .cell {
+    border-color: #999 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  /* The page fills the sheet; the app's max width is a screen concern. */
+  main,
+  .page-shell {
+    max-width: none !important;
+    overflow: visible !important;
+  }
+  .page-head { padding: 0 0 8pt !important; }
+  h1 { font-size: 16pt; }
+  h2 { font-size: 13pt; }
+  h3 { font-size: 12pt; }
+
+  /* A row split across two sheets is unreadable, and a header that does not
+     repeat leaves page two as a wall of anonymous numbers. */
+  table { page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+  .card { page-break-inside: avoid; }
+
+  /* Anything that scrolls on screen must unroll on paper, or the printout
+     silently loses its right-hand columns. */
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  /* A receipt or a hall ticket is the whole point of the page: given
+     .print-only it appears, and .print-page gives it its own sheet. */
+  .print-only { display: block !important; }
+  .print-page { page-break-after: always; }
+
+  a[href]::after { content: ''; }
+  @page { margin: 14mm; }
+}
+
+.print-only { display: none; }

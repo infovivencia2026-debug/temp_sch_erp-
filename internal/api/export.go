@@ -1,0 +1,225 @@
+package api
+
+import (
+	"encoding/csv"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/httpx"
+)
+
+/* CSV export.
+
+   Indian schools live in Excel: every report eventually gets pasted into a
+   spreadsheet, mailed to a trustee, or filed. A screen you cannot get data out
+   of is a screen people work around by retyping. */
+
+// exportable maps a URL slug to a query. Kept as an allowlist rather than
+// accepting SQL or table names from the client, which would be an injection
+// surface wearing a convenience costume.
+var exportable = map[string]struct {
+	perm   string
+	header []string
+	query  string
+}{
+	"students": {
+		perm:   "students.read",
+		header: []string{"Admission No", "Name", "Class", "Section", "Roll", "Gender", "Date of Birth", "Medium", "Guardian", "Phone", "Status"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               COALESCE(en.roll_no::text,''), COALESCE(st.gender,''),
+		               COALESCE(to_char(st.date_of_birth,'DD/MM/YYYY'),''),
+		               COALESCE(st.medium,''), COALESCE(g.full_name,''),
+		               COALESCE(g.phone,''), st.status
+		          FROM students st
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id, e.roll_no FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT gg.full_name, gg.phone FROM student_guardians sg
+		                JOIN guardians gg ON gg.id = sg.guardian_id
+		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
+		          ) g ON true
+		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
+	},
+	"defaulters": {
+		perm:   "finance.invoices.read",
+		header: []string{"Admission No", "Student", "Class", "Guardian", "Phone", "Oldest Due", "Days Overdue", "Balance (Rs)", "Bucket"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(c.name || '-' || sec.name,''),
+		               COALESCE(g.full_name,''), COALESCE(g.phone,''),
+		               COALESCE(to_char(min(i.due_on),'DD/MM/YYYY'),''),
+		               COALESCE(GREATEST(0,(CURRENT_DATE - min(i.due_on)))::text,'0'),
+		               to_char(sum(i.net_paise - i.paid_paise)/100.0,'FM999999990.00'),
+		               CASE WHEN CURRENT_DATE - min(i.due_on) > 90 THEN '90+'
+		                    WHEN CURRENT_DATE - min(i.due_on) > 60 THEN '61-90'
+		                    WHEN CURRENT_DATE - min(i.due_on) > 30 THEN '31-60'
+		                    ELSE '0-30' END
+		          FROM invoices i
+		          JOIN students st ON st.id = i.student_id
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT gg.full_name, gg.phone FROM student_guardians sg
+		                JOIN guardians gg ON gg.id = sg.guardian_id
+		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
+		          ) g ON true
+		         WHERE i.status IN ('unpaid','partial','overdue')
+		           AND i.due_on IS NOT NULL AND i.due_on < CURRENT_DATE
+		         GROUP BY st.id, c.name, sec.name, g.full_name, g.phone
+		        HAVING sum(i.net_paise - i.paid_paise) > 0
+		         ORDER BY 7 DESC`,
+	},
+	"collections": {
+		perm:   "finance.payments.read",
+		header: []string{"Receipt No", "Date", "Student", "Admission No", "Mode", "Amount (Rs)", "Status", "Collected By"},
+		query: `SELECT COALESCE(p.receipt_no,''), to_char(p.paid_on,'DD/MM/YYYY'),
+		               concat_ws(' ', st.first_name, st.last_name), st.admission_no,
+		               p.mode, to_char(p.amount_paise/100.0,'FM999999990.00'),
+		               p.status, COALESCE(u.full_name,'')
+		          FROM payments p
+		          JOIN students st ON st.id = p.student_id
+		          LEFT JOIN users u ON u.id = p.collected_by
+		         ORDER BY p.paid_on DESC, p.receipt_no DESC`,
+	},
+	"attendance": {
+		perm:   "academics.attendance.read.all",
+		header: []string{"Date", "Admission No", "Student", "Class", "Section", "Status"},
+		query: `SELECT to_char(sa.on_date,'DD/MM/YYYY'), st.admission_no,
+		               concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''), sa.status
+		          FROM student_attendance sa
+		          JOIN students st  ON st.id = sa.student_id
+		          LEFT JOIN sections sec ON sec.id = sa.section_id
+		          LEFT JOIN classes  c   ON c.id = sec.class_id
+		         WHERE sa.on_date >= CURRENT_DATE - INTERVAL '90 days'
+		         ORDER BY sa.on_date DESC, st.admission_no`,
+	},
+	"staff": {
+		perm:   "hr.employees.read",
+		header: []string{"Code", "Name", "Department", "Designation", "Email", "Phone", "Joined", "Status"},
+		query: `SELECT e.employee_code, concat_ws(' ', e.first_name, e.last_name),
+		               COALESCE(d.name,''), COALESCE(dg.name,''),
+		               COALESCE(e.email::text,''), COALESCE(e.phone,''),
+		               to_char(e.joined_on,'DD/MM/YYYY'), e.status
+		          FROM employees e
+		          LEFT JOIN departments  d  ON d.id = e.department_id
+		          LEFT JOIN designations dg ON dg.id = e.designation_id
+		         ORDER BY e.employee_code`,
+	},
+	"udise": {
+		perm:   "admin.reports.read",
+		header: []string{"Admission No", "Name", "APAAR ID", "Child Info ID", "Date of Birth", "Gender", "Class", "Medium", "RTE", "CWSN", "Problems"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		               COALESCE(st.apaar_id,''), COALESCE(st.child_info_id,''),
+		               COALESCE(to_char(st.date_of_birth,'DD/MM/YYYY'),''),
+		               COALESCE(st.gender,''), COALESCE(c.name,''), COALESCE(st.medium,''),
+		               CASE WHEN st.is_rte THEN 'Y' ELSE 'N' END,
+		               CASE WHEN st.is_cwsn THEN 'Y' ELSE 'N' END,
+		               trim(both ', ' FROM concat_ws(', ',
+		                 CASE WHEN st.date_of_birth IS NULL THEN 'date of birth missing' END,
+		                 CASE WHEN st.gender IS NULL THEN 'gender missing' END,
+		                 CASE WHEN st.apaar_id IS NULL THEN 'APAAR not issued' END,
+		                 CASE WHEN NOT st.aadhaar_consent THEN 'Aadhaar consent missing' END))
+		          FROM students st
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id FROM enrollments e
+		               WHERE e.student_id = st.id AND e.status='active' LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes c ON c.id = en.class_id
+		         WHERE st.status = 'active'
+		         ORDER BY st.admission_no`,
+	},
+}
+
+// exportCSV streams an allowlisted report.
+//
+// Rows are written as they are read rather than buffered: a whole-school
+// attendance export is tens of thousands of rows, and holding that in memory on
+// a 1 vCPU box to build one string would be the slowest thing the server does.
+func (s *Server) exportCSV(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	name := chiURLParam(r, "name")
+
+	spec, ok := exportable[name]
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	if !id.Can(spec.perm) {
+		httpx.Forbidden(w, r, spec.perm)
+		return
+	}
+
+	filename := fmt.Sprintf("%s-%s.csv", name, time.Now().Format("2006-01-02"))
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+
+	cw := csv.NewWriter(w)
+	// Excel opens a UTF-8 CSV as ANSI unless it sees a BOM, which turns Telugu
+	// names into mojibake for exactly the schools that need them most.
+	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
+	_ = cw.Write(spec.header)
+
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), spec.query)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		n := len(spec.header)
+		for rows.Next() {
+			vals, err := rows.Values()
+			if err != nil {
+				return err
+			}
+			rec := make([]string, n)
+			for i := 0; i < n && i < len(vals); i++ {
+				if vals[i] == nil {
+					continue
+				}
+				rec[i] = strings.TrimSpace(fmt.Sprint(vals[i]))
+			}
+			if err := cw.Write(rec); err != nil {
+				return err
+			}
+		}
+		return rows.Err()
+	})
+	cw.Flush()
+	if err != nil {
+		// Headers are already sent, so the only honest signal left is a marker
+		// row — better than a silently truncated file the school then files.
+		_, _ = w.Write([]byte("\n# EXPORT FAILED - this file is incomplete\n"))
+	}
+}
+
+// listExports tells the client which reports it may download.
+func (s *Server) listExports(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	out := []map[string]any{}
+	for name, spec := range exportable {
+		if !id.Can(spec.perm) {
+			continue
+		}
+		out = append(out, map[string]any{
+			"name": name, "url": "/api/v1/export/" + name, "columns": spec.header,
+		})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
+}

@@ -1,0 +1,623 @@
+
+==============================================================================
+SELLER ADMIN   7 working / 12 catalogued
+==============================================================================
+
+  Customers  (4/4)
+    [x] M  Tenant Directory
+    [x] M  Provision New School
+    [x] M  Suspend & Reactivate
+    [x] S  Onboarding Progress
+
+  Subscriptions & Billing  (3/3)
+    [x] M  Plans & Pricing
+    [x] M  Subscription Ledger
+    [x] M  Seat Overage & Renewals
+
+  Entitlements  (0/1)
+    [ ] M  Module Entitlement Matrix
+
+  Usage & Health  (0/2)
+    [ ] S  Adoption Metrics
+    [ ] M  Instance Health
+
+  Support  (0/2)
+    [ ] M  Support Tickets
+    [ ] M  Impersonation & Audit
+
+==============================================================================
+SUPER ADMIN   15 working / 54 catalogued
+==============================================================================
+
+  Dashboard  (0/8)
+    [ ] M  Campus cards
+    [ ] M  All campuses summary
+    [ ] M  Alerts
+    [ ] M  Multi-Branch Revenue Analytics
+    [ ] M  Campus Cards Overview
+    [ ] M  Central Admission Funnel KPI
+    [ ] M  Global Attendance Heatmap
+    [ ] M  Executive System Alerts
+
+  Institution Setup  (2/3)
+    [x] S  Institutions & campuses
+    [x] S  Academic year defaults
+    [ ] M  Branding
+
+  Access & Security  (3/4)
+    [x] M  Users
+    [x] M  Roles & permissions
+    [x] M  Login & session audit
+    [ ] M  SSO / MFA
+
+  Platform Configuration  (3/5)
+    [x] S  Module configuration
+    [ ] M  Integrations
+    [ ] M  Numbering & templates
+    [x] M  Audit log
+    [x] M  Data operations
+
+  Platform Setup  (7/29)
+    [x] S  Multi-Campus Configuration
+    [ ] S  Academic Year Defaults
+    [x] M  Role & Permission Matrix
+    [x] S  User Directory & Provisioning
+    [ ] N  Franchise Management
+    [ ] M  White-Label Branding
+    [ ] M  SMS Gateway Integration
+    [ ] M  WhatsApp API Integration
+    [ ] M  Email Server (SMTP) Integration
+    [ ] M  Payment Gateway Connectors
+    [ ] M  Biometric Device Integration
+    [ ] M  GPS Hardware Integration
+    [ ] M  Virtual Classroom Integration
+    [ ] M  Tally ERP / Prime Connector
+    [ ] S  Meritto / LeadSquared Sync
+    [ ] S  SQAA Framework Management
+    [ ] M  Automated Trigger Rules
+    [x] M  Login & Session Audit Logs
+    [ ] S  Data Backup & Restore
+    [x] M  System Health & Integration Alerts
+    [x] M  UDISE+ Data Sync
+    [x] M  APAAR ID Provisioning
+    [ ] M  DigiLocker Issuer Integration
+    [ ] S  Board Affiliation & Disclosure
+    [ ] S  State Board Configuration
+    [ ] S  School Management Type
+    [ ] S  District & Mandal Master
+    [ ] M  Child Info Portal Sync
+    [ ] M  Academic Calendar Model
+
+  AI & Automation  (0/5)
+    [ ] N  Predictive Dropout Risk Engine
+    [ ] N  Automated Timetable Optimizer
+    [ ] N  AI Sentiment Analysis on Feedback
+    [ ] N  Automated Exam Question Translation
+    [ ] N  Smart Fee Cash Flow Predictor
+
+==============================================================================
+INSTITUTION ADMIN / PRINCIPAL   24 working / 60 catalogued
+==============================================================================
+
+  Dashboard  (4/5)
+    [x] M  Executive KPIs
+    [x] M  Needs attention
+    [ ] M  Today
+    [x] M  Campus KPI Overview
+    [x] M  Needs Attention Widget
+
+  Students & Admissions  (4/4)
+    [x] M  Student directory & Student 360
+    [x] M  Admissions overview
+    [x] M  Enrollment lifecycle
+    [x] M  Certificates & documents
+
+  Academics  (3/12)
+    [x] S  Academic structure
+    [ ] S  Faculty allocation
+    [x] M  Timetable
+    [ ] M  Academic calendar
+    [ ] M  Master Timetable Generation
+    [ ] S  Faculty Substitution Engine
+    [ ] M  Subject & Chapter Planner
+    [ ] M  Lesson Plan Approval Queue
+    [ ] S  Syllabus Coverage Tracking
+    [ ] M  Academic Calendar Management
+    [x] M  Class & Section Promotion
+    [ ] M  Baseline Performance Analysis
+
+  Academic Monitoring  (2/4)
+    [x] M  Attendance monitoring
+    [ ] M  Attendance corrections
+    [x] M  Exams & result status
+    [ ] M  Performance overview
+
+  Administration  (6/14)
+    [ ] M  Fee overview
+    [x] M  Staff overview
+    [x] M  Approvals center
+    [x] M  Communication
+    [ ] M  Reports
+    [x] S  Staff Allocation & Workload
+    [ ] S  Certificates & Document Templates
+    [x] S  Digital Certificate Generation
+    [x] M  Circular & Announcement Dispatch
+    [ ] M  SQAA Compliance Tracking
+    [ ] M  360 Evaluation Oversight
+    [ ] M  Parent Feedback & Grievance Hub
+    [ ] M  Disciplinary Incident Log
+    [ ] N  Alumni Program Oversight
+
+  Reports  (2/4)
+    [x] M  Comprehensive Attendance Report
+    [x] M  Exam & Grade Analytics
+    [ ] M  Fee Collection Summaries
+    [ ] S  Custom Report Builder
+
+  School Culture  (0/2)
+    [ ] M  School Achievements Showcase
+    [ ] M  Student Council Management
+
+  Compliance  (3/11)
+    [x] M  UDISE+ Return Preparation
+    [x] M  APAAR ID Register
+    [ ] M  RTE 25% Reservation Register
+    [ ] M  Board Exam LOC Submission
+    [ ] M  PARAKH & NEP Credit Framework
+    [x] M  Statutory Registers
+    [ ] M  Child Info Reconciliation
+    [ ] M  Mid-Day Meal Register
+    [ ] M  MDM Utilisation Report
+    [ ] M  Working Days & Instructional Hours
+    [ ] M  Fee Regulatory Committee Filing
+
+  Examinations  (0/4)
+    [ ] M  SSC Board Registration
+    [ ] M  Intermediate Board Registration
+    [ ] M  Hall Ticket Issue
+    [ ] M  Board Result Import
+
+==============================================================================
+HOD / DEPARTMENT HEAD   4 working / 14 catalogued
+==============================================================================
+
+  Dashboard  (1/2)
+    [x] M  Department KPIs
+    [ ] M  Needs attention
+
+  Department Workspace  (3/12)
+    [ ] S  Department academics
+    [x] M  Faculty directory
+    [x] S  Faculty allocation & workload
+    [ ] M  Department timetable
+    [ ] M  Department students
+    [ ] M  Attendance monitoring
+    [ ] M  Exams & marks monitoring
+    [ ] M  Performance analytics
+    [x] M  Approvals
+    [ ] M  Communication
+    [ ] S  OBE / outcomes
+    [ ] M  Department reports
+
+==============================================================================
+FACULTY / TEACHER   15 working / 53 catalogued
+==============================================================================
+
+  Dashboard  (2/2)
+    [x] M  Today's classes
+    [x] M  My work
+
+  Teaching Workspace  (13/51)
+    [x] M  My timetable
+    [x] M  Take attendance
+    [ ] M  Attendance correction
+    [x] M  My classes
+    [x] S  Homework / classwork
+    [ ] M  Assignments & submissions
+    [ ] M  Lesson plans / content
+    [x] M  Marks entry
+    [x] M  Gradebook
+    [ ] M  Student progress
+    [ ] M  Remarks
+    [ ] M  Communication
+    [ ] M  Leave & self service
+    [x] M  Daily Timetable View
+    [x] M  Period-wise Student Attendance
+    [ ] M  Daily Attendance Correction
+    [x] S  Teacher Digital Diary
+    [ ] S  Syllabus Progress Tracker
+    [ ] M  Lesson Plan Creation
+    [x] S  Homework & Classwork Publisher
+    [ ] M  Assignment Evaluation & Grading
+    [ ] S  LMS Study Material Upload
+    [ ] M  Live Virtual Class Launcher
+    [ ] S  Question Bank Management
+    [ ] N  AI Examcell Paper Generator
+    [ ] N  Ved AI Assessment Assistant
+    [ ] M  Objective Online Test Creation
+    [ ] M  No-OMR Exam Grading
+    [x] M  CBSE Gradebook Marks Entry
+    [x] M  ICSE Gradebook Entry
+    [x] M  State Board Gradebook Entry
+    [ ] M  Cambridge Gradebook Entry
+    [ ] M  IB (PYP/MYP/DP) Gradebook
+    [ ] M  NEP Holistic Progress Card (HPC)
+    [ ] S  Montessori & Early Years Tracking
+    [ ] M  Student Behavior & Demerits
+    [ ] M  Student Portfolio Builder
+    [ ] M  Anecdotal Records
+    [ ] M  Class Teacher Remarks
+    [ ] M  PTM Notes & Action Items
+    [ ] N  Student At-Risk Identification
+    [ ] S  Substitution Request Submission
+    [ ] M  Classroom Communication Broadcasting
+    [ ] M  PARAKH Holistic Assessment Entry
+    [ ] M  Absence Alert to Guardian
+    [ ] M  CCE Formative Assessment Entry
+    [ ] M  CCE Summative Assessment Entry
+    [ ] M  Telugu Medium Marks Entry
+    [ ] M  Language Subject Allocation
+    [ ] M  CWSN Support Plan
+    [ ] N  Offline Attendance & Diary Capture
+
+==============================================================================
+ACCOUNTS & FINANCE   13 working / 53 catalogued
+==============================================================================
+
+  Dashboard  (2/2)
+    [x] M  Finance KPIs
+    [x] M  Needs attention
+
+  Fee & Finance Workspace  (5/13)
+    [ ] M  Fee structures & schedules
+    [ ] M  Demand / invoice generation
+    [x] M  Student ledger
+    [x] M  Collect payment
+    [ ] M  Online payments
+    [x] M  Receipts
+    [x] M  Partial & advance payments
+    [ ] M  Discounts / scholarships
+    [ ] M  Refunds
+    [x] M  Defaulters & reminders
+    [ ] M  Reconciliation
+    [ ] M  Expenses / accounting
+    [ ] M  Finance reports
+
+  Fee Workspace  (6/26)
+    [ ] M  Fee Head & Group Setup
+    [ ] M  Class-Wise Fee Structure Configuration
+    [ ] M  Fee Demand / Invoice Generation
+    [x] M  Counter Fee Collection
+    [x] M  Partial & Advance Payment Rules
+    [ ] M  Late Fine Rules Engine
+    [ ] M  Concession & Scholarship Management
+    [ ] M  Multi-Level Concession Approvals
+    [ ] M  Online Payment Gateway Auto-Sync
+    [ ] M  Payment Gateway Reconciliation
+    [x] M  Defaulter Tracking & Aging
+    [ ] M  Automated Fee Reminders
+    [x] M  Post-Dated Cheques (PDC) Registry
+    [x] M  Cheque Bounce Fine Engine
+    [ ] M  Fee Refund Processing
+    [x] M  Student Ledger 360
+    [ ] M  Connected Banking Payouts
+    [ ] M  Student Loan Assistance Portal
+    [ ] M  Cashless Campus Wallet
+    [ ] M  POS Canteen Terminal Integration
+    [ ] M  School Store & Merchandise Sales
+    [ ] M  GST Compliant Receipt Numbering
+    [ ] M  Fee Structure Versioning
+    [ ] M  NSP Scholarship Reconciliation
+    [ ] M  Student Bank Account Register
+    [ ] M  Government Reimbursement Claims
+
+  Finance Workspace  (0/12)
+    [ ] M  Chart of Accounts Setup
+    [ ] M  Petty Cash Voucher Management
+    [ ] M  Vendor Management & Accounts Payable
+    [ ] S  Budgeting & Variance Analysis
+    [ ] M  Bank Reconciliation Statement (BRS)
+    [ ] S  Daybook & Cashbook Reports
+    [ ] M  Tally Prime XML Export
+    [ ] M  Financial Year Closing
+    [ ] M  Taxation & Audit Reports
+    [ ] M  Grant-in-Aid Accounting
+    [ ] M  General Ledger & Trial Balance
+    [ ] S  Fixed Asset Register & Depreciation
+
+==============================================================================
+ADMISSIONS & FRONT OFFICE   11 working / 50 catalogued
+==============================================================================
+
+  Dashboard  (2/2)
+    [x] M  Admissions KPIs
+    [x] M  Follow-ups
+
+  Admissions Workspace  (9/41)
+    [x] M  Enquiries / leads
+    [x] M  Applications
+    [ ] M  Applicant documents
+    [ ] M  Entrance tests / interviews
+    [x] M  Offers / admission decisions
+    [ ] M  Admission fee status
+    [x] M  Enrollment handoff
+    [ ] M  Applicant communication
+    [ ] M  Admissions reports
+    [ ] M  Inquiry / Lead Entry
+    [ ] M  Lead Source Tracking
+    [ ] M  Counselor Lead Assignment
+    [ ] M  Counselor Activity & Follow-ups
+    [ ] M  Multi-Touch Campaign Sequences
+    [ ] M  Online Application Form Builder
+    [ ] M  Application Document Verification
+    [ ] M  Admission Fee Collection
+    [ ] M  Entrance Exam Scheduling
+    [ ] M  Interview & Interaction Scheduler
+    [x] M  Merit List Generation
+    [x] M  Seat Allocation Management
+    [ ] M  Provisional Offer Letters
+    [x] M  Admitted Student Handoff
+    [ ] N  24/7 Admission Chatbot
+    [ ] N  AI Voice Agent Integration
+    [x] M  Admission Conversion Reports
+    [ ] M  Lost Lead Reason Analysis
+    [ ] M  Prospectus & Kit Sales Log
+    [ ] M  Admissions Open Day Scheduler
+    [ ] M  UTM Tracking & Digital Campaign attribution
+    [ ] M  Sibling Priority Auto-Matching
+    [ ] N  Alumni Child Quota Allocation
+    [x] M  RTE (Right to Education) Quota Tracking
+    [ ] M  Applicant Medical Fitness Declaration
+    [ ] M  Foreign / NRI Student Visa Documentation
+    [ ] M  Admission Waitlist Management
+    [ ] M  Aadhaar & APAAR Capture at Admission
+    [ ] M  Transfer Certificate Intake
+    [ ] M  Medium of Instruction Selection
+    [ ] M  Child Info ID Capture
+    [ ] M  RTE Online Lottery Import
+
+  Front Office  (0/7)
+    [ ] S  Visitor Gate Pass Generation
+    [ ] S  Visitor Checkout Tracking
+    [ ] S  Postal & Courier Log
+    [ ] S  Front Office Calls Register
+    [ ] S  Parent Appointment Booking
+    [ ] M  Gate RFID Entry Management
+    [ ] M  Emergency Gate Lockout
+
+==============================================================================
+HR & PAYROLL   8 working / 48 catalogued
+==============================================================================
+
+  Dashboard  (1/1)
+    [x] M  HR KPIs
+
+  HR Workspace  (7/46)
+    [x] S  Employee master
+    [ ] M  Staff attendance
+    [x] S  Leave
+    [ ] S  Recruitment
+    [x] M  Payroll
+    [ ] S  Employee documents
+    [ ] M  HR reports
+    [x] S  Employee Master Directory
+    [ ] S  Staff Onboarding & KYC Verification
+    [ ] M  Biometric Machine Attendance Sync
+    [ ] S  Staff Shift & Rostering
+    [ ] S  Leave Policy Configuration
+    [ ] S  Staff Leave Application Management
+    [ ] S  Late Arrival & Loss of Pay (LOP)
+    [x] M  Salary Structure Builder
+    [x] M  Payroll Calculation Engine
+    [x] M  Payslip Generation & Email Dispatch
+    [ ] M  Direct Bank Payroll Transfer File
+    [ ] M  PF & ESI Statutory Compliance
+    [ ] S  Income Tax & Form 16 Generator
+    [ ] M  Staff Loan & Advance Management
+    [ ] M  Annual Performance Appraisal (KPI)
+    [ ] S  Staff Experience & Relieving Cards
+    [ ] M  Staff Recruitment & Job Portal
+    [ ] S  Staff Training & Workshop Logs
+    [ ] S  Staff Birthday & Anniversary Alerts
+    [ ] S  Staff Recognition & Wall
+    [ ] S  Staff ID Card Printing
+    [ ] S  Substitute Workload Allowance
+    [ ] S  Staff Grievance Cell
+    [ ] S  Employee Document Expiry Alerts
+    [ ] M  Staff Exit Interview Management
+    [ ] S  Staff Criminal Background Verification
+    [ ] S  Medical Fitness Certificate Registry
+    [ ] M  Biometric Punch In/Out Grace Period
+    [ ] M  Half-Day Leave Deduction Calculation
+    [ ] S  Overtime (OT) Rate Setup
+    [ ] S  PF Encashment & Loan Deduction
+    [ ] M  Professional Tax (PT) Slab Configuration
+    [ ] M  Employee CTC Breakup Calculator
+    [ ] S  Staff Gratuity Liability Estimator
+    [ ] M  Contractor / Security Staff Bill Verification
+    [ ] S  Staff Service Book Digitalization
+    [ ] M  Teacher Relieving No-Deduction Clearance
+    [ ] S  Teacher Transfer & Deputation
+    [ ] S  Teacher Qualification Register
+
+  Payroll Workspace  (0/1)
+    [ ] M  Form 12BB & Investment Declarations
+
+==============================================================================
+OPERATIONS STAFF   11 working / 49 catalogued
+==============================================================================
+
+  Specialist Workspace  (5/6)
+    [x] M  Role-specific home
+    [x] M  Library role
+    [x] M  Transport role
+    [x] M  Hostel role
+    [x] M  Inventory / Stores role
+    [ ] M  Front Office role
+
+  Transport Management  (1/15)
+    [x] S  Vehicle Master Registry
+    [ ] S  Driver & Attendant Profiles
+    [ ] M  Route & Pickup Stop Mapping
+    [ ] M  Student Route Assignment
+    [ ] S  Real-time Vehicle Tracking (VTS)
+    [ ] S  Geo-fenced Bus Stop Alerts
+    [ ] M  Bus Speeding & Rash Driving Alerts
+    [ ] M  Transport Attendance Scans
+    [ ] S  Vehicle Fuel & Maintenance Log
+    [ ] S  Fuel Sensor & Mileage Telematics
+    [ ] S  Driver Sobriety & Safety Checklist
+    [ ] S  Bus Breakdown Emergency Dispatch
+    [ ] M  Seatbelt & CCTV Video Streaming
+    [ ] M  Route Distance Fee Slabs
+    [ ] N  AIS-140 Telematics & VAHAN Compliance
+
+  Hostel Management  (2/10)
+    [x] S  Hostel Building & Room Setup
+    [x] M  Room Allocation Engine
+    [ ] M  Hostel Roll-Call Attendance
+    [ ] M  Digital Outpass Approval
+    [ ] S  Hostel Visitor Log
+    [ ] S  Mess Menu & Meal Management
+    [ ] S  Hostel Complaint Ticketing
+    [ ] M  Night Study Room Attendance
+    [ ] S  Boarder Laundry Tracking
+    [ ] M  Room Inventory Checklists
+
+  Library Management  (1/8)
+    [ ] M  Book Cataloging & Accession Register
+    [ ] S  Barcode & Spine Label Printing
+    [x] M  Book Issue & Return Terminal
+    [ ] M  Overdue Fine Calculation
+    [ ] M  OPAC Digital Book Search
+    [ ] M  Library Inventory Audit
+    [ ] M  Digital E-Book & Journal Integration
+    [ ] M  Book Reservation Queue
+
+  Infirmary  (0/6)
+    [ ] M  Student Health Master File
+    [ ] S  Daily Nurse Visit Log
+    [ ] M  Medication Admin Register
+    [ ] S  Emergency Health Alerts
+    [ ] S  Annual Health Checkup Records
+    [ ] S  School Health Programme Camps
+
+  Inventory & Stores  (2/4)
+    [x] S  Item Category & Store Setup
+    [ ] M  Purchase Order Workflow
+    [x] S  Department Stock Issuance
+    [ ] M  NCERT Textbook Indent
+
+==============================================================================
+STUDENT   11 working / 47 catalogued
+==============================================================================
+
+  Dashboard  (2/2)
+    [x] M  My day
+    [x] M  Action reminders
+
+  Student Self Service  (7/12)
+    [x] M  Timetable
+    [x] M  Attendance
+    [ ] M  Courses / subjects
+    [x] M  Homework & assignments
+    [x] M  Exams & grades
+    [ ] M  Academic record
+    [x] M  Fees
+    [ ] M  Calendar
+    [ ] M  Requests
+    [ ] M  Documents
+    [x] M  Announcements & messages
+    [x] M  Profile
+
+  Student Portal  (2/33)
+    [x] M  Student Personalized Dashboard
+    [ ] M  E-Learning Resource Hub
+    [ ] M  Online Exam Attempt Engine
+    [x] M  Digital Assignment Upload
+    [ ] M  Digital Diary & Schedule
+    [ ] M  Student Wall & Peer Recognition
+    [ ] M  Student Portfolio Management
+    [ ] N  Alumni Network Registration
+    [ ] M  Peer Tutoring & Study Groups
+    [ ] M  Lost & Found Item Board
+    [ ] N  AI Personal Learning Companion
+    [ ] M  Wellness & Mood Check-In Widget
+    [ ] M  Self-Referral to School Counselor
+    [ ] M  Digital Hall of Fame
+    [ ] N  Alumni Job & Internship Board
+    [ ] N  Global University Guidance Counselor
+    [ ] M  Classmate Homework Help Forum
+    [ ] M  Digital Hall Ticket Download
+    [ ] M  Target Grade Calculator
+    [ ] M  Library Book Hold Request
+    [ ] M  Custom Theme Selection
+    [ ] M  Digital Hall Ticket Verification QR
+    [ ] M  Classroom Note-Sharing Repository
+    [ ] M  Personal Academic Goal Setting Widget
+    [ ] N  Gamified Learning Streak Counter
+    [ ] M  Virtual Classroom Hand-Raise Telemetry
+    [ ] M  Digital Locker Combination & Access Log
+    [ ] N  Gamified Learning Badge Showcase
+    [ ] M  Digital Student ID Card NFC Tap Pass
+    [ ] M  Student Club Event Ticketing & QR Check-In
+    [ ] M  Lost & Found Photo Board with Claim Verification
+    [ ] M  APAAR ID & Academic Bank of Credits
+    [ ] M  Board Hall Ticket Download
+
+==============================================================================
+PARENT / GUARDIAN   13 working / 47 catalogued
+==============================================================================
+
+  Dashboard  (3/3)
+    [x] M  Child switcher
+    [x] M  Child summary
+    [x] M  Needs attention
+
+  Parent Self Service  (5/9)
+    [x] M  Attendance
+    [x] S  Homework & academics
+    [x] M  Results & report cards
+    [x] M  Fees & payments
+    [ ] M  Calendar & PTM
+    [x] M  Communication
+    [ ] M  Consent & acknowledgement
+    [ ] M  Requests
+    [ ] S  Transport snapshot
+
+  Parent Mobile App  (5/35)
+    [ ] M  Real-Time Push Notifications
+    [ ] S  Live Bus Tracking Map
+    [x] M  One-Touch Online Fee Payment
+    [x] M  Digital Report Card Downloads
+    [x] M  Child Attendance Calendar
+    [x] S  Homework & Subject Material
+    [ ] S  Direct Teacher Messaging
+    [ ] M  Apply Student Leave
+    [ ] S  School Photo & Video Gallery
+    [ ] S  Parent-Teacher Meeting Booking
+    [ ] S  Concerns & Grievance Ticketing
+    [ ] S  Digital Parent Consent Slips
+    [x] M  Multi-Child Single Login Switch
+    [ ] S  Parent Community Discussion Forum
+    [ ] M  Digital Student ID Card View
+    [ ] N  AI Voice Search for School Notices
+    [ ] N  AI Child Performance Summary Audio
+    [ ] S  IEP Progress Goal Tracker
+    [ ] M  Private Counselor Chat Channel
+    [ ] S  Live Event Seating Pass
+    [ ] S  Multi-Language App Interface Toggle
+    [ ] M  Child Absence Reporting Button
+    [ ] M  Digital Fee Receipt PDF Download
+    [ ] S  School Transport Driver Call Button
+    [ ] S  PTM Appointment Reminder Alert
+    [ ] S  Parent Bus Proximity Radius Customizer
+    [ ] S  Digital Parent ID Card for Campus Entry
+    [ ] S  Parent App Biometric Lock (Face ID / Fingerprint)
+    [ ] M  Real-time School Bus Live Video Feed Access
+    [ ] S  Child Daily Cafeteria Purchase Timeline
+    [ ] S  Parent Delegation for Emergency Pickup
+    [ ] N  Parent App Dark Mode & High Contrast Accessibility
+    [ ] S  Parent App Live Bus Tracking Refresh Rate Customizer
+    [ ] M  DigiLocker Document Pull
+    [ ] M  Telugu Language Interface
