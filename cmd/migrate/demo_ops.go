@@ -54,6 +54,9 @@ func seedDemoOperations(ctx context.Context, db *database.DB) error {
 			{"fee structure", seedFeeStructure},
 			{"attendance corrections", seedCorrections},
 			{"admissions pipeline", seedPipeline},
+			{"hostel", seedHostel},
+			{"infirmary", seedInfirmary},
+			{"stores", seedStores},
 		} {
 			n, err := step.fn(ctx, tx, inst, campus, year)
 			if err != nil {
@@ -520,6 +523,168 @@ func seedPipeline(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (in
 			nm[0]+"'s parent", fmt.Sprintf("98%08d", 45000000+i*11111),
 			statuses[i]); err != nil {
 			return n, err
+		}
+		n++
+	}
+	return n, nil
+}
+
+/*
+seedHostel builds a residential block with rooms and boarders.
+
+	The hostel tables shipped with the schema and were never seeded, so the
+	occupancy screen queried three empty tables and rendered nothing. A warden
+	looking at a blank room list cannot tell "no data" from "broken".
+
+	One block of each gender, three floors, four rooms a floor. A third of the
+	beds filled, which is roughly what a day school with a small boarding wing
+	actually runs at.
+*/
+func seedHostel(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (int, error) {
+	var existing int
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM hostel_rooms WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
+		return 0, err
+	}
+	if existing > 0 {
+		return 0, nil
+	}
+
+	n := 0
+	for _, b := range []struct{ name, gender string }{
+		{"Nalanda Block", "male"},
+		{"Gargi Block", "female"},
+	} {
+		var blockID uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO hostel_blocks (institution_id, campus_id, name, gender)
+			VALUES ($1,$2,$3,$4) RETURNING id`, inst, campus, b.name, b.gender).Scan(&blockID); err != nil {
+			return n, err
+		}
+		for floor := 1; floor <= 3; floor++ {
+			for room := 1; room <= 4; room++ {
+				if _, err := tx.Exec(ctx, `
+					INSERT INTO hostel_rooms (institution_id, block_id, room_no, floor, beds)
+					VALUES ($1,$2,$3,$4,4)`,
+					inst, blockID, fmt.Sprintf("%d%02d", floor, room), floor); err != nil {
+					return n, err
+				}
+				n++
+			}
+		}
+	}
+
+	// Boarders, matched to a block of their own gender. bed_no is per room, so
+	// it is derived from the row's position rather than a global counter.
+	if _, err := tx.Exec(ctx, `
+		WITH candidates AS (
+		  SELECT st.id, st.gender,
+		         row_number() OVER (PARTITION BY st.gender ORDER BY st.admission_no) AS rn
+		    FROM students st
+		   WHERE st.institution_id = $1
+		     AND abs(hashtext(st.id::text)) % 3 = 0
+		),
+		slots AS (
+		  SELECT hr.id AS room_id, hb.gender, bed.n AS bed_no,
+		         row_number() OVER (PARTITION BY hb.gender ORDER BY hr.room_no, bed.n) AS rn
+		    FROM hostel_rooms hr
+		    JOIN hostel_blocks hb ON hb.id = hr.block_id
+		    CROSS JOIN generate_series(1, hr.beds) AS bed(n)
+		   WHERE hr.institution_id = $1
+		)
+		INSERT INTO hostel_allocations (institution_id, room_id, student_id, bed_no, allocated_on)
+		SELECT $1, s.room_id, c.id, s.bed_no, CURRENT_DATE - 60
+		  FROM candidates c
+		  JOIN slots s ON s.gender = c.gender AND s.rn = c.rn`, inst); err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
+// seedInfirmary gives the clinic a baseline health record per student, which
+// is what every other health screen reads from.
+func seedInfirmary(ctx context.Context, tx pgx.Tx, inst, _, _ uuid.UUID) (int, error) {
+	var existing int
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM student_health WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
+		return 0, err
+	}
+	if existing > 0 {
+		return 0, nil
+	}
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO student_health (student_id, institution_id, allergies,
+		                            chronic_conditions, doctor_name, doctor_phone)
+		SELECT st.id, $1,
+		       CASE abs(hashtext(st.id::text)) % 7
+		         WHEN 0 THEN 'Peanuts' WHEN 1 THEN 'Dust, pollen'
+		         WHEN 2 THEN 'Penicillin' ELSE NULL END,
+		       CASE abs(hashtext(st.id::text || 'c')) % 11
+		         WHEN 0 THEN 'Asthma' WHEN 1 THEN 'Type 1 diabetes' ELSE NULL END,
+		       'Dr S Raghavan', '9848012345'
+		  FROM students st WHERE st.institution_id = $1
+		ON CONFLICT DO NOTHING`, inst)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// seedStores stocks the store room and records the movements behind the
+// balances. on_hand is maintained by a trigger, so the movements are what is
+// inserted and the balance follows.
+func seedStores(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (int, error) {
+	var existing int
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM inventory_items WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
+		return 0, err
+	}
+	if existing > 0 {
+		return 0, nil
+	}
+
+	items := []struct {
+		code, name, category, unit string
+		reorder, received          int
+	}{
+		{"UNI-SHIRT", "School shirt", "Uniform", "piece", 40, 200},
+		{"UNI-TROU", "School trousers", "Uniform", "piece", 40, 180},
+		{"UNI-TIE", "School tie", "Uniform", "piece", 25, 90},
+		{"STA-NOTE", "Ruled notebook 200pg", "Stationery", "piece", 100, 600},
+		{"STA-PEN", "Blue ballpoint pen", "Stationery", "box", 20, 60},
+		{"LAB-BEAK", "Glass beaker 250ml", "Laboratory", "piece", 15, 40},
+		{"LAB-SLIDE", "Microscope slides", "Laboratory", "box", 10, 25},
+		{"SPT-BALL", "Football", "Sports", "piece", 5, 12},
+		{"CLN-PHEN", "Phenyl 5L", "Housekeeping", "can", 8, 30},
+	}
+	n := 0
+	for _, it := range items {
+		var itemID uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO inventory_items (institution_id, campus_id, code, name, category,
+			                             unit, reorder_level, on_hand)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,0) RETURNING id`,
+			inst, campus, it.code, it.name, it.category, it.unit, it.reorder).Scan(&itemID); err != nil {
+			return n, err
+		}
+		// A receipt, then issues that leave two lines below reorder level --
+		// which is the state the stock screen exists to flag.
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO inventory_movements (institution_id, item_id, kind, quantity,
+			                                 reference, moved_on)
+			VALUES ($1,$2,'receipt',$3,'Opening stock', CURRENT_DATE - 45)`,
+			inst, itemID, it.received); err != nil {
+			return n, err
+		}
+		issued := it.received - it.reorder/2
+		if issued > 0 {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO inventory_movements (institution_id, item_id, kind, quantity,
+				                                 reference, issued_to, moved_on)
+				VALUES ($1,$2,'issue',$3,'Term issue','Class teachers', CURRENT_DATE - 10)`,
+				inst, itemID, issued); err != nil {
+				return n, err
+			}
 		}
 		n++
 	}
