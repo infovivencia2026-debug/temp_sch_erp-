@@ -232,6 +232,22 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.infirmary.student_health_master_file': lazy(() => import('./operations/Infirmary')),
   'institution_admin.infirmary.emergency_health_alerts': lazy(() => import('./operations/Infirmary')),
 
+  /* The transport office. Live GPS tracking, geofenced arrival alerts,
+     speeding detection, fuel-tank telematics, in-bus CCTV and AIS-140/VAHAN
+     registration are deliberately absent: each needs a certified device in the
+     vehicle and a vendor feed, and drawing a bus on a map from no position
+     data would be a lie told convincingly. */
+  'institution_admin.transport.driver_attendant_profiles': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.student_route_assignment': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.transport_attendance_scans': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.vehicle_fuel_maintenance_log': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.driver_sobriety_safety_checklist': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.bus_breakdown_emergency_dispatch': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.drivers_attendants': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.student_allocation': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.route_attendance': lazy(() => import('./operations/TransportOffice')),
+  'institution_admin.transport.delays_exceptions': lazy(() => import('./operations/TransportOffice')),
+
   'institution_admin.transport.vehicles': lazy(() => import('./operations/Transport')),
   'institution_admin.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
   'institution_admin.transport.routes_stops': lazy(() => import('./operations/Transport')),

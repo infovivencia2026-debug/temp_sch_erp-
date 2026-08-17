@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 195 of the catalog's features are implemented.
+// 205 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -148,9 +148,19 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.students.enrollment_lifecycle":                    true,
 	"institution_admin.students.student_directory":                       true,
 	"institution_admin.students.student_directory_student_360":           true,
+	"institution_admin.transport.bus_breakdown_emergency_dispatch":       true,
+	"institution_admin.transport.delays_exceptions":                      true,
+	"institution_admin.transport.driver_attendant_profiles":              true,
+	"institution_admin.transport.driver_sobriety_safety_checklist":       true,
+	"institution_admin.transport.drivers_attendants":                     true,
+	"institution_admin.transport.route_attendance":                       true,
 	"institution_admin.transport.route_distance_fee_slabs":               true,
 	"institution_admin.transport.route_pickup_stop_mapping":              true,
 	"institution_admin.transport.routes_stops":                           true,
+	"institution_admin.transport.student_allocation":                     true,
+	"institution_admin.transport.student_route_assignment":               true,
+	"institution_admin.transport.transport_attendance_scans":             true,
+	"institution_admin.transport.vehicle_fuel_maintenance_log":           true,
 	"institution_admin.transport.vehicle_master_registry":                true,
 	"institution_admin.transport.vehicles":                               true,
 	"parent.academics.homework_academics":                                true,

@@ -423,6 +423,24 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.HealthRead)).Get("/health/students", s.listHealthRecords)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/routes", s.listRoutes)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/routes/{id}/stops", s.listRouteStops)
+
+			/* The transport office. Live GPS tracking, geofenced alerts,
+			   speeding detection, fuel telematics, in-bus CCTV and AIS-140
+			   registration are absent on purpose: each needs a certified
+			   device in the vehicle and a vendor feed, and drawing a bus on a
+			   map from no position data would be a lie. */
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/staff", s.listTransportStaff)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/staff", s.saveTransportStaff)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/allocations", s.listTransportAllocations)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/allocations", s.allocateTransport)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/attendance", s.listBusAttendance)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/attendance", s.markBusAttendance)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/logs", s.listVehicleLogs)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/logs", s.recordVehicleLog)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/checks", s.listTripChecks)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/checks", s.recordTripCheck)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/incidents", s.listTransportIncidents)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/incidents", s.saveTransportIncident)
 			r.With(httpx.RequirePermission(rbac.InventoryRead)).Get("/inventory/stock", s.listStock)
 			r.With(httpx.RequirePermission(rbac.InventoryWrite)).Post("/inventory/movements", s.moveStock)
 		})

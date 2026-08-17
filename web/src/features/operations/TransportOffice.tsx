@@ -1,0 +1,1113 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, BusFront, Fuel, IdCard, ShieldCheck, Users } from 'lucide-react'
+import { api, type List } from '@/lib/api'
+import {
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
+  Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
+  Loading, ErrorState, EmptyState,
+} from '@/components/ui'
+import { cn, formatDate } from '@/lib/utils'
+
+/* The transport office.
+
+   The product knew which bus ran which route and which child was on it. What
+   it could not answer is everything a transport manager is actually asked:
+   whose licence expires next month, who got on the bus this morning, what the
+   diesel cost, and where the 3:15 has got to.
+
+   Live GPS tracking, geofenced arrival alerts, speeding detection, fuel-tank
+   telematics and in-bus CCTV are absent on purpose. Each needs a certified
+   device in the vehicle and a vendor feed; a screen that draws a bus on a map
+   from no position data would be a lie told convincingly. */
+
+interface Staff {
+  id: string
+  employee_id: string
+  name: string
+  role: string
+  licence_no?: string
+  licence_expiry?: string
+  badge_no?: string
+  police_verified_on?: string
+  medical_expiry?: string
+  phone?: string
+  vehicle?: string
+  days_to_lapse?: number
+  lapsed_item?: string
+}
+interface Allocation {
+  id: string
+  student_id: string
+  full_name: string
+  admission_no: string
+  class_name?: string
+  route?: string
+  route_id?: string
+  pickup_stop?: string
+  pickup_time?: string
+  fare_paise?: number
+}
+interface BusRow {
+  student_id: string
+  full_name: string
+  admission_no: string
+  stop?: string
+  status: 'boarded' | 'alighted' | 'absent' | 'not_scanned'
+  boarded_at?: string
+  alighted_at?: string
+  still_aboard: boolean
+}
+interface VLog {
+  id: string
+  vehicle: string
+  vehicle_id: string
+  kind: string
+  on_date: string
+  odometer_km?: number
+  litres?: number
+  amount_paise: number
+  vendor?: string
+  next_due_on?: string
+  km_per_litre?: number
+}
+interface Check {
+  id: string
+  vehicle: string
+  route?: string
+  on_date: string
+  leg: string
+  driver?: string
+  cleared: boolean
+  breathalyser?: number
+  failed_items: string[]
+  remarks?: string
+  checked_by?: string
+}
+interface Incident {
+  id: string
+  vehicle?: string
+  route?: string
+  on_date: string
+  leg?: string
+  kind: string
+  delay_minutes?: number
+  description: string
+  replacement_vehicle?: string
+  parents_informed: boolean
+  resolved_at?: string
+  resolution?: string
+  children_affected: number
+}
+interface Named {
+  id: string
+  name?: string
+  registration_no?: string
+  full_name?: string
+}
+
+const TABS = [
+  ['register', 'Bus register', Users],
+  ['checks', 'Safety checks', ShieldCheck],
+  ['incidents', 'Delays', AlertTriangle],
+  ['staff', 'Drivers', IdCard],
+  ['allocation', 'Allocation', BusFront],
+  ['logs', 'Fuel & servicing', Fuel],
+] as const
+
+const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
+
+export default function TransportOffice() {
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>('register')
+
+  const staff = useQuery({
+    queryKey: ['transport-staff'],
+    queryFn: () => api.get<List<Staff>>('/api/v1/ops/transport/staff'),
+  })
+  const incidents = useQuery({
+    queryKey: ['transport-incidents'],
+    queryFn: () => api.get<List<Incident>>('/api/v1/ops/transport/incidents?period=this_month'),
+  })
+
+  if (staff.isLoading) return <Loading label="Opening the transport office…" />
+  if (staff.error) return <ErrorState error={staff.error} />
+
+  const lapsing = (staff.data?.items ?? []).filter(
+    (s) => s.days_to_lapse == null || s.days_to_lapse < 30,
+  )
+  const openIncidents = (incidents.data?.items ?? []).filter((i) => !i.resolved_at)
+
+  return (
+    <>
+      <PageHead
+        eyebrow="Transport"
+        title="The bus office"
+        description="Who is driving, who is on board, what it cost to run and what went wrong today."
+      />
+      <PageBody>
+        <CellGrid cols={4}>
+          <Stat label="Drivers & attendants" value={staff.data?.items.length ?? 0} icon={IdCard} />
+          <Stat
+            label="Papers lapsing"
+            value={lapsing.length}
+            icon={AlertTriangle}
+            delta={
+              lapsing.length
+                ? { value: 'Licence, medical or police check', positive: false }
+                : { value: 'All current', positive: true }
+            }
+          />
+          <Stat label="Open incidents" value={openIncidents.length} icon={BusFront} />
+          <Stat label="This month" value={incidents.data?.items.length ?? 0} />
+        </CellGrid>
+
+        <div className="flex flex-wrap gap-1 border-b">
+          {TABS.map(([k, label, Icon]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              aria-current={tab === k}
+              className={
+                tab === k
+                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
+                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+              }
+            >
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'register' && <BusRegister />}
+        {tab === 'checks' && <SafetyChecks />}
+        {tab === 'incidents' && <Incidents rows={incidents.data?.items ?? []} />}
+        {tab === 'staff' && <Drivers rows={staff.data?.items ?? []} />}
+        {tab === 'allocation' && <Allocations />}
+        {tab === 'logs' && <Logs />}
+      </PageBody>
+    </>
+  )
+}
+
+function useRoutes() {
+  return useQuery({
+    queryKey: ['transport-routes'],
+    queryFn: () => api.get<List<Named>>('/api/v1/ops/transport/routes'),
+  })
+}
+function useVehicles() {
+  return useQuery({
+    queryKey: ['transport-vehicles'],
+    queryFn: () => api.get<List<Named>>('/api/v1/ops/transport/vehicles'),
+  })
+}
+
+function BusRegister() {
+  const qc = useQueryClient()
+  const routes = useRoutes()
+  const [routeId, setRouteId] = useState('')
+  const [leg, setLeg] = useState('morning')
+
+  const reg = useQuery({
+    queryKey: ['bus-register', routeId, leg],
+    queryFn: () =>
+      api.get<List<BusRow>>(
+        `/api/v1/ops/transport/attendance?leg=${leg}${routeId ? `&route_id=${routeId}` : ''}`,
+      ),
+  })
+  const mark = useMutation({
+    mutationFn: (v: { student_id: string; status: string }) =>
+      api.post('/api/v1/ops/transport/attendance', { ...v, leg, route_id: routeId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bus-register'] }),
+  })
+
+  const rows = reg.data?.items ?? []
+  const aboard = rows.filter((r) => r.still_aboard)
+  const unscanned = rows.filter((r) => r.status === 'not_scanned')
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Today's run"
+          description="Built from the allocation, so a child nobody scanned shows as not scanned rather than not appearing. A register that silently omits the missing child is the failure worth designing against."
+          action={
+            <div className="flex gap-2">
+              <Select
+                value={leg}
+                onChange={setLeg}
+                options={[
+                  { value: 'morning', label: 'Morning' },
+                  { value: 'afternoon', label: 'Afternoon' },
+                ]}
+              />
+              <Select
+                value={routeId}
+                onChange={setRouteId}
+                placeholder="All routes"
+                options={(routes.data?.items ?? []).map((r) => ({
+                  value: r.id,
+                  label: r.name ?? r.id,
+                }))}
+              />
+            </div>
+          }
+        />
+        {aboard.length > 0 && (
+          <div className="border-b bg-destructive/5 px-4 py-3">
+            <p className="text-[13px] font-medium text-destructive">
+              {aboard.length} still on the bus — boarded and never seen to get off
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              {aboard.map((a) => a.full_name).join(', ')}
+            </p>
+          </div>
+        )}
+        {reg.isLoading ? (
+          <Loading label="Loading the register…" />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="Nobody allocated to this route"
+            body="Assign children to a route and stop on the Allocation tab."
+          />
+        ) : (
+          <Table
+            head={[
+              { label: 'Child' },
+              { label: 'Stop' },
+              { label: 'On' },
+              { label: 'Off' },
+              { label: 'Status' },
+              { label: '' },
+            ]}
+          >
+            {rows.map((r) => (
+              <tr key={r.student_id}>
+                <Td className="font-medium">
+                  {r.full_name}
+                  <div className="text-[12px] font-normal text-muted-foreground">
+                    {r.admission_no}
+                  </div>
+                </Td>
+                <Td className="text-muted-foreground">{r.stop ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{r.boarded_at ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{r.alighted_at ?? '—'}</Td>
+                <Td>
+                  <Badge
+                    tone={
+                      r.still_aboard
+                        ? 'danger'
+                        : r.status === 'alighted'
+                          ? 'success'
+                          : r.status === 'absent'
+                            ? 'neutral'
+                            : 'warning'
+                    }
+                  >
+                    {r.still_aboard ? 'Still aboard' : r.status.replace('_', ' ')}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={mark.isPending}
+                      onClick={() => mark.mutate({ student_id: r.student_id, status: 'boarded' })}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={mark.isPending}
+                      onClick={() => mark.mutate({ student_id: r.student_id, status: 'alighted' })}
+                    >
+                      Off
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={mark.isPending}
+                      onClick={() => mark.mutate({ student_id: r.student_id, status: 'absent' })}
+                    >
+                      Absent
+                    </Button>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        <FormNotice error={mark.error} />
+      </Card>
+      {unscanned.length > 0 && (
+        <Card>
+          <CardHeader
+            title="Not scanned"
+            description="Allocated to this run and unaccounted for. Worth a phone call before the bus leaves."
+          />
+          <p className="px-4 pb-4 text-[13px] text-muted-foreground">
+            {unscanned.map((u) => u.full_name).join(', ')}
+          </p>
+        </Card>
+      )}
+    </>
+  )
+}
+
+function SafetyChecks() {
+  const qc = useQueryClient()
+  const vehicles = useVehicles()
+  const routes = useRoutes()
+  const [vehicleId, setVehicleId] = useState('')
+  const [routeId, setRouteId] = useState('')
+  const [leg, setLeg] = useState('morning')
+  const [items, setItems] = useState({
+    brakes_ok: false,
+    tyres_ok: false,
+    lights_ok: false,
+    first_aid_ok: false,
+    extinguisher_ok: false,
+    doors_ok: false,
+  })
+  const [breath, setBreath] = useState('0')
+  const [remarks, setRemarks] = useState('')
+
+  const list = useQuery({
+    queryKey: ['trip-checks'],
+    queryFn: () => api.get<List<Check>>('/api/v1/ops/transport/checks'),
+  })
+  const save = useMutation({
+    mutationFn: () =>
+      api.post<{ cleared: boolean }>('/api/v1/ops/transport/checks', {
+        vehicle_id: vehicleId,
+        route_id: routeId,
+        leg,
+        ...items,
+        breathalyser: Number(breath),
+        remarks,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trip-checks'] }),
+  })
+
+  const wouldClear =
+    Object.values(items).every(Boolean) && Number(breath) === 0
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Before the bus moves"
+          description="Cleared is worked out from the answers, never ticked. A screen that lets someone clear a bus over a failed brake check is not a safety record — and this is the one row here a court would read."
+        />
+        <div className="p-4">
+          <FormGrid>
+            <Field label="Vehicle" required>
+              <Select
+                value={vehicleId}
+                onChange={setVehicleId}
+                placeholder="Choose a bus"
+                options={(vehicles.data?.items ?? []).map((v) => ({
+                  value: v.id,
+                  label: v.registration_no ?? v.id,
+                }))}
+              />
+            </Field>
+            <Field label="Route">
+              <Select
+                value={routeId}
+                onChange={setRouteId}
+                placeholder="Optional"
+                options={(routes.data?.items ?? []).map((r) => ({
+                  value: r.id,
+                  label: r.name ?? r.id,
+                }))}
+              />
+            </Field>
+            <Field label="Leg">
+              <Select
+                value={leg}
+                onChange={setLeg}
+                options={[
+                  { value: 'morning', label: 'Morning' },
+                  { value: 'afternoon', label: 'Afternoon' },
+                ]}
+              />
+            </Field>
+            <Field label="Breathalyser" hint="Recorded as a reading, not a pass mark.">
+              <Input value={breath} onChange={setBreath} type="number" />
+            </Field>
+          </FormGrid>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {(
+              [
+                ['brakes_ok', 'Brakes'],
+                ['tyres_ok', 'Tyres'],
+                ['lights_ok', 'Lights & indicators'],
+                ['first_aid_ok', 'First-aid box'],
+                ['extinguisher_ok', 'Fire extinguisher'],
+                ['doors_ok', 'Doors & emergency exit'],
+              ] as const
+            ).map(([k, label]) => (
+              <Checkbox
+                key={k}
+                checked={items[k]}
+                onChange={(v) => setItems({ ...items, [k]: v })}
+                label={label}
+              />
+            ))}
+          </div>
+          <div className="mt-4">
+            <Field label="Remarks">
+              <Input value={remarks} onChange={setRemarks} placeholder="Anything the driver reported" />
+            </Field>
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <Button disabled={save.isPending || !vehicleId} onClick={() => save.mutate()}>
+              {save.isPending ? 'Recording…' : 'Record check'}
+            </Button>
+            <Badge tone={wouldClear ? 'success' : 'danger'}>
+              {wouldClear ? 'Would clear' : 'Would not clear'}
+            </Badge>
+          </div>
+          <FormNotice error={save.error} />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Last fortnight" description="Every check signed, and what failed where it did." />
+        {(list.data?.items ?? []).length === 0 ? (
+          <EmptyState title="No checks recorded" body="Each bus is checked before each leg." />
+        ) : (
+          <Table
+            head={[
+              { label: 'Date' },
+              { label: 'Bus' },
+              { label: 'Leg' },
+              { label: 'Cleared' },
+              { label: 'Failed' },
+              { label: 'Signed by' },
+            ]}
+          >
+            {(list.data?.items ?? []).map((c) => (
+              <tr key={c.id}>
+                <Td className="text-muted-foreground">{formatDate(c.on_date)}</Td>
+                <Td className="font-medium">{c.vehicle}</Td>
+                <Td className="text-muted-foreground">{c.leg}</Td>
+                <Td>
+                  <Badge tone={c.cleared ? 'success' : 'danger'}>{c.cleared ? 'Yes' : 'No'}</Badge>
+                </Td>
+                <Td className="text-muted-foreground">
+                  {c.failed_items.length ? c.failed_items.join(', ') : '—'}
+                  {c.remarks && <div className="text-[12px]">{c.remarks}</div>}
+                </Td>
+                <Td className="text-muted-foreground">{c.checked_by ?? '—'}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+function Incidents({ rows }: { rows: Incident[] }) {
+  const qc = useQueryClient()
+  const vehicles = useVehicles()
+  const routes = useRoutes()
+  const [kind, setKind] = useState('delay')
+  const [routeId, setRouteId] = useState('')
+  const [vehicleId, setVehicleId] = useState('')
+  const [delay, setDelay] = useState('')
+  const [description, setDescription] = useState('')
+  const [replacement, setReplacement] = useState('')
+  const [informed, setInformed] = useState(false)
+  const [closing, setClosing] = useState<string | null>(null)
+  const [resolution, setResolution] = useState('')
+
+  const save = useMutation({
+    mutationFn: (v: Record<string, unknown>) => api.post('/api/v1/ops/transport/incidents', v),
+    onSuccess: () => {
+      setDescription('')
+      setClosing(null)
+      qc.invalidateQueries({ queryKey: ['transport-incidents'] })
+    },
+  })
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Report a delay or breakdown"
+          description="Naming the replacement bus is what makes this a dispatch record rather than a note."
+        />
+        <div className="p-4">
+          <FormGrid>
+            <Field label="What happened">
+              <Select
+                value={kind}
+                onChange={setKind}
+                options={[
+                  { value: 'delay', label: 'Running late' },
+                  { value: 'breakdown', label: 'Breakdown' },
+                  { value: 'diversion', label: 'Diversion' },
+                  { value: 'accident', label: 'Accident' },
+                  { value: 'other', label: 'Other' },
+                ]}
+              />
+            </Field>
+            <Field label="Route">
+              <Select
+                value={routeId}
+                onChange={setRouteId}
+                placeholder="Choose a route"
+                options={(routes.data?.items ?? []).map((r) => ({ value: r.id, label: r.name ?? r.id }))}
+              />
+            </Field>
+            <Field label="Bus">
+              <Select
+                value={vehicleId}
+                onChange={setVehicleId}
+                placeholder="Choose a bus"
+                options={(vehicles.data?.items ?? []).map((v) => ({
+                  value: v.id,
+                  label: v.registration_no ?? v.id,
+                }))}
+              />
+            </Field>
+            <Field label="Delay in minutes">
+              <Input value={delay} onChange={setDelay} type="number" placeholder="20" />
+            </Field>
+            <Field label="Replacement bus">
+              <Select
+                value={replacement}
+                onChange={setReplacement}
+                placeholder="None sent"
+                options={(vehicles.data?.items ?? []).map((v) => ({
+                  value: v.id,
+                  label: v.registration_no ?? v.id,
+                }))}
+              />
+            </Field>
+            <Field label="Details" wide required>
+              <Textarea
+                rows={2}
+                value={description}
+                onChange={setDescription}
+                placeholder="Clutch cable snapped at Suchitra Circle."
+              />
+            </Field>
+          </FormGrid>
+          <div className="mt-3">
+            <Checkbox checked={informed} onChange={setInformed} label="Parents have been told" />
+          </div>
+          <div className="mt-4">
+            <Button
+              disabled={save.isPending || description.trim() === ''}
+              onClick={() =>
+                save.mutate({
+                  kind,
+                  route_id: routeId,
+                  vehicle_id: vehicleId,
+                  delay_minutes: delay ? Number(delay) : undefined,
+                  description,
+                  replacement_vehicle_id: replacement,
+                  parents_informed: informed,
+                })
+              }
+            >
+              {save.isPending ? 'Reporting…' : 'Report'}
+            </Button>
+          </div>
+          <FormNotice error={save.error} />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="This month" description="Open first. The child count is the size of the phone call." />
+        {rows.length === 0 ? (
+          <EmptyState title="Nothing went wrong" body="Delays and breakdowns appear here." />
+        ) : (
+          <ul className="divide-y">
+            {rows.map((i) => (
+              <li key={i.id} className="px-4 py-3">
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="min-w-[16rem] flex-1">
+                    <div className="font-medium">
+                      {i.route ?? 'Unassigned route'}
+                      {i.vehicle && <span className="text-muted-foreground"> · {i.vehicle}</span>}
+                    </div>
+                    <div className="text-[13px] text-muted-foreground">{i.description}</div>
+                    <div className="text-[12px] text-muted-foreground">
+                      {formatDate(i.on_date)}
+                      {i.delay_minutes ? ` · ${i.delay_minutes} min late` : ''}
+                      {` · ${i.children_affected} children`}
+                      {i.replacement_vehicle && ` · replaced by ${i.replacement_vehicle}`}
+                    </div>
+                    {i.resolution && (
+                      <div className="text-[12px] text-success">{i.resolution}</div>
+                    )}
+                  </div>
+                  <Badge tone={i.parents_informed ? 'success' : 'warning'}>
+                    {i.parents_informed ? 'Parents told' : 'Parents not told'}
+                  </Badge>
+                  <Badge tone={i.resolved_at ? 'neutral' : 'danger'}>
+                    {i.resolved_at ? 'Closed' : 'Open'}
+                  </Badge>
+                  {!i.resolved_at && (
+                    <Button size="sm" onClick={() => { setClosing(i.id); setResolution('') }}>
+                      Close
+                    </Button>
+                  )}
+                </div>
+                {closing === i.id && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Input
+                      value={resolution}
+                      onChange={setResolution}
+                      placeholder="How it ended"
+                      className="min-w-[18rem] flex-1"
+                    />
+                    <Button
+                      disabled={save.isPending || resolution.trim() === ''}
+                      onClick={() => save.mutate({ id: i.id, resolution, parents_informed: true })}
+                    >
+                      Save
+                    </Button>
+                    <Button variant="ghost" onClick={() => setClosing(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </>
+  )
+}
+
+function Drivers({ rows }: { rows: Staff[] }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState<Record<string, string>>({ role: 'driver' })
+
+  const employees = useQuery({
+    queryKey: ['employees', 'for-transport'],
+    queryFn: () => api.get<List<Named>>('/api/v1/hr/employees?limit=200'),
+  })
+  const save = useMutation({
+    mutationFn: () => api.post('/api/v1/ops/transport/staff', form),
+    onSuccess: () => {
+      setOpen(false)
+      qc.invalidateQueries({ queryKey: ['transport-staff'] })
+    },
+  })
+
+  const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Drivers and attendants"
+          description="Kept apart from the staff record because these facts belong to the job: a teacher has no licence expiry. Everything here is what a transport inspection asks for."
+          action={
+            <Button variant="secondary" onClick={() => setOpen(!open)}>
+              {open ? 'Close' : 'Add or update'}
+            </Button>
+          }
+        />
+        {open && (
+          <div className="border-b p-4">
+            <FormGrid>
+              <Field label="Staff member" required>
+                <Select
+                  value={form.employee_id ?? ''}
+                  onChange={set('employee_id')}
+                  placeholder="Choose"
+                  options={(employees.data?.items ?? []).map((e) => ({
+                    value: e.id,
+                    label: e.full_name ?? e.name ?? e.id,
+                  }))}
+                />
+              </Field>
+              <Field label="Role">
+                <Select
+                  value={form.role ?? 'driver'}
+                  onChange={set('role')}
+                  options={[
+                    { value: 'driver', label: 'Driver' },
+                    { value: 'attendant', label: 'Attendant' },
+                    { value: 'cleaner', label: 'Cleaner' },
+                  ]}
+                />
+              </Field>
+              <Field label="Licence number">
+                <Input value={form.licence_no ?? ''} onChange={set('licence_no')} placeholder="TS09 2019 0012345" />
+              </Field>
+              <Field label="Licence expiry" hint="Required once a licence number is entered.">
+                <Input type="date" value={form.licence_expiry ?? ''} onChange={set('licence_expiry')} />
+              </Field>
+              <Field label="Badge number">
+                <Input value={form.badge_no ?? ''} onChange={set('badge_no')} />
+              </Field>
+              <Field label="Police verified on" hint="The date, not a tick — a tick proves nothing.">
+                <Input type="date" value={form.police_verified_on ?? ''} onChange={set('police_verified_on')} />
+              </Field>
+              <Field label="Medical expiry">
+                <Input type="date" value={form.medical_expiry ?? ''} onChange={set('medical_expiry')} />
+              </Field>
+              <Field label="Phone">
+                <Input value={form.phone ?? ''} onChange={set('phone')} />
+              </Field>
+            </FormGrid>
+            <div className="mt-4">
+              <Button disabled={save.isPending || !form.employee_id} onClick={() => save.mutate()}>
+                {save.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+            <FormNotice error={save.error} />
+          </div>
+        )}
+        {rows.length === 0 ? (
+          <EmptyState title="Nobody recorded" body="Add the drivers and attendants who carry children." />
+        ) : (
+          <Table
+            head={[
+              { label: 'Name' },
+              { label: 'Role' },
+              { label: 'Bus' },
+              { label: 'Licence' },
+              { label: 'Police check' },
+              { label: 'Next lapse' },
+            ]}
+          >
+            {rows.map((s) => (
+              <tr key={s.id}>
+                <Td className="font-medium">
+                  {s.name}
+                  {s.phone && (
+                    <div className="text-[12px] font-normal text-muted-foreground">{s.phone}</div>
+                  )}
+                </Td>
+                <Td className="text-muted-foreground">{s.role}</Td>
+                <Td className="text-muted-foreground">{s.vehicle ?? '—'}</Td>
+                <Td className="text-muted-foreground">
+                  {s.licence_no ?? '—'}
+                  {s.licence_expiry && (
+                    <div className="text-[12px]">to {formatDate(s.licence_expiry)}</div>
+                  )}
+                </Td>
+                <Td className="text-muted-foreground">
+                  {s.police_verified_on ? formatDate(s.police_verified_on) : 'Never'}
+                </Td>
+                <Td>
+                  {s.days_to_lapse == null ? (
+                    <Badge tone="danger">Nothing on file</Badge>
+                  ) : s.days_to_lapse < 0 ? (
+                    <Badge tone="danger">{s.lapsed_item} expired</Badge>
+                  ) : s.days_to_lapse < 30 ? (
+                    <Badge tone="warning">
+                      {s.lapsed_item} in {s.days_to_lapse}d
+                    </Badge>
+                  ) : (
+                    <span className={cn('text-[13px] text-muted-foreground')}>
+                      {s.lapsed_item} in {s.days_to_lapse}d
+                    </span>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+function Allocations() {
+  const qc = useQueryClient()
+  const routes = useRoutes()
+  const [studentId, setStudentId] = useState('')
+  const [routeId, setRouteId] = useState('')
+  const [stopId, setStopId] = useState('')
+
+  const list = useQuery({
+    queryKey: ['transport-allocations'],
+    queryFn: () => api.get<List<Allocation>>('/api/v1/ops/transport/allocations'),
+  })
+  const students = useQuery({
+    queryKey: ['students', 'for-transport'],
+    queryFn: () => api.get<List<Named>>('/api/v1/students?limit=400'),
+  })
+  const stops = useQuery({
+    queryKey: ['route-stops', routeId],
+    queryFn: () =>
+      api.get<List<{ id: string; name: string; fare_paise: number; pickup_time?: string }>>(
+        `/api/v1/ops/transport/routes/${routeId}/stops`,
+      ),
+    enabled: !!routeId,
+  })
+  const save = useMutation({
+    mutationFn: () =>
+      api.post<{ fare_paise: number }>('/api/v1/ops/transport/allocations', {
+        student_id: studentId,
+        route_id: routeId,
+        pickup_stop_id: stopId,
+      }),
+    onSuccess: () => {
+      setStudentId('')
+      qc.invalidateQueries({ queryKey: ['transport-allocations'] })
+    },
+  })
+
+  const chosen = (stops.data?.items ?? []).find((s) => s.id === stopId)
+  const rows = list.data?.items ?? []
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Put a child on a route"
+          description="The fare follows the stop rather than being typed, because a transport fee that disagrees with the stop it came from is an argument at the counter every August. Moving a child closes the old allocation instead of deleting it — the fee already raised has to stay explicable."
+        />
+        <div className="p-4">
+          <FormGrid>
+            <Field label="Child" required>
+              <Select
+                value={studentId}
+                onChange={setStudentId}
+                placeholder="Choose a child"
+                options={(students.data?.items ?? []).map((s) => ({
+                  value: s.id,
+                  label: s.full_name ?? s.id,
+                }))}
+              />
+            </Field>
+            <Field label="Route" required>
+              <Select
+                value={routeId}
+                onChange={(v) => {
+                  setRouteId(v)
+                  setStopId('')
+                }}
+                placeholder="Choose a route"
+                options={(routes.data?.items ?? []).map((r) => ({ value: r.id, label: r.name ?? r.id }))}
+              />
+            </Field>
+            <Field label="Stop" required>
+              <Select
+                value={stopId}
+                onChange={setStopId}
+                placeholder={routeId ? 'Choose a stop' : 'Pick a route first'}
+                options={(stops.data?.items ?? []).map((s) => ({
+                  value: s.id,
+                  label: `${s.name}${s.pickup_time ? ` · ${s.pickup_time}` : ''}`,
+                }))}
+              />
+            </Field>
+            <Field label="Fare this implies">
+              <div className="flex h-9 items-center text-[14px] tabular-nums">
+                {chosen ? `₹${rupees(chosen.fare_paise)}` : '—'}
+              </div>
+            </Field>
+          </FormGrid>
+          <div className="mt-4">
+            <Button
+              disabled={save.isPending || !studentId || !routeId || !stopId}
+              onClick={() => save.mutate()}
+            >
+              {save.isPending ? 'Saving…' : 'Allocate'}
+            </Button>
+          </div>
+          <FormNotice error={save.error} />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Who rides what" description="Current allocations, in stop order along each route." />
+        {rows.length === 0 ? (
+          <EmptyState title="Nobody allocated" body="Put children on routes above." />
+        ) : (
+          <Table
+            head={[
+              { label: 'Child' },
+              { label: 'Class' },
+              { label: 'Route' },
+              { label: 'Stop' },
+              { label: 'Pick-up' },
+              { label: 'Fare' },
+            ]}
+          >
+            {rows.map((a) => (
+              <tr key={a.id}>
+                <Td className="font-medium">
+                  {a.full_name}
+                  <div className="text-[12px] font-normal text-muted-foreground">
+                    {a.admission_no}
+                  </div>
+                </Td>
+                <Td className="text-muted-foreground">{a.class_name ?? '—'}</Td>
+                <Td>{a.route ?? '—'}</Td>
+                <Td className="text-muted-foreground">{a.pickup_stop ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{a.pickup_time ?? '—'}</Td>
+                <Td className="tabular-nums">
+                  {a.fare_paise ? `₹${rupees(a.fare_paise)}` : '—'}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+function Logs() {
+  const qc = useQueryClient()
+  const vehicles = useVehicles()
+  const [form, setForm] = useState<Record<string, string>>({ kind: 'fuel' })
+
+  const list = useQuery({
+    queryKey: ['vehicle-logs'],
+    queryFn: () => api.get<List<VLog>>('/api/v1/ops/transport/logs?period=this_year'),
+  })
+  const save = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/ops/transport/logs', {
+        vehicle_id: form.vehicle_id,
+        kind: form.kind,
+        on_date: form.on_date,
+        odometer_km: form.odometer_km ? Number(form.odometer_km) : undefined,
+        litres: form.litres ? Number(form.litres) : undefined,
+        amount_paise: Math.round(Number(form.amount || 0) * 100),
+        vendor: form.vendor,
+        next_due_on: form.next_due_on,
+      }),
+    onSuccess: () => {
+      setForm({ kind: form.kind, vehicle_id: form.vehicle_id })
+      qc.invalidateQueries({ queryKey: ['vehicle-logs'] })
+    },
+  })
+
+  const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
+  const rows = list.data?.items ?? []
+  const spend = rows.reduce((n, r) => n + r.amount_paise, 0)
+  const mileages = rows.filter((r) => r.km_per_litre).map((r) => r.km_per_litre!)
+  const avg = mileages.length ? mileages.reduce((a, b) => a + b, 0) / mileages.length : null
+
+  return (
+    <>
+      <CellGrid cols={3}>
+        <Stat label="Spent this year" value={`₹${rupees(spend)}`} icon={Fuel} />
+        <Stat label="Average mileage" value={avg ? `${avg.toFixed(1)} km/l` : '—'} />
+        <Stat label="Entries" value={rows.length} />
+      </CellGrid>
+
+      <Card>
+        <CardHeader
+          title="Record fuel, servicing or a repair"
+          description="One table for all three, because the number a school governs by is cost per kilometre per vehicle, and that needs them together."
+        />
+        <div className="p-4">
+          <FormGrid>
+            <Field label="Vehicle" required>
+              <Select
+                value={form.vehicle_id ?? ''}
+                onChange={set('vehicle_id')}
+                placeholder="Choose a bus"
+                options={(vehicles.data?.items ?? []).map((v) => ({
+                  value: v.id,
+                  label: v.registration_no ?? v.id,
+                }))}
+              />
+            </Field>
+            <Field label="Kind">
+              <Select
+                value={form.kind ?? 'fuel'}
+                onChange={set('kind')}
+                options={[
+                  { value: 'fuel', label: 'Fuel' },
+                  { value: 'service', label: 'Service' },
+                  { value: 'repair', label: 'Repair' },
+                  { value: 'tyre', label: 'Tyres' },
+                  { value: 'insurance', label: 'Insurance' },
+                  { value: 'other', label: 'Other' },
+                ]}
+              />
+            </Field>
+            <Field label="Date">
+              <Input type="date" value={form.on_date ?? ''} onChange={set('on_date')} />
+            </Field>
+            <Field label="Odometer (km)" hint="A reading lower than an earlier one is refused.">
+              <Input value={form.odometer_km ?? ''} onChange={set('odometer_km')} type="number" />
+            </Field>
+            {form.kind === 'fuel' && (
+              <Field label="Litres" required>
+                <Input value={form.litres ?? ''} onChange={set('litres')} type="number" />
+              </Field>
+            )}
+            <Field label="Amount (₹)">
+              <Input value={form.amount ?? ''} onChange={set('amount')} type="number" />
+            </Field>
+            <Field label="Vendor">
+              <Input value={form.vendor ?? ''} onChange={set('vendor')} placeholder="HP Kompally" />
+            </Field>
+            <Field label="Next due">
+              <Input type="date" value={form.next_due_on ?? ''} onChange={set('next_due_on')} />
+            </Field>
+          </FormGrid>
+          <div className="mt-4">
+            <Button disabled={save.isPending || !form.vehicle_id} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saving…' : 'Record'}
+            </Button>
+          </div>
+          <FormNotice error={save.error} />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="This year" description="Mileage is worked out from consecutive odometer readings, not trusted from a form." />
+        {rows.length === 0 ? (
+          <EmptyState title="Nothing recorded" body="Fuel and servicing entries appear here." />
+        ) : (
+          <Table
+            head={[
+              { label: 'Date' },
+              { label: 'Bus' },
+              { label: 'Kind' },
+              { label: 'Odometer' },
+              { label: 'Litres' },
+              { label: 'Mileage' },
+              { label: 'Amount' },
+            ]}
+          >
+            {rows.map((l) => (
+              <tr key={l.id}>
+                <Td className="text-muted-foreground">{formatDate(l.on_date)}</Td>
+                <Td className="font-medium">{l.vehicle}</Td>
+                <Td className="text-muted-foreground">
+                  {l.kind}
+                  {l.vendor && <div className="text-[12px]">{l.vendor}</div>}
+                </Td>
+                <Td className="tabular-nums text-muted-foreground">
+                  {l.odometer_km?.toLocaleString('en-IN') ?? '—'}
+                </Td>
+                <Td className="tabular-nums text-muted-foreground">{l.litres ?? '—'}</Td>
+                <Td className="tabular-nums">
+                  {l.km_per_litre ? `${l.km_per_litre} km/l` : '—'}
+                </Td>
+                <Td className="tabular-nums">₹{rupees(l.amount_paise)}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
