@@ -223,10 +223,66 @@ var SellerAdminPermissions = []string{
 	SelfProfileRead, SelfProfileWrite,
 }
 
+/*
+SupportAdminPermissions is the vendor's support desk, one shelf below
+SellerAdmin.
+
+	A support engineer reproduces a fault: they need to see that a school
+	exists, that its jobs are running and what its audit trail says happened.
+	They do not need the enquiry list or the fee ledger to do that, and
+	seller_admin's tenant and plan rights are a commercial function, not a
+	support one.
+
+	Like every other platform role it is Restricted, so it is held to exactly
+	the keys below rather than inheriting a school's records by belonging to
+	no school.
+*/
+var SupportAdminPermissions = []string{
+	InstitutionRead, ReportsRead, JobsRead, AuditRead,
+	SelfProfileRead, SelfProfileWrite,
+}
+
+/*
+optionalRoles are seeded on request rather than into every new school.
+
+	Most Indian K-12 schools do not have a discipline officer, an examination
+	controller and a hostel warden as distinct people — one senior teacher does
+	all three. Seeding twenty-two roles into a forty-child school gives the
+	person setting it up twenty-two decisions to make and no way to tell which
+	ones matter.
+
+	These stay available as one-click presets; they are simply not part of a
+	fresh school's opening position. Schools already running keep every role
+	they have: SeedInstitution re-seeds any role that already exists, so this
+	list changes what a new tenant starts with and nothing else.
+*/
+var optionalRoles = map[string]bool{
+	"support_admin": true, "vice_principal": true, "hod": true, "it_admin": true,
+	"exam_controller": true, "front_office": true, "operations": true,
+	"librarian": true, "transport_manager": true, "hostel_warden": true,
+	"driver": true, "counsellor": true, "nurse": true,
+	"discipline_officer": true, "activity_coord": true,
+}
+
+// IsDefault reports whether a role is seeded into a newly provisioned school.
+func IsDefault(roleKey string) bool { return !optionalRoles[roleKey] }
+
 // SystemRoles mirrors the role set production seeds per institution.
 var SystemRoles = []Role{
 	{"seller_admin", "Seller Admin", SellerAdminPermissions},
+	{"support_admin", "Support Admin", SupportAdminPermissions},
 	{"institution_admin", "Institution Admin / Principal", keysExcept(PlatformTenantsRW, PlatformPlansRW)},
+	// A vice principal or academic coordinator runs teaching and learning
+	// without running the school: they own the timetable, the exam cycle and
+	// academic monitoring, and hold no finance, HR or access rights at all.
+	// Larger schools were previously forced to hand out institution_admin for
+	// this, which is every fee record and every salary as a side effect.
+	{"vice_principal", "Vice Principal / Academic Coordinator", []string{
+		StudentsRead, StudentsReadAll, AcademicsRead, AcademicsWrite,
+		TimetableRead, TimetableWrite, AttendanceRead, AttendanceReadAll,
+		ExamsRead, ExamsWrite, MarksWrite, ReportCardsGenerate, HomeworkWrite,
+		DisciplineWrite, EmployeesRead, ReportsRead, AnnouncementsWrite,
+		SelfProfileRead, SelfProfileWrite}},
 	{"it_admin", "IT Administrator", []string{
 		UsersRead, UsersWrite, RolesRead, RolesWrite, SessionsRevoke,
 		AuditRead, JobsRead, JobsEnqueue, IntegrationsWrite, SettingsWrite,
@@ -255,8 +311,13 @@ var SystemRoles = []Role{
 		AttendanceRead, AttendanceWrite, ExamsRead, MarksWrite,
 		ReportCardsGenerate, HomeworkWrite, DisciplineWrite,
 		SelfProfileRead, SelfProfileWrite}},
+	// AttendanceRead is what the endpoints gate on; AttendanceReadAll only
+	// widens the rows they return. This role held the widener without the
+	// opener, so its institution-wide attendance access resolved to a 403 on
+	// every attendance endpoint and the .all grant did nothing at all.
 	{"exam_controller", "Examination Controller", []string{
-		StudentsRead, StudentsReadAll, AttendanceReadAll, AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
+		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
+		AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
 		ReportCardsGenerate, ReportsRead, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,

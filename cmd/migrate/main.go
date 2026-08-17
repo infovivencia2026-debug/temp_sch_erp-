@@ -13,10 +13,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -202,6 +204,9 @@ func seed(ctx context.Context, db *database.DB) error {
 			if err := seedCatalogRoles(ctx, tx, inst); err != nil {
 				return err
 			}
+			if err := seedMergedPersonas(ctx, tx, inst); err != nil {
+				return err
+			}
 		}
 		slog.Info("roles seeded", "institutions", len(insts), "roles", len(rbac.SystemRoles))
 		return nil
@@ -273,8 +278,45 @@ func seedPermissions(ctx context.Context, tx pgx.Tx) error {
 // any one school.
 var platformRole = map[string]bool{"super_admin": true, "seller_admin": true}
 
+// nullableInstitution maps the platform's all-zero institution onto SQL NULL,
+// so one query serves both the platform pass and a tenant pass.
+func nullableInstitution(inst uuid.UUID) any {
+	if inst == uuid.Nil {
+		return nil
+	}
+	return inst
+}
+
 func seedCatalogRoles(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
+	/* Which roles this school already has, for the same reason
+	   rbac.SeedInstitution loads it: the optional roles are not part of a new
+	   school's opening position, and creating the row here anyway would hand a
+	   fresh tenant a hod and an operations workspace with navigation but no
+	   capability grants behind it — a menu whose every entry answers 403. */
+	existing := map[string]bool{}
+	rows, err := tx.Query(ctx,
+		`SELECT key FROM roles WHERE institution_id IS NOT DISTINCT FROM $1`,
+		nullableInstitution(inst))
+	if err != nil {
+		return fmt.Errorf("load existing roles: %w", err)
+	}
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			rows.Close()
+			return err
+		}
+		existing[k] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
 	for _, r := range catalog.Roles {
+		if !rbac.IsDefault(r.Key) && !existing[r.Key] {
+			continue
+		}
 		var owner any = inst
 		if platformRole[r.Key] {
 			owner = nil
@@ -282,11 +324,11 @@ func seedCatalogRoles(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 
 		var roleID uuid.UUID
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO roles (institution_id, key, name, is_system)
-			VALUES ($1,$2,$3,true)
+			INSERT INTO roles (institution_id, key, name, is_system, is_default)
+			VALUES ($1,$2,$3,true,$4)
 			ON CONFLICT (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-			DO UPDATE SET name = EXCLUDED.name
-			RETURNING id`, owner, r.Key, r.Name).Scan(&roleID); err != nil {
+			DO UPDATE SET name = EXCLUDED.name, is_default = EXCLUDED.is_default
+			RETURNING id`, owner, r.Key, r.Name, rbac.IsDefault(r.Key)).Scan(&roleID); err != nil {
 			return fmt.Errorf("seed catalog role %s: %w", r.Key, err)
 		}
 
@@ -302,9 +344,30 @@ func seedCatalogRoles(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 				keys = append(keys, f.Key)
 			}
 		}
+		/* Drop this role's stale catalog grants as well as replacing its
+		   current ones.
+
+		   A feature key is role.section.feature, so regrouping a role's
+		   sections renames every one of its keys. Deleting only the keys in
+		   the new list left the old ones granted forever: invisible, because
+		   no handler gates on a key that is not in the catalog, and wrong,
+		   because every count of "what does this role grant" included them.
+
+		   The prefix match is bounded by two exclusions. rbac capability keys
+		   such as admissions.read and hr.employees.read share these prefixes
+		   and gate real handlers — deleting those by wildcard is what once
+		   made every back-office endpoint answer 403. */
+		rbacKeys := make([]string, 0, len(rbac.All))
+		for _, p := range rbac.All {
+			rbacKeys = append(rbacKeys, p.Key)
+		}
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM role_permissions
-			 WHERE role_id = $1 AND permission_key = ANY($2)`, roleID, keys); err != nil {
+			 WHERE role_id = $1
+			   AND (permission_key = ANY($2)
+			        OR (permission_key LIKE $3
+			            AND permission_key <> ALL($4)))`,
+			roleID, keys, r.Key+".%", rbacKeys); err != nil {
 			return err
 		}
 		for _, key := range keys {
@@ -312,6 +375,93 @@ func seedCatalogRoles(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 				INSERT INTO role_permissions (role_id, permission_key)
 				VALUES ($1,$2) ON CONFLICT DO NOTHING`, roleID, key); err != nil {
 				return fmt.Errorf("grant %s: %w", key, err)
+			}
+		}
+	}
+	return nil
+}
+
+/*
+mergedPersonas keeps the specialist roles navigable after their workspaces were
+folded into the principal's.
+
+	Eight personas were removed from the catalogue; their capability roles were
+	not, because deleting those would either strip permissions from people who
+	have them or — worse — reassign a head of department to institution_admin
+	and hand them the payroll on the way past.
+
+	So the capability role stays exactly as it was, and is granted the feature
+	keys of the workspace its work moved to. A librarian keeps library.read and
+	library.write, and now sees the Library group of the principal's Operations
+	workspace and nothing else in it: the catalogue grants decide the menu, the
+	capability keys still decide what the handlers allow.
+
+	Keyed by section slug, which survived the merge; the workspace name did not.
+*/
+var mergedPersonas = map[string]struct {
+	From     string
+	Sections []string
+}{
+	"vice_principal": {"institution_admin", []string{
+		"home", "approvals", "academics", "examinations", "students", "communication"}},
+	"hod": {"institution_admin", []string{
+		"home", "approvals", "staff", "academics", "students", "communication", "reports"}},
+	"class_teacher":     {"faculty", nil}, // the whole teacher workspace
+	"it_admin":          {"super_admin", []string{"access_security", "institution_setup", "platform_configuration"}},
+	"operations":        {"institution_admin", []string{"transport", "hostel", "library", "infirmary", "stores"}},
+	"transport_manager": {"institution_admin", []string{"transport"}},
+	"librarian":         {"institution_admin", []string{"library"}},
+	"hostel_warden":     {"institution_admin", []string{"hostel"}},
+}
+
+// seedMergedPersonas grants the folded-in roles their share of the surviving
+// workspace, and clears the grants that pointed at the persona they lost.
+func seedMergedPersonas(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
+	for roleKey, m := range mergedPersonas {
+		var roleID uuid.UUID
+		err := tx.QueryRow(ctx,
+			`SELECT id FROM roles WHERE institution_id = $1 AND key = $2`,
+			inst, roleKey).Scan(&roleID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue // this school never installed the role
+		}
+		if err != nil {
+			return fmt.Errorf("merged persona %s: %w", roleKey, err)
+		}
+
+		src, ok := catalog.RoleByKey(m.From)
+		if !ok {
+			return fmt.Errorf("merged persona %s: no such role %s", roleKey, m.From)
+		}
+		want := make([]string, 0, 32)
+		for _, sec := range src.Sections {
+			if m.Sections != nil && !slices.Contains(m.Sections, sec.Slug) {
+				continue
+			}
+			for _, f := range sec.Features {
+				want = append(want, f.Key)
+			}
+		}
+
+		// Drop every catalog grant this role holds that is not in the new set,
+		// including the ones naming the persona that no longer exists. rbac
+		// capability keys are excluded by name so the role keeps what it can do.
+		rbacKeys := make([]string, 0, len(rbac.All))
+		for _, p := range rbac.All {
+			rbacKeys = append(rbacKeys, p.Key)
+		}
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM role_permissions
+			 WHERE role_id = $1
+			   AND permission_key <> ALL($2)
+			   AND permission_key <> ALL($3)`, roleID, rbacKeys, want); err != nil {
+			return err
+		}
+		for _, k := range want {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO role_permissions (role_id, permission_key)
+				VALUES ($1,$2) ON CONFLICT DO NOTHING`, roleID, k); err != nil {
+				return fmt.Errorf("grant %s to %s: %w", k, roleKey, err)
 			}
 		}
 	}

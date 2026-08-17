@@ -23,9 +23,13 @@ type catalogRole struct {
 }
 
 type catalogSection struct {
-	Slug     string           `json:"slug"`
-	Name     string           `json:"name"`
-	Features []catalogFeature `json:"features"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	// Workspace is the level the sidebar shows: a role has 6-9 of them, and
+	// each gathers several sections. Sent as a label rather than as nesting so
+	// the response shape — and every feature key in it — is unchanged.
+	Workspace string           `json:"workspace"`
+	Features  []catalogFeature `json:"features"`
 }
 
 type catalogFeature struct {
@@ -34,6 +38,10 @@ type catalogFeature struct {
 	Name    string `json:"name"`
 	Summary string `json:"summary"`
 	Scope   string `json:"scope"`
+	// Tier is core, advanced or optional. It decides how prominent a feature is
+	// in navigation, never whether the caller may use it — authorisation is the
+	// grant above, and a tiered-down feature is still routable and still gated.
+	Tier string `json:"tier"`
 	// InScope is false when the user holds the grant but has no data behind it
 	// — a department head with no department, a teacher with no sections. The
 	// SPA greys these out rather than routing to an empty screen.
@@ -92,7 +100,10 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		out := catalogRole{Key: role.Key, Name: role.Name, Sections: []catalogSection{}}
 
 		for _, sec := range role.Sections {
-			cs := catalogSection{Slug: sec.Slug, Name: sec.Name, Features: []catalogFeature{}}
+			cs := catalogSection{
+				Slug: sec.Slug, Name: sec.Name, Workspace: sec.Workspace,
+				Features: []catalogFeature{},
+			}
 			for _, f := range sec.Features {
 				if !id.Can(f.Key) {
 					continue
@@ -103,6 +114,7 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 					Name:    f.Name,
 					Summary: f.Summary,
 					Scope:   string(f.Scope),
+					Tier:    string(f.Tier),
 					InScope: sc.HasScope(f.Scope),
 					Live:    implementedFeatures[f.Key],
 				})

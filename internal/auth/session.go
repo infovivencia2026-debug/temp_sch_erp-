@@ -107,15 +107,19 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 		instID   *uuid.UUID
 		lastSeen time.Time
 		perms    []string
+		roleKeys []string
 	)
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
 			       COALESCE(array_agg(DISTINCT rp.permission_key)
-			                FILTER (WHERE rp.permission_key IS NOT NULL), '{}')
+			                FILTER (WHERE rp.permission_key IS NOT NULL), '{}'),
+			       COALESCE(array_agg(DISTINCT ro.key)
+			                FILTER (WHERE ro.key IS NOT NULL), '{}')
 			  FROM sessions s
 			  JOIN users u          ON u.id = s.user_id
 			  LEFT JOIN user_roles ur ON ur.user_id = u.id
+			  LEFT JOIN roles ro      ON ro.id = ur.role_id
 			  LEFT JOIN role_permissions rp ON rp.role_id = ur.role_id
 			 WHERE s.token_hash = $1
 			   AND s.revoked_at IS NULL
@@ -123,7 +127,8 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 			   AND u.status = 'active'
 			 GROUP BY s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name`,
 			hashToken(c.Value))
-		return row.Scan(&id.SessionID, &id.UserID, &instID, &lastSeen, &id.FullName, &perms)
+		return row.Scan(&id.SessionID, &id.UserID, &instID, &lastSeen, &id.FullName,
+			&perms, &roleKeys)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoSession
@@ -143,23 +148,24 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 		// A user with no institution is platform staff; RLS gives them nothing
 		// unless app.is_platform_admin is also set.
 		id.PlatformAdmin = true
-		// ...but platform staff are not all the same. A vendor's billing
-		// administrator reaches across tenants and must still be held to the
-		// permissions they were granted, or they would inherit every school's
-		// records by virtue of belonging to none. Restricted says "wide reach,
-		// narrow rights"; super_admin, holding no such marker, keeps both.
-		for _, p := range perms {
-			if p == rbac.PlatformTenantsRW {
-				id.Restricted = true
-			}
-		}
-		if id.Restricted {
-			// Re-check: an account holding a full operator role as well is not
-			// restricted by also being able to sell.
-			for _, p := range perms {
-				if p == rbac.SettingsWrite {
-					id.Restricted = false
-				}
+		/* ...but platform staff are not all the same. A vendor's billing
+		   administrator reaches across tenants and must still be held to the
+		   permissions they were granted, or they would inherit every school's
+		   records by virtue of belonging to none. Restricted says "wide reach,
+		   narrow rights".
+
+		   Restriction is decided by role, not inferred from which permissions
+		   the account happens to hold. The inference it replaces — restricted
+		   if you can sell, unrestricted again if you can also write settings —
+		   answered "is this a full operator?" by proxy, and the proxy failed
+		   open: support_admin holds neither key, so a support engineer would
+		   have been read as a full operator and handed every school's records.
+		   super_admin is the only role that operates the installation, so
+		   holding super_admin is the whole test. */
+		id.Restricted = true
+		for _, k := range roleKeys {
+			if k == rbac.PlatformOperatorRole {
+				id.Restricted = false
 			}
 		}
 	}

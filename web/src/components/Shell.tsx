@@ -4,7 +4,8 @@ import {
   Moon, Sun, Rows3, LogOut, Menu, X, ChevronDown, Check,
   LayoutDashboard, Users, GraduationCap, ClipboardCheck, Wallet,
   Briefcase, Building2, Boxes, Megaphone, ShieldCheck, Settings2, HeartPulse,
-  BookOpen, Bus, Sparkles, ListChecks, UserCog, School, type LucideIcon,
+  BookOpen, Bus, Sparkles, ListChecks, UserCog, School, CalendarDays,
+  type LucideIcon,
 } from 'lucide-react'
 import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
 import FirstRunTour from './FirstRunTour'
@@ -23,47 +24,185 @@ import { cn } from '@/lib/utils'
 const ROLE_ICONS: Record<string, LucideIcon> = {
   super_admin: ShieldCheck,
   institution_admin: School,
+  vice_principal: ClipboardCheck,
   hod: Building2,
+  class_teacher: GraduationCap,
   faculty: GraduationCap,
   finance: Wallet,
   admissions: Briefcase,
   hr: UserCog,
+  it_admin: Settings2,
   operations: Boxes,
+  transport_manager: Bus,
+  librarian: BookOpen,
+  hostel_warden: Building2,
   student: BookOpen,
   parent: Users,
 }
 
+/* Section icons are keyed on the slug, which is shared across roles by design:
+   "attendance" means the same thing in a teacher's rail and a vice principal's,
+   so it should carry the same mark in both. */
 const SECTION_ICONS: Record<string, LucideIcon> = {
+  home: LayoutDashboard,
   dashboard: LayoutDashboard,
+
+  // academic
+  academics: GraduationCap,
+  classes_sections: GraduationCap,
+  timetable: CalendarDays,
+  attendance: ClipboardCheck,
+  attendance_leave: ClipboardCheck,
+  teaching: BookOpen,
+  homework: BookOpen,
+  learning: BookOpen,
+  marks_assessment: ClipboardCheck,
+  marks_report_cards: ClipboardCheck,
+  examinations: ClipboardCheck,
+  exams_results: ClipboardCheck,
+  my_class: Users,
+  my_classes: Users,
+  my_department: Building2,
+  teachers: UserCog,
+
+  // people and money
+  students: Users,
+  boarders: Users,
+  members: Users,
+  staff: UserCog,
+  employees: UserCog,
+  people: UserCog,
+  payroll: Wallet,
+  statutory: ListChecks,
+  fees: Wallet,
+  collections: Wallet,
+  student_dues: Wallet,
+  fee_structure: Wallet,
+  concessions_refunds: Wallet,
+  reconciliation: Wallet,
+  accounting: Wallet,
+
+  // front office and admissions
+  admissions: Briefcase,
+  enquiries: Briefcase,
+  applications: Briefcase,
+  visitor_desk: Briefcase,
+
+  // operations
+  transport: Bus,
+  fleet: Bus,
+  routes: Bus,
+  tracking: Bus,
+  today: CalendarDays,
+  hostel: Building2,
+  rooms: Building2,
+  daily: ClipboardCheck,
+  complaints: Megaphone,
+  library: BookOpen,
+  catalogue: BookOpen,
+  circulation: BookOpen,
+  infirmary: HeartPulse,
+  stores: Boxes,
+
+  // everything else
+  communication: Megaphone,
+  parent_communication: Megaphone,
+  messages: Megaphone,
+  announcements: Megaphone,
+  approvals: ListChecks,
+  requests: ListChecks,
+  reports: ListChecks,
+  compliance: ShieldCheck,
+  school_life: Sparkles,
+  school_culture: Megaphone,
+  my_profile: Users,
+  profile: Users,
+
+  // platform / vendor consoles, unchanged
   institution_setup: Settings2,
   access_security: ShieldCheck,
   platform_configuration: Settings2,
   platform_setup: Settings2,
   ai_automation: Sparkles,
-  students_admissions: Users,
-  academics: GraduationCap,
-  academic_monitoring: ClipboardCheck,
-  administration: ListChecks,
-  reports: ListChecks,
-  school_culture: Megaphone,
-  department_workspace: Building2,
-  teaching_workspace: GraduationCap,
-  student_self_service: BookOpen,
-  student_portal: BookOpen,
-  parent_self_service: Users,
-  parent_mobile_app: Users,
-  fee_finance_workspace: Wallet,
-  fee_workspace: Wallet,
-  finance_workspace: Wallet,
-  admissions_workspace: Briefcase,
-  front_office: Briefcase,
-  hr_workspace: UserCog,
-  specialist_workspace: Boxes,
-  transport_management: Bus,
-  hostel_management: Building2,
-  library_management: BookOpen,
-  infirmary: HeartPulse,
-  inventory_stores: Boxes,
+  school_settings: Settings2,
+  integrations: Settings2,
+  sessions_devices: ShieldCheck,
+  audit_logs: ShieldCheck,
+  users: Users,
+  roles_permissions: ShieldCheck,
+  data: Boxes,
+  customers: Briefcase,
+  subscriptions_billing: Wallet,
+  entitlements: ListChecks,
+  usage_health: HeartPulse,
+  support: Megaphone,
+}
+
+/* What the rail actually shows.
+
+   Depth is not the enemy; undifferentiated depth is. Four rules, in the order
+   they matter:
+
+   Out of scope is hidden, not dimmed. A head of department who heads no
+   department, a guardian with no linked child. It used to render muted and
+   clickable, which is the "disabled menu item" that makes an ERP feel like a
+   form you failed to fill in. The permission is real, the workspace is simply
+   empty, and an empty workspace is not a menu entry.
+
+   Optional never appears. Gimmicks, hardware integrations and board-specific
+   registers stay catalogued and routable; they do not cost a teacher a line of
+   sidebar every day.
+
+   Advanced appears on request. Real capability, occasionally reached for —
+   Tally export, PF and ESI, the ICSE gradebook variant.
+
+   Unbuilt appears on request, as before. */
+function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean) {
+  return section.features.filter(
+    (f) =>
+      f.in_scope &&
+      (f.live || showPlanned) &&
+      f.tier !== 'optional' &&
+      (f.tier !== 'advanced' || showAdvanced),
+  )
+}
+
+interface Workspace {
+  slug: string
+  name: string
+  sections: ApiSection[]
+}
+
+/* Groups the role's sections into the workspaces the rail lists.
+
+   The server sends a flat list of sections, each labelled with its workspace,
+   because nesting them would have meant changing every feature key to carry a
+   fourth level — and a feature key is a seeded grant and a saved bookmark, not
+   just a string. Order follows the server's, which follows the catalog. */
+function workspacesFor(
+  role: { sections: ApiSection[] } | undefined,
+  showPlanned: boolean,
+  showAdvanced: boolean,
+): Workspace[] {
+  if (!role) return []
+  const out: Workspace[] = []
+  const index = new Map<string, Workspace>()
+  for (const section of role.sections) {
+    if (visibleFeatures(section, showPlanned, showAdvanced).length === 0) continue
+    const name = section.workspace || section.name
+    let ws = index.get(name)
+    if (!ws) {
+      ws = { slug: slugify(name), name, sections: [] }
+      index.set(name, ws)
+      out.push(ws)
+    }
+    ws.sections.push(section)
+  }
+  return out
+}
+
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -97,6 +236,30 @@ export function Shell({ children }: { children: ReactNode }) {
     setShowPlanned((v) => {
       try {
         localStorage.setItem('erp.showPlanned', JSON.stringify(!v))
+      } catch {
+        /* private browsing; the default returns next time */
+      }
+      return !v
+    })
+  }
+
+  /* Advanced tools are off by default and remembered once revealed.
+
+     An accountant who has found the Tally export has found it for good; a
+     class teacher who never opens the ICSE gradebook variant never sees it.
+     Same storage pattern as the roadmap toggle, deliberately: one habit to
+     learn, not two. */
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('erp.showAdvanced') ?? 'false') as boolean
+    } catch {
+      return false
+    }
+  })
+  const toggleAdvanced = () => {
+    setShowAdvanced((v) => {
+      try {
+        localStorage.setItem('erp.showAdvanced', JSON.stringify(!v))
       } catch {
         /* private browsing; the default returns next time */
       }
@@ -206,18 +369,32 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
 
         <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 py-3">
-          {role?.sections.map((section) => {
-            const SIcon = SECTION_ICONS[section.slug] ?? LayoutDashboard
-            // The section being viewed, plus any the user has opened.
+          {/* Workspaces, not sections. A role has six to nine of them, each
+              gathering several groups — the depth is still there, it is just
+              one level further in. A workspace with nothing visible in it does
+              not render at all: a heading that opens onto nothing is the menu
+              equivalent of a locked door with a label on it. */}
+          {workspacesFor(role, showPlanned, showAdvanced).map((ws) => {
+            const SIcon = SECTION_ICONS[ws.slug] ?? LayoutDashboard
             const open =
-              section.slug === activeSection?.slug || opened.has(section.slug)
+              ws.sections.some((s) => s.slug === activeSection?.slug) || opened.has(ws.slug)
+            const count = ws.sections.reduce(
+              (n, s) => n + visibleFeatures(s, showPlanned, showAdvanced).length, 0)
+            // A workspace built from one group does not need the group's name
+            // repeated inside it.
+            /* A workspace built from one group does not need the group's name
+               repeated inside it, and a two-item group does not need a lid.
+               Anything larger gets a collapsible category, because Operations
+               holds sixty features and opening it should not mean reading all
+               sixty to find the library. */
+            const showGroupLabels = ws.sections.length > 1
             return (
-              <div key={section.slug} className="mb-1">
+              <div key={ws.slug} className="mb-1">
                 <button
                   aria-expanded={open}
-                  // Toggles rather than navigates. Browsing what a section
+                  // Toggles rather than navigates. Browsing what a workspace
                   // contains should not move you off the screen you are on.
-                  onClick={() => toggleSection(section.slug)}
+                  onClick={() => toggleSection(ws.slug)}
                   className={cn(
                     'flex h-9 w-full items-center gap-2.5 rounded-sm px-2 text-left text-[14px] transition-colors',
                     open
@@ -226,10 +403,10 @@ export function Shell({ children }: { children: ReactNode }) {
                   )}
                 >
                   <SIcon className="h-[18px] w-[18px] shrink-0" />
-                  <span className="truncate">{section.name}</span>
+                  <span className="truncate">{ws.name}</span>
                   {!open && (
                     <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
-                      {section.features.filter((f) => f.live || showPlanned).length}
+                      {count}
                     </span>
                   )}
                   <ChevronDown
@@ -242,18 +419,54 @@ export function Shell({ children }: { children: ReactNode }) {
                 {open && (
                   <div className="relative mt-0.5 pb-2">
                     <span className="absolute bottom-2 left-[9px] top-0 w-px bg-border" />
-                    {section.features.filter((f) => f.live || showPlanned).map((f) => (
+                    {ws.sections.map((section) => {
+                      const items = visibleFeatures(section, showPlanned, showAdvanced)
+                      const onActive = section.slug === activeSection?.slug
+                      /* A category opens if you are in it, if you opened it, or
+                         if it is small enough that hiding two links behind a
+                         click costs more than it saves. Collapsing a lone
+                         category would also mean two clicks to reach anything
+                         in a single-group workspace. */
+                      const catOpen =
+                        !showGroupLabels || onActive || opened.has(ws.slug + '/' + section.slug) ||
+                        items.length <= 2
+                      return (
+                        <div key={section.slug}>
+                          {showGroupLabels && (
+                            <button
+                              aria-expanded={catOpen}
+                              onClick={() => toggleSection(ws.slug + '/' + section.slug)}
+                              className={cn(
+                                'flex w-full items-center gap-1.5 py-1 pl-6 pr-2 text-left',
+                                'text-[11px] font-medium uppercase tracking-[0.08em] transition-colors',
+                                catOpen
+                                  ? 'text-muted-foreground'
+                                  : 'text-muted-foreground/80 hover:text-foreground',
+                              )}
+                            >
+                              <span className="truncate">{section.name}</span>
+                              {!catOpen && (
+                                <span className="tabular-nums normal-case tracking-normal">
+                                  {items.length}
+                                </span>
+                              )}
+                              {items.length > 2 && (
+                                <ChevronDown
+                                  className={cn(
+                                    'ml-auto h-3 w-3 shrink-0 transition-transform',
+                                    catOpen && 'rotate-180',
+                                  )}
+                                />
+                              )}
+                            </button>
+                          )}
+                          {catOpen &&
+                            items.map((f) => (
                       <NavLink
                         key={f.key}
                         to={featurePath(role.key, section.slug, f.slug)}
                         onClick={() => setNavOpen(false)}
-                        title={
-                          !f.live
-                            ? `${f.name} — catalogued, not built yet`
-                            : f.in_scope
-                              ? f.summary
-                              : `${f.name} — no data in your scope`
-                        }
+                        title={!f.live ? `${f.name} — catalogued, not built yet` : f.summary}
                         className={({ isActive }) =>
                           cn(
                             'relative flex min-h-[32px] items-center gap-3 rounded-sm py-1 pl-6 pr-2 text-[14px] transition-colors',
@@ -263,7 +476,7 @@ export function Shell({ children }: { children: ReactNode }) {
                             // Muted, not faded. opacity-45 measured 2.4:1
                             // against the sidebar in dark mode — about half
                             // the 4.5:1 that body text needs to be legible.
-                            (!f.in_scope || !f.live) && 'text-muted-foreground',
+                            !f.live && 'text-muted-foreground',
                           )
                         }
                       >
@@ -288,22 +501,39 @@ export function Shell({ children }: { children: ReactNode }) {
                           </>
                         )}
                       </NavLink>
-                    ))}
+                          ))}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
             )
           })}
 
-          {/* One control for the whole rail rather than a link inside every
-              section, which is where it used to be — and was therefore missed
-              by anyone whose first section happened to be fully built. */}
-          <button
-            onClick={togglePlanned}
-            className="mt-2 w-full rounded-sm px-2 py-2 text-left text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            {showPlanned ? 'Show only what works today' : 'Show the full roadmap'}
-          </button>
+          {/* Two controls for the whole rail rather than a link inside every
+              section, which is where the roadmap toggle used to be — and was
+              therefore missed by anyone whose first section happened to be
+              fully built.
+
+              They answer different questions. "Advanced tools" is about depth
+              that exists and is rarely needed; the roadmap is about depth that
+              does not exist yet. Collapsing them into one switch would have
+              made "show me the Tally export" also show forty unbuilt screens. */}
+          <div className="mt-2 border-t pt-2">
+            <button
+              onClick={toggleAdvanced}
+              className="w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {showAdvanced ? 'Hide advanced tools' : 'Show advanced tools'}
+            </button>
+            <button
+              onClick={togglePlanned}
+              className="w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {showPlanned ? 'Show only what works today' : 'Show the full roadmap'}
+            </button>
+          </div>
         </nav>
       </aside>
 

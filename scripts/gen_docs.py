@@ -8,6 +8,7 @@ from what actually ships.
 """
 
 import csv
+import json
 import pathlib
 import re
 import sys
@@ -31,64 +32,29 @@ SCOPE_DOC = {
     "children": ("Linked children", "Students the caller is a guardian of."),
 }
 
-# Endpoints backing each implemented feature. Hand-maintained because the
-# mapping is a design fact, not something derivable from the router.
-ENDPOINTS = {
-    "super_admin.access_security.users": ["GET /api/v1/admin/users", "PUT /api/v1/admin/users/{id}/status"],
-    "super_admin.platform_setup.user_directory_provisioning": ["GET /api/v1/admin/users"],
-    "super_admin.access_security.roles_permissions": ["GET /api/v1/admin/roles", "GET /api/v1/admin/roles/{id}/permissions"],
-    "super_admin.platform_setup.role_permission_matrix": ["GET /api/v1/admin/roles"],
-    "super_admin.platform_configuration.module_configuration": ["GET /api/v1/admin/modules", "PUT /api/v1/admin/modules"],
-    "super_admin.access_security.login_session_audit": ["GET /api/v1/admin/sessions", "DELETE /api/v1/admin/sessions/{id}"],
-    "super_admin.platform_setup.login_session_audit_logs": ["GET /api/v1/admin/sessions", "DELETE /api/v1/admin/sessions/{id}"],
-    "institution_admin.dashboard.executive_kpis": ["GET /api/v1/principal/dashboard"],
-    "institution_admin.dashboard.campus_kpi_overview": ["GET /api/v1/principal/dashboard"],
-    "institution_admin.dashboard.needs_attention": ["GET /api/v1/principal/dashboard"],
-    "institution_admin.dashboard.needs_attention_widget": ["GET /api/v1/principal/dashboard"],
-    "institution_admin.academic_monitoring.attendance_monitoring": ["GET /api/v1/principal/attendance-trend", "GET /api/v1/principal/attendance-shortage"],
-    "institution_admin.reports.comprehensive_attendance_report": ["GET /api/v1/principal/attendance-trend"],
-    "institution_admin.administration.staff_allocation_workload": ["GET /api/v1/principal/staff-workload"],
-    "institution_admin.administration.staff_overview": ["GET /api/v1/principal/staff-workload"],
-    "institution_admin.students_admissions.student_directory_student_360": ["GET /api/v1/students", "GET /api/v1/students/{id}"],
-    "institution_admin.academics.academic_structure": ["GET /api/v1/academics/{years,classes,sections,subjects}"],
-    "institution_admin.academics.timetable": ["GET /api/v1/timetable/{entries,periods,teachers}"],
-    "hod.dashboard.department_kpis": ["GET /api/v1/department/dashboard"],
-    "hod.department_workspace.faculty_directory": ["GET /api/v1/department/faculty"],
-    "hod.department_workspace.faculty_allocation_workload": ["GET /api/v1/department/faculty"],
-    "faculty.dashboard.todays_classes": ["GET /api/v1/teaching/today"],
-    "faculty.teaching_workspace.my_classes": ["GET /api/v1/teaching/classes"],
-    "faculty.teaching_workspace.take_attendance": ["GET /api/v1/attendance", "POST /api/v1/attendance"],
-    "faculty.teaching_workspace.period_wise_student_attendance": ["GET /api/v1/attendance", "POST /api/v1/attendance"],
-    "faculty.teaching_workspace.my_timetable": ["GET /api/v1/timetable/entries"],
-    "faculty.teaching_workspace.daily_timetable_view": ["GET /api/v1/timetable/entries"],
-    "finance.dashboard.finance_kpis": ["GET /api/v1/finance/dashboard"],
-    "finance.dashboard.needs_attention": ["GET /api/v1/finance/dashboard"],
-    "finance.fee_workspace.defaulter_tracking_aging": ["GET /api/v1/finance/invoices?overdue=true"],
-    "finance.fee_finance_workspace.defaulters_reminders": ["GET /api/v1/finance/invoices?overdue=true"],
-    "admissions.dashboard.admissions_kpis": ["GET /api/v1/admissions/dashboard"],
-    "admissions.dashboard.follow_ups": ["GET /api/v1/admissions/enquiries"],
-    "admissions.admissions_workspace.enquiries_leads": ["GET /api/v1/admissions/enquiries"],
-    "hr.dashboard.hr_kpis": ["GET /api/v1/hr/dashboard"],
-    "hr.hr_workspace.employee_master": ["GET /api/v1/hr/employees"],
-    "hr.hr_workspace.employee_master_directory": ["GET /api/v1/hr/employees"],
-    "operations.specialist_workspace.role_specific_home": ["GET /api/v1/operations/dashboard"],
-    "operations.specialist_workspace.library_role": ["GET /api/v1/operations/library/loans"],
-    "operations.specialist_workspace.transport_role": ["GET /api/v1/operations/transport/vehicles"],
-    "operations.library_management.book_issue_return_terminal": ["GET /api/v1/operations/library/loans"],
-    "operations.transport_management.vehicle_master_registry": ["GET /api/v1/operations/transport/vehicles"],
-    "student.dashboard.my_day": ["GET /api/v1/portal/summary"],
-    "student.dashboard.action_reminders": ["GET /api/v1/portal/summary"],
-    "student.student_self_service.attendance": ["GET /api/v1/portal/attendance"],
-    "student.student_portal.student_personalized_dashboard": ["GET /api/v1/portal/summary"],
-    "student.student_self_service.timetable": ["GET /api/v1/timetable/entries"],
-    "student.student_self_service.profile": ["GET /api/v1/profile", "PUT /api/v1/profile"],
-    "parent.dashboard.child_switcher": ["GET /api/v1/portal/students"],
-    "parent.dashboard.child_summary": ["GET /api/v1/portal/summary?student_id="],
-    "parent.dashboard.needs_attention": ["GET /api/v1/portal/summary"],
-    "parent.parent_self_service.attendance": ["GET /api/v1/portal/attendance"],
-    "parent.parent_mobile_app.child_attendance_calendar": ["GET /api/v1/portal/attendance"],
-    "parent.parent_mobile_app.multi_child_single_login_switch": ["GET /api/v1/portal/students"],
-}
+# Endpoints and implementing screens come from docs/feature_map.json, which
+# gen_matrix.py builds by reading the components' own source. This used to be a
+# hand-maintained dict here, and it silently rotted the moment the sections were
+# regrouped: every key in it named a slug that no longer existed, so the API
+# column of this document read "—" for all 144 built features while looking
+# authoritative.
+FEATURE_MAP = ROOT / "docs" / "feature_map.json"
+
+
+def built_details():
+    """key -> (component, [endpoints]) for everything with a screen."""
+    if not FEATURE_MAP.exists():
+        return {}
+    out = {}
+    for f in json.loads(FEATURE_MAP.read_text()):
+        if not f.get("built"):
+            continue
+        eps = []
+        for e in f.get("endpoints", []):
+            for m in e.get("methods") or ["GET"]:
+                eps.append(f"{m} {e['path']}")
+        out[f["key"]] = ((f.get("component") or "").split("/")[-1], sorted(set(eps)))
+    return out
 
 
 def implemented_keys():
@@ -108,24 +74,30 @@ def main() -> int:
         scope = BY_ROLE_SCOPE[rk] if raw in AMBIGUOUS else SCOPE_MAP[raw]
         section = r["Section"].strip()
         feature = r["Feature"].strip()
+        workspace = (r.get("Workspace") or section).strip()
         key = f"{rk}.{slug(section)}.{slug(feature)}"
-        roles.setdefault(rk, {"name": r["Role"].strip(), "sections": OrderedDict()})
-        roles[rk]["sections"].setdefault(section, []).append({
+        roles.setdefault(rk, {"name": r["Role"].strip(), "ws": OrderedDict()})
+        groups = roles[rk]["ws"].setdefault(workspace, OrderedDict())
+        groups.setdefault(section, []).append({
             "key": key, "name": feature, "scope": scope,
             "summary": r["What User Sees & Does"].strip(),
+            "tier": (r.get("Tier") or "core").strip(),
             "built": key in built,
         })
 
     ordered = OrderedDict((k, roles[k]) for k in ROLE_ORDER if k in roles)
-    total = sum(len(f) for r in ordered.values() for f in r["sections"].values())
-    nbuilt = sum(1 for r in ordered.values() for fs in r["sections"].values()
-                 for f in fs if f["built"])
+    def feats(role):
+        return [f for g in role["ws"].values() for fs in g.values() for f in fs]
+
+    total = sum(len(feats(r)) for r in ordered.values())
+    nbuilt = sum(1 for r in ordered.values() for f in feats(r) if f["built"])
+    details = built_details()
 
     out = []
     w = out.append
     w("# Feature reference\n\n")
     w(f"Every feature in the catalog: **{total} features** across **{len(ordered)} roles** "
-      f"and **{sum(len(r['sections']) for r in ordered.values())} sections**. "
+      f"and **{sum(len(r['ws']) for r in ordered.values())} workspaces**. "
       f"**{nbuilt}** have a working screen and endpoint; the rest are registered with their "
       "permission and data scope, navigable, and render an explicit "
       "\"catalogued, not implemented\" page.\n\n")
@@ -138,8 +110,17 @@ def main() -> int:
     w("| **Permission key** | Row in `permissions`, granted through `role_permissions`. "
       "The API gates on it and the SPA builds navigation from it. |\n")
     w("| **Scope** | The data boundary. See below. |\n")
+    w("| **Tier** | How prominent it is in navigation. `core` is listed normally; "
+      "`advanced` sits behind a disclosure in its group; `optional` is catalogued and "
+      "routable but never in default navigation. Tier never affects authorisation. |\n")
     w("| **Status** | ✅ built · ○ catalogued |\n")
-    w("| **API** | Endpoints behind a built feature. |\n\n")
+    w("| **Screen · API** | The React component behind a built feature and the endpoints "
+      "it calls, read from the component's own source. |\n\n")
+
+    w("## Navigation shape\n\n")
+    w("A role owns **workspaces**; a workspace holds **groups**; a group holds features. "
+      "That nesting is the navigation itself — a person sees only the workspace names in "
+      "their sidebar, and the groups appear when they open one.\n\n")
 
     w("## Data scopes\n\n")
     w("| Scope | Boundary | Enforced by |\n|---|---|---|\n")
@@ -154,30 +135,46 @@ def main() -> int:
       "empty set rather than omitting the clause.\n\n")
 
     w("## Roles at a glance\n\n")
-    w("| Role | Key | Sections | Features | Built | Demo login |\n|---|---|---:|---:|---:|---|\n")
+    w("| Role | Key | Workspaces | Features | Core | Built | Demo login |\n"
+      "|---|---|---:|---:|---:|---:|---|\n")
     for rk, role in ordered.items():
-        n = sum(len(f) for f in role["sections"].values())
-        b = sum(1 for fs in role["sections"].values() for f in fs if f["built"])
-        w(f"| {role['name']} | `{rk}` | {len(role['sections'])} | {n} | {b} | "
+        fs = feats(role)
+        core = sum(1 for f in fs if f["tier"] == "core")
+        b = sum(1 for f in fs if f["built"])
+        w(f"| {role['name']} | `{rk}` | {len(role['ws'])} | {len(fs)} | {core} | {b} | "
           f"`{rk}@vivencia.test` |\n")
     w("\n")
 
     for rk, role in ordered.items():
-        n = sum(len(f) for f in role["sections"].values())
-        b = sum(1 for fs in role["sections"].values() for f in fs if f["built"])
+        fs = feats(role)
+        b = sum(1 for f in fs if f["built"])
         w(f"---\n\n## {role['name']}\n\n")
-        w(f"`{rk}` · {n} features · {b} built · sign in as `{rk}@vivencia.test`\n\n")
+        w(f"`{rk}` · {len(role['ws'])} workspaces · {len(fs)} features · {b} built · "
+          f"sign in as `{rk}@vivencia.test`\n\n")
+        w("Workspaces: " + " · ".join(f"**{n}**" for n in role["ws"]) + "\n\n")
 
-        for section, feats in role["sections"].items():
-            w(f"### {section}\n\n")
-            w("| Feature | What the user does | Permission key | Scope | Status | API |\n")
-            w("|---|---|---|---|:--:|---|\n")
-            for f in feats:
-                api = "<br>".join(f"`{e}`" for e in ENDPOINTS.get(f["key"], [])) or "—"
-                summary = f["summary"].replace("|", "\\|")
-                w(f"| **{f['name']}** | {summary} | `{f['key']}` | {f['scope']} | "
-                  f"{'✅' if f['built'] else '○'} | {api} |\n")
-            w("\n")
+        for wsname, groups in role["ws"].items():
+            n = sum(len(g) for g in groups.values())
+            w(f"### {wsname}\n\n")
+            w(f"*{n} features in {len(groups)} "
+              f"{'group' if len(groups) == 1 else 'groups'}.*\n\n")
+            for gname, items in groups.items():
+                if len(groups) > 1 or gname != wsname:
+                    w(f"#### {gname}\n\n")
+                w("| Feature | What it does | Permission key | Scope | Tier | Status | Screen · API |\n")
+                w("|---|---|---|---|---|:--:|---|\n")
+                for f in items:
+                    comp, eps = details.get(f["key"], ("", []))
+                    if comp:
+                        api = f"`{comp}`"
+                        if eps:
+                            api += "<br>" + "<br>".join(f"`{x}`" for x in eps[:4])
+                    else:
+                        api = "—"
+                    summary = f["summary"].replace("|", "\\|")
+                    w(f"| **{f['name']}** | {summary} | `{f['key']}` | {f['scope']} | "
+                      f"{f['tier']} | {'✅' if f['built'] else '○'} | {api} |\n")
+                w("\n")
 
     OUT.write_text("".join(out))
     print(f"docs: {total} features documented, {nbuilt} built → {OUT.relative_to(ROOT)}")

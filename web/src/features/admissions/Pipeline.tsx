@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Loading, ErrorState,
 } from '@/components/ui'
+import { StatusPill } from '@/components/NeedsAttention'
 
 interface Merit {
   application_id: string; application_no: string; name: string
@@ -19,10 +20,13 @@ interface Seat {
 interface Stage { stage: string; count: number }
 interface Section { id: string; class_id: string; class_name: string; name: string }
 
-const TONE: Record<string, 'success' | 'danger' | 'warning' | 'primary' | 'neutral'> = {
-  offered: 'primary', accepted: 'success', rejected: 'danger',
-  waitlisted: 'warning', submitted: 'neutral',
-}
+/* Status comes from StatusPill, not from a map kept here.
+
+   This file had five of the eleven statuses `applications` can hold, so
+   documents_pending, under_review, test_scheduled, interviewed, withdrawn and
+   draft all rendered as the same undifferentiated grey — the states a
+   counsellor most needs to tell apart were exactly the ones that looked
+   identical. One vocabulary, rendered one way, everywhere. */
 
 /** The admissions pipeline: merit ranking, seat availability against quota,
     and the decisions that move an applicant to enrolled. */
@@ -137,7 +141,7 @@ export default function Pipeline() {
                   <Td>{m.test_percent != null ? `${m.test_percent}%` : '—'}</Td>
                   <Td>{m.interview_percent != null ? `${m.interview_percent}%` : '—'}</Td>
                   <Td className="font-medium">{m.merit_score}</Td>
-                  <Td><Badge tone={TONE[m.status] ?? 'neutral'}>{m.status}</Badge></Td>
+                  <Td><StatusPill status={m.status} /></Td>
                   <Td>
                     <div className="flex flex-wrap gap-1.5">
                       {m.status !== 'offered' && m.status !== 'accepted' && (

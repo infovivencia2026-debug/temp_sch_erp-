@@ -1,12 +1,13 @@
 import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { SessionProvider } from '@/lib/session'
+import { SessionProvider, useSession } from '@/lib/session'
 import { CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
 import { PageHead, PageBody, Card, Loading, EmptyState, Badge } from '@/components/ui'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
+import NeedsAttention from '@/components/NeedsAttention'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ function RoleIndex() {
 function FeatureRoute() {
   const { sectionSlug, featureSlug } = useParams()
   const role = useActiveRole()
+  const session = useSession()
   const { section, feature } = useFeature(sectionSlug, featureSlug)
 
   if (!role || !section || !feature) {
@@ -68,12 +70,38 @@ function FeatureRoute() {
   }
 
   const Component = componentFor(feature.key)
+
+  /* Every role's Home opens with the same question.
+
+     Mounted here rather than inside each role's dashboard so that adding a
+     role does not mean remembering to add its attention panel — and so the
+     seven dashboards that already exist did not each grow their own slightly
+     different version of it. The workspace is the trigger, not the component:
+     a Home section is a Home section in all seventeen catalogues. */
+  const isHome = section.workspace === 'Home' || section.slug === 'home' ||
+    section.slug === 'dashboard'
+
   if (!Component) {
+    if (isHome) {
+      return (
+        <>
+          <PageHead eyebrow={role.name} title="Home" />
+          <PageBody>
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
+          </PageBody>
+        </>
+      )
+    }
     return <CataloguedStub sectionName={section.name} feature={feature} />
   }
 
   return (
     <Suspense fallback={<Loading />}>
+      {isHome && (
+        <PageBody>
+          <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
+        </PageBody>
+      )}
       <Component />
     </Suspense>
   )

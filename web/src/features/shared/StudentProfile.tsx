@@ -1,12 +1,18 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Phone, Mail, ArrowLeft } from 'lucide-react'
+import { Phone, Mail } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import {
+  RecordShell, Field, type RecordTab, type RecordAction,
+} from '@/components/RecordShell'
+import { StatusPill } from '@/components/NeedsAttention'
+import { useActiveRole } from '@/lib/catalog'
+import { useSession } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 interface Profile {
@@ -70,6 +76,40 @@ export default function StudentProfile() {
     enabled: !!selected,
   })
 
+  /* Where a record action sends you.
+
+     An action names what it wants — "fees", "certificates" — and the concrete
+     route depends on which workspace this role keeps that in. A principal's
+     fee screen and an accountant's are different URLs and the same intent, so
+     the record must not hard-code either. Resolving against the caller's own
+     catalogue means the same action works from every role that has it, and
+     silently does nothing from the ones that do not. */
+  const role = useActiveRole()
+  const navigate = useNavigate()
+  const session = useSession()
+  const held = new Set(session.permissions)
+
+  function can(featureKey: string) {
+    if (held.has(featureKey)) return true
+    // A capability may be granted through a different role's feature key —
+    // match on the trailing slug so "issue a certificate" is answered by
+    // whichever workspace this person reaches it through.
+    const slug = featureKey.split('.').slice(-1)[0]
+    return [...held].some((k) => k.endsWith('.' + slug))
+  }
+
+  function go(target: string) {
+    if (!role) return
+    for (const section of role.sections) {
+      for (const f of section.features) {
+        if (f.live && f.in_scope && `${section.slug} ${f.slug}`.includes(target)) {
+          navigate(`/${role.key}/${section.slug}/${f.slug}`)
+          return
+        }
+      }
+    }
+  }
+
   if (!selected) {
     return (
       <>
@@ -109,171 +149,277 @@ export default function StudentProfile() {
   if (profile.error) return <ErrorState error={profile.error} />
   const p = profile.data!
 
-  return (
-    <>
-      <PageHead
-        eyebrow={`${p.admission_no} · ${p.class_name ?? 'Unplaced'}${p.section_name ? `-${p.section_name}` : ''}`}
-        title={p.full_name}
-        description={[
-          p.gender, p.medium && `${p.medium} medium`,
-          p.roll_no && `roll ${p.roll_no}`,
-        ].filter(Boolean).join(' · ')}
-        actions={
-          <Button variant="secondary" onClick={() => { setSelected(null); setSearch('') }}>
-            <ArrowLeft className="h-4 w-4" /> Back to search
-          </Button>
-        }
-      />
-      <PageBody>
-        <CellGrid cols={4}>
-          <Stat
-            label="Attendance"
-            value={`${p.attendance.percent}%`}
-            delta={{
-              value: `${p.attendance.present}/${p.attendance.total} days`,
-              // 75% is the board threshold for exam eligibility.
-              positive: !p.attendance.below_threshold,
-            }}
-          />
-          <Stat label="Fees outstanding" value={formatPaise(p.fees.outstanding_paise)}
-            hint={p.fees.outstanding_paise ? 'Payable' : 'Settled'} />
-          <Stat label="Paid to date" value={formatPaise(p.fees.paid_paise)} />
-          <Stat label="Status" value={p.status}
-            hint={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') || undefined} />
-        </CellGrid>
+  const cls = p.class_name ? `${p.class_name}${p.section_name ? `-${p.section_name}` : ''}` : 'Unplaced'
+  const overdue = p.invoices.filter((i) => i.status === 'overdue').length
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+  /* Actions live on the record, not scattered across the modules that own
+     them. Issuing a TC is a thing you do *to a student*; making someone find
+     the certificates screen and search for the child again is how an ERP
+     turns a thirty-second job into a three-minute one.
+
+     The ones that are not built yet are shown disabled with the reason, rather
+     than hidden. A disabled control that explains itself tells you the product
+     knows what it is missing; an absent one just looks like you cannot get
+     there from here. */
+  const actions: RecordAction[] = [
+    { label: 'Record payment', onClick: () => go('fees'),
+      disabled: !can('finance.fees.collect_payment'),
+      disabledReason: 'Needs the fee counter permission' },
+    { label: 'Issue certificate', onClick: () => go('certificates'),
+      disabled: !can('institution_admin.students.certificates_documents'),
+      disabledReason: 'Needs the certificates permission' },
+    { label: 'Generate transfer certificate', onClick: () => go('certificates'),
+      disabled: !can('institution_admin.students.certificates_documents'),
+      disabledReason: 'Needs the certificates permission' },
+    { label: 'Send message', onClick: () => go('announcements'),
+      disabled: !can('comms.messages.send'), disabledReason: 'Needs the messaging permission' },
+    { label: 'Change section', onClick: () => go('promotion'),
+      disabled: true, disabledReason: 'Not built yet' },
+    { label: 'Edit student', onClick: () => go('directory'),
+      disabled: true, disabledReason: 'Not built yet' },
+  ]
+
+  const tabs: RecordTab[] = [
+    {
+      key: 'overview', label: 'Overview',
+      render: () => (
+        <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader title="Details" />
             <dl className="divide-y text-[14px]">
-              <Row k="Admission no." v={p.admission_no} mono />
-              <Row k="Admitted on" v={formatDate(p.admission_date)} />
-              <Row k="Date of birth" v={formatDate(p.date_of_birth)} />
-              <Row k="Blood group" v={p.blood_group ?? '—'} />
-              <Row k="Mother tongue" v={p.mother_tongue ?? '—'} />
-              <Row k="Medium" v={p.medium ?? '—'} />
-              <Row k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
-              <Row k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
-              <Row k="Previous school" v={p.prior_school ?? '—'} />
+              <Field k="Admission no." v={p.admission_no} mono />
+              <Field k="Admitted on" v={formatDate(p.admission_date)} />
+              <Field k="Class" v={cls} />
+              <Field k="Roll no." v={p.roll_no ? String(p.roll_no) : undefined} />
+              <Field k="Date of birth" v={formatDate(p.date_of_birth)} />
+              <Field k="Gender" v={p.gender} />
+              <Field k="Blood group" v={p.blood_group} />
+              <Field k="Mother tongue" v={p.mother_tongue} />
+              <Field k="Medium" v={p.medium} />
+              <Field k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
+              <Field k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
+              <Field k="Previous school" v={p.prior_school} />
+              <Field k="Category" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') || 'General'} />
             </dl>
           </Card>
-
-          <Card>
-            <CardHeader title="Guardians" description="Primary contact first" />
-            {p.guardians.length === 0 ? (
-              <div className="p-6">
-                <EmptyState title="No guardian on record"
-                  body="Nobody can be contacted about this child." />
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {p.guardians.map((g) => (
-                  <li key={g.full_name + g.phone} className="px-5 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-medium">
-                          {g.full_name}
-                          {g.is_primary && <Badge tone="primary">primary</Badge>}
-                        </p>
-                        <p className="text-[13px] text-muted-foreground">{g.relation}</p>
-                      </div>
-                      <div className="flex shrink-0 gap-3 text-[13px]">
-                        {g.phone && (
-                          <a href={`tel:${g.phone}`} className="inline-flex items-center gap-1 text-primary">
-                            <Phone className="h-3 w-3" />{g.phone}
-                          </a>
-                        )}
-                        {g.email && (
-                          <a href={`mailto:${g.email}`} className="inline-flex items-center gap-1 text-primary">
-                            <Mail className="h-3 w-3" />email
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+          <Guardians p={p} />
         </div>
-
+      ),
+    },
+    {
+      key: 'academics', label: 'Academics',
+      render: () => (
         <Card>
-          <CardHeader title="Attendance" description="Last 30 marked days, most recent first" />
-          <div className="p-5">
-            {p.recent_attendance.length === 0 ? (
-              <p className="py-4 text-center text-[14px] text-muted-foreground">Nothing marked yet.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1">
-                {p.recent_attendance.map((d) => (
-                  <span key={d.date} title={`${d.date} — ${d.status}`}
-                    className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')} />
-                ))}
-              </div>
-            )}
+          <CardHeader title="Results" description="Published report cards only" />
+          <Table head={['Exam', 'Percentage', 'Grade', 'Rank']} empty={!p.results.length}
+            emptyLabel="Nothing published yet.">
+            {p.results.map((x, i) => (
+              <tr key={i}>
+                <Td className="font-medium">{x.exam || '—'}</Td>
+                <Td>{x.percentage ? `${x.percentage}%` : '—'}</Td>
+                <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '—'}</Td>
+                <Td>{x.rank || '—'}</Td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      ),
+    },
+    {
+      key: 'attendance', label: 'Attendance',
+      render: () => (
+        <>
+          <Card>
+            <CardHeader
+              title="Last 30 marked days"
+              description={p.attendance.below_threshold
+                ? 'Below the 75% board threshold for exam eligibility.'
+                : 'Most recent first.'}
+            />
+            <div className="p-5">
+              {p.recent_attendance.length === 0 ? (
+                <p className="py-4 text-center text-[14px] text-muted-foreground">Nothing marked yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {p.recent_attendance.map((d) => (
+                    <span key={d.date} title={`${d.date} — ${d.status}`}
+                      className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Recent days" />
+            <Table head={['Date', 'Status']} empty={!p.recent_attendance.length}>
+              {p.recent_attendance.slice(0, 15).map((d) => (
+                <tr key={d.date}>
+                  <Td className="text-muted-foreground">{formatDate(d.date)}</Td>
+                  <Td><StatusPill status={d.status} /></Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        </>
+      ),
+    },
+    {
+      key: 'fees', label: 'Fees', badge: overdue || undefined,
+      render: () => (
+        <Card>
+          <CardHeader
+            title="Fee history"
+            description={p.fees.outstanding_paise
+              ? `${formatPaise(p.fees.outstanding_paise)} outstanding`
+              : 'Settled in full'}
+          />
+          <Table head={['Date', 'Invoice', 'Amount', 'Paid', 'Status']} empty={!p.invoices.length}
+            emptyLabel="No invoices raised.">
+            {p.invoices.map((x) => (
+              <tr key={x.invoice_no}>
+                <Td className="text-muted-foreground">{formatDate(x.date)}</Td>
+                <Td className="font-mono text-[12px]">{x.invoice_no}</Td>
+                <Td>{formatPaise(x.net_paise)}</Td>
+                <Td>{formatPaise(x.paid_paise)}</Td>
+                <Td><StatusPill status={x.status} /></Td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      ),
+    },
+    {
+      key: 'documents', label: 'Documents',
+      render: () => (
+        <Card>
+          <CardHeader title="Certificates issued" />
+          <Table head={['Serial', 'Type', 'Issued']} empty={!p.documents.length}
+            emptyLabel="Nothing issued for this child yet.">
+            {p.documents.map((d) => (
+              <tr key={d.serial_no}>
+                <Td className="font-mono text-[12px]">{d.serial_no}</Td>
+                <Td>{d.type}</Td>
+                <Td className="text-muted-foreground">{formatDate(d.issued_on)}</Td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      ),
+    },
+    {
+      key: 'transport', label: 'Transport',
+      render: () => (
+        <Card>
+          <CardHeader title="Transport" />
+          <div className="p-6">
+            <EmptyState
+              title="Route allocation is not on this screen yet"
+              body="Transport allocations are held against the student, but the record tab that shows the route, stop and fee slab is not built."
+            />
           </div>
         </Card>
+      ),
+    },
+    {
+      key: 'communication', label: 'Communication',
+      render: () => (
+        <Card>
+          <CardHeader title="Messages and circulars" />
+          <div className="p-6">
+            <EmptyState
+              title="Not built yet"
+              body="What was sent to this family, and whether they acknowledged it, will appear here."
+            />
+          </div>
+        </Card>
+      ),
+    },
+    {
+      key: 'history', label: 'History',
+      render: () => (
+        <Card>
+          <CardHeader title="Enrolment history" description="Admission, promotions and status changes" />
+          <dl className="divide-y text-[14px]">
+            <Field k="Admitted" v={formatDate(p.admission_date)} />
+            <Field k="Current status" v={p.status} />
+            <Field k="Current class" v={cls} />
+          </dl>
+          <div className="border-t px-5 py-4">
+            <p className="text-[13px] text-muted-foreground">
+              Year-on-year promotion history is recorded in <code>enrollments</code> but is not
+              surfaced here yet.
+            </p>
+          </div>
+        </Card>
+      ),
+    },
+  ]
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader title="Results" description="Published report cards" />
-            <Table head={['Exam', 'Percentage', 'Grade', 'Rank']} empty={!p.results.length}
-              emptyLabel="No published results.">
-              {p.results.map((x, i) => (
-                <tr key={i}>
-                  <Td className="font-medium">{x.exam || '—'}</Td>
-                  <Td>{x.percentage ? `${x.percentage}%` : '—'}</Td>
-                  <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '—'}</Td>
-                  <Td>{x.rank || '—'}</Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
-
-          <Card>
-            <CardHeader title="Fee history" />
-            <Table head={['Date', 'Invoice', 'Amount', 'Paid', 'Status']} empty={!p.invoices.length}
-              emptyLabel="No invoices raised.">
-              {p.invoices.map((x) => (
-                <tr key={x.invoice_no}>
-                  <Td className="text-muted-foreground">{formatDate(x.date)}</Td>
-                  <Td className="font-mono text-[12px]">{x.invoice_no}</Td>
-                  <Td>{formatPaise(x.net_paise)}</Td>
-                  <Td>{formatPaise(x.paid_paise)}</Td>
-                  <Td>
-                    <Badge tone={x.status === 'paid' ? 'success' : x.status === 'overdue' ? 'danger' : 'warning'}>
-                      {x.status}
-                    </Badge>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
-        </div>
-
-        {p.documents.length > 0 && (
-          <Card>
-            <CardHeader title="Certificates issued" />
-            <Table head={['Serial', 'Type', 'Issued']} empty={false}>
-              {p.documents.map((d) => (
-                <tr key={d.serial_no}>
-                  <Td className="font-mono text-[12px]">{d.serial_no}</Td>
-                  <Td>{d.type}</Td>
-                  <Td className="text-muted-foreground">{formatDate(d.issued_on)}</Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
-        )}
-      </PageBody>
-    </>
+  return (
+    <RecordShell
+      title={p.full_name}
+      subtitle={`${p.admission_no} · ${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''}`}
+      status={p.status}
+      facts={[
+        {
+          label: 'Attendance',
+          value: `${p.attendance.percent}%`,
+          tone: p.attendance.below_threshold ? 'bad' : 'good',
+        },
+        {
+          label: p.fees.outstanding_paise ? 'Outstanding' : 'Fees settled',
+          value: formatPaise(p.fees.outstanding_paise),
+          tone: p.fees.outstanding_paise ? 'warn' : 'good',
+        },
+        { label: 'Paid to date', value: formatPaise(p.fees.paid_paise) },
+      ]}
+      tabs={tabs}
+      actions={actions}
+      onBack={() => { setSelected(null); setSearch('') }}
+      backLabel="Back to search"
+    />
   )
 }
 
-function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+/** Who to call. First thing anyone needs when a child is the subject. */
+function Guardians({ p }: { p: Profile }) {
   return (
-    <div className="flex justify-between gap-4 px-5 py-2">
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd className={cn('text-right font-medium', mono && 'font-mono text-[12px]')}>{v}</dd>
-    </div>
+    <Card>
+      <CardHeader title="Guardians" description="Primary contact first" />
+      {p.guardians.length === 0 ? (
+        <div className="p-6">
+          <EmptyState title="No guardian on record"
+            body="Nobody can be contacted about this child." />
+        </div>
+      ) : (
+        <ul className="divide-y">
+          {p.guardians.map((g) => (
+            <li key={g.full_name + g.phone} className="px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-medium">
+                    {g.full_name}
+                    {g.is_primary && <Badge tone="primary">primary</Badge>}
+                  </p>
+                  <p className="text-[13px] text-muted-foreground">{g.relation}</p>
+                </div>
+                <div className="flex shrink-0 gap-3 text-[13px]">
+                  {g.phone && (
+                    <a href={`tel:${g.phone}`} className="inline-flex items-center gap-1 text-primary">
+                      <Phone className="h-3 w-3" />{g.phone}
+                    </a>
+                  )}
+                  {g.email && (
+                    <a href={`mailto:${g.email}`} className="inline-flex items-center gap-1 text-primary">
+                      <Mail className="h-3 w-3" />email
+                    </a>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }

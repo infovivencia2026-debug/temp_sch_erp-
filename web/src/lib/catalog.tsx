@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import { api } from './api'
-import type { Scope } from '@/catalog.gen'
+import type { Scope, Tier } from '@/catalog.gen'
 
 /* The server decides what this user can see. The generated catalog.gen.ts is
    only a type/shape reference for the client — never the authority — so
@@ -14,6 +14,7 @@ export interface ApiFeature {
   name: string
   summary: string
   scope: Scope
+  tier: Tier
   in_scope: boolean
   live: boolean
 }
@@ -21,6 +22,8 @@ export interface ApiFeature {
 export interface ApiSection {
   slug: string
   name: string
+  /** The workspace this group belongs to — the level the sidebar lists. */
+  workspace: string
   features: ApiFeature[]
 }
 

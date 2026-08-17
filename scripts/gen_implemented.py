@@ -30,7 +30,11 @@ lines = [
     f"// {len(keys)} of the catalog's features are implemented.\n",
     "var implementedFeatures = map[string]bool{\n",
 ]
-lines += [f'\t"{k}": true,\n' for k in keys]
+# Pad the values into a column the way gofmt would, so `make catalog` is a
+# no-op when gofmt is unavailable and the generated file never shows up in a
+# diff as pure whitespace churn.
+_width = max((len(k) for k in keys), default=0) + 3  # quotes and the colon
+lines += [f'\t{(chr(34) + k + chr(34) + ":").ljust(_width)} true,\n' for k in keys]
 lines.append("}\n")
 OUT.write_text("".join(lines))
 print(f"implemented: {len(keys)} features")

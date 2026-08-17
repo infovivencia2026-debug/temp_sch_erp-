@@ -341,6 +341,14 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/enquiries", s.listSalesEnquiries)
 		})
 
+		/* What needs me, for whoever is asking.
+
+		   Outside every module group on purpose: it is not a feature of
+		   attendance or of fees, it is the question those modules answer
+		   together. One endpoint, gated per probe by the caller's own
+		   permissions rather than by a wrapper here. */
+		r.Get("/attention", s.getAttention)
+
 		// The first-run tour is every user's own, so it sits outside /seller.
 		r.Get("/tour", s.getTour)
 		r.Post("/tour", s.setTour)
@@ -359,6 +367,13 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users/{id}/reset-password", s.resetUserPassword)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles", s.listRoles)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/permissions", s.getRolePermissions)
+			// The grid is the same data as /permissions, grouped the way a
+			// school reads it. Both stay: one configures, one audits.
+			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/grid", s.getRoleGrid)
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/roles/{id}/grid", s.setRoleGrid)
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles", s.createRole)
+			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/installable-roles", s.listInstallableRoles)
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles/install", s.installRole)
 			r.Get("/institutions", s.listInstitutions)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/modules", s.listModules)
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Put("/modules", s.setModule)

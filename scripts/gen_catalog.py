@@ -27,24 +27,25 @@ CSV = ROOT / "docs" / "edu_features.csv"
 ROLE_KEYS = {
     "Super Admin": "super_admin",
     "Institution Admin / Principal": "institution_admin",
-    "HOD / Department Head": "hod",
     "Faculty / Teacher": "faculty",
     "Student": "student",
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
     "Admissions & Front Office": "admissions",
     "HR & Payroll": "hr",
-    "Operations Staff": "operations",
     # The vendor's own back office. Not a school role: it provisions tenants,
     # prices plans and reproduces faults, none of which a school user sees.
     "Seller Admin": "seller_admin",
 }
 
 # Display order in the role switcher and docs: platform-wide first, then
-# academic, then back-office, then the self-service portals.
+# academic, then back-office, then operations, then the self-service portals.
+# A person holding several roles lands on the first one they hold, so the order
+# is "most of your day" rather than alphabetical.
 ROLE_ORDER = [
-    "seller_admin", "super_admin", "institution_admin", "hod", "faculty",
-    "finance", "admissions", "hr", "operations",
+    "seller_admin", "super_admin",
+    "institution_admin", "faculty",
+    "finance", "admissions", "hr",
     "student", "parent",
 ]
 
@@ -132,7 +133,9 @@ def main() -> int:
         seen_keys.add(key)
 
         role = roles.setdefault(role_key, {"name": role_name, "sections": OrderedDict()})
-        sec = role["sections"].setdefault(sec_slug, {"name": section, "features": []})
+        workspace = (r.get("Workspace") or section).strip()
+        sec = role["sections"].setdefault(
+            sec_slug, {"name": section, "workspace": workspace, "features": []})
         sec["features"].append({
             "key": key,
             "slug": feat_slug,
@@ -140,6 +143,7 @@ def main() -> int:
             "summary": r["What User Sees & Does"].strip(),
             "scope": scope,
             "raw_scope": raw_scope,
+            "tier": (r.get("Tier") or "core").strip(),
         })
 
     if problems:
@@ -195,6 +199,26 @@ const (
 	ScopeChildren Scope = "children"
 )
 
+// Tier decides how hard a feature works to earn a place in the sidebar.
+//
+// The catalog is deliberately deep — a school's fee office really does need
+// structures, demand generation, concessions, refunds and reconciliation — and
+// depth only becomes noise when every capability is presented as though it
+// were a product of its own. Tier is how depth stays available without being
+// in the way.
+type Tier string
+
+const (
+	// TierCore is everyday work. Listed in navigation normally.
+	TierCore Tier = "core"
+	// TierAdvanced is real capability reached for occasionally. Kept behind a
+	// disclosure inside its own group rather than given a permanent line.
+	TierAdvanced Tier = "advanced"
+	// TierOptional is niche, gimmick, or hardware- and board-specific. Still
+	// catalogued, still routable, never in anyone's default navigation.
+	TierOptional Tier = "optional"
+)
+
 // Feature is one row of the catalog.
 type Feature struct {
 	Key     string // role.section.feature — also the permission key
@@ -202,13 +226,20 @@ type Feature struct {
 	Name    string
 	Summary string
 	Scope   Scope
+	Tier    Tier
 }
 
-// Section groups features within a role.
+// Section is a group of features inside a workspace.
+//
+// Workspace is the level a person navigates: role -> 6-9 workspaces -> groups
+// -> features. It is carried on the section rather than modelled as its own
+// type so that the feature key stays role.section.feature — renaming keys to
+// insert a level would move every seeded grant and every saved link.
 type Section struct {
-	Slug     string
-	Name     string
-	Features []Feature
+	Slug      string
+	Name      string
+	Workspace string
+	Features  []Feature
 }
 
 // Role is one persona's whole workspace.
@@ -229,13 +260,16 @@ def write_go(roles, total):
         out.append(f"\t{{\n\t\tKey:  {go_str(rk)},\n\t\tName: {go_str(role['name'])},\n")
         out.append("\t\tSections: []Section{\n")
         for ss, sec in role["sections"].items():
-            out.append(f"\t\t\t{{\n\t\t\t\tSlug: {go_str(ss)},\n\t\t\t\tName: {go_str(sec['name'])},\n")
+            out.append(
+                f"\t\t\t{{\n\t\t\t\tSlug: {go_str(ss)},\n\t\t\t\tName: {go_str(sec['name'])},\n"
+                f"\t\t\t\tWorkspace: {go_str(sec['workspace'])},\n")
             out.append("\t\t\t\tFeatures: []Feature{\n")
             for f in sec["features"]:
                 out.append(
                     "\t\t\t\t\t{"
                     f"Key: {go_str(f['key'])}, Slug: {go_str(f['slug'])}, "
                     f"Name: {go_str(f['name'])}, Scope: Scope({go_str(f['scope'])}), "
+                    f"Tier: Tier({go_str(f['tier'])}), "
                     f"Summary: {go_str(f['summary'])}"
                     "},\n"
                 )
@@ -295,9 +329,12 @@ def write_ts(roles, total):
         "export type Scope =\n"
         "  | 'platform'\n  | 'institution'\n  | 'campus'\n  | 'department'\n"
         "  | 'assigned_classes'\n  | 'self'\n  | 'children'\n\n"
+        "export type Tier = 'core' | 'advanced' | 'optional'\n\n"
         "export interface Feature {\n"
-        "  key: string\n  slug: string\n  name: string\n  summary: string\n  scope: Scope\n}\n\n"
-        "export interface Section {\n  slug: string\n  name: string\n  features: Feature[]\n}\n\n"
+        "  key: string\n  slug: string\n  name: string\n  summary: string\n"
+        "  scope: Scope\n  tier: Tier\n}\n\n"
+        "export interface Section {\n  slug: string\n  name: string\n"
+        "  workspace: string\n  features: Feature[]\n}\n\n"
         "export interface Role {\n  key: string\n  name: string\n  sections: Section[]\n}\n\n"
     )
     out.append(f"/** {len(roles)} roles, {total} features. */\n")
@@ -305,12 +342,15 @@ def write_ts(roles, total):
     for rk, role in roles.items():
         out.append(f"  {{\n    key: {ts_str(rk)},\n    name: {ts_str(role['name'])},\n    sections: [\n")
         for ss, sec in role["sections"].items():
-            out.append(f"      {{\n        slug: {ts_str(ss)},\n        name: {ts_str(sec['name'])},\n        features: [\n")
+            out.append(
+                f"      {{\n        slug: {ts_str(ss)},\n        name: {ts_str(sec['name'])},\n"
+                f"        workspace: {ts_str(sec['workspace'])},\n        features: [\n")
             for f in sec["features"]:
                 out.append(
                     "          { "
                     f"key: {ts_str(f['key'])}, slug: {ts_str(f['slug'])}, "
                     f"name: {ts_str(f['name'])}, scope: {ts_str(f['scope'])}, "
+                    f"tier: {ts_str(f['tier'])}, "
                     f"summary: {ts_str(f['summary'])}"
                     " },\n"
                 )

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Super Admin — Access & Security, Platform Configuration.
@@ -128,28 +129,41 @@ func (s *Server) setUserStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminRole struct {
-	ID          string  `json:"id"`
-	Key         string  `json:"key"`
-	Name        string  `json:"name"`
-	IsSystem    bool    `json:"is_system"`
+	ID       string `json:"id"`
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	IsSystem bool   `json:"is_system"`
+	// IsDefault distinguishes the roles a new school opens with from the
+	// optional ones it installs when it needs them.
+	IsDefault   bool    `json:"is_default"`
 	Institution *string `json:"institution,omitempty"`
 	Permissions int     `json:"permissions"`
-	Users       int     `json:"users"`
+	// Capabilities counts only the keys the configuration grid governs.
+	// Permissions counts those plus the catalog navigation grants, which is why
+	// a role can show 60 grants and 14 capabilities.
+	Capabilities int `json:"capabilities"`
+	Users        int `json:"users"`
 }
 
 // listRoles powers super_admin.access_security.roles_permissions.
 func (s *Server) listRoles(w http.ResponseWriter, r *http.Request) {
+	capKeys := make([]string, 0, len(rbac.All))
+	for _, p := range rbac.All {
+		capKeys = append(capKeys, p.Key)
+	}
 	items, err := collect(s, r, `
-		SELECT ro.id::text, ro.key, ro.name, ro.is_system, i.name,
+		SELECT ro.id::text, ro.key, ro.name, ro.is_system, ro.is_default, i.name,
 		       (SELECT count(*) FROM role_permissions rp WHERE rp.role_id = ro.id),
+		       (SELECT count(*) FROM role_permissions rp
+		         WHERE rp.role_id = ro.id AND rp.permission_key = ANY($1)),
 		       (SELECT count(*) FROM user_roles ur      WHERE ur.role_id = ro.id)
 		  FROM roles ro
 		  LEFT JOIN institutions i ON i.id = ro.institution_id
-		 ORDER BY ro.name`, nil,
+		 ORDER BY ro.is_system DESC, ro.name`, []any{capKeys},
 		func(rows pgx.Rows) (adminRole, error) {
 			var v adminRole
-			return v, rows.Scan(&v.ID, &v.Key, &v.Name, &v.IsSystem, &v.Institution,
-				&v.Permissions, &v.Users)
+			return v, rows.Scan(&v.ID, &v.Key, &v.Name, &v.IsSystem, &v.IsDefault,
+				&v.Institution, &v.Permissions, &v.Capabilities, &v.Users)
 		})
 	respond(w, r, items, err)
 }
