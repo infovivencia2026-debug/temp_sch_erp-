@@ -65,6 +65,17 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.marks_report_cards.nep_holistic_progress_card_hpc': lazy(() => import('./exams/HolisticCard')),
   'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
 
+  /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
+     the plans that deliver them, and the percentage that follows; three
+     screens would each show a third of an answer. */
+  'institution_admin.academics.subject_chapter_planner': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.lesson_plan_approval_queue': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.syllabus_coverage_tracking': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.syllabus_progress': lazy(() => import('./academics/Syllabus')),
+  'faculty.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
+  'faculty.teaching.syllabus_progress_tracker': lazy(() => import('./academics/Syllabus')),
+  'faculty.teaching.syllabus_progress': lazy(() => import('./academics/Syllabus')),
+
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
      get follows from whether you can write exams. */

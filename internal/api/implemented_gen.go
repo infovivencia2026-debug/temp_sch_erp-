@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 171 of the catalog's features are implemented.
+// 178 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -42,6 +42,9 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_profile.leave_self_service":                              true,
 	"faculty.my_profile.profile":                                         true,
 	"faculty.teaching.homework_classwork":                                true,
+	"faculty.teaching.lesson_plans_content":                              true,
+	"faculty.teaching.syllabus_progress":                                 true,
+	"faculty.teaching.syllabus_progress_tracker":                         true,
 	"faculty.teaching.teacher_digital_diary":                             true,
 	"faculty.timetable.my_timetable":                                     true,
 	"finance.collections.collect_payment":                                true,
@@ -77,6 +80,10 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,
 	"institution_admin.academics.classes_sections":                       true,
+	"institution_admin.academics.lesson_plan_approval_queue":             true,
+	"institution_admin.academics.subject_chapter_planner":                true,
+	"institution_admin.academics.syllabus_coverage_tracking":             true,
+	"institution_admin.academics.syllabus_progress":                      true,
 	"institution_admin.academics.teacher_allocation":                     true,
 	"institution_admin.academics.timetable":                              true,
 	"institution_admin.admissions.admissions_overview":                   true,

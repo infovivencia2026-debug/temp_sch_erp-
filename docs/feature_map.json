@@ -2240,9 +2240,53 @@
   "description": "Define master subject structures, chapters, learning outcomes, and target completion dates.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.lesson_plan_approval_queue",
@@ -2253,9 +2297,53 @@
   "description": "Review, comment, approve, or reject daily/weekly lesson plans submitted by faculty.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.syllabus_coverage_tracking",
@@ -2266,9 +2354,53 @@
   "description": "Monitor real-time percentage completion of syllabus against academic calendar deadlines.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.attendance_monitoring",
@@ -2417,9 +2549,53 @@
   "description": "Chapter-level coverage per subject and section against the plan.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.exams_result_status",
@@ -5060,9 +5236,53 @@
   "description": "Plan lessons and attach learning resources when LMS/lesson planning is enabled.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.teaching.syllabus_progress_tracker",
@@ -5073,9 +5293,53 @@
   "description": "Update chapter completion status, syllabus coverage percentage, and lab practical completion.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.teaching.teacher_digital_diary",
@@ -5175,9 +5439,53 @@
   "description": "Chapters covered against the plan for each subject taken.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Syllabus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.timetable.my_timetable",

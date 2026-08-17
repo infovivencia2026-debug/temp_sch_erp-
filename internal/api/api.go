@@ -65,6 +65,22 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/import", s.importStudents)
 		})
 
+		/* --- Syllabus, lesson plans and coverage --------------------------
+
+		   Reads are open to any signed-in member of staff; the handlers narrow
+		   by who is asking. A teacher sees their own plans, a head of
+		   department sees the queue, and the coverage view is the same numbers
+		   either way — one table, one truth. */
+		r.Route("/syllabus", func(r chi.Router) {
+			r.Get("/units", s.listSyllabusUnits)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Put("/units", s.setSyllabusUnits)
+			r.Get("/coverage", s.getSyllabusCoverage)
+			r.Get("/lesson-plans", s.listLessonPlans)
+			r.Post("/lesson-plans", s.saveLessonPlan)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).
+				Post("/lesson-plans/{id}/decide", s.decideLessonPlan)
+		})
+
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
 			r.Get("/years", s.listAcademicYears)
