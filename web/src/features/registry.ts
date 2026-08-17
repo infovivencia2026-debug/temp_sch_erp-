@@ -252,6 +252,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // IT Administrator — the same screens super_admin uses, bounded to one
   // school by RLS rather than by a second implementation.
+  /* The cockpit: every campus on the installation, side by side. The
+     principal's dashboard is one school by design; this is the row above. */
+  'super_admin.dashboard.campus_cards': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.all_campuses_summary': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.alerts': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.multi_branch_revenue_analytics': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.central_admission_funnel_kpi': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.global_attendance_heatmap': lazy(() => import('./super_admin/PlatformDashboard')),
+  'super_admin.dashboard.executive_system_alerts': lazy(() => import('./super_admin/PlatformDashboard')),
   'super_admin.dashboard.system_health': lazy(() => import('./shared/Jobs')),
   'super_admin.access_security.user_directory': lazy(() => import('./super_admin/Users')),
   'super_admin.institution_setup.school_settings': lazy(() => import('./setup/Wizard')),

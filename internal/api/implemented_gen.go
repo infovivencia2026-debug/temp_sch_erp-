@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 164 of the catalog's features are implemented.
+// 171 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -161,6 +161,13 @@ var implementedFeatures = map[string]bool{
 	"super_admin.access_security.roles_permissions":                      true,
 	"super_admin.access_security.user_directory":                         true,
 	"super_admin.access_security.users":                                  true,
+	"super_admin.dashboard.alerts":                                       true,
+	"super_admin.dashboard.all_campuses_summary":                         true,
+	"super_admin.dashboard.campus_cards":                                 true,
+	"super_admin.dashboard.central_admission_funnel_kpi":                 true,
+	"super_admin.dashboard.executive_system_alerts":                      true,
+	"super_admin.dashboard.global_attendance_heatmap":                    true,
+	"super_admin.dashboard.multi_branch_revenue_analytics":               true,
 	"super_admin.dashboard.system_health":                                true,
 	"super_admin.institution_setup.academic_year_defaults":               true,
 	"super_admin.institution_setup.institutions_campuses":                true,

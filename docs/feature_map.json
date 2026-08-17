@@ -8,9 +8,24 @@
   "description": "Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.all_campuses_summary",
@@ -21,9 +36,24 @@
   "description": "A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.alerts",
@@ -34,9 +64,24 @@
   "description": "Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.multi_branch_revenue_analytics",
@@ -47,9 +92,24 @@
   "description": "View aggregate fee collection, outstanding balances, and comparative revenue across branches.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.central_admission_funnel_kpi",
@@ -60,9 +120,24 @@
   "description": "Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.global_attendance_heatmap",
@@ -73,9 +148,24 @@
   "description": "Monitor real-time student and staff attendance percentages across all campus locations.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.executive_system_alerts",
@@ -86,9 +176,24 @@
   "description": "Display system-critical alerts including integration downtime, security breaches, and pending audits.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/PlatformDashboard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.dashboard.system_health",

@@ -415,6 +415,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/installable-roles", s.listInstallableRoles)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles/install", s.installRole)
 			r.Get("/institutions", s.listInstitutions)
+			// The cockpit: every campus on the installation, side by side.
+			r.Get("/platform-dashboard", s.getPlatformDashboard)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/modules", s.listModules)
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Put("/modules", s.setModule)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions", s.listSessions)
