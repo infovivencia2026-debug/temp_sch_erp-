@@ -109,7 +109,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'student.exams_results.exams_grades': lazy(() => import('./portal/Results')),
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
   'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
-  'institution_admin.students.class_section_promotion': lazy(() => import('./lifecycle/Certificates')),
   'institution_admin.communication.communication': lazy(() => import('./comms/Circulars')),
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
   'student.notices_calendar.announcements_messages': lazy(() => import('./comms/Circulars')),
@@ -164,6 +163,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'institution_admin.hostel.buildings_rooms': lazy(() => import('./ops2/Hostel')),
   'institution_admin.hostel.room_allocation': lazy(() => import('./ops2/Hostel')),
+
+  /* Screens built against endpoints that already existed and had no caller.
+     Each of these was a working handler the product could not reach: the
+     corrections queue, the annual promotion, and the step that turns a fee
+     structure into money owed. */
+  'institution_admin.academics.attendance_corrections': lazy(() => import('./workflow/Corrections')),
+  'faculty.attendance.attendance_correction': lazy(() => import('./workflow/Corrections')),
+  'institution_admin.students.class_section_promotion': lazy(() => import('./lifecycle/Promotion')),
+  'finance.fee_structure.demand_invoice_generation': lazy(() => import('./finance/DemandGeneration')),
 
   // IT Administrator — the same screens super_admin uses, bounded to one
   // school by RLS rather than by a second implementation.

@@ -1808,13 +1808,26 @@
   "description": "Bulk promote students to higher academic years, manage retentions, and section shuffling.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "lifecycle/Certificates",
+  "component": "lifecycle/Promotion",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/lifecycle/certificates",
+    "path": "/api/v1/academics/sections",
     "methods": [
-     "GET",
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/lifecycle/promote",
+    "methods": [
      "POST"
     ],
     "conditional": false
@@ -2189,9 +2202,24 @@
   "description": "Review correction requests according to workflow.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "workflow/Corrections",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/attendance-workflow/corrections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/attendance-workflow/corrections/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.exams_marks_monitoring",
@@ -4332,9 +4360,24 @@
   "description": "Request or process correction within permitted window/workflow.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "workflow/Corrections",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/attendance-workflow/corrections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/attendance-workflow/corrections/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.attendance.absence_alert_to_guardian",
@@ -7007,9 +7050,24 @@
   "description": "Generate student fee demands/invoices for applicable periods.",
   "scope": "Assigned institution/campus finance scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/DemandGeneration",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/fees/invoices/generate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/fee-structures",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.concessions_refunds.discounts_scholarships",

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 122 of the catalog's features are implemented.
+// 125 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.enrollment_handoff":                           true,
 	"admissions.admissions.merit_list_generation":                        true,
@@ -18,6 +18,7 @@ var implementedFeatures = map[string]bool{
 	"admissions.home.admissions_kpis":                                    true,
 	"admissions.home.follow_ups":                                         true,
 	"admissions.reports.admission_conversion_reports":                    true,
+	"faculty.attendance.attendance_correction":                           true,
 	"faculty.attendance.take_attendance":                                 true,
 	"faculty.communication.announcements":                                true,
 	"faculty.home.my_day":                                                true,
@@ -37,6 +38,7 @@ var implementedFeatures = map[string]bool{
 	"finance.collections.collect_payment":                                true,
 	"finance.collections.partial_advance_payments":                       true,
 	"finance.collections.receipts":                                       true,
+	"finance.fee_structure.demand_invoice_generation":                    true,
 	"finance.home.finance_kpis":                                          true,
 	"finance.home.needs_attention":                                       true,
 	"finance.student_dues.cheque_bounce_fine_engine":                     true,
@@ -50,6 +52,7 @@ var implementedFeatures = map[string]bool{
 	"hr.payroll.salary_structure_builder":                                true,
 	"hr.records.employee_master":                                         true,
 	"institution_admin.academics.academic_structure":                     true,
+	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,
 	"institution_admin.academics.classes_sections":                       true,
 	"institution_admin.academics.teacher_allocation":                     true,
