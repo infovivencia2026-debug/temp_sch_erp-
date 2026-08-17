@@ -103,7 +103,11 @@ func run() error {
 			return err
 		}
 		defer db.Close()
-		return seedDemoData(ctx, db)
+		if err := seedDemoData(ctx, db); err != nil {
+			return err
+		}
+		// The spine, then everything the spine left blank.
+		return seedDemoOperations(ctx, db)
 	case "demo-users":
 		if *password == "" {
 			return fmt.Errorf("demo-users requires -password")
