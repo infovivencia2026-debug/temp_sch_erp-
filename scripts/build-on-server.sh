@@ -34,8 +34,13 @@ go version
 
 say "Source: $BRANCH"
 if [ -d "$SRC/.git" ]; then
+    # Hard reset, not checkout. The build writes into the tree -- vite
+    # regenerates web/tsconfig.tsbuildinfo, which is tracked -- so the second
+    # deploy found local changes and refused to move. A deploy checkout is
+    # disposable by definition; anything uncommitted in it is build output.
     git -C "$SRC" fetch --quiet origin "$BRANCH"
-    git -C "$SRC" checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+    git -C "$SRC" reset --quiet --hard "origin/$BRANCH"
+    git -C "$SRC" clean -qfd -e node_modules -e web/node_modules
 else
     rm -rf "$SRC"
     git clone --quiet --branch "$BRANCH" "$REPO" "$SRC"
