@@ -322,6 +322,8 @@ func (s *Server) Routes() http.Handler {
 
 		// --- Operations desks (module 10) ----------------------------------
 		r.Route("/ops", func(r chi.Router) {
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles", s.listLibraryTitles)
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/loans/{id}/return", s.returnBook)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/occupancy", s.listHostelOccupancy)

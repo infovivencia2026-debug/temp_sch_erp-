@@ -3701,9 +3701,38 @@
   "description": "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.library.barcode_spine_label_printing",
@@ -3727,29 +3756,36 @@
   "description": "Scan student ID and book barcode to issue or return books in <5 seconds.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "operations/Workspace",
+  "component": "operations/Library",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/operations/dashboard",
+    "path": "/api/v1/ops/library/loans",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/library/loans",
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/transport/vehicles",
+    "path": "/api/v1/ops/library/titles/:param/copies",
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    }
   ]
  },
@@ -3775,9 +3811,38 @@
   "description": "Auto-calculate daily overdue fines for late book returns and post fine to student ledger.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.library.opac_digital_book_search",
@@ -3788,9 +3853,38 @@
   "description": "Online Public Access Catalog for students to search book availability and reserve books.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.library.digital_e_book_journal_integration",
@@ -3840,9 +3934,38 @@
   "description": "Titles, editions and the individual copies held against each.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.library.accession_register",
@@ -3853,9 +3976,38 @@
   "description": "The statutory accession register, with barcode and spine label printing.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.library.issue_return",
@@ -3866,29 +4018,36 @@
   "description": "The counter: scan a card, scan a book, issue or take it back.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "operations/Workspace",
+  "component": "operations/Library",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/operations/dashboard",
+    "path": "/api/v1/ops/library/loans",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/library/loans",
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/operations/transport/vehicles",
+    "path": "/api/v1/ops/library/titles/:param/copies",
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    }
   ]
  },
@@ -3914,9 +4073,38 @@
   "description": "Overdue fines accrued, waived and collected.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/Library",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/library/loans",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/loans/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.student_health_master_file",

@@ -1027,3 +1027,86 @@ func nullInt(s string) any {
 	}
 	return n
 }
+
+// --- library catalogue --------------------------------------------------------
+
+type titleRow struct {
+	ID        string  `json:"id"`
+	Title     string  `json:"title"`
+	Author    *string `json:"author,omitempty"`
+	ISBN      *string `json:"isbn,omitempty"`
+	Category  *string `json:"category,omitempty"`
+	Copies    int     `json:"copies"`
+	Available int     `json:"available"`
+}
+
+/*
+listLibraryTitles is the catalogue: what the library holds and how much of it
+is on the shelf right now.
+
+	The circulation screen could issue and return, and nothing could answer
+	"do we have this book" — which is the question actually asked at the
+	counter, usually by a child holding a slip. Availability is computed from
+	open loans rather than read off library_copies.status, because the status
+	column drifts the moment anything writes a loan without updating it, and
+	the loan table is the record that decides.
+*/
+func (s *Server) listLibraryTitles(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	items, err := collect(s, r, `
+		SELECT t.id::text, t.title, t.author, t.isbn, t.category,
+		       count(cp.id)::int,
+		       count(cp.id) FILTER (
+		         WHERE NOT EXISTS (
+		           SELECT 1 FROM library_loans l
+		            WHERE l.copy_id = cp.id AND l.returned_on IS NULL))::int
+		  FROM library_titles t
+		  LEFT JOIN library_copies cp ON cp.title_id = t.id
+		 WHERE ($1 = '' OR t.title ILIKE '%' || $1 || '%'
+		                OR COALESCE(t.author,'') ILIKE '%' || $1 || '%'
+		                OR COALESCE(t.isbn,'')   ILIKE '%' || $1 || '%')
+		 GROUP BY t.id, t.title, t.author, t.isbn, t.category
+		 ORDER BY t.title
+		 LIMIT 300`, []any{q},
+		func(rows pgx.Rows) (titleRow, error) {
+			var v titleRow
+			return v, rows.Scan(&v.ID, &v.Title, &v.Author, &v.ISBN, &v.Category,
+				&v.Copies, &v.Available)
+		})
+	respond(w, r, items, err)
+}
+
+type copyRow struct {
+	ID          string  `json:"id"`
+	AccessionNo string  `json:"accession_no"`
+	Barcode     *string `json:"barcode,omitempty"`
+	Rack        *string `json:"rack,omitempty"`
+	OnLoanTo    *string `json:"on_loan_to,omitempty"`
+	DueOn       *string `json:"due_on,omitempty"`
+}
+
+// listTitleCopies lists the physical copies of one title, and who holds each.
+func (s *Server) listTitleCopies(w http.ResponseWriter, r *http.Request) {
+	titleID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid title id")
+		return
+	}
+	items, err := collect(s, r, `
+		SELECT cp.id::text, cp.accession_no, cp.barcode, cp.rack,
+		       COALESCE(concat_ws(' ', st.first_name, st.last_name),
+		                concat_ws(' ', e.first_name,  e.last_name)),
+		       to_char(l.due_on,'YYYY-MM-DD')
+		  FROM library_copies cp
+		  LEFT JOIN library_loans l ON l.copy_id = cp.id AND l.returned_on IS NULL
+		  LEFT JOIN students  st ON st.id = l.student_id
+		  LEFT JOIN employees e  ON e.id = l.employee_id
+		 WHERE cp.title_id = $1
+		 ORDER BY cp.accession_no`, []any{titleID},
+		func(rows pgx.Rows) (copyRow, error) {
+			var v copyRow
+			return v, rows.Scan(&v.ID, &v.AccessionNo, &v.Barcode, &v.Rack,
+				&v.OnLoanTo, &v.DueOn)
+		})
+	respond(w, r, items, err)
+}
