@@ -74,7 +74,9 @@ func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (in
 		`SELECT count(*) FROM exam_subjects WHERE institution_id = $1`, inst).Scan(&existing); err != nil {
 		return 0, err
 	}
-	if existing > 0 {
+	// A school seeded before this existed may carry one stray paper from the
+	// original fixture; that is not a seeded exam and should not block one.
+	if existing > 5 {
 		return 0, nil
 	}
 
@@ -107,7 +109,7 @@ func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (in
 		INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id, exam_date,
 		                           starts_at, duration_minutes, max_marks, pass_marks)
 		SELECT $1, $2, cs.id,
-		       CURRENT_DATE - 21 + (row_number() OVER (ORDER BY cs.id) %% 7),
+		       CURRENT_DATE - 21 + (row_number() OVER (ORDER BY cs.id) % 7),
 		       '09:30', 90, 50, 17
 		  FROM class_subjects cs WHERE cs.institution_id = $1`, inst, exam); err != nil {
 		return 0, err
@@ -122,7 +124,7 @@ func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (in
 		INSERT INTO marks (institution_id, exam_subject_id, student_id, marks_obtained,
 		                   is_absent, entered_at)
 		SELECT $1, es.id, e.student_id,
-		       18 + (abs(hashtext(es.id::text || e.student_id::text)) %% 33),
+		       18 + (abs(hashtext(es.id::text || e.student_id::text)) % 33),
 		       false, now()
 		  FROM exam_subjects es
 		  JOIN class_subjects cs ON cs.id = es.class_subject_id
@@ -155,8 +157,8 @@ func seedStaffAttendance(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UU
 		       CASE
 		         -- Sundays are a week off, not an absence.
 		         WHEN extract(dow from d) = 0 THEN 'week_off'
-		         WHEN abs(hashtext(e.user_id::text || d::text)) %% 23 = 0 THEN 'absent'
-		         WHEN abs(hashtext(e.user_id::text || d::text)) %% 17 = 0 THEN 'late'
+		         WHEN abs(hashtext(e.user_id::text || d::text)) % 23 = 0 THEN 'absent'
+		         WHEN abs(hashtext(e.user_id::text || d::text)) % 17 = 0 THEN 'late'
 		         ELSE 'present'
 		       END,
 		       'manual'
@@ -232,9 +234,9 @@ func seedLibrary(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (int
 		)
 		INSERT INTO library_loans (institution_id, copy_id, student_id, issued_on, due_on)
 		SELECT $1, p.id, p.student_id,
-		       CURRENT_DATE - (10 + p.rn %% 20),
-		       CURRENT_DATE - (10 + p.rn %% 20) + 14
-		  FROM picked p WHERE p.rn %% 5 = 0`, inst); err != nil {
+		       CURRENT_DATE - (10 + p.rn % 20),
+		       CURRENT_DATE - (10 + p.rn % 20) + 14
+		  FROM picked p WHERE p.rn % 5 = 0`, inst); err != nil {
 		return n, err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -315,7 +317,7 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 		       ORDER BY hashtext(s.id::text || st.id::text) LIMIT 1
 		  ) rs ON true
 		 WHERE st.institution_id = $1
-		   AND abs(hashtext(st.id::text)) %% 3 = 0
+		   AND abs(hashtext(st.id::text)) % 3 = 0
 		ON CONFLICT DO NOTHING`, inst, year); err != nil {
 		return n, err
 	}
@@ -471,7 +473,7 @@ func seedPipeline(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (in
 			                          created_at)
 			SELECT $1, $2, $3, $4, $5,
 			       CURRENT_DATE - INTERVAL '11 years' - ($6 * INTERVAL '37 days'),
-			       CASE WHEN $6 %% 2 = 0 THEN 'female' ELSE 'male' END,
+			       CASE WHEN $6 % 2 = 0 THEN 'female' ELSE 'male' END,
 			       (SELECT id FROM classes WHERE institution_id = $1 ORDER BY level LIMIT 1),
 			       $7, $8, $9, now() - ($6 * INTERVAL '3 days')
 			 WHERE NOT EXISTS (
