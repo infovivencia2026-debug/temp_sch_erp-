@@ -49,12 +49,19 @@
        The sidebar is a shade off the ground rather than white: white sidebar
        on white page separated by a grey line is three rectangles, and the eye
        reads the line before the content. */
-    --ground: 220 20% 97%;       /* #F7F8FA page */
+    /* Three planes, and they must actually step.
+
+       The first pass made the sidebar lighter than the ground, so chrome and
+       content sat on one plane and the whole thing read flat. Navigation
+       recedes, the page sits in the middle, content comes forward to white.
+       Roughly 4% of lightness between each -- enough to see without a line,
+       small enough to stay quiet. */
+    --sidebar: 220 16% 94%;      /* #EEF0F4  recedes */
+    --ground: 220 20% 97%;       /* #F7F8FA  page */
     --background: 220 20% 97%;
-    --sidebar: 220 22% 98%;      /* #F8F9FB */
-    --surface-subtle: 220 20% 99%; /* #FAFBFC */
-    --surface-hover: 220 16% 95%;  /* #F2F4F7 */
-    --card: 0 0% 100%;           /* #FFFFFF surface */
+    --card: 0 0% 100%;           /* #FFFFFF  comes forward */
+    --surface-subtle: 220 20% 98.5%;
+    --surface-hover: 220 14% 90%;  /* on the sidebar, so a step darker again */
     --card-foreground: 221 39% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 221 39% 11%;
@@ -97,11 +104,19 @@
     /* Navigation is a quiet surface, not an inverted slab. Only the active
        item is emphasised; making every item look like a button is what turns
        a sidebar into noise. */
-    --rail: 220 22% 98%;
+    --rail: 220 16% 94%;
     --rail-foreground: 220 9% 34%;
     /* The active navigation item. A restrained tonal step, not a filled blue
        pill: the sidebar is where you are, not what you are doing. */
-    --nav-active: 218 27% 94%;   /* #EEF2F7 */
+    /* The active item lifts toward the content plane rather than tinting
+       toward the accent -- it is where you are, not what you are doing. */
+    --nav-active: 0 0% 100%;
+
+    /* Elevation. A hairline plus a shadow you cannot quite see: enough to lift
+       a panel off the page, far short of the stacked drop-shadows that date an
+       admin UI. Menus and dialogs genuinely float, so they get more. */
+    --lift-panel: 0 1px 2px hsl(220 20% 20% / 0.04);
+    --lift-float: 0 4px 12px -2px hsl(220 20% 20% / 0.10), 0 2px 4px -2px hsl(220 20% 20% / 0.06);
 
     /* Radius scale, by component weight. */
     --radius-control: 7px;
@@ -117,10 +132,12 @@
     /* Four tonal steps rather than black-and-white. */
     --ground: 0 0% 4%;           /* #0A0A0A */
     --background: 0 0% 4%;
-    --sidebar: 0 0% 6%;          /* #0F0F0F, a step off the ground */
-    --surface-subtle: 0 0% 8%;
-    --surface-hover: 0 0% 12%;
-    --card: 0 0% 7%;             /* #111111 */
+    /* Dark inverts the direction: light means closer. Navigation stays at the
+       back, content lifts. */
+    --sidebar: 0 0% 5%;          /* #0D0D0D  recedes */
+    --surface-subtle: 0 0% 9%;
+    --surface-hover: 0 0% 13%;
+    --card: 0 0% 9%;             /* #171717  comes forward */
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 9%;          /* #181818 */
     --popover-foreground: 0 0% 98%;
@@ -151,9 +168,13 @@
     --accent: 0 0% 13%;
     --accent-foreground: 0 0% 98%;
 
-    --rail: 0 0% 6%;
+    --rail: 0 0% 5%;
     --rail-foreground: 240 5% 65%;
-    --nav-active: 0 0% 14%;
+    --nav-active: 0 0% 13%;
+
+    /* On a dark ground a shadow does nothing; the border carries the edge. */
+    --lift-panel: 0 0 0 0 transparent;
+    --lift-float: 0 8px 24px -4px hsl(0 0% 0% / 0.6);
   }
 
   /* Row padding is a document-level dial so every table responds to the
@@ -217,6 +238,7 @@
     border: 1px solid hsl(var(--border));
     background: hsl(var(--card));
     color: hsl(var(--card-foreground));
+    box-shadow: var(--lift-panel);
     transition: border-color 0.2s ease;
   }
 
@@ -240,6 +262,7 @@
      colour showing through the gap rather than by each cell drawing its own
      box. Cheaper visually than four cards side by side. */
   .cell-grid {
+    box-shadow: var(--lift-panel);
     display: grid;
     gap: 1px;
     overflow: hidden;

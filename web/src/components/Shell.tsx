@@ -84,7 +84,7 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
     'transition-colors duration-100',
     depth === 0 ? 'pl-2.5' : 'pl-7',
     active
-      ? 'bg-nav-active font-[550] text-foreground'
+      ? 'bg-nav-active font-[550] text-foreground shadow-[var(--lift-panel)]'
       : dim
         // Unbuilt, and only on screen because the roadmap toggle is on. A
         // lighter weight says so without a chip beside every second label.
@@ -311,7 +311,7 @@ export function Shell({ children }: { children: ReactNode }) {
               />
               <div
                 role="menu"
-                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-[10px] border bg-popover py-1"
+                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-[10px] border bg-popover py-1 shadow-[var(--lift-float)]"
               >
                 {catalog.roles.map((r) => (
                   <button
@@ -326,7 +326,7 @@ export function Shell({ children }: { children: ReactNode }) {
                       'flex w-full items-center gap-2 px-3 py-2 text-left text-[13.5px]',
                       'transition-colors duration-100',
                       r.key === role?.key
-                        ? 'bg-nav-active font-[550] text-foreground'
+                        ? 'bg-nav-active font-[550] text-foreground shadow-[var(--lift-panel)]'
                         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     )}
                   >
