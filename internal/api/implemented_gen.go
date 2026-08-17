@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 185 of the catalog's features are implemented.
+// 190 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -36,9 +36,14 @@ var implementedFeatures = map[string]bool{
 	"faculty.marks_report_cards.marks_entry":                             true,
 	"faculty.marks_report_cards.nep_holistic_progress_card_hpc":          true,
 	"faculty.marks_report_cards.report_cards":                            true,
+	"faculty.my_classes.cwsn_support_plan":                               true,
+	"faculty.my_classes.discipline_notes":                                true,
 	"faculty.my_classes.my_classes":                                      true,
 	"faculty.my_classes.my_students":                                     true,
+	"faculty.my_classes.student_at_risk_identification":                  true,
+	"faculty.my_classes.student_behavior_demerits":                       true,
 	"faculty.my_classes.student_details":                                 true,
+	"faculty.my_classes.student_progress":                                true,
 	"faculty.my_profile.leave_self_service":                              true,
 	"faculty.my_profile.profile":                                         true,
 	"faculty.teaching.homework_classwork":                                true,

@@ -66,7 +66,7 @@ func run() error {
 		rest = append(rest, a)
 	}
 	if cmd == "" {
-		return fmt.Errorf("usage: migrate <up|down|status|seed|create-admin|demo-data|demo-users> [flags]")
+		return fmt.Errorf("usage: migrate <up|down|status|seed|seed-permissions|create-admin|demo-data|demo-users> [flags]")
 	}
 	if err := flag.CommandLine.Parse(rest); err != nil {
 		return err
@@ -90,6 +90,28 @@ func run() error {
 	switch cmd {
 	case "up", "down", "status":
 		return runGoose(ctx, dsn, cmd)
+	/* seed-permissions is the half of seed that is safe to run unattended.
+
+	   Permission keys are upserted and never removed, so a deploy that adds
+	   one lands it in the database where a role can be granted it. The other
+	   half — role to permission grants — deliberately stays manual: seeding a
+	   role deletes its grants and rewrites them from the Go definition, which
+	   would silently revert any role a school edited in the permissions grid.
+	   Running that on every deploy would undo a customer's own configuration
+	   as a side effect of shipping an unrelated change. */
+	case "seed-permissions":
+		db, err := database.Connect(ctx, dsn, 4)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		return db.AsPlatform(ctx, func(tx pgx.Tx) error {
+			if err := seedPermissions(ctx, tx); err != nil {
+				return err
+			}
+			slog.Info("permissions seeded", "count", len(rbac.All))
+			return nil
+		})
 	case "seed":
 		db, err := database.Connect(ctx, dsn, 4)
 		if err != nil {

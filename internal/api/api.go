@@ -56,6 +56,16 @@ func (s *Server) Routes() http.Handler {
 
 		r.Route("/students", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.StudentsRead))
+			/* The conduct file and the accommodations agreed for a child who
+			   needs them. Reading needs only students.read, so a form teacher
+			   covering someone else's class can see what they are walking
+			   into; writing about a child needs students.write, and the
+			   handler additionally checks the child is one the caller
+			   actually teaches. */
+			r.Get("/notes", s.listDisciplineNotes)
+			r.With(httpx.RequirePermission(rbac.DisciplineWrite)).Post("/notes", s.recordDisciplineNote)
+			r.Get("/support-plans", s.listSupportPlans)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/support-plans", s.saveSupportPlan)
 			r.Get("/", s.listStudents)
 			r.Get("/import/template", s.getImportTemplate)
 			r.Get("/{id}", s.getStudent)
@@ -184,6 +194,12 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/today", s.listTodaysClasses)
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
+			/* What a class teacher knows about each child: the roll-up, the
+			   conduct file, and the accommodations agreed for those who need
+			   them. Reads are open to anyone who can see a student — a family
+			   reading their own child's notes gets only the shared ones — and
+			   writing needs students.write. */
+			r.Get("/progress", s.listStudentProgress)
 		})
 
 		// --- Student & Parent portals (self / children scope) -------------
@@ -193,6 +209,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/summary", s.getPortalSummary)
 			r.Get("/attendance", s.listPortalAttendance)
 			r.Get("/fees", s.getFamilyFees)
+			// The same conduct file, narrowed by the handler to the notes the
+			// school chose to share. Without this the visible_to_student flag
+			// would be a promise the product never keeps.
+			r.Get("/notes", s.listDisciplineNotes)
 			r.Get("/results", s.getFamilyResults)
 		})
 

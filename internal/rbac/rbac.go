@@ -305,9 +305,13 @@ var SystemRoles = []Role{
 		LibraryRead, LibraryWrite, TransportRead, TransportWrite,
 		HostelRead, HostelWrite, InventoryRead, InventoryWrite, AssetsWrite,
 		HealthRead, SelfProfileRead, SelfProfileWrite}},
+	// DisciplineWrite, but not StudentsWrite. A subject teacher records "did
+	// not bring the notebook, third time" and "helped a classmate who had been
+	// ill" as a matter of course; editing the child's record, or agreeing the
+	// accommodations for one who needs them, is the class teacher's job.
 	{"faculty", "Faculty / Teacher", []string{
 		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
-		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite,
+		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,

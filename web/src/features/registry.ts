@@ -163,6 +163,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Class Teacher — one section, and the pastoral load that comes with it.
   'faculty.home.my_day': lazy(() => import('./faculty/MyWork')),
+  /* One row per child across attendance, marks, homework and conduct, with
+     the reason wherever something needs attention. The conduct file and the
+     accommodations agreed for a child who needs them hang off the same row,
+     because they are what a teacher does with the flag. */
+  'faculty.my_classes.student_progress': lazy(() => import('./faculty/MyClasses')),
+  'faculty.my_classes.student_at_risk_identification': lazy(() => import('./faculty/MyClasses')),
+  'faculty.my_classes.student_behavior_demerits': lazy(() => import('./faculty/MyClasses')),
+  'faculty.my_classes.discipline_notes': lazy(() => import('./faculty/MyClasses')),
+  'faculty.my_classes.cwsn_support_plan': lazy(() => import('./faculty/MyClasses')),
   'faculty.my_classes.my_students': lazy(() => import('./shared/Students')),
   'faculty.my_classes.student_details': lazy(() => import('./shared/StudentProfile')),
   'faculty.marks_report_cards.holistic_progress_card': lazy(() => import('./exams/HolisticCard')),

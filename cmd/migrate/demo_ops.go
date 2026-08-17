@@ -159,7 +159,6 @@ func seedExamPapers(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID
 	return nil
 }
 
-
 // seedStaffAttendance marks the last three weeks for every employee, with a
 // scattering of absences so the HR register and the "teachers absent" probe
 // have something real to count.

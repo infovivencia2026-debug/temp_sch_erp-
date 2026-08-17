@@ -178,6 +178,9 @@ say "Applying migrations"
 # Runs as the owner via MIGRATE_DATABASE_URL. Done before the restart so the
 # new binary never sees a schema older than it expects.
 ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" up )
+# Permission keys the new build references, so a role can be granted them.
+# Purely additive; role grants stay manual because seeding one rewrites it.
+( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" seed-permissions )
 
 say "systemd units"
 write_unit() {

@@ -5101,9 +5101,47 @@
   "description": "View attendance and academic progress for students taught/mentored by the faculty member.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MyClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/support-plans",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.student_at_risk_identification",
@@ -5114,9 +5152,47 @@
   "description": "View AI alerts for students suffering academic drop, attendance risk, or fee delinquency.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MyClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/support-plans",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.student_portfolio_builder",
@@ -5140,9 +5216,47 @@
   "description": "Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MyClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/support-plans",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.montessori_early_years_tracking",
@@ -5166,9 +5280,47 @@
   "description": "Record children with special needs, disability type and the classroom accommodations agreed.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MyClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/support-plans",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.language_subject_allocation",
@@ -5255,9 +5407,47 @@
   "description": "Conduct incidents recorded against a child, visible to the school's leadership.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MyClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/support-plans",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.attendance.take_attendance",
