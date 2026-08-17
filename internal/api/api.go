@@ -201,6 +201,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)
 			r.With(httpx.RequirePermission(rbac.InvoicesWrite)).Post("/invoices/generate", s.generateInvoices)
+			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/concessions", s.listConcessions)
+			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/refunds", s.listRefunds)
 		})
 
 		// --- Admissions & Front Office ------------------------------------

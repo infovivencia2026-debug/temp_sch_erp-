@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 144 of the catalog's features are implemented.
+// 152 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.enrollment_handoff":                           true,
 	"admissions.admissions.merit_list_generation":                        true,
@@ -39,11 +39,19 @@ var implementedFeatures = map[string]bool{
 	"faculty.teaching.teacher_digital_diary":                             true,
 	"faculty.timetable.my_timetable":                                     true,
 	"finance.collections.collect_payment":                                true,
+	"finance.collections.online_payments":                                true,
 	"finance.collections.partial_advance_payments":                       true,
 	"finance.collections.receipts":                                       true,
+	"finance.concessions_refunds.discounts_scholarships":                 true,
+	"finance.concessions_refunds.multi_level_concession_approvals":       true,
+	"finance.concessions_refunds.refunds":                                true,
+	"finance.fee_structure.class_wise_fee_structure_configuration":       true,
 	"finance.fee_structure.demand_invoice_generation":                    true,
+	"finance.fee_structure.fee_head_group_setup":                         true,
 	"finance.home.finance_kpis":                                          true,
 	"finance.home.needs_attention":                                       true,
+	"finance.reconciliation.payment_gateway_reconciliation":              true,
+	"finance.reconciliation.reconciliation":                              true,
 	"finance.reports.finance_reports":                                    true,
 	"finance.student_dues.cheque_bounce_fine_engine":                     true,
 	"finance.student_dues.defaulters_reminders":                          true,

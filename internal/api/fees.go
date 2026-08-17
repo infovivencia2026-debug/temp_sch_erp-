@@ -707,3 +707,85 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		"instalment_no": req.InstalmentNo, "due_on": dueOn.Format(time.DateOnly),
 	})
 }
+
+// --- concessions and refunds --------------------------------------------------
+
+type concessionRow struct {
+	ID          string  `json:"id"`
+	StudentName string  `json:"student_name"`
+	AdmissionNo string  `json:"admission_no"`
+	FeeHead     *string `json:"fee_head,omitempty"`
+	Kind        string  `json:"kind"`
+	Percent     *string `json:"percent,omitempty"`
+	AmountPaise *int64  `json:"amount_paise,omitempty"`
+	Reason      *string `json:"reason,omitempty"`
+	ApprovedBy  *string `json:"approved_by,omitempty"`
+	Status      string  `json:"status"`
+}
+
+/*
+listConcessions is the discount book.
+
+	Status is derived rather than stored: fee_concessions has approved_by and
+	approved_at and no status column, so "pending" means nobody has signed it
+	off yet. Deriving it here keeps the one definition in one place — a client
+	computing it from a null check would be a second answer to the same
+	question, and the attention panel already counts these.
+*/
+func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
+	only := r.URL.Query().Get("status")
+	items, err := collect(s, r, `
+		SELECT fc.id::text,
+		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
+		       fh.name, fc.kind, fc.percent::text, fc.amount_paise, fc.reason,
+		       u.full_name,
+		       CASE WHEN fc.approved_by IS NULL THEN 'pending' ELSE 'approved' END
+		  FROM fee_concessions fc
+		  JOIN students st ON st.id = fc.student_id
+		  LEFT JOIN fee_heads fh ON fh.id = fc.fee_head_id
+		  LEFT JOIN users u ON u.id = fc.approved_by
+		 WHERE $1 = ''
+		    OR ($1 = 'pending'  AND fc.approved_by IS NULL)
+		    OR ($1 = 'approved' AND fc.approved_by IS NOT NULL)
+		 ORDER BY fc.approved_by IS NOT NULL, fc.created_at DESC
+		 LIMIT 300`, []any{only},
+		func(rows pgx.Rows) (concessionRow, error) {
+			var v concessionRow
+			return v, rows.Scan(&v.ID, &v.StudentName, &v.AdmissionNo, &v.FeeHead,
+				&v.Kind, &v.Percent, &v.AmountPaise, &v.Reason, &v.ApprovedBy, &v.Status)
+		})
+	respond(w, r, items, err)
+}
+
+type refundRow struct {
+	ID          string  `json:"id"`
+	StudentName string  `json:"student_name"`
+	AdmissionNo string  `json:"admission_no"`
+	AmountPaise int64   `json:"amount_paise"`
+	Reason      *string `json:"reason,omitempty"`
+	Mode        *string `json:"mode,omitempty"`
+	Status      string  `json:"status"`
+	ProcessedOn *string `json:"processed_on,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+}
+
+// listRefunds shows money going back out, which is the half of a fee ledger
+// nobody builds until an auditor asks for it.
+func (s *Server) listRefunds(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT rf.id::text,
+		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
+		       rf.amount_paise, rf.reason, rf.mode, rf.status,
+		       to_char(rf.processed_on,'YYYY-MM-DD'),
+		       to_char(rf.created_at,'YYYY-MM-DD')
+		  FROM refunds rf
+		  JOIN students st ON st.id = rf.student_id
+		 ORDER BY rf.created_at DESC
+		 LIMIT 200`, nil,
+		func(rows pgx.Rows) (refundRow, error) {
+			var v refundRow
+			return v, rows.Scan(&v.ID, &v.StudentName, &v.AdmissionNo, &v.AmountPaise,
+				&v.Reason, &v.Mode, &v.Status, &v.ProcessedOn, &v.CreatedAt)
+		})
+	respond(w, r, items, err)
+}

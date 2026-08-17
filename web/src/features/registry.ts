@@ -152,6 +152,19 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
 
 
+  /* Fees: the two ways money leaves a ledger, and the two ways it arrives.
+     Concessions and refunds share a screen because they are one decision from
+     two ends; payments splits by mode because cash in the drawer and a cheque
+     that may yet bounce are not the same collection. */
+  'finance.concessions_refunds.discounts_scholarships': lazy(() => import('./finance/Concessions')),
+  'finance.concessions_refunds.multi_level_concession_approvals': lazy(() => import('./finance/Concessions')),
+  'finance.concessions_refunds.refunds': lazy(() => import('./finance/Concessions')),
+  'finance.collections.online_payments': lazy(() => import('./finance/Payments')),
+  'finance.reconciliation.reconciliation': lazy(() => import('./finance/Payments')),
+  'finance.reconciliation.payment_gateway_reconciliation': lazy(() => import('./finance/Payments')),
+  'finance.fee_structure.fee_head_group_setup': lazy(() => import('./setup/Wizard')),
+  'finance.fee_structure.class_wise_fee_structure_configuration': lazy(() => import('./setup/Wizard')),
+
   /* Operations. Four screens for the school's physical side, each collapsing
      the catalogue's many entries onto the one place the work happens. */
   'institution_admin.hostel.buildings_rooms': lazy(() => import('./operations/Hostel')),
