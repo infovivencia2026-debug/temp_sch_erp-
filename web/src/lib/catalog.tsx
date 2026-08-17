@@ -104,17 +104,51 @@ export function useActiveRole(): ApiRole {
   }, [catalog.roles, roleKey])
 }
 
+/* Usable means built, and in the caller's scope.
+
+   The catalogue carries every feature a role is granted, built or not, because
+   the roadmap toggle needs them. Anything that *chooses* a feature on the
+   user's behalf has to skip the unbuilt ones, or landing on a workspace drops
+   you on a placeholder that nothing in the navigation would have offered. */
+export function usable(f: ApiFeature) {
+  return f.live && f.in_scope
+}
+
+/** The first feature a role can actually open, searched across its sections. */
+export function firstUsable(role: ApiRole | undefined) {
+  if (!role) return undefined
+  for (const section of role.sections) {
+    const feature = section.features.find(usable)
+    if (feature) return { section, feature }
+  }
+  return undefined
+}
+
 /** Looks up a feature across the active role by section + feature slug. */
 export function useFeature(sectionSlug?: string, featureSlug?: string) {
   const role = useActiveRole()
   return useMemo(() => {
     if (!role) return { section: undefined, feature: undefined }
-    const section = role.sections.find((s) => s.slug === sectionSlug) ?? role.sections[0]
-    if (!section) return { section: undefined, feature: undefined }
-    const feature = featureSlug
-      ? section.features.find((f) => f.slug === featureSlug)
-      : section.features[0]
-    return { section, feature }
+
+    // An exact request is honoured as asked -- a bookmark to an unbuilt screen
+    // should say so rather than silently landing somewhere else.
+    if (sectionSlug && featureSlug) {
+      const section = role.sections.find((s) => s.slug === sectionSlug)
+      if (section) {
+        const feature = section.features.find((f) => f.slug === featureSlug)
+        if (feature) return { section, feature }
+      }
+    }
+
+    // Anything we choose ourselves lands on something that works.
+    if (sectionSlug) {
+      const section = role.sections.find((s) => s.slug === sectionSlug)
+      const feature = section?.features.find(usable)
+      if (section && feature) return { section, feature }
+    }
+    const first = firstUsable(role)
+    if (first) return first
+    return { section: role.sections[0], feature: undefined }
   }, [role, sectionSlug, featureSlug])
 }
 

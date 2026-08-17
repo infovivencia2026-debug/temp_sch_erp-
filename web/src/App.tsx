@@ -2,7 +2,9 @@ import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
-import { CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath } from '@/lib/catalog'
+import {
+  CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
+} from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
 import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
 import { componentFor } from '@/features/registry'
@@ -25,12 +27,16 @@ const queryClient = new QueryClient({
 function RoleIndex() {
   const role = useActiveRole()
   if (!role) return <EmptyState title="No workspace" body="Your account holds no feature grants yet." />
-  const section = role.sections[0]
-  const feature = section?.features[0]
-  if (!section || !feature) {
-    return <EmptyState title={role.name} body="This role has no features you can access." />
+  /* The first feature that actually opens, not the first one catalogued.
+
+     Taking sections[0].features[0] meant a role whose first catalogued entry
+     is unbuilt landed on a placeholder -- one the navigation would never have
+     offered, since it hides unbuilt items. super_admin did exactly this. */
+  const first = firstUsable(role)
+  if (!first) {
+    return <EmptyState title={role.name} body="No screen in this workspace is ready yet." />
   }
-  return <Navigate to={featurePath(role.key, section.slug, feature.slug)} replace />
+  return <Navigate to={featurePath(role.key, first.section.slug, first.feature.slug)} replace />
 }
 
 function FeatureRoute() {
