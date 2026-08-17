@@ -12,3 +12,6 @@
 # A previously deployed copy of the SPA bundle. web/dist is the real build
 # output and is already ignored; this is the same thing under another name.
 /spa/
+
+# Claude Code personal overrides (names the production host; do not commit)
+.claude/settings.local.json

@@ -96,7 +96,7 @@ SUPER ADMIN   15 working / 54 catalogued
     [ ] N  Smart Fee Cash Flow Predictor
 
 ==============================================================================
-INSTITUTION ADMIN / PRINCIPAL   24 working / 60 catalogued
+INSTITUTION_ADMIN / PRINCIPAL   24 working / 60 catalogued
 ==============================================================================
 
   Dashboard  (4/5)

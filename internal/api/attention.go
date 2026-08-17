@@ -521,7 +521,11 @@ todaySummary is the "today's school" strip — what happened, not what is wrong.
 	worth a glance.
 */
 func todaySummary(ctx context.Context, tx pgx.Tx, id *httpx.Identity, sc *scope.Resolved) ([]summaryStat, error) {
-	var out []summaryStat
+	// Empty, not nil. A nil slice marshals to JSON null, and every caller of
+	// this endpoint reads .length off it — a parent holds none of the five
+	// permissions below, so for the two roles that always take that path the
+	// panel threw on load and blanked the whole route.
+	out := []summaryStat{}
 
 	if id.Can(rbac.StudentsRead) {
 		pred, args := sc.StudentPredicate("st", 1)
