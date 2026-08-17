@@ -4468,9 +4468,83 @@
   "description": "Generate and print custom barcode labels and spine call tags for library books.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LibraryDesk",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/missing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/scan",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/indents",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.book_issue_return_terminal",
@@ -4523,9 +4597,83 @@
   "description": "Auto-notify students when a reserved book is returned and available for collection.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LibraryDesk",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/missing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/scan",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/indents",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.overdue_fine_calculation",
@@ -4633,9 +4781,83 @@
   "description": "Scan shelves with handheld barcode reader to perform annual physical inventory audits.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LibraryDesk",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/missing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/scan",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/indents",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.ncert_textbook_indent",
@@ -4646,9 +4868,83 @@
   "description": "Raise the annual NCERT textbook indent per class, track receipt and issue to students.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LibraryDesk",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/missing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/scan",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/indents",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.books_copies",
@@ -4785,9 +5081,83 @@
   "description": "Holds placed by students and staff, and who is next in the queue.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LibraryDesk",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/missing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/ops/library/audits/:param/scan",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/indents",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/reservations/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/library/titles/:param/copies",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.fines",

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 190 of the catalog's features are implemented.
+// 195 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -123,13 +123,18 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.infirmary.emergency_health_alerts":                true,
 	"institution_admin.infirmary.student_health_master_file":             true,
 	"institution_admin.library.accession_register":                       true,
+	"institution_admin.library.barcode_spine_label_printing":             true,
 	"institution_admin.library.book_cataloging_accession_register":       true,
 	"institution_admin.library.book_issue_return_terminal":               true,
+	"institution_admin.library.book_reservation_queue":                   true,
 	"institution_admin.library.books_copies":                             true,
 	"institution_admin.library.fines":                                    true,
 	"institution_admin.library.issue_return":                             true,
+	"institution_admin.library.library_inventory_audit":                  true,
+	"institution_admin.library.ncert_textbook_indent":                    true,
 	"institution_admin.library.opac_digital_book_search":                 true,
 	"institution_admin.library.overdue_fine_calculation":                 true,
+	"institution_admin.library.reservations":                             true,
 	"institution_admin.standard.comprehensive_attendance_report":         true,
 	"institution_admin.standard.exam_grade_analytics":                    true,
 	"institution_admin.standard.reports":                                 true,

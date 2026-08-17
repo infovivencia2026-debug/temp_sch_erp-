@@ -390,6 +390,18 @@ func (s *Server) Routes() http.Handler {
 			   book it could not list and the fleet screen 404'd on load. One
 			   resource, one prefix. */
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/loans", s.listLibraryLoans)
+
+			/* The rest of a librarian's year: the hold queue, the annual
+			   stock audit, and the textbook indent. */
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/reservations", s.listReservations)
+			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/reservations", s.placeReservation)
+			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/reservations/{id}/decide", s.decideReservation)
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/audits", s.listStockAudits)
+			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/audits", s.saveStockAudit)
+			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/audits/{id}/scan", s.recordAuditScan)
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/audits/{id}/missing", s.listAuditMissing)
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/indents", s.listTextbookIndents)
+			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/indents", s.saveTextbookIndent)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/vehicles", s.listVehicles)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/occupancy", s.listHostelOccupancy)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/rooms/{id}/boarders", s.listRoomBoarders)

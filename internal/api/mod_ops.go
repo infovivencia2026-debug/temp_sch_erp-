@@ -793,14 +793,46 @@ func (s *Server) issueBook(w http.ResponseWriter, r *http.Request) {
 		if out {
 			return errCopyOnLoan
 		}
-		_, err := tx.Exec(r.Context(), `
+		/* A copy held for somebody goes to that somebody.
+
+		   Without this the counter would cheerfully hand a reserved book to
+		   the next person through the door, and the reader who was told it was
+		   waiting would arrive to find it gone — which is worse than never
+		   having been told. */
+		var heldFor *string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT res.student_id::text
+			  FROM library_reservations res
+			 WHERE res.ready_copy_id = $1 AND res.status = 'ready'
+			 LIMIT 1`, copyID).Scan(&heldFor); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if heldFor != nil && *heldFor != req.StudentID {
+			return errCopyHeld
+		}
+		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO library_loans (institution_id, copy_id, student_id, issued_on, due_on, issued_by)
 			VALUES ($1,$2,$3::uuid, CURRENT_DATE, CURRENT_DATE + $4::int, $5)`,
-			id.InstitutionID, copyID, nullString(req.StudentID), req.DueInDays, id.UserID)
+			id.InstitutionID, copyID, nullString(req.StudentID), req.DueInDays, id.UserID); err != nil {
+			return err
+		}
+		// Issuing closes the hold it satisfies, and the copy is on loan now.
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE library_reservations SET status='collected'
+			 WHERE ready_copy_id = $1 AND status = 'ready'`, copyID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(r.Context(),
+			`UPDATE library_copies SET status='issued' WHERE id=$1`, copyID)
 		return err
 	})
 	if errors.Is(err, errCopyOnLoan) {
 		httpx.Error(w, r, http.StatusConflict, "already_issued", "that copy is already on loan")
+		return
+	}
+	if errors.Is(err, errCopyHeld) {
+		httpx.Error(w, r, http.StatusConflict, "held_for_another",
+			"that copy is behind the counter for a reader who reserved it — issue a different copy")
 		return
 	}
 	if err != nil {
@@ -810,7 +842,10 @@ func (s *Server) issueBook(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{"issued": true, "due_in_days": req.DueInDays})
 }
 
-var errCopyOnLoan = errors.New("copy already on loan")
+var (
+	errCopyOnLoan = errors.New("copy already on loan")
+	errCopyHeld   = errors.New("copy is being held for another reader")
+)
 
 type returnBookRequest struct {
 	FinePerDayPaise int64 `json:"fine_per_day_paise,omitempty"`
@@ -833,13 +868,35 @@ func (s *Server) returnBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var fine int64
+	var promoted bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
+		var copyID uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
 			UPDATE library_loans
 			   SET returned_on = CURRENT_DATE,
 			       fine_paise = GREATEST(0, (CURRENT_DATE - due_on)) * $2
 			 WHERE id = $1 AND returned_on IS NULL
-			 RETURNING fine_paise`, loanID, req.FinePerDayPaise).Scan(&fine)
+			 RETURNING fine_paise, copy_id`, loanID, req.FinePerDayPaise).Scan(&fine, &copyID); err != nil {
+			return err
+		}
+		// The copy is back on the shelf unless somebody is waiting for it, in
+		// which case it goes behind the counter with their name on it.
+		if _, err := tx.Exec(r.Context(),
+			`UPDATE library_copies SET status = 'available' WHERE id = $1`, copyID); err != nil {
+			return err
+		}
+		/* Promoting the next reader happens here, inside the return, and not
+		   in a nightly job. A copy that came back this morning and a queue
+		   that has not moved by this afternoon is precisely the failure a hold
+		   queue exists to prevent, and a reader standing at the counter is the
+		   only person who will ever notice. */
+		if err := promoteNextHold(r, tx, copyID); err != nil {
+			return err
+		}
+		return tx.QueryRow(r.Context(), `
+			SELECT EXISTS (SELECT 1 FROM library_reservations
+			                WHERE ready_copy_id = $1 AND status = 'ready')`,
+			copyID).Scan(&promoted)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.Error(w, r, http.StatusNotFound, "not_found", "no open loan with that id")
@@ -849,7 +906,8 @@ func (s *Server) returnBook(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"returned": true, "fine_paise": fine})
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"returned": true, "fine_paise": fine, "held_for_next_reader": promoted})
 }
 
 type allocateHostelRequest struct {
@@ -1099,6 +1157,11 @@ type copyRow struct {
 	Rack        *string `json:"rack,omitempty"`
 	OnLoanTo    *string `json:"on_loan_to,omitempty"`
 	DueOn       *string `json:"due_on,omitempty"`
+	// available | issued | reserved | lost | damaged | withdrawn. A copy held
+	// behind the counter for a reader looked identical to one on the shelf,
+	// which is exactly the copy a librarian must not hand to a walk-in.
+	Status  string  `json:"status"`
+	HeldFor *string `json:"held_for,omitempty"`
 }
 
 // listTitleCopies lists the physical copies of one title, and who holds each.
@@ -1112,17 +1175,22 @@ func (s *Server) listTitleCopies(w http.ResponseWriter, r *http.Request) {
 		SELECT cp.id::text, cp.accession_no, cp.barcode, cp.rack,
 		       COALESCE(concat_ws(' ', st.first_name, st.last_name),
 		                concat_ws(' ', e.first_name,  e.last_name)),
-		       to_char(l.due_on,'YYYY-MM-DD')
+		       to_char(l.due_on,'YYYY-MM-DD'),
+		       cp.status,
+		       NULLIF(concat_ws(' ', hs.first_name, hs.last_name), '')
 		  FROM library_copies cp
 		  LEFT JOIN library_loans l ON l.copy_id = cp.id AND l.returned_on IS NULL
 		  LEFT JOIN students  st ON st.id = l.student_id
 		  LEFT JOIN employees e  ON e.id = l.employee_id
+		  LEFT JOIN library_reservations res
+		         ON res.ready_copy_id = cp.id AND res.status = 'ready'
+		  LEFT JOIN students hs ON hs.id = res.student_id
 		 WHERE cp.title_id = $1
 		 ORDER BY cp.accession_no`, []any{titleID},
 		func(rows pgx.Rows) (copyRow, error) {
 			var v copyRow
 			return v, rows.Scan(&v.ID, &v.AccessionNo, &v.Barcode, &v.Rack,
-				&v.OnLoanTo, &v.DueOn)
+				&v.OnLoanTo, &v.DueOn, &v.Status, &v.HeldFor)
 		})
 	respond(w, r, items, err)
 }
