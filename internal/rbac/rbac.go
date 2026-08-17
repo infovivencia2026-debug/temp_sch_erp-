@@ -279,7 +279,10 @@ var SystemRoles = []Role{
 	// this, which is every fee record and every salary as a side effect.
 	{"vice_principal", "Vice Principal / Academic Coordinator", []string{
 		StudentsRead, StudentsReadAll, AcademicsRead, AcademicsWrite,
-		TimetableRead, TimetableWrite, AttendanceRead, AttendanceReadAll,
+		TimetableRead, TimetableWrite,
+		// Reads every register and may amend any of them: approving a
+		// correction is a write against a section they do not teach.
+		AttendanceRead, AttendanceReadAll, AttendanceWrite, AttendanceWriteAny,
 		ExamsRead, ExamsWrite, MarksWrite, ReportCardsGenerate, HomeworkWrite,
 		DisciplineWrite, EmployeesRead, ReportsRead, AnnouncementsWrite,
 		SelfProfileRead, SelfProfileWrite}},

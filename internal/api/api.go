@@ -245,7 +245,12 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/attendance-workflow", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.AttendanceWrite)).Post("/corrections", s.requestCorrection)
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/corrections", s.listCorrections)
-			r.With(httpx.RequirePermission(rbac.LeaveApprove)).Post("/corrections/{id}/decide", s.decideCorrection)
+			// Approving an amendment rewrites a register, so the capability it
+			// needs is "mark any section" -- not hr.leave.approve, which is the
+			// staff leave queue and has nothing to do with attendance. The
+			// mis-gate meant a vice principal, whose whole job is monitoring
+			// attendance, could see the queue and not decide anything in it.
+			r.With(httpx.RequirePermission(rbac.AttendanceWriteAny)).Post("/corrections/{id}/decide", s.decideCorrection)
 			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/absence-alerts", s.sendAbsenceAlerts)
 		})
 

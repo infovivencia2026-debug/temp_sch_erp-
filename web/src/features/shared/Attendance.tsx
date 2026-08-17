@@ -3,10 +3,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type AttendanceRow, type Page, type Student } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
 const STATUSES = ['present', 'absent', 'late', 'half_day', 'leave', 'holiday'] as const
 type Status = (typeof STATUSES)[number]
+
+/* Marking a register is the most repeated action in the product: a class
+   teacher does it 30-odd times, twice a day, every day. A dropdown costs three
+   interactions per child -- open, find, choose -- and hides the current value
+   until you open it. One tap per child, and the whole row's state readable
+   without touching anything.
+
+   Four marks, not six. Holiday is a property of the day rather than of a
+   child, and half-day is rare enough to belong behind "more" rather than
+   taking a quarter of the width on every row. */
+const QUICK: { value: Status; short: string; label: string; tone: string }[] = [
+  { value: 'present', short: 'P', label: 'Present', tone: 'text-success border-success/40 bg-success/10' },
+  { value: 'absent', short: 'A', label: 'Absent', tone: 'text-destructive border-destructive/40 bg-destructive/10' },
+  { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning/40 bg-warning/10' },
+  { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-secondary-foreground border-border-strong bg-surface-hover' },
+]
 
 const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
   present: 'success', absent: 'danger', late: 'primary',
@@ -130,17 +147,68 @@ export default function Attendance() {
                   <Td className="font-medium">{s.full_name}</Td>
                   <Td>{saved ? <Badge tone={TONE[saved]}>{saved}</Badge> : <span className="text-xs text-muted-foreground">Not marked</span>}</Td>
                   <Td>
-                    <select
-                      value={value}
-                      disabled={!can('academics.attendance.write')}
-                      onChange={(e) => setDraft({ ...draft, [s.id]: e.target.value as Status })}
-                      className="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-50"
-                    >
-                      <option value="">—</option>
-                      {STATUSES.map((st) => (
-                        <option key={st} value={st}>{st.replace('_', ' ')}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-1">
+                      {QUICK.map((q) => {
+                        const on = value === q.value
+                        return (
+                          <button
+                            key={q.value}
+                            type="button"
+                            aria-pressed={on}
+                            aria-label={`${q.label} — ${s.full_name}`}
+                            title={q.label}
+                            disabled={!can('academics.attendance.write')}
+                            /* Tapping the mark a child already has clears it,
+                               so a misclick is one tap to undo rather than a
+                               hunt for a blank option. */
+                            onClick={() =>
+                              setDraft((d) => {
+                                const next = { ...d }
+                                if (next[s.id] === q.value) delete next[s.id]
+                                else next[s.id] = q.value
+                                return next
+                              })
+                            }
+                            className={cn(
+                              'h-8 w-8 rounded-[7px] border text-[12px] font-semibold',
+                              'transition-colors duration-100',
+                              'disabled:pointer-events-none disabled:opacity-40',
+                              on
+                                ? q.tone
+                                : 'border-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+                            )}
+                          >
+                            {q.short}
+                          </button>
+                        )
+                      })}
+                      {/* Half-day is real but rare; it does not earn a column
+                          of its own on every row. */}
+                      <button
+                        type="button"
+                        aria-label={`Half day — ${s.full_name}`}
+                        title="Half day"
+                        disabled={!can('academics.attendance.write')}
+                        onClick={() =>
+                          setDraft((d) => {
+                            const next = { ...d }
+                            if (next[s.id] === 'half_day') delete next[s.id]
+                            else next[s.id] = 'half_day'
+                            return next
+                          })
+                        }
+                        className={cn(
+                          'h-8 rounded-[7px] border px-2 text-[12px]',
+                          'transition-colors duration-100',
+                          'disabled:pointer-events-none disabled:opacity-40',
+                          value === 'half_day'
+                            ? 'border-warning/40 bg-warning/10 text-warning'
+                            : 'border-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+                        )}
+                      >
+                        ½
+                      </button>
+                    </div>
                   </Td>
                 </tr>
               )
