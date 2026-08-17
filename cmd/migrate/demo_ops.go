@@ -679,9 +679,10 @@ func seedStores(ctx context.Context, tx pgx.Tx, inst, campus, _ uuid.UUID) (int,
 		issued := it.received - it.reorder/2
 		if issued > 0 {
 			if _, err := tx.Exec(ctx, `
+				-- issued_to is a uuid reference, not a free-text recipient.
 				INSERT INTO inventory_movements (institution_id, item_id, kind, quantity,
-				                                 reference, issued_to, moved_on)
-				VALUES ($1,$2,'issue',$3,'Term issue','Class teachers', CURRENT_DATE - 10)`,
+				                                 reference, moved_on)
+				VALUES ($1,$2,'issue',$3,'Term issue to class teachers', CURRENT_DATE - 10)`,
 				inst, itemID, issued); err != nil {
 				return n, err
 			}
