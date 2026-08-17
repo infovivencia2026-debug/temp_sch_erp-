@@ -28,7 +28,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Approvals — one queue for leave, corrections and concessions.
   'institution_admin.approvals.approvals_center': lazy(() => import('./workflow/Approvals')),
   'institution_admin.approvals.approvals': lazy(() => import('./workflow/Approvals')),
-  'hr.leave.leave': lazy(() => import('./workflow/Approvals')),
 
   // Homework — the same screen from the teacher's and the child's side.
   'faculty.teaching.homework_classwork': lazy(() => import('./workflow/Homework')),
@@ -81,7 +80,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'student.fees.fees': lazy(() => import('./portal/Fees')),
   'admissions.home.admissions_kpis': lazy(() => import('./admissions/Dashboard')),
   'admissions.home.follow_ups': lazy(() => import('./admissions/Dashboard')),
-  'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Dashboard')),
   'hr.home.hr_kpis': lazy(() => import('./hr/Dashboard')),
   'hr.records.employee_master': lazy(() => import('./hr/Dashboard')),
   'institution_admin.library.book_issue_return_terminal': lazy(() => import('./operations/Workspace')),
@@ -164,6 +162,21 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.hostel.buildings_rooms': lazy(() => import('./ops2/Hostel')),
   'institution_admin.hostel.room_allocation': lazy(() => import('./ops2/Hostel')),
 
+  // Admissions: the enquiry queue, not the dashboard it used to point at.
+  'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.counselor_activity_follow_ups': lazy(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.inquiry_lead_entry': lazy(() => import('./admissions/Enquiries')),
+
+  // Leave, for the queue that decides it.
+  'hr.leave.leave': lazy(() => import('./hr/Leave')),
+  'hr.leave.staff_leave_application_management': lazy(() => import('./hr/Leave')),
+  'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+
+  // One export screen, filtered server-side by what the caller may take out.
+  'super_admin.platform_configuration.import_export': lazy(() => import('./shared/Exports')),
+  'institution_admin.standard.reports': lazy(() => import('./shared/Exports')),
+  'finance.reports.finance_reports': lazy(() => import('./shared/Exports')),
+
   /* Screens built against endpoints that already existed and had no caller.
      Each of these was a working handler the product could not reach: the
      corrections queue, the annual promotion, and the step that turns a fee
@@ -178,7 +191,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.dashboard.system_health': lazy(() => import('./shared/Jobs')),
   'super_admin.access_security.user_directory': lazy(() => import('./super_admin/Users')),
   'super_admin.institution_setup.school_settings': lazy(() => import('./setup/Wizard')),
-  'super_admin.platform_configuration.import_export': lazy(() => import('./setup/ImportStudents')),
 }
 
 export function componentFor(key: string) {

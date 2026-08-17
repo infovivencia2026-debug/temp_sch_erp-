@@ -1057,18 +1057,11 @@
   "description": "Bulk import of students, staff and opening balances, with validation reports.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "setup/ImportStudents",
+  "component": "shared/Exports",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/students/import",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/import/template",
+    "path": "/api/v1/export",
     "methods": [
      "GET"
     ],
@@ -3015,9 +3008,17 @@
   "description": "Core enrollment, attendance, academic, fee and staff reports.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "shared/Exports",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/export",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.standard.comprehensive_attendance_report",
@@ -5047,9 +5048,24 @@
   "description": "Apply for leave, view approval status, attendance and personal documents.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Leave",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/leave/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.my_profile.profile",
@@ -5066,7 +5082,8 @@
    {
     "path": "/api/v1/profile",
     "methods": [
-     "GET"
+     "GET",
+     "PUT"
     ],
     "conditional": false
    },
@@ -5832,7 +5849,8 @@
    {
     "path": "/api/v1/profile",
     "methods": [
-     "GET"
+     "GET",
+     "PUT"
     ],
     "conditional": false
    },
@@ -7351,9 +7369,17 @@
   "description": "Daily collection, outstanding, aging/defaulters, student ledger, payment mode, discount and refund reports.",
   "scope": "Assigned institution/campus finance scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "shared/Exports",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/export",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.reports.daybook_cashbook_reports",
@@ -7446,20 +7472,27 @@
   "description": "Capture prospective student enquiries and source/campaign.",
   "scope": "Assigned institution/campus admissions scope",
   "scope_key": "institution",
-  "component": "admissions/Dashboard",
+  "component": "admissions/Enquiries",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/admissions/dashboard",
+    "path": "/api/v1/admissions/enquiries",
     "methods": [
      "GET"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/admissions/enquiries",
+    "path": "/api/v1/admissions/workflow/enquiries",
     "methods": [
-     "GET"
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/enquiries/:param",
+    "methods": [
+     "PUT"
     ],
     "conditional": false
    }
@@ -7500,9 +7533,31 @@
   "description": "Log call notes, schedule follow-up reminders, and log candidate visit outcomes.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/Enquiries",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admissions/enquiries",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/enquiries",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/workflow/enquiries/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.enquiries.multi_touch_campaign_sequences",
@@ -8572,13 +8627,20 @@
   "description": "Leave balances, requests, approvals and holiday calendar.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "workflow/Approvals",
+  "component": "hr/Leave",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/workflow/approvals",
+    "path": "/api/v1/hr/leave",
     "methods": [
      "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/leave/:param/decide",
+    "methods": [
+     "POST"
     ],
     "conditional": false
    }

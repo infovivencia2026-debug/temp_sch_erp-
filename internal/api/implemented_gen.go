@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 125 of the catalog's features are implemented.
+// 131 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.enrollment_handoff":                           true,
 	"admissions.admissions.merit_list_generation":                        true,
@@ -14,7 +14,9 @@ var implementedFeatures = map[string]bool{
 	"admissions.admissions.rte_right_to_education_quota_tracking":        true,
 	"admissions.admissions.seat_allocation_management":                   true,
 	"admissions.applications.applications":                               true,
+	"admissions.enquiries.counselor_activity_follow_ups":                 true,
 	"admissions.enquiries.enquiries_leads":                               true,
+	"admissions.enquiries.inquiry_lead_entry":                            true,
 	"admissions.home.admissions_kpis":                                    true,
 	"admissions.home.follow_ups":                                         true,
 	"admissions.reports.admission_conversion_reports":                    true,
@@ -31,6 +33,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_classes.my_classes":                                      true,
 	"faculty.my_classes.my_students":                                     true,
 	"faculty.my_classes.student_details":                                 true,
+	"faculty.my_profile.leave_self_service":                              true,
 	"faculty.my_profile.profile":                                         true,
 	"faculty.teaching.homework_classwork":                                true,
 	"faculty.teaching.teacher_digital_diary":                             true,
@@ -41,12 +44,14 @@ var implementedFeatures = map[string]bool{
 	"finance.fee_structure.demand_invoice_generation":                    true,
 	"finance.home.finance_kpis":                                          true,
 	"finance.home.needs_attention":                                       true,
+	"finance.reports.finance_reports":                                    true,
 	"finance.student_dues.cheque_bounce_fine_engine":                     true,
 	"finance.student_dues.defaulters_reminders":                          true,
 	"finance.student_dues.post_dated_cheques_pdc_registry":               true,
 	"finance.student_dues.student_ledger":                                true,
 	"hr.home.hr_kpis":                                                    true,
 	"hr.leave.leave":                                                     true,
+	"hr.leave.staff_leave_application_management":                        true,
 	"hr.payroll.payroll":                                                 true,
 	"hr.payroll.payslip_generation_email_dispatch":                       true,
 	"hr.payroll.salary_structure_builder":                                true,
@@ -82,6 +87,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.issue_return":                             true,
 	"institution_admin.standard.comprehensive_attendance_report":         true,
 	"institution_admin.standard.exam_grade_analytics":                    true,
+	"institution_admin.standard.reports":                                 true,
 	"institution_admin.statutory_returns.apaar_id_register":              true,
 	"institution_admin.statutory_returns.statutory_registers":            true,
 	"institution_admin.statutory_returns.udise_return_preparation":       true,
