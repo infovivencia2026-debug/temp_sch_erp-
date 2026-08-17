@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 178 of the catalog's features are implemented.
+// 185 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -105,8 +105,13 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.home.executive_kpis":                              true,
 	"institution_admin.home.needs_attention":                             true,
 	"institution_admin.hostel.buildings_rooms":                           true,
+	"institution_admin.hostel.complaints":                                true,
+	"institution_admin.hostel.digital_outpass_approval":                  true,
 	"institution_admin.hostel.hostel_building_room_setup":                true,
+	"institution_admin.hostel.hostel_complaint_ticketing":                true,
 	"institution_admin.hostel.hostel_roll_call_attendance":               true,
+	"institution_admin.hostel.mess_menu_meal_management":                 true,
+	"institution_admin.hostel.outpass_leave":                             true,
 	"institution_admin.hostel.roll_call":                                 true,
 	"institution_admin.hostel.room_allocation":                           true,
 	"institution_admin.hostel.room_allocation_engine":                    true,
@@ -141,6 +146,8 @@ var implementedFeatures = map[string]bool{
 	"parent.academics.homework_academics":                                true,
 	"parent.academics.results_report_cards":                              true,
 	"parent.attendance.attendance":                                       true,
+	"parent.consent.consent_acknowledgement":                             true,
+	"parent.consent.digital_parent_consent_slips":                        true,
 	"parent.fees.fees_payments":                                          true,
 	"parent.home.child_summary":                                          true,
 	"parent.home.child_switcher":                                         true,

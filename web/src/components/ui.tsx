@@ -713,6 +713,37 @@ export function Input({
 }
 
 /**
+ * The multi-line form of Input.
+ *
+ * Three screens hand-rolled this before it existed, and each picked its own
+ * row count and border, so a mess menu and a lesson plan looked like controls
+ * from different products.
+ */
+export function Textarea({
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  rows?: number
+  className?: string
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className={cn('field h-auto resize-y py-2 leading-relaxed', className)}
+    />
+  )
+}
+
+/**
  * A labelled control.
  *
  * `hint` carries the thing a school admin cannot be expected to know — that a

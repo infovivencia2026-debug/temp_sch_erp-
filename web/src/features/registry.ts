@@ -122,6 +122,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
   'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
   'institution_admin.communication.communication': lazy(() => import('./comms/Circulars')),
+  /* What a school is waiting on a guardian for: a circular to sign and a trip
+     to agree to. The outpass half is load-bearing — the gate will not sign a
+     boarder out without a guardian's consent, so with nowhere to give it the
+     pass never completes. */
+  'parent.consent.consent_acknowledgement': lazy(() => import('./portal/Consent')),
+  'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
+
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
   'student.notices_calendar.announcements_messages': lazy(() => import('./comms/Circulars')),
   'institution_admin.statutory_returns.udise_return_preparation': lazy(() => import('./compliance/UDISE')),
@@ -200,6 +207,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.hostel.room_allocation_engine': lazy(() => import('./operations/Hostel')),
   'institution_admin.hostel.roll_call': lazy(() => import('./operations/Hostel')),
   'institution_admin.hostel.hostel_roll_call_attendance': lazy(() => import('./operations/Hostel')),
+
+  /* The rest of a warden's evening: who is off campus, what is broken, and
+     what is being served. Kept apart from the bed list because allocation is
+     a termly job and these three are daily ones. */
+  'institution_admin.hostel.outpass_leave': lazy(() => import('./operations/HostelLife')),
+  'institution_admin.hostel.digital_outpass_approval': lazy(() => import('./operations/HostelLife')),
+  'institution_admin.hostel.complaints': lazy(() => import('./operations/HostelLife')),
+  'institution_admin.hostel.hostel_complaint_ticketing': lazy(() => import('./operations/HostelLife')),
+  'institution_admin.hostel.mess_menu_meal_management': lazy(() => import('./operations/HostelLife')),
 
   'institution_admin.stores.item_category_store_setup': lazy(() => import('./operations/Stores')),
   'institution_admin.stores.department_stock_issuance': lazy(() => import('./operations/Stores')),

@@ -4024,9 +4024,46 @@
   "description": "Process student weekend leave or outing requests with warden and verified parent approval.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLife",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/complaints",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/complaints/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/mess",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.hostel_visitor_log",
@@ -4050,9 +4087,46 @@
   "description": "Publish weekly hostel mess meal menu and track daily boarder dining headcounts.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLife",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/complaints",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/complaints/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/mess",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.boarder_laundry_tracking",
@@ -4076,9 +4150,46 @@
   "description": "Log maintenance issues (plumbing, electrical, Wi-Fi) and track resolution by technicians.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLife",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/complaints",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/complaints/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/mess",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.buildings_rooms",
@@ -4215,9 +4326,46 @@
   "description": "Gate passes requested, approved and outstanding, with expected return.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLife",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/complaints",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/complaints/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/mess",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.complaints",
@@ -4228,9 +4376,46 @@
   "description": "Maintenance and welfare complaints raised by boarders, and their status.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLife",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/complaints",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/complaints/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/mess",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.book_cataloging_accession_register",
@@ -7471,9 +7656,46 @@
   "description": "Acknowledge circulars, permissions, trips and configured consent forms.",
   "scope": "Linked child/children only",
   "scope_key": "children",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Consent",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/communication/circulars",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/communication/circulars/:param/ack",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.consent.digital_parent_consent_slips",
@@ -7484,9 +7706,46 @@
   "description": "Provide digital signature consent for upcoming field trips, sports events, or health camps.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Consent",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/communication/circulars",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/communication/circulars/:param/ack",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/outpasses/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.consent.parent_delegation_for_emergency_pickup",

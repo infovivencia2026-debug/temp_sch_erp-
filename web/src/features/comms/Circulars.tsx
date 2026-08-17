@@ -4,7 +4,7 @@ import { Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Loading, ErrorState,
+  Table, Td, Badge, Button, Input, Textarea, Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -85,13 +85,7 @@ export default function Circulars() {
           <CardHeader title="New circular" />
           <form className="space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); publish.mutate() }}>
             <Input value={title} onChange={setTitle} placeholder="Title" className="w-full" />
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Body"
-              rows={4}
-              className="field h-auto w-full py-2"
-            />
+            <Textarea value={body} onChange={setBody} placeholder="Body" rows={4} className="w-full" />
             <div>
               <p className="mb-1.5 text-[13px] text-muted-foreground">
                 Sections — leave empty to reach the whole school

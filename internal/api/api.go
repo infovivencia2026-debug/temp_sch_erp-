@@ -374,6 +374,20 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/occupancy", s.listHostelOccupancy)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/rooms/{id}/boarders", s.listRoomBoarders)
 			r.With(httpx.RequirePermission(rbac.HostelWrite)).Post("/hostel/allocate", s.allocateHostelBed)
+			/* A warden's day beyond the bed list.
+
+			   Outpass reads and consent are open to families on purpose: a
+			   guardian has to be able to see and agree to a trip, and the
+			   handlers narrow to their own children. Permitting and recording
+			   movement stays with the hostel. */
+			r.Get("/hostel/outpasses", s.listOutpasses)
+			r.Post("/hostel/outpasses", s.createOutpass)
+			r.Post("/hostel/outpasses/{id}/decide", s.decideOutpass)
+			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/complaints", s.listHostelComplaints)
+			r.Post("/hostel/complaints", s.raiseHostelComplaint)
+			r.With(httpx.RequirePermission(rbac.HostelWrite)).Post("/hostel/complaints/{id}/resolve", s.resolveHostelComplaint)
+			r.Get("/hostel/mess", s.listMessMenu)
+			r.With(httpx.RequirePermission(rbac.HostelWrite)).Put("/hostel/mess", s.setMessMenu)
 			r.With(httpx.RequirePermission(rbac.HealthRead)).Get("/health/students", s.listHealthRecords)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/routes", s.listRoutes)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/routes/{id}/stops", s.listRouteStops)

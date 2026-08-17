@@ -145,6 +145,12 @@ type circularRow struct {
 	PublishedAt string `json:"published_at"`
 	Acks        int    `json:"acknowledgements"`
 	Sections    int    `json:"sections"`
+	// Whether the caller has signed this one. The total count answers the
+	// office's question ("how many parents have read it"); this answers the
+	// parent's ("is there anything still waiting on me"), and a screen built
+	// for a family needs the second.
+	Mine bool   `json:"acknowledged_by_me"`
+	Body string `json:"body,omitempty"`
 }
 
 func (s *Server) listCirculars(w http.ResponseWriter, r *http.Request) {
@@ -152,13 +158,17 @@ func (s *Server) listCirculars(w http.ResponseWriter, r *http.Request) {
 		SELECT a.id::text, a.title, a.kind, a.audience_role, a.requires_ack,
 		       to_char(a.publish_at,'YYYY-MM-DD'),
 		       (SELECT count(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id)::int,
-		       (SELECT count(*) FROM announcement_sections s2 WHERE s2.announcement_id = a.id)::int
+		       (SELECT count(*) FROM announcement_sections s2 WHERE s2.announcement_id = a.id)::int,
+		       EXISTS (SELECT 1 FROM announcement_acks ak
+		                WHERE ak.announcement_id = a.id AND ak.user_id = $1),
+		       a.body
 		  FROM announcements a
-		 ORDER BY a.publish_at DESC LIMIT 200`, nil,
+		 ORDER BY a.publish_at DESC LIMIT 200`,
+		[]any{httpx.IdentityFrom(r.Context()).UserID},
 		func(rows pgx.Rows) (circularRow, error) {
 			var v circularRow
 			return v, rows.Scan(&v.ID, &v.Title, &v.Kind, &v.Audience, &v.RequiresAck,
-				&v.PublishedAt, &v.Acks, &v.Sections)
+				&v.PublishedAt, &v.Acks, &v.Sections, &v.Mine, &v.Body)
 		})
 	respond(w, r, items, err)
 }

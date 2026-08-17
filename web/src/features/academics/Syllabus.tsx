@@ -4,7 +4,7 @@ import { BookOpen, CheckCircle2, ClipboardCheck, TrendingDown } from 'lucide-rea
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Field, FormNotice, Input, Select,
+  Table, Td, Badge, Button, Field, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
@@ -417,11 +417,10 @@ function ChapterPlanner() {
             }}
           >
             <Field label="Add chapters" hint="One per line, in teaching order.">
-              <textarea
+              <Textarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
                 rows={5}
-                className="field h-auto py-2"
                 placeholder={'Knowing our numbers\nWhole numbers\nPlaying with numbers'}
               />
             </Field>
