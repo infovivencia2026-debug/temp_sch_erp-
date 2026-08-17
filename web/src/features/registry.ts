@@ -64,6 +64,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // two would guarantee they drift.
   'faculty.marks_report_cards.nep_holistic_progress_card_hpc': lazy(() => import('./exams/HolisticCard')),
   'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
+
+  /* Exam day. One screen, two halves: the office allocates halls and prints
+     the invigilator's plan, a candidate reads their own ticket. Which half you
+     get follows from whether you can write exams. */
+  'institution_admin.examinations.hall_ticket_issue': lazy(() => import('./exams/HallTicket')),
+  'student.exams_results.board_hall_ticket_download': lazy(() => import('./exams/HallTicket')),
+  'student.exams_results.digital_hall_ticket_verification_qr': lazy(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': lazy(() => import('./shared/Attendance')),
   'faculty.timetable.my_timetable': lazy(() => import('./shared/Timetable')),
@@ -224,11 +231,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Enquiries')),
   'admissions.enquiries.counselor_activity_follow_ups': lazy(() => import('./admissions/Enquiries')),
-  'admissions.enquiries.inquiry_lead_entry': lazy(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': lazy(() => import('./hr/Leave')),
-  'hr.leave.staff_leave_application_management': lazy(() => import('./hr/Leave')),
   'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
 
   // One export screen, filtered server-side by what the caller may take out.

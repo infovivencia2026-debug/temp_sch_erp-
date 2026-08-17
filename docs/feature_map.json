@@ -2419,9 +2419,60 @@
   "description": "Issue and reprint board hall tickets against the accepted nominal roll.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/HallTicket",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/hall-plan",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/halls",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/seats/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hpc/hall-ticket",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.board_result_import",
@@ -5984,9 +6035,60 @@
   "description": "Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/HallTicket",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/hall-plan",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/halls",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/seats/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hpc/hall-ticket",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.exams_results.digital_hall_ticket_verification_qr",
@@ -5997,9 +6099,60 @@
   "description": "Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/HallTicket",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/hall-plan",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/halls",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/seats/allocate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hpc/hall-ticket",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.exams_results.apaar_id_academic_bank_of_credits",

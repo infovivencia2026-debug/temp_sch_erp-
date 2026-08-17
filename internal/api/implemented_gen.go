@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 163 of the catalog's features are implemented.
+// 164 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -23,7 +23,6 @@ var implementedFeatures = map[string]bool{
 	"admissions.applications.interview_interaction_scheduler":            true,
 	"admissions.enquiries.counselor_activity_follow_ups":                 true,
 	"admissions.enquiries.enquiries_leads":                               true,
-	"admissions.enquiries.inquiry_lead_entry":                            true,
 	"admissions.home.admissions_kpis":                                    true,
 	"admissions.home.follow_ups":                                         true,
 	"admissions.reports.admission_conversion_reports":                    true,
@@ -67,7 +66,6 @@ var implementedFeatures = map[string]bool{
 	"hr.attendance.staff_attendance":                                     true,
 	"hr.home.hr_kpis":                                                    true,
 	"hr.leave.leave":                                                     true,
-	"hr.leave.staff_leave_application_management":                        true,
 	"hr.payroll.payroll":                                                 true,
 	"hr.payroll.payslip_generation_email_dispatch":                       true,
 	"hr.payroll.salary_structure_builder":                                true,
@@ -93,6 +91,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.directory_workload.staff_allocation_workload":     true,
 	"institution_admin.examinations.exams_result_status":                 true,
 	"institution_admin.examinations.exams_results":                       true,
+	"institution_admin.examinations.hall_ticket_issue":                   true,
 	"institution_admin.examinations.report_cards":                        true,
 	"institution_admin.home.academic_kpis":                               true,
 	"institution_admin.home.department_kpis":                             true,
@@ -148,6 +147,8 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.subscriptions_billing.seat_overage_renewals":           true,
 	"seller_admin.subscriptions_billing.subscription_ledger":             true,
 	"student.attendance.attendance":                                      true,
+	"student.exams_results.board_hall_ticket_download":                   true,
+	"student.exams_results.digital_hall_ticket_verification_qr":          true,
 	"student.exams_results.exams_grades":                                 true,
 	"student.fees.fees":                                                  true,
 	"student.home.action_reminders":                                      true,

@@ -207,6 +207,11 @@ NEEDS_QUERY = {
     # student_id is filled per persona, below: a teacher's card must name a
     # child in their own sections or the answer is a correct 404.
     "/api/v1/hpc/card": lambda i: f"?student_id={i['own_student']}" if i.get("own_student") else None,
+    # A ticket is for one candidate sitting one exam; neither half can be
+    # guessed, and the endpoint rightly refuses rather than picking for you.
+    "/api/v1/hpc/hall-ticket": lambda i: (
+        f"?exam_id={i['exam']}&student_id={i['own_student']}"
+        if i.get("exam") and i.get("own_student") else None),
     "/api/v1/payroll/payslips": lambda _: "?month=2026-07",
     "/api/v1/attendance": lambda i: f"?section_id={i['section']}&on_date=2026-08-17" if i.get("section") else None,
 }

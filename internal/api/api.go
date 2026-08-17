@@ -213,12 +213,20 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/applications", s.listApplications)
 		})
 
+		/* Leave is registered outside the /hr group on purpose.
+
+		   That group carries RequirePermission(EmployeesRead), and a nested
+		   Group inherits it rather than escaping it — so a teacher opening
+		   their own "Leave & self service" got a 403 on their own record. The
+		   handler narrows to the caller's own rows when they lack the HR
+		   grant, which is what makes it safe to leave open. */
+		r.Get("/hr/leave", s.listLeaveRequests)
+
 		// --- HR & Payroll ---------------------------------------------------
 		r.Route("/hr", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.EmployeesRead))
 			r.Get("/dashboard", s.getHRDashboard)
 			r.Get("/employees", s.listEmployees)
-			r.Get("/leave", s.listLeaveRequests)
 			r.Get("/documents", s.listEmployeeDocuments)
 		})
 
@@ -226,8 +234,6 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/operations", func(r chi.Router) {
 			r.With(httpx.RequireAnyPermission(rbac.LibraryRead, rbac.TransportRead,
 				rbac.HostelRead, rbac.InventoryRead)).Get("/dashboard", s.getOperationsDashboard)
-			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/loans", s.listLibraryLoans)
-			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/vehicles", s.listVehicles)
 		})
 
 		// --- Admissions workflow (module 2) --------------------------------
@@ -267,6 +273,16 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.MarksWrite)).Post("/marks", s.enterMarks)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/generate", s.generateReportCards)
 
+			/* Exam day: halls, seating and the ticket.
+
+			   Seating is gated on ExamsWrite rather than a read permission —
+			   re-running an allocation moves every candidate, which is not
+			   something an invigilator should be able to do from a phone. */
+			r.Get("/halls", s.listExamHalls)
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/halls", s.createExamHall)
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/seats/allocate", s.allocateSeats)
+			r.Get("/hall-plan", s.getHallPlan)
+
 		})
 
 		/* --- The NEP holistic progress card -------------------------------
@@ -283,6 +299,10 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/hpc", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.SelfProfileRead))
 			r.Get("/card", s.getHolisticCard)
+			// A hall ticket is the candidate's own document. Same scope rule as
+			// the card: your child, a child you teach, or anyone if you are the
+			// office — never a stranger's.
+			r.Get("/hall-ticket", s.getHallTicket)
 			r.Get("/competencies", s.listCompetencies)
 			r.Post("/observations", s.recordObservation)
 		})
@@ -329,6 +349,12 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/loans/{id}/return", s.returnBook)
+			/* Reads for the same two resources sat under /operations while
+			   their writes were here, so the library screen could return a
+			   book it could not list and the fleet screen 404'd on load. One
+			   resource, one prefix. */
+			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/loans", s.listLibraryLoans)
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/vehicles", s.listVehicles)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/occupancy", s.listHostelOccupancy)
 			r.With(httpx.RequirePermission(rbac.HostelRead)).Get("/hostel/rooms/{id}/boarders", s.listRoomBoarders)
 			r.With(httpx.RequirePermission(rbac.HostelWrite)).Post("/hostel/allocate", s.allocateHostelBed)

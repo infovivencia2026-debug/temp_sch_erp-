@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Finance, Admissions & Front Office, HR & Payroll, Operations Staff.
@@ -330,7 +331,32 @@ type leaveRow struct {
 }
 
 // listLeaveRequests powers hr.hr_workspace.staff_leave_application_management.
+/* Leave, seen by whoever is asking.
+
+   The faculty "Leave & self service" screen pointed here, and the route
+   required hr.employees.read — so a teacher could apply for leave and then not
+   see whether it had been granted. Self-service does not mean holding an HR
+   permission; it means seeing your own rows.
+
+   Everyone may call this. Anyone without the HR grant gets their own leave and
+   nothing else, which is the whole difference between the two screens. */
+// leaveArgs supplies the user id only when the predicate references it; pgx
+// rejects a parameter the query never mentions.
+func leaveArgs(r *http.Request, id *httpx.Identity, mine string) []any {
+	args := []any{nullString(r.URL.Query().Get("status"))}
+	if mine != "TRUE" {
+		args = append(args, id.UserID)
+	}
+	return args
+}
+
 func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	mine := "TRUE"
+	if !id.Can(rbac.EmployeesRead) {
+		mine = `e.user_id = $2`
+	}
+
 	items, err := collect(s, r, `
 		SELECT lr.id::text,
 		       COALESCE(concat_ws(' ', e.first_name, e.last_name),
@@ -343,8 +369,9 @@ func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN students   st ON st.id = lr.student_id
 		  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
 		 WHERE ($1::text IS NULL OR lr.status = $1)
+		   AND `+mine+`
 		 ORDER BY lr.created_at DESC
-		 LIMIT 300`, []any{nullString(r.URL.Query().Get("status"))},
+		 LIMIT 300`, leaveArgs(r, id, mine),
 		func(rows pgx.Rows) (leaveRow, error) {
 			var v leaveRow
 			return v, rows.Scan(&v.ID, &v.Who, &v.Kind, &v.LeaveType,

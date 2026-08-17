@@ -33,12 +33,12 @@ export default function OperationsWorkspace() {
   })
   const loans = useQuery({
     queryKey: ['ops-loans'],
-    queryFn: () => api.get<List<LoanRow>>('/api/v1/operations/library/loans?open=true'),
+    queryFn: () => api.get<List<LoanRow>>('/api/v1/ops/library/loans?open=true'),
     retry: false,
   })
   const vehicles = useQuery({
     queryKey: ['ops-vehicles'],
-    queryFn: () => api.get<List<VehicleRow>>('/api/v1/operations/transport/vehicles'),
+    queryFn: () => api.get<List<VehicleRow>>('/api/v1/ops/transport/vehicles'),
     retry: false,
   })
 
