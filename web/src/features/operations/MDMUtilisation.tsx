@@ -115,7 +115,19 @@ export default function MDMUtilisation() {
           <>
             {editing && mayFile && (
               <BalancesForm
+                /* Keyed by the month so changing it while the form is open
+                   reloads that month's figures rather than posting July's
+                   numbers under August's heading. */
+                key={month}
                 month={month}
+                saved={{
+                  openingKg: d.foodgrain.opening_kg,
+                  allottedKg: d.foodgrain.allotted_kg,
+                  openingCost: d.cooking_cost_paise.opening,
+                  allottedCost: d.cooking_cost_paise.allotted,
+                  releasedCost: d.cooking_cost_paise.released,
+                  explanation: d.return.explanation,
+                }}
                 onSaved={(m) => {
                   setEditing(false); setNote(m)
                   qc.invalidateQueries({ queryKey: ['admin-ops', 'mdm'] })
@@ -297,33 +309,56 @@ function ReopenBox({ pending, onReopen }: { pending: boolean; onReopen: (r: stri
   )
 }
 
-function BalancesForm({ month, onSaved }: { month: string; onSaved: (m: string) => void }) {
-  const [openingKg, setOpeningKg] = useState('')
-  const [allottedKg, setAllottedKg] = useState('')
-  const [openingCost, setOpeningCost] = useState('')
-  const [allottedCost, setAllottedCost] = useState('')
-  const [releasedCost, setReleasedCost] = useState('')
-  const [explanation, setExplanation] = useState('')
+function BalancesForm({ month, saved, onSaved }: {
+  month: string
+  saved: {
+    openingKg: number
+    allottedKg: number
+    openingCost: number
+    allottedCost: number
+    releasedCost: number
+    explanation?: string | null
+  }
+  onSaved: (m: string) => void
+}) {
+  /* Prefilled from what is already on file, with only the typing held here.
 
-  /* Five boxes that all start empty and all post as nought.
+     The payload carries all five figures every time, so a form that opened
+     blank declared four of them nought the moment somebody corrected the
+     fifth. Undefined in `edits` means untouched — the figure as declared — and
+     that is what gets sent back unchanged. An emptied box is a third thing
+     again: neither the stored figure nor a number, so the save waits. A real
+     nought is typed, and reads as 0 in the box afterwards. */
+  const [edits, setEdits] = useState<Record<string, string>>({})
+  const [explanation, setExplanation] = useState(saved.explanation ?? '')
 
-     `Number('' || 0)` is 0 and `toPaise('')` is 0, and the payload always
-     carries all five — so pressing Save on a form opened to correct one figure
-     declared the other four as zero on a statutory return whose remaining
-     figures are computed against them. A real nought is typed. */
-  const numbers = [openingKg, allottedKg, openingCost, allottedCost, releasedCost]
-  const incomplete = numbers.some(
-    (v) => v.trim() === '' || !Number.isFinite(Number(v)) || Number(v) < 0,
-  )
+  const onFile: Record<string, string> = {
+    openingKg: String(saved.openingKg),
+    allottedKg: String(saved.allottedKg),
+    openingCost: String(saved.openingCost / 100),
+    allottedCost: String(saved.allottedCost / 100),
+    releasedCost: String(saved.releasedCost / 100),
+  }
+  const valueOf = (k: string) => edits[k] ?? onFile[k]
+  const edit = (k: string) => (v: string) => setEdits((e) => ({ ...e, [k]: v }))
+
+  /* The same reading toPaise does — it strips grouping before parsing, so a
+     figure typed as 1,20,000 is a number to it. A validator that did not would
+     refuse the entry the field was built to accept. */
+  const asNumber = (v: string) => Number(String(v).replace(/[, ]/g, ''))
+  const emptied = Object.keys(onFile).filter((k) => {
+    const v = valueOf(k).trim()
+    return v === '' || !Number.isFinite(asNumber(v)) || asNumber(v) < 0
+  })
 
   const save = useMutation({
     mutationFn: () => api.post(`${adminOpsBase}/mdm/returns`, {
       month,
-      opening_grain_kg: Number(openingKg) || 0,
-      allotted_grain_kg: Number(allottedKg) || 0,
-      opening_cost_paise: toPaise(openingCost),
-      allotted_cost_paise: toPaise(allottedCost),
-      released_cost_paise: toPaise(releasedCost),
+      opening_grain_kg: asNumber(valueOf('openingKg')),
+      allotted_grain_kg: asNumber(valueOf('allottedKg')),
+      opening_cost_paise: toPaise(valueOf('openingCost')),
+      allotted_cost_paise: toPaise(valueOf('allottedCost')),
+      released_cost_paise: toPaise(valueOf('releasedCost')),
       variance_explanation: explanation.trim(),
     }),
     onSuccess: () => onSaved('Balances saved. The rest of the return is computed from the register.'),
@@ -338,24 +373,24 @@ function BalancesForm({ month, onSaved }: { month: string; onSaved: (m: string) 
       <div className="grid gap-4 p-5 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">Opening foodgrain (kg)</span>
-          <Input value={openingKg} onChange={setOpeningKg} placeholder="0.000" />
+          <Input value={valueOf('openingKg')} onChange={edit('openingKg')} placeholder="0.000" />
         </label>
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">Foodgrain allotted (kg)</span>
-          <Input value={allottedKg} onChange={setAllottedKg} placeholder="0.000" />
+          <Input value={valueOf('allottedKg')} onChange={edit('allottedKg')} placeholder="0.000" />
         </label>
         <span />
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">Opening cooking cost (₹)</span>
-          <Input value={openingCost} onChange={setOpeningCost} placeholder="0" />
+          <Input value={valueOf('openingCost')} onChange={edit('openingCost')} placeholder="0" />
         </label>
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">Cooking cost allotted (₹)</span>
-          <Input value={allottedCost} onChange={setAllottedCost} placeholder="0" />
+          <Input value={valueOf('allottedCost')} onChange={edit('allottedCost')} placeholder="0" />
         </label>
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">Cooking cost released (₹)</span>
-          <Input value={releasedCost} onChange={setReleasedCost} placeholder="0" />
+          <Input value={valueOf('releasedCost')} onChange={edit('releasedCost')} placeholder="0" />
         </label>
       </div>
       <div className="px-5 pb-5">
@@ -368,13 +403,13 @@ function BalancesForm({ month, onSaved }: { month: string; onSaved: (m: string) 
       </div>
       <div className="border-t px-5 py-4">
         <FormNotice error={save.error} />
-        {incomplete && (
+        {emptied.length > 0 && (
           <p className="mb-2 text-[12.5px] text-muted-foreground">
-            Every figure above is part of the return. Type 0 where the answer is nought — a box
-            left blank would be saved as nought without saying so.
+            Every figure above is part of the return, and a box left blank would be saved as
+            nought without saying so. Put the figure back, or type 0 if nought is the answer.
           </p>
         )}
-        <Button disabled={save.isPending || incomplete} onClick={() => save.mutate()}>
+        <Button disabled={save.isPending || emptied.length > 0} onClick={() => save.mutate()}>
           {save.isPending ? 'Saving…' : 'Save'}
         </Button>
       </div>
