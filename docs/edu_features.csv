@@ -252,7 +252,6 @@ Student,Academics,Learning,Global University Guidance Counselor,"Track college a
 Student,Academics,Learning,Student Portfolio Management,"Maintain personal showcase portfolio containing certificates, creative projects, and sports records.",Specific student,Must-Have,advanced
 Student,Academics,Exams & Results,Exams & grades,"Exam schedule, marks, grades, published results and report cards.",Self only,Must-Have,core
 Student,Academics,Exams & Results,Academic record,"Current/previous grades, transcript/academic history when published.",Self only,Must-Have,core
-Student,Academics,Exams & Results,APAAR ID & Academic Bank of Credits,View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.,Specific student,Must-Have,advanced
 Student,Fees,Fees,Fees,"Current dues, fee history, payment status, online payment and receipts.",Self only,Must-Have,core
 Student,School,Notices & Calendar,Calendar,"Academic calendar, holidays, events and deadlines.",Self only,Must-Have,core
 Student,School,Notices & Calendar,Library Book Hold Request,Reserve available library books online for pickup at the start of the next school day.,Specific student,Must-Have,core

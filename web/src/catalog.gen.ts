@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 9 roles, 453 features. */
+/** 9 roles, 452 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1057,7 +1057,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.exams_results.exams_grades', slug: 'exams_grades', name: 'Exams & grades', scope: 'self', tier: 'core', summary: 'Exam schedule, marks, grades, published results and report cards.' },
           { key: 'student.exams_results.academic_record', slug: 'academic_record', name: 'Academic record', scope: 'self', tier: 'core', summary: 'Current/previous grades, transcript/academic history when published.' },
-          { key: 'student.exams_results.apaar_id_academic_bank_of_credits', slug: 'apaar_id_academic_bank_of_credits', name: 'APAAR ID & Academic Bank of Credits', scope: 'self', tier: 'advanced', summary: 'View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.' },
         ],
       },
       {

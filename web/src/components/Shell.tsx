@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import { Check, ChevronDown, LogOut, Menu, Moon, Rows3, Sun, X } from 'lucide-react'
 import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
+import Notifications from '@/components/Notifications'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
@@ -504,6 +505,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <CommandSearch />
+            <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
                 than three, because it is a preference set once. */}
             <button

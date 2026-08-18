@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -60,6 +61,14 @@ function isUrgent(iso: string) {
  */
 export default function Portal() {
   const [selected, setSelected] = useState<string | null>(null)
+  /* One component serves the dashboard and the attendance register.
+
+     The attendance page is asked one question — how often has this child been
+     here — and a timetable underneath it answers a different one. The route
+     is what distinguishes them; the component has no other way to know which
+     of its two callers it is. */
+  const { sectionSlug } = useParams()
+  const isAttendance = sectionSlug === 'attendance'
 
   const children = useQuery({
     queryKey: ['portal-students'],
@@ -164,6 +173,7 @@ export default function Portal() {
               <Stat label="Next exam" value={s.next_exam ?? '—'} icon={GraduationCap} />
             </CellGrid>
 
+            {!isAttendance && (
             <Card>
               <CardHeader
                 title="Today's classes"
@@ -197,6 +207,7 @@ export default function Portal() {
                 </ul>
               )}
             </Card>
+            )}
 
             {kids.length > 1 && (
               <Card>

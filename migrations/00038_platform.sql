@@ -1,3 +1,5 @@
+-- Renumbered from 00037: student learning had already taken that slot.
+-- Content unchanged.
 -- +goose Up
 -- The platform tier: what the vendor configures, what the state requires, and
 -- what happens when a support engineer needs to stand inside a school.

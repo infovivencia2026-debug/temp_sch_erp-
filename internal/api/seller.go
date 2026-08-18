@@ -605,6 +605,10 @@ func (s *Server) listTickets(w http.ResponseWriter, r *http.Request) {
 			  LEFT JOIN institutions i ON i.id = t.institution_id
 			  LEFT JOIN users u ON u.id = t.raised_by
 			 WHERE t.status <> 'closed'
+		   -- A parent's complaint about a named teacher is the school's
+		   -- business, not the software vendor's. support_tickets carries
+		   -- both, so the vendor's queue asks for its own.
+		   AND t.audience = 'vendor'
 			 ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1
 			                          WHEN 'normal' THEN 2 ELSE 3 END,
 			          t.created_at`)

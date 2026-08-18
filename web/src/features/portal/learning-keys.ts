@@ -32,9 +32,6 @@ export const learningKeys = {
     () => import('../learning/LibraryHolds'),
   ),
   'student.exams_results.academic_record': lazy(() => import('../learning/AcademicRecord')),
-  'student.exams_results.apaar_id_academic_bank_of_credits': lazy(
-    () => import('../learning/CreditBank'),
-  ),
   'student.alumni.alumni_network_registration': lazy(() => import('../learning/AlumniNetwork')),
   'student.alumni.alumni_job_internship_board': lazy(() => import('../learning/AlumniJobs')),
 }

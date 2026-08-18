@@ -76,9 +76,21 @@ func ActingInstitution(db *database.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			acting := *id
-			acting.InstitutionID = want
-			next.ServeHTTP(w, r.WithContext(httpx.WithIdentity(r.Context(), &acting)))
+			/* Amended in place, not copied.
+
+			   AuditMiddleware wraps the whole router and reads the identity
+			   from its own request, which still points at the original
+			   Identity. A copy therefore told every handler downstream which
+			   school the operator had entered while the audit trail recorded
+			   none — every vendor mutation was written with a null
+			   institution_id, and listAudit is tenant-scoped, so the school
+			   could never see what was done inside its own data. That
+			   falsified the promise at the top of this file.
+
+			   Safe because the session store allocates a fresh Identity per
+			   request; nothing else holds this pointer. */
+			id.InstitutionID = want
+			next.ServeHTTP(w, r)
 		})
 	}
 }

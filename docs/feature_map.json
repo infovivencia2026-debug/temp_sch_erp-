@@ -646,8 +646,8 @@
   "description": "Logo, institution name, colors and portal identity per tenant/campus.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/Branding",
+  "built": true,
   "endpoints": []
  },
  {
@@ -988,8 +988,8 @@
   "description": "Configure single sign-on and multi-factor authentication when required.",
   "scope": "All users",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/SsoMfa",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1093,8 +1093,8 @@
   "description": "Configure receipt, admission, student ID and certificate numbering/templates.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/Numbering",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1183,9 +1183,17 @@
   "description": "Centralized administrative oversight, asset sharing, and brand compliance for franchise chains.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "seller/Franchises",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform/franchises",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.campuses_academic_year.white_label_branding",
@@ -1196,8 +1204,8 @@
   "description": "Configure custom logos, domain names, color themes, login portal banners, and email header templates.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/WhiteLabel",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1209,8 +1217,8 @@
   "description": "Configure the June-April school year separately from the April-March financial year used for receipts.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/CalendarModel",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1352,9 +1360,17 @@
   "description": "Configure School Quality Assessment and Assurance standards and self-assessment checklists.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/SQAAFramework",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform/sqaa",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.statutory_boards.udise_data_sync",
@@ -1434,8 +1450,8 @@
   "description": "Maintain CBSE/ICSE/State affiliation numbers, mandatory public disclosure documents and renewal dates.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/BoardAffiliation",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1447,8 +1463,8 @@
   "description": "Select the state education board (BSE Telangana SSC, TSBIE Intermediate, CBSE, ICSE) and its grading and assessment rules.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/StateBoardConfig",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1460,8 +1476,8 @@
   "description": "Classify each campus as Government, Aided, Private Unaided, Model School, Gurukul or KGBV for state reporting.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/ManagementType",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1473,9 +1489,17 @@
   "description": "Maintain state, district, mandal and village/ward codes used by every government return.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/DistrictMandalMaster",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform/locations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.statutory_boards.child_info_portal_sync",
@@ -1499,8 +1523,8 @@
   "description": "Schedule automated cloud database backups and manage point-in-time recovery archives.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "super_admin/BackupRestore",
+  "built": true,
   "endpoints": []
  },
  {
@@ -8768,27 +8792,6 @@
   "endpoints": [
    {
     "path": "/api/v1/portal/academic-record:param",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "student.exams_results.apaar_id_academic_bank_of_credits",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Exams & Results",
-  "feature": "APAAR ID & Academic Bank of Credits",
-  "description": "View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "learning/CreditBank",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/portal/abc:param",
     "methods": [
      "GET"
     ],
@@ -17505,8 +17508,8 @@
   "description": "Which modules each plan and each school may use; switching one off hides it from that school's navigation.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "seller/Entitlements",
+  "built": true,
   "endpoints": []
  },
  {
@@ -17518,8 +17521,8 @@
   "description": "Sign-ins, active users and transactions per school per week \u2014 the leading indicator of renewal.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "seller/Adoption",
+  "built": true,
   "endpoints": []
  },
  {
@@ -17531,8 +17534,8 @@
   "description": "Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
+  "component": "seller/InstanceHealth",
+  "built": true,
   "endpoints": []
  },
  {
@@ -17544,9 +17547,17 @@
   "description": "Tickets raised by schools, with the tenant, severity, owner and time open.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "seller/SupportTickets",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/platform/seller/tickets",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "seller_admin.support.impersonation_audit",
@@ -17557,8 +17568,23 @@
   "description": "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "seller/Impersonation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/institutions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/platform/impersonation/:param/activity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  }
 ]

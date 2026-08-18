@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 9 roles, 453 features.
+// Roles is the catalog: 9 roles, 452 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1104,7 +1104,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "student.exams_results.exams_grades", Slug: "exams_grades", Name: "Exams & grades", Scope: Scope("self"), Tier: Tier("core"), Summary: "Exam schedule, marks, grades, published results and report cards."},
 					{Key: "student.exams_results.academic_record", Slug: "academic_record", Name: "Academic record", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current/previous grades, transcript/academic history when published."},
-					{Key: "student.exams_results.apaar_id_academic_bank_of_credits", Slug: "apaar_id_academic_bank_of_credits", Name: "APAAR ID & Academic Bank of Credits", Scope: Scope("self"), Tier: Tier("advanced"), Summary: "View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits."},
 				},
 			},
 			{

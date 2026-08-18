@@ -123,7 +123,7 @@ func (s *Server) mountPlatformConfig(r chi.Router) {
 	r.With(read).Get("/platform/numbering", s.getNumberingAndTemplates)
 	r.With(settings).Post("/platform/numbering", s.saveNumberingScheme)
 	r.With(settings).Delete("/platform/numbering/{id}", s.deleteNumberingScheme)
-	r.With(settings).Post("/platform/templates", s.saveCertificateTemplate)
+	r.With(settings).Post("/platform/templates", s.savePlatformCertificateTemplate)
 
 	// --- access and security: SSO and MFA ----------------------------------
 	r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/platform/auth-policy", s.getAuthPolicy)
@@ -2243,7 +2243,7 @@ type platTemplateRequest struct {
 	Approval bool   `json:"requires_approval"`
 }
 
-func (s *Server) saveCertificateTemplate(w http.ResponseWriter, r *http.Request) {
+func (s *Server) savePlatformCertificateTemplate(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
 		return
 	}

@@ -117,15 +117,22 @@ def endpoints_for(component: str):
     if not path.exists():
         return []
     src = path.read_text()
+
+    # A file's own base shadows one it imports. Substituting after the helper
+    # is appended let the helper's BASE win, and a screen whose real prefix was
+    # /api/v1/admin/platform/sqaa was probed at /api/v1/admin/platform — a 404
+    # reported as a broken screen.
+    for _n, _v in CONST_PATH.findall(src):
+        src = src.replace("${" + _n + "}", _v)
+
     for sibling in RELATIVE_IMPORT.findall(src):
         for ext in (".tsx", ".ts"):
             helper = path.parent / (sibling + ext)
             if helper.exists() and helper != path:
                 src += "\n" + helper.read_text()
 
-    # Resolve base-path constants, following the alias a module may re-export
-    # them under, before any path is read out of the source.
-    consts = dict(CONST_PATH.findall(src))
+    bases = CONST_PATH.findall(src)
+    consts = dict(bases)
     for alias, target in re.findall(r"(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9_]+)\s*$",
                                     src, re.M):
         if target in consts:
@@ -136,6 +143,25 @@ def endpoints_for(component: str):
     # in makes the bare base look like a route. It is a prefix, not an endpoint,
     # and probing it yields a 404 that says nothing about the screen.
     src = CONST_PATH.sub("", src)
+    # Comments are prose, not calls. A file that documents "every path below is
+    # relative to /api/v1/admin/platform" was making the harness probe that
+    # prefix and report the resulting 404 as a broken screen.
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    src = re.sub(r"^\s*//.*$", "", src, flags=re.M)
+    # A base is a prefix. It appears verbatim wherever a helper concatenates,
+    # and probing it yields a 404 that says nothing about the screen.
+    # Several files each declare their own BASE, so a map keyed by name keeps
+    # only the last and leaves the others' prefixes looking like routes.
+    for _v in {v for _, v in bases}:
+        src = src.replace(f"'{_v}'", "''")
+
+    # Paths built by concatenation through a helper hook (BASE + a literal
+    # passed as an argument) are not statically extractable, and guessing them
+    # produced routes that do not exist. Those screens are reported as built
+    # with nothing to probe, which is the truthful answer: the harness cannot
+    # see the call, not that the screen makes none.
+
+
 
     found = {}
     for verb, url in CALL.findall(src):
