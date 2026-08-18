@@ -1,0 +1,39 @@
+Worker,Role,Section,Feature,Key
+W1,Accounts & Finance,Collections,Gst Compliant Receipt Numbering,finance.collections.gst_compliant_receipt_numbering
+W1,Accounts & Finance,Fee Structure,Fee Structure Versioning,finance.fee_structure.fee_structure_versioning
+W1,Accounts & Finance,Student Dues,Late Fine Rules Engine,finance.student_dues.late_fine_rules_engine
+W2,Accounts & Finance,Reconciliation,Bank Reconciliation Statement Brs,finance.reconciliation.bank_reconciliation_statement_brs
+W2,Accounts & Finance,Reconciliation,Connected Banking Payouts,finance.reconciliation.connected_banking_payouts
+W2,Accounts & Finance,Reconciliation,Student Bank Account Register,finance.reconciliation.student_bank_account_register
+W3,HR & Payroll,Reports,Hr Reports,hr.reports.hr_reports
+W3,Institution Admin,Analysis,Department Reports,institution_admin.analysis.department_reports
+W3,Institution Admin,Analysis,Performance Analytics,institution_admin.analysis.performance_analytics
+W3,Institution Admin,Department,Department Academics,institution_admin.department.department_academics
+W3,Institution Admin,Fees,Fee Overview,institution_admin.fees.fee_overview
+W3,Institution Admin,Home,Today,institution_admin.home.today
+W3,Institution Admin,Standard,Fee Collection Summaries,institution_admin.standard.fee_collection_summaries
+W4,Institution Admin,Boards Accreditation,Board Exam Loc Submission,institution_admin.boards_accreditation.board_exam_loc_submission
+W4,Institution Admin,Boards Accreditation,Sqaa Compliance Tracking,institution_admin.boards_accreditation.sqaa_compliance_tracking
+W4,Institution Admin,Statutory Returns,Child Info Reconciliation,institution_admin.statutory_returns.child_info_reconciliation
+W4,Institution Admin,Statutory Returns,Working Days Instructional Hours,institution_admin.statutory_returns.working_days_instructional_hours
+W4,Super Admin,Statutory Boards,Child Info Portal Sync,super_admin.statutory_boards.child_info_portal_sync
+W5,Accounts & Finance,Export,Tally Prime Xml Export,finance.export.tally_prime_xml_export
+W5,Super Admin,Payments Devices,Tally Erp Prime Connector,super_admin.payments_devices.tally_erp_prime_connector
+W6,Faculty,Timetable,Substitution Request Submission,faculty.timetable.substitution_request_submission
+W6,Institution Admin,Department,Department Timetable,institution_admin.department.department_timetable
+W6,Super Admin,Ai Automation,Automated Timetable Optimizer,super_admin.ai_automation.automated_timetable_optimizer
+W7,Institution Admin,Evaluation,360 Evaluation Oversight,institution_admin.evaluation.360_evaluation_oversight
+W7,Institution Admin,Fees,Fee Regulatory Committee Filing,institution_admin.fees.fee_regulatory_committee_filing
+W7,Institution Admin,Mid Day Meal,Mdm Utilisation Report,institution_admin.mid_day_meal.mdm_utilisation_report
+W7,Institution Admin,Stores,Purchase Order Workflow,institution_admin.stores.purchase_order_workflow
+W8,Accounts & Finance,Concessions Refunds,Government Reimbursement Claims,finance.concessions_refunds.government_reimbursement_claims
+W8,Accounts & Finance,Concessions Refunds,Nsp Scholarship Reconciliation,finance.concessions_refunds.nsp_scholarship_reconciliation
+W8,Accounts & Finance,Concessions Refunds,Student Loan Assistance Portal,finance.concessions_refunds.student_loan_assistance_portal
+W9,HR & Payroll,Attendance,Staff Shift Rostering,hr.attendance.staff_shift_rostering
+W9,HR & Payroll,Hiring Growth,Annual Performance Appraisal Kpi,hr.hiring_growth.annual_performance_appraisal_kpi
+W9,HR & Payroll,Hiring Growth,Recruitment,hr.hiring_growth.recruitment
+W9,HR & Payroll,Hiring Growth,Staff Training Workshop Logs,hr.hiring_growth.staff_training_workshop_logs
+W10,Institution Admin,Communication,Parent Feedback Grievance Hub,institution_admin.communication.parent_feedback_grievance_hub
+W10,Institution Admin,Communication,School Achievements Showcase,institution_admin.communication.school_achievements_showcase
+W10,Parent,Messages,Private Counselor Chat Channel,parent.messages.private_counselor_chat_channel
+W10,Parent,School Life,Ptm Appointment Reminder Alert,parent.school_life.ptm_appointment_reminder_alert
