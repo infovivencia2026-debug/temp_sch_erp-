@@ -8,6 +8,7 @@ import {
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
   Input, Select, Loading, ErrorState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 
 /* Staff training and workshop logs.
 
@@ -213,7 +214,11 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
   )
 }
 
+/* Both writes here — saving a programme and logging who attended — are
+   employees.write (hr_growth.go:117,119). The compliance figures and the
+   requirement table are reads on the group's employees.read. */
 function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [code, setCode] = useState('')
   const [title, setTitle] = useState('')
@@ -280,7 +285,7 @@ function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
           </FormGrid>
           <FormNotice error={create.error} ok={create.isSuccess ? 'Workshop logged.' : undefined} />
           <Button onClick={() => create.mutate()}
-            disabled={!code || !title || !startsOn || !hours || create.isPending}>
+            disabled={!mayWrite || !code || !title || !startsOn || !hours || create.isPending}>
             {create.isPending ? 'Saving…' : 'Log the workshop'}
           </Button>
         </div>
@@ -325,9 +330,11 @@ function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
                   : <Badge tone="neutral">No</Badge>}
               </Td>
               <Td className="text-right">
-                <Button size="sm" variant="ghost" onClick={() => setLogging(p)}>
-                  Record attendance
-                </Button>
+                {mayWrite && (
+                  <Button size="sm" variant="ghost" onClick={() => setLogging(p)}>
+                    Record attendance
+                  </Button>
+                )}
               </Td>
             </tr>
           ))}
@@ -358,6 +365,7 @@ function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
    morning completed three hours, not thirty, and a compliance report built on
    the optimistic number is worse than none. */
 function AttendanceCard({ programme, onDone }: { programme: Programme; onDone: () => void }) {
+  const mayWrite = useCan()('hr.employees.write')
   const [employee, setEmployee] = useState('')
   const [status, setStatus] = useState('completed')
   const [hours, setHours] = useState('')
@@ -415,7 +423,8 @@ function AttendanceCard({ programme, onDone }: { programme: Programme; onDone: (
           <Field label="Certificate issued on"><Input value={certOn} onChange={setCertOn} type="date" /></Field>
         </FormGrid>
         <FormNotice error={save.error} />
-        <Button onClick={() => save.mutate()} disabled={!employee || save.isPending}>
+        <Button onClick={() => save.mutate()}
+          disabled={!mayWrite || !employee || save.isPending}>
           {save.isPending ? 'Saving…' : 'Record'}
         </Button>
       </div>

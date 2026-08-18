@@ -20,6 +20,7 @@ import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { concessionsKeys } from './finance/concessions-keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
 import { hrGrowthKeys } from './hr/growth-keys'
+import { commsKeys } from './communication/comms-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -405,6 +406,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...concessionsKeys,
   ...adminOpsKeys,
   ...hrGrowthKeys,
+  ...commsKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

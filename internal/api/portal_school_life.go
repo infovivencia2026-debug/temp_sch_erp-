@@ -566,10 +566,32 @@ func (s *Server) bookPTMSlot(w http.ResponseWriter, r *http.Request) {
 		// The confirmation the parent will look for on the morning. Written
 		// through the same idempotent path as every other alert so that a
 		// double-tapped button does not produce two.
-		return notify(r, tx, id.InstitutionID, id.UserID, &studentID, "ptm",
+		if err := notify(r, tx, id.InstitutionID, id.UserID, &studentID, "ptm",
 			"Parent-teacher meeting booked",
 			fmt.Sprintf("%s with %s at %s", onDate.Format("Mon 2 Jan"), teacher, startText[:5]),
-			"/portal/school-life/ptm", "appointment", &apptID)
+			"/portal/school-life/ptm", "appointment", &apptID); err != nil {
+			return err
+		}
+
+		/* The reminder before the meeting, queued now and held until then.
+
+		   parent.school_life.ptm_appointment_reminder_alert. The rule -- which
+		   channel, how many minutes ahead, what it says -- is a
+		   message_trigger_rules row on event 'ptm.upcoming' and not anything
+		   decided here; see emitPTMReminder in comms.go.
+
+		   The error is swallowed on purpose, and only this one. EmitMessageEvent
+		   already refuses to fail on a school's configuration, so anything it
+		   does return is a database fault -- but this transaction is a family
+		   booking a meeting, and a school that has not finished buying an SMS
+		   account must not find that its parents cannot book. Logged rather
+		   than dropped silently. */
+		if err := s.emitPTMReminder(r.Context(), tx, id.InstitutionID, apptID,
+			studentID, employee, ptmMomentOf(onDate, startText), teacher,
+			startText[:5]); err != nil {
+			httpx.LogError(r, err)
+		}
+		return nil
 	})
 	switch {
 	case err == pgx.ErrNoRows:
@@ -630,7 +652,10 @@ func (s *Server) cancelPTMBooking(w http.ResponseWriter, r *http.Request) {
 		}
 		cancelled = tag.RowsAffected() == 1
 		if cancelled {
-			return nil
+			// The meeting is off, so the reminder about it must not go. Only
+			// a queued one is dropped: a reminder already sent is something
+			// the parent has read.
+			return dropPTMReminder(r.Context(), tx, id.InstitutionID, apptID)
 		}
 		// Nothing changed. Distinguish "not yours" from "already decided", but
 		// only far enough to give the second one a useful message.

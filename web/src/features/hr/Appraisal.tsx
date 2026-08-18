@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
   Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 
 /* The annual KPI appraisal.
 
@@ -153,7 +154,17 @@ export default function Appraisal() {
   )
 }
 
+/* The cycle, the KPI set, raising, publishing and the discussion note are all
+   employees.write (hr_growth.go:100-113); the lists ride the group's
+   employees.read.
+
+   One route in this feature is deliberately NOT write-gated: POST
+   /appraisal/records/{id}/review, because the reviewer is a head of department
+   holding employees.read only and the handler checks they are the named
+   reviewer, which is a narrower rule than any permission. No control on this
+   screen calls it yet. Whoever adds one must leave it outside this flag. */
 function CyclesTab({ cycles }: { cycles: Cycle[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [name, setName] = useState('')
   const [opensOn, setOpensOn] = useState('')
@@ -193,7 +204,8 @@ function CyclesTab({ cycles }: { cycles: Cycle[] }) {
             <Field label="Scored out of"><Input value={scale} onChange={setScale} type="number" /></Field>
           </FormGrid>
           <FormNotice error={create.error} ok={create.isSuccess ? 'Cycle opened.' : undefined} />
-          <Button onClick={() => create.mutate()} disabled={!name || create.isPending}>
+          <Button onClick={() => create.mutate()}
+            disabled={!mayWrite || !name || create.isPending}>
             {create.isPending ? 'Opening…' : 'Open cycle'}
           </Button>
         </div>
@@ -238,6 +250,7 @@ function KPITab({
   cycles, cycleID, onCycle,
 }: { cycles: Cycle[]; cycleID: string; onCycle: (v: string) => void }) {
   const qc = useQueryClient()
+  const mayWrite = useCan()('hr.employees.write')
   const [designation, setDesignation] = useState('')
   const [draft, setDraft] = useState<{ code: string; title: string; weight: string }[]>([])
 
@@ -345,7 +358,7 @@ function KPITab({
 
         <FormNotice error={save.error} ok={save.isSuccess ? 'Weights saved.' : undefined} />
         <Button onClick={() => save.mutate()}
-          disabled={!balanced || rows.length === 0 || save.isPending}>
+          disabled={!mayWrite || !balanced || rows.length === 0 || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save this KPI set'}
         </Button>
       </div>
@@ -357,6 +370,7 @@ function RecordsTab({
   cycles, cycleID, onCycle,
 }: { cycles: Cycle[]; cycleID: string; onCycle: (v: string) => void }) {
   const qc = useQueryClient()
+  const mayWrite = useCan()('hr.employees.write')
   const [open, setOpen] = useState<Appraisal | null>(null)
 
   const records = useQuery({
@@ -412,7 +426,8 @@ function RecordsTab({
               )}
             </div>
           )}
-          <Button onClick={() => raise.mutate()} disabled={!cycleID || raise.isPending}>
+          <Button onClick={() => raise.mutate()}
+            disabled={!mayWrite || !cycleID || raise.isPending}>
             {raise.isPending ? 'Raising…' : 'Raise for all active staff'}
           </Button>
         </div>
@@ -454,7 +469,7 @@ function RecordsTab({
               <Td className="text-right">
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setOpen(a)}>Open</Button>
-                  {(a.status === 'reviewed' || a.status === 'moderated') && (
+                  {mayWrite && (a.status === 'reviewed' || a.status === 'moderated') && (
                     <Button size="sm" onClick={() => publish.mutate(a.id)}>Publish</Button>
                   )}
                 </div>
@@ -485,6 +500,7 @@ function RecordsTab({
    complains about, so recording it is a first-class action rather than a
    notes field somebody may or may not fill in. */
 function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: () => void }) {
+  const mayWrite = useCan()('hr.employees.write')
   const [on, setOn] = useState(appraisal.discussion_on ?? '')
   const [note, setNote] = useState('')
 
@@ -514,7 +530,8 @@ function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: (
         </Field>
         <FormNotice error={save.error} />
         <div className="flex items-center gap-2">
-          <Button onClick={() => save.mutate()} disabled={!note.trim() || save.isPending}>
+          <Button onClick={() => save.mutate()}
+            disabled={!mayWrite || !note.trim() || save.isPending}>
             {save.isPending ? 'Saving…' : 'Record the discussion'}
           </Button>
           <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">

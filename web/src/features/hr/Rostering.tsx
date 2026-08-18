@@ -8,6 +8,7 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 
 /* Staff shift and duty rostering.
 
@@ -188,7 +189,12 @@ export default function Rostering() {
   )
 }
 
+/* Assigning a duty and cancelling one are employees.write
+   (hr_growth.go:128-129); the roster, the shifts, the conflicts and the
+   fairness figures are all reads on the group's employees.read, so a reader
+   sees the whole roster and is not offered the buttons that would 403. */
 function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [shift, setShift] = useState('')
   const [user, setUser] = useState('')
@@ -316,7 +322,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
 
           <FormNotice error={assign.error} />
           <Button onClick={() => assign.mutate()}
-            disabled={!shift || !user || !from || assign.isPending ||
+            disabled={!mayWrite || !shift || !user || !from || assign.isPending ||
               (clashes.length > 0 && !reason.trim())}>
             {assign.isPending ? 'Rostering…' : clashes.length > 0 ? 'Roster anyway' : 'Roster'}
           </Button>
@@ -355,13 +361,15 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
                           : '—'}
                       </Td>
                       <Td className="text-right">
-                        <ConfirmButton
-                          confirmLabel="Cancel duty"
-                          question="The slot will be left unfilled until somebody else is rostered."
-                          onConfirm={() => cancel.mutate(d.id)}
-                        >
-                          Cancel
-                        </ConfirmButton>
+                        {mayWrite && (
+                          <ConfirmButton
+                            confirmLabel="Cancel duty"
+                            question="The slot will be left unfilled until somebody else is rostered."
+                            onConfirm={() => cancel.mutate(d.id)}
+                          >
+                            Cancel
+                          </ConfirmButton>
+                        )}
                       </Td>
                     </tr>
                   ))}

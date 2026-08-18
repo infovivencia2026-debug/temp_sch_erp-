@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 378 of the catalog's features are implemented.
+// 382 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -194,6 +194,8 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.boards_accreditation.sqaa_compliance_tracking":      true,
 	"institution_admin.communication.circulars_announcements":              true,
 	"institution_admin.communication.communication":                        true,
+	"institution_admin.communication.parent_feedback_grievance_hub":        true,
+	"institution_admin.communication.school_achievements_showcase":         true,
 	"institution_admin.department.department_academics":                    true,
 	"institution_admin.department.department_timetable":                    true,
 	"institution_admin.directory_workload.faculty_allocation_workload":     true,
@@ -309,11 +311,13 @@ var implementedFeatures = map[string]bool{
 	"parent.messages.communication":                                        true,
 	"parent.messages.concerns_grievance_ticketing":                         true,
 	"parent.messages.direct_teacher_messaging":                             true,
+	"parent.messages.private_counselor_chat_channel":                       true,
 	"parent.profile.digital_parent_id_card_for_campus_entry":               true,
 	"parent.profile.digital_student_id_card_view":                          true,
 	"parent.school_life.calendar_ptm":                                      true,
 	"parent.school_life.live_event_seating_pass":                           true,
 	"parent.school_life.parent_teacher_meeting_booking":                    true,
+	"parent.school_life.ptm_appointment_reminder_alert":                    true,
 	"parent.school_life.school_photo_video_gallery":                        true,
 	"seller_admin.customers.onboarding_progress":                           true,
 	"seller_admin.customers.provision_new_school":                          true,
