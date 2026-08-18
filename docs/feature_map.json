@@ -8753,9 +8753,38 @@
   "description": "Receive instant app push alerts for homework, circulars, fee dues, and attendance.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Alerts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/notifications",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/notifications/:param/read",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/notifications/read-all",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.attendance.attendance",
@@ -8927,9 +8956,24 @@
   "description": "View real-time progress bars towards child's specific IEP milestones and therapy goals.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/IEPGoals",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/academics/iep",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.fees.fees_payments",
@@ -8996,9 +9040,24 @@
   "description": "View exact timestamped items, prices, and nutritional content bought by child in canteen.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Cafeteria",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/cafeteria/purchases",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.my_childs_bus.transport_snapshot",
@@ -9227,9 +9286,24 @@
   "description": "Exams, holidays, events, parent-teacher meetings and booking where enabled.",
   "scope": "Linked child/children only",
   "scope_key": "children",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Calendar",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/school-life/calendar",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.school_life.parent_teacher_meeting_booking",
@@ -9240,9 +9314,45 @@
   "description": "Select available PTM time slots to meet subject teachers without queueing.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/PTM",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/school-life/ptm/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/school-life/ptm/book",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/school-life/ptm/bookings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/school-life/ptm/slots",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.school_life.ptm_appointment_reminder_alert",
@@ -9266,9 +9376,31 @@
   "description": "View high-resolution photos and videos from school sports day, annual day, and events.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Gallery",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/school-life/gallery",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/school-life/gallery/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.school_life.live_event_seating_pass",
@@ -9279,9 +9411,32 @@
   "description": "Download barcoded digital entry passes with pre-allocated row/seat numbers for school events.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/EventPasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/school-life/calendar",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/school-life/event-passes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.leave_absence.requests",
@@ -9525,9 +9680,24 @@
   "description": "Access child's digital student ID card with QR code directly within the mobile app.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/StudentIDCard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/profile/student-id-card",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.profile.digital_parent_id_card_for_campus_entry",
@@ -9538,9 +9708,17 @@
   "description": "Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/ParentIDCard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/profile/parent-id-card",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.profile.parent_app_biometric_lock_face_id_fingerprint",

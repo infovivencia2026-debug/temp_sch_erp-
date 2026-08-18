@@ -4,6 +4,7 @@ import { healthKeys } from './operations/health-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
 import { parentKeys } from './portal/parent-keys'
 import { ledgerKeys } from './finance/ledger-keys'
+import { familyKeys } from './portal/family-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -380,6 +381,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...hrLifecycleKeys,
   ...parentKeys,
   ...ledgerKeys,
+  ...familyKeys,
 }
 
 export function componentFor(key: string) {

@@ -216,6 +216,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/notes", s.listDisciplineNotes)
 			r.Get("/results", s.getFamilyResults)
 			s.mountParentPortal(r)
+			s.mountParentSchoolLife(r)
 		})
 
 		// --- Accounts & Finance -------------------------------------------

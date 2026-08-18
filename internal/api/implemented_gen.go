@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 280 of the catalog's features are implemented.
+// 289 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -236,22 +236,31 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.transport.vehicle_master_registry":                true,
 	"institution_admin.transport.vehicles":                               true,
 	"parent.academics.homework_academics":                                true,
+	"parent.academics.iep_progress_goal_tracker":                         true,
 	"parent.academics.results_report_cards":                              true,
 	"parent.attendance.attendance":                                       true,
 	"parent.attendance.child_absence_reporting_button":                   true,
 	"parent.consent.consent_acknowledgement":                             true,
 	"parent.consent.digital_parent_consent_slips":                        true,
 	"parent.consent.parent_delegation_for_emergency_pickup":              true,
+	"parent.fees.child_daily_cafeteria_purchase_timeline":                true,
 	"parent.fees.digital_fee_receipt_pdf_download":                       true,
 	"parent.fees.fees_payments":                                          true,
 	"parent.home.child_summary":                                          true,
 	"parent.home.child_switcher":                                         true,
 	"parent.home.needs_attention":                                        true,
+	"parent.home.real_time_push_notifications":                           true,
 	"parent.leave_absence.apply_student_leave":                           true,
 	"parent.leave_absence.requests":                                      true,
 	"parent.messages.communication":                                      true,
 	"parent.messages.concerns_grievance_ticketing":                       true,
 	"parent.messages.direct_teacher_messaging":                           true,
+	"parent.profile.digital_parent_id_card_for_campus_entry":             true,
+	"parent.profile.digital_student_id_card_view":                        true,
+	"parent.school_life.calendar_ptm":                                    true,
+	"parent.school_life.live_event_seating_pass":                         true,
+	"parent.school_life.parent_teacher_meeting_booking":                  true,
+	"parent.school_life.school_photo_video_gallery":                      true,
 	"seller_admin.customers.onboarding_progress":                         true,
 	"seller_admin.customers.provision_new_school":                        true,
 	"seller_admin.customers.suspend_reactivate":                          true,
