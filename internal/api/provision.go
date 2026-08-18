@@ -231,11 +231,3 @@ func startSubscription(ctx context.Context, tx pgx.Tx, inst uuid.UUID, p provisi
 
 var errContactTaken = errors.New("that email, phone or username is already in use")
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
