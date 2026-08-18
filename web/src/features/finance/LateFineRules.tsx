@@ -135,6 +135,14 @@ export default function LateFineRules() {
 
         {showForm && mayConfigure && (
           <RuleForm
+            /* Keyed by the rule being edited.
+
+               Without this, clicking Edit on a second rule while the form was
+               open reused the mounted instance: its state was initialised from
+               the first rule and useState does not run a second time, so the
+               header read "Edit B" over A's amounts and Save posted B's id
+               carrying A's policy. One rule's fine was written onto another. */
+            key={editing?.id ?? 'new'}
             rule={editing}
             heads={rules.data?.heads ?? []}
             concessionKinds={rules.data?.concession_kinds ?? []}
@@ -290,6 +298,17 @@ function RuleForm({
   // offer it.
   const compoundable = kind !== 'per_day'
 
+  /* The charge has to be a number somebody typed.
+
+     toPaise('') is 0, because Number('' || 0) is 0 — so clearing the amount
+     box saved a rule that charges nothing and looked configured, and the same
+     went for an emptied percentage. A rule that charges nothing is not a
+     policy; retiring it is how a school turns a fine off. Gated the way the
+     name already is: the button stays down until the field is real. */
+  const charge = kind === 'percent' ? percent : amount
+  const chargeMissing =
+    charge.trim() === '' || !Number.isFinite(Number(charge)) || Number(charge) <= 0
+
   return (
     <Card>
       <CardHeader
@@ -393,7 +412,10 @@ function RuleForm({
 
         <FormNotice error={save.error ?? remove.error} />
         <div className="flex gap-2">
-          <Button onClick={() => save.mutate(undefined as never)} disabled={!name.trim() || save.isPending}>
+          <Button
+            onClick={() => save.mutate(undefined as never)}
+            disabled={!name.trim() || chargeMissing || save.isPending}
+          >
             {rule ? 'Save the rule' : 'Add the rule'}
           </Button>
           {rule && (
@@ -422,21 +444,47 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
   const [ruleId, setRuleId] = useState('')
   const [run, setRun] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  /* Either input changes the question, so the answer to the old one is void.
+
+     The preview refetched on a new date but the ticked invoice ids stayed, and
+     apply posted the raw set — so a clerk who selected twelve invoices, changed
+     the date and applied charged parents from a list this screen had never
+     shown. The count said twelve and the confirmation quoted the total of the
+     three that happened to survive, because one read the set and the other read
+     the list. Cleared here, and below there is only one source left to read. */
+  const changeAsOf = (v: string) => {
+    setAsOf(v)
+    setPicked(new Set())
+  }
+  const changeRule = (v: string) => {
+    setRuleId(v)
+    setPicked(new Set())
+  }
 
   const rules = useFineRules()
   const preview = useFinePreview(asOf, ruleId, run)
 
   const items = useMemo(() => preview.data?.items ?? [], [preview.data])
   const chargeable = useMemo(() => items.filter((a) => a.delta_paise > 0), [items])
-  const pickedTotal = chargeable
-    .filter((a) => picked.has(a.invoice_id))
-    .reduce((n, a) => n + a.delta_paise, 0)
+  /* One list, read by the count, the total and the request alike. A tick that
+     is no longer on screen is not in it, so it cannot be charged. */
+  const selected = useMemo(
+    () => chargeable.filter((a) => picked.has(a.invoice_id)),
+    [chargeable, picked],
+  )
+  const selectedTotal = selected.reduce((n, a) => n + a.delta_paise, 0)
 
   const apply = useFeeEngineMutation(
     () =>
       api.post<{ applied: number; skipped: number; total_paise: number }>(
         `${feeEngineBase}/fines/apply`,
-        { as_of: asOf, invoice_ids: [...picked], rule_id: ruleId || undefined },
+        {
+          as_of: asOf,
+          invoice_ids: selected.map((a) => a.invoice_id),
+          rule_id: ruleId || undefined,
+        },
       ),
     (res) => {
       setPicked(new Set())
@@ -455,10 +503,10 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
         description="Computes and shows the working. Nothing is charged until you apply it."
         action={
           <span className="flex items-center gap-2">
-            <Input type="date" value={asOf} onChange={setAsOf} />
+            <Input type="date" value={asOf} onChange={changeAsOf} />
             <Select
               value={ruleId}
-              onChange={setRuleId}
+              onChange={changeRule}
               options={[
                 { value: '', label: 'All rules' },
                 ...(rules.data?.items ?? [])
@@ -509,20 +557,26 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
             empty={!items.length}
             emptyLabel="No open dues matched. Nothing would be charged."
           >
-            {items.map((a) => (
-              <PreviewRow
-                key={a.invoice_id}
-                a={a}
-                mayLevy={mayLevy}
-                checked={picked.has(a.invoice_id)}
-                onToggle={(on) => {
+            {items.map((a) =>
+              previewRows({
+                a,
+                mayLevy,
+                checked: picked.has(a.invoice_id),
+                onToggle: (on) => {
                   const next = new Set(picked)
                   if (on) next.add(a.invoice_id)
                   else next.delete(a.invoice_id)
                   setPicked(next)
-                }}
-              />
-            ))}
+                },
+                open: expanded.has(a.invoice_id),
+                onOpen: () => {
+                  const next = new Set(expanded)
+                  if (next.has(a.invoice_id)) next.delete(a.invoice_id)
+                  else next.add(a.invoice_id)
+                  setExpanded(next)
+                },
+              }),
+            )}
           </Table>
 
           {mayLevy && (
@@ -532,28 +586,28 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
                 size="sm"
                 onClick={() =>
                   setPicked(
-                    picked.size === chargeable.length
+                    selected.length === chargeable.length
                       ? new Set()
                       : new Set(chargeable.map((a) => a.invoice_id)),
                   )
                 }
                 disabled={!chargeable.length}
               >
-                {picked.size === chargeable.length && chargeable.length
+                {selected.length === chargeable.length && chargeable.length
                   ? 'Clear selection'
                   : `Select all ${chargeable.length} chargeable`}
               </Button>
               <ConfirmButton
-                confirmLabel={`Raise ${picked.size} fine${picked.size === 1 ? '' : 's'}`}
-                question={`${inr(pickedTotal)} will be added to those invoices. Parents can be told the reason from the working shown here.`}
+                confirmLabel={`Raise ${selected.length} fine${selected.length === 1 ? '' : 's'}`}
+                question={`${inr(selectedTotal)} will be added to those invoices. Parents can be told the reason from the working shown here.`}
                 onConfirm={() => apply.mutate(undefined as never)}
-                disabled={!picked.size || apply.isPending}
+                disabled={!selected.length || apply.isPending}
                 variant="primary"
               >
-                Apply to {picked.size} selected
+                Apply to {selected.length} selected
               </ConfirmButton>
-              {picked.size > 0 && (
-                <span className="text-[12.5px] text-muted-foreground">{inr(pickedTotal)} in total</span>
+              {selected.length > 0 && (
+                <span className="text-[12.5px] text-muted-foreground">{inr(selectedTotal)} in total</span>
               )}
             </div>
           )}
@@ -563,79 +617,101 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
   )
 }
 
-function PreviewRow({
-  a, mayLevy, checked, onToggle,
+/* The two rows a preview line can occupy, as an array rather than a component.
+
+   <Table> gives every cell the name of its column so the row can stack into a
+   labelled card on a phone, and it does that by walking the elements handed to
+   it. A component element carries its rows behind a render that has not
+   happened yet, so the walk finds nothing to label and this table — eight
+   columns of money — collapsed into bare unlabelled values under 640px. An
+   array is flattened by Children.map and each <tr> is walked normally. The
+   contract is written up on labelCells in components/ui.tsx.
+
+   The disclosure state moved up to the panel for the same reason: a plain
+   function cannot hold it, and the panel is where "which rows are open" belongs
+   anyway — it survives a refetch there. */
+function previewRows({
+  a, mayLevy, checked, onToggle, open, onOpen,
 }: {
   a: FineAssessment
   mayLevy: boolean
   checked: boolean
   onToggle: (on: boolean) => void
+  open: boolean
+  onOpen: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const chargeable = a.delta_paise > 0
 
-  return (
-    <>
-      <tr>
-        <Td>
-          {mayLevy && chargeable && (
-            <Checkbox checked={checked} onChange={onToggle} label="" />
-          )}
-        </Td>
-        <Td className="font-medium">{a.student_name}</Td>
-        <Td className="text-muted-foreground">
-          {a.invoice_no}
-          {a.version_label && <span className="block text-[11.5px]">{a.version_label}</span>}
-        </Td>
-        <Td className="text-muted-foreground">
-          {a.rule_name || <span className="italic">no rule</span>}
-        </Td>
-        <Td className="tabular-nums text-muted-foreground">
-          {a.days_overdue > 0 ? `${a.days_overdue} d` : '—'}
-        </Td>
-        <Td className="tabular-nums text-muted-foreground">
-          {a.basis_paise ? inr(a.basis_paise) : '—'}
-        </Td>
-        <Td className="text-right tabular-nums font-medium">
-          {chargeable ? (
-            <>
-              {inr(a.delta_paise)}
-              {a.amount_paise !== a.delta_paise && (
-                <span className="block text-[11.5px] font-normal text-muted-foreground">
-                  {inr(a.amount_paise)} accrued, rest already charged
-                </span>
-              )}
-            </>
-          ) : a.exempt ? (
-            <Badge tone="info">exempt</Badge>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
-        </Td>
-        <Td>
-          <button
-            type="button"
-            className="text-left text-[11.5px] text-muted-foreground underline-offset-2 hover:underline"
-            onClick={() => setOpen(!open)}
-          >
-            {a.reason}
-          </button>
+  return [
+    <tr key={a.invoice_id}>
+      <Td>
+        {mayLevy && chargeable && (
+          <Checkbox
+            checked={checked}
+            onChange={onToggle}
+            label=""
+            /* The column says what ticking does and the row says who it is
+               done to; without this the box is announced as "checkbox" and
+               nothing else, once per student, on the control that decides
+               who is charged. */
+            srLabel={`Charge ${a.student_name} ${inr(a.delta_paise)} on invoice ${a.invoice_no}`}
+          />
+        )}
+      </Td>
+      <Td className="font-medium">{a.student_name}</Td>
+      <Td className="text-muted-foreground">
+        {a.invoice_no}
+        {a.version_label && <span className="block text-[11.5px]">{a.version_label}</span>}
+      </Td>
+      <Td className="text-muted-foreground">
+        {a.rule_name || <span className="italic">no rule</span>}
+      </Td>
+      <Td className="tabular-nums text-muted-foreground">
+        {a.days_overdue > 0 ? `${a.days_overdue} d` : '—'}
+      </Td>
+      <Td className="tabular-nums text-muted-foreground">
+        {a.basis_paise ? inr(a.basis_paise) : '—'}
+      </Td>
+      <Td className="text-right tabular-nums font-medium">
+        {chargeable ? (
+          <>
+            {inr(a.delta_paise)}
+            {a.amount_paise !== a.delta_paise && (
+              <span className="block text-[11.5px] font-normal text-muted-foreground">
+                {inr(a.amount_paise)} accrued, rest already charged
+              </span>
+            )}
+          </>
+        ) : a.exempt ? (
+          <Badge tone="info">exempt</Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </Td>
+      <Td>
+        <button
+          type="button"
+          aria-expanded={open}
+          className="text-left text-[11.5px] text-muted-foreground underline-offset-2 hover:underline"
+          onClick={onOpen}
+        >
+          {a.reason}
+        </button>
+      </Td>
+    </tr>,
+    open && a.steps && a.steps.length > 0 ? (
+      <tr key={`${a.invoice_id}:working`}>
+        <Td colSpan={8}>
+          <div className="rounded-md bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
+            {a.was_capped && <p className="mb-1">The cap applied — the uncapped figure was higher.</p>}
+            {a.steps.map((s) => (
+              <p key={s.period} className="tabular-nums">
+                Period {s.period}: {inr(s.amount_paise)} on {inr(s.basis_paise)} — {s.note}
+              </p>
+            ))}
+          </div>
         </Td>
       </tr>
-      {open && a.steps && a.steps.length > 0 && (
-        <tr>
-          <Td colSpan={8}>
-            <div className="rounded-md bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
-              {a.was_capped && <p className="mb-1">The cap applied — the uncapped figure was higher.</p>}
-              {a.steps.map((s) => (
-                <p key={s.period} className="tabular-nums">
-                  Period {s.period}: {inr(s.amount_paise)} on {inr(s.basis_paise)} — {s.note}
-                </p>
-              ))}
-            </div>
-          </Td>
-        </tr>
-      )}
-    </>
-  )
+    ) : null,
+  ]
 }

@@ -400,6 +400,25 @@ export function Table({
  * A cell that spans columns gets no label — it is a full-width note, not a
  * field, and labelling it with whichever header it happens to start under
  * would be worse than leaving it bare.
+ *
+ * ---
+ * The rows passed to <Table> must be `<tr>` elements, not components that
+ * render one. This walk sees the element it is given: for `<tr>` it finds the
+ * cells and labels them, but for `<MyRow />` it finds `props.children` of the
+ * component element — which is undefined — so it labels nothing, the cells
+ * arrive without data-label, and every row of that table collapses below 640px
+ * into unlabelled values. The table still looks right on a desktop, which is
+ * why this has been shipped four times.
+ *
+ * A row that needs its own state or a second expanded `<tr>` should be a plain
+ * function returning an ARRAY of `<tr>`s, called in the map rather than mounted
+ * as an element:
+ *
+ *     {rows.map((r) => lineRows(r, { open: open.has(r.id), onToggle }))}
+ *
+ * Children.map flattens the array and each `<tr>` is walked normally. A
+ * fragment does not work — it is one element whose children are the rows, so
+ * each `<tr>` inside it would be labelled as though it were a cell.
  */
 function labelCells(rows: ReactNode, head: string[]): ReactNode {
   return Children.map(rows, (row) => {
@@ -642,11 +661,23 @@ export function Checkbox({
   onChange,
   label,
   hint,
+  srLabel,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   label: string
   hint?: string
+  /* What a screen reader should call this box when the column supplies the
+     meaning and the cell cannot repeat it.
+
+     A checkbox in a table of people is the case: the header says "Charge" and
+     the row says whose fine it is, so a visible label on every box would be
+     thirty repetitions of the same word down the column. Passing label="" was
+     how that was written, and it left the control with no accessible name at
+     all — "checkbox, unchecked", thirty times, on the box that decides who
+     gets charged money. Name it here instead: invisible, and the only name the
+     control has. */
+  srLabel?: string
 }) {
   return (
     <label className="inline-flex cursor-pointer items-start gap-2 text-[13px]">
@@ -654,6 +685,7 @@ export function Checkbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
+        aria-label={srLabel || undefined}
         className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-primary"
       />
       <span>

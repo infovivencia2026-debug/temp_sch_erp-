@@ -359,7 +359,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
   const diff = current - previous
   if (diff === 0) return <span className="text-[11.5px] text-muted-foreground">unchanged</span>
   return (
-    <span className={diff > 0 ? 'text-[11.5px] text-amber-600' : 'text-[11.5px] text-emerald-600'}>
+    <span className={diff > 0 ? 'text-[11.5px] text-warning' : 'text-[11.5px] text-success'}>
       {diff > 0 ? '+' : '−'}
       {inr(Math.abs(diff))} from {inr(previous)}
     </span>
@@ -378,13 +378,31 @@ function DraftLineEditor({
     Object.fromEntries(items.map((i) => [i.id, String(i.amount_paise / 100)])),
   )
 
+  /** What the box holds: the typing if there has been any, else the record. */
+  const raw = (i: VersionItem) => amounts[i.id] ?? String(i.amount_paise / 100)
+
+  /* An emptied box is not nought rupees.
+
+     `??` only catches a key that was never set, so a box the bursar cleared
+     arrived as '' — and toPaise('') is 0, because Number('' || 0) is 0. The
+     line saved silently at zero and, once the version was activated, billed
+     the parent nothing for that head. Untouched, typed and emptied are three
+     different things and only the third is a mistake; a head that genuinely
+     costs nothing is typed as 0 and says so. */
+  const unpriced = items.filter((i) => {
+    const v = raw(i).trim()
+    if (v === '') return true
+    const n = Number(v)
+    return !Number.isFinite(n) || n < 0
+  })
+
   const save = useFeeEngineMutation(
     () =>
       api.put(`${feeEngineBase}/versions/${versionId}/items`, {
         items: items.map((i) => ({
           fee_head_id: i.fee_head_id,
           instalment_no: i.instalment_no,
-          amount_paise: toPaise(amounts[i.id] ?? String(i.amount_paise / 100)),
+          amount_paise: toPaise(raw(i)),
           due_on: i.due_on || undefined,
         })),
       }),
@@ -426,8 +444,18 @@ function DraftLineEditor({
           </tr>
         ))}
       </Table>
+      {unpriced.length > 0 && (
+        <p className="text-[12.5px] text-destructive">
+          {unpriced.length === 1
+            ? `${unpriced[0].fee_head} has no amount. Type one — 0 if the head genuinely costs nothing this year.`
+            : `${unpriced.length} lines have no amount: ${unpriced.map((i) => i.fee_head).join(', ')}.`}
+        </p>
+      )}
       <FormNotice error={save.error} ok={save.isSuccess ? 'Saved.' : undefined} />
-      <Button onClick={() => save.mutate(undefined as never)} disabled={save.isPending}>
+      <Button
+        onClick={() => save.mutate(undefined as never)}
+        disabled={save.isPending || unpriced.length > 0}
+      >
         Save the draft's amounts
       </Button>
     </div>

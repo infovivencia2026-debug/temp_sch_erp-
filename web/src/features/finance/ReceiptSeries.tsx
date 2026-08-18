@@ -136,6 +136,15 @@ export default function ReceiptSeries() {
 
         {editing && mayConfigure && (
           <SeriesForm
+            /* Keyed by the series it is editing.
+
+               Without this, opening Configure on a second series while the
+               first was still open reused the mounted form: its state was
+               initialised from the first series and useState does not run
+               again, so the boxes held one series' prefix and format while the
+               PUT addressed the other's kind. The receipt series was saved
+               with the invoice series' shape. */
+            key={editing}
             series={items.find((s) => s.kind === editing)!}
             currentFY={series.data?.current_fy ?? ''}
             onDone={(m) => {
@@ -302,7 +311,7 @@ function GSTHeads({
         description="Which heads are taxable, at what rate, and under which HSN/SAC code"
       />
       {missingHSN.length > 0 && (
-        <p className="px-4 pb-2 text-[12.5px] text-amber-600">
+        <p className="px-4 pb-2 text-[12.5px] text-warning">
           {missingHSN.length} taxable head{missingHSN.length === 1 ? '' : 's'} without an HSN/SAC
           code. An invoice carrying one cannot be filed.
         </p>
@@ -341,6 +350,11 @@ function GSTHeads({
       </Table>
       {open && mayConfigure && (
         <GSTHeadForm
+          /* Keyed by the head, for the same reason and with a worse
+             consequence: editing one head and then another wrote the first
+             head's rate and HSN code onto the second. That is a tax attribute
+             on a fee an invoice will carry. */
+          key={open}
           head={heads.find((h) => h.id === open)!}
           onDone={(m) => {
             onNotify(m)
