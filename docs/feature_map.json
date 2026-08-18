@@ -7361,9 +7361,52 @@
   "description": "Create assignments, review submissions, grade and add feedback.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Assignments",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/homework",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments/:param/grade",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments/:param/submissions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.lesson_plans_content",
@@ -7538,9 +7581,39 @@
   "description": "Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/LMSUpload",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/files/presign",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.live_virtual_class_launcher",
@@ -7551,9 +7624,53 @@
   "description": "Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/VirtualClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/:param/launch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.study_materials",
@@ -7564,9 +7681,38 @@
   "description": "Notes, worksheets and reference material shared with the class.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/StudyMaterials",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.syllabus_progress",
@@ -7871,9 +8017,32 @@
   "description": "Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/CCEFormative",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/cce/formative",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.assessment_schemes.cce_summative_assessment_entry",
@@ -7884,9 +8053,39 @@
   "description": "Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/CCESummative",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/cce/summative",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/cce/summative/roster",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.question_bank_management",
@@ -7897,9 +8096,46 @@
   "description": "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/QuestionBank",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank/summary",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.ai_examcell_paper_generator",
@@ -7936,9 +8172,54 @@
   "description": "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/OnlineTests",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests/:param",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests/:param/questions",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.no_omr_exam_grading",

@@ -139,7 +139,7 @@ func seedExamPapers(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO exams (institution_id, campus_id, academic_year_id, name, kind,
 		                   weightage, starts_on, ends_on, grading_scale_id, is_published)
-		VALUES ($1,$2,$3,'Unit Test I','unit',20,
+		VALUES ($1,$2,$3,'Unit Test I','unit_test',20,
 		        CURRENT_DATE - 21, CURRENT_DATE - 14, $4, false)
 		RETURNING id`, inst, campus, year, scale).Scan(&exam); err != nil {
 		return err

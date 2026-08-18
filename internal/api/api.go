@@ -196,6 +196,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
 			s.mountFacultyComms(r)
+			s.mountTeaching(r)
 			/* What a class teacher knows about each child: the roll-up, the
 			   conduct file, and the accommodations agreed for those who need
 			   them. Reads are open to anyone who can see a student — a family
