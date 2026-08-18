@@ -65,6 +65,12 @@ export default function GovernmentClaims() {
 
   if (claims.isLoading) return <Loading label="Opening the claim register…" />
   if (claims.error) return <ErrorState error={claims.error} />
+  /* The gap is why this screen exists, so it may not fail quietly. `age` was
+     read with `?.` throughout and the panel drawn only `{age && …}`, so a
+     failed ageing call left "Outstanding with the state ₹0" and "Nothing older
+     than a year" above a register that might be owed two years of fees — the
+     one reading a school would act on, stated confidently, from no data. */
+  if (ageing.error) return <ErrorState error={ageing.error} />
 
   const rows = claims.data?.items ?? []
   const age = ageing.data
@@ -82,17 +88,19 @@ export default function GovernmentClaims() {
         <CellGrid cols={4}>
           <Stat
             label="Outstanding with the state"
-            value={inr(age?.total_outstanding_paise ?? 0)}
+            value={ageing.isLoading ? '—' : inr(age?.total_outstanding_paise ?? 0)}
             icon={Hourglass}
             hint="Claimed and not yet received"
           />
           <Stat
             label="Owed over a year"
-            value={inr(overAYear?.outstanding_paise ?? 0)}
+            value={ageing.isLoading ? '—' : inr(overAYear?.outstanding_paise ?? 0)}
             hint={
-              overAYear?.claim_count
-                ? `${overAYear.claim_count} claim(s), ${overAYear.child_count} children`
-                : 'Nothing older than a year'
+              ageing.isLoading
+                ? 'Reading the ageing…'
+                : overAYear?.claim_count
+                  ? `${overAYear.claim_count} claim(s), ${overAYear.child_count} children`
+                  : 'Nothing older than a year'
             }
           />
           <Stat label="Claims on file" value={rows.length} icon={Landmark} />
@@ -188,6 +196,16 @@ export default function GovernmentClaims() {
 
         {openClaim && (
           <ClaimDetailPanel
+            /* Keyed by the claim.
+
+               Three forms live inside this panel and each holds its own state:
+               the submission's acknowledgement, the sanction order number with
+               a per-line map of reduced amounts, and the treasury receipt.
+               Opening a second claim reused all of them, so a sanction could be
+               recorded against claim B carrying A's order number and A's line
+               ids — the arithmetic the school's status is derived from, on the
+               wrong claim. */
+            key={openClaim}
             claimId={openClaim}
             mayWrite={mayWrite}
             mayApprove={mayApprove}

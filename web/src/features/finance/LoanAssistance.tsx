@@ -178,7 +178,13 @@ export default function LoanAssistance() {
           </Table>
         </Card>
 
-        {open && <ApplicationDetail applicationId={open} mayWrite={mayWrite} />}
+        {open && (
+          /* Keyed by the application. StatusPanel inside it holds the lender,
+             the reference and the sanctioned and disbursed figures the family
+             reported; opening a second application reused them, so one
+             family's reported amounts could be recorded against another's. */
+          <ApplicationDetail key={open} applicationId={open} mayWrite={mayWrite} />
+        )}
 
         {mayWrite && <NewApplication onCreated={setOpen} />}
         <LendersPanel mayWrite={mayWrite} />
