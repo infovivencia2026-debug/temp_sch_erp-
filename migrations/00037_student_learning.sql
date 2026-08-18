@@ -438,43 +438,40 @@ CREATE UNIQUE INDEX abc_credit_entries_once
    all; show_contact decides whether their email and phone travel with them.
    Registering to be findable is not the same as publishing a phone number, and
    collapsing the two is how a directory becomes a mailing list. */
-CREATE TABLE alumni_profiles (
-    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    institution_id  uuid        NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
-    student_id      uuid        NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    registered_by   uuid        REFERENCES users(id) ON DELETE SET NULL,
-    batch_year      integer     NOT NULL CHECK (batch_year BETWEEN 1900 AND 2200),
-    current_status  text        NOT NULL DEFAULT 'school'
-                                CHECK (current_status IN ('school', 'higher_secondary',
-                                                          'undergraduate', 'postgraduate',
-                                                          'working', 'entrepreneur', 'other')),
-    institution_name text,
-    employer        text,
-    designation     text,
-    city            text,
-    country         text,
-    contact_email   text,
-    contact_phone   text,
-    profile_url     text,
-    willing_to_mentor boolean   NOT NULL DEFAULT false,
-    willing_to_post_jobs boolean NOT NULL DEFAULT false,
-    is_listed       boolean     NOT NULL DEFAULT true,
-    show_contact    boolean     NOT NULL DEFAULT false,
-    bio             text,
-    -- The school confirming this is really its own leaver. An unverified
-    -- profile is still listed; it is simply not vouched for.
-    verified_at     timestamptz,
-    verified_by     uuid        REFERENCES users(id) ON DELETE SET NULL,
-    created_at      timestamptz NOT NULL DEFAULT now(),
-    updated_at      timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT alumni_profiles_verification_complete
-        CHECK ((verified_at IS NULL) = (verified_by IS NULL))
-);
+/* alumni_profiles is created by 00036_admin_academics.
+
+   Two domains reached for an alumni register at once — the school's oversight
+   view and the leaver's own registration — and each wrote its own CREATE TABLE
+   for the same real thing. One register, widened here with what the
+   self-registration side needs, rather than two that disagree about who an
+   alumnus is. The office columns (occupation, higher_study, email, phone,
+   contactable, notes) stay as 00036 declared them. */
+ALTER TABLE alumni_profiles
+    ADD COLUMN IF NOT EXISTS registered_by        uuid REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS current_status       text NOT NULL DEFAULT 'school',
+    ADD COLUMN IF NOT EXISTS institution_name     text,
+    ADD COLUMN IF NOT EXISTS designation          text,
+    ADD COLUMN IF NOT EXISTS contact_email        text,
+    ADD COLUMN IF NOT EXISTS contact_phone        text,
+    ADD COLUMN IF NOT EXISTS profile_url          text,
+    ADD COLUMN IF NOT EXISTS willing_to_mentor    boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS willing_to_post_jobs boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS is_listed            boolean NOT NULL DEFAULT true,
+    ADD COLUMN IF NOT EXISTS show_contact         boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS bio                  text,
+    ADD COLUMN IF NOT EXISTS verified_at          timestamptz,
+    ADD COLUMN IF NOT EXISTS verified_by          uuid REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE alumni_profiles
+    DROP CONSTRAINT IF EXISTS alumni_profiles_current_status,
+    ADD CONSTRAINT alumni_profiles_current_status
+        CHECK (current_status IN ('school','higher_secondary','undergraduate',
+                                  'postgraduate','working','entrepreneur','other'));
 
 CREATE UNIQUE INDEX alumni_profiles_student
     ON alumni_profiles (institution_id, student_id);
 
-CREATE INDEX alumni_profiles_batch
+CREATE INDEX alumni_profiles_listed
     ON alumni_profiles (institution_id, batch_year)
  WHERE is_listed;
 
@@ -607,9 +604,6 @@ CREATE POLICY club_event_tickets_tenant ON club_event_tickets
 CREATE POLICY abc_credit_entries_tenant ON abc_credit_entries
     USING (institution_id = app_current_institution() OR app_is_platform_admin())
     WITH CHECK (institution_id = app_current_institution() OR app_is_platform_admin());
-CREATE POLICY alumni_profiles_tenant ON alumni_profiles
-    USING (institution_id = app_current_institution() OR app_is_platform_admin())
-    WITH CHECK (institution_id = app_current_institution() OR app_is_platform_admin());
 CREATE POLICY alumni_job_posts_tenant ON alumni_job_posts
     USING (institution_id = app_current_institution() OR app_is_platform_admin())
     WITH CHECK (institution_id = app_current_institution() OR app_is_platform_admin());
@@ -620,7 +614,6 @@ CREATE POLICY alumni_job_interests_tenant ON alumni_job_interests
 -- +goose Down
 DROP TABLE IF EXISTS alumni_job_interests;
 DROP TABLE IF EXISTS alumni_job_posts;
-DROP TABLE IF EXISTS alumni_profiles;
 DROP TABLE IF EXISTS abc_credit_entries;
 DROP TABLE IF EXISTS club_event_tickets;
 DROP TABLE IF EXISTS club_events;

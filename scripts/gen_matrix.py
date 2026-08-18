@@ -54,17 +54,26 @@ def load_registry():
     Reading only registry.ts found the spread and none of the keys inside it,
     and every screen delivered that way was then reported as unbuilt.
     """
-    pat = re.compile(r"'([a-z0-9_.]+)':\s*lazy\(\s*\(\)\s*=>\s*import\('\./([^']+)'\)")
+    # A fragment sits beside one domain's screens and may name another's with
+    # ../, so a pattern anchored on ./ silently dropped every key that did —
+    # nineteen built screens were reported as unbuilt because of it.
+    # A fragment sits beside one domain's screens and may name another's with
+    # ../, so the prefix is captured rather than swallowed — nineteen built
+    # screens were reported as unbuilt when it was not.
+    pat = re.compile(r"'([a-z0-9_.]+)':\s*lazy\(\s*\(\)\s*=>\s*import\('(\.{1,2})/([^']+)'\)")
     out = {}
     src = (WEB / "features" / "registry.ts").read_text()
-    for key, path in pat.findall(src):
+    for key, dots, path in pat.findall(src):
         out[key] = path
     for frag in sorted((WEB / "features").rglob("*keys*.ts")):
         # A fragment's imports are relative to its own directory, not to
         # registry.ts, so the path is rebuilt from where the fragment lives.
         base = frag.parent.relative_to(WEB / "features")
-        for key, path in pat.findall(frag.read_text()):
-            out[key] = f"{base}/{path}"
+        for key, dots, path in pat.findall(frag.read_text()):
+            root = pathlib.PurePosixPath(str(base))
+            if dots == "..":
+                root = root.parent
+            out[key] = str(root / path)
     return out
 
 

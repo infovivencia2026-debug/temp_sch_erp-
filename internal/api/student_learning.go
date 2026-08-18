@@ -107,7 +107,7 @@ func (s *Server) mountStudentLearning(r chi.Router) {
 
 	// Alumni.
 	r.Get("/alumni/profile", s.getAlumniProfile)
-	r.Post("/alumni/profile", s.saveAlumniProfile)
+	r.Post("/alumni/profile", s.saveAlumniRegistration)
 	r.Get("/alumni/directory", s.listAlumniDirectory)
 	r.Get("/alumni/jobs", s.listAlumniJobs)
 	r.Post("/alumni/jobs/{id}/interest", s.registerJobInterest)
@@ -1901,7 +1901,7 @@ func (s *Server) createClubEvent(w http.ResponseWriter, r *http.Request) {
 
 // --- the class calendar ------------------------------------------------------
 
-type calendarEntry struct {
+type studentCalendarEntry struct {
 	Date     string  `json:"on_date"`
 	ToDate   *string `json:"to_date,omitempty"`
 	Kind     string  `json:"kind"`
@@ -2002,8 +2002,8 @@ func (s *Server) getStudentCalendar(w http.ResponseWriter, r *http.Request) {
 		) cal
 		 ORDER BY on_date, starts_at NULLS FIRST, title`,
 		[]any{room.ClassID, room.CampusID, room.YearID, from, to, room.Level},
-		func(rows pgx.Rows) (calendarEntry, error) {
-			var v calendarEntry
+		func(rows pgx.Rows) (studentCalendarEntry, error) {
+			var v studentCalendarEntry
 			return v, rows.Scan(&v.Date, &v.ToDate, &v.Kind, &v.Title, &v.Detail,
 				&v.Source, &v.AllDay, &v.StartsAt)
 		})
@@ -2608,7 +2608,7 @@ type alumniRequest struct {
 }
 
 /*
-saveAlumniProfile registers the caller, or edits what they registered.
+saveAlumniRegistration registers the caller, or edits what they registered.
 
 	One endpoint rather than a create and an update: a leaver filling this in on
 	their phone should not have to know whether they got as far as saving last
@@ -2618,7 +2618,7 @@ saveAlumniProfile registers the caller, or edits what they registered.
 	leaver is the school's statement, and a self-verified profile would make the
 	tick mean nothing.
 */
-func (s *Server) saveAlumniProfile(w http.ResponseWriter, r *http.Request) {
+func (s *Server) saveAlumniRegistration(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	var req alumniRequest
 	if !httpx.Decode(w, r, &req) {

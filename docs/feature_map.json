@@ -1893,9 +1893,25 @@
   "description": "Design and configure print templates for Transfer Certificates (TC), Bonafide, and Conduct cards.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "students/CertificateTemplates",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/certificate-templates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/certificate-templates/:param/preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.students.class_section_promotion",
@@ -1948,9 +1964,24 @@
   "description": "Record student disciplinary actions, counseling notes, parent meeting logs, and suspensions.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "students/DisciplineLog",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/incidents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/incidents/:param",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.students.student_council_management",
@@ -1961,9 +1992,45 @@
   "description": "Define student council positions, log elected candidates, and track student leadership duties.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "students/StudentCouncil",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/council",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/council/duties",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/council/members",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/council/positions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.students.alumni_program_oversight",
@@ -1974,9 +2041,39 @@
   "description": "Track annual graduating batch directory, alumni events, and alumni contribution funds.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "students/Alumni",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/alumni",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/alumni/contributions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/alumni/events",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/alumni/profiles",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.students.department_students",
@@ -1987,9 +2084,24 @@
   "description": "Search students in the department; view attendance, results, CGPA/backlogs and advisor.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "students/DepartmentStudents",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/department-students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.students.student_directory",
@@ -8396,9 +8508,17 @@
   "description": "Current enrolled courses/subjects, teacher and learning resources.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Courses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/learning/courses:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.e_learning_resource_hub",
@@ -8409,9 +8529,17 @@
   "description": "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Resources",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/learning/resources",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.ai_personal_learning_companion",
@@ -8435,9 +8563,45 @@
   "description": "Sign up as student tutors or request peer study group assistance in specific subjects.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/StudyGroups",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/learning/study-groups",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/study-groups/:param/join",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/study-groups/:param/leave",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/study-groups/:param/members:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/learning/study-groups:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.gamified_learning_streak_counter",
@@ -8487,9 +8651,38 @@
   "description": "Track college application deadlines, essay drafts, and request teacher Letters of Recommendation (LOR).",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Universities",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/learning/universities",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/universities/:param",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/universities/:param:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/universities:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.student_portfolio_management",
@@ -8500,9 +8693,38 @@
   "description": "Maintain personal showcase portfolio containing certificates, creative projects, and sports records.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Portfolio",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/learning/portfolio",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/portfolio/:param",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/portfolio/:param:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/learning/portfolio:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.exams_results.exams_grades",
@@ -8541,9 +8763,17 @@
   "description": "Current/previous grades, transcript/academic history when published.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/AcademicRecord",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/academic-record:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.exams_results.apaar_id_academic_bank_of_credits",
@@ -8554,9 +8784,17 @@
   "description": "View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/CreditBank",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/abc:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.fees.fees",
@@ -8595,9 +8833,17 @@
   "description": "Academic calendar, holidays, events and deadlines.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Calendar",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/calendar",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.notices_calendar.library_book_hold_request",
@@ -8608,9 +8854,32 @@
   "description": "Reserve available library books online for pickup at the start of the next school day.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/LibraryHolds",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/library/holds",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/library/holds/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/library/titles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.campus_life.student_wall_peer_recognition",
@@ -8647,9 +8916,31 @@
   "description": "Register for campus drama, music, or science events and generate QR-coded admission tickets.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/ClubEvents",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/campus/events/:param/ticket",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/campus/events:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/campus/tickets/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.campus_life.lost_found_item_board",
@@ -8660,9 +8951,25 @@
   "description": "Post missing items or report found items with photos on the digital lost-and-found board.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/LostFound",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/campus/lost-found",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/campus/lost-found/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.campus_life.lost_found_photo_board_with_claim_verification",
@@ -8686,9 +8993,31 @@
   "description": "Manage assigned physical hallway locker numbers and view digital access keycode history.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Locker",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/campus/locker/access",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/campus/locker/reveal",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/campus/locker:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.alumni.alumni_network_registration",
@@ -8699,9 +9028,31 @@
   "description": "Register for the official school alumni network upon passing out to stay connected with batchmates.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/AlumniNetwork",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/alumni/directory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/alumni/profile",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/alumni/profile:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.alumni.alumni_job_internship_board",
@@ -8712,9 +9063,31 @@
   "description": "Senior students access exclusive internship and entry-level job posts shared by alumni network.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/AlumniJobs",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/alumni/jobs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/alumni/jobs/:param/interest",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/alumni/jobs/:param/withdraw",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.requests.requests",

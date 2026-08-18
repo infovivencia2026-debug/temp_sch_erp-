@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 299 of the catalog's features are implemented.
+// 313 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -278,11 +278,25 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.subscriptions_billing.plans_pricing":                   true,
 	"seller_admin.subscriptions_billing.seat_overage_renewals":           true,
 	"seller_admin.subscriptions_billing.subscription_ledger":             true,
+	"student.alumni.alumni_job_internship_board":                         true,
+	"student.alumni.alumni_network_registration":                         true,
 	"student.attendance.attendance":                                      true,
+	"student.campus_life.digital_locker_combination_access_log":          true,
+	"student.campus_life.lost_found_item_board":                          true,
+	"student.campus_life.student_club_event_ticketing_qr_check_in":       true,
+	"student.exams_results.academic_record":                              true,
+	"student.exams_results.apaar_id_academic_bank_of_credits":            true,
 	"student.exams_results.exams_grades":                                 true,
 	"student.fees.fees":                                                  true,
 	"student.home.my_day":                                                true,
 	"student.homework.homework_assignments":                              true,
+	"student.learning.courses_subjects":                                  true,
+	"student.learning.e_learning_resource_hub":                           true,
+	"student.learning.global_university_guidance_counselor":              true,
+	"student.learning.peer_tutoring_study_groups":                        true,
+	"student.learning.student_portfolio_management":                      true,
+	"student.notices_calendar.calendar":                                  true,
+	"student.notices_calendar.library_book_hold_request":                 true,
 	"student.requests.requests":                                          true,
 	"student.timetable.timetable":                                        true,
 	"super_admin.access_security.login_session_audit":                    true,
