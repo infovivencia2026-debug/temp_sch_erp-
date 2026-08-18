@@ -1,6 +1,7 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
+import { OptionSelect } from '@/components/OptionSelect'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -154,12 +155,13 @@ function ProfilePanel({ onDone }: PanelProps) {
         <Field label="School name" required wide hint="As it should print on a receipt or a TC.">
           <Input value={v.name ?? ''} onChange={(x) => set('name', x)} placeholder="Vivencia High School, Kompally" />
         </Field>
-        <Field label="Board" required>
-          <Select
+        <Field label="Board" required hint="Not listed? Add your own at the bottom of the list.">
+          <OptionSelect
+            kind="affiliation_board"
             value={v.affiliation_board ?? ''}
             onChange={(x) => set('affiliation_board', x)}
             placeholder="Choose a board"
-            options={(opts?.affiliation_boards ?? []).map((o) => ({ value: o.value, label: o.label }))}
+            addLabel="Add another board"
           />
         </Field>
         <Field label="Affiliation number" hint="Leave blank if the application is still pending.">
@@ -191,19 +193,21 @@ function ProfilePanel({ onDone }: PanelProps) {
           <Input value={v.village_or_ward ?? ''} onChange={(x) => set('village_or_ward', x)} />
         </Field>
         <Field label="School category">
-          <Select
+          <OptionSelect
+            kind="school_category"
             value={v.school_category ?? ''}
             onChange={(x) => set('school_category', x)}
             placeholder="Choose"
-            options={opts?.school_categories ?? []}
+            addLabel="Add another category"
           />
         </Field>
         <Field label="Management">
-          <Select
+          <OptionSelect
+            kind="management_type"
             value={v.management_type ?? ''}
             onChange={(x) => set('management_type', x)}
             placeholder="Choose"
-            options={opts?.management_types ?? []}
+            addLabel="Add another management type"
           />
         </Field>
         <Field label="UDISE+ code" hint="Eleven digits. Needed before the annual return.">
@@ -894,21 +898,8 @@ function StaffPanel({ onDone }: PanelProps) {
         <Field label="Employee code" required hint="Whatever your registers already use.">
           <Input value={f.employee_code} onChange={(x) => setF({ ...f, employee_code: x })} placeholder="T-014" />
         </Field>
-        <Field label="Role" hint="One role now; more can be added later.">
-          <Select
-            value={f.role_key}
-            onChange={(x) => setF({ ...f, role_key: x })}
-            options={[
-              { value: 'faculty', label: 'Teacher' },
-              { value: 'hod', label: 'Head of department' },
-              { value: 'front_office', label: 'Front office' },
-              { value: 'finance', label: 'Accounts' },
-              { value: 'admissions', label: 'Admissions' },
-              { value: 'hr', label: 'HR' },
-              { value: 'librarian', label: 'Librarian' },
-              { value: 'operations', label: 'Operations' },
-            ]}
-          />
+        <Field label="Role" hint="Every role your school has, including any you have created.">
+          <RoleSelect value={f.role_key} onChange={(x) => setF({ ...f, role_key: x })} />
         </Field>
         <Field label="First name" required>
           <Input value={f.first_name} onChange={(x) => setF({ ...f, first_name: x })} />
@@ -1456,4 +1447,28 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   fee_structures: FeeStructuresPanel,
   exams: ExamsPanel,
   udise: UDISEPanel,
+}
+
+
+/* The staff role dropdown.
+ *
+ * It listed eight roles fixed in the bundle, so a school that created a role
+ * of its own -- which the roles screen has always allowed -- could not put
+ * anybody in it from the one form where staff are actually created. This reads
+ * the school's roles instead, so the two screens agree.
+ */
+function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const roles = useQuery({
+    queryKey: ['assignable-roles'],
+    queryFn: () => api.get<List<{ key: string; name: string }>>('/api/v1/admin/assignable-roles'),
+    staleTime: 5 * 60_000,
+  })
+  return (
+    <Select
+      value={value}
+      onChange={onChange}
+      placeholder={roles.isLoading ? 'Loading…' : 'Choose a role'}
+      options={(roles.data?.items ?? []).map((r) => ({ value: r.key, label: r.name }))}
+    />
+  )
 }

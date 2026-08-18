@@ -161,6 +161,14 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/status", s.getSetupStatus)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/institution", s.getInstitution)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/institution/options", s.getInstitutionOptions)
+			// The lists a school may extend. Reading is gated on reading the
+			// institution, because every form in the product needs them;
+			// writing on settings.write, because adding a board changes what
+			// the whole school records and is not a clerk's decision.
+			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/option-kinds", s.listCustomisableKinds)
+			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/options", s.listOptions)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/options", s.addOption)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Delete("/options/{id}", s.retireOption)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Put("/institution", s.updateInstitution)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/campuses", s.listCampuses)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Post("/campuses", s.createCampus)
