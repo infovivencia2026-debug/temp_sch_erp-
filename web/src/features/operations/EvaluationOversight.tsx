@@ -169,6 +169,10 @@ export default function EvaluationOversight() {
         </Card>
 
         {open && <CycleDetail
+          /* Keyed by the cycle. `showing` inside it is a reviewee id, so
+             opening a second cycle kept the first cycle's person selected and
+             drew their results panel underneath the new cycle's roll. */
+          key={open}
           id={open}
           mayRun={mayRun}
           onDone={(m) => {

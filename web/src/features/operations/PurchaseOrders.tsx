@@ -198,7 +198,10 @@ function RequisitionsPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m
         )}
       </Card>
 
-      {open && <RequisitionDetail id={open} mayWrite={mayWrite} onDone={onDone} />}
+      {/* Keyed by the requisition: the approve/refuse note lives in the panel,
+          and a reason written to refuse one request must not follow the reader
+          onto the next. */}
+      {open && <RequisitionDetail key={open} id={open} mayWrite={mayWrite} onDone={onDone} />}
     </>
   )
 }
@@ -361,10 +364,13 @@ function RequisitionForm({ onCancel, onSaved }: {
         {lines.map((l, i) => (
           <div key={i} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]">
             <Input value={l.description} onChange={(v) => set(i, { description: v })}
-              placeholder="What is needed" />
-            <Input value={l.quantity} onChange={(v) => set(i, { quantity: v })} placeholder="Qty" />
-            <Input value={l.unit} onChange={(v) => set(i, { unit: v })} placeholder="nos" />
-            <Input value={l.rate} onChange={(v) => set(i, { rate: v })} placeholder="Rate ₹" />
+              placeholder="What is needed" srLabel={`Item ${i + 1}: what is needed`} />
+            <Input value={l.quantity} onChange={(v) => set(i, { quantity: v })} placeholder="Qty"
+              srLabel={`Item ${i + 1}: quantity`} />
+            <Input value={l.unit} onChange={(v) => set(i, { unit: v })} placeholder="nos"
+              srLabel={`Item ${i + 1}: unit`} />
+            <Input value={l.rate} onChange={(v) => set(i, { rate: v })} placeholder="Rate ₹"
+              srLabel={`Item ${i + 1}: rate in rupees`} />
             <Button variant="ghost" size="sm" disabled={lines.length === 1}
               onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>
               Remove
@@ -454,7 +460,12 @@ function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: stri
         )}
       </Card>
 
-      {open && <OrderDetail id={open} mayWrite={mayWrite} onDone={onDone} />}
+      {/* Keyed by the order. The delivery being entered — the challan number
+          and the per-line quantities — belongs to the order it was opened
+          against; the quantities are keyed by line id and so could not cross,
+          but the challan number could, and it is the audit link to the vendor's
+          own document. */}
+      {open && <OrderDetail key={open} id={open} mayWrite={mayWrite} onDone={onDone} />}
     </>
   )
 }
@@ -578,14 +589,17 @@ function OrderDetail({ id, mayWrite, onDone }: {
                   <Td className="tabular-nums text-muted-foreground">{l.outstanding_qty}</Td>
                   <Td>
                     <Input value={qty[l.id] ?? ''} placeholder="0"
+                      srLabel={`Quantity received of ${l.description}`}
                       onChange={(v) => setQty((q) => ({ ...q, [l.id]: v }))} />
                   </Td>
                   <Td>
                     <Input value={rejected[l.id] ?? ''} placeholder="0"
+                      srLabel={`Quantity rejected of ${l.description}`}
                       onChange={(v) => setRejected((q) => ({ ...q, [l.id]: v }))} />
                   </Td>
                   <Td>
                     <Input value={reason[l.id] ?? ''} placeholder="Damaged, wrong size…"
+                      srLabel={`Reason for rejecting ${l.description}`}
                       onChange={(v) => setReason((q) => ({ ...q, [l.id]: v }))} />
                   </Td>
                 </tr>

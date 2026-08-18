@@ -162,7 +162,10 @@ export default function FeeFiling() {
           <CompileForm onSaved={(m) => { setOpen(null); done(m) }} />
         )}
         {open && open !== 'new' && (
-          <FilingDetail id={open} mayWrite={mayWrite} onDone={done} />
+          /* Keyed by the filing: the panel holds its tab, the document type
+             being attached and the committee decision being recorded, none of
+             which belong to the next filing opened. */
+          <FilingDetail key={open} id={open} mayWrite={mayWrite} onDone={done} />
         )}
       </PageBody>
     </>

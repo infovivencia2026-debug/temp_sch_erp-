@@ -305,6 +305,17 @@ function BalancesForm({ month, onSaved }: { month: string; onSaved: (m: string) 
   const [releasedCost, setReleasedCost] = useState('')
   const [explanation, setExplanation] = useState('')
 
+  /* Five boxes that all start empty and all post as nought.
+
+     `Number('' || 0)` is 0 and `toPaise('')` is 0, and the payload always
+     carries all five — so pressing Save on a form opened to correct one figure
+     declared the other four as zero on a statutory return whose remaining
+     figures are computed against them. A real nought is typed. */
+  const numbers = [openingKg, allottedKg, openingCost, allottedCost, releasedCost]
+  const incomplete = numbers.some(
+    (v) => v.trim() === '' || !Number.isFinite(Number(v)) || Number(v) < 0,
+  )
+
   const save = useMutation({
     mutationFn: () => api.post(`${adminOpsBase}/mdm/returns`, {
       month,
@@ -357,7 +368,13 @@ function BalancesForm({ month, onSaved }: { month: string; onSaved: (m: string) 
       </div>
       <div className="border-t px-5 py-4">
         <FormNotice error={save.error} />
-        <Button disabled={save.isPending} onClick={() => save.mutate()}>
+        {incomplete && (
+          <p className="mb-2 text-[12.5px] text-muted-foreground">
+            Every figure above is part of the return. Type 0 where the answer is nought — a box
+            left blank would be saved as nought without saying so.
+          </p>
+        )}
+        <Button disabled={save.isPending || incomplete} onClick={() => save.mutate()}>
           {save.isPending ? 'Saving…' : 'Save'}
         </Button>
       </div>
