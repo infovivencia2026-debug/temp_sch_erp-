@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 354 of the catalog's features are implemented.
+// 357 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -108,8 +108,11 @@ var implementedFeatures = map[string]bool{
 	"finance.ledgers.general_ledger_trial_balance":                        true,
 	"finance.payables.petty_cash_voucher_management":                      true,
 	"finance.payables.vendor_management_accounts_payable":                 true,
+	"finance.reconciliation.bank_reconciliation_statement_brs":            true,
+	"finance.reconciliation.connected_banking_payouts":                    true,
 	"finance.reconciliation.payment_gateway_reconciliation":               true,
 	"finance.reconciliation.reconciliation":                               true,
+	"finance.reconciliation.student_bank_account_register":                true,
 	"finance.reports.daybook_cashbook_reports":                            true,
 	"finance.reports.finance_reports":                                     true,
 	"finance.reports.taxation_audit_reports":                              true,

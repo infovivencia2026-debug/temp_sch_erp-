@@ -229,6 +229,7 @@ func (s *Server) Routes() http.Handler {
 			r.Use(httpx.RequirePermission(rbac.InvoicesRead))
 			s.mountLedgers(r)
 			s.mountFeeEngine(r)
+			s.mountBanking(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)
