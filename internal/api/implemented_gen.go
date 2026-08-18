@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 347 of the catalog's features are implemented.
+// 354 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -144,6 +144,7 @@ var implementedFeatures = map[string]bool{
 	"hr.records.staff_id_card_printing":                                   true,
 	"hr.records.staff_service_book_digitalization":                        true,
 	"hr.records.teacher_qualification_register":                           true,
+	"hr.reports.hr_reports":                                               true,
 	"hr.statutory.contractor_security_staff_bill_verification":            true,
 	"hr.statutory.form_12bb_investment_declarations":                      true,
 	"hr.statutory.income_tax_form_16_generator":                           true,
@@ -172,11 +173,14 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.timetable":                               true,
 	"institution_admin.admissions.admissions_overview":                    true,
 	"institution_admin.admissions.rte_25_reservation_register":            true,
+	"institution_admin.analysis.department_reports":                       true,
+	"institution_admin.analysis.performance_analytics":                    true,
 	"institution_admin.approvals.approvals":                               true,
 	"institution_admin.approvals.approvals_center":                        true,
 	"institution_admin.boards_accreditation.parakh_nep_credit_framework":  true,
 	"institution_admin.communication.circulars_announcements":             true,
 	"institution_admin.communication.communication":                       true,
+	"institution_admin.department.department_academics":                   true,
 	"institution_admin.directory_workload.faculty_allocation_workload":    true,
 	"institution_admin.directory_workload.faculty_directory":              true,
 	"institution_admin.directory_workload.faculty_directory_workload":     true,
@@ -190,10 +194,12 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.examinations.performance_overview":                 true,
 	"institution_admin.examinations.report_cards":                         true,
 	"institution_admin.examinations.ssc_board_registration":               true,
+	"institution_admin.fees.fee_overview":                                 true,
 	"institution_admin.home.academic_kpis":                                true,
 	"institution_admin.home.department_kpis":                              true,
 	"institution_admin.home.executive_kpis":                               true,
 	"institution_admin.home.needs_attention":                              true,
+	"institution_admin.home.today":                                        true,
 	"institution_admin.hostel.boarder_laundry_tracking":                   true,
 	"institution_admin.hostel.buildings_rooms":                            true,
 	"institution_admin.hostel.complaints":                                 true,
@@ -230,6 +236,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.reservations":                              true,
 	"institution_admin.standard.comprehensive_attendance_report":          true,
 	"institution_admin.standard.exam_grade_analytics":                     true,
+	"institution_admin.standard.fee_collection_summaries":                 true,
 	"institution_admin.standard.reports":                                  true,
 	"institution_admin.statutory_returns.apaar_id_register":               true,
 	"institution_admin.statutory_returns.statutory_registers":             true,

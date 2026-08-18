@@ -91,6 +91,8 @@ func (s *Server) Routes() http.Handler {
 				Post("/lesson-plans/{id}/decide", s.decideLessonPlan)
 		})
 
+		s.mountAdminRollups(r)
+
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
 			s.mountAdminAcademics(r)
