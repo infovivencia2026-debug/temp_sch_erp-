@@ -1,3 +1,6 @@
+-- Renumbered from 00040: 00041 had already been applied by the time this
+-- merged, and goose refuses a migration that appears behind the current
+-- version. Content unchanged.
 -- +goose Up
 -- The board examination: the nominal roll, its corrections, and the result
 -- file that comes back.

@@ -350,6 +350,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Examinations & report cards (module 4) ------------------------
 		r.Route("/exams", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.ExamsRead))
+			s.mountBoardExams(r)
 			r.Get("/list", s.listExams)
 			r.Get("/subjects", s.listExamSubjects)
 			r.Get("/gradebook", s.getGradebook)

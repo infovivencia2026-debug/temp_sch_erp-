@@ -3004,9 +3004,31 @@
   "description": "Pass rate, subject performance, at-risk students and backlog summary.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/PerformanceOverview",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/performance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.baseline_performance_analysis",
@@ -3017,9 +3039,24 @@
   "description": "Analyze baseline student entry performance against end-of-term academic growth.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/BaselineAnalysis",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/analysis/baseline",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.ssc_board_registration",
@@ -3030,9 +3067,74 @@
   "description": "Register Class 10 candidates with BSE Telangana, capture subject combinations and medium, and submit the nominal roll.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/SSCRegistration",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/amendments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/amendments/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/eligible",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/amendments",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/board-response",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.intermediate_board_registration",
@@ -3043,9 +3145,74 @@
   "description": "Register Class 11 and 12 candidates with TSBIE including group and second language selection.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/IntermediateRegistration",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/amendments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/amendments/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/eligible",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/amendments",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/board-response",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.hall_ticket_issue",
@@ -3120,9 +3287,45 @@
   "description": "Import board results, map them to student records and publish to parents.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/BoardResultImport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/results/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/imports",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/imports/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/reconciliation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/rows/:param/match",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.exams_results",
