@@ -263,7 +263,11 @@ function KPITab({
       }))
 
   const total = rows.reduce((n, r) => n + (Number(r.weight) || 0), 0)
-  const balanced = total > 99.98 && total < 100.02
+  /* The same hundredth of a percent the handler allows and the trigger now
+     allows, stated as the same inequality rather than a wider one that happens
+     to agree on the values numeric(5,2) can reach. Three equal KPIs total
+     99.99; refusing that would make thirds unusable. */
+  const balanced = total >= 99.99 && total <= 100.01
 
   const save = useMutation({
     mutationFn: () =>
