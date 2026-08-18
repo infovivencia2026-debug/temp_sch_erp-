@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 370 of the catalog's features are implemented.
+// 374 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":             true,
 	"admissions.admissions.admission_fee_collection":                       true,
@@ -196,6 +196,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.directory_workload.faculty_directory":               true,
 	"institution_admin.directory_workload.faculty_directory_workload":      true,
 	"institution_admin.directory_workload.staff_allocation_workload":       true,
+	"institution_admin.evaluation.360_evaluation_oversight":                true,
 	"institution_admin.examinations.baseline_performance_analysis":         true,
 	"institution_admin.examinations.board_result_import":                   true,
 	"institution_admin.examinations.exams_result_status":                   true,
@@ -206,6 +207,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.examinations.report_cards":                          true,
 	"institution_admin.examinations.ssc_board_registration":                true,
 	"institution_admin.fees.fee_overview":                                  true,
+	"institution_admin.fees.fee_regulatory_committee_filing":               true,
 	"institution_admin.home.academic_kpis":                                 true,
 	"institution_admin.home.department_kpis":                               true,
 	"institution_admin.home.executive_kpis":                                true,
@@ -245,6 +247,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.opac_digital_book_search":                   true,
 	"institution_admin.library.overdue_fine_calculation":                   true,
 	"institution_admin.library.reservations":                               true,
+	"institution_admin.mid_day_meal.mdm_utilisation_report":                true,
 	"institution_admin.standard.comprehensive_attendance_report":           true,
 	"institution_admin.standard.exam_grade_analytics":                      true,
 	"institution_admin.standard.fee_collection_summaries":                  true,
@@ -256,6 +259,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.statutory_returns.working_days_instructional_hours": true,
 	"institution_admin.stores.department_stock_issuance":                   true,
 	"institution_admin.stores.item_category_store_setup":                   true,
+	"institution_admin.stores.purchase_order_workflow":                     true,
 	"institution_admin.students.alumni_program_oversight":                  true,
 	"institution_admin.students.certificates_document_templates":           true,
 	"institution_admin.students.certificates_documents":                    true,
