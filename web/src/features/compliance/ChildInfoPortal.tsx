@@ -409,9 +409,10 @@ export default function ChildInfoPortal() {
             title="Exchange history"
             description="What an operator did and when. A logbook, not a scheduler — nothing here ran on its own."
           />
+          {runs.error && <ErrorState error={runs.error} />}
           <Table
             head={['When', 'Connector', 'School', 'Direction', 'Rows', 'Status', 'By', 'Note']}
-            empty={!runs.data?.items.length}
+            empty={!runs.data?.items.length && !runs.error}
             emptyLabel="Nothing has been exchanged yet."
           >
             {(runs.data?.items ?? []).map((r) => (

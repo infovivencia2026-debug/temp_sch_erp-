@@ -152,7 +152,13 @@ export default function TallyConnector() {
         </Card>
 
         <VoucherTypes types={c?.voucher_types ?? []} erpTypes={c?.erp_voucher_types ?? []} />
-        <LedgerMapping fy={fy} />
+        {/* Keyed by the year. The half-typed mapping is a draft against the
+            chart of accounts on screen; changing the year refetched that chart
+            but kept the draft, and Save posts the whole draft — so names typed
+            against one year's accounts were written while looking at another's.
+            Resetting on the year is the same rule the rest of the app uses for
+            a form whose subject has been swapped. */}
+        <LedgerMapping key={fy} fy={fy} />
         <Gateway />
       </PageBody>
     </>

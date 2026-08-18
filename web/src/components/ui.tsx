@@ -730,6 +730,7 @@ export function Input({
   type = 'text',
   className,
   list,
+  srLabel,
 }: {
   value: string
   onChange: (v: string) => void
@@ -738,6 +739,13 @@ export function Input({
   className?: string
   /** id of a <datalist> to suggest from, without constraining the input. */
   list?: string
+  /* What a screen reader should call this box when it stands outside a Field.
+
+     A box in a table cell is the case: the column header names it and a
+     repeated visible label would be noise down the column. A placeholder is
+     not a substitute — it is not an accessible name, and it disappears the
+     moment anything is typed. Same contract as Checkbox's srLabel. */
+  srLabel?: string
 }) {
   return (
     <input
@@ -746,6 +754,7 @@ export function Input({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       list={list}
+      aria-label={srLabel || undefined}
       className={cn('field', className)}
     />
   )

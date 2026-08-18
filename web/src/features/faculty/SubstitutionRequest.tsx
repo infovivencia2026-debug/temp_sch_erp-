@@ -149,6 +149,11 @@ export default function SubstitutionRequest() {
 
   if (periods.isLoading || requests.isLoading) return <Loading label="Reading your week…" />
   if (periods.error) return <ErrorState error={periods.error} />
+  /* The requests list failing is not the same as having no requests. Without
+     this, a failed call left can_decide false and both lists empty, so an
+     approver was shown "nothing waiting on you" and a teacher was shown none of
+     the requests they had raised. */
+  if (requests.error) return <ErrorState error={requests.error} />
 
   const rows = periods.data?.items ?? []
   const leave = periods.data?.leave ?? []
@@ -165,8 +170,20 @@ export default function SubstitutionRequest() {
         description="Ask for your periods to be covered while you are away, and suggest a colleague. The approver is shown who is actually free in each period."
         actions={
           <>
-            <Input type="date" value={from} onChange={setFrom} className="w-40" />
-            <Input type="date" value={to} onChange={setTo} className="w-40" />
+            <Input
+              type="date"
+              value={from}
+              onChange={setFrom}
+              className="w-40"
+              srLabel="Show periods from this date"
+            />
+            <Input
+              type="date"
+              value={to}
+              onChange={setTo}
+              className="w-40"
+              srLabel="Show periods up to this date"
+            />
           </>
         }
       />
@@ -365,7 +382,17 @@ export default function SubstitutionRequest() {
           )}
         </Card>
 
-        {open && <RequestDetail id={open} onDone={() => setOpen('')} />}
+        {open && (
+          /* Keyed by the request.
+
+             RequestDetail holds the substitute chosen for each period and the
+             decision note. Opening a second request while one was open reused
+             them, so approving request B posted the period ids and substitutes
+             picked for request A — cover assigned for the wrong teacher's
+             periods, or a 400, depending on what the server made of ids that
+             belong to another request. */
+          <RequestDetail key={open} id={open} onDone={() => setOpen('')} />
+        )}
       </PageBody>
     </>
   )

@@ -4,7 +4,7 @@ import { Download, FileWarning, History, CheckCircle2, AlertTriangle } from 'luc
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Field, FormGrid, Button, Checkbox, FormNotice, Loading, ErrorState,
+  Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, ErrorState,
   EmptyState, UnavailableState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
@@ -240,13 +240,35 @@ export default function TallyExport() {
               </p>
             )}
             <FormNotice error={exportNow.error} />
-            <Button
-              onClick={() => exportNow.mutate(undefined as never)}
-              disabled={exportNow.isPending}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export {v.voucher_count} voucher(s)
-            </Button>
+            {/* Sending a voucher twice is the one thing on this screen that
+                cannot be undone from here, and with "include already exported"
+                ticked it is one click away. The default keeps the plain button:
+                new vouchers only cannot duplicate anything, and asking somebody
+                to confirm the safe path teaches them to confirm without
+                reading. It asks only when the batch really does contain
+                vouchers Tally has already had. */}
+            {includeExported && v.already_exported > 0 ? (
+              <ConfirmButton
+                confirmLabel="Export anyway"
+                question={`${v.already_exported} of these ${v.voucher_count} vouchers have gone to Tally before. Importing one twice is undone by deleting it in Tally, one at a time.`}
+                onConfirm={() => exportNow.mutate(undefined as never)}
+                disabled={exportNow.isPending}
+                variant="secondary"
+                tone="danger"
+                size="md"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export {v.voucher_count} voucher(s)
+              </ConfirmButton>
+            ) : (
+              <Button
+                onClick={() => exportNow.mutate(undefined as never)}
+                disabled={exportNow.isPending}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export {v.voucher_count} voucher(s)
+              </Button>
+            )}
           </Card>
         )}
 

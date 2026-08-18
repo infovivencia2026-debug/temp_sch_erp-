@@ -4,8 +4,9 @@ import { AlertTriangle, CalendarCheck2, CircleSlash, Grid3x3, Users } from 'luci
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, ConfirmButton,
-  Table, Td, Select, Input, Loading, ErrorState, EmptyState, FormNotice,
+  Table, Td, Select, Input, Loading, Skeleton, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* The timetable generator, and the honest account of what it could not do.
@@ -85,6 +86,12 @@ interface DraftIssue {
 
 export default function TimetableOptimizer() {
   const qc = useQueryClient()
+  const can = useCan()
+  /* Reads are on timetable.read so a head of department can look at a draft
+     somebody else generated (timetable_ops.go:74); every write is
+     timetable.write. Without this the read-only reader was shown Generate,
+     Publish and Discard and got a bare 403 on pressing them. */
+  const mayWrite = can('academics.timetable.write')
   const [openDraft, setOpenDraft] = useState('')
   const [seed, setSeed] = useState('1')
 
@@ -119,12 +126,20 @@ export default function TimetableOptimizer() {
         title="Timetable optimizer"
         description="Generates a candidate week that obeys every hard constraint, and tells you plainly which requirements it could not meet. Nothing reaches the live timetable until you publish it."
         actions={
-          <>
-            <Input value={seed} onChange={setSeed} className="w-24" placeholder="Seed" />
-            <Button onClick={() => generate.mutate()} disabled={!ready || generate.isPending}>
-              {generate.isPending ? 'Working…' : 'Generate a draft'}
-            </Button>
-          </>
+          mayWrite && (
+            <>
+              <Input
+                value={seed}
+                onChange={setSeed}
+                className="w-24"
+                placeholder="Seed"
+                srLabel="Seed for the generator, so a run can be reproduced"
+              />
+              <Button onClick={() => generate.mutate()} disabled={!ready || generate.isPending}>
+                {generate.isPending ? 'Working…' : 'Generate a draft'}
+              </Button>
+            </>
+          )
         }
       />
       <PageBody>
@@ -161,14 +176,22 @@ export default function TimetableOptimizer() {
           </Card>
         )}
 
-        <Requirements data={inputs.data} />
-        <Teachers data={inputs.data} />
+        <Requirements data={inputs.data} mayWrite={mayWrite} />
+        <Teachers data={inputs.data} mayWrite={mayWrite} />
 
         <Card>
           <CardHeader
             title="Drafts"
             description="Every run is kept with its seed, so a candidate somebody liked can be reproduced."
           />
+          {drafts.isLoading ? (
+            <Skeleton rows={3} />
+          ) : drafts.error ? (
+            /* "No draft has been generated yet" is what this said when the
+               request failed, which is a different and much more comfortable
+               statement than the truth. */
+            <ErrorState error={drafts.error} />
+          ) : (
           <Table
             head={['Draft', 'Placed', 'Unmet', 'Status', 'Generated', '']}
             empty={(drafts.data?.items ?? []).length === 0}
@@ -218,9 +241,17 @@ export default function TimetableOptimizer() {
               </tr>
             ))}
           </Table>
+          )}
         </Card>
 
-        {openDraft && <DraftReview id={openDraft} onGone={() => setOpenDraft('')} />}
+        {openDraft && (
+          <DraftReview
+            key={openDraft}
+            id={openDraft}
+            mayWrite={mayWrite}
+            onGone={() => setOpenDraft('')}
+          />
+        )}
       </PageBody>
     </>
   )
@@ -232,9 +263,14 @@ export default function TimetableOptimizer() {
    lives on class_subjects — the row that already means "Maths in Class 8". A
    subject sitting at zero is not placed at all, which is worth showing in red
    rather than explaining in a tooltip. */
-function Requirements({ data }: { data?: InputsResponse }) {
+function Requirements({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean }) {
   const qc = useQueryClient()
   const [section, setSection] = useState('')
+  /* The typing lives here rather than in each row, because the rows are plain
+     <tr>s so that <Table> can name their cells for a phone — see labelCells in
+     components/ui.tsx. Keyed by class_subject_id, so switching section shows
+     the server's numbers again rather than the last section's edits. */
+  const [edits, setEdits] = useState<Record<string, { ppw: string; morning: boolean }>>({})
 
   const save = useMutation({
     mutationFn: (v: { class_subject_id: string; periods_per_week: number; prefers_morning: boolean }) =>
@@ -269,14 +305,19 @@ function Requirements({ data }: { data?: InputsResponse }) {
             empty={sec.requirements.length === 0}
             emptyLabel="This class has no subjects yet."
           >
-            {sec.requirements.map((r) => (
-              <RequirementRow
-                key={r.class_subject_id}
-                req={r}
-                onSave={(v) => save.mutate(v)}
-                saving={save.isPending}
-              />
-            ))}
+            {sec.requirements.map((r) =>
+              requirementRow({
+                req: r,
+                value: edits[r.class_subject_id] ?? {
+                  ppw: String(r.periods_per_week),
+                  morning: r.prefers_morning,
+                },
+                onChange: (v) => setEdits({ ...edits, [r.class_subject_id]: v }),
+                onSave: (v) => save.mutate(v),
+                saving: save.isPending,
+                mayWrite,
+              }),
+            )}
           </Table>
           <div className="border-t px-5 py-3 text-[13px] text-muted-foreground">
             {sec.class_name}-{sec.name} wants{' '}
@@ -289,19 +330,27 @@ function Requirements({ data }: { data?: InputsResponse }) {
   )
 }
 
-function RequirementRow({
-  req, onSave, saving,
+function requirementRow({
+  req, value, onChange, onSave, saving, mayWrite,
 }: {
   req: Requirement
+  value: { ppw: string; morning: boolean }
+  onChange: (v: { ppw: string; morning: boolean }) => void
   onSave: (v: { class_subject_id: string; periods_per_week: number; prefers_morning: boolean }) => void
   saving: boolean
+  mayWrite: boolean
 }) {
-  const [ppw, setPpw] = useState(String(req.periods_per_week))
-  const [morning, setMorning] = useState(req.prefers_morning)
-  const dirty = Number(ppw) !== req.periods_per_week || morning !== req.prefers_morning
+  const typed = value.ppw.trim()
+  /* An emptied box is not "nought periods a week", which on this screen means
+     "never timetable this subject". Number('' || 0) is 0, so clearing the box
+     used to offer a Save that quietly took Maths out of the week. A zero is
+     still sayable — by typing one. */
+  const bad = typed === '' || !Number.isFinite(Number(typed)) || Number(typed) < 0
+  const dirty =
+    (!bad && Number(typed) !== req.periods_per_week) || value.morning !== req.prefers_morning
 
   return (
-    <tr>
+    <tr key={req.class_subject_id}>
       <Td>
         <span className="font-medium">{req.subject_name}</span>
         <span className="ml-2 text-[12px] text-muted-foreground">{req.subject_code}</span>
@@ -312,27 +361,33 @@ function RequirementRow({
         )}
       </Td>
       <Td>
-        <Input value={ppw} onChange={setPpw} type="number" className="w-20" />
+        <Input
+          value={value.ppw}
+          onChange={(v) => onChange({ ...value, ppw: v })}
+          type="number"
+          className="w-20"
+          srLabel={`Periods a week for ${req.subject_name}`}
+        />
       </Td>
       <Td>
         <Button
           size="sm"
-          variant={morning ? 'primary' : 'secondary'}
-          onClick={() => setMorning(!morning)}
+          variant={value.morning ? 'primary' : 'secondary'}
+          onClick={() => onChange({ ...value, morning: !value.morning })}
         >
-          {morning ? 'Earlier in the day' : 'Any period'}
+          {value.morning ? 'Earlier in the day' : 'Any period'}
         </Button>
       </Td>
       <Td>
-        {dirty && (
+        {mayWrite && dirty && !bad && (
           <Button
             size="sm"
             disabled={saving}
             onClick={() =>
               onSave({
                 class_subject_id: req.class_subject_id,
-                periods_per_week: Number(ppw) || 0,
-                prefers_morning: morning,
+                periods_per_week: Number(typed),
+                prefers_morning: value.morning,
               })
             }
           >
@@ -350,8 +405,9 @@ function RequirementRow({
    somebody against what they may be given. A teacher owing 42 periods against
    a 35-period cap produces seven confusing per-subject failures later and one
    obvious red row here. */
-function Teachers({ data }: { data?: InputsResponse }) {
+function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean }) {
   const qc = useQueryClient()
+  const [edits, setEdits] = useState<Record<string, { day: string; week: string }>>({})
   const save = useMutation({
     mutationFn: (v: { teacher_user_id: string; max_periods_per_day: number; max_periods_per_week: number }) =>
       api.put('/api/v1/timetable-optimizer/load-rules', v),
@@ -371,29 +427,48 @@ function Teachers({ data }: { data?: InputsResponse }) {
         empty={teachers.length === 0}
         emptyLabel="No active staff on file."
       >
-        {teachers.map((t) => (
-          <TeacherRow key={t.user_id} t={t} onSave={(v) => save.mutate(v)} saving={save.isPending} />
-        ))}
+        {teachers.map((t) =>
+          teacherRow({
+            t,
+            value: edits[t.user_id] ?? {
+              day: String(t.max_periods_per_day),
+              week: String(t.max_periods_per_week),
+            },
+            onChange: (v) => setEdits({ ...edits, [t.user_id]: v }),
+            onSave: (v) => save.mutate(v),
+            saving: save.isPending,
+            mayWrite,
+          }),
+        )}
       </Table>
     </Card>
   )
 }
 
-function TeacherRow({
-  t, onSave, saving,
+function teacherRow({
+  t, value, onChange, onSave, saving, mayWrite,
 }: {
   t: NonNullable<InputsResponse['teachers']>[number]
+  value: { day: string; week: string }
+  onChange: (v: { day: string; week: string }) => void
   onSave: (v: { teacher_user_id: string; max_periods_per_day: number; max_periods_per_week: number }) => void
   saving: boolean
+  mayWrite: boolean
 }) {
-  const [day, setDay] = useState(String(t.max_periods_per_day))
-  const [week, setWeek] = useState(String(t.max_periods_per_week))
+  const day = value.day.trim()
+  const week = value.week.trim()
+  /* `Number(day) || 1` turned an emptied cap into a cap of one period a week,
+     silently, on Save. A cap has to be a number somebody typed. */
+  const bad =
+    day === '' || week === '' ||
+    !Number.isFinite(Number(day)) || !Number.isFinite(Number(week)) ||
+    Number(day) < 1 || Number(week) < 1
   const dirty =
-    Number(day) !== t.max_periods_per_day || Number(week) !== t.max_periods_per_week
+    !bad && (Number(day) !== t.max_periods_per_day || Number(week) !== t.max_periods_per_week)
   const over = t.demand_periods > t.max_periods_per_week
 
   return (
-    <tr>
+    <tr key={t.user_id}>
       <Td>
         <div className="font-medium">{t.full_name}</div>
         <div className="text-[12px] text-muted-foreground">{t.employee_code}</div>
@@ -403,10 +478,22 @@ function TeacherRow({
         {t.demand_periods}
       </Td>
       <Td>
-        <Input value={week} onChange={setWeek} type="number" className="w-20" />
+        <Input
+          value={value.week}
+          onChange={(v) => onChange({ ...value, week: v })}
+          type="number"
+          className="w-20"
+          srLabel={`Weekly period cap for ${t.full_name}`}
+        />
       </Td>
       <Td>
-        <Input value={day} onChange={setDay} type="number" className="w-16" />
+        <Input
+          value={value.day}
+          onChange={(v) => onChange({ ...value, day: v })}
+          type="number"
+          className="w-16"
+          srLabel={`Daily period cap for ${t.full_name}`}
+        />
       </Td>
       <Td className="text-[13px] text-muted-foreground">
         {t.unavailable.length === 0
@@ -416,15 +503,15 @@ function TeacherRow({
               .join(', ')}
       </Td>
       <Td>
-        {dirty && (
+        {mayWrite && dirty && (
           <Button
             size="sm"
             disabled={saving}
             onClick={() =>
               onSave({
                 teacher_user_id: t.user_id,
-                max_periods_per_day: Number(day) || 1,
-                max_periods_per_week: Number(week) || 1,
+                max_periods_per_day: Number(day),
+                max_periods_per_week: Number(week),
               })
             }
           >
@@ -442,7 +529,9 @@ function TeacherRow({
    unmet requirements takes a second, explicit confirmation. A timetable
    published two periods short should be a decision somebody made, not one
    that happened. */
-function DraftReview({ id, onGone }: { id: string; onGone: () => void }) {
+function DraftReview({
+  id, mayWrite, onGone,
+}: { id: string; mayWrite: boolean; onGone: () => void }) {
   const qc = useQueryClient()
   const [section, setSection] = useState('')
 
@@ -500,14 +589,33 @@ function DraftReview({ id, onGone }: { id: string; onGone: () => void }) {
           title={`${d.name} — what it could not do`}
           description={`${d.periods_placed} of ${d.periods_required} periods placed.`}
           action={
-            d.status === 'draft' ? (
+            d.status === 'draft' && mayWrite ? (
               <>
                 <ConfirmButton
                   confirmLabel="Publish"
+                  /* Both halves, always.
+
+                     The two branches each used to say one half, and the more
+                     dangerous branch said the safer half: a draft that leaves
+                     requirements unmet warned about the unmet count and never
+                     mentioned that publishing overwrites the live week, while
+                     the clean draft mentioned the overwrite and not the count.
+                     Publishing replaces a grid a school may have spent a week
+                     building, so what it destroys is named first, with the
+                     number of sections it destroys it for, and the unmet count
+                     is added to it rather than replacing it. The list of what
+                     is unmet stays on screen underneath while this is read —
+                     ConfirmButton asks inline, it does not cover the page. */
                   question={
                     blocking.length
-                      ? `${blocking.length} requirements stay unmet.`
-                      : 'This replaces the live timetable for these sections.'
+                      ? `Replaces the live timetable for ${sections.length} section${
+                          sections.length === 1 ? '' : 's'
+                        }, and ${blocking.length} requirement${
+                          blocking.length === 1 ? '' : 's'
+                        } listed below stay unmet.`
+                      : `Replaces the live timetable for ${sections.length} section${
+                          sections.length === 1 ? '' : 's'
+                        }.`
                   }
                   variant="primary"
                   onConfirm={() => publish.mutate(blocking.length > 0)}

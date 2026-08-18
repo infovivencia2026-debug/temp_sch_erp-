@@ -153,11 +153,23 @@ export default function BoardLOC() {
   const d = detail.data
   const blockers = d?.issues.filter((i) => i.severity === 'blocker') ?? []
   const warnings = d?.issues.filter((i) => i.severity === 'warning') ?? []
-  // A candidate is submittable when nothing blocking is recorded against them.
-  const blocked = new Set(blockers.map((i) => i.admission_no ?? ''))
-  const shown = showAll ? d?.candidates ?? [] : (d?.candidates ?? []).filter(
-    (c) => blocked.has(c.admission_no ?? ''),
+  /* A candidate is submittable when nothing blocking is recorded against them.
+
+     Keyed on the admission number, and only on a real one. `admission_no ?? ''`
+     put the empty string in the set the moment any blocker was not attributable
+     to a named candidate — and then every candidate without an admission number
+     matched it, so "candidates with a problem" listed children who had none.
+     A blocker nobody can be matched to still has to be visible, so it pulls in
+     the candidates who have no number rather than nobody at all. */
+  const blockedNumbers = new Set(
+    blockers.map((i) => i.admission_no).filter((a): a is string => !!a),
   )
+  const unattributedBlocker = blockers.some((i) => !i.admission_no)
+  const shown = showAll
+    ? d?.candidates ?? []
+    : (d?.candidates ?? []).filter((c) =>
+        c.admission_no ? blockedNumbers.has(c.admission_no) : unattributedBlocker,
+      )
 
   return (
     <>
@@ -219,7 +231,15 @@ export default function BoardLOC() {
                         </Td>
                         <Td>{s.filed_at ? formatDate(s.filed_at) : '—'}</Td>
                         <Td>
-                          <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            /* The acknowledgement number belongs to the list it
+                               was typed against. Opening another one used to
+                               carry it across, and it is written onto a filed
+                               record that then freezes. */
+                            onClick={() => { setSelected(s.id); setAck('') }}
+                          >
                             Open
                           </Button>
                         </Td>
@@ -454,7 +474,22 @@ function NewForm({
           <Input value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
         </Field>
       </FormGrid>
-      <Button disabled={create.isPending} onClick={() => create.mutate()}>
+      {/* `Number(form.fee || 0)` made an empty box mean nought rupees, and the
+          fee is what every candidate's payment is checked against — so a blank
+          box silently turned the fee check off and passed the whole roll.
+          A typo is worse: Number('12o') is NaN, which JSON writes as null.
+          Nought is still sayable by typing it. */}
+      <Button
+        disabled={
+          create.isPending ||
+          !form.board.trim() ||
+          !form.exam_name.trim() ||
+          form.fee.trim() === '' ||
+          !Number.isFinite(Number(form.fee)) ||
+          Number(form.fee) < 0
+        }
+        onClick={() => create.mutate()}
+      >
         {create.isPending ? 'Reading the roll…' : 'Build the list'}
       </Button>
       <FormNotice error={create.error} />

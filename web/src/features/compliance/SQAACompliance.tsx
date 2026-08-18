@@ -226,6 +226,11 @@ export default function SQAACompliance() {
           <Loading />
         ) : frameworks.error ? (
           <ErrorState error={frameworks.error} />
+        ) : list.error ? (
+          /* Only the frameworks query was checked, so a failed assessments call
+             fell through and rendered the empty state: "no self-assessment
+             started yet" to a school that has one. */
+          <ErrorState error={list.error} />
         ) : (
           <>
             {!frameworks.data?.items.length && (
@@ -311,7 +316,21 @@ export default function SQAACompliance() {
                         </Badge>
                       </Td>
                       <Td>
-                        <Button size="sm" variant="ghost" onClick={() => setSelected(a.id)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          /* The half-written corrective action and the evidence
+                             box belong to the assessment they were typed
+                             against. addAction posts `assessment_id: current`,
+                             so carrying them across filed one assessment's
+                             action, in its own words, against another. */
+                          onClick={() => {
+                            setSelected(a.id)
+                            setAction({ title: '', detail: '', due_on: '', priority: 'normal' })
+                            setEv({ external_url: '', caption: '' })
+                            setEvidenceFor(null)
+                          }}
+                        >
                           Open
                         </Button>
                       </Td>

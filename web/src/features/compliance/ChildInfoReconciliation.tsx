@@ -356,6 +356,8 @@ export default function ChildInfoReconciliation() {
             title="Settled differences"
             description="These are why the next reconciliation is short. Forget one and it comes straight back on the next run."
           />
+          {resolutions.error && <ErrorState error={resolutions.error} />}
+          {!resolutions.error && (
           <Table
             head={['Child key', 'Difference', 'Field', 'Portal said', 'We said', 'Decision', 'By', '']}
             empty={!resolutions.data?.items.length}
@@ -383,10 +385,15 @@ export default function ChildInfoReconciliation() {
               </tr>
             ))}
           </Table>
+          )}
         </Card>
 
         <Card>
           <CardHeader title="Earlier imports" />
+          {/* "No extract has been imported yet" is a claim about the school's
+              history, and it was what a failed request said. */}
+          {imports.error && <ErrorState error={imports.error} />}
+          {!imports.error && (
           <Table
             head={['When', 'File', 'Rows', 'Portal only', 'School only', 'Disagree', 'Hidden', 'Open', 'By']}
             empty={!imports.data?.items.length}
@@ -406,6 +413,7 @@ export default function ChildInfoReconciliation() {
               </tr>
             ))}
           </Table>
+          )}
         </Card>
       </PageBody>
     </>

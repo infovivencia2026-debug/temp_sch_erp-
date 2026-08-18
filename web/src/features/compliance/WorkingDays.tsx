@@ -296,9 +296,13 @@ export default function WorkingDays() {
                 </Button>
                 <FormNotice error={addAdjustment.error} />
               </div>
+              {/* A failed request is not "no adjustments — the figures above are
+                  the calendar as planned", which is a statement about the
+                  school's year. */}
+              {adjustments.error && <ErrorState error={adjustments.error} />}
               <Table
                 head={['Date', 'Class', 'Days', 'Minutes', 'Reason', 'Recorded by', '']}
-                empty={!adjustments.data?.items.length}
+                empty={!adjustments.data?.items.length && !adjustments.error}
                 emptyLabel="No adjustments — the figures above are the calendar as planned."
               >
                 {(adjustments.data?.items ?? []).map((a) => (
@@ -331,7 +335,12 @@ export default function WorkingDays() {
                 title="The statutory minimum"
                 description="RTE Act figures for classes I–VIII; the secondary bands are the common state norm and are editable, because states amend them and a stricter board norm is the one you will be inspected on."
               />
-              <Table head={['Stage', 'Classes', 'Minimum days', 'Minimum hours', 'Authority']}>
+              {norms.error && <ErrorState error={norms.error} />}
+              <Table
+                head={['Stage', 'Classes', 'Minimum days', 'Minimum hours', 'Authority']}
+                empty={!norms.data?.items.length && !norms.error}
+                emptyLabel="No norms on file."
+              >
                 {(norms.data?.items ?? []).map((n) => (
                   <tr key={n.id}>
                     <Td className="font-medium">{n.label}</Td>
@@ -362,9 +371,10 @@ export default function WorkingDays() {
                 </Button>
                 <FormNotice error={fileReturn.error} />
               </div>
+              {returns.error && <ErrorState error={returns.error} />}
               <Table
                 head={['Title', 'Period', 'Working days', 'Classes short', 'Filed', 'By']}
-                empty={!returns.data?.items.length}
+                empty={!returns.data?.items.length && !returns.error}
                 emptyLabel="Nothing filed yet."
               >
                 {(returns.data?.items ?? []).map((t) => (
