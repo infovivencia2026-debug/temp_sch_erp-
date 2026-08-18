@@ -440,11 +440,7 @@ How far through the academic year today is.
 	with no request behind it is how a helper ends up depending on HTTP.
 */
 func yearElapsedPercent(now time.Time) int {
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		loc = time.UTC
-	}
-	now = now.In(loc)
+	now = now.In(nowInIndia().Location())
 	start := academicYearStart(now)
 	// June to April inclusive; the rest of May is holiday and counts as done.
 	const yearDays = 334

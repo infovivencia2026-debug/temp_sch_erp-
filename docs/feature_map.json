@@ -12219,9 +12219,83 @@
   "description": "Export bank-specific bulk salary transfer text/excel files for instant bank disbursement.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.payroll.employee_ctc_breakup_calculator",
@@ -12232,9 +12306,83 @@
   "description": "Model complete Gross vs. Net vs. CTC salary packages including employer PF and ESI matches.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.payroll.overtime_ot_rate_setup",
@@ -12245,9 +12393,83 @@
   "description": "Define hourly overtime rates for non-teaching staff working during weekend school events.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.payroll.substitute_workload_allowance",
@@ -12258,9 +12480,83 @@
   "description": "Track additional proxy classes taken by teachers and compute extra substitution pay.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.payroll.staff_loan_advance_management",
@@ -12271,9 +12567,83 @@
   "description": "Process employee salary advance requests and set auto-deduction installments in monthly payroll.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.payroll.pf_encashment_loan_deduction",
@@ -12284,9 +12654,83 @@
   "description": "Process Provident Fund loan deductions and track remaining loan payback balances in payslips.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.pf_esi_statutory_compliance",
@@ -12297,9 +12741,83 @@
   "description": "Generate monthly Provident Fund (ECR) files, ESI returns, and statutory deduction registers.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.income_tax_form_16_generator",
@@ -12310,9 +12828,83 @@
   "description": "Manage investment proofs, compute annual income tax TDS, and generate Form 16.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.professional_tax_pt_slab_configuration",
@@ -12323,9 +12915,83 @@
   "description": "Configure state-specific Professional Tax deduction slabs based on gross monthly salary ranges.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.form_12bb_investment_declarations",
@@ -12336,9 +13002,83 @@
   "description": "Collect employee investment declarations with proofs, compute the resulting TDS relief and issue Form 12BB for the assessment year.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.staff_gratuity_liability_estimator",
@@ -12349,9 +13089,83 @@
   "description": "Compute cumulative statutory gratuity liabilities for employees completing >5 years of continuous service.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.statutory.contractor_security_staff_bill_verification",
@@ -12362,9 +13176,83 @@
   "description": "Verify outsourced security and cleaning vendor attendance invoices against gate biometric scans.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Statutory",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/bank-file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/contractor-bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/declarations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/ecr",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/gratuity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/loans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/settings",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/statutory",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/payroll/tax",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "hr.hiring_growth.recruitment",

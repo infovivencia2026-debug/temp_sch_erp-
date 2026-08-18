@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 205 of the catalog's features are implemented.
+// 217 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.child_info_id_capture":                        true,
 	"admissions.admissions.enrollment_handoff":                           true,
@@ -74,13 +74,25 @@ var implementedFeatures = map[string]bool{
 	"hr.attendance.staff_attendance":                                     true,
 	"hr.home.hr_kpis":                                                    true,
 	"hr.leave.leave":                                                     true,
+	"hr.payroll.direct_bank_payroll_transfer_file":                       true,
+	"hr.payroll.employee_ctc_breakup_calculator":                         true,
+	"hr.payroll.overtime_ot_rate_setup":                                  true,
 	"hr.payroll.payroll":                                                 true,
 	"hr.payroll.payslip_generation_email_dispatch":                       true,
+	"hr.payroll.pf_encashment_loan_deduction":                            true,
 	"hr.payroll.salary_structure_builder":                                true,
+	"hr.payroll.staff_loan_advance_management":                           true,
+	"hr.payroll.substitute_workload_allowance":                           true,
 	"hr.records.employee_document_expiry_alerts":                         true,
 	"hr.records.employee_documents":                                      true,
 	"hr.records.employee_master":                                         true,
 	"hr.records.staff_id_card_printing":                                  true,
+	"hr.statutory.contractor_security_staff_bill_verification":           true,
+	"hr.statutory.form_12bb_investment_declarations":                     true,
+	"hr.statutory.income_tax_form_16_generator":                          true,
+	"hr.statutory.pf_esi_statutory_compliance":                           true,
+	"hr.statutory.professional_tax_pt_slab_configuration":                true,
+	"hr.statutory.staff_gratuity_liability_estimator":                    true,
 	"institution_admin.academics.academic_structure":                     true,
 	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,

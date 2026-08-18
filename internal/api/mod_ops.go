@@ -617,6 +617,17 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 
 		daysInMonth := time.Date(req.Year, time.Month(req.Month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 
+		/* Statutory rates, read once for the whole run.
+
+		   PF and professional tax used to be fixed amounts somebody typed into
+		   a salary component. That is fine until a salary changes, at which
+		   point the deduction silently does not, and every return filed against
+		   it is wrong for the rest of the year. */
+		set, err := loadPayrollSettings(r, tx, id.InstitutionID)
+		if err != nil {
+			return err
+		}
+
 		rows, err := tx.Query(r.Context(), `
 			SELECT e.id, ss.id, ss.ctc_paise,
 			       -- staff_attendance keys on user_id, not employee_id, so loss
@@ -671,6 +682,7 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return err
 			}
+			var basicDA int64
 			for crows.Next() {
 				var code, kind string
 				var amt int64
@@ -684,12 +696,137 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 					v := int64(float64(amt) * ratio)
 					earn += v
 					breakup[code] = v
+					if code == "BASIC" || code == "DA" {
+						basicDA += v
+					}
 				case "deduction":
+					// PF, ESI and PT are computed below from the wage. A school
+					// that also carries them as fixed components would otherwise
+					// be deducting each of them twice.
+					if code == "PF" || code == "ESI" || code == "PT" {
+						continue
+					}
 					deduct += amt
 					breakup[code] = -amt
 				}
 			}
 			crows.Close()
+
+			/* Proxy periods taken this month.
+
+			   Paid as an allowance rather than folded into salary, because a
+			   teacher covering nine periods in November and none in December
+			   has earned different amounts, and a fixed component cannot say
+			   so. substitutions keys on the user, which is how a teacher is
+			   identified in the timetable. */
+			if set.SubstitutionPaise > 0 {
+				var proxies int
+				if err := tx.QueryRow(r.Context(), `
+					SELECT count(*)::int FROM substitutions sub
+					 WHERE sub.substitute_user_id = (SELECT user_id FROM employees WHERE id = $1)
+					   AND extract(month FROM sub.on_date) = $2
+					   AND extract(year  FROM sub.on_date) = $3`,
+					e.id, req.Month, req.Year).Scan(&proxies); err != nil {
+					return err
+				}
+				if proxies > 0 {
+					v := int64(proxies) * set.SubstitutionPaise
+					earn += v
+					breakup["SUBST"] = v
+				}
+			}
+
+			st := computeStatutory(set, basicDA, earn, req.Month)
+			for code, amt := range map[string]int64{
+				"PF": st.PFEmployee, "ESI": st.ESIEmployee, "PT": st.PT,
+			} {
+				if amt > 0 {
+					deduct += amt
+					breakup[code] = -amt
+				}
+			}
+			// The employer's own contributions, recorded on the payslip so the
+			// ECR file and the CTC statement read from the same numbers the
+			// employee was shown.
+			for code, amt := range map[string]int64{
+				"PF_EMPLOYER": st.PFEmployer, "EPS": st.EPS,
+				"ESI_EMPLOYER": st.ESIEmployer,
+			} {
+				if amt > 0 {
+					breakup[code] = amt
+				}
+			}
+
+			/* Any advance being recovered this month.
+
+			   Recorded as its own row rather than only as a payslip line, so
+			   the outstanding balance stays derivable from what was actually
+			   taken. The instalment is capped at what is still owed, because
+			   the last one is nearly always smaller than the rest. */
+			lrows, err := tx.Query(r.Context(), `
+				SELECT l.id, l.instalment_paise,
+				       GREATEST(0, l.principal_paise - COALESCE((
+				           SELECT sum(ld.amount_paise) FROM loan_deductions ld
+				            WHERE ld.loan_id = l.id), 0))
+				  FROM staff_loans l
+				 WHERE l.employee_id = $1 AND l.status = 'active'
+				   AND make_date($3, $2, 1) >= make_date(l.start_year, l.start_month, 1)`,
+				e.id, req.Month, req.Year)
+			if err != nil {
+				return err
+			}
+			type due struct {
+				id            uuid.UUID
+				instal, owing int64
+			}
+			var dues []due
+			for lrows.Next() {
+				var d due
+				if err := lrows.Scan(&d.id, &d.instal, &d.owing); err != nil {
+					lrows.Close()
+					return err
+				}
+				dues = append(dues, d)
+			}
+			lrows.Close()
+			if err := lrows.Err(); err != nil {
+				return err
+			}
+			var loanCut int64
+			for _, d := range dues {
+				if d.owing <= 0 {
+					continue
+				}
+				take := d.instal
+				if take > d.owing {
+					take = d.owing
+				}
+				if _, err := tx.Exec(r.Context(), `
+					INSERT INTO loan_deductions
+					    (institution_id, loan_id, payroll_run_id, period_year,
+					     period_month, amount_paise)
+					VALUES ($1,$2,$3,$4,$5,$6)
+					ON CONFLICT (loan_id, period_year, period_month)
+					DO UPDATE SET amount_paise = EXCLUDED.amount_paise,
+					              payroll_run_id = EXCLUDED.payroll_run_id`,
+					id.InstitutionID, d.id, runID, req.Year, req.Month, take); err != nil {
+					return err
+				}
+				loanCut += take
+				// Close it the moment the last instalment is taken, rather than
+				// leaving a settled advance sitting in the active list.
+				if take >= d.owing {
+					if _, err := tx.Exec(r.Context(),
+						`UPDATE staff_loans SET status='closed', closed_on=current_date
+						  WHERE id = $1`, d.id); err != nil {
+						return err
+					}
+				}
+			}
+			if loanCut > 0 {
+				deduct += loanCut
+				breakup["ADVANCE"] = -loanCut
+			}
 
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO payslips (institution_id, payroll_run_id, employee_id, paid_days,

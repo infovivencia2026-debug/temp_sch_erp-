@@ -82,17 +82,32 @@ func financialYearStart(now time.Time) time.Time {
 	return time.Date(year, time.April, 1, 0, 0, 0, 0, now.Location())
 }
 
+/*
+nowInIndia is the current moment in the only timezone this product has.
+
+	A box running UTC rolls into tomorrow at half past five in the evening
+	local, so "today" went blank every evening — a bug three separate files
+	had each fixed for themselves before this existed.
+*/
+func nowInIndia() time.Time {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		// A container without tzdata should not make dates wrong by five and a
+		// half hours in silence; the fixed offset is India's and does not
+		// change with the season.
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	return time.Now().In(loc)
+}
+
 // resolveRange reads ?period= or ?from=&to= and works out the bounds.
 //
 // Dates are resolved in Asia/Kolkata rather than the server's clock. A box in
 // UTC rolls into tomorrow at 05:30 local, so "today's attendance" went blank
 // every evening — the same bug the teacher's timetable already had to fix.
 func resolveRange(r *http.Request) dateRange {
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		loc = time.UTC
-	}
-	now := time.Now().In(loc)
+	now := nowInIndia()
+	loc := now.Location()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
 	q := r.URL.Query()

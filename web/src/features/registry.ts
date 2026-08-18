@@ -295,6 +295,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': lazy(() => import('./hr/Leave')),
+  /* Statutory payroll: PF, ESI and professional tax computed from each wage,
+     the returns they generate, and the three things a payroll office does
+     around the payslip — withhold tax, lend against salary, and check the
+     security agency billed for guards who turned up. */
+  'hr.payroll.direct_bank_payroll_transfer_file': lazy(() => import('./hr/Statutory')),
+  'hr.payroll.employee_ctc_breakup_calculator': lazy(() => import('./hr/Statutory')),
+  'hr.payroll.overtime_ot_rate_setup': lazy(() => import('./hr/Statutory')),
+  'hr.payroll.substitute_workload_allowance': lazy(() => import('./hr/Statutory')),
+  'hr.payroll.staff_loan_advance_management': lazy(() => import('./hr/Statutory')),
+  'hr.payroll.pf_encashment_loan_deduction': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.pf_esi_statutory_compliance': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.income_tax_form_16_generator': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.professional_tax_pt_slab_configuration': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.form_12bb_investment_declarations': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.staff_gratuity_liability_estimator': lazy(() => import('./hr/Statutory')),
+  'hr.statutory.contractor_security_staff_bill_verification': lazy(() => import('./hr/Statutory')),
+
   'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
 
   // One export screen, filtered server-side by what the caller may take out.

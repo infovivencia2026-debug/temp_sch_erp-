@@ -377,6 +377,25 @@ func (s *Server) Routes() http.Handler {
 			r.Use(httpx.RequirePermission(rbac.PayrollRead))
 			r.Get("/payslips", s.listPayslips)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/run", s.runPayroll)
+
+			/* Statutory payroll: the rates, the returns they generate, and the
+			   three things a payroll office does around the payslip — withhold
+			   tax, lend money against salary, and check the security agency
+			   billed for guards who turned up. */
+			r.Get("/settings", s.getPayrollSettings)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Put("/settings", s.savePayrollSettings)
+			r.Get("/statutory", s.getStatutoryRegister)
+			r.Get("/ecr", s.getECRFile)
+			r.Get("/bank-file", s.getBankFile)
+			r.Get("/ctc", s.getCTCBreakup)
+			r.Get("/gratuity", s.getGratuityLiability)
+			r.Get("/tax", s.getTaxComputation)
+			r.Get("/declarations", s.listDeclarations)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/declarations", s.saveDeclaration)
+			r.Get("/loans", s.listStaffLoans)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/loans", s.saveStaffLoan)
+			r.Get("/contractor-bills", s.listContractorBills)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/contractor-bills", s.saveContractorBill)
 		})
 
 		// --- Operations desks (module 10) ----------------------------------
