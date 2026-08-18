@@ -295,7 +295,7 @@ function KPITab({
             <Select value={cycleID} onChange={onCycle}
               options={cycles.map((c) => ({ value: c.id, label: c.name }))} />
             <Select value={designation} onChange={(v) => { setDesignation(v); setDraft([]) }}
-              placeholder="Default set (all roles)"
+              placeholder={designations.error ? 'Roles unavailable' : 'Default set (all roles)'}
               options={(designations.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))} />
           </div>
         }
@@ -460,7 +460,17 @@ function RecordsTab({
         </Table>
       </Card>
 
-      {open && <DiscussionCard appraisal={open} onDone={() => { setOpen(null); invalidate() }} />}
+      {open && (
+        /* Keyed by the appraisal. The card prefills the discussion date from
+           the record and holds the note, so opening a second appraisal reused
+           both — and the note is the written record of a performance
+           conversation, filed against whoever was open when Save was pressed. */
+        <DiscussionCard
+          key={open.id}
+          appraisal={open}
+          onDone={() => { setOpen(null); invalidate() }}
+        />
+      )}
     </>
   )
 }

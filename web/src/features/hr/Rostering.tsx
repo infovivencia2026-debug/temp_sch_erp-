@@ -197,6 +197,22 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
   const [reason, setReason] = useState('')
   const [clashes, setClashes] = useState<Clash[]>([])
 
+  /* Change who, what or when and the clash list and the override both lapse.
+
+     The reason is written onto every duty it covers, so it is a record of why
+     this person was rostered over that period — and it survived a change of
+     person. Typing "Board practical; the period is suspended" for one teacher,
+     then picking another from the list, left the reason in the box, the old
+     clashes on screen describing an assignment nobody was making any more, and
+     the button still reading "Roster anyway" — so a second teacher could be
+     rostered carrying the first one's explanation, or over a clash-free slot
+     that never needed one. */
+  const retarget = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v)
+    setClashes([])
+    setReason('')
+  }
+
   const teachers = useQuery({
     queryKey: ['timetable', 'teachers'],
     queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
@@ -261,18 +277,23 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
           <FormGrid>
             <Field label="Shift" required
               hint={chosen ? `${chosen.starts_at}–${chosen.ends_at}, ${chosen.weekdays.map((d) => WEEKDAYS[d - 1]).join(' ')}` : undefined}>
-              <Select value={shift} onChange={setShift} placeholder="Choose a duty"
+              <Select value={shift} onChange={retarget(setShift)} placeholder="Choose a duty"
                 options={shifts.filter((s) => s.is_active).map((s) => ({
                   value: s.id,
                   label: `${s.name} (${s.starts_at}–${s.ends_at})${s.is_onerous ? ' ·  unpopular' : ''}`,
                 }))} />
             </Field>
-            <Field label="Member of staff" required>
-              <Select value={user} onChange={setUser} placeholder="Choose"
+            <Field
+              label="Member of staff"
+              required
+              hint={teachers.error ? 'The staff list could not be loaded, so there is nobody to choose.' : undefined}
+            >
+              <Select value={user} onChange={retarget(setUser)}
+                placeholder={teachers.error ? 'Unavailable' : 'Choose'}
                 options={(teachers.data?.items ?? []).map((t) => ({ value: t.id, label: nameOf(t) }))} />
             </Field>
-            <Field label="From" required><Input value={from} onChange={setFrom} type="date" /></Field>
-            <Field label="To" hint="Leave blank for a single day"><Input value={to} onChange={setTo} type="date" /></Field>
+            <Field label="From" required><Input value={from} onChange={retarget(setFrom)} type="date" /></Field>
+            <Field label="To" hint="Leave blank for a single day"><Input value={to} onChange={retarget(setTo)} type="date" /></Field>
           </FormGrid>
 
           {clashes.length > 0 && (

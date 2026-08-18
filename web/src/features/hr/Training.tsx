@@ -105,7 +105,11 @@ export default function Training() {
               : { value: 'Everyone tracked has met the requirement', positive: true }} />
           <Stat label="Hours logged" value={totalHours.toFixed(0)} icon={BookOpen}
             period="This academic year" />
-          <Stat label="Programmes run" value={programmes.data?.items.length ?? 0} />
+          <Stat
+            label="Programmes run"
+            value={programmes.error ? '—' : programmes.data?.items.length ?? 0}
+            hint={programmes.error ? 'The programme list could not be read' : undefined}
+          />
           <Stat label="Certificates on file" value={certificates} icon={Award} />
         </CellGrid>
 
@@ -141,8 +145,11 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
           title="What is expected"
           description="The number is the board's, not the software's. CBSE asks fifty hours a year of teaching staff; a school answering to another board edits the figure, and a school that holds itself to more can say so."
         />
+        {/* "No requirement set" is a statement about what the school holds
+            itself to; a failed request is not entitled to make it. */}
+        {requirements.error && <ErrorState error={requirements.error} />}
         <Table head={['Applies to', 'Year', { label: 'Hours', align: 'right' }, 'Authority']}
-          empty={(requirements.data?.items ?? []).length === 0}
+          empty={(requirements.data?.items ?? []).length === 0 && !requirements.error}
           emptyLabel="No requirement set.">
           {(requirements.data?.items ?? []).map((q) => (
             <tr key={q.id}>
@@ -328,7 +335,11 @@ function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
       </Card>
 
       {logging && (
+        /* Keyed by the programme: the card holds who attended, their hours and
+           their certificate number, and those belong to the programme they were
+           entered against. */
         <AttendanceCard
+          key={logging.id}
           programme={logging}
           onDone={() => {
             setLogging(null)

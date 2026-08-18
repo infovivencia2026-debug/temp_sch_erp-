@@ -251,8 +251,12 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
             <Field label="Post" required>
               <Input value={title} onChange={setTitle} placeholder="TGT Science" />
             </Field>
-            <Field label="Designation">
-              <Select value={designation} onChange={setDesignation} placeholder="Not specified"
+            <Field
+              label="Designation"
+              hint={designations.error ? 'The list of roles could not be loaded.' : undefined}
+            >
+              <Select value={designation} onChange={setDesignation}
+                placeholder={designations.error ? 'Unavailable' : 'Not specified'}
                 options={(designations.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))} />
             </Field>
             <Field label="Positions" hint="Three PRTs against one requisition is one post with three seats">
@@ -496,7 +500,18 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
         </Table>
       </Card>
 
-      {hiring && <HireCard candidate={hiring} onDone={() => { setHiring(null); invalidate() }} />}
+      {hiring && (
+        /* Keyed by the candidate. The card holds the employee code, the joining
+           date and the employment type; opening a second candidate reused them,
+           so one person could be appointed on another's terms — and an employee
+           code is unique, so the mistake surfaces as a constraint violation on
+           a screen that had shown the number as already filled in. */
+        <HireCard
+          key={hiring.id}
+          candidate={hiring}
+          onDone={() => { setHiring(null); invalidate() }}
+        />
+      )}
     </>
   )
 }
