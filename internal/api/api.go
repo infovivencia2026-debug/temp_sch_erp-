@@ -221,6 +221,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Accounts & Finance -------------------------------------------
 		r.Route("/finance", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.InvoicesRead))
+			s.mountLedgers(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)

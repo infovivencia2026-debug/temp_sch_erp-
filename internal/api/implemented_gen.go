@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 270 of the catalog's features are implemented.
+// 280 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -78,6 +78,8 @@ var implementedFeatures = map[string]bool{
 	"faculty.teaching.syllabus_progress_tracker":                         true,
 	"faculty.teaching.teacher_digital_diary":                             true,
 	"faculty.timetable.my_timetable":                                     true,
+	"finance.assets_budget.budgeting_variance_analysis":                  true,
+	"finance.assets_budget.fixed_asset_register_depreciation":            true,
 	"finance.collections.collect_payment":                                true,
 	"finance.collections.online_payments":                                true,
 	"finance.collections.partial_advance_payments":                       true,
@@ -90,9 +92,17 @@ var implementedFeatures = map[string]bool{
 	"finance.fee_structure.fee_head_group_setup":                         true,
 	"finance.home.finance_kpis":                                          true,
 	"finance.home.needs_attention":                                       true,
+	"finance.ledgers.chart_of_accounts_setup":                            true,
+	"finance.ledgers.expenses_accounting":                                true,
+	"finance.ledgers.financial_year_closing":                             true,
+	"finance.ledgers.general_ledger_trial_balance":                       true,
+	"finance.payables.petty_cash_voucher_management":                     true,
+	"finance.payables.vendor_management_accounts_payable":                true,
 	"finance.reconciliation.payment_gateway_reconciliation":              true,
 	"finance.reconciliation.reconciliation":                              true,
+	"finance.reports.daybook_cashbook_reports":                           true,
 	"finance.reports.finance_reports":                                    true,
+	"finance.reports.taxation_audit_reports":                             true,
 	"finance.student_dues.cheque_bounce_fine_engine":                     true,
 	"finance.student_dues.defaulters_reminders":                          true,
 	"finance.student_dues.post_dated_cheques_pdc_registry":               true,

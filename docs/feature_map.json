@@ -7711,6 +7711,20 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/teaching/communication",
     "methods": [
      "GET"
@@ -7726,6 +7740,13 @@
    },
    {
     "path": "/api/v1/teaching/remarks",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/terms",
     "methods": [
      "GET"
     ],
@@ -7746,10 +7767,31 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
     "path": "/api/v1/teaching/broadcasts",
     "methods": [
      "GET",
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/terms",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    }
@@ -7768,6 +7810,20 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/teaching/remarks",
     "methods": [
      "POST"
@@ -7776,6 +7832,13 @@
    },
    {
     "path": "/api/v1/teaching/remarks:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/terms",
     "methods": [
      "GET"
     ],
@@ -7803,12 +7866,33 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/teaching/report-remarks",
     "methods": [
      "GET",
      "PUT"
     ],
     "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/terms",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -7853,10 +7937,31 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/teaching/ptm-notes",
     "methods": [
      "GET",
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/terms",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    }
@@ -8525,6 +8630,13 @@
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -8701,6 +8813,13 @@
    },
    {
     "path": "/api/v1/portal/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
     "methods": [
      "GET"
     ],
@@ -9021,6 +9140,13 @@
      "GET"
     ],
     "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -9041,6 +9167,13 @@
     "methods": [
      "GET",
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    }
@@ -9177,6 +9310,13 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/workflow/leave",
     "methods": [
      "POST"
@@ -9208,6 +9348,13 @@
     "path": "/api/v1/portal/leave/:param/cancel",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -9344,6 +9491,13 @@
     "path": "/api/v1/portal/pickup/:param/revoke",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    }
@@ -10577,9 +10731,32 @@
   "description": "Basic institutional expense/account views if accounting is part of the ERP; otherwise integrate with finance system.",
   "scope": "Assigned institution/campus finance scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/Expenses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/expenses",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.ledgers.chart_of_accounts_setup",
@@ -10590,9 +10767,26 @@
   "description": "Define primary ledgers, income heads, expense heads, and asset/liability structure.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/ChartOfAccounts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.ledgers.general_ledger_trial_balance",
@@ -10603,9 +10797,53 @@
   "description": "Post and review double-entry vouchers, run a trial balance, income and expenditure statement and balance sheet for the year; the books an auditor asks for.",
   "scope": "Assigned institution/campus finance scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/GeneralLedger",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/statements",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/trial-balance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/vouchers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/vouchers/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.ledgers.financial_year_closing",
@@ -10616,9 +10854,38 @@
   "description": "Execute year-end financial closing, carry forward balances, and lock prior accounting periods.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/YearClosing",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/years/close",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.payables.petty_cash_voucher_management",
@@ -10629,9 +10896,39 @@
   "description": "Log daily cash expenses, upload paper receipts, and enforce petty cash limit approvals.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/PettyCash",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/petty-cash",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/petty-cash/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.payables.vendor_management_accounts_payable",
@@ -10642,9 +10939,54 @@
   "description": "Maintain vendor directory, log purchase bills, track due dates, and issue payment vouchers.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/Payables",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/bills",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/bills/:param/approve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/bills/:param/pay",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/vendors",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.assets_budget.budgeting_variance_analysis",
@@ -10655,9 +10997,38 @@
   "description": "Set annual departmental budgets and track real-time actual spend versus allocated budget.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/Budgets",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/budgets",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/budgets/lines",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.assets_budget.fixed_asset_register_depreciation",
@@ -10668,9 +11039,39 @@
   "description": "Track capital assets with purchase value, useful life and location; compute straight-line or WDV depreciation and post the annual charge.",
   "scope": "Assigned institution/campus finance scope",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/FixedAssets",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/assets",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/assets/depreciate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.export.tally_prime_xml_export",
@@ -10715,9 +11116,38 @@
   "description": "Generate daily cashbook transactions, summary collections, and closing cash register.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/CashBooks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/cashbook",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/daybook",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.reports.taxation_audit_reports",
@@ -10728,9 +11158,38 @@
   "description": "Export GST summaries, TDS collection reports, and audited financial statements.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/TaxAudit",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/audit-report",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/tax-report",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.home.admissions_kpis",

@@ -89,7 +89,17 @@ RAW_FETCH = re.compile(
 # A screen's endpoints are not all in its own file: the wizard's forms live in
 # panels.tsx and the role picker in RolePicker.tsx. Following relative imports
 # one level keeps a helper's endpoints attributed to the screen that shows them.
-RELATIVE_IMPORT = re.compile(r"from\s+'\.\/([A-Za-z0-9_]+)'")
+# Hyphens and .ts as well as .tsx: a module named ledger-lib.ts matched
+# neither, so ten screens' endpoints were invisible and they were reported as
+# static pages that call nothing.
+RELATIVE_IMPORT = re.compile(r"from\s+'\.\/([A-Za-z0-9_-]+)'")
+
+
+# A path built from a shared constant — `${ledgerBase}/trial-balance` — reads
+# as a template hole, not as a path, so a whole module's endpoints vanished and
+# ten screens were reported as having nothing to probe. Substituting the
+# constant is the difference between "we cannot see it" and "it is not there".
+CONST_PATH = re.compile(r"(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*'(/api/v1/[^']*)'")
 
 
 def endpoints_for(component: str):
@@ -99,9 +109,24 @@ def endpoints_for(component: str):
         return []
     src = path.read_text()
     for sibling in RELATIVE_IMPORT.findall(src):
-        helper = path.parent / (sibling + ".tsx")
-        if helper.exists() and helper != path:
-            src += "\n" + helper.read_text()
+        for ext in (".tsx", ".ts"):
+            helper = path.parent / (sibling + ext)
+            if helper.exists() and helper != path:
+                src += "\n" + helper.read_text()
+
+    # Resolve base-path constants, following the alias a module may re-export
+    # them under, before any path is read out of the source.
+    consts = dict(CONST_PATH.findall(src))
+    for alias, target in re.findall(r"(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9_]+)\s*$",
+                                    src, re.M):
+        if target in consts:
+            consts[alias] = consts[target]
+    for name, value in consts.items():
+        src = src.replace("${" + name + "}", value)
+    # The declaration itself is a string literal starting /api/v1, so leaving it
+    # in makes the bare base look like a route. It is a prefix, not an endpoint,
+    # and probing it yields a 404 that says nothing about the screen.
+    src = CONST_PATH.sub("", src)
 
     found = {}
     for verb, url in CALL.findall(src):
