@@ -226,6 +226,7 @@ func (s *Server) Routes() http.Handler {
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
 			s.mountStudentLearning(r)
+			s.mountStudentLife(r)
 		})
 
 		// --- Accounts & Finance -------------------------------------------
