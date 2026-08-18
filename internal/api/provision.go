@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/auth"
+	"github.com/school-erp/erp/internal/entitlement"
 	"github.com/school-erp/erp/internal/rbac"
 )
 
@@ -169,6 +170,13 @@ func provisionSchool(ctx context.Context, tx pgx.Tx, hasher *auth.Hasher, p prov
 
 	if p.PlanCode != "" {
 		if err := startSubscription(ctx, tx, out.InstitutionID, p); err != nil {
+			return out, err
+		}
+		// Switch on exactly the modules the plan includes. Without this the
+		// tiers are priced fiction: every tenant saw every module regardless
+		// of what they paid, because nothing ever wrote module_settings from
+		// a plan.
+		if err := entitlement.ApplyPlan(ctx, tx, out.InstitutionID, p.PlanCode); err != nil {
 			return out, err
 		}
 	}

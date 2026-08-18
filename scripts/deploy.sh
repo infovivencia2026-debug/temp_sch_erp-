@@ -18,7 +18,11 @@ FQDN="${FQDN:-temperp.187-127-178-100.sslip.io}"
 APP_DIR="${APP_DIR:-/opt/${SERVICE}}"
 WEBROOT="${WEBROOT:-/var/www/${SERVICE}}"
 ENV_FILE="/etc/${SERVICE}.env"
-DIST="/tmp/${SERVICE}-dist"
+# Overridable so two operators deploying at once do not consume each other's
+# uploads. The shared default is a race: `install` takes whatever is sitting in
+# the directory at the moment it runs, so an upload that lands in between puts
+# somebody else's binaries into /opt under your migration set.
+DIST="${DIST:-/tmp/${SERVICE}-dist}"
 
 DB_NAME="${SERVICE}"
 DB_OWNER="${SERVICE}_owner"

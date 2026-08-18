@@ -40,6 +40,11 @@ func (s *Server) Routes() http.Handler {
 		// after RequireAuth (there is no identity to amend before it) and
 		// before every handler that reads one.
 		r.Use(ActingInstitution(s.DB))
+		// What the school has *bought*, as distinct from what the user may
+		// do. Sits after ActingInstitution so a platform operator working
+		// inside a tenant is judged by that tenant's subscription, not by
+		// their own absence of one.
+		r.Use(s.RequireSubscription)
 
 		r.Get("/ref-data", s.getRefData)
 		// The period presets every metric picker offers. Published so the

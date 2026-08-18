@@ -76,6 +76,15 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// What the school bought. Resolved once rather than per section: the
+	// answer cannot change during a single response, and 82 sections would
+	// otherwise mean 82 identical queries.
+	ent, err := s.entitlementFor(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
 	resp := catalogResponse{
 		Roles: []catalogRole{},
 		Scope: resolvedScope{
@@ -100,6 +109,13 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		out := catalogRole{Key: role.Key, Name: role.Name, Sections: []catalogSection{}}
 
 		for _, sec := range role.Sections {
+			// A module the school did not buy is absent, not greyed out. A
+			// disabled control that never becomes enabled is an advert
+			// wearing the clothes of a feature, and the school's own staff
+			// cannot tell it from something broken.
+			if !ent.Allows(sec.Slug) {
+				continue
+			}
 			cs := catalogSection{
 				Slug: sec.Slug, Name: sec.Name, Workspace: sec.Workspace,
 				Features: []catalogFeature{},

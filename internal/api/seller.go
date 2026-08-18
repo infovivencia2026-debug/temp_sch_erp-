@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/school-erp/erp/internal/entitlement"
 	"github.com/school-erp/erp/internal/httpx"
 )
 
@@ -327,6 +328,19 @@ func (s *Server) setSubscription(w http.ResponseWriter, r *http.Request) {
 			instID, req.PlanCode, req.Status, req.RenewsOn, req.Licensed,
 			req.Notes); err != nil {
 			return err
+		}
+
+		// Changing the plan changes what the school may reach. Re-applied
+		// here as well as at provisioning, because an upgrade that does not
+		// unlock the module the school just paid for is the single most
+		// expensive support call this product can generate.
+		var plan string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT plan_code FROM subscriptions
+			  WHERE institution_id = $1 AND status <> 'cancelled'`, instID).Scan(&plan); err == nil {
+			if err := entitlement.ApplyPlan(r.Context(), tx, instID, plan); err != nil {
+				return err
+			}
 		}
 
 		// A suspended subscription must actually lock the door.

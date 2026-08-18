@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/school-erp/erp/internal/entitlement"
 	"github.com/school-erp/erp/internal/httpx"
 )
 
@@ -15,6 +16,10 @@ type sessionResponse struct {
 	Institution   *institution  `json:"institution,omitempty"`
 	Permissions   []string      `json:"permissions"`
 	Modules       []moduleState `json:"modules,omitempty"`
+	// Subscription is what the school has bought and whether it is paid up.
+	// The client needs it before it renders anything: a locked school gets a
+	// notice, not an empty dashboard that looks like the data was lost.
+	Subscription *subscriptionState `json:"subscription,omitempty"`
 }
 
 type sessionUser struct {
@@ -32,6 +37,19 @@ type institution struct {
 	PrimaryColor string `json:"primary_color"`
 	Timezone     string `json:"timezone"`
 	Locale       string `json:"locale"`
+}
+
+// subscriptionState is the commercial half of "who am I", alongside the
+// permissions half.
+type subscriptionState struct {
+	Active      bool     `json:"active"`
+	Code        string   `json:"code,omitempty"`
+	Reason      string   `json:"reason,omitempty"`
+	PlanCode    string   `json:"plan_code,omitempty"`
+	PlanName    string   `json:"plan_name,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	TrialEndsOn string   `json:"trial_ends_on,omitempty"`
+	Modules     []string `json:"modules"`
 }
 
 type moduleState struct {
@@ -115,7 +133,26 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			}
 			resp.Modules = append(resp.Modules, m)
 		}
-		return mrows.Err()
+		if err := mrows.Err(); err != nil {
+			return err
+		}
+
+		// The commercial standing, from the same transaction so it cannot
+		// disagree with the modules read a few lines above.
+		st, err := entitlement.Resolve(r.Context(), tx, id.InstitutionID)
+		if err != nil {
+			return err
+		}
+		ss := &subscriptionState{
+			Active: st.Active, Code: st.Code, Reason: st.Reason,
+			PlanCode: st.PlanCode, PlanName: st.PlanName,
+			Status: st.Status, Modules: st.Modules(),
+		}
+		if st.TrialEndsOn != nil {
+			ss.TrialEndsOn = st.TrialEndsOn.Format("2006-01-02")
+		}
+		resp.Subscription = ss
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
