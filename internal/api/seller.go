@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
-	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* The vendor's own back office.
@@ -198,132 +197,26 @@ func (s *Server) provisionTenant(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	req.SchoolName = strings.TrimSpace(req.SchoolName)
-	req.AdminName = strings.TrimSpace(req.AdminName)
-	if req.SchoolName == "" {
-		httpx.BadRequest(w, r, "the school needs a name")
-		return
-	}
-	if req.AdminName == "" {
-		httpx.BadRequest(w, r, errNoAdminName.Error())
-		return
-	}
-	if req.AdminEmail == "" && req.AdminPhone == "" && req.AdminUsername == "" {
-		httpx.BadRequest(w, r,
-			"give the administrator an email, a phone number or a username — "+
-				"without one of the three they cannot sign in")
-		return
+
+	p := provisionParams{
+		SchoolName:    strings.TrimSpace(req.SchoolName),
+		ShortName:     strings.TrimSpace(req.ShortName),
+		District:      req.District,
+		State:         req.State,
+		Board:         req.Board,
+		PlanCode:      req.PlanCode,
+		AdminName:     strings.TrimSpace(req.AdminName),
+		AdminEmail:    req.AdminEmail,
+		AdminPhone:    req.AdminPhone,
+		AdminUsername: strings.ToLower(strings.TrimSpace(req.AdminUsername)),
+		TrialDays:     req.TrialDays,
 	}
 
-	short := strings.TrimSpace(req.ShortName)
-	if short == "" {
-		short = deriveShortName(req.SchoolName)
-	}
-	username := strings.ToLower(strings.TrimSpace(req.AdminUsername))
-	password, err := temporaryPassword()
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	hash, err := s.Hasher.Hash(password)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-
-	var out struct {
-		InstitutionID string `json:"institution_id"`
-		UserID        string `json:"user_id"`
-		Slug          string `json:"slug"`
-	}
-	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		if req.PlanCode != "" {
-			var ok bool
-			if err := tx.QueryRow(r.Context(),
-				`SELECT true FROM plans WHERE code = $1`, req.PlanCode).Scan(&ok); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					return errNoPlan
-				}
-				return err
-			}
-		}
-
-		slug := slugify(req.SchoolName)
-		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO institutions (name, short_name, slug, district, state,
-			                          affiliation_board, status)
-			VALUES ($1,$2,$3::citext,$4,$5,$6,'active')
-			RETURNING id::text, slug::text`,
-			req.SchoolName, short, slug, nullString(req.District),
-			nullString(req.State), nullString(req.Board)).
-			Scan(&out.InstitutionID, &out.Slug); err != nil {
-			if isUniqueViolation(err) {
-				return errNameTaken
-			}
-			return err
-		}
-
-		// A campus, because every scoped table needs one and asking the
-		// principal to invent one before they can do anything is a poor first
-		// instruction. They rename it in the setup wizard.
-		var campusID string
-		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO campuses (institution_id, name, code)
-			VALUES ($1::uuid, 'Main Campus', 'MAIN') RETURNING id::text`,
-			out.InstitutionID).Scan(&campusID); err != nil {
-			return err
-		}
-
-		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO users (institution_id, email, phone, username, full_name,
-			                   password_hash, status)
-			VALUES ($1::uuid, $2::citext, $3, $4::citext, $5, $6, 'active')
-			RETURNING id::text`,
-			out.InstitutionID, nullString(req.AdminEmail), nullString(req.AdminPhone),
-			nullString(username), req.AdminName, hash).Scan(&out.UserID); err != nil {
-			if isUniqueViolation(err) {
-				return errors.New("that email, phone or username is already in use")
-			}
-			return err
-		}
-
-		// The whole institution_admin bundle, seeded per tenant by the same
-		// path a normal school uses, so the first account is not a special case.
-		instUUID, err := uuid.Parse(out.InstitutionID)
-		if err != nil {
-			return err
-		}
-		if err := rbac.SeedInstitution(r.Context(), tx, instUUID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(r.Context(), `
-			INSERT INTO user_roles (user_id, role_id, institution_id)
-			SELECT $1::uuid, r.id, $2::uuid FROM roles r
-			 WHERE r.key = 'institution_admin' AND r.institution_id = $2::uuid
-			ON CONFLICT DO NOTHING`, out.UserID, out.InstitutionID); err != nil {
-			return err
-		}
-
-		if req.PlanCode != "" {
-			trial := req.TrialDays
-			if trial <= 0 {
-				trial = 30
-			}
-			var cap *int
-			_ = tx.QueryRow(r.Context(),
-				`SELECT max_students FROM plans WHERE code = $1`, req.PlanCode).Scan(&cap)
-			if _, err := tx.Exec(r.Context(), `
-				INSERT INTO subscriptions (institution_id, plan_code, status,
-				                           started_on, trial_ends_on, renews_on,
-				                           licensed_students)
-				VALUES ($1::uuid, $2, 'trial', CURRENT_DATE,
-				        CURRENT_DATE + make_interval(days => $3::int),
-				        CURRENT_DATE + interval '1 year', $4)`,
-				out.InstitutionID, req.PlanCode, trial, cap); err != nil {
-				return err
-			}
-		}
-		return nil
+	var out provisionResult
+	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		var err error
+		out, err = provisionSchool(r.Context(), tx, s.Hasher, p)
+		return err
 	})
 	switch {
 	case errors.Is(err, errNoPlan):
@@ -340,20 +233,13 @@ func (s *Server) provisionTenant(w http.ResponseWriter, r *http.Request) {
 	// The handover. Shown once and never retrievable: the hash is all that is
 	// stored, so a seller who closes this dialog resets the password rather
 	// than looking it up.
-	signIn := username
-	if signIn == "" {
-		signIn = req.AdminEmail
-	}
-	if signIn == "" {
-		signIn = req.AdminPhone
-	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
-		"institution_id": out.InstitutionID,
-		"user_id":        out.UserID,
-		"school":         req.SchoolName,
-		"admin_name":     req.AdminName,
-		"sign_in_as":     signIn,
-		"password":       password,
+		"institution_id": out.InstitutionID.String(),
+		"user_id":        out.UserID.String(),
+		"school":         p.SchoolName,
+		"admin_name":     p.AdminName,
+		"sign_in_as":     out.SignInAs,
+		"password":       out.Password,
 		"note": "Hand these to the school. The password is shown once and is not " +
 			"stored — if it is lost, reset it rather than looking it up. They are " +
 			"asked to change it on first sign-in.",

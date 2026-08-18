@@ -1,0 +1,114 @@
+{{define "signup.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subscribe — {{.Plan.Name}} — School ERP</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+</head>
+<body class="marketing">
+
+<header class="topbar">
+  <a class="wordmark" href="/buy">School ERP</a>
+  <a class="quiet" href="/login">Sign in</a>
+</header>
+
+<main class="narrow">
+
+  <nav class="crumbs" aria-label="Progress">
+    <span class="crumb current">1 · Your school</span>
+    <span class="crumb">2 · Payment</span>
+    <span class="crumb">3 · Sign-in details</span>
+  </nav>
+
+  <h1>Subscribe to {{.Plan.Name}}</h1>
+  <p class="lead">
+    We will set your school up the moment the payment clears, and show you the
+    sign-in details on the next screen but one. No call-back, no waiting.
+  </p>
+
+  {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+
+  <section class="summary" aria-label="What you are buying">
+    <div class="summary-row">
+      <span>{{.Plan.Name}} — {{.Plan.MaxStudents}}</span>
+      <strong><span class="rupee">₹</span>{{.Plan.Rupees}}</strong>
+    </div>
+    <p class="fineprint">Per year, including every module in the plan, unlimited staff and parent accounts, and first-year setup and training.</p>
+    <p class="fineprint"><a href="/buy">Choose a different plan</a></p>
+  </section>
+
+  <form method="post" action="/signup" class="stack" autocomplete="on">
+    <input type="hidden" name="plan_code" value="{{.Plan.Code}}">
+
+    <h2>Your school</h2>
+
+    <label for="school_name">School name</label>
+    <input id="school_name" name="school_name" value="{{.School}}" required
+           autocomplete="organization" placeholder="Sunrise Vidya Niketan">
+
+    <div class="pair">
+      <div>
+        <label for="district">District</label>
+        <input id="district" name="district" value="{{.District}}" placeholder="Rangareddy">
+      </div>
+      <div>
+        <label for="state">State</label>
+        <input id="state" name="state" value="{{.State}}" placeholder="Telangana">
+      </div>
+    </div>
+
+    <div class="pair">
+      <div>
+        <label for="board">Affiliation</label>
+        <input id="board" name="board" value="{{.Board}}" placeholder="State Board, CBSE, ICSE">
+      </div>
+      <div>
+        <label for="students">Roughly how many students?</label>
+        <input id="students" name="students" value="{{.Students}}" inputmode="numeric" placeholder="450">
+      </div>
+    </div>
+
+    <h2>Who will administer it</h2>
+    <p class="hint">
+      This person becomes the school's first administrator. They can create
+      accounts for everybody else once they are in.
+    </p>
+
+    <label for="contact_name">Full name</label>
+    <input id="contact_name" name="contact_name" value="{{.Contact}}" required
+           autocomplete="name" placeholder="Ramesh Kumar">
+
+    <label for="email">Email address</label>
+    <input id="email" name="email" type="email" value="{{.Email}}" required
+           autocomplete="email" placeholder="principal@yourschool.in">
+    <p class="hint">The sign-in details are sent here, and this is how a forgotten password is recovered.</p>
+
+    <div class="pair">
+      <div>
+        <label for="phone">Mobile number <span class="opt">optional</span></label>
+        <input id="phone" name="phone" value="{{.Phone}}" autocomplete="tel" placeholder="98765 43210">
+      </div>
+      <div>
+        <label for="admin_username">Preferred username <span class="opt">optional</span></label>
+        <input id="admin_username" name="admin_username" value="{{.Username}}" placeholder="principal">
+      </div>
+    </div>
+    <p class="hint">Pick a username if you would rather sign in with something short than with your email address.</p>
+
+    <button class="cta wide" type="submit">Continue to payment</button>
+    <p class="fineprint">
+      Nothing is charged until you confirm on the next screen, and no school is
+      created until the payment clears.
+    </p>
+  </form>
+
+</main>
+
+<footer class="foot">
+  <a href="/buy">Plans</a> · <a href="/login">Sign in</a>
+</footer>
+
+</body>
+</html>{{end}}

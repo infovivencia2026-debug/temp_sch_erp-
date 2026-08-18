@@ -25,8 +25,9 @@
     </p>
     <a class="cta" href="#enquire">Talk to us about your school</a>
     <p class="fineprint">
-      No card, no sign-up form that creates an account you did not ask for. We
-      speak to you first, then set the school up for you.
+      Or subscribe below and start straight away — your school is set up the
+      moment the payment clears, and you are given your sign-in details on the
+      spot. If you would rather talk to somebody first, we are happy to.
     </p>
   </section>
 
@@ -40,7 +41,8 @@
       <ul>
         {{range .Modules}}<li>{{.}}</li>{{end}}
       </ul>
-      <a class="choose" href="#enquire" data-plan="{{.Code}}">Choose {{.Name}}</a>
+      <a class="cta choose" href="/signup?plan={{.Code}}">Subscribe to {{.Name}}</a>
+      <a class="quiet talk" href="#enquire" data-plan="{{.Code}}">or talk to us first</a>
     </article>
     {{end}}
   </section>

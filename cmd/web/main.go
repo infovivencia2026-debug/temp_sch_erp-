@@ -113,6 +113,21 @@ func run() error {
 	r.Get("/buy", buyPage.Show)
 	r.Post("/buy", buyPage.Submit)
 
+	// Self-service purchase. The enquiry form above is for schools that want
+	// to talk to somebody; this is for schools that have finished deciding.
+	// The gateway is simulated until real credentials are configured — see
+	// internal/api/signup.go — but the signature it verifies is the real
+	// algorithm against a real secret, so the swap is a two-line change.
+	signup := &api.SignupPages{
+		DB: db, Tpl: tpl, Hasher: hasher,
+		GatewaySecret: cfg.GatewaySecret,
+	}
+	r.Get("/signup", signup.Show)
+	r.Post("/signup", signup.Start)
+	r.Get("/signup/pay/{order}", signup.Pay)
+	r.Post("/signup/pay/{order}", signup.Callback)
+	r.Get("/signup/welcome/{order}", signup.Welcome)
+
 	r.Get("/login", authHandler.ShowLogin)
 	r.Post("/login", authHandler.Login)
 	r.Post("/logout", authHandler.Logout)

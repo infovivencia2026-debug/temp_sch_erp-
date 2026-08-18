@@ -30,6 +30,11 @@ type Config struct {
 	SessionIdleTTL time.Duration
 	PasswordPepper string
 	CredentialKey  string
+	// GatewaySecret signs and verifies payment callbacks. In production this
+	// is the Razorpay key secret; where none is configured it falls back to
+	// CredentialKey so the simulated gateway still verifies against something
+	// installation-specific rather than a constant anyone could forge against.
+	GatewaySecret string
 
 	R2 R2Config
 }
@@ -71,6 +76,7 @@ func Load() (*Config, error) {
 		SessionIdleTTL: envDur("SESSION_IDLE_TTL", 2*time.Hour),
 		PasswordPepper: os.Getenv("PASSWORD_PEPPER"),
 		CredentialKey:  os.Getenv("CREDENTIAL_KEY"),
+		GatewaySecret:  os.Getenv("PAYMENT_GATEWAY_SECRET"),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
@@ -91,6 +97,15 @@ func Load() (*Config, error) {
 	// default rather than silently locking everyone out later.
 	if c.PasswordPepper == "" {
 		return nil, fmt.Errorf("PASSWORD_PEPPER is required")
+	}
+	// Not required, because an installation that takes no payments should not
+	// be made to invent a payment secret to boot. Falling back keeps callback
+	// signatures installation-specific either way.
+	if c.GatewaySecret == "" {
+		c.GatewaySecret = c.CredentialKey
+	}
+	if c.GatewaySecret == "" {
+		c.GatewaySecret = string(c.SessionSecret)
 	}
 	return c, nil
 }

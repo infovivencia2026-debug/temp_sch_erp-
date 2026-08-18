@@ -281,6 +281,11 @@ server {
     # before any tenant exists. Without this it falls through to the SPA below
     # and a buyer is shown an application they cannot sign in to.
     location = /buy   { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
+    # Self-service purchase, likewise server-rendered and likewise needed
+    # before the buyer has an account. A prefix match, not an exact one: the
+    # flow continues into /signup/pay/{order} and /signup/welcome/{order}, and
+    # an exact match would send a school that had just paid to the SPA shell.
+    location /signup  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /logout  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /static/ { include /etc/nginx/snippets/${SERVICE}-proxy.conf; expires 7d; access_log off; }
 
