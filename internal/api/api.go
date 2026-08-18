@@ -215,6 +215,7 @@ func (s *Server) Routes() http.Handler {
 			// would be a promise the product never keeps.
 			r.Get("/notes", s.listDisciplineNotes)
 			r.Get("/results", s.getFamilyResults)
+			s.mountParentPortal(r)
 		})
 
 		// --- Accounts & Finance -------------------------------------------

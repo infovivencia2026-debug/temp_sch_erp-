@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 267 of the catalog's features are implemented.
+// 276 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -228,13 +228,20 @@ var implementedFeatures = map[string]bool{
 	"parent.academics.homework_academics":                                true,
 	"parent.academics.results_report_cards":                              true,
 	"parent.attendance.attendance":                                       true,
+	"parent.attendance.child_absence_reporting_button":                   true,
 	"parent.consent.consent_acknowledgement":                             true,
 	"parent.consent.digital_parent_consent_slips":                        true,
+	"parent.consent.parent_delegation_for_emergency_pickup":              true,
+	"parent.fees.digital_fee_receipt_pdf_download":                       true,
 	"parent.fees.fees_payments":                                          true,
 	"parent.home.child_summary":                                          true,
 	"parent.home.child_switcher":                                         true,
 	"parent.home.needs_attention":                                        true,
+	"parent.leave_absence.apply_student_leave":                           true,
+	"parent.leave_absence.requests":                                      true,
 	"parent.messages.communication":                                      true,
+	"parent.messages.concerns_grievance_ticketing":                       true,
+	"parent.messages.direct_teacher_messaging":                           true,
 	"seller_admin.customers.onboarding_progress":                         true,
 	"seller_admin.customers.provision_new_school":                        true,
 	"seller_admin.customers.suspend_reactivate":                          true,
@@ -252,6 +259,8 @@ var implementedFeatures = map[string]bool{
 	"student.homework.homework_assignments":                              true,
 	"student.notices_calendar.announcements_messages":                    true,
 	"student.profile.profile":                                            true,
+	"student.requests.documents":                                         true,
+	"student.requests.requests":                                          true,
 	"student.timetable.timetable":                                        true,
 	"super_admin.access_security.login_session_audit":                    true,
 	"super_admin.access_security.roles_permissions":                      true,

@@ -8764,9 +8764,25 @@
   "description": "Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Requests",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/requests",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/requests/types",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.requests.documents",
@@ -8777,9 +8793,17 @@
   "description": "Access published certificates, receipts, report cards and permitted personal documents.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Documents",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/documents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.profile.profile",
@@ -8971,9 +8995,24 @@
   "description": "Notify class teacher in advance of child's planned absence with 1-click reason selection.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/ReportAbsence",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/absence",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.academics.homework_academics",
@@ -9116,9 +9155,24 @@
   "description": "Download official stamped PDF fee receipts directly to parent smartphone storage.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Receipts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/receipts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/receipts/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.fees.child_daily_cafeteria_purchase_timeline",
@@ -9256,9 +9310,25 @@
   "description": "Send structured query messages directly to class teacher during designated hours.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/TeacherMessages",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/messages",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/messages/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "parent.messages.concerns_grievance_ticketing",
@@ -9269,9 +9339,18 @@
   "description": "Raise academic or transport concerns and track resolution comments by school admin.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Concerns",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/concerns",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.messages.parent_community_discussion_forum",
@@ -9386,9 +9465,31 @@
   "description": "Submit leave/permission/certificate/help requests on behalf of child where allowed.",
   "scope": "Linked child/children only",
   "scope_key": "children",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/LeaveRequests",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/leave/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/leave",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.leave_absence.apply_student_leave",
@@ -9399,9 +9500,31 @@
   "description": "Submit digital student leave applications with reason and medical certificate attachments.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/LeaveRequests",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/leave/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/leave",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.consent.consent_acknowledgement",
@@ -9512,9 +9635,25 @@
   "description": "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Pickup",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/pickup",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/pickup/:param/revoke",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.documents.digilocker_document_pull",

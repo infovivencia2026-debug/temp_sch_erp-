@@ -827,13 +827,57 @@ func (s *Server) reachableTeachers(r *http.Request, sid uuid.UUID) ([]teacherRow
 		})
 }
 
+/*
+listReachableTeachers answers "who may I write to", for one child or all.
+
+	portalChild refuses to guess when a guardian has several children, and it
+	is right to: filing a leave application against the wrong sibling is a real
+	harm. Listing teachers is not that — it reads nothing that could be
+	misattributed — so with no child named this spans every child the caller
+	has rather than refusing. The row carries the child it belongs to, so a
+	screen can group by sibling instead of asking first.
+*/
 func (s *Server) listReachableTeachers(w http.ResponseWriter, r *http.Request) {
-	_, sid, err := s.portalChild(r, r.URL.Query().Get("student_id"))
-	if denyChild(w, r, err) {
+	raw := r.URL.Query().Get("student_id")
+	res, sid, err := s.portalChild(r, raw)
+	if err != nil && (raw != "" || res == nil || len(res.StudentIDs) == 0) {
+		denyChild(w, r, err)
 		return
 	}
-	items, err := s.reachableTeachers(r, sid)
-	respond(w, r, items, err)
+	ids := []uuid.UUID{sid}
+	if err != nil {
+		ids = res.StudentIDs
+	}
+	seen := map[string]bool{}
+	out := []teacherRow{}
+	for _, one := range ids {
+		rows, qerr := s.reachableTeachers(r, one)
+		if qerr != nil {
+			httpx.Internal(w, r, qerr)
+			return
+		}
+		for _, t := range rows {
+			// One teacher may take two siblings; the reader wants them once.
+			key := t.UserID + "|" + one.String()
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, t)
+		}
+	}
+	respond(w, r, out, nil)
+}
+
+// portalThreadRow is one conversation, for the inbox rather than the thread.
+type portalThreadRow struct {
+	StudentID   string `json:"student_id"`
+	StudentName string `json:"student_name"`
+	TeacherID   string `json:"teacher_user_id"`
+	TeacherName string `json:"teacher_name"`
+	LastMessage string `json:"last_message"`
+	LastAt      string `json:"last_at"`
+	Unread      int    `json:"unread"`
 }
 
 type portalMessageRow struct {
@@ -862,11 +906,60 @@ listPortalMessages returns one thread and marks the other end's messages read.
 func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	q := r.URL.Query()
-	sid, err := uuid.Parse(strings.TrimSpace(q.Get("student_id")))
-	if err != nil {
-		httpx.BadRequest(w, r, "student_id must be a uuid")
+	/* Naming a child is optional on the read side.
+
+	   A guardian opening their messages has not chosen a sibling yet, and 400
+	   is a wall in front of a screen whose whole job is to show what is
+	   waiting. Ownership is still enforced: portalChild refuses a child that
+	   is not theirs, and an unnamed child falls back to every child they have.
+	*/
+	raw := strings.TrimSpace(q.Get("student_id"))
+	res, sid, cerr := s.portalChild(r, raw)
+	if cerr != nil && (raw != "" || res == nil || len(res.StudentIDs) == 0) {
+		denyChild(w, r, cerr)
 		return
 	}
+	mine := []uuid.UUID{sid}
+	if cerr != nil {
+		mine = res.StudentIDs
+	}
+
+	/* With no teacher named, this is the inbox rather than a conversation.
+
+	   A screen opening on messages has chosen nobody yet, and the thread
+	   endpoint demanding a teacher id put a 400 in front of the only view that
+	   could tell you which teachers there are. Threads are not marked read
+	   here — reading a list is not reading the messages in it. */
+	if strings.TrimSpace(q.Get("teacher_user_id")) == "" {
+		threads, terr := collect(s, r, `
+			SELECT DISTINCT ON (m.student_id, m.teacher_user_id)
+			       m.student_id::text, concat_ws(' ', st.first_name, st.last_name),
+			       m.teacher_user_id::text, u.full_name,
+			       m.body, to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
+			       (SELECT count(*)::int FROM parent_teacher_messages un
+			         WHERE un.student_id = m.student_id
+			           AND un.teacher_user_id = m.teacher_user_id
+			           AND un.parent_user_id = m.parent_user_id
+			           AND un.sender_user_id <> $2 AND un.read_at IS NULL)
+			  FROM parent_teacher_messages m
+			  JOIN users u ON u.id = m.teacher_user_id
+			  JOIN students st ON st.id = m.student_id
+			 WHERE m.student_id = ANY($1) AND m.parent_user_id = $2
+			 ORDER BY m.student_id, m.teacher_user_id, m.sent_at DESC
+			 LIMIT 200`, []any{mine, id.UserID},
+			func(rows pgx.Rows) (portalThreadRow, error) {
+				var v portalThreadRow
+				return v, rows.Scan(&v.StudentID, &v.StudentName, &v.TeacherID,
+					&v.TeacherName, &v.LastMessage, &v.LastAt, &v.Unread)
+			})
+		if terr != nil {
+			httpx.Internal(w, r, terr)
+			return
+		}
+		httpx.JSON(w, http.StatusOK, map[string]any{"items": threads})
+		return
+	}
+
 	parentID, err := uuid.Parse(strings.TrimSpace(q.Get("parent_user_id")))
 	if err != nil {
 		// The parent reading their own thread need not name themselves.
