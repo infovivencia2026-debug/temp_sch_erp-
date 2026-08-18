@@ -7999,29 +7999,15 @@
   "description": "Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam.",
   "scope": "Self only",
   "scope_key": "self",
-  "component": "portal/Portal",
+  "component": "portal/Reminders",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/portal/attendance",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/portal/students",
+    "path": "/api/v1/attention",
     "methods": [
      "GET"
     ],
     "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/summary",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
    }
   ]
  },
@@ -8916,29 +8902,15 @@
   "description": "Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM.",
   "scope": "Linked child/children only",
   "scope_key": "children",
-  "component": "portal/Portal",
+  "component": "portal/Reminders",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/portal/attendance",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/portal/students",
+    "path": "/api/v1/attention",
     "methods": [
      "GET"
     ],
     "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/summary",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
    }
   ]
  },

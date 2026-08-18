@@ -442,21 +442,40 @@ var probes = []probe{
 		Key: "self.homework_due", Needs: rbac.SelfProfileRead,
 		Severity: SeverityWarning, Action: "Open homework", Href: "homework",
 		Headline: func(n int, _ int64) string {
-			return plural(n, "assignment", "assignments") + " due tomorrow"
+			return plural(n, "piece", "pieces") + " of homework still to hand in"
 		},
+		/* Everything still owed, not the single day that happens to be
+		   tomorrow.
+
+		   This probe asked for `due_on = CURRENT_DATE + 1`, so a child with a
+		   fortnight of unfinished work and nothing due precisely tomorrow was
+		   told they had nothing outstanding — and on most days that is every
+		   child, which is how a reminders panel comes to be ignored. It also
+		   counted work already handed in, so finishing a piece did not make it
+		   go away. */
 		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
 			if len(sc.StudentIDs) == 0 {
 				return 0, 0, "", nil
 			}
-			n, err := countQuery(ctx, tx, `
-				SELECT count(*) FROM homework h
+			var n int
+			var soonest *string
+			err := tx.QueryRow(ctx, `
+				SELECT count(*), to_char(min(h.due_on), 'DD Mon')
+				  FROM homework h
+				  JOIN enrollments e ON e.section_id = h.section_id
+				                    AND e.student_id = ANY($1)
+				                    AND e.status = 'active'
 				 WHERE h.is_published
-				   AND h.due_on = CURRENT_DATE + 1
-				   AND h.section_id IN (
-				       SELECT e.section_id FROM enrollments e
-				        WHERE e.student_id = ANY($1) AND e.status = 'active')`,
-				sc.StudentIDs)
-			return n, 0, "", err
+				   AND h.due_on >= CURRENT_DATE
+				   AND NOT EXISTS (SELECT 1 FROM homework_submissions sub
+				                    WHERE sub.homework_id = h.id
+				                      AND sub.student_id = e.student_id)`,
+				sc.StudentIDs).Scan(&n, &soonest)
+			detail := ""
+			if soonest != nil {
+				detail = "Soonest due " + *soonest
+			}
+			return n, 0, detail, err
 		},
 	},
 }

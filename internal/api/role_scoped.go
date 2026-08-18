@@ -238,14 +238,32 @@ func (s *Server) listMyStudents(w http.ResponseWriter, r *http.Request) {
 }
 
 type portalSummary struct {
-	StudentID       string  `json:"student_id"`
-	FullName        string  `json:"full_name"`
-	AttendancePct   int     `json:"attendance_pct"`
-	PresentDays     int     `json:"present_days"`
-	TotalDays       int     `json:"total_days"`
+	StudentID     string `json:"student_id"`
+	FullName      string `json:"full_name"`
+	AttendancePct int    `json:"attendance_pct"`
+	PresentDays   int    `json:"present_days"`
+	TotalDays     int    `json:"total_days"`
+	// Homework still owed, and when the soonest of it is due. A bare count
+	// answers "how much" and not "how soon", and those are different
+	// questions: five pieces due next fortnight is a quiet week, one due
+	// tomorrow morning is tonight's problem.
 	HomeworkDue     int     `json:"homework_due"`
+	NextHomeworkDue *string `json:"next_homework_due,omitempty"`
+	NextHomework    *string `json:"next_homework_title,omitempty"`
 	OutstandingPais int64   `json:"outstanding_paise"`
 	NextExam        *string `json:"next_exam,omitempty"`
+	// Today's timetable, so the dashboard can answer "what have I got now"
+	// without the child navigating to a week grid and finding the column.
+	Today []portalPeriod `json:"today"`
+}
+
+type portalPeriod struct {
+	Period   string  `json:"period"`
+	StartsAt *string `json:"starts_at,omitempty"`
+	EndsAt   *string `json:"ends_at,omitempty"`
+	Subject  string  `json:"subject"`
+	Teacher  *string `json:"teacher,omitempty"`
+	Room     *string `json:"room,omitempty"`
 }
 
 // getPortalSummary powers student.dashboard.my_day and parent.dashboard.child_summary.
@@ -293,9 +311,25 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 			  (SELECT count(*) FROM student_attendance
 			    WHERE student_id = st.id AND status IN ('present','late')),
 			  (SELECT count(*) FROM student_attendance WHERE student_id = st.id),
+			  /* Still owed, not merely set: a piece the child has already
+			     turned in is not due from them, and counting it makes the
+			     dashboard nag about finished work. */
 			  (SELECT count(*) FROM homework h
 			     JOIN enrollments e ON e.section_id = h.section_id AND e.student_id = st.id
-			    WHERE h.is_published AND h.due_on >= CURRENT_DATE),
+			    WHERE h.is_published AND h.due_on >= CURRENT_DATE
+			      AND NOT EXISTS (SELECT 1 FROM homework_submissions sub
+			                       WHERE sub.homework_id = h.id AND sub.student_id = st.id)),
+			  (SELECT to_char(min(h.due_on),'YYYY-MM-DD') FROM homework h
+			     JOIN enrollments e ON e.section_id = h.section_id AND e.student_id = st.id
+			    WHERE h.is_published AND h.due_on >= CURRENT_DATE
+			      AND NOT EXISTS (SELECT 1 FROM homework_submissions sub
+			                       WHERE sub.homework_id = h.id AND sub.student_id = st.id)),
+			  (SELECT h.title FROM homework h
+			     JOIN enrollments e ON e.section_id = h.section_id AND e.student_id = st.id
+			    WHERE h.is_published AND h.due_on >= CURRENT_DATE
+			      AND NOT EXISTS (SELECT 1 FROM homework_submissions sub
+			                       WHERE sub.homework_id = h.id AND sub.student_id = st.id)
+			    ORDER BY h.due_on, h.title LIMIT 1),
 			  COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices
 			             WHERE student_id = st.id
 			               AND status IN ('unpaid','partial','overdue')), 0),
@@ -304,12 +338,54 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 			    ORDER BY ex.starts_on LIMIT 1)
 			  FROM students st WHERE st.id = $1`, target).
 			Scan(&out.FullName, &out.AttendancePct, &out.PresentDays, &out.TotalDays,
-				&out.HomeworkDue, &out.OutstandingPais, &out.NextExam)
+				&out.HomeworkDue, &out.NextHomeworkDue, &out.NextHomework,
+				&out.OutstandingPais, &out.NextExam)
 	})
 	if err == pgx.ErrNoRows {
 		httpx.NotFound(w, r)
 		return
 	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	/* Today's periods for this child's section.
+
+	   A second query rather than more columns on the first: this returns a
+	   row per period, and folding a list into a single-row SELECT means either
+	   an array of composites or a join that multiplies every other count by
+	   the number of lessons. Weekday is Postgres's own, so a Sunday simply
+	   returns nothing rather than the week's first column. */
+	out.Today = []portalPeriod{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT p.name,
+			       to_char(p.starts_at,'HH24:MI'), to_char(p.ends_at,'HH24:MI'),
+			       COALESCE(sub.name, 'Free'), u.full_name, te.room
+			  FROM enrollments e
+			  JOIN timetable_entries te ON te.section_id = e.section_id
+			  JOIN periods p ON p.id = te.period_id
+			  LEFT JOIN class_subjects cs ON cs.id = te.class_subject_id
+			  LEFT JOIN subjects sub ON sub.id = cs.subject_id
+			  LEFT JOIN users u ON u.id = te.teacher_user_id
+			 WHERE e.student_id = $1 AND e.status = 'active'
+			   AND te.weekday = EXTRACT(isodow FROM CURRENT_DATE)
+			 ORDER BY p.starts_at, p.name`, target)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var v portalPeriod
+			if err := rows.Scan(&v.Period, &v.StartsAt, &v.EndsAt, &v.Subject,
+				&v.Teacher, &v.Room); err != nil {
+				return err
+			}
+			out.Today = append(out.Today, v)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

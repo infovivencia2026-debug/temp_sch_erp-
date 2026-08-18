@@ -15,7 +15,13 @@ interface PortalChild {
 interface PortalSummary {
   student_id: string; full_name: string
   attendance_pct: number; present_days: number; total_days: number
-  homework_due: number; outstanding_paise: number; next_exam?: string
+  homework_due: number; next_homework_due?: string; next_homework_title?: string
+  outstanding_paise: number; next_exam?: string
+  today: TodayPeriod[]
+}
+interface TodayPeriod {
+  period: string; starts_at?: string; ends_at?: string
+  subject: string; teacher?: string; room?: string
 }
 interface AttendanceDay { date: string; status: string }
 
@@ -26,6 +32,25 @@ const DOT: Record<string, string> = {
   half_day: 'bg-warning/60',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
+}
+
+/** Days between today and a yyyy-mm-dd, in the reader's own words. */
+function dueIn(iso: string) {
+  const days = Math.round(
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
+  )
+  if (days < 0) return 'overdue'
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  return `in ${days} days`
+}
+
+/* Anything inside two days is tonight's problem rather than next week's, and
+   that is the whole reason the deadline sits next to the count. */
+function isUrgent(iso: string) {
+  return (
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000 <= 2
+  )
 }
 
 /**
@@ -118,7 +143,19 @@ export default function Portal() {
                   positive: s.attendance_pct >= 75,
                 }}
               />
-              <Stat label="Homework due" value={s.homework_due} icon={BookMarked} />
+              <Stat
+                label="Homework due"
+                value={s.homework_due}
+                icon={BookMarked}
+                delta={
+                  s.homework_due === 0
+                    ? { value: 'Nothing outstanding', positive: true }
+                    : s.next_homework_due
+                      ? { value: `Soonest ${dueIn(s.next_homework_due)}`, positive: !isUrgent(s.next_homework_due) }
+                      : undefined
+                }
+                hint={s.homework_due > 0 ? s.next_homework_title : undefined}
+              />
               <Stat
                 label="Fees outstanding"
                 value={formatPaise(s.outstanding_paise)}
@@ -127,6 +164,40 @@ export default function Portal() {
               />
               <Stat label="Next exam" value={s.next_exam ?? '—'} icon={GraduationCap} />
             </CellGrid>
+
+            <Card>
+              <CardHeader
+                title="Today's classes"
+                description={
+                  s.today.length
+                    ? 'In order, with the teacher taking each one.'
+                    : 'Nothing timetabled today.'
+                }
+              />
+              {s.today.length === 0 ? (
+                <EmptyState
+                  title="No classes today"
+                  body="A holiday, a weekend, or the timetable has not been set for this section."
+                />
+              ) : (
+                <ul className="divide-y">
+                  {s.today.map((c, i) => (
+                    <li key={`${c.period}-${i}`} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5">
+                      <span className="w-24 shrink-0 font-mono text-[13px] tabular-nums text-muted-foreground">
+                        {c.starts_at ?? '—'}
+                        {c.ends_at ? `–${c.ends_at}` : ''}
+                      </span>
+                      <span className="min-w-[8rem] flex-1 font-medium">{c.subject}</span>
+                      <span className="text-[13px] text-muted-foreground">
+                        {c.period}
+                        {c.teacher ? ` · ${c.teacher}` : ''}
+                        {c.room ? ` · ${c.room}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
 
             {kids.length > 1 && (
               <Card>
