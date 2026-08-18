@@ -106,8 +106,14 @@ export default function LeavePolicy() {
     if (policy.data) setDraft(policy.data)
   }, [policy.data])
 
-  if (policy.isLoading || !draft) return <Loading label="Reading the leave policy…" />
+  /* Order matters: `!draft` is true on a failed request too, so testing it
+     first made the ErrorState below unreachable and left the screen on
+     "Reading the leave policy…" for good. The bare `!draft` that remains is
+     the single render between the data arriving and the effect copying it
+     into the form. */
+  if (policy.isLoading) return <Loading label="Reading the leave policy…" />
   if (policy.error) return <ErrorState error={policy.error} />
+  if (!draft) return <Loading label="Reading the leave policy…" />
 
   const set = <K extends keyof Policy>(k: K, v: Policy[K]) => setDraft({ ...draft, [k]: v })
   const setType = (id: string, patch: Partial<TypeRule>) =>

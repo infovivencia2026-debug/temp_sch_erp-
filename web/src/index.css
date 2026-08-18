@@ -102,7 +102,14 @@
 
     /* Semantic. Each earns its place by meaning something specific:
        paid, pending, bounced, informational. */
-    --success: 142 71% 40%;      /* #16A34A */
+    /* 28% is the lightest this can be and still clear 4.5:1 as *text* on every
+       plane it lands on: white card 5.41:1, page ground 5.04:1, the sidebar
+       4.70:1, and 4.58:1 inside the 12%-tinted solid Badge, which is the
+       darkest ground it sits on. The old 40% measured 2.89:1 on white and
+       2.56:1 in that badge -- "paid", "present" and every saved-confirmation
+       line were failing AA. Same hue and saturation, one value step down, so
+       green still reads as green. */
+    --success: 142 71% 28%;      /* #157A3A */
     --warning: 32 95% 40%;       /* #D97706 */
     --destructive: 0 72% 47%;    /* #DC2626 */
     --destructive-foreground: 0 0% 100%;

@@ -138,8 +138,18 @@ export default function Portal() {
         }
       />
       <PageBody>
-        {summary.isLoading || !s ? (
+        {summary.isLoading ? (
           <Loading />
+        ) : summary.error ? (
+          /* `!s` used to fall through to the spinner, so a summary that came
+             back 403 or 500 left a parent watching "Loading…" for the rest of
+             the session. The failure has a message; show it. */
+          <ErrorState error={summary.error} />
+        ) : !s ? (
+          <EmptyState
+            title="Nothing recorded yet"
+            body="Attendance, homework and fees appear here once the school starts recording them for this student."
+          />
         ) : (
           <>
             <CellGrid cols={isAttendance ? 3 : 4}>

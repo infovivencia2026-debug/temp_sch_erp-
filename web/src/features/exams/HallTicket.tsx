@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, LayoutGrid, ShieldCheck, Ticket } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
@@ -338,8 +338,49 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
     retry: false,
   })
 
-  if (isLoading || !student) return <Loading />
+  /* Four answers, not one spinner.
+
+     `isLoading || !student` held "Loading…" forever whenever the children
+     request failed or came back empty, because the ticket query is disabled
+     without a student and a disabled query is pending for ever. And every
+     failure — 403, 500, a dropped connection — used to be reported as "no
+     ticket yet", which tells a candidate to wait for something that is not
+     coming. Only the server's 404 (`not_seated`) means the ticket is not
+     issued yet; the rest are faults and say so. */
+  if (children.isLoading) return <Loading />
+  if (children.error) return <ErrorState error={children.error} />
+  if (!kids.length)
+    return (
+      <>
+        <PageHead eyebrow="Examinations" title="Hall ticket" actions={picker} />
+        <PageBody>
+          <EmptyState
+            title="No student record linked"
+            body="Your account is not linked to a student yet. Ask the school office to connect it."
+          />
+        </PageBody>
+      </>
+    )
+  if (isLoading) return <Loading />
   if (error) {
+    const notSeated = error instanceof ApiError && error.status === 404
+    return (
+      <>
+        <PageHead eyebrow="Examinations" title="Hall ticket" actions={picker} />
+        <PageBody>
+          {notSeated ? (
+            <EmptyState
+              title="No ticket yet"
+              body="The school issues tickets once seating is done. It will appear here."
+            />
+          ) : (
+            <ErrorState error={error} />
+          )}
+        </PageBody>
+      </>
+    )
+  }
+  if (!data)
     return (
       <>
         <PageHead eyebrow="Examinations" title="Hall ticket" actions={picker} />
@@ -351,8 +392,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
         </PageBody>
       </>
     )
-  }
-  const t = data!
+  const t = data
 
   return (
     <>

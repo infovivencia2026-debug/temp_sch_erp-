@@ -71,57 +71,52 @@ export default function Entitlements() {
             title="The matrix"
             description="A cell is what the school has switched on; a plan that does not cover it is marked"
           />
-          <div className="overflow-x-auto">
-            <table className="responsive-table w-full text-[14px]">
-              <thead>
-                <tr>
-                  <th className="px-5 py-2.5 text-left text-[12px] font-medium text-muted-foreground">School</th>
-                  <th className="px-5 py-2.5 text-left text-[12px] font-medium text-muted-foreground">Plan</th>
-                  {data.modules.map((m) => (
-                    <th key={m} className="px-3 py-2.5 text-left text-[12px] font-medium text-muted-foreground">
-                      {m}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.schools.map((s) => (
-                  <tr key={s.institution_id}>
-                    <td className="px-5 [padding-block:var(--row-py)] font-medium">{s.school}</td>
-                    <td className="px-5 [padding-block:var(--row-py)]">
-                      {s.plan_name ?? <span className="text-muted-foreground">None</span>}
-                    </td>
-                    {data.modules.map((m) => {
-                      const on = s.enabled.includes(m)
-                      const covered = s.plan_modules.length === 0 || s.plan_modules.includes(m)
-                      return (
-                        <td key={m} className="px-3 [padding-block:var(--row-py)]">
-                          <Button
-                            size="sm"
-                            variant={on ? 'primary' : 'secondary'}
-                            tone={on && !covered ? 'danger' : undefined}
-                            disabled={set.isPending}
-                            title={
-                              on && !covered
-                                ? 'Switched on but not included in this plan'
-                                : covered
-                                  ? 'Included in the plan'
-                                  : 'Not included in the plan'
-                            }
-                            onClick={() =>
-                              set.mutate({ institution_id: s.institution_id, module: m, enabled: !on })
-                            }
-                          >
-                            {on ? (covered ? 'On' : 'On — beyond plan') : 'Off'}
-                          </Button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* Hand-rolled <table> before this: it copied the shared component's
+              header and cell classes but not its cells' data-label, and that
+              is the one part that is not decoration. Below 640px every row
+              becomes a stacked card and each cell prints the column it came
+              from — so this matrix collapsed into an unlabelled column of
+              thirty "On"/"Off" buttons with no way to tell which module any of
+              them switched. Same markup as before on the desktop, because it
+              is the same component the classes were copied from. */}
+          <Table
+            head={['School', 'Plan', ...data.modules]}
+            empty={!data.schools.length}
+            emptyLabel="No schools yet."
+          >
+            {data.schools.map((s) => (
+              <tr key={s.institution_id}>
+                <Td className="font-medium">{s.school}</Td>
+                <Td>{s.plan_name ?? <span className="text-muted-foreground">None</span>}</Td>
+                {data.modules.map((m) => {
+                  const on = s.enabled.includes(m)
+                  const covered = s.plan_modules.length === 0 || s.plan_modules.includes(m)
+                  return (
+                    <Td key={m} className="px-3">
+                      <Button
+                        size="sm"
+                        variant={on ? 'primary' : 'secondary'}
+                        tone={on && !covered ? 'danger' : undefined}
+                        disabled={set.isPending}
+                        title={
+                          on && !covered
+                            ? 'Switched on but not included in this plan'
+                            : covered
+                              ? 'Included in the plan'
+                              : 'Not included in the plan'
+                        }
+                        onClick={() =>
+                          set.mutate({ institution_id: s.institution_id, module: m, enabled: !on })
+                        }
+                      >
+                        {on ? (covered ? 'On' : 'On — beyond plan') : 'Off'}
+                      </Button>
+                    </Td>
+                  )
+                })}
+              </tr>
+            ))}
+          </Table>
           {set.isError && (
             <div className="border-t p-5">
               <FormNotice error={set.error} />
