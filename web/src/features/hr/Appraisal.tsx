@@ -161,8 +161,11 @@ export default function Appraisal() {
    One route in this feature is deliberately NOT write-gated: POST
    /appraisal/records/{id}/review, because the reviewer is a head of department
    holding employees.read only and the handler checks they are the named
-   reviewer, which is a narrower rule than any permission. No control on this
-   screen calls it yet. Whoever adds one must leave it outside this flag. */
+   reviewer, which is a narrower rule than any permission. ReviewCard below is
+   that control, and it is deliberately outside this flag: gating it on
+   employees.write would hide it from exactly the person it exists for, and
+   leave the status chain with nothing able to move an appraisal from
+   self_submitted to reviewed. */
 function CyclesTab({ cycles }: { cycles: Cycle[] }) {
   const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
@@ -480,6 +483,14 @@ function RecordsTab({
       </Card>
 
       {open && (
+        /* Keyed by the appraisal for the same reason as the discussion card:
+           every score box below is initialised from the record, and a card
+           that survived the swap would post one colleague's ratings against
+           another's appraisal. */
+        <ReviewCard key={`review-${open.id}`} appraisal={open} onSaved={invalidate} />
+      )}
+
+      {open && (
         /* Keyed by the appraisal. The card prefills the discussion date from
            the record and holds the note, so opening a second appraisal reused
            both — and the note is the written record of a performance
@@ -491,6 +502,204 @@ function RecordsTab({
         />
       )}
     </>
+  )
+}
+
+interface Rating {
+  id: string
+  kpi_id: string
+  code: string
+  title: string
+  description?: string
+  source: string
+  weight: number
+  self_score?: number
+  self_note?: string
+  reviewer_score?: number
+  reviewer_note?: string
+  moderated_score?: number
+}
+
+interface AppraisalDetail extends Appraisal {
+  self_comments?: string
+  reviewer_comments?: string
+  ratings: Rating[]
+}
+
+/* The reviewer's rating.
+
+   The one control on this screen that is not behind employees.write, because
+   the reviewer is a head of department who holds employees.read and nothing
+   more. The rule is the handler's, not the button's: you may review the
+   appraisals you were named on, and the back office may review any of them —
+   so the control is shown and the server answers. Hiding it from everyone
+   without a write grant was how the status chain came to stop dead at
+   self_submitted with no way past.
+
+   The self-assessment is shown beside each box on purpose. A reviewer rating
+   somebody without reading what they said about themselves is the appraisal
+   that gets appealed. */
+function ReviewCard({ appraisal, onSaved }: { appraisal: Appraisal; onSaved: () => void }) {
+  const detail = useQuery({
+    queryKey: ['hr-growth', 'record', appraisal.id],
+    queryFn: () => api.get<AppraisalDetail>(`/api/v1/hr-growth/appraisal/records/${appraisal.id}`),
+  })
+
+  if (detail.isLoading) return <Card><Loading label="Reading the ratings…" /></Card>
+  if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
+  if (!detail.data) return null
+
+  return <ReviewForm key={detail.data.id} appraisal={detail.data} onSaved={onSaved} />
+}
+
+function ReviewForm({
+  appraisal, onSaved,
+}: { appraisal: AppraisalDetail; onSaved: () => void }) {
+  /* Scores as the text that was typed. An emptied box is not a zero: '' is
+     sent as null, which is "not rated", while Number('') is 0 — a mark
+     against a KPI that nobody gave. */
+  const [scores, setScores] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      appraisal.ratings.map((r) => [
+        r.kpi_id, r.reviewer_score != null ? String(r.reviewer_score) : '',
+      ]),
+    ),
+  )
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(appraisal.ratings.map((r) => [r.kpi_id, r.reviewer_note ?? ''])),
+  )
+  const [comments, setComments] = useState(appraisal.reviewer_comments ?? '')
+
+  const max = appraisal.score_scale_max
+  const closed = appraisal.status === 'published' || appraisal.status === 'acknowledged'
+  const badScore = appraisal.ratings.some((r) => {
+    const raw = (scores[r.kpi_id] ?? '').trim()
+    if (raw === '') return false
+    const n = Number(raw)
+    return !Number.isFinite(n) || n < 0 || n > max
+  })
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.post(`/api/v1/hr-growth/appraisal/records/${appraisal.id}/review`, {
+        ratings: appraisal.ratings.map((r) => {
+          const raw = (scores[r.kpi_id] ?? '').trim()
+          return {
+            kpi_id: r.kpi_id,
+            score: raw === '' ? null : Number(raw),
+            note: (notes[r.kpi_id] ?? '').trim() || undefined,
+          }
+        }),
+        comments: comments.trim() || undefined,
+      }),
+    onSuccess: onSaved,
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Review — ${appraisal.full_name}`}
+        description={
+          closed
+            ? 'This appraisal is published. The ratings are shown as they were signed off and can no longer be changed here.'
+            : 'Your rating against each KPI, beside what the person said about themselves. The weighted total is worked out by the school from the ratings stored, not by this page.'
+        }
+        action={
+          <Badge tone={statusTone(appraisal.status)}>
+            {STATUS_LABEL[appraisal.status] ?? appraisal.status}
+          </Badge>
+        }
+      />
+      <Table
+        head={[
+          'KPI',
+          { label: 'Weight %', align: 'right' },
+          { label: 'Self', align: 'right' },
+          { label: `Your score (of ${max})`, align: 'right' },
+          'Your note',
+        ]}
+        empty={appraisal.ratings.length === 0}
+        emptyLabel="No KPIs are attached to this appraisal."
+      >
+        {appraisal.ratings.map((r) => (
+          <tr key={r.kpi_id}>
+            <Td>
+              <span className="font-medium">{r.title}</span>
+              <span className="block text-[12.5px] text-muted-foreground">
+                {r.code}
+                {r.self_note ? ` — “${r.self_note}”` : ''}
+              </span>
+            </Td>
+            <Td className="text-right tabular-nums">{r.weight}</Td>
+            <Td className="text-right tabular-nums text-muted-foreground">
+              {r.self_score != null ? r.self_score.toFixed(2) : '—'}
+            </Td>
+            <Td className="text-right">
+              {closed ? (
+                <span className="tabular-nums">
+                  {r.reviewer_score != null ? r.reviewer_score.toFixed(2) : '—'}
+                </span>
+              ) : (
+                <Input
+                  type="number"
+                  srLabel={`Your score out of ${max} for ${r.title}`}
+                  value={scores[r.kpi_id] ?? ''}
+                  onChange={(v) => setScores({ ...scores, [r.kpi_id]: v })}
+                />
+              )}
+            </Td>
+            <Td>
+              {closed ? (
+                <span className="text-muted-foreground">{r.reviewer_note ?? '—'}</span>
+              ) : (
+                <Input
+                  srLabel={`Your note for ${r.title}`}
+                  placeholder="Consistently prepared; weakest on record-keeping"
+                  value={notes[r.kpi_id] ?? ''}
+                  onChange={(v) => setNotes({ ...notes, [r.kpi_id]: v })}
+                />
+              )}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <div className="space-y-5 p-5">
+        {closed ? (
+          <Field label="Reviewer's comments" wide>
+            <p className="text-[14px] text-muted-foreground">{appraisal.reviewer_comments ?? '—'}</p>
+          </Field>
+        ) : (
+          <>
+            <Field
+              label="Your comments"
+              hint="Read by moderation, by the employee once this is published, and by anybody hearing an appeal."
+              wide
+            >
+              <Textarea
+                value={comments}
+                onChange={setComments}
+                rows={3}
+                placeholder="Strong classroom practice; asked to take on the Class 10 remedial group next year."
+              />
+            </Field>
+            <FormNotice
+              error={save.error}
+              ok={save.isSuccess ? 'Review recorded.' : undefined}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => save.mutate()} disabled={badScore || save.isPending}>
+                {save.isPending ? 'Saving…' : 'Record my review'}
+              </Button>
+              <span className="text-[13px] text-muted-foreground">
+                {badScore
+                  ? `Every score must be a number between 0 and ${max}.`
+                  : 'Only the reviewer named on this appraisal, or the HR office, may record it. A box left empty is sent as no score, not as a zero.'}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
   )
 }
 
