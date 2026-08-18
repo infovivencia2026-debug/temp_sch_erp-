@@ -153,7 +153,75 @@ type circularRow struct {
 	Body string `json:"body,omitempty"`
 }
 
+// listCirculars is the notice board, and it is read by two different kinds of
+// person through the same endpoint.
+//
+// The office and the staff room read it as a register: every notice the school
+// has issued, including the one scheduled for next Monday and the one that only
+// concerns staff. That is the job, and it is left alone.
+//
+// A family reads it as their own post. Unfiltered, it was neither: the query
+// selected every row in the institution, so a parent saw staff-only circulars,
+// notices scheduled for a future date, notices that expired last year, and
+// notices addressed to a section their child is not in or to somebody else's
+// child by name. RLS did not catch it because all of those rows legitimately
+// belong to the same tenant — exactly the failure scope.Resolved exists to
+// prevent.
+//
+// So the family side is narrowed here, and only the family side. A caller
+// counts as family when their entire reach is their own record or their
+// children: no taught sections, no department, and none of the institution-wide
+// capabilities. Anyone with a staff signal keeps the register view they have
+// today, and a teacher who is also a parent at the school stays on the staff
+// side rather than losing notices.
 func (s *Server) listCirculars(w http.ResponseWriter, r *http.Request) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	args := []any{httpx.IdentityFrom(r.Context()).UserID}
+	// Default is the unchanged register view; the predicate only tightens.
+	where := "TRUE"
+
+	family := !res.PlatformAdmin && !res.AllStudents && !res.AllAttendance &&
+		!res.AnySection && len(res.SectionIDs) == 0 &&
+		len(res.DepartmentIDs) == 0 && len(res.StudentIDs) > 0
+	if family {
+		args = append(args, res.StudentIDs)
+		// Three independent gates, all of which must hold:
+		//
+		//   window    published already and not yet expired — a scheduled
+		//             notice is not news until its date.
+		//   audience  'all', plus 'students' for a child's own account and
+		//             'parents' for a guardian's. 'staff' and 'faculty' are
+		//             reachable by neither.
+		//   targeting an untargeted notice is for the whole audience; a
+		//             targeted one has to name a section this family sits in
+		//             or the child themselves.
+		where = `a.publish_at <= now()
+		     AND (a.expires_at IS NULL OR a.expires_at > now())
+		     AND (a.audience_role = 'all'
+		          OR (a.audience_role = 'students'
+		              AND EXISTS (SELECT 1 FROM students me WHERE me.user_id = $1))
+		          OR (a.audience_role = 'parents'
+		              AND EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = $1)))
+		     AND (
+		          (NOT EXISTS (SELECT 1 FROM announcement_sections x
+		                        WHERE x.announcement_id = a.id)
+		           AND NOT EXISTS (SELECT 1 FROM announcement_students x
+		                            WHERE x.announcement_id = a.id))
+		          OR EXISTS (SELECT 1 FROM announcement_sections x
+		                       JOIN enrollments e ON e.section_id = x.section_id
+		                      WHERE x.announcement_id = a.id
+		                        AND e.student_id = ANY($2)
+		                        AND e.status = 'active')
+		          OR EXISTS (SELECT 1 FROM announcement_students x
+		                      WHERE x.announcement_id = a.id
+		                        AND x.student_id = ANY($2)))`
+	}
+
 	items, err := collect(s, r, `
 		SELECT a.id::text, a.title, a.kind, a.audience_role, a.requires_ack,
 		       to_char(a.publish_at,'YYYY-MM-DD'),
@@ -163,8 +231,9 @@ func (s *Server) listCirculars(w http.ResponseWriter, r *http.Request) {
 		                WHERE ak.announcement_id = a.id AND ak.user_id = $1),
 		       a.body
 		  FROM announcements a
+		 WHERE `+where+`
 		 ORDER BY a.publish_at DESC LIMIT 200`,
-		[]any{httpx.IdentityFrom(r.Context()).UserID},
+		args,
 		func(rows pgx.Rows) (circularRow, error) {
 			var v circularRow
 			return v, rows.Scan(&v.ID, &v.Title, &v.Kind, &v.Audience, &v.RequiresAck,
