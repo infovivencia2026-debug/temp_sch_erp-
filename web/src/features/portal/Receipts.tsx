@@ -156,28 +156,26 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
           <Detail label="Status" value={d.status} />
         </div>
 
-        <table className="responsive-table mt-6 w-full text-[14px]">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-left text-[12px] font-medium text-muted-foreground">Invoice</th>
-              <th className="px-3 py-2 text-left text-[12px] font-medium text-muted-foreground">Particulars</th>
-              <th className="px-3 py-2 text-right text-[12px] font-medium text-muted-foreground">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
+        {/* The primitives, not a hand-rolled table: `responsive-table` alone
+            styles the collapse but only Table/Td inject the data-label each
+            cell needs, and without them a parent on a phone got three bare
+            right-aligned values with nothing saying which was the invoice
+            number and which the amount. */}
+        <div className="mt-6">
+          <Table head={['Invoice', 'Particulars', { label: 'Amount', align: 'right' }]}>
             {d.lines.map((l) => (
-              <tr key={l.invoice_no} className="border-t">
-                <td className="px-3 py-2">{l.invoice_no}</td>
-                <td className="px-3 py-2">{l.particulars}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatPaise(l.amount_paise)}</td>
+              <tr key={l.invoice_no}>
+                <Td>{l.invoice_no}</Td>
+                <Td>{l.particulars}</Td>
+                <Td className="text-right tabular-nums">{formatPaise(l.amount_paise)}</Td>
               </tr>
             ))}
-            <tr className="border-t font-medium">
-              <td className="px-3 py-2" colSpan={2}>Total</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatPaise(d.amount_paise)}</td>
+            <tr className="font-medium">
+              <Td colSpan={2}>Total</Td>
+              <Td className="text-right tabular-nums">{formatPaise(d.amount_paise)}</Td>
             </tr>
-          </tbody>
-        </table>
+          </Table>
+        </div>
 
         {/* Rupees in words is not decoration: it is what makes a receipt hard to
             alter, and Indian schools are asked for it by auditors. */}
