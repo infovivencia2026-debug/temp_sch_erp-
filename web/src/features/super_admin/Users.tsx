@@ -19,6 +19,7 @@ interface AdminUser {
   mfa_enabled: boolean
   last_login_at?: string
   roles: string[]
+  role_keys: string[]
   institution?: string
   active_sessions: number
 }
@@ -227,8 +228,11 @@ function AccountForm({
   const qc = useQueryClient()
   const editing = !!user
   const [f, setF] = useState({ full_name: user?.full_name ?? '', email: user?.email ?? '', phone: user?.phone ?? '' })
-  const [picked, setPicked] = useState<string[]>(user?.roles ?? [])
+  // Keys, not display names: the picker toggles on key, and seeding it with
+  // names left every role unticked and saved an empty set.
+  const [picked, setPicked] = useState<string[]>(user?.role_keys ?? [])
   const [tempPassword, setTempPassword] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const save = useMutation({
     mutationFn: async () => {
@@ -242,6 +246,14 @@ function AccountForm({
       })
     },
     onSuccess: (res) => {
+      /* The server answers with the roles it could not resolve. Nothing read
+         it, so a save that silently applied none looked identical to one that
+         worked — which is how a role edit came to revoke everything. */
+      const unknown = (res as { unknown_roles?: string[] } | undefined)?.unknown_roles
+      if (unknown?.length) {
+        setNotice(`The server did not recognise: ${unknown.join(', ')}. Nothing was changed.`)
+        return
+      }
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       const pw = (res as { temporary_password?: string } | undefined)?.temporary_password
       // The one-time password is shown rather than emailed: a new school has
@@ -306,7 +318,7 @@ function AccountForm({
 
         <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
 
-        <FormNotice error={save.error ?? reset.error} />
+        <FormNotice error={save.error ?? reset.error ?? (notice ? new Error(notice) : undefined)} />
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => save.mutate()} disabled={save.isPending || (!editing && !f.full_name.trim())}>
             {save.isPending ? 'Saving…' : editing ? 'Save roles' : 'Create account'}
