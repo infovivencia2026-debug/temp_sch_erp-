@@ -18,3 +18,7 @@
 
 # Agent worktrees are scratch space, not source.
 .claude/
+
+# node_modules is an install artefact, never a tracked symlink.
+web/node_modules/
+scripts/__pycache__/
