@@ -298,6 +298,14 @@ var Groups = []Group{
 		ScopeNote: "Bounded by the campuses this person is posted to.",
 	},
 	{
+		Key: "front_desk", Name: "Front desk", Band: BandOptional,
+		Blurb:     "Visitor passes, the block list, appointments, calls and post.",
+		View:      []string{FrontDeskRead},
+		Manage:    []string{FrontDeskWrite},
+		Scopes:    fixed("campus"),
+		ScopeNote: "Each campus keeps its own gate register.",
+	},
+	{
 		Key: "library", Name: "Library", Band: BandOptional,
 		Blurb:     "Catalogue, accession register, issue, return and fines.",
 		View:      []string{LibraryRead},

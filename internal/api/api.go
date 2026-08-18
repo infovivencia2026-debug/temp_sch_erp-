@@ -266,6 +266,27 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/documents", s.listEmployeeDocuments)
 		})
 
+		/* --- The front desk -------------------------------------------------
+
+		   Who came in, who rang, what arrived in the post, and who is booked
+		   to see the principal. Gated on its own permission rather than on
+		   admissions: a receptionist signs visitors in all day and has no
+		   business deciding who gets a seat. */
+		r.Route("/office", func(r chi.Router) {
+			r.Use(httpx.RequirePermission(rbac.FrontDeskRead))
+			r.Get("/visitors", s.listVisitors)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/visitors", s.signVisitorIn)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/visitors/{id}/out", s.signVisitorOut)
+			r.Get("/blocklist", s.listBlocklist)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/blocklist", s.addToBlocklist)
+			r.Get("/appointments", s.listAppointments)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/appointments", s.saveAppointment)
+			r.Get("/calls", s.listCalls)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/calls", s.saveCall)
+			r.Get("/courier", s.listCourier)
+			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/courier", s.saveCourier)
+		})
+
 		// --- Operations Staff -----------------------------------------------
 		r.Route("/operations", func(r chi.Router) {
 			r.With(httpx.RequireAnyPermission(rbac.LibraryRead, rbac.TransportRead,

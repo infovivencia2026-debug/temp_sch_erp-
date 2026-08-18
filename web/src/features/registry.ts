@@ -126,6 +126,16 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
      pass never completes. */
+  /* The front desk: the visitor register with its block list, the appointment
+     diary, the telephone book and the post. Each is a paper register in most
+     schools and each is asked for after something has gone wrong. */
+  'admissions.visitors.visitor_gate_pass_generation': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.visitors.visitor_checkout_tracking': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.visitors.parent_appointment_booking': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.gate_security.emergency_gate_lockout': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.office_log.front_office_calls_register': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.office_log.postal_courier_log': lazy(() => import('./admissions/FrontDesk')),
+
   'parent.consent.consent_acknowledgement': lazy(() => import('./portal/Consent')),
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
 

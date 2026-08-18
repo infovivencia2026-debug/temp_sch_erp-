@@ -49,6 +49,12 @@ const (
 	AdmissionsRead  = "admissions.read"
 	AdmissionsWrite = "admissions.write"
 
+	// The front desk: the visitor register, the telephone book, the post, and
+	// the appointment diary. Separate from admissions because a receptionist
+	// signs visitors in all day and has no business deciding who gets a seat.
+	FrontDeskRead  = "office.front_desk.read"
+	FrontDeskWrite = "office.front_desk.write"
+
 	// hr
 	EmployeesRead  = "hr.employees.read"
 	EmployeesWrite = "hr.employees.write"
@@ -142,6 +148,8 @@ var All = []Permission{
 
 	{AdmissionsRead, "admissions", "View enquiries and applications"},
 	{AdmissionsWrite, "admissions", "Manage the admissions pipeline"},
+	{FrontDeskRead, "office", "View the visitor, call and courier registers"},
+	{FrontDeskWrite, "office", "Run the front desk"},
 
 	{EmployeesRead, "hr", "View employee records"},
 	{EmployeesWrite, "hr", "Manage employee records"},
@@ -331,10 +339,14 @@ var SystemRoles = []Role{
 		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, ReportsRead,
 		SelfProfileRead, SelfProfileWrite}},
 	{"admissions", "Admissions & Front Office", []string{
+		FrontDeskRead, FrontDeskWrite,
 		AcademicsRead, AdmissionsRead, AdmissionsWrite, StudentsRead, StudentsWrite,
 		SelfProfileRead, SelfProfileWrite}},
+	// The receptionist could read the school and write nothing, which made the
+	// role unable to do the one job it has: sign a visitor in.
 	{"front_office", "Receptionist / Front Office", []string{
-		AcademicsRead, AdmissionsRead, StudentsRead, SelfProfileRead, SelfProfileWrite}},
+		AcademicsRead, AdmissionsRead, StudentsRead, FrontDeskRead, FrontDeskWrite,
+		SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
 		AcademicsRead, EmployeesRead, EmployeesWrite, LeaveApprove, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},
