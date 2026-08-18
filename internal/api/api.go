@@ -229,6 +229,7 @@ func (s *Server) Routes() http.Handler {
 			r.Use(httpx.RequirePermission(rbac.InvoicesRead))
 			s.mountLedgers(r)
 			s.mountFeeEngine(r)
+			s.mountTally(r)
 			s.mountBanking(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
@@ -552,6 +553,7 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/admin", func(r chi.Router) {
 			s.mountPlatformConfig(r)
 			s.mountMessaging(r)
+			s.mountTallyConnector(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
