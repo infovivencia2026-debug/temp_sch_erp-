@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -808,8 +809,11 @@ type employeeRequest struct {
 	Department   string `json:"department_id,omitempty"`
 	Designation  string `json:"designation_id,omitempty"`
 	JoinedOn     string `json:"joined_on,omitempty"`
-	CreateLogin  bool   `json:"create_login"`
-	RoleKey      string `json:"role_key,omitempty"`
+	// permanent | contract | probation | part_time | visiting. Empty leaves the
+	// column null, which is what every caller before recruitment existed did.
+	EmploymentType string `json:"employment_type,omitempty"`
+	CreateLogin    bool   `json:"create_login"`
+	RoleKey        string `json:"role_key,omitempty"`
 }
 
 // createEmployee adds a staff member and, optionally, their login.
@@ -823,12 +827,8 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	if req.EmployeeCode == "" || req.FirstName == "" {
-		httpx.BadRequest(w, r, "employee_code and first_name are required")
-		return
-	}
-	if req.CreateLogin && req.Email == "" {
-		httpx.BadRequest(w, r, "an email is required to create a login")
+	if err := req.validate(); err != nil {
+		httpx.BadRequest(w, r, err.Error())
 		return
 	}
 
@@ -838,49 +838,8 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-
-		if req.CreateLogin {
-			// Invited, not active, and with no password: the account exists but
-			// cannot be signed into until a password is set, so a half-finished
-			// onboarding never leaves a usable credential lying around.
-			if err := tx.QueryRow(r.Context(), `
-				INSERT INTO users (institution_id, email, phone, full_name, status)
-				VALUES ($1,$2::citext,$3,$4,'invited')
-				ON CONFLICT (institution_id, email) WHERE email IS NOT NULL
-				DO UPDATE SET full_name = EXCLUDED.full_name
-				RETURNING id::text`,
-				id.InstitutionID, req.Email, nullString(req.Phone),
-				strings.TrimSpace(req.FirstName+" "+req.LastName)).Scan(&userID); err != nil {
-				return err
-			}
-			if req.RoleKey != "" {
-				if _, err := tx.Exec(r.Context(), `
-					INSERT INTO user_roles (institution_id, user_id, role_id)
-					SELECT $1, $2::uuid, r.id FROM roles r
-					 WHERE r.key = $3 AND (r.institution_id = $1 OR r.institution_id IS NULL)
-					ON CONFLICT DO NOTHING`, id.InstitutionID, userID, req.RoleKey); err != nil {
-					return err
-				}
-			}
-		}
-
-		return tx.QueryRow(r.Context(), `
-			INSERT INTO employees (institution_id, campus_id, user_id, employee_code,
-			                       first_name, last_name, email, phone,
-			                       department_id, designation_id, joined_on, status)
-			VALUES ($1,$2,$3::uuid,$4,$5,$6,$7::citext,$8,$9::uuid,$10::uuid,
-			        COALESCE($11::date, CURRENT_DATE),'active')
-			ON CONFLICT (institution_id, employee_code)
-			DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name,
-			              email = EXCLUDED.email, phone = EXCLUDED.phone,
-			              department_id = EXCLUDED.department_id,
-			              designation_id = EXCLUDED.designation_id,
-			              user_id = COALESCE(EXCLUDED.user_id, employees.user_id)
-			RETURNING id::text`,
-			id.InstitutionID, campus, nullString(userID), req.EmployeeCode,
-			req.FirstName, nullString(req.LastName), nullString(req.Email),
-			nullString(req.Phone), nullString(req.Department), nullString(req.Designation),
-			nullString(req.JoinedOn)).Scan(&empID)
+		empID, userID, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
+		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -889,6 +848,79 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": empID, "user_id": nullOrString(userID), "employee_code": req.EmployeeCode,
 	})
+}
+
+func (req employeeRequest) validate() error {
+	if req.EmployeeCode == "" || req.FirstName == "" {
+		return errors.New("employee_code and first_name are required")
+	}
+	if req.CreateLogin && req.Email == "" {
+		return errors.New("an email is required to create a login")
+	}
+	return nil
+}
+
+/*
+appointEmployee is the one way a person becomes a member of staff.
+
+	Extracted from createEmployee so that recruitment's hire step (see
+	hr_growth.go) walks the same path rather than growing a second INSERT.
+	Two ways to create an employee is two sets of defaults, two ideas of what
+	an invited login means, and — the reason it matters here — a hire that
+	appears on the recruitment screen and nowhere payroll can see it.
+
+	Callers supply the transaction and the campus so the appointment can be
+	made atomic with whatever else the caller is doing: the hire marks the
+	candidate joined in the same transaction, and neither half can land alone.
+*/
+func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
+	req employeeRequest) (empID, userID string, err error) {
+
+	if req.CreateLogin {
+		// Invited, not active, and with no password: the account exists but
+		// cannot be signed into until a password is set, so a half-finished
+		// onboarding never leaves a usable credential lying around.
+		if err = tx.QueryRow(ctx, `
+			INSERT INTO users (institution_id, email, phone, full_name, status)
+			VALUES ($1,$2::citext,$3,$4,'invited')
+			ON CONFLICT (institution_id, email) WHERE email IS NOT NULL
+			DO UPDATE SET full_name = EXCLUDED.full_name
+			RETURNING id::text`,
+			instID, req.Email, nullString(req.Phone),
+			strings.TrimSpace(req.FirstName+" "+req.LastName)).Scan(&userID); err != nil {
+			return "", "", err
+		}
+		if req.RoleKey != "" {
+			if _, err = tx.Exec(ctx, `
+				INSERT INTO user_roles (institution_id, user_id, role_id)
+				SELECT $1, $2::uuid, r.id FROM roles r
+				 WHERE r.key = $3 AND (r.institution_id = $1 OR r.institution_id IS NULL)
+				ON CONFLICT DO NOTHING`, instID, userID, req.RoleKey); err != nil {
+				return "", "", err
+			}
+		}
+	}
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO employees (institution_id, campus_id, user_id, employee_code,
+		                       first_name, last_name, email, phone,
+		                       department_id, designation_id, joined_on,
+		                       employment_type, status)
+		VALUES ($1,$2,$3::uuid,$4,$5,$6,$7::citext,$8,$9::uuid,$10::uuid,
+		        COALESCE($11::date, CURRENT_DATE),$12,'active')
+		ON CONFLICT (institution_id, employee_code)
+		DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name,
+		              email = EXCLUDED.email, phone = EXCLUDED.phone,
+		              department_id = EXCLUDED.department_id,
+		              designation_id = EXCLUDED.designation_id,
+		              employment_type = COALESCE(EXCLUDED.employment_type, employees.employment_type),
+		              user_id = COALESCE(EXCLUDED.user_id, employees.user_id)
+		RETURNING id::text`,
+		instID, campus, nullString(userID), req.EmployeeCode,
+		req.FirstName, nullString(req.LastName), nullString(req.Email),
+		nullString(req.Phone), nullString(req.Department), nullString(req.Designation),
+		nullString(req.JoinedOn), nullString(req.EmploymentType)).Scan(&empID)
+	return empID, userID, err
 }
 
 func nullOrString(s string) any {

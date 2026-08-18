@@ -94,6 +94,7 @@ func (s *Server) Routes() http.Handler {
 		s.mountAdminRollups(r)
 		s.mountAdminOps(r)
 		s.mountTimetableOps(r)
+		s.mountHRGrowth(r)
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
