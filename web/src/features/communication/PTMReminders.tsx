@@ -61,7 +61,7 @@ export default function PTMReminders() {
       <PageHead
         eyebrow="School life"
         title="Parent-teacher meetings"
-        description="The meetings you have booked, and the reminder that will reach you before each one."
+        description="The meetings you have booked, and the reminder queued for each one."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -75,7 +75,7 @@ export default function PTMReminders() {
             label="Reminders"
             value={next.length ? 'Queued' : 'None due'}
             icon={Bell}
-            hint="Sent shortly before the slot"
+            hint="Held until shortly before the slot"
           />
         </CellGrid>
 
@@ -102,7 +102,7 @@ export default function PTMReminders() {
                   <Td>{b.teacher}</Td>
                   <Td>
                     {upcoming(b) ? (
-                      <Badge tone="info">before the slot</Badge>
+                      <Badge tone="info">queued</Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -119,15 +119,23 @@ export default function PTMReminders() {
         <Card>
           <CardHeader title="How the reminder works" />
           <div className="space-y-2 p-5 text-[14px] leading-relaxed text-muted-foreground">
+            {/* The emit is real and the queue row is real; what is not yet real is
+                anything dispatching that queue on a schedule — a gap that
+                predates this screen and affects every trigger rule. So this
+                says what the product does, which is queue the reminder, and
+                stops short of promising it arrives. Wording, because the
+                alternative is a screen that tells a parent to expect a message
+                the system will not send. */}
             <p>
-              Booking a slot queues the reminder immediately and holds it until shortly before
+              Booking a slot queues a reminder straight away and holds it until shortly before
               the meeting. Cancelling withdraws it, and rebooking queues a fresh one.
             </p>
             <p>
-              Which channel it arrives on — SMS, email, WhatsApp or an in-app alert — and how
-              far ahead it goes are set by the school on its messaging rules, not fixed here.
-              If you are not receiving them, the school has either not set a rule for
-              parent-teacher meetings or has no phone number on file for you.
+              Whether it reaches you, on which channel and how far ahead, is set by the school
+              on its messaging rules rather than here — and a school that has not set a rule for
+              parent-teacher meetings sends nothing at all. Treat this page as the record of
+              your meetings rather than as proof a message went out, and check the date here if
+              you are relying on it.
             </p>
           </div>
         </Card>

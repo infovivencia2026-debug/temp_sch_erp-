@@ -8,6 +8,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useChildren, childOptions } from '../portal/use-children'
 import { commsQueryKeys } from './comms-keys'
 
 /* parent.messages.private_counselor_chat_channel
@@ -78,6 +79,16 @@ const URGENCY_TONE: Record<string, 'neutral' | 'info' | 'danger'> = {
 
 export default function CounselorChannel() {
   const qc = useQueryClient()
+  /* Which child, asked the way every other family screen asks it.
+
+     This was a free-text box for a student_id with the placeholder "Leave
+     blank for your only child" — and the server resolves a blank one through
+     portalChild, which hands back the child only when the guardian has exactly
+     one and otherwise refuses with a 404. So a parent of two was invited to
+     leave it blank, told "not your child", and left with no way through short
+     of typing a uuid they have no way to obtain. One child needs no picker;
+     more than one must choose. */
+  const { children, studentId, chosen, setChosen } = useChildren()
   const [selected, setSelected] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [opening, setOpening] = useState({
@@ -107,18 +118,32 @@ export default function CounselorChannel() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: commsQueryKeys.counselorRoot() })
 
+  /* Opening another conversation empties what was being written in this one.
+
+     The reply box and the add-somebody form are held here rather than per
+     thread, and `selected` is only an id — so a half-written message about one
+     child stayed in the box when a parent opened the thread about another, and
+     Send posted it to whichever thread was selected by then. A counselling
+     message delivered to the wrong family is the worst thing this screen could
+     do, and it needed two clicks. */
+  const openThread = (id: string | null) => {
+    setSelected(id)
+    setDraft('')
+    setAddition({ user_id: '', role_in_thread: 'observer', reason: '' })
+  }
+
   const open = useMutation({
     mutationFn: () =>
       api.post<{ id: string }>('/api/v1/comms/counselor/threads', {
         counselor_id: opening.counselor_id,
-        student_id: opening.student_id || undefined,
+        student_id: studentId || undefined,
         subject: opening.subject,
         urgency: opening.urgency,
         message: opening.message || undefined,
       }),
     onSuccess: (r) => {
       setOpening({ counselor_id: '', student_id: '', subject: '', urgency: 'normal', message: '' })
-      setSelected(r.id)
+      openThread(r.id)
       refresh()
     },
   })
@@ -169,10 +194,10 @@ export default function CounselorChannel() {
               which they can only do with a written reason that you will see on this screen.
             </p>
             <p>
-              Messages are stored on the school&apos;s system and the school&apos;s technical
-              staff could in principle read the database. This is not end-to-end encrypted, and
-              you should treat it as a confidential conversation with the counsellor rather than
-              a sealed one.
+              Messages are stored as ordinary text, so the school&apos;s technical staff and
+              whoever operates this system could in principle read the database. This is not
+              end-to-end encrypted, and you should treat it as a confidential conversation with
+              the counsellor rather than a sealed one.
             </p>
           </div>
         </Card>
@@ -192,16 +217,16 @@ export default function CounselorChannel() {
                   }))}
                 />
               </Field>
-              <Field
-                label="Child"
-                hint="Only needed if you have more than one child at the school."
-              >
-                <Input
-                  value={opening.student_id}
-                  onChange={(v) => setOpening({ ...opening, student_id: v })}
-                  placeholder="Leave blank for your only child"
-                />
-              </Field>
+              {children.length > 1 && (
+                <Field label="Child" required hint="A conversation is about one child.">
+                  <Select
+                    value={chosen}
+                    onChange={setChosen}
+                    placeholder="Choose a child…"
+                    options={childOptions(children)}
+                  />
+                </Field>
+              )}
               <Field label="Subject" required>
                 <Input
                   value={opening.subject}
@@ -229,7 +254,12 @@ export default function CounselorChannel() {
               </Field>
             </FormGrid>
             <Button
-              disabled={!opening.counselor_id || !opening.subject.trim() || open.isPending}
+              disabled={
+                !opening.counselor_id ||
+                !opening.subject.trim() ||
+                (children.length > 1 && !studentId) ||
+                open.isPending
+              }
               onClick={() => open.mutate()}
             >
               Start
@@ -275,7 +305,7 @@ export default function CounselorChannel() {
                   <Td>{t.last_message_at ? formatDate(t.last_message_at) : '—'}</Td>
                   <Td>{t.unread > 0 ? <Badge tone="info">{t.unread}</Badge> : '—'}</Td>
                   <Td>
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(t.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => openThread(t.id)}>
                       Open
                     </Button>
                   </Td>
@@ -297,7 +327,7 @@ export default function CounselorChannel() {
                       Close conversation
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                  <Button variant="ghost" size="sm" onClick={() => openThread(null)}>
                     Close
                   </Button>
                 </div>
@@ -306,6 +336,10 @@ export default function CounselorChannel() {
             <div className="space-y-5 p-5">
               {messages.isLoading ? (
                 <Loading />
+              ) : messages.error ? (
+                /* "Nothing said yet" over a failed request would tell a parent
+                   the counsellor had never replied. */
+                <ErrorState error={messages.error} />
               ) : (messages.data?.items.length ?? 0) === 0 ? (
                 <EmptyState title="Nothing said yet." />
               ) : (

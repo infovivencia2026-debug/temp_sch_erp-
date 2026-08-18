@@ -111,6 +111,19 @@ export default function GrievanceHub() {
   const [selected, setSelected] = useState<string | null>(null)
   const [note, setNote] = useState({ body: '', visible_to_parent: false, new_status: '' })
   const [resolution, setResolution] = useState('')
+
+  /* Opening another case empties what was written about this one.
+
+     The note and the resolution live here rather than in a keyed panel, and
+     `selected` is only an id — so an update written about one family's
+     complaint stayed in the box when the clerk opened the next, and Add posted
+     it there. The note carries `visible_to_parent`, so the worst version of
+     that is one family reading what was written about another's case. */
+  const openCase = (id: string | null) => {
+    setSelected(id)
+    setNote({ body: '', visible_to_parent: false, new_status: '' })
+    setResolution('')
+  }
   const [sla, setSla] = useState({
     category: 'safety', department: '', respond_hours: 4, resolve_hours: 48,
   })
@@ -350,7 +363,7 @@ export default function GrievanceHub() {
                     <Badge tone={STATUS_TONE[g.status] ?? 'neutral'}>{g.status}</Badge>
                   </Td>
                   <Td>
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(g.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => openCase(g.id)}>
                       Open
                     </Button>
                   </Td>
@@ -360,13 +373,14 @@ export default function GrievanceHub() {
           )}
         </Card>
 
+        {selected && detail.error && <ErrorState error={detail.error} />}
         {selected && detail.data && (
           <Card>
             <CardHeader
               title={detail.data.subject}
               description={`${detail.data.category} · raised by ${detail.data.raised_by} · ${detail.data.open_days} days old`}
               action={
-                <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                <Button variant="ghost" size="sm" onClick={() => openCase(null)}>
                   Close
                 </Button>
               }

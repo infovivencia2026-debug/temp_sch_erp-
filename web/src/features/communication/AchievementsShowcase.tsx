@@ -94,6 +94,22 @@ export default function AchievementsShowcase() {
   const [consent, setConsent] = useState('signed_consent_form')
   const [media, setMedia] = useState({ external_url: '', caption: '' })
 
+  /* Opening another achievement resets the consent basis and the media box.
+
+     Both were held here against an id, so the basis chosen for one child —
+     "verbal permission from a parent", say — stayed selected when the next
+     entry was opened, and confirming recorded that basis against a different
+     child. The basis is the record of why this child's name and photograph may
+     be published, and the media box is the photograph itself: carried across,
+     it attaches one child's picture to another's achievement. Back to the
+     default, which is the safest of the bases and still has to be chosen
+     deliberately. */
+  const openEntry = (id: string | null) => {
+    setSelected(id)
+    setConsent('signed_consent_form')
+    setMedia({ external_url: '', caption: '' })
+  }
+
   const list = useQuery({
     queryKey: commsQueryKeys.achievements(filters.kind, filters.level, filters.q),
     queryFn: () =>
@@ -124,7 +140,7 @@ export default function AchievementsShowcase() {
       }),
     onSuccess: (r) => {
       setForm(blank)
-      setSelected(r.id)
+      openEntry(r.id)
       refresh()
     },
   })
@@ -160,7 +176,7 @@ export default function AchievementsShowcase() {
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/comms/achievements/${id}`),
     onSuccess: () => {
-      setSelected(null)
+      openEntry(null)
       refresh()
     },
   })
@@ -341,7 +357,7 @@ export default function AchievementsShowcase() {
                   </Td>
                   <Td>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setSelected(a.id)}>
+                      <Button size="sm" variant="ghost" onClick={() => openEntry(a.id)}>
                         Open
                       </Button>
                       {mayPublish &&
@@ -393,7 +409,7 @@ export default function AchievementsShowcase() {
                       Delete
                     </ConfirmButton>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                  <Button variant="ghost" size="sm" onClick={() => openEntry(null)}>
                     Close
                   </Button>
                 </div>
