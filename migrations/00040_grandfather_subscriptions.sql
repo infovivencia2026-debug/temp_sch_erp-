@@ -15,6 +15,15 @@
 -- has been using them is a worse first impression of billing than giving them
 -- away. The seller can downgrade any of these deliberately from the console;
 -- what they must not do is have it happen by omission.
+-- institutions and subscriptions both use FORCE ROW LEVEL SECURITY, which
+-- applies to the table owner too -- and migrations run as the owner. Without
+-- this the SELECT below sees no institutions at all, the INSERT matches zero
+-- rows, and goose reports a successful migration that did nothing. That is
+-- exactly what happened on the first deploy of this file: every existing
+-- school stayed unsubscribed and was locked out by the gate it was meant to
+-- protect them from.
+SET LOCAL app.is_platform_admin = 'on';
+
 INSERT INTO subscriptions (institution_id, plan_code, status, started_on,
                            renews_on, licensed_students, notes)
 SELECT i.id,

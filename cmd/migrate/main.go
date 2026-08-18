@@ -227,7 +227,7 @@ func seed(ctx context.Context, db *database.DB) error {
 			if err := seedRoles(ctx, tx, inst); err != nil {
 				return err
 			}
-			if err := seedCatalogRoles(ctx, tx, inst); err != nil {
+			if err := rbac.SeedCatalogRoles(ctx, tx, inst); err != nil {
 				return err
 			}
 			if err := seedMergedPersonas(ctx, tx, inst); err != nil {
@@ -300,113 +300,6 @@ func seedPermissions(ctx context.Context, tx pgx.Tx) error {
 // other sells to them. roles_institution_key indexes COALESCE(institution_id,
 // all-zero uuid), so the NULL row is unique globally and is created once
 // rather than per institution.
-// platformRole names the roles that belong to the installation rather than to
-// any one school.
-var platformRole = map[string]bool{"super_admin": true, "seller_admin": true}
-
-// nullableInstitution maps the platform's all-zero institution onto SQL NULL,
-// so one query serves both the platform pass and a tenant pass.
-func nullableInstitution(inst uuid.UUID) any {
-	if inst == uuid.Nil {
-		return nil
-	}
-	return inst
-}
-
-func seedCatalogRoles(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
-	/* Which roles this school already has, for the same reason
-	   rbac.SeedInstitution loads it: the optional roles are not part of a new
-	   school's opening position, and creating the row here anyway would hand a
-	   fresh tenant a hod and an operations workspace with navigation but no
-	   capability grants behind it — a menu whose every entry answers 403. */
-	existing := map[string]bool{}
-	rows, err := tx.Query(ctx,
-		`SELECT key FROM roles WHERE institution_id IS NOT DISTINCT FROM $1`,
-		nullableInstitution(inst))
-	if err != nil {
-		return fmt.Errorf("load existing roles: %w", err)
-	}
-	for rows.Next() {
-		var k string
-		if err := rows.Scan(&k); err != nil {
-			rows.Close()
-			return err
-		}
-		existing[k] = true
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
-
-	for _, r := range catalog.Roles {
-		if !rbac.IsDefault(r.Key) && !existing[r.Key] {
-			continue
-		}
-		var owner any = inst
-		if platformRole[r.Key] {
-			owner = nil
-		}
-
-		var roleID uuid.UUID
-		if err := tx.QueryRow(ctx, `
-			INSERT INTO roles (institution_id, key, name, is_system, is_default)
-			VALUES ($1,$2,$3,true,$4)
-			ON CONFLICT (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-			DO UPDATE SET name = EXCLUDED.name, is_default = EXCLUDED.is_default
-			RETURNING id`, owner, r.Key, r.Name, rbac.IsDefault(r.Key)).Scan(&roleID); err != nil {
-			return fmt.Errorf("seed catalog role %s: %w", r.Key, err)
-		}
-
-		// Replace this role's catalog grants, leaving its rbac capability grants
-		// alone. Deleting by LIKE '<role>.%' looked equivalent and was not:
-		// rbac keys such as "admissions.read" and "hr.employees.read" share the
-		// role's prefix, so the wildcard silently removed exactly the grants the
-		// API gates its handlers on, and every back-office endpoint began
-		// answering 403.
-		keys := make([]string, 0, 64)
-		for _, sec := range r.Sections {
-			for _, f := range sec.Features {
-				keys = append(keys, f.Key)
-			}
-		}
-		/* Drop this role's stale catalog grants as well as replacing its
-		   current ones.
-
-		   A feature key is role.section.feature, so regrouping a role's
-		   sections renames every one of its keys. Deleting only the keys in
-		   the new list left the old ones granted forever: invisible, because
-		   no handler gates on a key that is not in the catalog, and wrong,
-		   because every count of "what does this role grant" included them.
-
-		   The prefix match is bounded by two exclusions. rbac capability keys
-		   such as admissions.read and hr.employees.read share these prefixes
-		   and gate real handlers — deleting those by wildcard is what once
-		   made every back-office endpoint answer 403. */
-		rbacKeys := make([]string, 0, len(rbac.All))
-		for _, p := range rbac.All {
-			rbacKeys = append(rbacKeys, p.Key)
-		}
-		if _, err := tx.Exec(ctx, `
-			DELETE FROM role_permissions
-			 WHERE role_id = $1
-			   AND (permission_key = ANY($2)
-			        OR (permission_key LIKE $3
-			            AND permission_key <> ALL($4)))`,
-			roleID, keys, r.Key+".%", rbacKeys); err != nil {
-			return err
-		}
-		for _, key := range keys {
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO role_permissions (role_id, permission_key)
-				VALUES ($1,$2) ON CONFLICT DO NOTHING`, roleID, key); err != nil {
-				return fmt.Errorf("grant %s: %w", key, err)
-			}
-		}
-	}
-	return nil
-}
-
 /*
 mergedPersonas keeps the specialist roles navigable after their workspaces were
 folded into the principal's.
@@ -613,7 +506,7 @@ func createAdmin(ctx context.Context, db *database.DB, pepper, email, password, 
 		if err := seedRoles(ctx, tx, instID); err != nil {
 			return err
 		}
-		if err := seedCatalogRoles(ctx, tx, instID); err != nil {
+		if err := rbac.SeedCatalogRoles(ctx, tx, instID); err != nil {
 			return err
 		}
 

@@ -160,6 +160,14 @@ func provisionSchool(ctx context.Context, tx pgx.Tx, hasher *auth.Hasher, p prov
 	if err := rbac.SeedInstitution(ctx, tx, out.InstitutionID); err != nil {
 		return out, err
 	}
+	// Capabilities alone give a principal a working API and an empty screen.
+	// The navigation comes from the catalog feature keys, and until now they
+	// were granted only by the migrate command's pass over institutions that
+	// already existed — so every school either door provisioned signed in to
+	// no menu at all.
+	if err := rbac.SeedCatalogRoles(ctx, tx, out.InstitutionID); err != nil {
+		return out, err
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO user_roles (user_id, role_id, institution_id)
 		SELECT $1, r.id, $2 FROM roles r

@@ -182,6 +182,19 @@ say "Applying migrations"
 # Runs as the owner via MIGRATE_DATABASE_URL. Done before the restart so the
 # new binary never sees a schema older than it expects.
 ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" up )
+
+# Role grants are deliberately NOT reseeded on every deploy: seeding a role
+# rewrites its catalogue grants, which would silently undo any customisation a
+# school has made to what its roles can see.
+#
+# SEED_ROLES=1 asks for it anyway. That is the repair path for tenants whose
+# roles hold capabilities but no catalogue grants — they have a working API and
+# an empty menu — which is what every provisioned school looked like before
+# provisioning learned to seed them itself.
+if [ "${SEED_ROLES:-0}" = "1" ]; then
+    say "Reseeding roles and catalogue grants (SEED_ROLES=1)"
+    ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" seed )
+fi
 # Permission keys the new build references, so a role can be granted them.
 # Purely additive; role grants stay manual because seeding one rewrites it.
 ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" seed-permissions )
