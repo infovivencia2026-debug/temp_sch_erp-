@@ -232,6 +232,7 @@ func (s *Server) Routes() http.Handler {
 			s.mountFeeEngine(r)
 			s.mountTally(r)
 			s.mountBanking(r)
+			s.mountConcessions(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)

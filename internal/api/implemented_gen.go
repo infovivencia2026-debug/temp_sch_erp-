@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 367 of the catalog's features are implemented.
+// 370 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":             true,
 	"admissions.admissions.admission_fee_collection":                       true,
@@ -95,8 +95,11 @@ var implementedFeatures = map[string]bool{
 	"finance.collections.partial_advance_payments":                         true,
 	"finance.collections.receipts":                                         true,
 	"finance.concessions_refunds.discounts_scholarships":                   true,
+	"finance.concessions_refunds.government_reimbursement_claims":          true,
 	"finance.concessions_refunds.multi_level_concession_approvals":         true,
+	"finance.concessions_refunds.nsp_scholarship_reconciliation":           true,
 	"finance.concessions_refunds.refunds":                                  true,
+	"finance.concessions_refunds.student_loan_assistance_portal":           true,
 	"finance.export.tally_prime_xml_export":                                true,
 	"finance.fee_structure.class_wise_fee_structure_configuration":         true,
 	"finance.fee_structure.demand_invoice_generation":                      true,
