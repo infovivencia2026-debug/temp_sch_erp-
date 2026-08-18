@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 344 of the catalog's features are implemented.
+// 347 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -89,6 +89,7 @@ var implementedFeatures = map[string]bool{
 	"finance.assets_budget.budgeting_variance_analysis":                   true,
 	"finance.assets_budget.fixed_asset_register_depreciation":             true,
 	"finance.collections.collect_payment":                                 true,
+	"finance.collections.gst_compliant_receipt_numbering":                 true,
 	"finance.collections.online_payments":                                 true,
 	"finance.collections.partial_advance_payments":                        true,
 	"finance.collections.receipts":                                        true,
@@ -98,6 +99,7 @@ var implementedFeatures = map[string]bool{
 	"finance.fee_structure.class_wise_fee_structure_configuration":        true,
 	"finance.fee_structure.demand_invoice_generation":                     true,
 	"finance.fee_structure.fee_head_group_setup":                          true,
+	"finance.fee_structure.fee_structure_versioning":                      true,
 	"finance.home.finance_kpis":                                           true,
 	"finance.home.needs_attention":                                        true,
 	"finance.ledgers.chart_of_accounts_setup":                             true,
@@ -113,6 +115,7 @@ var implementedFeatures = map[string]bool{
 	"finance.reports.taxation_audit_reports":                              true,
 	"finance.student_dues.cheque_bounce_fine_engine":                      true,
 	"finance.student_dues.defaulters_reminders":                           true,
+	"finance.student_dues.late_fine_rules_engine":                         true,
 	"finance.student_dues.post_dated_cheques_pdc_registry":                true,
 	"finance.student_dues.student_ledger":                                 true,
 	"hr.attendance.staff_attendance":                                      true,

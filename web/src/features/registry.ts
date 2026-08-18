@@ -11,6 +11,7 @@ import { platformKeys } from './super_admin/platform-keys'
 import { teachingKeys } from './faculty/teaching-keys'
 import { boardKeys } from './exams/board-keys'
 import { messagingKeys } from './super_admin/messaging-keys'
+import { feeEngineKeys } from './finance/fee-engine-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -387,6 +388,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...hrLifecycleKeys,
   ...parentKeys,
   ...ledgerKeys,
+  ...feeEngineKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,
