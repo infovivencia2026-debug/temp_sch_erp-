@@ -247,6 +247,25 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/dashboard", s.getAdmissionsDashboard)
 			r.Get("/enquiries", s.listEnquiries)
 			r.Get("/applications", s.listApplications)
+
+			/* The funnel: where leads came from, who is chasing them, the
+			   quota register an inspection reads, and the waiting list. */
+			r.Get("/sources", s.getLeadSources)
+			r.Get("/leads", s.listLeads)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/leads/assign", s.assignLeads)
+			r.Get("/register", s.getAdmissionRegister)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications/patch", s.patchApplication)
+			r.Get("/siblings", s.findSiblings)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/waitlist/promote", s.promoteWaitlist)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/rte/import", s.importRTELottery)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/message", s.messageApplicants)
+			r.Get("/open-days", s.listOpenDays)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/open-days", s.createOpenDay)
+			r.Get("/open-days/{id}/slots", s.listOpenDaySlots)
+			r.Get("/open-days/{id}/bookings", s.listOpenDayBookings)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/open-days/book", s.bookOpenDay)
+			r.Get("/prospectus", s.listProspectusSales)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/prospectus", s.sellProspectus)
 		})
 
 		/* Leave is registered outside the /hr group on purpose.

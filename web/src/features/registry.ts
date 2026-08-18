@@ -129,6 +129,25 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* The front desk: the visitor register with its block list, the appointment
      diary, the telephone book and the post. Each is a paper register in most
      schools and each is asked for after something has gone wrong. */
+  /* The admissions funnel: where leads came from, who is chasing them, the
+     quota register an inspection reads, the waiting list, open days and the
+     prospectus cash book. */
+  'admissions.enquiries.lead_source_tracking': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.counselor_lead_assignment': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.utm_tracking_digital_campaign_attribution': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.admissions_open_day_scheduler': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.prospectus_kit_sales_log': lazy(() => import('./admissions/Funnel')),
+  'institution_admin.admissions.rte_25_reservation_register': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.admission_waitlist_management': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.sibling_priority_auto_matching': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.alumni_child_quota_allocation': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.rte_online_lottery_import': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.aadhaar_apaar_capture_at_admission': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.admission_fee_collection': lazy(() => import('./admissions/Funnel')),
+  'admissions.communication.applicant_communication': lazy(() => import('./admissions/Funnel')),
+  'admissions.applications.applicant_medical_fitness_declaration': lazy(() => import('./admissions/Funnel')),
+  'admissions.applications.foreign_nri_student_visa_documentation': lazy(() => import('./admissions/Funnel')),
+
   'admissions.visitors.visitor_gate_pass_generation': lazy(() => import('./admissions/FrontDesk')),
   'admissions.visitors.visitor_checkout_tracking': lazy(() => import('./admissions/FrontDesk')),
   'admissions.visitors.parent_appointment_booking': lazy(() => import('./admissions/FrontDesk')),
