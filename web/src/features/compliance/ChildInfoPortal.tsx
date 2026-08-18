@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton,
   Field, FormGrid, FormNotice, Input, Select, Checkbox, Loading, ErrorState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* Platform configuration for a state Child Info portal.
@@ -73,6 +74,12 @@ const EMPTY = {
 
 export default function ChildInfoPortal() {
   const qc = useQueryClient()
+  /* The connector rows belong to no school: platform.tenants.write throughout,
+     gated twice on the server with PlatformAdmin beside it (statutory.go:129).
+     A school administrator who somehow reaches this screen may read it and must
+     not be offered its controls. */
+  const can = useCan()
+  const mayConfigure = can('platform.tenants.write')
   const [form, setForm] = useState({ ...EMPTY })
   const [school, setSchool] = useState('')
   const [logging, setLogging] = useState<string | null>(null)
@@ -276,7 +283,7 @@ export default function ChildInfoPortal() {
               hint="An enabled file-exchange connector is one an operator is expected to run."
             />
             <div className="flex gap-2">
-              <Button disabled={save.isPending} onClick={() => save.mutate()}>
+              <Button disabled={!mayConfigure || save.isPending} onClick={() => save.mutate()}>
                 {form.id ? 'Save connector' : 'Add connector'}
               </Button>
               {form.id && (
@@ -339,24 +346,26 @@ export default function ChildInfoPortal() {
                   </Td>
                   <Td className="tabular-nums">{c.run_count}</Td>
                   <Td>
-                    <div className="flex gap-1.5">
-                      <Button size="sm" variant="ghost" onClick={() => edit(c)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setLogging(c.id)}>
-                        Log an exchange
-                      </Button>
-                      <ConfirmButton
-                        size="sm"
-                        variant="ghost"
-                        tone="danger"
-                        confirmLabel="Delete"
-                        question="Delete this connector and its exchange history?"
-                        onConfirm={() => remove.mutate(c.id)}
-                      >
-                        Delete
-                      </ConfirmButton>
-                    </div>
+                    {mayConfigure && (
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="ghost" onClick={() => edit(c)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setLogging(c.id)}>
+                          Log an exchange
+                        </Button>
+                        <ConfirmButton
+                          size="sm"
+                          variant="ghost"
+                          tone="danger"
+                          confirmLabel="Delete"
+                          question="Delete this connector and its exchange history?"
+                          onConfirm={() => remove.mutate(c.id)}
+                        >
+                          Delete
+                        </ConfirmButton>
+                      </div>
+                    )}
                     {logging === c.id && (
                       <div className="mt-2 space-y-1.5 rounded-md border p-2">
                         <Select

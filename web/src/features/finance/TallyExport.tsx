@@ -8,6 +8,7 @@ import {
   EmptyState, UnavailableState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 import { inr, rupees } from './ledger-lib'
 import {
@@ -41,6 +42,12 @@ const VOUCHER_TYPES = [
 
 export default function TallyExport() {
   const toast = useToast()
+  /* Producing the file, and recording that it was produced, are finance.export
+     (tally.go:76). Reading the settings and the run history inherit the finance
+     group's invoices.read, so somebody without the export key belongs on this
+     screen — they simply cannot be the one who sends it. */
+  const can = useCan()
+  const mayExport = can('finance.export')
   const settings = useTallyExportSettings()
 
   const [from, setFrom] = useState('')
@@ -172,6 +179,7 @@ export default function TallyExport() {
             title="The period"
             description={`Defaults to the financial year ${s.fy_label}. Leave the voucher types unticked for all of them.`}
           />
+          <div className="p-5">
           <FormGrid>
             <Field label="From">
               <input
@@ -212,6 +220,7 @@ export default function TallyExport() {
               />
             </Field>
           </FormGrid>
+          </div>
         </Card>
 
         {check.isLoading && <Loading label="Checking the period…" />}
@@ -225,6 +234,7 @@ export default function TallyExport() {
               title="Ready to export"
               description={`${v.voucher_count} voucher(s) worth ${inr(v.total_paise)}, from ${formatDate(v.from_date)} to ${formatDate(v.to_date)}, into the Tally company "${v.company_name}".`}
             />
+            <div className="space-y-3 p-5">
             {v.warnings.map((wmsg) => (
               <p key={wmsg} className="flex items-start gap-2 text-sm text-muted-foreground">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -252,7 +262,7 @@ export default function TallyExport() {
                 confirmLabel="Export anyway"
                 question={`${v.already_exported} of these ${v.voucher_count} vouchers have gone to Tally before. Importing one twice is undone by deleting it in Tally, one at a time.`}
                 onConfirm={() => exportNow.mutate(undefined as never)}
-                disabled={exportNow.isPending}
+                disabled={!mayExport || exportNow.isPending}
                 variant="secondary"
                 tone="danger"
                 size="md"
@@ -263,12 +273,13 @@ export default function TallyExport() {
             ) : (
               <Button
                 onClick={() => exportNow.mutate(undefined as never)}
-                disabled={exportNow.isPending}
+                disabled={!mayExport || exportNow.isPending}
               >
                 <Download className="h-3.5 w-3.5" />
                 Export {v.voucher_count} voucher(s)
               </Button>
             )}
+            </div>
           </Card>
         )}
 
@@ -283,12 +294,14 @@ export default function TallyExport() {
                 the file straight to disk, and the session cookie goes with it.
                 The GET is idempotent, so downloading it again does not record a
                 second export. */}
-            <a href={created.download_url} download>
-              <Button>
-                <Download className="h-3.5 w-3.5" />
-                Download the XML
-              </Button>
-            </a>
+            <div className="p-5">
+              <a href={created.download_url} download>
+                <Button>
+                  <Download className="h-3.5 w-3.5" />
+                  Download the XML
+                </Button>
+              </a>
+            </div>
           </Card>
         )}
 
@@ -296,6 +309,7 @@ export default function TallyExport() {
           runs={runs.data?.items ?? []}
           loading={runs.isLoading}
           error={runs.error}
+          mayExport={mayExport}
           onConfirm={(id) => confirm.mutate(id)}
         />
       </PageBody>
@@ -317,12 +331,14 @@ function Blocked({ v }: { v: TallyValidation }) {
         description="Tally rejects an entire import for one unmapped ledger, so the file is not produced until every account below has a Tally name against it."
         action={<Badge tone="danger">Blocked</Badge>}
       />
+      <div className="space-y-2 p-5 pb-4">
       {v.blocking.map((b) => (
         <p key={b} className="flex items-start gap-2 text-sm">
           <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           {b}
         </p>
       ))}
+      </div>
 
       {v.unmapped_accounts.length > 0 && (
         <Table
@@ -350,7 +366,7 @@ function Blocked({ v }: { v: TallyValidation }) {
         </Table>
       )}
 
-      <p className="text-sm text-muted-foreground">
+      <p className="p-5 pt-4 text-sm text-muted-foreground">
         Mapping is done on the Tally ERP / Prime connector screen under Platform Setup.
       </p>
     </Card>
@@ -365,11 +381,12 @@ function Blocked({ v }: { v: TallyValidation }) {
  * to would be worse than asking.
  */
 function Runs({
-  runs, loading, error, onConfirm,
+  runs, loading, error, mayExport, onConfirm,
 }: {
   runs: TallyRun[]
   loading: boolean
   error: unknown
+  mayExport: boolean
   onConfirm: (id: string) => void
 }) {
   if (loading) return <Loading label="Reading the export history…" />
@@ -430,7 +447,7 @@ function Runs({
                       File
                     </Button>
                   </a>
-                  {!r.confirmed_at && (
+                  {mayExport && !r.confirmed_at && (
                     <Button variant="ghost" size="sm" onClick={() => onConfirm(r.id)}>
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Mark imported

@@ -7,6 +7,7 @@ import {
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Loading,
   ErrorState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* Working days and instructional hours against the statutory minimum.
@@ -91,6 +92,14 @@ const hours = (minutes: number) =>
 
 export default function WorkingDays() {
   const qc = useQueryClient()
+  /* Two different permissions on one screen, so they are read separately
+     rather than collapsed into one flag: adjustments and norms are
+     academics.write, filing the return is institution.write
+     (statutory.go:118-125). A teacher-facing academics role may record a
+     closure without being able to file the school's statutory return. */
+  const can = useCan()
+  const mayAdjust = can('academics.write')
+  const mayFileReturn = can('institution.write')
   const [toDate, setToDate] = useState(true)
   const [adj, setAdj] = useState({ on_date: '', days: '', minutes: '', reason: '' })
   const [title, setTitle] = useState('')
@@ -289,7 +298,9 @@ export default function WorkingDays() {
                   </Field>
                 </FormGrid>
                 <Button
-                  disabled={addAdjustment.isPending || !adj.on_date || !adj.reason}
+                  disabled={
+                    !mayAdjust || addAdjustment.isPending || !adj.on_date || !adj.reason.trim()
+                  }
                   onClick={() => addAdjustment.mutate()}
                 >
                   Record the adjustment
@@ -314,7 +325,7 @@ export default function WorkingDays() {
                     <Td className="max-w-md text-[13px]">{a.reason}</Td>
                     <Td>{a.created_by ?? '—'}</Td>
                     <Td>
-                      <ConfirmButton
+                      {mayAdjust && <ConfirmButton
                         size="sm"
                         variant="ghost"
                         tone="danger"
@@ -323,7 +334,7 @@ export default function WorkingDays() {
                         onConfirm={() => removeAdjustment.mutate(a.id)}
                       >
                         Remove
-                      </ConfirmButton>
+                      </ConfirmButton>}
                     </Td>
                   </tr>
                 ))}
@@ -366,7 +377,10 @@ export default function WorkingDays() {
                     <Input value={title} onChange={setTitle} placeholder="Optional" />
                   </Field>
                 </FormGrid>
-                <Button disabled={fileReturn.isPending} onClick={() => fileReturn.mutate()}>
+                <Button
+                  disabled={!mayFileReturn || fileReturn.isPending}
+                  onClick={() => fileReturn.mutate()}
+                >
                   {fileReturn.isPending ? 'Filing…' : 'File the return'}
                 </Button>
                 <FormNotice error={fileReturn.error} />

@@ -196,7 +196,7 @@ function VersionHistoryPanel({
       ) : error ? (
         <ErrorState error={error} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 p-5">
           <FormNotice
             error={openRevision.error ?? activate.error ?? discard.error}
           />

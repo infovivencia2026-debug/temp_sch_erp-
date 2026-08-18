@@ -315,7 +315,7 @@ function RuleForm({
         title={rule ? `Edit "${rule.name}"` : 'New fine rule'}
         description="Leave a target blank to mean 'any' — a blank head applies to the whole invoice balance"
       />
-      <div className="space-y-4">
+      <div className="space-y-4 p-5">
         <FormGrid>
           <Field label="Name" required hint="How the school finds this rule again">
             <Input value={name} onChange={setName} placeholder="Standard late fee" />
@@ -538,7 +538,8 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
       ) : preview.error ? (
         <ErrorState error={preview.error} />
       ) : (
-        <div className="space-y-4">
+        <>
+          <div className="space-y-4 p-5 pb-4">
           <CellGrid cols={4}>
             <Stat label="Dues assessed" value={preview.data?.assessed ?? 0} period={`as at ${formatDate(asOf)}`} />
             <Stat label="Would be charged" value={preview.data?.chargeable ?? 0} />
@@ -547,6 +548,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
           </CellGrid>
 
           <FormNotice error={apply.error} />
+          </div>
 
           <Table
             head={[
@@ -580,7 +582,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
           </Table>
 
           {mayLevy && (
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 p-5 pt-4">
               <Button
                 variant="secondary"
                 size="sm"
@@ -611,7 +613,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
               )}
             </div>
           )}
-        </div>
+        </>
       )}
     </Card>
   )

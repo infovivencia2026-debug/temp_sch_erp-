@@ -238,7 +238,7 @@ function SeriesForm({
         title={`Configure the ${series.kind} series`}
         description="Placeholders: {prefix} {fy} {seq} {suffix}. The format must contain {seq}."
       />
-      <div className="space-y-4">
+      <div className="space-y-4 p-5">
         <FormGrid>
           <Field label="Prefix">
             <Input value={prefix} onChange={setPrefix} placeholder="RCPT/" />

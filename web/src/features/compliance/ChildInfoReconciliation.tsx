@@ -7,6 +7,7 @@ import {
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Loading,
   ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* The state roster against ours, and what was decided about the gap.
@@ -97,6 +98,10 @@ const WRITABLE = new Set(['date_of_birth', 'gender', 'aadhaar_last4', 'apaar_id'
 
 export default function ChildInfoReconciliation() {
   const qc = useQueryClient()
+  /* Reading the differences is admin.reports.read; importing an extract and
+     settling a difference are students.write (statutory.go:111-113). */
+  const can = useCan()
+  const mayResolve = can('students.write')
   const [csv, setCsv] = useState('')
   const [fileName, setFileName] = useState('')
   const [note, setNote] = useState('')
@@ -229,12 +234,12 @@ export default function ChildInfoReconciliation() {
               </Field>
             </FormGrid>
             <div className="flex flex-wrap gap-2">
-              <Button disabled={!csv || run.isPending} onClick={() => run.mutate(false)}>
+              <Button disabled={!mayResolve || !csv || run.isPending} onClick={() => run.mutate(false)}>
                 {run.isPending ? 'Reconciling…' : 'Check the file'}
               </Button>
               <Button
                 variant="secondary"
-                disabled={!csv || run.isPending || !run.data}
+                disabled={!mayResolve || !csv || run.isPending || !run.data}
                 onClick={() => run.mutate(true)}
               >
                 Import {run.data ? `${run.data.rows} row(s)` : ''}
@@ -321,7 +326,7 @@ export default function ChildInfoReconciliation() {
                             />
                             <Button
                               size="sm"
-                              disabled={resolve.isPending}
+                              disabled={!mayResolve || resolve.isPending}
                               onClick={() =>
                                 resolve.mutate({
                                   id: d.id,
@@ -378,9 +383,11 @@ export default function ChildInfoReconciliation() {
                 </Td>
                 <Td>{res.resolved_by ?? '—'}</Td>
                 <Td>
-                  <Button size="sm" variant="ghost" onClick={() => forget.mutate(res.id)}>
-                    Raise again
-                  </Button>
+                  {mayResolve && (
+                    <Button size="sm" variant="ghost" onClick={() => forget.mutate(res.id)}>
+                      Raise again
+                    </Button>
+                  )}
                 </Td>
               </tr>
             ))}

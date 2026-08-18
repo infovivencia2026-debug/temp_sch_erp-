@@ -7,6 +7,7 @@ import {
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* School Quality Assessment and Accreditation, the school's half.
@@ -118,6 +119,12 @@ const pct = (bp?: number) => (bp == null ? '—' : `${(bp / 100).toFixed(1)}%`)
 
 export default function SQAACompliance() {
   const qc = useQueryClient()
+  /* Reading a self-assessment is admin.reports.read; starting one, rating a
+     standard, attaching evidence and submitting are institution.write
+     (statutory.go:97-105). `!d.frozen` was the only guard, so a reader saw
+     every control and got a 403 from each. */
+  const can = useCan()
+  const mayEdit = can('institution.write')
   const [selected, setSelected] = useState<string | null>(null)
   const [newA, setNewA] = useState({ framework_code: '', title: '', due_on: '' })
   const [evidenceFor, setEvidenceFor] = useState<string | null>(null)
@@ -273,7 +280,7 @@ export default function SQAACompliance() {
                     </Field>
                   </FormGrid>
                   <Button
-                    disabled={!newA.framework_code || create.isPending}
+                    disabled={!mayEdit || !newA.framework_code || create.isPending}
                     onClick={() => create.mutate()}
                   >
                     {create.isPending ? 'Laying out the standards…' : 'Start the assessment'}
@@ -410,7 +417,7 @@ export default function SQAACompliance() {
                         </Td>
                         <Td className="tabular-nums">{e.weight_bp ? pct(e.weight_bp) : '—'}</Td>
                         <Td>
-                          {d.frozen ? (
+                          {d.frozen || !mayEdit ? (
                             <Badge tone={RATING_TONE[e.rating] ?? 'neutral'}>
                               {e.rating.replace(/_/g, ' ')}
                             </Badge>
@@ -446,7 +453,7 @@ export default function SQAACompliance() {
                             {e.evidence_required && !e.evidence.length && (
                               <Badge tone="warning">evidence required</Badge>
                             )}
-                            {!d.frozen && evidenceFor === e.id && (
+                            {!d.frozen && mayEdit && evidenceFor === e.id && (
                               <div className="space-y-1 pt-1">
                                 <Input
                                   value={ev.caption}
@@ -480,7 +487,7 @@ export default function SQAACompliance() {
                         </Td>
                         <Td className="max-w-xs text-[13px]">{e.remarks ?? '—'}</Td>
                         <Td>
-                          {!d.frozen && evidenceFor !== e.id && (
+                          {!d.frozen && mayEdit && evidenceFor !== e.id && (
                             <Button size="sm" variant="ghost" onClick={() => setEvidenceFor(e.id)}>
                               Attach evidence
                             </Button>
@@ -533,7 +540,7 @@ export default function SQAACompliance() {
                       </Field>
                     </FormGrid>
                     <Button
-                      disabled={!action.title || addAction.isPending}
+                      disabled={!mayEdit || !action.title.trim() || addAction.isPending}
                       onClick={() => addAction.mutate(undefined)}
                     >
                       Add to the plan
@@ -583,7 +590,7 @@ export default function SQAACompliance() {
                           </Badge>
                         </Td>
                         <Td>
-                          {a.status === 'open' || a.status === 'in_progress' ? (
+                          {mayEdit && (a.status === 'open' || a.status === 'in_progress') ? (
                             <Button size="sm" variant="ghost" onClick={() => closeAction.mutate(a)}>
                               Mark done
                             </Button>
@@ -594,7 +601,7 @@ export default function SQAACompliance() {
                   </Table>
                 </Card>
 
-                {!d.frozen && (
+                {!d.frozen && mayEdit && (
                   <Card>
                     <CardHeader
                       title="Submit the assessment"

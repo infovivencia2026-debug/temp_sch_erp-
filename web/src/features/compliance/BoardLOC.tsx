@@ -7,6 +7,7 @@ import {
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Loading,
   ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* The List of Candidates, and the reason it is worth a screen.
@@ -89,6 +90,11 @@ const rupees = (paise: number) =>
 
 export default function BoardLOC() {
   const qc = useQueryClient()
+  /* Reading an LOC is admin.reports.read; building, revalidating and filing one
+     are academics.exams.write (statutory.go:86-92). The screen offered all
+     three to a reader and answered with a bare 403. */
+  const can = useCan()
+  const mayFile = can('academics.exams.write')
   const [selected, setSelected] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [form, setForm] = useState({
@@ -202,7 +208,7 @@ export default function BoardLOC() {
                   description="Candidates are read from the board roll you already registered. Nothing is duplicated here."
                 />
                 <div className="px-5 pb-5">
-                  <NewForm form={form} setForm={setForm} create={create} />
+                  <NewForm form={form} setForm={setForm} create={create} mayFile={mayFile} />
                 </div>
               </Card>
             ) : (
@@ -251,7 +257,7 @@ export default function BoardLOC() {
                 <Card>
                   <CardHeader title="Start another list" />
                   <div className="px-5 pb-5">
-                    <NewForm form={form} setForm={setForm} create={create} />
+                    <NewForm form={form} setForm={setForm} create={create} mayFile={mayFile} />
                   </div>
                 </Card>
               </>
@@ -310,7 +316,7 @@ export default function BoardLOC() {
                         : 'Every candidate on this list is submittable.'
                     }
                     action={
-                      !d.frozen ? (
+                      !d.frozen && mayFile ? (
                         <Button
                           variant="secondary"
                           disabled={validate.isPending}
@@ -388,7 +394,7 @@ export default function BoardLOC() {
                   </Table>
                 </Card>
 
-                {!d.frozen && (
+                {!d.frozen && mayFile && (
                   <Card>
                     <CardHeader
                       title="File this list with the board"
@@ -446,11 +452,21 @@ function NewForm({
   form,
   setForm,
   create,
+  mayFile,
 }: {
   form: { board: string; exam_name: string; stage: string; title: string; fee: string }
   setForm: (v: typeof form) => void
   create: { mutate: () => void; isPending: boolean; error: unknown }
+  mayFile: boolean
 }) {
+  if (!mayFile) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        Building a List of Candidates needs the examinations permission. You can read every list
+        here and export one in the board's format.
+      </p>
+    )
+  }
   return (
     <div className="space-y-3">
       <FormGrid>

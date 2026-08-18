@@ -7,6 +7,7 @@ import {
   Input, Select, Checkbox, Field, FormGrid, Button, FormNotice,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { useToast } from '@/components/Toast'
 import { fyOptions, fyLabel, currentFY } from './ledger-lib'
 import {
@@ -40,6 +41,12 @@ import {
  */
 
 export default function TallyConnector() {
+  /* platform.tenants.write throughout (tally.go:113). institution_admin holds
+     every other key in this product and deliberately not this one, which is
+     what keeps a school out of the gateway address — so a school administrator
+     who reaches this screen must not be shown its Save buttons. */
+  const can = useCan()
+  const mayConfigure = can('platform.tenants.write')
   const toast = useToast()
   const conn = useTallyConnector()
 
@@ -126,6 +133,7 @@ export default function TallyConnector() {
             title="The company and the year"
             description="The company name must match the one in Tally exactly. An import that names no company lands in whichever company happens to be open, which is how one school's fees end up in another's books."
           />
+          <div className="space-y-4 p-5">
           <FormGrid>
             <Field label="Tally company name" required hint="As it appears in Tally's company list.">
               <Input value={company} onChange={setCompany} placeholder="Sri Sai Vidya Niketan" />
@@ -145,10 +153,11 @@ export default function TallyConnector() {
           <FormNotice error={saveSettings.error} ok={saveSettings.isSuccess ? 'Saved.' : undefined} />
           <Button
             onClick={() => saveSettings.mutate(undefined as never)}
-            disabled={saveSettings.isPending}
+            disabled={!mayConfigure || saveSettings.isPending}
           >
             Save the connector
           </Button>
+          </div>
         </Card>
 
         <VoucherTypes types={c?.voucher_types ?? []} erpTypes={c?.erp_voucher_types ?? []} />
@@ -178,6 +187,7 @@ export default function TallyConnector() {
  * rediscover.
  */
 function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes: string[] }) {
+  const mayConfigure = useCan()('platform.tenants.write')
   const toast = useToast()
   const [draft, setDraft] = useState<Record<string, string>>({})
 
@@ -223,7 +233,7 @@ function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes
             variant="secondary"
             size="sm"
             onClick={() => seed.mutate(undefined as never)}
-            disabled={seed.isPending}
+            disabled={!mayConfigure || seed.isPending}
           >
             Apply the standard types
           </Button>
@@ -250,9 +260,13 @@ function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes
           </tr>
         ))}
       </Table>
+      <div className="space-y-3 p-5">
       <FormNotice error={save.error ?? seed.error} ok={save.isSuccess ? 'Saved.' : undefined} />
       <div className="flex items-center gap-3">
-        <Button onClick={() => save.mutate(undefined as never)} disabled={save.isPending}>
+        <Button
+          onClick={() => save.mutate(undefined as never)}
+          disabled={!mayConfigure || save.isPending}
+        >
           Save voucher types
         </Button>
         {missing > 0 && (
@@ -260,6 +274,7 @@ function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes
             {missing} unmapped. A voucher of an unmapped type blocks the whole export.
           </span>
         )}
+      </div>
       </div>
     </Card>
   )
@@ -274,6 +289,7 @@ function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes
  * a permanently incomplete mapping.
  */
 function LedgerMapping({ fy }: { fy: string }) {
+  const mayConfigure = useCan()('platform.tenants.write')
   const toast = useToast()
   const [onlyUnmapped, setOnlyUnmapped] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>({})
@@ -360,13 +376,15 @@ function LedgerMapping({ fy }: { fy: string }) {
           ))}
         </Table>
       )}
-      <FormNotice error={save.error} ok={save.isSuccess ? 'Mapping saved.' : undefined} />
-      <Button
-        onClick={() => save.mutate(undefined as never)}
-        disabled={!dirty || save.isPending}
-      >
-        {dirty ? `Save ${dirty} change(s)` : 'Save the mapping'}
-      </Button>
+      <div className="space-y-3 p-5">
+        <FormNotice error={save.error} ok={save.isSuccess ? 'Mapping saved.' : undefined} />
+        <Button
+          onClick={() => save.mutate(undefined as never)}
+          disabled={!mayConfigure || !dirty || save.isPending}
+        >
+          {dirty ? `Save ${dirty} change(s)` : 'Save the mapping'}
+        </Button>
+      </div>
     </Card>
   )
 }
@@ -384,6 +402,7 @@ function LedgerMapping({ fy }: { fy: string }) {
  * their own school.
  */
 function Gateway() {
+  const mayConfigure = useCan()('platform.tenants.write')
   const toast = useToast()
   const gw = useQuery({
     queryKey: tallyQk.gateway,
@@ -426,6 +445,7 @@ function Gateway() {
         description={gw.data?.note}
         action={<Badge tone="neutral">Platform only</Badge>}
       />
+      <div className="space-y-4 p-5">
       <FormGrid>
         <Field
           label="Gateway address"
@@ -452,7 +472,7 @@ function Gateway() {
         <Button
           variant="secondary"
           onClick={() => save.mutate(undefined as never)}
-          disabled={save.isPending}
+          disabled={!mayConfigure || save.isPending}
         >
           Save the gateway details
         </Button>
@@ -460,6 +480,7 @@ function Gateway() {
           <ServerOff className="h-3.5 w-3.5" />
           No request is made to this address.
         </span>
+      </div>
       </div>
     </Card>
   )
