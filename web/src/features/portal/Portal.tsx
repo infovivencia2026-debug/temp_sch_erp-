@@ -142,7 +142,7 @@ export default function Portal() {
           <Loading />
         ) : (
           <>
-            <CellGrid cols={4}>
+            <CellGrid cols={isAttendance ? 3 : 4}>
               <Stat
                 label="Overall attendance"
                 value={`${s.attendance_pct}%`}
@@ -151,6 +151,12 @@ export default function Portal() {
               />
               <Stat label="Present" value={`${s.present_days} days`} />
               <Stat label="Absent" value={`${s.absent_days} days`} />
+              {/* The attendance page is asked one question and should answer
+                  that one. Homework, fees and the next exam are the
+                  dashboard's business; here they are three numbers a family
+                  has to read past to find the one they came for. */}
+              {!isAttendance && (
+              <>
               <Stat
                 label="Homework due"
                 value={`${s.homework_due} pending`}
@@ -171,6 +177,8 @@ export default function Portal() {
                 hint={s.outstanding_paise ? 'Payable now' : 'All settled'}
               />
               <Stat label="Next exam" value={s.next_exam ?? '—'} icon={GraduationCap} />
+              </>
+              )}
             </CellGrid>
 
             {!isAttendance && (
