@@ -194,6 +194,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/today", s.listTodaysClasses)
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
+			s.mountFacultyComms(r)
 			/* What a class teacher knows about each child: the roll-up, the
 			   conduct file, and the accommodations agreed for those who need
 			   them. Reads are open to anyone who can see a student — a family
@@ -440,6 +441,7 @@ func (s *Server) Routes() http.Handler {
 
 		// --- Operations desks (module 10) ----------------------------------
 		r.Route("/ops", func(r chi.Router) {
+			s.mountInfirmary(r)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles", s.listLibraryTitles)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)

@@ -4897,9 +4897,39 @@
   "description": "Inspect room furniture, lights, and appliances upon student check-in and check-out.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelRoomChecks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/occupancy",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/room-checks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/room-checks/:param/items",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.hostel_roll_call_attendance",
@@ -4952,9 +4982,18 @@
   "description": "Track boarder attendance in mandatory evening/night supervised study halls.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelNightStudy",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/night-study",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.digital_outpass_approval",
@@ -5015,9 +5054,32 @@
   "description": "Record parent/relative visits to hostel premises, check-in time, and exit verification.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelVisitors",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/visits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/visits/:param/out",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.mess_menu_meal_management",
@@ -5078,9 +5140,32 @@
   "description": "Log clothes sent to commercial laundry, track token numbers, and manage returns.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/HostelLaundry",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/hostel/laundry",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/hostel/laundry/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.hostel_complaint_ticketing",
@@ -6172,9 +6257,33 @@
   "description": "Record infirmary visits, symptom observations, temperature, treatments, and resting duration.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/InfirmaryClinic",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/infirmary/medications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/visits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.medication_admin_register",
@@ -6185,9 +6294,33 @@
   "description": "Log doctor-prescribed medication administered to boarders/day students during school hours.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/InfirmaryClinic",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/infirmary/medications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/visits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.emergency_health_alerts",
@@ -6219,9 +6352,41 @@
   "description": "Record height, weight, BMI, vision test, and dental health scores from annual doctor camps.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/InfirmaryScreening",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/infirmary/camps",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/camps/:param/seen",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/checkups",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.infirmary.school_health_programme_camps",
@@ -6232,9 +6397,41 @@
   "description": "Record state school-health screening camps, referrals and follow-up treatment.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/InfirmaryScreening",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/infirmary/camps",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/camps/:param/seen",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/infirmary/checkups",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.stores.item_category_store_setup",
@@ -7510,9 +7707,31 @@
   "description": "Announcements/messages to assigned classes, students or parents based on policy.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Communication",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/communication",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/ptm-notes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/remarks",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.classroom_communication_broadcasting",
@@ -7523,9 +7742,18 @@
   "description": "Send class-wide or student-specific notices directly to parents via app messenger.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Broadcasts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/broadcasts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.remarks",
@@ -7536,9 +7764,24 @@
   "description": "Add permitted academic/class remarks and observations.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Remarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/remarks",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/remarks:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.class_teacher_remarks",
@@ -7549,9 +7792,25 @@
   "description": "Enter term-end qualitative report card remarks and principal summary comments.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/ClassTeacherRemarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/report-remarks",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.communication.anecdotal_records",
@@ -7562,9 +7821,24 @@
   "description": "Maintain private qualitative observation notes regarding individual student behavioral growth.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Anecdotal",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/remarks",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/remarks:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.ptm_notes_action_items",
@@ -7575,9 +7849,18 @@
   "description": "Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/PTMNotes",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/ptm-notes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.announcements",

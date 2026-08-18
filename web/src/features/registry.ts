@@ -1,4 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
+import { facultyCommsKeys } from './faculty/keys'
+import { healthKeys } from './operations/health-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -371,6 +373,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.dashboard.system_health': lazy(() => import('./shared/Jobs')),
   'super_admin.access_security.user_directory': lazy(() => import('./super_admin/Users')),
   'super_admin.institution_setup.school_settings': lazy(() => import('./setup/Wizard')),
+
+  /* Domains built in parallel hand over their own key map rather than editing
+     this file, so several screens can land at once without several agents
+     rewriting one object. */
+  ...facultyCommsKeys,
+  ...healthKeys,
 }
 
 export function componentFor(key: string) {

@@ -47,10 +47,25 @@ def load_catalog():
 
 
 def load_registry():
-    """feature key -> component path, straight from the client's own registry."""
+    """feature key -> component path, straight from the client's own registry.
+
+    Domains built in parallel hand over a `*keys*.ts` fragment beside their
+    screens instead of all editing registry.ts, so the fragments are read too.
+    Reading only registry.ts found the spread and none of the keys inside it,
+    and every screen delivered that way was then reported as unbuilt.
+    """
+    pat = re.compile(r"'([a-z0-9_.]+)':\s*lazy\(\s*\(\)\s*=>\s*import\('\./([^']+)'\)")
+    out = {}
     src = (WEB / "features" / "registry.ts").read_text()
-    pairs = re.findall(r"'([a-z0-9_.]+)':\s*lazy\(\(\)\s*=>\s*import\('\./([^']+)'\)\)", src)
-    return {key: path for key, path in pairs}
+    for key, path in pat.findall(src):
+        out[key] = path
+    for frag in sorted((WEB / "features").rglob("*keys*.ts")):
+        # A fragment's imports are relative to its own directory, not to
+        # registry.ts, so the path is rebuilt from where the fragment lives.
+        base = frag.parent.relative_to(WEB / "features")
+        for key, path in pat.findall(frag.read_text()):
+            out[key] = f"{base}/{path}"
+    return out
 
 
 # Endpoints appear as string or template literals inside api.get/post/put/del.
