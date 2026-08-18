@@ -200,7 +200,7 @@ export default function Consent() {
 function RequestTrip({ children_ }: { children_: Child[] }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [student, setStudent] = useState('')
+  const [picked, setPicked] = useState('')
   const [reason, setReason] = useState('')
   const [destination, setDestination] = useState('')
   const [escort, setEscort] = useState('')
@@ -208,10 +208,16 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
   const [out, setOut] = useState('')
   const [back, setBack] = useState('')
 
+  /* Whose pass this is, decided the same way every other family screen decides
+     it: one child needs no choosing, more than one must be chosen. The picker
+     below is only drawn for the second case, so a lone child would never set
+     the field and requiring it would lock that parent out of the form. */
+  const student = picked || (children_.length === 1 ? children_[0].student_id : '')
+
   const create = useMutation({
     mutationFn: () =>
       api.post('/api/v1/ops/hostel/outpasses', {
-        student_id: student || children_[0]?.student_id,
+        student_id: student,
         reason,
         destination,
         escort_name: escort,
@@ -254,7 +260,7 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
             <Field label="Child">
               <Select
                 value={student}
-                onChange={setStudent}
+                onChange={setPicked}
                 placeholder="Choose a child"
                 options={children_.map((c) => ({ value: c.student_id, label: c.full_name }))}
               />
@@ -286,7 +292,7 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
         </FormGrid>
         <div className="mt-4 flex gap-2">
           <Button
-            disabled={create.isPending || reason.trim() === '' || !out || !back}
+            disabled={create.isPending || !student || reason.trim() === '' || !out || !back}
             onClick={() => create.mutate()}
           >
             {create.isPending ? 'Sending…' : 'Send to the warden'}

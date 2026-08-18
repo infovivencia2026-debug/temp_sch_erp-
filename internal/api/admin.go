@@ -28,6 +28,9 @@ type adminUser struct {
 	MFAEnabled  bool     `json:"mfa_enabled"`
 	LastLoginAt *string  `json:"last_login_at,omitempty"`
 	Roles       []string `json:"roles"`
+	// The same roles by key. The screen displays Roles and edits RoleKeys;
+	// giving it only the display name is what let a save revoke everything.
+	RoleKeys    []string `json:"role_keys"`
 	Institution *string  `json:"institution,omitempty"`
 	Sessions    int      `json:"active_sessions"`
 }
@@ -44,6 +47,15 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		       to_char(u.last_login_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
 		       COALESCE(array_agg(DISTINCT ro.name)
 		                FILTER (WHERE ro.name IS NOT NULL), '{}'),
+		       /* Keys as well as names.
+		
+		          The screen shows the name and edits by key, and it was given
+		          only the name — so every role rendered unticked when editing
+		          anyone, and saving sent names the server cannot resolve.
+		          With replace semantics that deleted every role the account
+		          had and reported success. */
+		       COALESCE(array_agg(DISTINCT ro.key)
+		                FILTER (WHERE ro.key IS NOT NULL), '{}'),
 		       i.name,
 		       (SELECT count(*) FROM sessions se
 		         WHERE se.user_id = u.id AND se.revoked_at IS NULL AND se.expires_at > now())
@@ -63,7 +75,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (adminUser, error) {
 			var v adminUser
 			return v, rows.Scan(&v.ID, &v.FullName, &v.Email, &v.Phone, &v.Status,
-				&v.MFAEnabled, &v.LastLoginAt, &v.Roles, &v.Institution, &v.Sessions)
+				&v.MFAEnabled, &v.LastLoginAt, &v.Roles, &v.RoleKeys, &v.Institution, &v.Sessions)
 		})
 	respond(w, r, items, err)
 }

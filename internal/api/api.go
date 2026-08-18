@@ -96,6 +96,9 @@ func (s *Server) Routes() http.Handler {
 				Post("/lesson-plans/{id}/decide", s.decideLessonPlan)
 		})
 
+		s.mountAdminRollups(r)
+		s.mountTimetableOps(r)
+
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
 			s.mountAdminAcademics(r)
@@ -201,6 +204,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
 			s.mountFacultyComms(r)
+			s.mountTeaching(r)
 			/* What a class teacher knows about each child: the roll-up, the
 			   conduct file, and the accommodations agreed for those who need
 			   them. Reads are open to anyone who can see a student — a family
@@ -230,6 +234,10 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/finance", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.InvoicesRead))
 			s.mountLedgers(r)
+			s.mountFeeEngine(r)
+			s.mountTally(r)
+			s.mountBanking(r)
+			s.mountConcessions(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)
@@ -354,6 +362,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Examinations & report cards (module 4) ------------------------
 		r.Route("/exams", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.ExamsRead))
+			s.mountBoardExams(r)
 			r.Get("/list", s.listExams)
 			r.Get("/subjects", s.listExamSubjects)
 			r.Get("/gradebook", s.getGradebook)
@@ -418,6 +427,8 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		// --- Compliance exports (module 8) ---------------------------------
+		s.mountStatutory(r)
+
 		r.Route("/compliance", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.ReportsRead))
 			r.Get("/udise", s.getUDISEExport)
@@ -548,6 +559,8 @@ func (s *Server) Routes() http.Handler {
 		// --- Super Admin: access, platform configuration ------------------
 		r.Route("/admin", func(r chi.Router) {
 			s.mountPlatformConfig(r)
+			s.mountMessaging(r)
+			s.mountTallyConnector(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

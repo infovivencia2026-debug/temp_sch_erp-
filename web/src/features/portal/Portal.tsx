@@ -138,11 +138,21 @@ export default function Portal() {
         }
       />
       <PageBody>
-        {summary.isLoading || !s ? (
+        {summary.isLoading ? (
           <Loading />
+        ) : summary.error ? (
+          /* `!s` used to fall through to the spinner, so a summary that came
+             back 403 or 500 left a parent watching "Loading…" for the rest of
+             the session. The failure has a message; show it. */
+          <ErrorState error={summary.error} />
+        ) : !s ? (
+          <EmptyState
+            title="Nothing recorded yet"
+            body="Attendance, homework and fees appear here once the school starts recording them for this student."
+          />
         ) : (
           <>
-            <CellGrid cols={4}>
+            <CellGrid cols={isAttendance ? 3 : 4}>
               <Stat
                 label="Overall attendance"
                 value={`${s.attendance_pct}%`}
@@ -151,6 +161,12 @@ export default function Portal() {
               />
               <Stat label="Present" value={`${s.present_days} days`} />
               <Stat label="Absent" value={`${s.absent_days} days`} />
+              {/* The attendance page is asked one question and should answer
+                  that one. Homework, fees and the next exam are the
+                  dashboard's business; here they are three numbers a family
+                  has to read past to find the one they came for. */}
+              {!isAttendance && (
+              <>
               <Stat
                 label="Homework due"
                 value={`${s.homework_due} pending`}
@@ -171,6 +187,8 @@ export default function Portal() {
                 hint={s.outstanding_paise ? 'Payable now' : 'All settled'}
               />
               <Stat label="Next exam" value={s.next_exam ?? '—'} icon={GraduationCap} />
+              </>
+              )}
             </CellGrid>
 
             {!isAttendance && (

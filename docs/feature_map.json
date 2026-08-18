@@ -1256,9 +1256,76 @@
   "description": "Configure SMTP credentials, send grid settings, DKIM/SPF verification, and email dispatch logs.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/EmailServer",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/messaging/dispatch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/log:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param/test",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/templates",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/run",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.messaging.automated_trigger_rules",
@@ -1269,9 +1336,76 @@
   "description": "Set trigger conditions for instant automated notifications on absence, fee due, or bus delay.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/TriggerRules",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/messaging/dispatch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/log:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param/test",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/templates",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/run",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.payments_devices.payment_gateway_connectors",
@@ -3004,9 +3138,31 @@
   "description": "Pass rate, subject performance, at-risk students and backlog summary.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/PerformanceOverview",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/performance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.baseline_performance_analysis",
@@ -3017,9 +3173,24 @@
   "description": "Analyze baseline student entry performance against end-of-term academic growth.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/BaselineAnalysis",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/analysis/baseline",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.ssc_board_registration",
@@ -3030,9 +3201,74 @@
   "description": "Register Class 10 candidates with BSE Telangana, capture subject combinations and medium, and submit the nominal roll.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/SSCRegistration",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/amendments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/amendments/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/eligible",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/amendments",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/board-response",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.intermediate_board_registration",
@@ -3043,9 +3279,74 @@
   "description": "Register Class 11 and 12 candidates with TSBIE including group and second language selection.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/IntermediateRegistration",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/amendments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/amendments/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/eligible",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/amendments",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/board-response",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/registrations/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.hall_ticket_issue",
@@ -3120,9 +3421,45 @@
   "description": "Import board results, map them to student records and publish to parents.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "exams/BoardResultImport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/exams/board/results/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/imports",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/imports/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/reconciliation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/board/results/rows/:param/match",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.examinations.exams_results",
@@ -7361,9 +7698,52 @@
   "description": "Create assignments, review submissions, grade and add feedback.",
   "scope": "Self + assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/Assignments",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/homework",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments/:param/grade",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/assignments/:param/submissions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.lesson_plans_content",
@@ -7538,9 +7918,39 @@
   "description": "Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/LMSUpload",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/files/presign",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.live_virtual_class_launcher",
@@ -7551,9 +7961,53 @@
   "description": "Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/VirtualClasses",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/:param/launch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/virtual-classes/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.study_materials",
@@ -7564,9 +8018,38 @@
   "description": "Notes, worksheets and reference material shared with the class.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/StudyMaterials",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/materials/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.teaching.syllabus_progress",
@@ -7871,9 +8354,32 @@
   "description": "Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/CCEFormative",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/cce/formative",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.assessment_schemes.cce_summative_assessment_entry",
@@ -7884,9 +8390,39 @@
   "description": "Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/CCESummative",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/cce/summative",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/cce/summative/roster",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.question_bank_management",
@@ -7897,9 +8433,46 @@
   "description": "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/QuestionBank",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank/summary",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.ai_examcell_paper_generator",
@@ -7936,9 +8509,54 @@
   "description": "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/OnlineTests",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests/:param",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/online-tests/:param/questions",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/question-bank",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.question_papers_online_tests.no_omr_exam_grading",

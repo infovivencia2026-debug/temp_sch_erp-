@@ -63,11 +63,11 @@ const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> 
 }
 
 export default function PortalFees() {
-  const { data: children } = useQuery({
+  const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
   })
-  const kids = children?.items ?? []
+  const kids = children.data?.items ?? []
   const [picked, setPicked] = useState('')
   const child = picked || kids[0]?.student_id || ''
 
@@ -77,9 +77,41 @@ export default function PortalFees() {
     enabled: !!child,
   })
 
-  if (isLoading || !child) return <Loading />
+  /* The children request is a state of this screen too.
+
+     `isLoading || !child` sent a parent whose list failed — or whose account is
+     linked to nobody — to a spinner that never resolved, because the fee query
+     stays disabled while there is no child and a disabled query never stops
+     being pending. Three separate answers, in the order the page learns them. */
+  if (children.isLoading) return <Loading />
+  if (children.error) return <ErrorState error={children.error} />
+  if (!kids.length)
+    return (
+      <>
+        <PageHead eyebrow="Fees" title="Fees" />
+        <PageBody>
+          <EmptyState
+            title="No student record linked"
+            body="Your account is not linked to a student yet. Ask the school office to connect it."
+          />
+        </PageBody>
+      </>
+    )
+  if (isLoading) return <Loading />
   if (error) return <ErrorState error={error} />
-  const d = data!
+  if (!data)
+    return (
+      <>
+        <PageHead eyebrow="Fees" title="Fees" />
+        <PageBody>
+          <EmptyState
+            title="No fee record yet"
+            body="The school has not raised a bill for this student. It appears here as soon as it does."
+          />
+        </PageBody>
+      </>
+    )
+  const d = data
 
   const overdue = d.invoices.filter((i) => i.due_paise > 0 && i.days_overdue > 0)
   const paidThisYear = d.receipts

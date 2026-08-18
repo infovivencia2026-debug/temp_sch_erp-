@@ -106,8 +106,14 @@ export default function LeavePolicy() {
     if (policy.data) setDraft(policy.data)
   }, [policy.data])
 
-  if (policy.isLoading || !draft) return <Loading label="Reading the leave policy…" />
+  /* Order matters: `!draft` is true on a failed request too, so testing it
+     first made the ErrorState below unreachable and left the screen on
+     "Reading the leave policy…" for good. The bare `!draft` that remains is
+     the single render between the data arriving and the effect copying it
+     into the form. */
+  if (policy.isLoading) return <Loading label="Reading the leave policy…" />
   if (policy.error) return <ErrorState error={policy.error} />
+  if (!draft) return <Loading label="Reading the leave policy…" />
 
   const set = <K extends keyof Policy>(k: K, v: Policy[K]) => setDraft({ ...draft, [k]: v })
   const setType = (id: string, patch: Partial<TypeRule>) =>
@@ -192,7 +198,10 @@ function RulesTab({
               ) : <span className="text-muted-foreground">no</span>}
             </Td>
             <Td>
+              {/* Two boxes sit in this row, so the name alone would not say
+                  which policy is being set: each carries its column as well. */}
               <Checkbox checked={t.allow_half_day} label=""
+                srLabel={`Allow half days on ${t.name}`}
                 onChange={(v) => onChange(t.leave_type_id, { allow_half_day: v })} />
             </Td>
             <Td className="w-24">
@@ -209,6 +218,7 @@ function RulesTab({
             </Td>
             <Td>
               <Checkbox checked={t.available_during_probation} label=""
+                srLabel={`Allow ${t.name} during probation`}
                 onChange={(v) => onChange(t.leave_type_id, { available_during_probation: v })} />
             </Td>
             <Td className="w-32">

@@ -55,11 +55,11 @@ interface Child {
 }
 
 export default function PortalResults() {
-  const { data: children } = useQuery({
+  const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
   })
-  const kids = children?.items ?? []
+  const kids = children.data?.items ?? []
   const [picked, setPicked] = useState('')
   const child = picked || kids[0]?.student_id || ''
 
@@ -69,9 +69,39 @@ export default function PortalResults() {
     enabled: !!child,
   })
 
-  if (isLoading || !child) return <Loading />
+  /* A failed children request used to be indistinguishable from a slow one:
+     `!child` held the spinner forever because the results query never starts
+     without a child, and a query that never starts never stops being pending.
+     A parent is owed the reason. */
+  if (children.isLoading) return <Loading />
+  if (children.error) return <ErrorState error={children.error} />
+  if (!kids.length)
+    return (
+      <>
+        <PageHead eyebrow="Results" title="Results" />
+        <PageBody>
+          <EmptyState
+            title="No student record linked"
+            body="Your account is not linked to a student yet. Ask the school office to connect it."
+          />
+        </PageBody>
+      </>
+    )
+  if (isLoading) return <Loading />
   if (error) return <ErrorState error={error} />
-  const d = data!
+  if (!data)
+    return (
+      <>
+        <PageHead eyebrow="Results" title="Results" />
+        <PageBody>
+          <EmptyState
+            title="No results published yet"
+            body="Your school has not released any results yet. They appear here as soon as it does — nothing provisional is shown."
+          />
+        </PageBody>
+      </>
+    )
+  const d = data
   const latest = d.cards[0]
   const name = kids.find((k) => k.student_id === child)?.full_name ?? ''
 

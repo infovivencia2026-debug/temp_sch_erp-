@@ -102,11 +102,28 @@
 
     /* Semantic. Each earns its place by meaning something specific:
        paid, pending, bounced, informational. */
-    --success: 142 71% 40%;      /* #16A34A */
-    --warning: 32 95% 40%;       /* #D97706 */
+    /* 28% is the lightest this can be and still clear 4.5:1 as *text* on every
+       plane it lands on: white card 5.41:1, page ground 5.04:1, the sidebar
+       4.70:1, and 4.58:1 inside the 12%-tinted solid Badge, which is the
+       darkest ground it sits on. The old 40% measured 2.89:1 on white and
+       2.56:1 in that badge -- "paid", "present" and every saved-confirmation
+       line were failing AA. Same hue and saturation, one value step down, so
+       green still reads as green. */
+    --success: 142 71% 28%;      /* #157A3A */
+    /* 31%, by the same measurement as --success and for the same reason. The
+       binding ground is not the card but the solid Badge's own bg-warning/15,
+       where 40% measured 3.15:1 — "partial", "late", "pending" and the
+       half-day attendance chip were the least legible text in the product.
+       31% clears 4.5:1 on all seven grounds it appears on (badge 4.65:1,
+       sidebar 5.00:1, white card 5.76:1). Never a fill under white text
+       anywhere — only dots and progress bars, which darkening helps. */
+    --warning: 32 95% 31%;       /* #9A5404 */
     --destructive: 0 72% 47%;    /* #DC2626 */
     --destructive-foreground: 0 0% 100%;
-    --info: 192 91% 34%;         /* #0891B2 */
+    /* 29%: 34% was 4.23:1 on the white card and 3.63:1 inside bg-info/12,
+       so the informational badge failed AA while looking deliberate. Now
+       4.64:1 at its worst and 5.50:1 on the card. */
+    --info: 192 91% 29%;         /* #07728D */
 
     --secondary: 220 14% 96%;
     --muted: 220 14% 96%;

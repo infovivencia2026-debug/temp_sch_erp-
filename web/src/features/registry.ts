@@ -8,6 +8,16 @@ import { familyKeys } from './portal/family-keys'
 import { adminAcademicsKeys } from './academics/admin-keys'
 import { learningKeys } from './portal/learning-keys'
 import { platformKeys } from './super_admin/platform-keys'
+import { teachingKeys } from './faculty/teaching-keys'
+import { boardKeys } from './exams/board-keys'
+import { messagingKeys } from './super_admin/messaging-keys'
+import { feeEngineKeys } from './finance/fee-engine-keys'
+import { rollupKeys } from './analytics/rollup-keys'
+import { bankingKeys } from './finance/banking-keys'
+import { statutoryKeys } from './compliance/statutory-keys'
+import { tallyKeys } from './finance/tally-keys'
+import { timetableOpsKeys } from './academics/timetable-ops-keys'
+import { concessionsKeys } from './finance/concessions-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -384,10 +394,20 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...hrLifecycleKeys,
   ...parentKeys,
   ...ledgerKeys,
+  ...feeEngineKeys,
+  ...rollupKeys,
+  ...bankingKeys,
+  ...statutoryKeys,
+  ...tallyKeys,
+  ...timetableOpsKeys,
+  ...concessionsKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,
   ...platformKeys,
+  ...teachingKeys,
+  ...boardKeys,
+  ...messagingKeys,
 }
 
 export function componentFor(key: string) {

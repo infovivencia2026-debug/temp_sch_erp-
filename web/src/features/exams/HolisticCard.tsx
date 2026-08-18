@@ -4,7 +4,7 @@ import { Brain, HeartHandshake, Activity, Info, MessageSquare } from 'lucide-rea
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Select, Loading, ErrorState, FormNotice, PrintButton,
+  Badge, Button, Select, Loading, ErrorState, EmptyState, FormNotice, PrintButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -117,14 +117,14 @@ export default function HolisticCard() {
   const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
-    enabled: !isStaff,
+    enabled: session.isSuccess && !isStaff,
   })
   const roster = useQuery({
     queryKey: ['students', 'hpc'],
     queryFn: () => api.get<{ items: { id: string; full_name: string; class_name?: string }[] }>(
       '/api/v1/students?limit=200',
     ),
-    enabled: isStaff,
+    enabled: session.isSuccess && isStaff,
   })
 
   const options = isStaff
@@ -150,7 +150,35 @@ export default function HolisticCard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hpc-card', student] }),
   })
 
-  if (isLoading || !student) return <Loading label="Assembling the card…" />
+  /* Who the card is for has to be settled before there is a card to fetch, so
+     the list's wait and the list's failure both belong to this screen.
+
+     `!student` used to be folded into the loading test, which made every
+     answer that is not a student look like one still arriving: a family with
+     no linked child, a teacher with an empty roster, and a 403 on the roster
+     all left `student` as '', the card query disabled, `isLoading` false, and
+     "Assembling the card…" turning until the tab was closed. */
+  const list = isStaff ? roster : children
+  if (session.isLoading || list.isLoading) return <Loading label="Assembling the card…" />
+  if (session.error) return <ErrorState error={session.error} />
+  if (list.error) return <ErrorState error={list.error} />
+  if (!student)
+    return (
+      <>
+        <PageHead title="Holistic progress card" />
+        <PageBody>
+          <EmptyState
+            title={isStaff ? 'No students to show' : 'No child is linked to this account'}
+            body={
+              isStaff
+                ? 'Once students are enrolled and allocated to your classes, their cards appear here.'
+                : 'Ask the school office to link your child to this account, and the card will appear here.'
+            }
+          />
+        </PageBody>
+      </>
+    )
+  if (isLoading) return <Loading label="Assembling the card…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const observed = d.domains.reduce(

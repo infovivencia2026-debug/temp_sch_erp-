@@ -151,7 +151,7 @@ export default function Hostel() {
                               className={cn(
                                 'w-[92px] rounded-[8px] border px-2.5 py-2 text-left transition-colors duration-100',
                                 open
-                                  ? 'border-[hsl(var(--ink))] bg-nav-active'
+                                  ? 'border-primary bg-nav-active'
                                   : 'hover:bg-surface-hover',
                               )}
                             >

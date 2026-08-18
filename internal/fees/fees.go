@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,21 +31,56 @@ var (
 	ErrOverAllocated     = errors.New("allocation exceeds the invoice balance")
 )
 
+// Number is one allocation from a numbering series.
+//
+// Seq and FY are carried separately from the rendered Text because the
+// compliance question — is this year's series gapless and never reused — is
+// about the pair, and answering it by parsing 'RCPT/2026-27/00042' breaks the
+// first time a school changes its prefix.
+type Number struct {
+	Text string
+	Seq  int64
+	FY   string // "2026-27", empty when the series does not reset yearly
+}
+
 // NextNumber allocates the next value in a numbering series.
 //
-// The row lock is the whole point: SELECT ... FOR UPDATE serialises concurrent
-// cashiers on this one row for the remainder of the transaction, so the series
-// cannot fork. Reading next_value and updating it in two statements without the
-// lock is the classic way to issue receipt 00042 twice.
-//
-// reset_yearly restarts the count each Indian financial year (1 April), which
-// is what the prefix encodes: RCPT/2026-27/00001.
+// Uses the current moment in India. Prefer NextNumberOn where the caller
+// already knows the date the document bears, so a receipt back-dated across
+// 1 April lands in the right year's series.
 func NextNumber(ctx context.Context, tx pgx.Tx, instID uuid.UUID, kind string) (string, error) {
+	n, err := NextNumberOn(ctx, tx, instID, kind, NowInIndia())
+	return n.Text, err
+}
+
+/*
+NextNumberOn allocates the next number in a series, for a document dated on.
+
+	The row lock is the whole point: SELECT ... FOR UPDATE serialises concurrent
+	cashiers on this one row for the remainder of the transaction, so the series
+	cannot fork. Reading next_value and updating it in two statements without
+	the lock is the classic way to issue receipt 00042 twice.
+
+	A sequence would be the obvious alternative and is the wrong tool. nextval
+	is deliberately non-transactional: a payment that fails after drawing a
+	number leaves that number unused, and under GST an auditor reads a missing
+	receipt number as a suppressed sale. The row lock rolls back with everything
+	else, so the series stays gapless as well as unique.
+
+	The financial-year reset is the part that was missing. reset_yearly has been
+	on this table since the first migration and nothing read it: the year was
+	rendered into the string while the counter ran on, so a school's first
+	receipt of 2027-28 came out as RCPT/2027-28/00398. GST requires each year's
+	series to restart at 1. current_fy (00045) records which year the counter is
+	counting within, and the reset happens here, under the same lock.
+*/
+func NextNumberOn(ctx context.Context, tx pgx.Tx, instID uuid.UUID, kind string, on time.Time) (Number, error) {
 	var (
-		prefix, suffix string
-		padding        int
-		next           int64
-		resetYearly    bool
+		prefix, suffix, format string
+		currentFY              *string
+		padding                int
+		next                   int64
+		resetYearly            bool
 	)
 
 	// Ensure the row exists before locking it. Doing this as "SELECT, and
@@ -58,31 +94,93 @@ func NextNumber(ctx context.Context, tx pgx.Tx, instID uuid.UUID, kind string) (
 		VALUES ($1,$2,$3,5,1,true)
 		ON CONFLICT (institution_id, kind) WHERE campus_id IS NULL DO NOTHING`,
 		instID, kind, defaults[kind]); err != nil {
-		return "", fmt.Errorf("ensure numbering scheme %s: %w", kind, err)
+		return Number{}, fmt.Errorf("ensure numbering scheme %s: %w", kind, err)
 	}
 
 	// FOR UPDATE serialises concurrent cashiers on this one row for the rest of
 	// the transaction, so the series cannot fork.
 	if err := tx.QueryRow(ctx, `
-		SELECT prefix, suffix, padding, next_value, reset_yearly
+		SELECT prefix, suffix, padding, next_value, reset_yearly,
+		       current_fy, format
 		  FROM numbering_schemes
 		 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL
 		 FOR UPDATE`, instID, kind).
-		Scan(&prefix, &suffix, &padding, &next, &resetYearly); err != nil {
-		return "", fmt.Errorf("lock numbering scheme %s: %w", kind, err)
+		Scan(&prefix, &suffix, &padding, &next, &resetYearly, &currentFY, &format); err != nil {
+		return Number{}, fmt.Errorf("lock numbering scheme %s: %w", kind, err)
 	}
+
+	out := Number{Seq: next}
+	if resetYearly {
+		out.FY = FinancialYear(on)
+		/* Reset only on a genuine rollover.
+
+		   A NULL current_fy is a counter that predates this column, and its
+		   next_value is mid-series with receipts already printed against it.
+		   Resetting that to 1 would reissue numbers a parent is holding, which
+		   is the one thing a gapless series must never do. So NULL adopts the
+		   year at the current count, and the first real reset happens at the
+		   next 1 April. */
+		if currentFY != nil && *currentFY != "" && *currentFY != out.FY {
+			out.Seq = 1
+		}
+	}
+
+	out.Text = renderNumber(format, prefix, out.FY, out.Seq, padding, suffix)
 
 	if _, err := tx.Exec(ctx, `
-		UPDATE numbering_schemes SET next_value = next_value + 1
-		 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL`, instID, kind); err != nil {
-		return "", fmt.Errorf("advance numbering scheme %s: %w", kind, err)
+		UPDATE numbering_schemes
+		   SET next_value = $3 + 1, current_fy = NULLIF($4,''),
+		       last_number = $5, last_issued_at = now(), updated_at = now()
+		 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL`,
+		instID, kind, out.Seq, out.FY, out.Text); err != nil {
+		return Number{}, fmt.Errorf("advance numbering scheme %s: %w", kind, err)
 	}
+	return out, nil
+}
 
-	number := fmt.Sprintf("%s%0*d%s", prefix, padding, next, suffix)
-	if resetYearly {
-		number = fmt.Sprintf("%s%s/%0*d%s", prefix, FinancialYear(time.Now()), padding, next, suffix)
+/*
+renderNumber lays a sequence into the school's chosen shape.
+
+	Placeholders are {prefix} {fy} {seq} {suffix}. The shape is data because a
+	school that has printed SRV/2026-27/00001 on a year of receipts cannot be
+	moved to another format by a release — the series would appear to restart,
+	and under GST an apparent restart is an apparent duplicate.
+
+	When the series does not reset yearly there is no year to insert, so the
+	separator that would have followed it is removed too. Substituting an empty
+	string and leaving 'INV//00001' behind is the kind of defect that only shows
+	up on a printed document.
+*/
+func renderNumber(format, prefix, fy string, seq int64, padding int, suffix string) string {
+	if format == "" {
+		format = "{prefix}{fy}/{seq}{suffix}"
 	}
-	return number, nil
+	if fy == "" {
+		for _, dangling := range []string{"{fy}/", "{fy}-", "/{fy}", "-{fy}"} {
+			format = strings.ReplaceAll(format, dangling, "")
+		}
+	}
+	return strings.NewReplacer(
+		"{prefix}", prefix,
+		"{fy}", fy,
+		"{seq}", fmt.Sprintf("%0*d", padding, seq),
+		"{suffix}", suffix,
+	).Replace(format)
+}
+
+// NowInIndia is the current moment in the only timezone this product has.
+//
+// Duplicated from internal/api rather than imported: internal/api already
+// depends on this package, so importing it back would be a cycle. The rule it
+// encodes — a box running UTC rolls into tomorrow at half past five in the
+// evening local — matters more here than anywhere, because getting it wrong
+// across 1 April puts a receipt in the wrong year's statutory series.
+func NowInIndia() time.Time {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	return time.Now().In(loc)
 }
 
 // FinancialYear renders the Indian financial year containing t as "2026-27".
@@ -160,8 +258,13 @@ type CollectRequest struct {
 
 // Receipt is what gets printed and handed to the parent.
 type Receipt struct {
-	PaymentID   uuid.UUID
-	ReceiptNo   string
+	PaymentID uuid.UUID
+	ReceiptNo string
+	// The sequence and financial year behind ReceiptNo. Kept apart from the
+	// rendered string so the GST series can be audited for gaps without
+	// parsing a format the school is free to change.
+	ReceiptSeq  int64
+	ReceiptFY   string
 	AmountPaise int64
 	Allocated   []Allocation
 	Unallocated int64
@@ -201,7 +304,9 @@ func Collect(ctx context.Context, tx pgx.Tx, req CollectRequest) (*Receipt, erro
 		status = "pending"
 	}
 
-	receiptNo, err := NextNumber(ctx, tx, req.InstitutionID, "receipt")
+	// Dated by the payment, not by the clock: a receipt written up on 2 April
+	// for money taken on 31 March belongs to the closing year's series.
+	number, err := NextNumberOn(ctx, tx, req.InstitutionID, "receipt", req.PaidOn)
 	if err != nil {
 		return nil, err
 	}
@@ -209,11 +314,13 @@ func Collect(ctx context.Context, tx pgx.Tx, req CollectRequest) (*Receipt, erro
 	var paymentID uuid.UUID
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO payments (institution_id, campus_id, student_id, receipt_no,
+		                      receipt_seq, receipt_fy,
 		                      amount_paise, mode, paid_on, reference_no, bank_name,
 		                      cheque_date, status, collected_by, remarks)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING id`,
-		req.InstitutionID, req.CampusID, req.StudentID, receiptNo,
+		req.InstitutionID, req.CampusID, req.StudentID, number.Text,
+		number.Seq, number.FY,
 		req.AmountPaise, req.Mode, req.PaidOn, nullText(req.ReferenceNo),
 		nullText(req.BankName), req.ChequeDate, status, nullUUID(req.CollectedBy),
 		nullText(req.Remarks)).Scan(&paymentID); err != nil {
@@ -222,7 +329,9 @@ func Collect(ctx context.Context, tx pgx.Tx, req CollectRequest) (*Receipt, erro
 
 	receipt := &Receipt{
 		PaymentID:   paymentID,
-		ReceiptNo:   receiptNo,
+		ReceiptNo:   number.Text,
+		ReceiptSeq:  number.Seq,
+		ReceiptFY:   number.FY,
 		AmountPaise: req.AmountPaise,
 		Cleared:     !pdc,
 		Unallocated: req.AmountPaise,
@@ -361,33 +470,25 @@ func BounceCheque(ctx context.Context, tx pgx.Tx, paymentID uuid.UUID, finePaise
 // Returns 0 while inside the grace period. A per-day fine is capped when the
 // rule sets cap_paise, because an invoice nobody chases would otherwise accrue
 // indefinitely and the balance stops meaning anything.
+//
+// Kept as the narrow, positional form for callers that hold loose values rather
+// than a rule row. It delegates to AssessFine so there is exactly one
+// implementation of the arithmetic: two fine calculators that disagree by a
+// rupee is a dispute the school cannot settle. Use EvaluateFines for anything
+// that needs targeting, exemptions, compounding or the working.
 func FineFor(kind string, gracedays int, amountPaise int64, percent float64,
 	capPaise *int64, dueOn time.Time, asOf time.Time, balancePaise int64) int64 {
 
-	overdue := int(asOf.Sub(dueOn).Hours() / 24)
-	if overdue <= gracedays {
-		return 0
-	}
-	days := int64(overdue - gracedays)
-
-	var fine int64
-	switch kind {
-	case "fixed":
-		fine = amountPaise
-	case "per_day":
-		fine = amountPaise * days
-	case "percent":
-		fine = int64(float64(balancePaise) * percent / 100.0)
-	default:
-		return 0
-	}
-	if capPaise != nil && fine > *capPaise {
-		fine = *capPaise
-	}
-	if fine < 0 {
-		return 0
-	}
-	return fine
+	due := dueOn
+	a := AssessFine(
+		FineSubject{DueOn: &due, BalancePaise: balancePaise},
+		FineRule{
+			Kind: kind, GraceDays: gracedays, AmountPaise: amountPaise,
+			Percent: percent, CapPaise: capPaise, Compound: "none",
+		},
+		asOf,
+	)
+	return a.AmountPaise
 }
 
 // nullUUID maps the zero uuid to NULL. collected_by is a foreign key to users,

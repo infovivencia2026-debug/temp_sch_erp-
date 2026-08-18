@@ -3,10 +3,10 @@ import { ShieldCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, Badge, Select, Field,
-  Loading, ErrorState, PrintButton,
+  Loading, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
-import { useChildren, childOptions } from './use-children'
+import { useChildren, childOptions, readyFor } from './use-children'
 
 /* The child's identity card, rendered live.
 
@@ -48,6 +48,13 @@ interface Pass {
 
 export default function StudentIDCard() {
   const { children, studentId, chosen, setChosen } = useChildren()
+  /* One card, one child. The endpoint resolves it with whichChild
+     (portal_school_life.go:1424), which answers for the eldest when no
+     student_id is sent — so a guardian of three was shown one child's card,
+     and one child's live gate code, with the picker still on "Choose a
+     child…". The code on this screen is the one the gate reads; the wrong one
+     is worse than none. */
+  const ready = readyFor(children, studentId)
   const query = useQuery({
     queryKey: ['student-id-card', studentId],
     queryFn: () =>
@@ -57,10 +64,40 @@ export default function StudentIDCard() {
     // The gate accepts the neighbouring windows, so refreshing a little inside
     // the window keeps the screen honest without a countdown that races it.
     refetchInterval: 60_000,
+    enabled: ready,
   })
+
+  // Drawn from one place: it is the only thing on the screen before the
+  // question of whose card this is has been answered.
+  const picker = children.length > 1 && (
+    <Card>
+      <div className="px-5 py-4">
+        <Field label="Child">
+          <Select value={chosen} onChange={setChosen} options={childOptions(children)} />
+        </Field>
+      </div>
+    </Card>
+  )
 
   if (query.isLoading) return <Loading label="Building the card…" />
   if (query.error) return <ErrorState error={query.error} />
+  if (!ready)
+    return (
+      <>
+        <PageHead
+          eyebrow="Profile"
+          title="Student ID card"
+          description="Your child's identity card, with a code that refreshes itself."
+        />
+        <PageBody width="form">
+          {picker}
+          <EmptyState
+            title="Choose a child"
+            body="A card and its gate code belong to one child, so this screen has to know whose."
+          />
+        </PageBody>
+      </>
+    )
 
   const card = query.data?.card
   const pass = query.data?.pass
@@ -77,15 +114,7 @@ export default function StudentIDCard() {
         actions={<PrintButton label="Print card" />}
       />
       <PageBody width="form">
-        {children.length > 1 && (
-          <Card>
-            <div className="px-5 py-4">
-              <Field label="Child">
-                <Select value={chosen} onChange={setChosen} options={childOptions(children)} />
-              </Field>
-            </div>
-          </Card>
-        )}
+        {picker}
 
         <Card className="overflow-hidden">
           <div className="border-b bg-muted/40 px-5 py-4">
