@@ -11,7 +11,14 @@
 -- file exists for the ones that have, because an applied migration never runs
 -- again no matter how it is edited afterwards.
 --
--- Idempotent: on a database where 00040 worked, this matches nothing.
+-- Renumbered from 00041, which collided with 00041_teaching.sql developed in
+-- parallel on another branch. Goose keys on the numeric prefix alone, so two
+-- files sharing one refuse to load at all -- and on the one installation where
+-- this had already run as 41, its recorded row would have made goose skip the
+-- teaching migration for ever. That row is cleared as part of the same deploy.
+--
+-- Idempotent: on a database where 00040 worked, this matches nothing, and it
+-- is safe to run a second time under its new number.
 SET LOCAL app.is_platform_admin = 'on';
 
 INSERT INTO subscriptions (institution_id, plan_code, status, started_on,
