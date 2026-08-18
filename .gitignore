@@ -15,3 +15,6 @@
 
 # Claude Code personal overrides (names the production host; do not commit)
 .claude/settings.local.json
+
+# Agent worktrees are scratch space, not source.
+.claude/
