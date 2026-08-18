@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 388 of the catalog's features are implemented.
+// 393 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -49,6 +49,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.assessment_schemes.cce_formative_assessment_entry":           true,
 	"faculty.assessment_schemes.cce_summative_assessment_entry":           true,
 	"faculty.attendance.attendance_correction":                            true,
+	"faculty.attendance.offline_attendance_diary_capture":                 true,
 	"faculty.attendance.take_attendance":                                  true,
 	"faculty.communication.anecdotal_records":                             true,
 	"faculty.communication.announcements":                                 true,
@@ -66,14 +67,18 @@ var implementedFeatures = map[string]bool{
 	"faculty.marks_report_cards.report_cards":                             true,
 	"faculty.my_classes.cwsn_support_plan":                                true,
 	"faculty.my_classes.discipline_notes":                                 true,
+	"faculty.my_classes.language_subject_allocation":                      true,
+	"faculty.my_classes.montessori_early_years_tracking":                  true,
 	"faculty.my_classes.my_classes":                                       true,
 	"faculty.my_classes.my_students":                                      true,
 	"faculty.my_classes.student_at_risk_identification":                   true,
 	"faculty.my_classes.student_behavior_demerits":                        true,
 	"faculty.my_classes.student_details":                                  true,
+	"faculty.my_classes.student_portfolio_builder":                        true,
 	"faculty.my_classes.student_progress":                                 true,
 	"faculty.my_profile.leave_self_service":                               true,
 	"faculty.my_profile.profile":                                          true,
+	"faculty.question_papers_online_tests.no_omr_exam_grading":            true,
 	"faculty.question_papers_online_tests.objective_online_test_creation": true,
 	"faculty.question_papers_online_tests.question_bank_management":       true,
 	"faculty.teaching.assignments_submissions":                            true,
