@@ -6,7 +6,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
-import { useChildren, childOptions } from './use-children'
+import { useChildren, childOptions, readyFor } from './use-children'
 
 /* How the support plan is actually going.
 
@@ -79,6 +79,13 @@ function ProgressBar({ percent }: { percent: number }) {
 
 export default function IEPGoals() {
   const { children, studentId, chosen, setChosen } = useChildren()
+  /* A support plan is one child's, and the endpoint resolves it with
+     whichChild (portal_school_life.go:1164), which answers for the eldest when
+     no student_id is sent. So a guardian of three used to open this screen and
+     read a concern, a set of accommodations and an exam concession belonging to
+     a child the page never named, while the picker above still said "Choose a
+     child…". Nothing is fetched until the question has an answer. */
+  const ready = readyFor(children, studentId)
   const query = useQuery({
     queryKey: ['portal-iep', studentId],
     queryFn: () =>
@@ -88,6 +95,7 @@ export default function IEPGoals() {
         goals: Goal[]
         has_plan: boolean
       }>(`/api/v1/portal/academics/iep${studentId ? `?student_id=${studentId}` : ''}`),
+    enabled: ready,
   })
 
   if (query.isLoading) return <Loading label="Looking up the support plan…" />
@@ -115,7 +123,14 @@ export default function IEPGoals() {
           </Card>
         )}
 
-        {!query.data?.has_plan ? (
+        {!ready ? (
+          <Card>
+            <EmptyState
+              title="Choose a child"
+              body="A support plan is agreed for one child, so this screen has to know whose."
+            />
+          </Card>
+        ) : !query.data?.has_plan ? (
           <Card>
             <EmptyState
               title="No support plan"

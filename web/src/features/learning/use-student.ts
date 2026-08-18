@@ -1,4 +1,4 @@
-import { useChildren, childOptions, type PortalChild } from '../portal/use-children'
+import { useChildren, childOptions, readyFor, type PortalChild } from '../portal/use-children'
 
 /* Which child a student screen is about.
 
@@ -9,29 +9,11 @@ import { useChildren, childOptions, type PortalChild } from '../portal/use-child
 
    Re-exported rather than reimplemented: the family screens settled this
    question first and a second copy would be the one that defaulted to nobody. */
-export { useChildren, childOptions }
+export { useChildren, childOptions, readyFor }
 export type { PortalChild }
 
 /** Query string for an endpoint that takes an optional student_id. */
 export function studentQuery(studentId: string, ...extra: string[]) {
   const parts = [...(studentId ? [`student_id=${studentId}`] : []), ...extra.filter(Boolean)]
   return parts.length ? `?${parts.join('&')}` : ''
-}
-
-/* Whether a screen may load yet.
-
-   A guardian of three who has not chosen sends no student_id, and the endpoint
-   would answer for the eldest — which is the wrong child on every screen except
-   by accident. Waiting is the honest state.
-
-   `=== 1`, not `<= 1`. An empty list is not "one child, no need to ask": it is
-   the list before it has arrived, or the list of an account linked to nobody,
-   or the list whose request failed. All three read as length 0, and treating
-   them as a single child let every one of these screens fire its query with no
-   student_id during the fetch — so a guardian of three was shown the eldest's
-   locker, credits and academic record for as long as the children request took,
-   and indefinitely if it failed. Nought children is not ready either: there is
-   no child for the answer to be about. */
-export function readyFor(children: PortalChild[], studentId: string) {
-  return children.length === 1 || studentId !== ''
 }

@@ -34,6 +34,29 @@ export function useChildren() {
   return { query, children, studentId, child, chosen, setChosen }
 }
 
+/* Whether a screen about one child may load yet.
+
+   A guardian of three who has not chosen sends no student_id, and an endpoint
+   that resolves the child with whichChild answers for the eldest — which is the
+   wrong child on every screen except by accident. Waiting is the honest state.
+
+   `=== 1`, not `<= 1`. An empty list is not "one child, no need to ask": it is
+   the list before it has arrived, the list of an account linked to nobody, or
+   the list whose request failed. Nought children is not ready either — there is
+   no child for the answer to be about.
+
+   Only for the screens whose endpoint resolves a single child. The school-life
+   endpoints take the whole family (familyChildren in portal_school_life.go)
+   and mean "all my children" by an absent student_id, and gating those would
+   delete a view the picker offers on purpose.
+
+   Lives here rather than beside its first caller so the family screens and the
+   learning screens cannot drift into two answers; learning/use-student.ts
+   re-exports it. */
+export function readyFor(children: PortalChild[], studentId: string) {
+  return children.length === 1 || studentId !== ''
+}
+
 /** Options for a <Select> of the caller's children. */
 export function childOptions(children: PortalChild[]) {
   return children.map((c) => ({
