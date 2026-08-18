@@ -868,7 +868,7 @@ func (s *Server) listVirtualClasses(w http.ResponseWriter, r *http.Request) {
 	respond(w, r, items, err)
 }
 
-type providerRow struct {
+type meetingProviderRow struct {
 	ID          string  `json:"id"`
 	Provider    string  `json:"provider"`
 	DisplayName string  `json:"display_name"`
@@ -884,8 +884,8 @@ func (s *Server) listVirtualClassProviders(w http.ResponseWriter, r *http.Reques
 		SELECT id::text, provider, display_name, account_ref, is_active, false
 		  FROM virtual_class_providers
 		 ORDER BY provider`, nil,
-		func(rows pgx.Rows) (providerRow, error) {
-			var v providerRow
+		func(rows pgx.Rows) (meetingProviderRow, error) {
+			var v meetingProviderRow
 			return v, rows.Scan(&v.ID, &v.Provider, &v.DisplayName, &v.AccountRef,
 				&v.IsActive, &v.Integrated)
 		})

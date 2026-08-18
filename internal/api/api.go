@@ -545,6 +545,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Super Admin: access, platform configuration ------------------
 		r.Route("/admin", func(r chi.Router) {
 			s.mountPlatformConfig(r)
+			s.mountMessaging(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

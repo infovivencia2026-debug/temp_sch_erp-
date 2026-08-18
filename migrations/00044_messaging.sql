@@ -1,3 +1,6 @@
+-- Renumbered from 00039: migrations through 00043 were already applied by the
+-- time this merged, and goose refuses one that appears behind the current
+-- version. Content unchanged.
 -- +goose Up
 -- The messaging foundation: one way out of the building, and one way to ask.
 --

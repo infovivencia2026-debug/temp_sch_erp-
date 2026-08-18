@@ -1256,9 +1256,76 @@
   "description": "Configure SMTP credentials, send grid settings, DKIM/SPF verification, and email dispatch logs.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/EmailServer",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/messaging/dispatch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/log:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param/test",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/templates",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/run",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.messaging.automated_trigger_rules",
@@ -1269,9 +1336,76 @@
   "description": "Set trigger conditions for instant automated notifications on absence, fee due, or bus delay.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/TriggerRules",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/messaging/dispatch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/log:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/providers/:param/test",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/templates",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/triggers/run",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.payments_devices.payment_gateway_connectors",
