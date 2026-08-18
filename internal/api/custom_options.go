@@ -199,7 +199,7 @@ func (s *Server) addOption(w http.ResponseWriter, r *http.Request) {
 
 	value := strings.TrimSpace(req.Value)
 	if value == "" {
-		value = slugify(req.Label)
+		value = optionValue(req.Label)
 	}
 	if value == "" {
 		httpx.BadRequest(w, r, "that label has no letters or digits to make a value from")
@@ -308,4 +308,30 @@ func sortByKind[T any](items []T, key func(T) string) {
 			items[j], items[j-1] = items[j-1], items[j]
 		}
 	}
+}
+
+// optionValue derives a stored value from a label.
+//
+// Not slugify: that one appends eight hex characters to guarantee a unique
+// tenant slug, which is right for a URL nobody reads and wrong here. This
+// value is what lands in a UDISE return and a transfer certificate, and
+// "telangana-open-school-society-9abe93fc" in a state filing is the kind of
+// thing that gets a school telephoned about. Uniqueness is already enforced by
+// the index, which reports a duplicate rather than inventing a way around it.
+func optionValue(label string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(label) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		default:
+			if !prevDash && b.Len() > 0 {
+				b.WriteByte('_')
+				prevDash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }
