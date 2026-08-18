@@ -335,13 +335,20 @@ export function Table({
               const label = typeof h === 'string' ? h : h.label
               const key = typeof h === 'string' ? undefined : h.key
               const active = !!key && sort?.sortKey === key
+              // A money column is read as a column of digits lined up on the
+              // right; its header has to sit over them or the eye has to find
+              // the pairing twice.
+              const right = typeof h !== 'string' && h.align === 'right'
               // 12px medium, sentence case. Uppercase letter-spaced headers
               // shout across a table that is trying to be read quietly.
               return (
                 <th
                   key={label}
                   aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                  className="whitespace-nowrap px-5 py-2.5 text-left text-[12px] font-medium text-muted-foreground"
+                  className={cn(
+                    'whitespace-nowrap px-5 py-2.5 text-[12px] font-medium text-muted-foreground',
+                    right ? 'text-right' : 'text-left',
+                  )}
                 >
                   {key && sort ? (
                     <button
@@ -647,7 +654,7 @@ export function Checkbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-[hsl(var(--ink))]"
+        className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-primary"
       />
       <span>
         {label}

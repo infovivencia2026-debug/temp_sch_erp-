@@ -425,7 +425,7 @@ function GroupRow({
                 className={cn(
                   'px-2.5 py-1 text-[12px] transition-colors',
                   state.level === l
-                    ? 'bg-[hsl(var(--ink))] text-[hsl(var(--paper))]'
+                    ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent',
                   !editable && 'cursor-not-allowed',
                 )}
@@ -510,7 +510,7 @@ function Toggle({
       aria-pressed={on}
       className={cn(
         'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[12px] transition-colors',
-        on ? 'border-[hsl(var(--ink))] bg-accent' : 'text-muted-foreground hover:bg-accent',
+        on ? 'border-primary bg-accent' : 'text-muted-foreground hover:bg-accent',
         disabled && 'cursor-not-allowed opacity-50',
       )}
     >
