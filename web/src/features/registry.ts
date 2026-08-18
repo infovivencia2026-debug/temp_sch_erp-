@@ -14,6 +14,7 @@ import { messagingKeys } from './super_admin/messaging-keys'
 import { feeEngineKeys } from './finance/fee-engine-keys'
 import { rollupKeys } from './analytics/rollup-keys'
 import { bankingKeys } from './finance/banking-keys'
+import { statutoryKeys } from './compliance/statutory-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -393,6 +394,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...feeEngineKeys,
   ...rollupKeys,
   ...bankingKeys,
+  ...statutoryKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

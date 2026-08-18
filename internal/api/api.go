@@ -419,6 +419,8 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		// --- Compliance exports (module 8) ---------------------------------
+		s.mountStatutory(r)
+
 		r.Route("/compliance", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.ReportsRead))
 			r.Get("/udise", s.getUDISEExport)
