@@ -1,0 +1,107 @@
+{{define "welcome.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your school is ready — School ERP</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+</head>
+<body class="marketing">
+
+<header class="topbar">
+  <a class="wordmark" href="/buy">School ERP</a>
+  <a class="quiet" href="/login">Sign in</a>
+</header>
+
+<main class="narrow">
+
+  <nav class="crumbs" aria-label="Progress">
+    <span class="crumb done">1 · Your school</span>
+    <span class="crumb done">2 · Payment</span>
+    <span class="crumb current">3 · Sign-in details</span>
+  </nav>
+
+  <h1>{{.School}} is ready</h1>
+  <p class="lead">
+    Payment received. Your school, its first campus and your administrator
+    account have been created.
+  </p>
+
+  {{if .Password}}
+  <!--
+    The one moment the password exists in readable form. It is not in the
+    order row, not in the message log and not in this page's URL — only its
+    hash reached the database. A school that loses it resets it; nobody can
+    look it up.
+  -->
+  <section class="handover" aria-labelledby="creds">
+    <h2 id="creds">Your sign-in details</h2>
+    <p class="handover-warn">
+      Shown once. Write this down before you leave this page — we cannot show
+      it again, because we did not keep it.
+    </p>
+
+    <dl class="creds">
+      <div><dt>Sign in at</dt><dd class="mono"><a href="/login">/login</a></dd></div>
+      <div><dt>Username</dt><dd class="mono big">{{.SignInAs}}</dd></div>
+      <div><dt>Password</dt><dd class="mono big">{{.Password}}</dd></div>
+    </dl>
+
+    <p class="fineprint">You will be asked to change this password the first time you sign in.</p>
+  </section>
+
+  <section class="notice" aria-labelledby="sent">
+    <h2 id="sent">We have emailed these to you</h2>
+    <p>A copy of your sign-in details has gone to <strong>{{.Email}}</strong>.</p>
+    <p class="fineprint">
+      This installation has no mail gateway configured, so the message was
+      recorded rather than delivered — your school administrator can see it
+      under Communication once signed in. The password is not in that record.
+    </p>
+  </section>
+  {{else}}
+  <section class="notice" aria-labelledby="already">
+    <h2 id="already">You have already seen your sign-in details</h2>
+    <p>
+      Your username is <strong class="mono">{{.SignInAs}}</strong>. The password
+      was shown once at the time of purchase and was never stored, so we cannot
+      show it again.
+    </p>
+    <p>
+      If you no longer have it, use <a href="/login">forgotten password</a> on
+      the sign-in page, or write to us and we will issue a new one.
+    </p>
+  </section>
+  {{end}}
+
+  <section class="next" aria-labelledby="next">
+    <h2 id="next">What happens next</h2>
+    <ol class="steps">
+      <li><strong>Sign in</strong> and change your password.</li>
+      <li><strong>Run the setup wizard</strong> — it walks you through your academic year, classes, sections, subjects and the school day, in the order they depend on each other.</li>
+      <li><strong>Add your teachers and assign them</strong> to sections and subjects. This is what decides which children each teacher can see.</li>
+      <li><strong>Enrol your students</strong>, individually or from a spreadsheet.</li>
+    </ol>
+    <p><a class="cta" href="/login">Sign in and get started</a></p>
+  </section>
+
+  <section class="receipt" aria-labelledby="receipt">
+    <h2 id="receipt">Your receipt</h2>
+    <dl class="creds">
+      <div><dt>Plan</dt><dd>{{.Plan.Name}}</dd></div>
+      <div><dt>Amount</dt><dd><span class="rupee">₹</span>{{.Amount}} per year</dd></div>
+      <div><dt>Order</dt><dd class="mono">{{.OrderRef}}</dd></div>
+      {{if .PaidRef}}<div><dt>Payment</dt><dd class="mono">{{.PaidRef}}</dd></div>{{end}}
+    </dl>
+    <p class="fineprint">Keep this page's order reference — it is what we will ask for if you write to us about the payment.</p>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <a href="/buy">Plans</a> · <a href="/login">Sign in</a>
+</footer>
+
+</body>
+</html>{{end}}

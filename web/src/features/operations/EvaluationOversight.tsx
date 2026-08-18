@@ -4,6 +4,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Loading, ErrorState, FormNotice, EmptyState,
+  Field, FormGrid, Input, Select, Checkbox,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -66,6 +67,33 @@ export default function EvaluationOversight() {
     queryFn: () => api.get<List<EvalCycle>>(`${adminOpsBase}/evaluation/cycles`),
   })
 
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({
+    name: '', purpose: '', opens_on: '', closes_on: '', min_responses: '3',
+  })
+  // Head and peer to begin with: the two directions every school runs, and
+  // the two a cycle is still meaningful with if nobody ticks anything else.
+  const [relations, setRelations] = useState<string[]>(['head', 'peer'])
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.post(`${adminOpsBase}/evaluation/cycles`, {
+        name: form.name.trim(),
+        purpose: form.purpose.trim() || undefined,
+        opens_on: form.opens_on,
+        closes_on: form.closes_on,
+        min_responses: Number(form.min_responses) || 3,
+        relations,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-ops', 'evaluation', 'cycles'] })
+      setAdding(false)
+      setForm({ name: '', purpose: '', opens_on: '', closes_on: '', min_responses: '3' })
+      setRelations(['head', 'peer'])
+      setNote('Cycle created as a draft. Add the staff to be reviewed, then start it.')
+    },
+  })
+
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.post(`${adminOpsBase}/evaluation/cycles/${id}/status`, { status }),
@@ -104,7 +132,88 @@ export default function EvaluationOversight() {
           <CardHeader
             title="Cycles"
             description="A cycle gathers feedback from several directions at once, and holds a minimum responder count below which nothing is shown."
+            action={mayRun ? (
+              <Button size="sm" variant={adding ? 'secondary' : 'primary'}
+                onClick={() => setAdding(!adding)}>
+                {adding ? 'Cancel' : 'New cycle'}
+              </Button>
+            ) : undefined}
           />
+
+          {adding && mayRun && (
+            <div className="border-b p-4">
+              <FormNotice error={create.error} />
+              <FormGrid>
+                <Field label="Name" required hint="What the staff being reviewed will see">
+                  <Input value={form.name} onChange={(v) => setForm({ ...form, name: v })}
+                    placeholder="Annual review 2026-27" />
+                </Field>
+                <Field label="Purpose" hint="Why it is being run">
+                  <Input value={form.purpose} onChange={(v) => setForm({ ...form, purpose: v })}
+                    placeholder="Appraisal input and development planning" />
+                </Field>
+                <Field label="Opens on" required>
+                  <Input type="date" value={form.opens_on}
+                    onChange={(v) => setForm({ ...form, opens_on: v })} />
+                </Field>
+                <Field label="Closes on" required>
+                  <Input type="date" value={form.closes_on}
+                    onChange={(v) => setForm({ ...form, closes_on: v })} />
+                </Field>
+                <Field
+                  label="Anonymity floor"
+                  required
+                  hint="Below this many responses a direction shows nothing at all. Two is the lowest the server accepts — with one, the average names the person who gave it."
+                >
+                  <Select value={form.min_responses}
+                    onChange={(v) => setForm({ ...form, min_responses: v })}
+                    options={[
+                      { value: '2', label: '2 responses' },
+                      { value: '3', label: '3 responses (usual)' },
+                      { value: '4', label: '4 responses' },
+                      { value: '5', label: '5 responses' },
+                    ]} />
+                </Field>
+              </FormGrid>
+
+              <div className="mt-4">
+                <p className="text-[13px] font-medium">Gather feedback from</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  Head and self are shown to the teacher as attributed, because a
+                  teacher has one head and pretending otherwise is a fiction they
+                  see through.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-4">
+                  {(['head', 'peer', 'self', 'student', 'parent'] as const).map((rel) => (
+                    <Checkbox
+                      key={rel}
+                      label={RELATION_LABEL[rel]}
+                      checked={relations.includes(rel)}
+                      onChange={(on) =>
+                        setRelations(on
+                          ? [...relations, rel]
+                          : relations.filter((r) => r !== rel))}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <Button
+                  disabled={
+                    create.isPending || !form.name.trim() ||
+                    !form.opens_on || !form.closes_on || relations.length === 0
+                  }
+                  onClick={() => create.mutate()}
+                >
+                  {create.isPending ? 'Creating…' : 'Create cycle'}
+                </Button>
+                <span className="text-[12px] text-muted-foreground">
+                  Created as a draft — nobody is asked anything until you start it.
+                </span>
+              </div>
+            </div>
+          )}
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
             <Table
               head={['Cycle', 'Window', 'Directions', 'Staff', 'Responses', 'Floor', 'Status', '']}

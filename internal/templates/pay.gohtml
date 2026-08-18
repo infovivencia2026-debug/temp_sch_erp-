@@ -1,0 +1,86 @@
+{{define "pay.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment — School ERP</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+</head>
+<body class="marketing checkout">
+
+<header class="topbar">
+  <a class="wordmark" href="/buy">School ERP</a>
+  <a class="quiet" href="/login">Sign in</a>
+</header>
+
+<main class="narrow">
+
+  <nav class="crumbs" aria-label="Progress">
+    <span class="crumb done">1 · Your school</span>
+    <span class="crumb current">2 · Payment</span>
+    <span class="crumb">3 · Sign-in details</span>
+  </nav>
+
+  {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+
+  <!--
+    This is a simulation and says so on its face. There are no gateway
+    credentials on this installation, so no card is read, no money moves and
+    no request leaves this server. What it does reproduce exactly is the
+    gateway's contract: the order was created server-side before this screen
+    rendered, and the payment identifier and signature the buttons below
+    produce are verified against the key secret before anything is provisioned.
+  -->
+  <div class="gateway" role="group" aria-labelledby="gw-title">
+
+    <div class="gateway-head">
+      <span class="gw-brand">Razorpay</span>
+      <span class="gw-sim" title="No gateway credentials are configured on this installation">SIMULATION — no money moves</span>
+    </div>
+
+    <div class="gateway-body">
+      <h1 id="gw-title" class="gw-amount"><span class="rupee">₹</span>{{.Amount}}</h1>
+      <p class="gw-for">{{.Plan.Name}} · {{.School}}</p>
+
+      <dl class="gw-meta">
+        <div><dt>Order</dt><dd class="mono">{{.OrderRef}}</dd></div>
+        {{if .Prefill}}<div><dt>Email</dt><dd>{{.Prefill}}</dd></div>{{end}}
+      </dl>
+
+      <div class="gw-methods" aria-hidden="true">
+        <span>Card</span><span>UPI</span><span>Net banking</span><span>Wallet</span>
+      </div>
+
+      <form method="post" action="/signup/pay/{{.OrderRef}}" class="gw-actions">
+        <input type="hidden" name="outcome" value="success">
+        <button class="cta wide" type="submit">Pay <span class="rupee">₹</span>{{.Amount}}</button>
+      </form>
+
+      <form method="post" action="/signup/pay/{{.OrderRef}}" class="gw-actions">
+        <input type="hidden" name="outcome" value="failed">
+        <input type="hidden" name="reason" value="The payment was declined by your bank.">
+        <button class="linkish" type="submit">Simulate a declined payment</button>
+      </form>
+
+      <p class="fineprint gw-note">
+        On a real installation this panel is Razorpay's own checkout, and the
+        two buttons above are replaced by the card, UPI and net-banking forms
+        it renders. Everything after the payment — signature verification,
+        provisioning and the sign-in details — is identical either way.
+      </p>
+    </div>
+  </div>
+
+  <p class="fineprint centered">
+    Changed your mind? <a href="/buy">Go back to the plans</a>. Nothing has been charged.
+  </p>
+
+</main>
+
+<footer class="foot">
+  <a href="/buy">Plans</a> · <a href="/login">Sign in</a>
+</footer>
+
+</body>
+</html>{{end}}

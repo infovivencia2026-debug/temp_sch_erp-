@@ -92,6 +92,22 @@ export interface SessionResponse {
   }
   permissions: string[]
   modules?: { module: string; enabled: boolean }[]
+  /** What the school has bought, and whether it is paid up. Absent for
+   *  platform staff, who are not customers and have nothing to buy. */
+  subscription?: Subscription
+}
+
+export interface Subscription {
+  active: boolean
+  /** none | expired | past_due | suspended | cancelled — for branching on the
+   *  reason without parsing the prose in `reason`. */
+  code?: string
+  reason?: string
+  plan_code?: string
+  plan_name?: string
+  status?: string
+  trial_ends_on?: string
+  modules: string[]
 }
 
 export interface Student {

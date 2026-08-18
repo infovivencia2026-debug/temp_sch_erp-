@@ -36,9 +36,13 @@ type BuyPage struct {
 }
 
 type buyPlan struct {
-	Code        string
-	Name        string
-	Rupees      string
+	Code   string
+	Name   string
+	Rupees string
+	// PricePaise is what the checkout quotes and what the order records.
+	// Rupees above is for reading; this is for arithmetic, and the two must
+	// never be derived from each other at the point of sale.
+	PricePaise  int64
 	MaxStudents string
 	Modules     []string
 	Featured    bool
@@ -96,6 +100,7 @@ func (b *BuyPage) plans(r *http.Request) ([]buyPlan, error) {
 			if err := rows.Scan(&p.Code, &p.Name, &paise, &maxStud, &mods); err != nil {
 				return err
 			}
+			p.PricePaise = paise
 			p.Rupees = indianRupees(paise / 100)
 			if maxStud == nil {
 				p.MaxStudents = "Unlimited students"

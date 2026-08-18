@@ -1,3 +1,8 @@
+-- Renumbered above 00080 when operational-erp merged into sony. Production had
+-- already applied sony's 00080, and goose refuses a migration numbered below
+-- the current version -- so these four had to move up rather than the school's
+-- database having to move back. Content is unchanged and order-independent of
+-- everything between.
 -- Claimed as 00059; may be renumbered at integration. Content is independent of
 -- every other in-flight migration and creates no table another worker creates.
 --

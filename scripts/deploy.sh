@@ -18,7 +18,11 @@ FQDN="${FQDN:-temperp.187-127-178-100.sslip.io}"
 APP_DIR="${APP_DIR:-/opt/${SERVICE}}"
 WEBROOT="${WEBROOT:-/var/www/${SERVICE}}"
 ENV_FILE="/etc/${SERVICE}.env"
-DIST="/tmp/${SERVICE}-dist"
+# Overridable so two operators deploying at once do not consume each other's
+# uploads. The shared default is a race: `install` takes whatever is sitting in
+# the directory at the moment it runs, so an upload that lands in between puts
+# somebody else's binaries into /opt under your migration set.
+DIST="${DIST:-/tmp/${SERVICE}-dist}"
 
 DB_NAME="${SERVICE}"
 DB_OWNER="${SERVICE}_owner"
@@ -178,6 +182,19 @@ say "Applying migrations"
 # Runs as the owner via MIGRATE_DATABASE_URL. Done before the restart so the
 # new binary never sees a schema older than it expects.
 ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" up )
+
+# Role grants are deliberately NOT reseeded on every deploy: seeding a role
+# rewrites its catalogue grants, which would silently undo any customisation a
+# school has made to what its roles can see.
+#
+# SEED_ROLES=1 asks for it anyway. That is the repair path for tenants whose
+# roles hold capabilities but no catalogue grants — they have a working API and
+# an empty menu — which is what every provisioned school looked like before
+# provisioning learned to seed them itself.
+if [ "${SEED_ROLES:-0}" = "1" ]; then
+    say "Reseeding roles and catalogue grants (SEED_ROLES=1)"
+    ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" seed )
+fi
 # Permission keys the new build references, so a role can be granted them.
 # Purely additive; role grants stay manual because seeding one rewrites it.
 ( set -a; source "$ENV_FILE"; set +a; "$APP_DIR/migrate" seed-permissions )
@@ -281,6 +298,11 @@ server {
     # before any tenant exists. Without this it falls through to the SPA below
     # and a buyer is shown an application they cannot sign in to.
     location = /buy   { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
+    # Self-service purchase, likewise server-rendered and likewise needed
+    # before the buyer has an account. A prefix match, not an exact one: the
+    # flow continues into /signup/pay/{order} and /signup/welcome/{order}, and
+    # an exact match would send a school that had just paid to the SPA shell.
+    location /signup  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /logout  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /static/ { include /etc/nginx/snippets/${SERVICE}-proxy.conf; expires 7d; access_log off; }
 

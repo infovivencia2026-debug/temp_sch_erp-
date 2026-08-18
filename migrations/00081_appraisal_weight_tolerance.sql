@@ -1,3 +1,8 @@
+-- Renumbered above 00080 when operational-erp merged into sony. Production had
+-- already applied sony's 00080, and goose refuses a migration numbered below
+-- the current version -- so these four had to move up rather than the school's
+-- database having to move back. Content is unchanged and order-independent of
+-- everything between.
 -- +goose Up
 -- The KPI weight rule was stated three times and the three did not agree.
 --

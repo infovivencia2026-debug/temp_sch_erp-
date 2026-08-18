@@ -211,12 +211,24 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, errBadUDISE.Error())
 		return
 	}
-	for _, bad := range []error{
-		oneOf("management_type", req.ManagementType, managementTypes),
-		oneOf("school_category", req.SchoolCategory, schoolCategories),
+	// Validated against the built-in list *and* the school's own additions.
+	// oneOf alone made these lists the vendor's opinion of what schools exist:
+	// a school affiliated to a board nobody had thought of could not record
+	// the fact, and picked the nearest wrong option instead — which is worse
+	// than a blank, because it reads as a fact and lands in the state return.
+	for _, f := range []struct{ kind, value string }{
+		{"management_type", req.ManagementType},
+		{"school_category", req.SchoolCategory},
+		{"affiliation_board", strings.TrimSpace(req.Board)},
 	} {
-		if bad != nil {
-			httpx.BadRequest(w, r, bad.Error())
+		ok, err := s.allowsValue(r, f.kind, f.value)
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if !ok {
+			httpx.BadRequest(w, r,
+				"that is not one of your "+kindLabels[f.kind]+" — add it to the list first, then choose it")
 			return
 		}
 	}

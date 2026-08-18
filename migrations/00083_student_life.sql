@@ -1,3 +1,8 @@
+-- Renumbered above 00080 when operational-erp merged into sony. Production had
+-- already applied sony's 00080, and goose refuses a migration numbered below
+-- the current version -- so these four had to move up rather than the school's
+-- database having to move back. Content is unchanged and order-independent of
+-- everything between.
 -- Claimed as 00058 at the time of writing; may be renumbered at integration if
 -- another agent's migration lands first. Content is order-independent beyond
 -- requiring 00037 (lost_found_items, students) and 00041 (virtual_class_sessions).

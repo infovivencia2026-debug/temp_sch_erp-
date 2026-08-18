@@ -39,7 +39,14 @@ import { classroomKeys } from './faculty/classroom-keys'
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
   'institution_admin.students.student_directory_student_360': lazy(() => import('./shared/StudentProfile')),
-  'institution_admin.academics.academic_structure': lazy(() => import('./shared/Academics')),
+  /* The principal's own way in to setting the school up.
+     The wizard carried every form a new school needs -- academic year,
+     classes, sections, subjects, the school day, staff, students, grading,
+     fees and exams -- and was registered only under super_admin, so the one
+     person actually responsible for the school could not reach it. A school
+     bought on the website therefore arrived at a dashboard of zeroes with no
+     way to enter anything, which is the state a principal reported. */
+  'institution_admin.academics.academic_structure': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.academic_year_defaults': lazy(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': lazy(() => import('./setup/ImportStudents')),
@@ -201,7 +208,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Vice Principal / Academic Coordinator — runs teaching and learning.
   'institution_admin.home.academic_kpis': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.academics.classes_sections': lazy(() => import('./shared/Academics')),
+  'institution_admin.academics.classes_sections': lazy(() => import('./setup/Wizard')),
   'institution_admin.academics.teacher_allocation': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
   'institution_admin.examinations.report_cards': lazy(() => import('./exams/HolisticCard')),

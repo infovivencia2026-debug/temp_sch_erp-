@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Phone, Mail } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader,
+  PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
   Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
@@ -14,6 +14,15 @@ import { StatusPill } from '@/components/NeedsAttention'
 import { useActiveRole } from '@/lib/catalog'
 import { useSession } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
+
+/* What GET /students/{id} adds on top of the list row. The editable set is
+   split across two endpoints -- names and address here, medium and the
+   statutory ids on the profile -- so the form is prefilled from both rather
+   than from casts that lie about what the response contains. */
+interface StudentDetail extends Student {
+  blood_group?: string; religion?: string; nationality?: string
+  address_line1?: string; city?: string; state?: string; pincode?: string
+}
 
 interface Profile {
   id: string; admission_no: string; full_name: string; status: string
@@ -74,6 +83,28 @@ export default function StudentProfile() {
     queryKey: ['student-profile', selected],
     queryFn: () => api.get<Profile>(`/api/v1/students/${selected}/profile`),
     enabled: !!selected,
+  })
+
+  /* The profile view carries full_name; the write API wants the parts. Rather
+     than split a name on spaces -- which mangles "Meera Sai Menon" and every
+     name that does not have exactly two words -- the record is fetched for the
+     fields the form actually edits. */
+  const [editing, setEditing] = useState(false)
+  const record = useQuery({
+    queryKey: ['student-record', selected],
+    queryFn: () => api.get<StudentDetail>(`/api/v1/students/${selected}`),
+    enabled: !!selected && editing,
+  })
+
+  const qc = useQueryClient()
+  const save = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.put(`/api/v1/students/${selected}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+      qc.invalidateQueries({ queryKey: ['student-record', selected] })
+      setEditing(false)
+    },
   })
 
   /* Where a record action sends you.
@@ -175,8 +206,9 @@ export default function StudentProfile() {
       disabled: !can('comms.messages.send'), disabledReason: 'Needs the messaging permission' },
     { label: 'Change section', onClick: () => go('promotion'),
       disabled: true, disabledReason: 'Not built yet' },
-    { label: 'Edit student', onClick: () => go('directory'),
-      disabled: true, disabledReason: 'Not built yet' },
+    { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
+      disabled: !can('students.write'),
+      disabledReason: 'Needs permission to change student records' },
   ]
 
   const tabs: RecordTab[] = [
@@ -184,6 +216,28 @@ export default function StudentProfile() {
       key: 'overview', label: 'Overview',
       render: () => (
         <div className="grid gap-6 lg:grid-cols-2">
+          {editing ? (
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title="Edit details"
+                description="Everything the school holds about this child. Blank is allowed — a field nobody has filled in yet is better than a guess."
+              />
+              <div className="p-4">
+                {record.isLoading ? <Loading /> : record.error ? (
+                  <ErrorState error={record.error} />
+                ) : (
+                  <StudentForm
+                    student={record.data!}
+                    profile={p}
+                    saving={save.isPending}
+                    error={save.error}
+                    onCancel={() => setEditing(false)}
+                    onSave={(body) => save.mutate(body)}
+                  />
+                )}
+              </div>
+            </Card>
+          ) : null}
           <Card>
             <CardHeader title="Details" />
             <dl className="divide-y text-[14px]">
@@ -421,5 +475,100 @@ function Guardians({ p }: { p: Profile }) {
         </ul>
       )}
     </Card>
+  )
+}
+
+/* The student form.
+ *
+ * One form, every field the write API accepts, because the alternative -- a
+ * profile screen that shows fourteen facts and lets you change none of them --
+ * is what a principal reported after buying the product: a record they could
+ * read and not correct.
+ *
+ * Nothing here is required except a first name, which is the only thing the
+ * server insists on. Schools fill records in over weeks, and a form that
+ * demands a blood group before it will save a corrected spelling is a form
+ * people work around by not using it.
+ */
+function StudentForm({
+  student, profile, saving, error, onSave, onCancel,
+}: {
+  student: StudentDetail
+  profile: Profile
+  saving: boolean
+  error: unknown
+  onSave: (body: Record<string, unknown>) => void
+  onCancel: () => void
+}) {
+  const [f, setF] = useState({
+    admission_no: student.admission_no ?? '',
+    first_name: student.first_name ?? '',
+    middle_name: student.middle_name ?? '',
+    last_name: student.last_name ?? '',
+    date_of_birth: student.date_of_birth ?? '',
+    gender: student.gender ?? '',
+    blood_group: student.blood_group ?? '',
+    medium: profile.medium ?? '',
+    mother_tongue: profile.mother_tongue ?? '',
+    religion: student.religion ?? '',
+    address_line1: student.address_line1 ?? '',
+    city: student.city ?? '',
+    state: student.state ?? '',
+    pincode: student.pincode ?? '',
+    apaar_id: profile.apaar_id ?? '',
+    child_info_id: profile.child_info_id ?? '',
+    prior_school: profile.prior_school ?? '',
+  })
+  const [rte, setRte] = useState(profile.is_rte)
+  const [cwsn, setCwsn] = useState(profile.is_cwsn)
+  const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
+
+  return (
+    <>
+      <FormNotice error={error} />
+      <FormGrid>
+        <FormField label="Admission no."><Input value={f.admission_no} onChange={set('admission_no')} /></FormField>
+        <FormField label="First name" required><Input value={f.first_name} onChange={set('first_name')} /></FormField>
+        <FormField label="Middle name"><Input value={f.middle_name} onChange={set('middle_name')} /></FormField>
+        <FormField label="Last name"><Input value={f.last_name} onChange={set('last_name')} /></FormField>
+        <FormField label="Date of birth"><Input type="date" value={f.date_of_birth} onChange={set('date_of_birth')} /></FormField>
+        <FormField label="Gender">
+          <Select value={f.gender} onChange={set('gender')} placeholder="Not recorded"
+            options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} />
+        </FormField>
+        <FormField label="Blood group"><Input value={f.blood_group} onChange={set('blood_group')} placeholder="O+" /></FormField>
+        <FormField label="Medium">
+          <Select value={f.medium} onChange={set('medium')} placeholder="Not recorded"
+            options={['telugu', 'english', 'urdu', 'hindi', 'other'].map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))} />
+        </FormField>
+        <FormField label="Mother tongue"><Input value={f.mother_tongue} onChange={set('mother_tongue')} /></FormField>
+        <FormField label="Religion"><Input value={f.religion} onChange={set('religion')} /></FormField>
+        <FormField label="City"><Input value={f.city} onChange={set('city')} /></FormField>
+        <FormField label="State"><Input value={f.state} onChange={set('state')} /></FormField>
+        <FormField label="Pincode" hint="Six digits"><Input value={f.pincode} onChange={set('pincode')} /></FormField>
+        <FormField label="APAAR ID" hint="Twelve digits"><Input value={f.apaar_id} onChange={set('apaar_id')} /></FormField>
+        <FormField label="Child Info ID"><Input value={f.child_info_id} onChange={set('child_info_id')} /></FormField>
+        <FormField label="Previous school"><Input value={f.prior_school} onChange={set('prior_school')} /></FormField>
+      </FormGrid>
+
+      <FormField label="Address">
+        <Textarea value={f.address_line1} onChange={set('address_line1')} rows={2} />
+      </FormField>
+
+      <div className="mt-3 flex flex-wrap gap-4">
+        <Checkbox label="Admitted under RTE" checked={rte} onChange={setRte} />
+        <Checkbox label="Child with special needs (CWSN)" checked={cwsn} onChange={setCwsn} />
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          disabled={saving || !f.first_name.trim()}
+          onClick={() => onSave({ ...f, is_rte: rte, is_cwsn: cwsn })}
+        >
+          {saving ? 'Saving…' : 'Save changes'}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+      </div>
+    </>
   )
 }
