@@ -1,3 +1,6 @@
+-- Renumbered from 00034: 00035 had already been applied by the time this
+-- merged, and goose refuses a migration that appears behind the current
+-- version. The content is unchanged.
 -- +goose Up
 -- What a principal's office keeps that no register in this product held yet.
 --

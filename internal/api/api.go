@@ -93,6 +93,7 @@ func (s *Server) Routes() http.Handler {
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
+			s.mountAdminAcademics(r)
 			r.Get("/years", s.listAcademicYears)
 			r.Get("/classes", s.listClasses)
 			r.Get("/sections", s.listSections)

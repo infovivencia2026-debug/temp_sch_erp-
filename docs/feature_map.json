@@ -2240,9 +2240,32 @@
   "description": "Assign faculty to subject/class and review unassigned subjects.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/FacultyAllocation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/faculty-allocation",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.timetable",
@@ -2315,9 +2338,24 @@
   "description": "View absent teachers and assign available proxy teachers based on free periods and expertise.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/SubstitutionBoard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/substitution-board",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-admin/substitutions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.academic_calendar",
@@ -2328,9 +2366,25 @@
   "description": "Manage holidays, teaching days, exams, PTMs and institutional events.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/AcademicCalendar",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/calendar",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/calendar/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.subject_chapter_planner",
@@ -2561,9 +2615,31 @@
   "description": "Track marks-entry completion, review/approve internal marks where workflow requires, results and backlogs.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/ExamMonitoring",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/exam-monitor",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/exam-monitor/approve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.obe_outcomes",
@@ -2574,9 +2650,52 @@
   "description": "CO/PO mapping, attainment and gap analysis when enabled for higher education.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/Outcomes",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/outcomes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/outcomes/attainment",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/outcomes/course",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/outcomes/mapping",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/admin/outcomes/programme",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.classes_sections",

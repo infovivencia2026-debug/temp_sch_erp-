@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 289 of the catalog's features are implemented.
+// 299 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -144,11 +144,16 @@ var implementedFeatures = map[string]bool{
 	"hr.welfare.staff_birthday_anniversary_alerts":                       true,
 	"hr.welfare.staff_grievance_cell":                                    true,
 	"hr.welfare.staff_recognition_wall":                                  true,
+	"institution_admin.academics.academic_calendar":                      true,
 	"institution_admin.academics.academic_structure":                     true,
 	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,
 	"institution_admin.academics.classes_sections":                       true,
+	"institution_admin.academics.exams_marks_monitoring":                 true,
+	"institution_admin.academics.faculty_allocation":                     true,
+	"institution_admin.academics.faculty_substitution_engine":            true,
 	"institution_admin.academics.lesson_plan_approval_queue":             true,
+	"institution_admin.academics.obe_outcomes":                           true,
 	"institution_admin.academics.subject_chapter_planner":                true,
 	"institution_admin.academics.syllabus_coverage_tracking":             true,
 	"institution_admin.academics.syllabus_progress":                      true,
@@ -215,9 +220,14 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.statutory_returns.udise_return_preparation":       true,
 	"institution_admin.stores.department_stock_issuance":                 true,
 	"institution_admin.stores.item_category_store_setup":                 true,
+	"institution_admin.students.alumni_program_oversight":                true,
+	"institution_admin.students.certificates_document_templates":         true,
 	"institution_admin.students.certificates_documents":                  true,
 	"institution_admin.students.class_section_promotion":                 true,
+	"institution_admin.students.department_students":                     true,
+	"institution_admin.students.disciplinary_incident_log":               true,
 	"institution_admin.students.enrollment_lifecycle":                    true,
+	"institution_admin.students.student_council_management":              true,
 	"institution_admin.students.student_directory":                       true,
 	"institution_admin.students.student_directory_student_360":           true,
 	"institution_admin.transport.bus_breakdown_emergency_dispatch":       true,

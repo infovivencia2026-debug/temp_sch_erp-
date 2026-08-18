@@ -144,7 +144,7 @@ func adminWindow(r *http.Request) (string, string) {
 
 // --- academic calendar ---------------------------------------------------------
 
-type calendarEntry struct {
+type schoolCalendarEntry struct {
 	ID string `json:"id"`
 	// Where the row came from. Only 'calendar' rows are editable: an exam and a
 	// term are owned by their own module and shown here so the year reads as
@@ -199,8 +199,8 @@ func (s *Server) getAcademicCalendar(w http.ResponseWriter, r *http.Request) {
 		   AND ($4::uuid IS NULL OR t.academic_year_id = $4)
 		 ORDER BY 4, 3`,
 		[]any{from, to, kind, yearID},
-		func(rows pgx.Rows) (calendarEntry, error) {
-			var v calendarEntry
+		func(rows pgx.Rows) (schoolCalendarEntry, error) {
+			var v schoolCalendarEntry
 			return v, rows.Scan(&v.ID, &v.Source, &v.Name, &v.StartsOn, &v.EndsOn,
 				&v.Kind, &v.AppliesTo, &v.Description, &v.Campus, &v.Days)
 		})
