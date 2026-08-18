@@ -16,6 +16,7 @@ import { rollupKeys } from './analytics/rollup-keys'
 import { bankingKeys } from './finance/banking-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
+import { timetableOpsKeys } from './academics/timetable-ops-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -397,6 +398,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...bankingKeys,
   ...statutoryKeys,
   ...tallyKeys,
+  ...timetableOpsKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

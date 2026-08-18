@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 364 of the catalog's features are implemented.
+// 367 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":             true,
 	"admissions.admissions.admission_fee_collection":                       true,
@@ -86,6 +86,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.teaching.syllabus_progress_tracker":                           true,
 	"faculty.teaching.teacher_digital_diary":                               true,
 	"faculty.timetable.my_timetable":                                       true,
+	"faculty.timetable.substitution_request_submission":                    true,
 	"finance.assets_budget.budgeting_variance_analysis":                    true,
 	"finance.assets_budget.fixed_asset_register_depreciation":              true,
 	"finance.collections.collect_payment":                                  true,
@@ -187,6 +188,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.communication.circulars_announcements":              true,
 	"institution_admin.communication.communication":                        true,
 	"institution_admin.department.department_academics":                    true,
+	"institution_admin.department.department_timetable":                    true,
 	"institution_admin.directory_workload.faculty_allocation_workload":     true,
 	"institution_admin.directory_workload.faculty_directory":               true,
 	"institution_admin.directory_workload.faculty_directory_workload":      true,
@@ -339,6 +341,7 @@ var implementedFeatures = map[string]bool{
 	"super_admin.access_security.sso_mfa":                                  true,
 	"super_admin.access_security.user_directory":                           true,
 	"super_admin.access_security.users":                                    true,
+	"super_admin.ai_automation.automated_timetable_optimizer":              true,
 	"super_admin.campuses_academic_year.academic_calendar_model":           true,
 	"super_admin.campuses_academic_year.franchise_management":              true,
 	"super_admin.campuses_academic_year.white_label_branding":              true,

@@ -79,6 +79,16 @@ func (s *Server) resolveRollupScope(r *http.Request) (*rollupBoundary, error) {
 
 // deptPredicate restricts an employees.department_id expression to the caller's
 // departments. column is a literal from the handler, never user input.
+//
+// The dept argument MUST be the last parameter in the query. For a caller who
+// sees the whole institution this returns a bare TRUE and no argument, so $argN
+// is never referenced and bindScope never appends it — which is only safe while
+// nothing above argN exists. Put the predicate at $2 in a query that also uses
+// $3 and Postgres rejects the statement outright, for institution-wide users
+// only, which is the hardest case to notice. A worker hit exactly that. If you
+// need the predicate anywhere but last, write it unconditionally instead:
+//
+//	($2::uuid[] IS NULL OR e.department_id = ANY($2))
 func (b *rollupBoundary) deptPredicate(column string, argN int) (string, any) {
 	if b.All {
 		return "TRUE", nil
