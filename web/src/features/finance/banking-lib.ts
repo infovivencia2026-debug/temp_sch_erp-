@@ -129,7 +129,10 @@ export interface PayoutBatch {
   decision_reason?: string
   exported_at?: string
   caller_may_approve: boolean
+  /** Written for a person, and reworded whenever the wording is wrong. */
   approval_blocked?: string
+  /** The same refusal as a token to branch on. Never match on the sentence. */
+  approval_blocked_code?: 'not_submitted' | 'no_permission' | 'assembled_by_caller'
 }
 
 export interface PayoutItem {

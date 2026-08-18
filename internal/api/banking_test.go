@@ -162,21 +162,34 @@ func TestApprovalStanding(t *testing.T) {
 	const maker = "11111111-1111-1111-1111-111111111111"
 	const checker = "22222222-2222-2222-2222-222222222222"
 
-	if ok, _ := approvalStanding("submitted", maker, checker, true); !ok {
+	if ok, _, _ := approvalStanding("submitted", maker, checker, true); !ok {
 		t.Error("a different person with the approve permission must be able to release")
 	}
-	if ok, why := approvalStanding("submitted", maker, maker, true); ok {
+	if ok, code, why := approvalStanding("submitted", maker, maker, true); ok {
 		t.Error("the maker must not be able to release their own batch even with the permission")
-	} else if why == "" {
-		t.Error("a refusal must carry a reason the screen can show")
+	} else {
+		if why == "" {
+			t.Error("a refusal must carry a reason the screen can show")
+		}
+		// The screen counts "waiting on somebody else" off this token. It used
+		// to match on the words of the sentence above, which is why the token
+		// exists and why it is asserted separately: the sentence may be
+		// reworded, the code may not.
+		if code != blockedIsMaker {
+			t.Errorf("maker refusal code = %q, want %q", code, blockedIsMaker)
+		}
 	}
-	if ok, _ := approvalStanding("submitted", maker, checker, false); ok {
+	if ok, code, _ := approvalStanding("submitted", maker, checker, false); ok {
 		t.Error("releasing without the approve permission must be refused")
+	} else if code != blockedNoPermission {
+		t.Errorf("permission refusal code = %q, want %q", code, blockedNoPermission)
 	}
-	if ok, _ := approvalStanding("draft", maker, checker, true); ok {
+	if ok, code, _ := approvalStanding("draft", maker, checker, true); ok {
 		t.Error("a draft batch has not been submitted and must not be releasable")
+	} else if code != blockedNotSubmitted {
+		t.Errorf("draft refusal code = %q, want %q", code, blockedNotSubmitted)
 	}
-	if ok, _ := approvalStanding("approved", maker, checker, true); ok {
+	if ok, _, _ := approvalStanding("approved", maker, checker, true); ok {
 		t.Error("an already-approved batch must not be released twice")
 	}
 }

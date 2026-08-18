@@ -559,6 +559,7 @@ export function BoardRoll(props: RollProps) {
                         setPicked(v ? [...picked, e.student_id] : picked.filter((p) => p !== e.student_id))
                       }
                       label=""
+                      srLabel={`Enter ${e.name}, admission number ${e.admission_no}, on the roll`}
                     />
                   </Td>
                   <Td className="font-medium">{e.name}</Td>

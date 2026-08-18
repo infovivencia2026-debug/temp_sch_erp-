@@ -172,6 +172,7 @@ export default function Promotion() {
                       checked={held.has(s.id)}
                       onChange={() => toggle(s.id)}
                       label=""
+                      srLabel={`Hold ${s.full_name} back in this class`}
                     />
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">{s.roll_no ?? '—'}</Td>

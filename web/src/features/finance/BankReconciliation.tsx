@@ -148,6 +148,11 @@ export default function BankReconciliation() {
 
             {openId && (
               <StatementView
+                /* Keyed by the period. The auto-match result, the closing
+                   notes and each line's explanation are state inside it, so
+                   opening a second period reused them: "Matched 7 line(s)"
+                   from March greeted whoever opened April. */
+                key={openId}
                 id={openId}
                 mayWrite={mayWrite}
                 mayFinalise={mayFinalise}
@@ -170,6 +175,23 @@ function StatementView({
 }: { id: string; mayWrite: boolean; mayFinalise: boolean }) {
   const qc = useQueryClient()
   const [note, setNote] = useState('')
+  /* Which lines are open for matching. Held here rather than in each row: the
+     rows are plain <tr>s now so they cannot hold it, and a refetch after a
+     match no longer tears down the panel somebody is still working in. */
+  const [openLines, setOpenLines] = useState<Set<string>>(new Set())
+  const toggleLine = (lineId: string) =>
+    setOpenLines((prev) => {
+      const next = new Set(prev)
+      if (next.has(lineId)) next.delete(lineId)
+      else next.add(lineId)
+      return next
+    })
+  const closeLine = (lineId: string) =>
+    setOpenLines((prev) => {
+      const next = new Set(prev)
+      next.delete(lineId)
+      return next
+    })
 
   const q = useQuery({
     queryKey: [bankingQueryKey, 'statement', id],
@@ -291,15 +313,16 @@ function StatementView({
             head={['Date', 'Narration', 'Reference', { label: 'Amount', align: 'right' }, '']}
             empty={false}
           >
-            {st.unmatched_bank.map((l) => (
-              <UnmatchedLine
-                key={l.id}
-                line={l}
-                reconciliationId={id}
-                mayWrite={mayWrite && !locked}
-                onDone={invalidate}
-              />
-            ))}
+            {st.unmatched_bank.map((l) =>
+              unmatchedRows({
+                line: l,
+                reconciliationId: id,
+                mayWrite: mayWrite && !locked,
+                open: openLines.has(l.id),
+                onToggle: () => toggleLine(l.id),
+                onMatched: () => { closeLine(l.id); invalidate() },
+              }),
+            )}
           </Table>
         )}
       </Card>
@@ -349,129 +372,157 @@ function StatementView({
 
 // --- one unmatched bank line -------------------------------------------------
 
-function UnmatchedLine({
-  line, reconciliationId, mayWrite, onDone,
+/* The line's two rows, as an array of <tr>s rather than a component.
+
+   <Table> names each cell after its column so a row can stack into a labelled
+   card on a phone, and it does that by walking the elements it is handed: a
+   component element hides its rows behind a render that has not happened, so
+   the walk labels nothing and the table collapses into bare figures under
+   640px. See labelCells in components/ui.tsx.
+
+   Everything that needs state moved into MatchPanel, which lives inside the
+   expanded cell — a colSpan cell is never labelled anyway, so a component is
+   at home there. The open set moved up to the statement, where it also stops
+   the panel being torn down by a refetch mid-match. */
+function unmatchedRows({
+  line, reconciliationId, mayWrite, open, onToggle, onMatched,
 }: {
   line: StatementLine
   reconciliationId: string
   mayWrite: boolean
-  onDone: () => void
+  open: boolean
+  onToggle: () => void
+  onMatched: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  return [
+    <tr key={line.id}>
+      <Td className="text-muted-foreground">{line.txn_date}</Td>
+      <Td className="max-w-[24rem] truncate" >{line.narration || '—'}</Td>
+      <Td className="font-mono text-[12px] text-muted-foreground">
+        {line.reference_no ?? '—'}
+      </Td>
+      <Td className="text-right tabular-nums font-medium">{signedInr(line.amount_paise)}</Td>
+      <Td>
+        {mayWrite && (
+          <Button size="sm" variant="secondary" aria-expanded={open} onClick={onToggle}>
+            {open ? 'Cancel' : 'Match'}
+          </Button>
+        )}
+      </Td>
+    </tr>,
+    open ? (
+      <tr key={`${line.id}:match`}>
+        <Td colSpan={5}>
+          <MatchPanel
+            line={line}
+            reconciliationId={reconciliationId}
+            onMatched={onMatched}
+          />
+        </Td>
+      </tr>
+    ) : null,
+  ]
+}
+
+function MatchPanel({
+  line, reconciliationId, onMatched,
+}: {
+  line: StatementLine
+  reconciliationId: string
+  onMatched: () => void
+}) {
   const [explanation, setExplanation] = useState('')
 
+  // No `enabled` guard any more: this panel only exists while the row is open,
+  // so mounting is the gate.
   const candidates = useQuery({
     queryKey: [bankingQueryKey, 'candidates', reconciliationId, line.id],
     queryFn: () =>
       api.get<List<MatchCandidate>>(
         `${bankingBase}/reconciliations/${reconciliationId}/candidates/${line.id}`,
       ),
-    enabled: open,
   })
 
   const decide = useMutation({
     mutationFn: (body: { match_kind?: string; match_id?: string; explained_as?: string }) =>
       api.post(`${bankingBase}/lines/${line.id}/match`, body),
-    onSuccess: () => { setOpen(false); onDone() },
+    onSuccess: onMatched,
   })
 
   const list = candidates.data?.items ?? []
 
   return (
-    <>
-      <tr>
-        <Td className="text-muted-foreground">{line.txn_date}</Td>
-        <Td className="max-w-[24rem] truncate" >{line.narration || '—'}</Td>
-        <Td className="font-mono text-[12px] text-muted-foreground">
-          {line.reference_no ?? '—'}
-        </Td>
-        <Td className="text-right tabular-nums font-medium">{signedInr(line.amount_paise)}</Td>
-        <Td>
-          {mayWrite && (
-            <Button size="sm" variant="secondary" onClick={() => setOpen(!open)}>
-              {open ? 'Cancel' : 'Match'}
-            </Button>
-          )}
-        </Td>
-      </tr>
-      {open && (
-        <tr>
-          <Td colSpan={5}>
-            <div className="space-y-4 py-2">
-              {/* The raw line, because the first import from a new bank always
-                  parses something wrong and this is where you see it. */}
-              <p className="font-mono text-[12px] text-muted-foreground">
-                as imported: {line.raw_line}
-              </p>
+    <div className="space-y-4 py-2">
+      {/* The raw line, because the first import from a new bank always
+          parses something wrong and this is where you see it. */}
+      <p className="font-mono text-[12px] text-muted-foreground">
+        as imported: {line.raw_line}
+      </p>
 
-              {candidates.isLoading ? (
-                <Loading label="Looking for a matching entry…" />
-              ) : candidates.error ? (
-                <ErrorState error={candidates.error} />
-              ) : list.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">
-                  No book entry of exactly {signedInr(line.amount_paise)} within three days of
-                  this line. Either it has not been entered yet, or this is not a book entry at
-                  all — explain it below.
+      {candidates.isLoading ? (
+        <Loading label="Looking for a matching entry…" />
+      ) : candidates.error ? (
+        <ErrorState error={candidates.error} />
+      ) : list.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">
+          No book entry of exactly {signedInr(line.amount_paise)} within three days of
+          this line. Either it has not been entered yet, or this is not a book entry at
+          all — explain it below.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((c) => (
+            <div
+              key={`${c.kind}:${c.id}`}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
+            >
+              <div>
+                <p className="text-[14px] font-medium">
+                  {c.party}
+                  <span className="ml-2 text-[13px] font-normal text-muted-foreground">
+                    {MATCH_KIND_LABELS[c.kind] ?? c.kind} · {c.entry_date}
+                    {c.reference ? ` · ${c.reference}` : ''}
+                  </span>
                 </p>
-              ) : (
-                <div className="space-y-2">
-                  {list.map((c) => (
-                    <div
-                      key={`${c.kind}:${c.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
-                    >
-                      <div>
-                        <p className="text-[14px] font-medium">
-                          {c.party}
-                          <span className="ml-2 text-[13px] font-normal text-muted-foreground">
-                            {MATCH_KIND_LABELS[c.kind] ?? c.kind} · {c.entry_date}
-                            {c.reference ? ` · ${c.reference}` : ''}
-                          </span>
-                        </p>
-                        <p className="text-[12px] text-muted-foreground">{c.reason}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={c.exact ? 'primary' : 'secondary'}
-                        disabled={decide.isPending}
-                        onClick={() => decide.mutate({ match_kind: c.kind, match_id: c.id })}
-                      >
-                        This one
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="min-w-[320px] flex-1">
-                  <Field
-                    label="Or explain it"
-                    hint="Bank charges, interest credited, a transfer between the school's own accounts — anything that is genuinely not a book entry."
-                  >
-                    <Input
-                      value={explanation}
-                      onChange={setExplanation}
-                      placeholder="Quarterly bank charges"
-                    />
-                  </Field>
-                </div>
-                <Button
-                  variant="secondary"
-                  disabled={!explanation || decide.isPending}
-                  onClick={() => decide.mutate({ explained_as: explanation })}
-                >
-                  Explain and set aside
-                </Button>
+                <p className="text-[12px] text-muted-foreground">{c.reason}</p>
               </div>
-
-              <FormNotice error={decide.error} />
+              <Button
+                size="sm"
+                variant={c.exact ? 'primary' : 'secondary'}
+                disabled={decide.isPending}
+                onClick={() => decide.mutate({ match_kind: c.kind, match_id: c.id })}
+              >
+                This one
+              </Button>
             </div>
-          </Td>
-        </tr>
+          ))}
+        </div>
       )}
-    </>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[320px] flex-1">
+          <Field
+            label="Or explain it"
+            hint="Bank charges, interest credited, a transfer between the school's own accounts — anything that is genuinely not a book entry."
+          >
+            <Input
+              value={explanation}
+              onChange={setExplanation}
+              placeholder="Quarterly bank charges"
+            />
+          </Field>
+        </div>
+        <Button
+          variant="secondary"
+          disabled={!explanation || decide.isPending}
+          onClick={() => decide.mutate({ explained_as: explanation })}
+        >
+          Explain and set aside
+        </Button>
+      </div>
+
+      <FormNotice error={decide.error} />
+    </div>
   )
 }
 
@@ -482,6 +533,15 @@ function MatchedLines({
 }: { statement: Statement; mayWrite: boolean; onDone: () => void }) {
   const [show, setShow] = useState(false)
   const done = statement.bank_lines.filter((l) => l.match_kind || l.explained_as)
+
+  /* One mutation for the table rather than one per row: the rows are plain
+     <tr>s so that <Table> can label their cells for a phone, and a plain row
+     cannot hold a hook. `undo.variables` still says which line is in flight,
+     so only that row's button goes down. */
+  const undo = useMutation({
+    mutationFn: (lineId: string) => api.post(`${bankingBase}/lines/${lineId}/unmatch`, {}),
+    onSuccess: onDone,
+  })
 
   if (done.length === 0) return null
 
@@ -501,24 +561,25 @@ function MatchedLines({
           head={['Date', 'Narration', { label: 'Amount', align: 'right' }, 'Matched to', 'How', '']}
           empty={false}
         >
-          {done.map((l) => (
-            <MatchedRow key={l.id} line={l} mayWrite={mayWrite} onDone={onDone} />
-          ))}
+          {done.map((l) =>
+            matchedRow({
+              line: l,
+              mayWrite,
+              undoing: undo.isPending && undo.variables === l.id,
+              onUndo: () => undo.mutate(l.id),
+            }),
+          )}
         </Table>
       )}
     </Card>
   )
 }
 
-function MatchedRow({
-  line, mayWrite, onDone,
-}: { line: StatementLine; mayWrite: boolean; onDone: () => void }) {
-  const undo = useMutation({
-    mutationFn: () => api.post(`${bankingBase}/lines/${line.id}/unmatch`, {}),
-    onSuccess: onDone,
-  })
+function matchedRow({
+  line, mayWrite, undoing, onUndo,
+}: { line: StatementLine; mayWrite: boolean; undoing: boolean; onUndo: () => void }) {
   return (
-    <tr>
+    <tr key={line.id}>
       <Td className="text-muted-foreground">{line.txn_date}</Td>
       <Td className="max-w-[24rem] truncate">{line.narration || '—'}</Td>
       <Td className="text-right tabular-nums">{signedInr(line.amount_paise)}</Td>
@@ -537,7 +598,7 @@ function MatchedRow({
       </Td>
       <Td>
         {mayWrite && (
-          <Button size="sm" variant="ghost" disabled={undo.isPending} onClick={() => undo.mutate()}>
+          <Button size="sm" variant="ghost" disabled={undoing} onClick={onUndo}>
             Undo
           </Button>
         )}
@@ -563,7 +624,13 @@ function ImportPanel({
 
   return (
     <div className="space-y-4">
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed py-8 text-center transition-colors hover:bg-accent/40">
+      {/* `hidden` on the input took it out of the tab order altogether, and a
+          <label> is not focusable, so the only way to import a statement was a
+          mouse — on the one action this screen exists to perform. `sr-only`
+          keeps it invisible and still focusable; the ring on the label is what
+          a keyboard user sees, since the thing they are focused on is clipped
+          to a pixel. */}
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed py-8 text-center transition-colors hover:bg-accent/40 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         <Upload className="h-5 w-5 text-muted-foreground" />
         <span className="text-[14px] font-medium">
           {filename || 'Click to choose the statement CSV'}
@@ -575,7 +642,7 @@ function ImportPanel({
         <input
           type="file"
           accept=".csv,text/csv"
-          className="hidden"
+          className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (!f) return

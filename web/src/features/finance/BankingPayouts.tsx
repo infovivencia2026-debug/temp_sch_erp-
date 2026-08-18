@@ -55,7 +55,14 @@ export default function BankingPayouts() {
 
   const rows = q.data?.items ?? []
   const awaiting = rows.filter((b) => b.status === 'submitted')
-  const mine = awaiting.filter((b) => !b.caller_may_approve && b.approval_blocked?.includes('assembled'))
+  /* Branching on the code, not on the sentence. This read
+     `approval_blocked?.includes('assembled')`, so the tile counted batches by
+     matching English the server writes for a human — reword that message and
+     the count silently becomes nought, which is the reading that says "nothing
+     is waiting on you" when something is. */
+  const mine = awaiting.filter(
+    (b) => !b.caller_may_approve && b.approval_blocked_code === 'assembled_by_caller',
+  )
   const releasable = awaiting.filter((b) => b.caller_may_approve)
   const approved = rows.filter((b) => b.status === 'approved')
   const pendingValue = awaiting.reduce((n, b) => n + b.total_paise, 0)
@@ -171,6 +178,13 @@ export default function BankingPayouts() {
 
         {openId && (
           <BatchDetail
+            /* Keyed by the batch.
+
+               `reason` lives in that component, so opening a second batch
+               while a refusal note was typed carried the note across: the
+               decision recorded against batch B quoted the reason written for
+               batch A. That text is the audit trail for a payment refusal. */
+            key={openId}
             id={openId}
             mayWrite={mayWrite}
             mayApprove={mayApprove}
@@ -451,6 +465,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
                     checked={!!picked[c.source_id]}
                     onChange={(v) => setPicked({ ...picked, [c.source_id]: v })}
                     label=""
+                    srLabel={`Pay ${c.beneficiary_name} ${inr(c.amount_paise)} against ${c.reference}`}
                     hint={c.has_bank ? undefined : 'no bank details'}
                   />
                 </Td>

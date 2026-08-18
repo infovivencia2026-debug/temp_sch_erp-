@@ -2087,6 +2087,11 @@ type payoutBatchView struct {
 	// disagree — the UI hiding it is a courtesy, not the control.
 	CallerMayApprove bool   `json:"caller_may_approve"`
 	ApprovalBlocked  string `json:"approval_blocked,omitempty"`
+	// The same refusal as a stable token. The sentence above is written for a
+	// person and will be reworded; a screen that needs to count "batches
+	// waiting on somebody else" was matching on its words, which fails silently
+	// and reads zero the day it is edited.
+	ApprovalBlockedCode string `json:"approval_blocked_code,omitempty"`
 }
 
 func (s *Server) listPayoutBatches(w http.ResponseWriter, r *http.Request) {
@@ -2120,7 +2125,7 @@ func (s *Server) listPayoutBatches(w http.ResponseWriter, r *http.Request) {
 				&v.Provider, &v.AccountLabel, &v.BankAccount, &v.ItemCount, &v.TotalPaise,
 				&v.CreatedBy, &v.CreatedByID, &v.CreatedAt, &v.ApprovedBy, &v.RejectedBy,
 				&v.Reason, &v.ExportedAt)
-			v.CallerMayApprove, v.ApprovalBlocked = approvalStanding(
+			v.CallerMayApprove, v.ApprovalBlockedCode, v.ApprovalBlocked = approvalStanding(
 				v.Status, v.CreatedByID, id.UserID.String(), mayApprove)
 			return v, err
 		})
@@ -2135,16 +2140,26 @@ approvalStanding is the maker/checker rule, in one place.
 	implementations that drift. The handler calls it again on the write path
 	regardless of what the client believed.
 */
-func approvalStanding(status, createdBy, caller string, mayApprove bool) (bool, string) {
+// The codes approvalStanding returns. Stable: a client may branch on these,
+// which is what the sentences beside them must never be used for.
+const (
+	blockedNotSubmitted = "not_submitted"
+	blockedNoPermission = "no_permission"
+	blockedIsMaker      = "assembled_by_caller"
+)
+
+func approvalStanding(status, createdBy, caller string, mayApprove bool) (ok bool, code, why string) {
 	switch {
 	case status != "submitted":
-		return false, "only a submitted batch can be released"
+		return false, blockedNotSubmitted, "only a submitted batch can be released"
 	case !mayApprove:
-		return false, "releasing a payout needs the finance approve permission"
+		return false, blockedNoPermission,
+			"releasing a payout needs the finance approve permission"
 	case createdBy == caller:
-		return false, "you assembled this batch, so somebody else must release it"
+		return false, blockedIsMaker,
+			"you assembled this batch, so somebody else must release it"
 	default:
-		return true, ""
+		return true, "", ""
 	}
 }
 
@@ -2198,7 +2213,7 @@ func (s *Server) getPayoutBatch(w http.ResponseWriter, r *http.Request) {
 			&out.ApprovedBy, &out.RejectedBy, &out.Reason, &out.ExportedAt); err != nil {
 			return err
 		}
-		out.CallerMayApprove, out.ApprovalBlocked = approvalStanding(
+		out.CallerMayApprove, out.ApprovalBlockedCode, out.ApprovalBlocked = approvalStanding(
 			out.Status, out.CreatedByID, id.UserID.String(), mayApprove)
 
 		rows, err := tx.Query(r.Context(), `
@@ -2688,7 +2703,7 @@ func (s *Server) decidePayoutBatch(w http.ResponseWriter, r *http.Request) {
 			batchID, id.InstitutionID).Scan(&status, &createdBy); err != nil {
 			return err
 		}
-		ok, why := approvalStanding(status, createdBy.String(), id.UserID.String(),
+		ok, _, why := approvalStanding(status, createdBy.String(), id.UserID.String(),
 			id.Can(rbac.RefundsWrite))
 		if !ok {
 			blocked = why

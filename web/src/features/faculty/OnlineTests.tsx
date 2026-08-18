@@ -358,6 +358,7 @@ function Builder({ testID }: { testID: string }) {
                       )
                     }
                     label=""
+                    srLabel={`Add to the paper: ${q.stem}`}
                   />
                 </Td>
                 <Td>{q.stem}</Td>

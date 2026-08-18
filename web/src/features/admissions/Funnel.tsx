@@ -288,7 +288,12 @@ function Leads({ rows }: { rows: Lead[] }) {
             {rows.map((l) => (
               <tr key={l.id}>
                 <Td>
-                  <Checkbox checked={picked.includes(l.id)} onChange={() => toggle(l.id)} label="" />
+                  <Checkbox
+                    checked={picked.includes(l.id)}
+                    onChange={() => toggle(l.id)}
+                    label=""
+                    srLabel={`Select ${l.student_name} for assignment to a counsellor`}
+                  />
                 </Td>
                 <Td className="font-medium">
                   {l.student_name}

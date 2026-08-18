@@ -212,6 +212,7 @@ function Entry({ paper }: { paper: SummativePaper }) {
                     })
                   }
                   label=""
+                  srLabel={`Mark ${r.full_name} absent`}
                 />
               </Td>
               <Td>{r.grade ?? '—'}</Td>

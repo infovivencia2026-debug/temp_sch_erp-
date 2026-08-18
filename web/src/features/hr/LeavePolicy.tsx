@@ -198,7 +198,10 @@ function RulesTab({
               ) : <span className="text-muted-foreground">no</span>}
             </Td>
             <Td>
+              {/* Two boxes sit in this row, so the name alone would not say
+                  which policy is being set: each carries its column as well. */}
               <Checkbox checked={t.allow_half_day} label=""
+                srLabel={`Allow half days on ${t.name}`}
                 onChange={(v) => onChange(t.leave_type_id, { allow_half_day: v })} />
             </Td>
             <Td className="w-24">
@@ -215,6 +218,7 @@ function RulesTab({
             </Td>
             <Td>
               <Checkbox checked={t.available_during_probation} label=""
+                srLabel={`Allow ${t.name} during probation`}
                 onChange={(v) => onChange(t.leave_type_id, { available_during_probation: v })} />
             </Td>
             <Td className="w-32">
