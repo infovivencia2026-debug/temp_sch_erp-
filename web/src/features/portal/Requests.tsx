@@ -9,6 +9,25 @@ import {
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from './use-children'
 
+interface DocumentRow {
+  id: string
+  student_id: string
+  student_name: string
+  doc_type: string
+  file_name: string
+  size_bytes: number
+  uploaded_on: string
+  verified: boolean
+  verified_by?: string
+  notes?: string
+}
+
+function fileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 /* Asking the office for a certificate.
 
    Bonafide certificates for a passport, conduct certificates for a scholarship,
@@ -179,7 +198,63 @@ export default function Requests() {
             ))}
           </Table>
         </Card>
+        <DocumentsOnFile />
       </PageBody>
     </>
+  )
+}
+
+/* What the school already holds.
+
+   Folded in here rather than living on its own screen: a family opening
+   Requests is asking "where is my paperwork", and the answer is partly what
+   has been issued and partly what the office is still holding. Two menu
+   entries made that one question look like two.
+*/
+function DocumentsOnFile() {
+  const q = useQuery({
+    queryKey: ['portal-documents'],
+    queryFn: () => api.get<List<DocumentRow>>('/api/v1/portal/documents'),
+  })
+  const rows = q.data?.items ?? []
+  const unchecked = rows.filter((d) => !d.verified)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Documents the school holds"
+        description={
+          rows.length
+            ? `${rows.length} on file, ${unchecked.length} still to be checked. Anything missing has to go to the office — the portal does not accept uploads yet.`
+            : 'Nothing on file yet. Documents given to the office appear here.'
+        }
+      />
+      <Table
+        head={['Document', 'Child', 'Given on', 'Size', 'Checked']}
+        empty={rows.length === 0}
+        emptyLabel="The school holds nothing on file."
+      >
+        {rows.map((d) => (
+          <tr key={d.id}>
+            <Td>
+              <div className="font-medium">{d.doc_type}</div>
+              <div className="text-[12px] text-muted-foreground">{d.file_name}</div>
+              {d.notes && <div className="text-[12px] text-muted-foreground">{d.notes}</div>}
+            </Td>
+            <Td>{d.student_name}</Td>
+            <Td>{formatDate(d.uploaded_on)}</Td>
+            <Td className="tabular-nums">{fileSize(d.size_bytes)}</Td>
+            <Td>
+              <Badge tone={d.verified ? 'success' : 'warning'}>
+                {d.verified ? 'checked' : 'not checked yet'}
+              </Badge>
+              {d.verified_by && (
+                <div className="text-[12px] text-muted-foreground">by {d.verified_by}</div>
+              )}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </Card>
   )
 }

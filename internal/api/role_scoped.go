@@ -243,6 +243,10 @@ type portalSummary struct {
 	AttendancePct int    `json:"attendance_pct"`
 	PresentDays   int    `json:"present_days"`
 	TotalDays     int    `json:"total_days"`
+	// Counted, not derived. Total minus present would swallow leave and half
+	// days, which are neither present nor absent, and a family reading
+	// "2 absent" is entitled to have that mean two days the child missed.
+	AbsentDays int `json:"absent_days"`
 	// Homework still owed, and when the soonest of it is due. A bare count
 	// answers "how much" and not "how soon", and those are different
 	// questions: five pieces due next fortnight is a quiet week, one due
@@ -311,6 +315,8 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 			  (SELECT count(*) FROM student_attendance
 			    WHERE student_id = st.id AND status IN ('present','late')),
 			  (SELECT count(*) FROM student_attendance WHERE student_id = st.id),
+			  (SELECT count(*) FROM student_attendance
+			    WHERE student_id = st.id AND status = 'absent'),
 			  /* Still owed, not merely set: a piece the child has already
 			     turned in is not due from them, and counting it makes the
 			     dashboard nag about finished work. */
@@ -338,7 +344,7 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 			    ORDER BY ex.starts_on LIMIT 1)
 			  FROM students st WHERE st.id = $1`, target).
 			Scan(&out.FullName, &out.AttendancePct, &out.PresentDays, &out.TotalDays,
-				&out.HomeworkDue, &out.NextHomeworkDue, &out.NextHomework,
+				&out.AbsentDays, &out.HomeworkDue, &out.NextHomeworkDue, &out.NextHomework,
 				&out.OutstandingPais, &out.NextExam)
 	})
 	if err == pgx.ErrNoRows {

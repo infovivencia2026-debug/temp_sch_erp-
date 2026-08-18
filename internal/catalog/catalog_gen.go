@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 9 roles, 465 features.
+// Roles is the catalog: 9 roles, 453 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1052,7 +1052,6 @@ var Roles = []Role{
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "student.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("self"), Tier: Tier("core"), Summary: "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement."},
-					{Key: "student.home.action_reminders", Slug: "action_reminders", Name: "Action reminders", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam."},
 					{Key: "student.home.digital_diary_schedule", Slug: "digital_diary_schedule", Name: "Digital Diary & Schedule", Scope: Scope("self"), Tier: Tier("core"), Summary: "Track personal study schedules, project deadlines, and school calendar events."},
 					{Key: "student.home.custom_theme_selection", Slug: "custom_theme_selection", Name: "Custom Theme Selection", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Customize student portal appearance with dark mode, high-contrast mode, or color themes."},
 				},
@@ -1080,7 +1079,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "student.homework.homework_assignments", Slug: "homework_assignments", Name: "Homework & assignments", Scope: Scope("self"), Tier: Tier("core"), Summary: "View due/overdue/submitted work; submit files/text where enabled."},
 					{Key: "student.homework.classmate_homework_help_forum", Slug: "classmate_homework_help_forum", Name: "Classmate Homework Help Forum", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Moderated discussion board where students can post homework questions and share study hints."},
-					{Key: "student.homework.classroom_note_sharing_repository", Slug: "classroom_note_sharing_repository", Name: "Classroom Note-Sharing Repository", Scope: Scope("self"), Tier: Tier("core"), Summary: "Peer-moderated repository where student notes, summaries, and revision guides are shared and upvoted."},
 				},
 			},
 			{
@@ -1092,7 +1090,6 @@ var Roles = []Role{
 					{Key: "student.learning.e_learning_resource_hub", Slug: "e_learning_resource_hub", Name: "E-Learning Resource Hub", Scope: Scope("self"), Tier: Tier("core"), Summary: "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links."},
 					{Key: "student.learning.ai_personal_learning_companion", Slug: "ai_personal_learning_companion", Name: "AI Personal Learning Companion", Scope: Scope("self"), Tier: Tier("core"), Summary: "24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes."},
 					{Key: "student.learning.peer_tutoring_study_groups", Slug: "peer_tutoring_study_groups", Name: "Peer Tutoring & Study Groups", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Sign up as student tutors or request peer study group assistance in specific subjects."},
-					{Key: "student.learning.personal_academic_goal_setting_widget", Slug: "personal_academic_goal_setting_widget", Name: "Personal Academic Goal Setting Widget", Scope: Scope("self"), Tier: Tier("core"), Summary: "Students set GPA and assignment score targets and view visual progress bars toward goals."},
 					{Key: "student.learning.gamified_learning_streak_counter", Slug: "gamified_learning_streak_counter", Name: "Gamified Learning Streak Counter", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Visual daily login and homework completion streak counter rewarding students with digital badges."},
 					{Key: "student.learning.gamified_learning_badge_showcase", Slug: "gamified_learning_badge_showcase", Name: "Gamified Learning Badge Showcase", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Display earned academic, behavioral, and extracurricular digital badges on public student profile."},
 					{Key: "student.learning.virtual_classroom_hand_raise_telemetry", Slug: "virtual_classroom_hand_raise_telemetry", Name: "Virtual Classroom Hand-Raise Telemetry", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Log student digital hand-raises during live virtual classes to measure real-time engagement."},
@@ -1107,10 +1104,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "student.exams_results.exams_grades", Slug: "exams_grades", Name: "Exams & grades", Scope: Scope("self"), Tier: Tier("core"), Summary: "Exam schedule, marks, grades, published results and report cards."},
 					{Key: "student.exams_results.academic_record", Slug: "academic_record", Name: "Academic record", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current/previous grades, transcript/academic history when published."},
-					{Key: "student.exams_results.online_exam_attempt_engine", Slug: "online_exam_attempt_engine", Name: "Online Exam Attempt Engine", Scope: Scope("self"), Tier: Tier("core"), Summary: "Attempt timed online objective/MCQ tests and view instant automated scoring."},
-					{Key: "student.exams_results.target_grade_calculator", Slug: "target_grade_calculator", Name: "Target Grade Calculator", Scope: Scope("self"), Tier: Tier("core"), Summary: "Interactive tool calculating required marks in final exams to achieve a desired overall GPA/Grade."},
-					{Key: "student.exams_results.board_hall_ticket_download", Slug: "board_hall_ticket_download", Name: "Board Hall Ticket Download", Scope: Scope("self"), Tier: Tier("core"), Summary: "Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll."},
-					{Key: "student.exams_results.digital_hall_ticket_verification_qr", Slug: "digital_hall_ticket_verification_qr", Name: "Digital Hall Ticket Verification QR", Scope: Scope("self"), Tier: Tier("core"), Summary: "Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity."},
 					{Key: "student.exams_results.apaar_id_academic_bank_of_credits", Slug: "apaar_id_academic_bank_of_credits", Name: "APAAR ID & Academic Bank of Credits", Scope: Scope("self"), Tier: Tier("advanced"), Summary: "View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits."},
 				},
 			},
@@ -1128,7 +1121,6 @@ var Roles = []Role{
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "student.notices_calendar.calendar", Slug: "calendar", Name: "Calendar", Scope: Scope("self"), Tier: Tier("core"), Summary: "Academic calendar, holidays, events and deadlines."},
-					{Key: "student.notices_calendar.announcements_messages", Slug: "announcements_messages", Name: "Announcements & messages", Scope: Scope("self"), Tier: Tier("core"), Summary: "Institution/class announcements and permitted teacher communication."},
 					{Key: "student.notices_calendar.library_book_hold_request", Slug: "library_book_hold_request", Name: "Library Book Hold Request", Scope: Scope("self"), Tier: Tier("core"), Summary: "Reserve available library books online for pickup at the start of the next school day."},
 				},
 			},
@@ -1146,15 +1138,6 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "wellbeing",
-				Name:      "Wellbeing",
-				Workspace: "School",
-				Features: []Feature{
-					{Key: "student.wellbeing.wellness_mood_check_in_widget", Slug: "wellness_mood_check_in_widget", Name: "Wellness & Mood Check-In Widget", Scope: Scope("self"), Tier: Tier("core"), Summary: "Daily 5-second mood check-in allowing students to express how they feel (Happy, Stressed, Overwhelmed)."},
-					{Key: "student.wellbeing.self_referral_to_school_counselor", Slug: "self_referral_to_school_counselor", Name: "Self-Referral to School Counselor", Scope: Scope("self"), Tier: Tier("core"), Summary: "Discreet digital button allowing students to request a private chat or meeting with the counselor."},
-				},
-			},
-			{
 				Slug:      "alumni",
 				Name:      "Alumni",
 				Workspace: "School",
@@ -1169,7 +1152,6 @@ var Roles = []Role{
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type."},
-					{Key: "student.requests.documents", Slug: "documents", Name: "Documents", Scope: Scope("self"), Tier: Tier("core"), Summary: "Access published certificates, receipts, report cards and permitted personal documents."},
 				},
 			},
 			{
@@ -1177,7 +1159,6 @@ var Roles = []Role{
 				Name:      "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
-					{Key: "student.profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "View personal/enrollment information and submit allowed update requests."},
 					{Key: "student.profile.digital_student_id_card_nfc_tap_pass", Slug: "digital_student_id_card_nfc_tap_pass", Name: "Digital Student ID Card NFC Tap Pass", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts."},
 				},
 			},

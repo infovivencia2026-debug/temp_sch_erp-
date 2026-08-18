@@ -21,5 +21,4 @@ export const parentKeys = {
   'parent.messages.direct_teacher_messaging': lazy(() => import('./TeacherMessages')),
   'parent.fees.digital_fee_receipt_pdf_download': lazy(() => import('./Receipts')),
   'student.requests.requests': lazy(() => import('./Requests')),
-  'student.requests.documents': lazy(() => import('./Documents')),
 }

@@ -235,19 +235,16 @@ Faculty / Teacher,Communication,Communication,Announcements,"Notices to this cla
 Faculty / Teacher,My Work,My Profile,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Profile,"Own profile, password and leave.",Assigned classes/subjects,Must-Have,core
 Student,Home,Home,My day,"Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",Self only,Must-Have,core
-Student,Home,Home,Action reminders,"Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam.",Self only,Must-Have,core
 Student,Home,Home,Digital Diary & Schedule,"Track personal study schedules, project deadlines, and school calendar events.",Specific student,Must-Have,core
 Student,Home,Home,Custom Theme Selection,"Customize student portal appearance with dark mode, high-contrast mode, or color themes.",Specific student,Must-Have,optional
 Student,Academics,Timetable,Timetable,Daily/weekly class timetable and exam timetable.,Self only,Must-Have,core
 Student,Academics,Attendance,Attendance,"Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",Self only,Must-Have,core
 Student,Academics,Homework,Homework & assignments,View due/overdue/submitted work; submit files/text where enabled.,Self only,Must-Have,core
 Student,Academics,Homework,Classmate Homework Help Forum,Moderated discussion board where students can post homework questions and share study hints.,Specific student,Must-Have,optional
-Student,Academics,Homework,Classroom Note-Sharing Repository,"Peer-moderated repository where student notes, summaries, and revision guides are shared and upvoted.",Specific student,Must-Have,core
 Student,Academics,Learning,Courses / subjects,"Current enrolled courses/subjects, teacher and learning resources.",Self only,Must-Have,core
 Student,Academics,Learning,E-Learning Resource Hub,"Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",Specific student,Must-Have,core
 Student,Academics,Learning,AI Personal Learning Companion,"24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.",Specific student,Nice-to-Have,core
 Student,Academics,Learning,Peer Tutoring & Study Groups,Sign up as student tutors or request peer study group assistance in specific subjects.,Specific student,Must-Have,optional
-Student,Academics,Learning,Personal Academic Goal Setting Widget,Students set GPA and assignment score targets and view visual progress bars toward goals.,Specific student,Must-Have,core
 Student,Academics,Learning,Gamified Learning Streak Counter,Visual daily login and homework completion streak counter rewarding students with digital badges.,Specific student,Nice-to-Have,optional
 Student,Academics,Learning,Gamified Learning Badge Showcase,"Display earned academic, behavioral, and extracurricular digital badges on public student profile.",Specific student,Nice-to-Have,optional
 Student,Academics,Learning,Virtual Classroom Hand-Raise Telemetry,Log student digital hand-raises during live virtual classes to measure real-time engagement.,Specific student,Must-Have,optional
@@ -255,14 +252,9 @@ Student,Academics,Learning,Global University Guidance Counselor,"Track college a
 Student,Academics,Learning,Student Portfolio Management,"Maintain personal showcase portfolio containing certificates, creative projects, and sports records.",Specific student,Must-Have,advanced
 Student,Academics,Exams & Results,Exams & grades,"Exam schedule, marks, grades, published results and report cards.",Self only,Must-Have,core
 Student,Academics,Exams & Results,Academic record,"Current/previous grades, transcript/academic history when published.",Self only,Must-Have,core
-Student,Academics,Exams & Results,Online Exam Attempt Engine,Attempt timed online objective/MCQ tests and view instant automated scoring.,Specific student,Must-Have,core
-Student,Academics,Exams & Results,Target Grade Calculator,Interactive tool calculating required marks in final exams to achieve a desired overall GPA/Grade.,Specific student,Must-Have,core
-Student,Academics,Exams & Results,Board Hall Ticket Download,Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll.,Specific student,Must-Have,core
-Student,Academics,Exams & Results,Digital Hall Ticket Verification QR,Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity.,Specific student,Must-Have,core
 Student,Academics,Exams & Results,APAAR ID & Academic Bank of Credits,View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.,Specific student,Must-Have,advanced
 Student,Fees,Fees,Fees,"Current dues, fee history, payment status, online payment and receipts.",Self only,Must-Have,core
 Student,School,Notices & Calendar,Calendar,"Academic calendar, holidays, events and deadlines.",Self only,Must-Have,core
-Student,School,Notices & Calendar,Announcements & messages,Institution/class announcements and permitted teacher communication.,Self only,Must-Have,core
 Student,School,Notices & Calendar,Library Book Hold Request,Reserve available library books online for pickup at the start of the next school day.,Specific student,Must-Have,core
 Student,School,Campus Life,Student Wall & Peer Recognition,"View school news, student council announcements, badge achievements, and art features.",Specific student,Must-Have,optional
 Student,School,Campus Life,Digital Hall of Fame,"Showcase historic trophies, school record holders, and national rankers across academic/sports.",Specific student,Must-Have,optional
@@ -270,13 +262,9 @@ Student,School,Campus Life,Student Club Event Ticketing & QR Check-In,"Register 
 Student,School,Campus Life,Lost & Found Item Board,Post missing items or report found items with photos on the digital lost-and-found board.,Specific student,Must-Have,optional
 Student,School,Campus Life,Lost & Found Photo Board with Claim Verification,View photos of lost items found on campus and submit digital claim proof to reclaim items.,Specific student,Must-Have,optional
 Student,School,Campus Life,Digital Locker Combination & Access Log,Manage assigned physical hallway locker numbers and view digital access keycode history.,Specific student,Must-Have,optional
-Student,School,Wellbeing,Wellness & Mood Check-In Widget,"Daily 5-second mood check-in allowing students to express how they feel (Happy, Stressed, Overwhelmed).",Specific student,Must-Have,core
-Student,School,Wellbeing,Self-Referral to School Counselor,Discreet digital button allowing students to request a private chat or meeting with the counselor.,Specific student,Must-Have,core
 Student,School,Alumni,Alumni Network Registration,Register for the official school alumni network upon passing out to stay connected with batchmates.,Specific student,Nice-to-Have,optional
 Student,School,Alumni,Alumni Job & Internship Board,Senior students access exclusive internship and entry-level job posts shared by alumni network.,Specific student,Nice-to-Have,optional
 Student,Requests,Requests,Requests,"Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type.",Self only,Must-Have,core
-Student,Requests,Requests,Documents,"Access published certificates, receipts, report cards and permitted personal documents.",Self only,Must-Have,core
-Student,Profile,Profile,Profile,View personal/enrollment information and submit allowed update requests.,Self only,Must-Have,core
 Student,Profile,Profile,Digital Student ID Card NFC Tap Pass,Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.,Specific student,Must-Have,optional
 Parent / Guardian,Home,Home,Child switcher,Switch between linked children without separate accounts.,Linked child/children only,Must-Have,core
 Parent / Guardian,Home,Home,Child summary,"Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.",Linked child/children only,Must-Have,core

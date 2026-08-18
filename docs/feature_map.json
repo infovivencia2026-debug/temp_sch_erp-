@@ -7991,27 +7991,6 @@
   ]
  },
  {
-  "key": "student.home.action_reminders",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Home",
-  "feature": "Action reminders",
-  "description": "Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam.",
-  "scope": "Self only",
-  "scope_key": "self",
-  "component": "portal/Reminders",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/attention",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
   "key": "student.home.digital_diary_schedule",
   "role": "student",
   "role_label": "Student",
@@ -8185,19 +8164,6 @@
   "endpoints": []
  },
  {
-  "key": "student.homework.classroom_note_sharing_repository",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Homework",
-  "feature": "Classroom Note-Sharing Repository",
-  "description": "Peer-moderated repository where student notes, summaries, and revision guides are shared and upvoted.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
   "key": "student.learning.courses_subjects",
   "role": "student",
   "role_label": "Student",
@@ -8243,19 +8209,6 @@
   "section": "Learning",
   "feature": "Peer Tutoring & Study Groups",
   "description": "Sign up as student tutors or request peer study group assistance in specific subjects.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "student.learning.personal_academic_goal_setting_widget",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Learning",
-  "feature": "Personal Academic Goal Setting Widget",
-  "description": "Students set GPA and assignment score targets and view visual progress bars toward goals.",
   "scope": "Specific student",
   "scope_key": "unknown",
   "component": "",
@@ -8369,160 +8322,6 @@
   "endpoints": []
  },
  {
-  "key": "student.exams_results.online_exam_attempt_engine",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Exams & Results",
-  "feature": "Online Exam Attempt Engine",
-  "description": "Attempt timed online objective/MCQ tests and view instant automated scoring.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "student.exams_results.target_grade_calculator",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Exams & Results",
-  "feature": "Target Grade Calculator",
-  "description": "Interactive tool calculating required marks in final exams to achieve a desired overall GPA/Grade.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "student.exams_results.board_hall_ticket_download",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Exams & Results",
-  "feature": "Board Hall Ticket Download",
-  "description": "Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "exams/HallTicket",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/exams/hall-plan",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/halls",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/list",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/seats/allocate",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/hpc/hall-ticket",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "student.exams_results.digital_hall_ticket_verification_qr",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Exams & Results",
-  "feature": "Digital Hall Ticket Verification QR",
-  "description": "Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "exams/HallTicket",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/exams/hall-plan",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/halls",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/list",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/exams/seats/allocate",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/hpc/hall-ticket",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
   "key": "student.exams_results.apaar_id_academic_bank_of_credits",
   "role": "student",
   "role_label": "Student",
@@ -8575,42 +8374,6 @@
   "component": "",
   "built": false,
   "endpoints": []
- },
- {
-  "key": "student.notices_calendar.announcements_messages",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Notices & Calendar",
-  "feature": "Announcements & messages",
-  "description": "Institution/class announcements and permitted teacher communication.",
-  "scope": "Self only",
-  "scope_key": "self",
-  "component": "comms/Circulars",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/academics/sections",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/communication/circulars",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
  },
  {
   "key": "student.notices_calendar.library_book_hold_request",
@@ -8704,32 +8467,6 @@
   "endpoints": []
  },
  {
-  "key": "student.wellbeing.wellness_mood_check_in_widget",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Wellbeing",
-  "feature": "Wellness & Mood Check-In Widget",
-  "description": "Daily 5-second mood check-in allowing students to express how they feel (Happy, Stressed, Overwhelmed).",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "student.wellbeing.self_referral_to_school_counselor",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Wellbeing",
-  "feature": "Self-Referral to School Counselor",
-  "description": "Discreet digital button allowing students to request a private chat or meeting with the counselor.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
   "key": "student.alumni.alumni_network_registration",
   "role": "student",
   "role_label": "Student",
@@ -8768,6 +8505,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/portal/documents",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/portal/requests",
     "methods": [
      "GET",
@@ -8779,56 +8523,6 @@
     "path": "/api/v1/portal/requests/types",
     "methods": [
      "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "student.requests.documents",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Requests",
-  "feature": "Documents",
-  "description": "Access published certificates, receipts, report cards and permitted personal documents.",
-  "scope": "Self only",
-  "scope_key": "self",
-  "component": "portal/Documents",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/portal/documents",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "student.profile.profile",
-  "role": "student",
-  "role_label": "Student",
-  "section": "Profile",
-  "feature": "Profile",
-  "description": "View personal/enrollment information and submit allowed update requests.",
-  "scope": "Self only",
-  "scope_key": "self",
-  "component": "shared/Profile",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/profile",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/profile/password",
-    "methods": [
-     "POST"
     ],
     "conditional": false
    }

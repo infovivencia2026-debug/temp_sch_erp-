@@ -14,7 +14,7 @@ interface PortalChild {
 }
 interface PortalSummary {
   student_id: string; full_name: string
-  attendance_pct: number; present_days: number; total_days: number
+  attendance_pct: number; present_days: number; total_days: number; absent_days: number
   homework_due: number; next_homework_due?: string; next_homework_title?: string
   outstanding_paise: number; next_exam?: string
   today: TodayPeriod[]
@@ -135,17 +135,16 @@ export default function Portal() {
           <>
             <CellGrid cols={4}>
               <Stat
-                label="Attendance"
+                label="Overall attendance"
                 value={`${s.attendance_pct}%`}
                 icon={CalendarCheck}
-                delta={{
-                  value: `${s.present_days}/${s.total_days} days`,
-                  positive: s.attendance_pct >= 75,
-                }}
+                delta={{ value: `${s.total_days} days marked`, positive: s.attendance_pct >= 75 }}
               />
+              <Stat label="Present" value={`${s.present_days} days`} />
+              <Stat label="Absent" value={`${s.absent_days} days`} />
               <Stat
                 label="Homework due"
-                value={s.homework_due}
+                value={`${s.homework_due} pending`}
                 icon={BookMarked}
                 delta={
                   s.homework_due === 0

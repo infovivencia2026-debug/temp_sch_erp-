@@ -84,8 +84,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the invigilator's plan, a candidate reads their own ticket. Which half you
      get follows from whether you can write exams. */
   'institution_admin.examinations.hall_ticket_issue': lazy(() => import('./exams/HallTicket')),
-  'student.exams_results.board_hall_ticket_download': lazy(() => import('./exams/HallTicket')),
-  'student.exams_results.digital_hall_ticket_verification_qr': lazy(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': lazy(() => import('./shared/Attendance')),
   'faculty.timetable.my_timetable': lazy(() => import('./shared/Timetable')),
@@ -104,10 +102,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.home.follow_ups': lazy(() => import('./admissions/Dashboard')),
   'hr.home.hr_kpis': lazy(() => import('./hr/Dashboard')),
   'student.home.my_day': lazy(() => import('./portal/Portal')),
-  'student.home.action_reminders': lazy(() => import('./portal/Reminders')),
   'student.attendance.attendance': lazy(() => import('./portal/Portal')),
   'student.timetable.timetable': lazy(() => import('./shared/Timetable')),
-  'student.profile.profile': lazy(() => import('./shared/Profile')),
   'parent.home.child_switcher': lazy(() => import('./portal/Portal')),
   'parent.home.child_summary': lazy(() => import('./portal/Portal')),
   'parent.home.needs_attention': lazy(() => import('./portal/Reminders')),
@@ -163,7 +159,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
 
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
-  'student.notices_calendar.announcements_messages': lazy(() => import('./comms/Circulars')),
   'institution_admin.statutory_returns.udise_return_preparation': lazy(() => import('./compliance/UDISE')),
   'institution_admin.statutory_returns.apaar_id_register': lazy(() => import('./compliance/UDISE')),
   'institution_admin.statutory_returns.statutory_registers': lazy(() => import('./compliance/UDISE')),

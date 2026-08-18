@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 276 of the catalog's features are implemented.
+// 270 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -250,16 +250,10 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.subscriptions_billing.seat_overage_renewals":           true,
 	"seller_admin.subscriptions_billing.subscription_ledger":             true,
 	"student.attendance.attendance":                                      true,
-	"student.exams_results.board_hall_ticket_download":                   true,
-	"student.exams_results.digital_hall_ticket_verification_qr":          true,
 	"student.exams_results.exams_grades":                                 true,
 	"student.fees.fees":                                                  true,
-	"student.home.action_reminders":                                      true,
 	"student.home.my_day":                                                true,
 	"student.homework.homework_assignments":                              true,
-	"student.notices_calendar.announcements_messages":                    true,
-	"student.profile.profile":                                            true,
-	"student.requests.documents":                                         true,
 	"student.requests.requests":                                          true,
 	"student.timetable.timetable":                                        true,
 	"super_admin.access_security.login_session_audit":                    true,

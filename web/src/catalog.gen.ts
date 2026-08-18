@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 9 roles, 465 features. */
+/** 9 roles, 453 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1005,7 +1005,6 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'student.home.my_day', slug: 'my_day', name: 'My day', scope: 'self', tier: 'core', summary: 'Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.' },
-          { key: 'student.home.action_reminders', slug: 'action_reminders', name: 'Action reminders', scope: 'self', tier: 'core', summary: 'Overdue assignment, attendance risk, unpaid fee, pending request or upcoming exam.' },
           { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'Digital Diary & Schedule', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
           { key: 'student.home.custom_theme_selection', slug: 'custom_theme_selection', name: 'Custom Theme Selection', scope: 'self', tier: 'optional', summary: 'Customize student portal appearance with dark mode, high-contrast mode, or color themes.' },
         ],
@@ -1033,7 +1032,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.homework.homework_assignments', slug: 'homework_assignments', name: 'Homework & assignments', scope: 'self', tier: 'core', summary: 'View due/overdue/submitted work; submit files/text where enabled.' },
           { key: 'student.homework.classmate_homework_help_forum', slug: 'classmate_homework_help_forum', name: 'Classmate Homework Help Forum', scope: 'self', tier: 'optional', summary: 'Moderated discussion board where students can post homework questions and share study hints.' },
-          { key: 'student.homework.classroom_note_sharing_repository', slug: 'classroom_note_sharing_repository', name: 'Classroom Note-Sharing Repository', scope: 'self', tier: 'core', summary: 'Peer-moderated repository where student notes, summaries, and revision guides are shared and upvoted.' },
         ],
       },
       {
@@ -1045,7 +1043,6 @@ export const ROLES: Role[] = [
           { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'E-Learning Resource Hub', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
           { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: '24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
           { key: 'student.learning.peer_tutoring_study_groups', slug: 'peer_tutoring_study_groups', name: 'Peer Tutoring & Study Groups', scope: 'self', tier: 'optional', summary: 'Sign up as student tutors or request peer study group assistance in specific subjects.' },
-          { key: 'student.learning.personal_academic_goal_setting_widget', slug: 'personal_academic_goal_setting_widget', name: 'Personal Academic Goal Setting Widget', scope: 'self', tier: 'core', summary: 'Students set GPA and assignment score targets and view visual progress bars toward goals.' },
           { key: 'student.learning.gamified_learning_streak_counter', slug: 'gamified_learning_streak_counter', name: 'Gamified Learning Streak Counter', scope: 'self', tier: 'optional', summary: 'Visual daily login and homework completion streak counter rewarding students with digital badges.' },
           { key: 'student.learning.gamified_learning_badge_showcase', slug: 'gamified_learning_badge_showcase', name: 'Gamified Learning Badge Showcase', scope: 'self', tier: 'optional', summary: 'Display earned academic, behavioral, and extracurricular digital badges on public student profile.' },
           { key: 'student.learning.virtual_classroom_hand_raise_telemetry', slug: 'virtual_classroom_hand_raise_telemetry', name: 'Virtual Classroom Hand-Raise Telemetry', scope: 'self', tier: 'optional', summary: 'Log student digital hand-raises during live virtual classes to measure real-time engagement.' },
@@ -1060,10 +1057,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.exams_results.exams_grades', slug: 'exams_grades', name: 'Exams & grades', scope: 'self', tier: 'core', summary: 'Exam schedule, marks, grades, published results and report cards.' },
           { key: 'student.exams_results.academic_record', slug: 'academic_record', name: 'Academic record', scope: 'self', tier: 'core', summary: 'Current/previous grades, transcript/academic history when published.' },
-          { key: 'student.exams_results.online_exam_attempt_engine', slug: 'online_exam_attempt_engine', name: 'Online Exam Attempt Engine', scope: 'self', tier: 'core', summary: 'Attempt timed online objective/MCQ tests and view instant automated scoring.' },
-          { key: 'student.exams_results.target_grade_calculator', slug: 'target_grade_calculator', name: 'Target Grade Calculator', scope: 'self', tier: 'core', summary: 'Interactive tool calculating required marks in final exams to achieve a desired overall GPA/Grade.' },
-          { key: 'student.exams_results.board_hall_ticket_download', slug: 'board_hall_ticket_download', name: 'Board Hall Ticket Download', scope: 'self', tier: 'core', summary: 'Download the BSE Telangana or TSBIE hall ticket once the board accepts the nominal roll.' },
-          { key: 'student.exams_results.digital_hall_ticket_verification_qr', slug: 'digital_hall_ticket_verification_qr', name: 'Digital Hall Ticket Verification QR', scope: 'self', tier: 'core', summary: 'Student hall tickets include secure QR codes scanned by exam invigilators to verify student identity.' },
           { key: 'student.exams_results.apaar_id_academic_bank_of_credits', slug: 'apaar_id_academic_bank_of_credits', name: 'APAAR ID & Academic Bank of Credits', scope: 'self', tier: 'advanced', summary: 'View the APAAR ID and accumulated NEP credits in the Academic Bank of Credits.' },
         ],
       },
@@ -1081,7 +1074,6 @@ export const ROLES: Role[] = [
         workspace: 'School',
         features: [
           { key: 'student.notices_calendar.calendar', slug: 'calendar', name: 'Calendar', scope: 'self', tier: 'core', summary: 'Academic calendar, holidays, events and deadlines.' },
-          { key: 'student.notices_calendar.announcements_messages', slug: 'announcements_messages', name: 'Announcements & messages', scope: 'self', tier: 'core', summary: 'Institution/class announcements and permitted teacher communication.' },
           { key: 'student.notices_calendar.library_book_hold_request', slug: 'library_book_hold_request', name: 'Library Book Hold Request', scope: 'self', tier: 'core', summary: 'Reserve available library books online for pickup at the start of the next school day.' },
         ],
       },
@@ -1099,15 +1091,6 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'wellbeing',
-        name: 'Wellbeing',
-        workspace: 'School',
-        features: [
-          { key: 'student.wellbeing.wellness_mood_check_in_widget', slug: 'wellness_mood_check_in_widget', name: 'Wellness & Mood Check-In Widget', scope: 'self', tier: 'core', summary: 'Daily 5-second mood check-in allowing students to express how they feel (Happy, Stressed, Overwhelmed).' },
-          { key: 'student.wellbeing.self_referral_to_school_counselor', slug: 'self_referral_to_school_counselor', name: 'Self-Referral to School Counselor', scope: 'self', tier: 'core', summary: 'Discreet digital button allowing students to request a private chat or meeting with the counselor.' },
-        ],
-      },
-      {
         slug: 'alumni',
         name: 'Alumni',
         workspace: 'School',
@@ -1122,7 +1105,6 @@ export const ROLES: Role[] = [
         workspace: 'Requests',
         features: [
           { key: 'student.requests.requests', slug: 'requests', name: 'Requests', scope: 'self', tier: 'core', summary: 'Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type.' },
-          { key: 'student.requests.documents', slug: 'documents', name: 'Documents', scope: 'self', tier: 'core', summary: 'Access published certificates, receipts, report cards and permitted personal documents.' },
         ],
       },
       {
@@ -1130,7 +1112,6 @@ export const ROLES: Role[] = [
         name: 'Profile',
         workspace: 'Profile',
         features: [
-          { key: 'student.profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'View personal/enrollment information and submit allowed update requests.' },
           { key: 'student.profile.digital_student_id_card_nfc_tap_pass', slug: 'digital_student_id_card_nfc_tap_pass', name: 'Digital Student ID Card NFC Tap Pass', scope: 'self', tier: 'optional', summary: 'Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.' },
         ],
       },
