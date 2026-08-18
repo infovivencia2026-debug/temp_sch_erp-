@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 252 of the catalog's features are implemented.
+// 267 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":           true,
 	"admissions.admissions.admission_fee_collection":                     true,
@@ -99,7 +99,15 @@ var implementedFeatures = map[string]bool{
 	"finance.student_dues.student_ledger":                                true,
 	"hr.attendance.staff_attendance":                                     true,
 	"hr.home.hr_kpis":                                                    true,
+	"hr.leave.half_day_leave_deduction_calculation":                      true,
+	"hr.leave.late_arrival_loss_of_pay_lop":                              true,
 	"hr.leave.leave":                                                     true,
+	"hr.leave.leave_policy_configuration":                                true,
+	"hr.onboarding_exit.staff_exit_interview_management":                 true,
+	"hr.onboarding_exit.staff_experience_relieving_cards":                true,
+	"hr.onboarding_exit.staff_onboarding_kyc_verification":               true,
+	"hr.onboarding_exit.teacher_relieving_no_deduction_clearance":        true,
+	"hr.onboarding_exit.teacher_transfer_deputation":                     true,
 	"hr.payroll.direct_bank_payroll_transfer_file":                       true,
 	"hr.payroll.employee_ctc_breakup_calculator":                         true,
 	"hr.payroll.overtime_ot_rate_setup":                                  true,
@@ -113,12 +121,19 @@ var implementedFeatures = map[string]bool{
 	"hr.records.employee_documents":                                      true,
 	"hr.records.employee_master":                                         true,
 	"hr.records.staff_id_card_printing":                                  true,
+	"hr.records.staff_service_book_digitalization":                       true,
+	"hr.records.teacher_qualification_register":                          true,
 	"hr.statutory.contractor_security_staff_bill_verification":           true,
 	"hr.statutory.form_12bb_investment_declarations":                     true,
 	"hr.statutory.income_tax_form_16_generator":                          true,
 	"hr.statutory.pf_esi_statutory_compliance":                           true,
 	"hr.statutory.professional_tax_pt_slab_configuration":                true,
 	"hr.statutory.staff_gratuity_liability_estimator":                    true,
+	"hr.verification.medical_fitness_certificate_registry":               true,
+	"hr.verification.staff_criminal_background_verification":             true,
+	"hr.welfare.staff_birthday_anniversary_alerts":                       true,
+	"hr.welfare.staff_grievance_cell":                                    true,
+	"hr.welfare.staff_recognition_wall":                                  true,
 	"institution_admin.academics.academic_structure":                     true,
 	"institution_admin.academics.attendance_corrections":                 true,
 	"institution_admin.academics.attendance_monitoring":                  true,

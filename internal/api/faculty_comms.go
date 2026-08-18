@@ -490,12 +490,28 @@ func (s *Server) listReportRemarks(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	sectionID, err := uuid.Parse(r.URL.Query().Get("section_id"))
+	/* Called bare, this answers what the screen opens on rather than refusing.
+
+	   A class teacher arriving here has chosen nothing yet, and 400 with an
+	   explanation of a parameter they have not been asked for is a wall. An
+	   empty list plus the sections and terms they may pick is the same
+	   information in a usable shape. Both ids are still required to return
+	   remarks — a remark with no term cannot be printed on the right card. */
+	rawSection, rawTerm := r.URL.Query().Get("section_id"), r.URL.Query().Get("term_id")
+	if rawSection == "" && rawTerm == "" {
+		httpx.JSON(w, http.StatusOK, map[string]any{
+			"items":    []reportRemarkRow{},
+			"needs":    []string{"section_id", "term_id"},
+			"sections": res.SectionIDs,
+		})
+		return
+	}
+	sectionID, err := uuid.Parse(rawSection)
 	if err != nil {
 		httpx.BadRequest(w, r, "section_id must be a uuid")
 		return
 	}
-	termID, err := uuid.Parse(r.URL.Query().Get("term_id"))
+	termID, err := uuid.Parse(rawTerm)
 	if err != nil {
 		httpx.BadRequest(w, r, "term_id must be a uuid — a remark with no term "+
 			"cannot be printed on the right card")

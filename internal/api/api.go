@@ -284,6 +284,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/dashboard", s.getHRDashboard)
 			r.Get("/employees", s.listEmployees)
 			r.Get("/documents", s.listEmployeeDocuments)
+			s.mountHRLifecycle(r)
 		})
 
 		/* --- The front desk -------------------------------------------------

@@ -14054,9 +14054,56 @@
   "description": "Maintain B.Ed, D.El.Ed, TET and subject-competency records required by the board and for inspections.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/ServiceRecords",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/background-checks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/medical-fitness",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/qualifications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book/:param/attest",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.records.staff_service_book_digitalization",
@@ -14067,9 +14114,56 @@
   "description": "Maintain complete service book history including promotion orders, transfers, and disciplinary actions.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/ServiceRecords",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/background-checks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/medical-fitness",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/qualifications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book/:param/attest",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.onboarding_exit.staff_onboarding_kyc_verification",
@@ -14080,9 +14174,84 @@
   "description": "Collect online employee onboarding forms, Aadhaar/PAN verification, and contract letters.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Lifecycle",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/clearances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/interview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/relieve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/settle",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/onboarding",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/seniority",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/transfers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.onboarding_exit.staff_exit_interview_management",
@@ -14093,9 +14262,84 @@
   "description": "Record exit interview feedback, clearance certificates from library/lab, and final settlement.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Lifecycle",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/clearances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/interview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/relieve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/settle",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/onboarding",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/seniority",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/transfers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.onboarding_exit.staff_experience_relieving_cards",
@@ -14106,9 +14350,84 @@
   "description": "Generate Relieving Letters, Experience Certificates, and Service Certificates upon exit.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Lifecycle",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/clearances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/interview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/relieve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/settle",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/onboarding",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/seniority",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/transfers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.onboarding_exit.teacher_relieving_no_deduction_clearance",
@@ -14119,9 +14438,84 @@
   "description": "Verify digital clearance from Library, Science Labs, IT, and Finance prior to final salary settlement.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Lifecycle",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/clearances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/interview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/relieve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/settle",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/onboarding",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/seniority",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/transfers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.onboarding_exit.teacher_transfer_deputation",
@@ -14132,9 +14526,84 @@
   "description": "Record inter-school transfers, deputations and the seniority list used by the state transfer counselling.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Lifecycle",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/clearances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/interview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/relieve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/exits/:param/settle",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/onboarding",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/seniority",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/transfers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.verification.staff_criminal_background_verification",
@@ -14145,9 +14614,56 @@
   "description": "Upload and verify third-party police verification certificates for all teaching and non-teaching staff.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/ServiceRecords",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/background-checks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/medical-fitness",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/qualifications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book/:param/attest",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.verification.medical_fitness_certificate_registry",
@@ -14158,9 +14674,56 @@
   "description": "Track mandatory annual medical fitness clearances for food handlers, bus drivers, and nannies.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/ServiceRecords",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/background-checks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/medical-fitness",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/qualifications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/service-book/:param/attest",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.attendance.staff_attendance",
@@ -14266,9 +14829,25 @@
   "description": "Define Casual Leave, Sick Leave, Earned Leave, Maternity Leave rules and carry-forward limits.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/LeavePolicy",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/leave-policy",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/lop",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.leave.late_arrival_loss_of_pay_lop",
@@ -14279,9 +14858,25 @@
   "description": "Configure auto-deduction rules for late arrivals or unexcused absences leading to LOP.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/LeavePolicy",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/leave-policy",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/lop",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.leave.half_day_leave_deduction_calculation",
@@ -14292,9 +14887,25 @@
   "description": "Auto-calculate half-day salary deductions when staff check out earlier than prescribed shift hours.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/LeavePolicy",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/leave-policy",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/lop",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.payroll.payroll",
@@ -15472,9 +16083,54 @@
   "description": "Confidential ticketing channel for staff members to report workplace issues to management.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Welfare",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/celebrations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/celebrations/greet",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/recognitions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.welfare.staff_recognition_wall",
@@ -15485,9 +16141,54 @@
   "description": "Broadcast 'Teacher of the Month' awards, peer praises, and school achievements.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Welfare",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/celebrations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/celebrations/greet",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/recognitions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.welfare.staff_birthday_anniversary_alerts",
@@ -15498,9 +16199,54 @@
   "description": "Trigger automated birthday and work anniversary greetings across app and staff wall.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Welfare",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/celebrations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/celebrations/greet",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/grievances/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/recognitions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.reports.hr_reports",

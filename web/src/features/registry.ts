@@ -1,6 +1,7 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import { facultyCommsKeys } from './faculty/keys'
 import { healthKeys } from './operations/health-keys'
+import { hrLifecycleKeys } from './hr/lifecycle-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -379,6 +380,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      rewriting one object. */
   ...facultyCommsKeys,
   ...healthKeys,
+  ...hrLifecycleKeys,
 }
 
 export function componentFor(key: string) {
