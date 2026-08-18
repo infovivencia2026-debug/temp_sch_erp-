@@ -18,6 +18,8 @@ import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { concessionsKeys } from './finance/concessions-keys'
+import { adminOpsKeys } from './operations/admin-ops-keys'
+import { hrGrowthKeys } from './hr/growth-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -408,6 +410,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...tallyKeys,
   ...timetableOpsKeys,
   ...concessionsKeys,
+  ...adminOpsKeys,
+  ...hrGrowthKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

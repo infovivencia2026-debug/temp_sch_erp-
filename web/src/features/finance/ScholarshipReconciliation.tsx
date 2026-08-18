@@ -49,12 +49,31 @@ import {
    not on the loan screen, and not on any dashboard. */
 
 export default function ScholarshipReconciliation() {
+  const qc = useQueryClient()
   const can = useCan()
   const mayWrite = can('finance.fees.write')
 
   const [schemeId, setSchemeId] = useState('')
   const [stage, setStage] = useState('')
   const [search, setSearch] = useState('')
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: [concessionsKey] })
+  /* One mutation per table rather than one per row: the rows are plain <tr>s so
+     <Table> can name their cells for a phone, and a plain row cannot hold a
+     hook. `variables` says which award is in flight, so only that row's button
+     goes down and only that row shows the result. */
+  const verify = useMutation({
+    mutationFn: (id: string) => api.post(`${concessionsBase}/scholarships/${id}/verify`, {}),
+    onSuccess: invalidate,
+  })
+  const credit = useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ receipt_no: string; amount_paise: number }>(
+        `${concessionsBase}/scholarships/${id}/fee-credit`,
+        {},
+      ),
+    onSuccess: invalidate,
+  })
 
   const awards = useQuery({
     queryKey: [concessionsKey, 'awards', schemeId, stage, search],
@@ -190,9 +209,19 @@ export default function ScholarshipReconciliation() {
             empty={rows.length === 0}
             emptyLabel="No applications recorded yet."
           >
-            {rows.map((a) => (
-              <AwardRow key={a.id} award={a} mayWrite={mayWrite} />
-            ))}
+            {rows.map((a) =>
+              awardRows({
+                award: a,
+                mayWrite,
+                verifying: verify.isPending && verify.variables === a.id,
+                crediting: credit.isPending && credit.variables === a.id,
+                error: verify.variables === a.id ? verify.error
+                  : credit.variables === a.id ? credit.error : null,
+                credited: credit.variables === a.id ? credit.data : undefined,
+                onVerify: () => verify.mutate(a.id),
+                onCredit: () => credit.mutate(a.id),
+              }),
+            )}
           </Table>
         </Card>
 
@@ -205,111 +234,115 @@ export default function ScholarshipReconciliation() {
 
 // --- one application ---------------------------------------------------------
 
-function AwardRow({ award, mayWrite }: { award: ScholarshipAward; mayWrite: boolean }) {
-  const qc = useQueryClient()
-  const invalidate = () => qc.invalidateQueries({ queryKey: [concessionsKey] })
+/* An application's two rows, as an array rather than a component.
 
-  const verify = useMutation({
-    mutationFn: () => api.post(`${concessionsBase}/scholarships/${award.id}/verify`, {}),
-    onSuccess: invalidate,
-  })
-  const credit = useMutation({
-    mutationFn: () =>
-      api.post<{ receipt_no: string; amount_paise: number }>(
-        `${concessionsBase}/scholarships/${award.id}/fee-credit`,
-        {},
-      ),
-    onSuccess: invalidate,
-  })
+   <Table> names each cell after its column so a row can stack into a labelled
+   card on a phone, and it does that by walking the elements handed to it: a
+   component element hides its rows behind a render that has not happened, so
+   the walk labels nothing and this nine-column table collapsed into bare
+   values under 640px. See labelCells in components/ui.tsx.
 
+   The verify and fee-credit mutations moved up to the table for the same
+   reason — a plain row cannot hold a hook — and are scoped back to this row by
+   the caller through `variables`. */
+function awardRows({
+  award, mayWrite, verifying, crediting, error, credited, onVerify, onCredit,
+}: {
+  award: ScholarshipAward
+  mayWrite: boolean
+  verifying: boolean
+  crediting: boolean
+  error: unknown
+  credited?: { receipt_no: string; amount_paise: number }
+  onVerify: () => void
+  onCredit: () => void
+}) {
   const ex = award.exception ? AWARD_EXCEPTION[award.exception] : undefined
 
-  return (
-    <>
-      <tr>
-        <Td className="font-medium">
-          {award.student_name}
+  return [
+    <tr key={award.id}>
+      <Td className="font-medium">
+        {award.student_name}
+        <span className="block text-[12px] font-normal text-muted-foreground">
+          {award.admission_no}
+          {award.class_name ? ` · ${award.class_name}` : ''}
+          {award.student_status !== 'active' && ` · ${award.student_status}`}
+        </span>
+      </Td>
+      {/* Category is here because the eligibility is decided on it. It is
+          shown as the portal writes it and nowhere else in this feature. */}
+      <Td className="uppercase text-muted-foreground">{award.category ?? '—'}</Td>
+      <Td className="text-muted-foreground">
+        {award.scheme_name}
+        {award.application_ref && (
+          <span className="block font-mono text-[12px]">{award.application_ref}</span>
+        )}
+      </Td>
+      <Td className="text-[13px]">{AWARD_STAGE_LABEL[award.stage]}</Td>
+      <Td className="text-right tabular-nums">
+        {award.sanctioned_paise == null ? '—' : inr(award.sanctioned_paise)}
+      </Td>
+      <Td className="text-right tabular-nums">
+        {award.credited_paise ? inr(award.credited_paise) : '—'}
+        {award.credited_on && (
           <span className="block text-[12px] font-normal text-muted-foreground">
-            {award.admission_no}
-            {award.class_name ? ` · ${award.class_name}` : ''}
-            {award.student_status !== 'active' && ` · ${award.student_status}`}
+            {award.credited_on}
           </span>
-        </Td>
-        {/* Category is here because the eligibility is decided on it. It is
-            shown as the portal writes it and nowhere else in this feature. */}
-        <Td className="uppercase text-muted-foreground">{award.category ?? '—'}</Td>
-        <Td className="text-muted-foreground">
-          {award.scheme_name}
-          {award.application_ref && (
-            <span className="block font-mono text-[12px]">{award.application_ref}</span>
-          )}
-        </Td>
-        <Td className="text-[13px]">{AWARD_STAGE_LABEL[award.stage]}</Td>
-        <Td className="text-right tabular-nums">
-          {award.sanctioned_paise == null ? '—' : inr(award.sanctioned_paise)}
-        </Td>
-        <Td className="text-right tabular-nums">
-          {award.credited_paise ? inr(award.credited_paise) : '—'}
-          {award.credited_on && (
-            <span className="block text-[12px] font-normal text-muted-foreground">
-              {award.credited_on}
-            </span>
-          )}
-        </Td>
-        <Td className="font-mono text-[12px] text-muted-foreground">
-          {award.account_masked ?? '—'}
-          {award.has_account && !award.is_aadhaar_seeded && (
-            <span className="block font-sans">
-              <Badge tone="warning">not seeded</Badge>
-            </span>
-          )}
-        </Td>
-        <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">—</span>}</Td>
-        <Td>
-          <span className="flex flex-wrap gap-1.5">
-            {mayWrite && (award.stage === 'applied' || award.stage === 'school_rejected') && (
-              <ConfirmButton
-                confirmLabel="Verify"
-                question="The portal relies on this; your name is recorded against it."
-                onConfirm={() => verify.mutate()}
-                disabled={verify.isPending}
-              >
-                <BadgeCheck className="h-3.5 w-3.5" /> Verify
-              </ConfirmButton>
-            )}
-            {mayWrite && award.offsets_fees && award.stage === 'credited' && !award.fee_credited && (
-              <ConfirmButton
-                confirmLabel="Post it"
-                question="A receipt is raised against this child's oldest outstanding dues."
-                onConfirm={() => credit.mutate()}
-                disabled={credit.isPending}
-              >
-                Post to fees
-              </ConfirmButton>
-            )}
-            {award.fee_credited && <Badge tone="success">on the fee ledger</Badge>}
+        )}
+      </Td>
+      <Td className="font-mono text-[12px] text-muted-foreground">
+        {award.account_masked ?? '—'}
+        {award.has_account && !award.is_aadhaar_seeded && (
+          <span className="block font-sans">
+            <Badge tone="warning">not seeded</Badge>
           </span>
+        )}
+      </Td>
+      <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">—</span>}</Td>
+      <Td>
+        <span className="flex flex-wrap gap-1.5">
+          {mayWrite && (award.stage === 'applied' || award.stage === 'school_rejected') && (
+            <ConfirmButton
+              confirmLabel="Verify"
+              question="The portal relies on this; your name is recorded against it."
+              onConfirm={onVerify}
+              disabled={verifying}
+            >
+              <BadgeCheck className="h-3.5 w-3.5" /> Verify
+            </ConfirmButton>
+          )}
+          {mayWrite && award.offsets_fees && award.stage === 'credited' && !award.fee_credited && (
+            <ConfirmButton
+              confirmLabel="Post it"
+              question="A receipt is raised against this child's oldest outstanding dues."
+              onConfirm={onCredit}
+              disabled={crediting}
+            >
+              Post to fees
+            </ConfirmButton>
+          )}
+          {award.fee_credited && <Badge tone="success">on the fee ledger</Badge>}
+        </span>
+      </Td>
+    </tr>,
+    ex || error || credited ? (
+      <tr key={`${award.id}:why`}>
+        <Td colSpan={9}>
+          {ex && !error && !credited && (
+            <p className="text-[13px] text-muted-foreground">{ex.why}</p>
+          )}
+          <FormNotice
+            error={error ?? undefined}
+            ok={
+              credited
+                ? `Receipt ${credited.receipt_no} for ${inr(credited.amount_paise)} posted against this child's dues.`
+                : undefined
+            }
+          />
         </Td>
       </tr>
-      {(ex || verify.error || credit.error || credit.data) && (
-        <tr>
-          <Td colSpan={9}>
-            {ex && !verify.error && !credit.error && !credit.data && (
-              <p className="text-[13px] text-muted-foreground">{ex.why}</p>
-            )}
-            <FormNotice
-              error={verify.error ?? credit.error}
-              ok={
-                credit.data
-                  ? `Receipt ${credit.data.receipt_no} for ${inr(credit.data.amount_paise)} posted against this child's dues.`
-                  : undefined
-              }
-            />
-          </Td>
-        </tr>
-      )}
-    </>
-  )
+    ) : null,
+  ]
 }
 
 // --- importing the portal's list ---------------------------------------------
@@ -433,10 +466,13 @@ function ImportPanel({ mayWrite }: { mayWrite: boolean }) {
         </div>
       )}
 
+      {/* "Nothing imported yet" is a claim about the school's history, and it
+          was what a failed request said. */}
+      {history.error && <ErrorState error={history.error} />}
       <Table
         head={['File', 'Scheme', 'When', 'Read', 'Matched', 'Unmatched', 'Rejected',
           { label: 'Credited', align: 'right' }, '']}
-        empty={(history.data?.items ?? []).length === 0}
+        empty={(history.data?.items ?? []).length === 0 && !history.error}
         emptyLabel="Nothing imported yet."
       >
         {(history.data?.items ?? []).map((i) => (
@@ -490,6 +526,18 @@ function RejectList({ rejects }: { rejects: ImportReject[] }) {
 }
 
 function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: boolean }) {
+  const qc = useQueryClient()
+  /* The paste boxes and the match call live here, not in each row: the rows are
+     plain <tr>s so <Table> can label their cells for a phone, and a plain row
+     holds neither state nor a hook. Keyed by line id, so a box belongs to the
+     line it was typed against. */
+  const [pasted, setPasted] = useState<Record<string, string>>({})
+  const match = useMutation({
+    mutationFn: (v: { lineId: string; awardId: string }) =>
+      api.post(`${concessionsBase}/scholarships/lines/${v.lineId}/match`, { award_id: v.awardId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [concessionsKey] }),
+  })
+
   const q = useQuery({
     queryKey: [concessionsKey, 'import', importId],
     queryFn: () =>
@@ -517,9 +565,16 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
         empty={d.lines.length === 0}
         emptyLabel="The file had no readable rows."
       >
-        {d.lines.map((l) => (
-          <DisbursementRow key={l.id} line={l} mayWrite={mayWrite} />
-        ))}
+        {d.lines.map((l) =>
+          disbursementRow({
+            line: l,
+            mayWrite,
+            awardId: pasted[l.id] ?? '',
+            onAwardId: (v) => setPasted({ ...pasted, [l.id]: v }),
+            matching: match.isPending && match.variables?.lineId === l.id,
+            onMatch: () => match.mutate({ lineId: l.id, awardId: pasted[l.id] ?? '' }),
+          }),
+        )}
       </Table>
       {d.rejects.length > 0 && (
         <div className="border-t px-5 py-4 text-[13px]">
@@ -530,19 +585,21 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
   )
 }
 
-function DisbursementRow({ line, mayWrite }: { line: DisbursementLine; mayWrite: boolean }) {
-  const qc = useQueryClient()
-  const [awardId, setAwardId] = useState('')
+/* One line of the portal's file. A plain <tr>, for the reason on awardRows. */
+function disbursementRow({
+  line, mayWrite, awardId, onAwardId, matching, onMatch,
+}: {
+  line: DisbursementLine
+  mayWrite: boolean
+  awardId: string
+  onAwardId: (v: string) => void
+  matching: boolean
+  onMatch: () => void
+}) {
   const ex = line.exception ? AWARD_EXCEPTION[line.exception] : undefined
 
-  const match = useMutation({
-    mutationFn: () =>
-      api.post(`${concessionsBase}/scholarships/lines/${line.id}/match`, { award_id: awardId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [concessionsKey] }),
-  })
-
   return (
-    <tr>
+    <tr key={line.id}>
       <Td className="text-muted-foreground">{line.line_no}</Td>
       <Td>
         {line.student_name_given ?? '—'}
@@ -562,12 +619,13 @@ function DisbursementRow({ line, mayWrite }: { line: DisbursementLine; mayWrite:
           <span className="flex gap-1.5">
             <Input
               value={awardId}
-              onChange={setAwardId}
+              onChange={onAwardId}
               placeholder="Paste the application id"
               className="w-52"
+              srLabel={`Application id to match line ${line.line_no} against`}
             />
-            <Button size="sm" variant="ghost" disabled={!awardId || match.isPending}
-              onClick={() => match.mutate()}>
+            <Button size="sm" variant="ghost" disabled={!awardId.trim() || matching}
+              onClick={onMatch}>
               Match
             </Button>
           </span>
