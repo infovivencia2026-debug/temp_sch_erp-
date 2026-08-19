@@ -1,8 +1,8 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import BulkImport from '@/components/BulkImport'
+import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -1114,14 +1114,7 @@ function StudentsPanel({ onDone }: PanelProps) {
         onDone={onDone}
       />
 
-      <Link to="/institution_admin/students/student_directory" className="block">
-        <div className="card p-4 transition-colors duration-150 hover:bg-accent">
-          <p className="font-medium">Or admit one student</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            The walk-in case: parent at the counter, admission number issued on the spot.
-          </p>
-        </div>
-      </Link>
+      <AdmitStudent onDone={onDone} />
     </div>
   )
 }

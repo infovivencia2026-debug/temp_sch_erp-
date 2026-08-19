@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
@@ -90,6 +91,7 @@ export default function StudentProfile() {
      name that does not have exactly two words -- the record is fetched for the
      fields the form actually edits. */
   const [editing, setEditing] = useState(false)
+  const [admitting, setAdmitting] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
     queryFn: () => api.get<StudentDetail>(`/api/v1/students/${selected}`),
@@ -148,9 +150,27 @@ export default function StudentProfile() {
           eyebrow="Student Information"
           title="Student 360"
           description="Search a student to see everything about them on one page."
-          actions={<Input value={search} onChange={setSearch} placeholder="Name or admission no." />}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
+              {can('students.write') && (
+                <Button variant={admitting ? 'secondary' : 'primary'} onClick={() => setAdmitting(!admitting)}>
+                  {admitting ? 'Close' : 'Admit a student'}
+                </Button>
+              )}
+            </div>
+          }
         />
         <PageBody>
+          {/* This screen is where somebody looking to add a child ends up, so
+              the form belongs here rather than only in the setup wizard: a
+              search box that answers "no student matches" and offers no way to
+              create one is a dead end at the exact moment it matters. */}
+          {admitting && can('students.write') && (
+            <div className="mb-4">
+              <AdmitStudent onDone={() => results.refetch()} />
+            </div>
+          )}
           {search.trim().length < 2 ? (
             <EmptyState title="Search for a student" body="Type at least two characters." />
           ) : results.isLoading ? (
