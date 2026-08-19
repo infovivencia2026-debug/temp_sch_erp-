@@ -197,6 +197,18 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
+
+			/* Setting a school up from the spreadsheets it already has.
+			   Classes, sections and staff all existed as forms that took one
+			   row at a time, which is eighty separate typings for a school of
+			   ten classes — every one of those lists is already a spreadsheet
+			   in the office. Gated on the permission the equivalent single
+			   form needs, so importing grants nothing extra. */
+			// The real gate is per entity, inside the handler: one route
+			// serves classes, sections and staff, and staff must cost
+			// employees.write rather than academics.write.
+			r.Get("/import/{entity}/template", s.getBulkTemplate)
+			r.Post("/import/{entity}", s.bulkImport)
 		})
 
 		// --- Institution Admin / Principal --------------------------------

@@ -1,6 +1,7 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
+import BulkImport from '@/components/BulkImport'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -503,7 +504,15 @@ function ClassesPanel({ onDone }: PanelProps) {
           ))}
         </Existing>
       )}
-    </form>
+          <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="classes"
+          title="Or add every class from a sheet"
+          hint="Two columns: name and level. Level is what orders them — Grade 6 is level 6."
+          onDone={onDone}
+        />
+      </div>
+</form>
   )
 }
 
@@ -578,7 +587,15 @@ function SectionsPanel({ onDone }: PanelProps) {
           ))}
         </Existing>
       )}
-    </form>
+          <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="sections"
+          title="Or add sections from a sheet"
+          hint="Class, name, capacity. The class must exist already and is matched by its name."
+          onDone={onDone}
+        />
+      </div>
+</form>
   )
 }
 
@@ -925,7 +942,15 @@ function StaffPanel({ onDone }: PanelProps) {
         </Existing>
       )}
       <Assignments onDone={onDone} />
-    </form>
+          <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="staff"
+          title="Or add all your staff from a sheet"
+          hint="Employee code and first name are required. Give an email and a role and they get a login too."
+          onDone={onDone}
+        />
+      </div>
+</form>
   )
 }
 
