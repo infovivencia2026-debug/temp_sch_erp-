@@ -603,7 +603,11 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/users/{id}/roles", s.setRoles)
-			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/assignable-roles", s.listAssignableRoles)
+			// Gated in the handler, not here: appointing somebody requires
+			// choosing their role, so hr.employees.write has to be able to
+			// read the list. Requiring roles.read meant an HR manager with
+			// every right to appoint staff was shown an empty dropdown.
+			r.Get("/assignable-roles", s.listAssignableRoles)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/role-presets", s.listRolePresets)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit", s.listAudit)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit/summary", s.getAuditSummary)

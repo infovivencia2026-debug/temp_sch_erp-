@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List } from '@/lib/api'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import {
-  Button, Field, FormGrid, FormNotice, Input, Select,
+  Button, Field, FormGrid, FormNotice, Input,
 } from '@/components/ui'
 import BulkImport from '@/components/BulkImport'
+import RoleSelect from '@/components/RoleSelect'
 
 /* Appointing somebody, from the HR account.
  *
@@ -29,12 +30,6 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
   const [open, setOpen] = useState(false)
   const [added, setAdded] = useState('')
 
-  const roles = useQuery({
-    queryKey: ['assignable-roles'],
-    queryFn: () => api.get<List<{ key: string; name: string }>>('/api/v1/admin/assignable-roles'),
-    staleTime: 5 * 60_000,
-    enabled: open,
-  })
 
   const blank = {
     employee_code: '', first_name: '', last_name: '',
@@ -86,12 +81,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
             <Input value={f.employee_code} onChange={set('employee_code')} placeholder="T-014" />
           </Field>
           <Field label="Role" hint="Every role your school has, including any you have created.">
-            <Select
-              value={f.role_key}
-              onChange={set('role_key')}
-              placeholder={roles.isLoading ? 'Loading…' : 'Choose a role'}
-              options={(roles.data?.items ?? []).map((r) => ({ value: r.key, label: r.name }))}
-            />
+            <RoleSelect value={f.role_key} onChange={set('role_key')} />
           </Field>
           <Field label="First name" required>
             <Input value={f.first_name} onChange={set('first_name')} />

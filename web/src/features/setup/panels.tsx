@@ -2,6 +2,7 @@ import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
+import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
@@ -1478,25 +1479,3 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
 }
 
 
-/* The staff role dropdown.
- *
- * It listed eight roles fixed in the bundle, so a school that created a role
- * of its own -- which the roles screen has always allowed -- could not put
- * anybody in it from the one form where staff are actually created. This reads
- * the school's roles instead, so the two screens agree.
- */
-function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const roles = useQuery({
-    queryKey: ['assignable-roles'],
-    queryFn: () => api.get<List<{ key: string; name: string }>>('/api/v1/admin/assignable-roles'),
-    staleTime: 5 * 60_000,
-  })
-  return (
-    <Select
-      value={value}
-      onChange={onChange}
-      placeholder={roles.isLoading ? 'Loading…' : 'Choose a role'}
-      options={(roles.data?.items ?? []).map((r) => ({ value: r.key, label: r.name }))}
-    />
-  )
-}
