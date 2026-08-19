@@ -38,7 +38,17 @@ A pair code is single-use and expires in 10 minutes.
 
 Claiming is atomic: rows move to `dispatching` with the device id and a lease
 expiry under `FOR UPDATE SKIP LOCKED`, so two phones on one school never send
-the same message twice. A lease that expires unacknowledged returns to queued.
+the same message twice. A lease that expires unacknowledged returns to queued —
+**at most three times**. This bound is the point, not a detail: unbounded, a
+phone that sends and then dies before its receipt lands would have the message
+re-offered forever, and the parent would receive it once per attempt. After the
+third, the message is failed with a reason that says it may already have gone
+out and to check before re-sending. A duplicate fee reminder is worse than a
+late one.
+
+A suppressed message is never claimable. The recipient allowlist holds messages
+before dispatch, and a paired handset must not be able to pull something the
+school explicitly held back.
 
     POST /api/v1/sms-gateway/receipts
       Authorization: Bearer <device_token>

@@ -30,6 +30,7 @@ import { mdmKeys } from './operations/mdm-keys'
 import { masterTimetableKeys } from './academics/master-timetable-keys'
 import { connectorsKeys } from './super_admin/connectors-keys'
 import { whatsappKeys } from './super_admin/whatsapp-keys'
+import { smsGatewayKeys } from './communication/sms-gateway-keys'
 import { reportBuilderKeys } from './analytics/report-builder-keys'
 import { digitalLibraryKeys } from './operations/digital-library-keys'
 
@@ -434,6 +435,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...masterTimetableKeys,
   ...connectorsKeys,
   ...whatsappKeys,
+  ...smsGatewayKeys,
   ...reportBuilderKeys,
   ...digitalLibraryKeys,
   ...familyKeys,

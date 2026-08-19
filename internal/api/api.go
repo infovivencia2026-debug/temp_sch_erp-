@@ -34,6 +34,7 @@ func (s *Server) Routes() http.Handler {
 
 	r.Get("/session", s.getSession)
 	s.mountAdmissionsPublic(r)
+	s.mountSMSGatewayDevice(r)
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
@@ -106,6 +107,7 @@ func (s *Server) Routes() http.Handler {
 		s.mountHRGrowth(r)
 		s.mountClassroom(r)
 		s.mountComms(r)
+		s.mountSMSGateway(r)
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))

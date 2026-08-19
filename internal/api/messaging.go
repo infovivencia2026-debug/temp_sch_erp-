@@ -616,6 +616,16 @@ func (s *Server) loadProviders(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (
 			set[ch] = unconfiguredProvider{ch, "configured but switched off"}
 			continue
 		}
+		// The phone SMS gateway: a paired handset rather than a vendor's HTTP
+		// endpoint. Checked before the credential is opened because this
+		// provider has no API key to open -- its credential belongs to the
+		// phone, not to the school. See internal/api/sms_gateway.go; this case
+		// and the struct behind it are the whole of what a fifth channel cost,
+		// exactly as the comment on MessagingProvider above says it should be.
+		if ch == "sms" && isPhoneGatewayConfig(row.Config) {
+			set[ch] = s.loadPhoneGateway(ctx, tx, inst)
+			continue
+		}
 		secret, err := openSecret(row.Credentials)
 		if err != nil {
 			set[ch] = unconfiguredProvider{ch, err.Error()}
