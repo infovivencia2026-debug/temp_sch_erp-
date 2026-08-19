@@ -213,14 +213,23 @@ func (s *Server) listLessonPlans(w http.ResponseWriter, r *http.Request) {
 }
 
 type lessonPlanRequest struct {
-	SectionID      string   `json:"section_id"`
-	ClassSubjectID string   `json:"class_subject_id"`
-	WeekOf         string   `json:"week_of"`
-	Objectives     string   `json:"objectives,omitempty"`
-	Activities     string   `json:"activities,omitempty"`
-	Resources      string   `json:"resources,omitempty"`
-	Homework       string   `json:"homework,omitempty"`
-	UnitIDs        []string `json:"unit_ids,omitempty"`
+	SectionID      string `json:"section_id"`
+	ClassSubjectID string `json:"class_subject_id"`
+	WeekOf         string `json:"week_of"`
+	Objectives     string `json:"objectives,omitempty"`
+	Activities     string `json:"activities,omitempty"`
+	Resources      string `json:"resources,omitempty"`
+	Homework       string `json:"homework,omitempty"`
+	// FileID is the plan as the teacher actually wrote it — a Word document, a
+	// school proforma, the state's template. The four prose fields above stay
+	// because a head of department reviewing twenty plans wants the objectives
+	// on screen rather than twenty attachments to open.
+	FileID string `json:"file_id,omitempty"`
+	// TeachingDay is 1-7 where the school plans per lesson rather than per
+	// week. Null means the plan covers the week, which is what every row
+	// written before this meant.
+	TeachingDay *int16   `json:"teaching_day,omitempty"`
+	UnitIDs     []string `json:"unit_ids,omitempty"`
 	// Submit sends it for approval in the same call; a teacher writing a plan
 	// and then hunting for a submit button is a plan that stays in draft.
 	Submit bool `json:"submit,omitempty"`
@@ -268,14 +277,22 @@ func (s *Server) saveLessonPlan(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO lesson_plans (institution_id, section_id, class_subject_id,
 			                          teacher_user_id, week_of, objectives, activities,
-			                          resources, homework, status, submitted_at)
+			                          resources, homework, status, submitted_at,
+			                          file_id, teaching_day)
 			VALUES ($1,$2,$3,$4,$5::date,NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),
-			        NULLIF($9,''),$10, CASE WHEN $10 = 'submitted' THEN now() END)
+			        NULLIF($9,''),$10, CASE WHEN $10 = 'submitted' THEN now() END,
+			        $11::uuid, $12)
 			ON CONFLICT (section_id, class_subject_id, week_of)
 			DO UPDATE SET objectives = EXCLUDED.objectives,
 			              activities = EXCLUDED.activities,
 			              resources  = EXCLUDED.resources,
 			              homework   = EXCLUDED.homework,
+			              -- A re-upload replaces the attachment; omitting the
+			              -- file on an edit keeps the one already there, so
+			              -- correcting a typo in the objectives does not
+			              -- silently detach the plan document.
+			              file_id      = COALESCE(EXCLUDED.file_id, lesson_plans.file_id),
+			              teaching_day = COALESCE(EXCLUDED.teaching_day, lesson_plans.teaching_day),
 			              -- An approved plan that is edited goes back for
 			              -- review; silently keeping the approval would let a
 			              -- teacher rewrite what a head of department signed.
@@ -286,7 +303,7 @@ func (s *Server) saveLessonPlan(w http.ResponseWriter, r *http.Request) {
 			RETURNING id::text`,
 			id.InstitutionID, section, csID, id.UserID, req.WeekOf,
 			req.Objectives, req.Activities, req.Resources, req.Homework,
-			status).Scan(&planID); err != nil {
+			status, nullString(req.FileID), req.TeachingDay).Scan(&planID); err != nil {
 			return err
 		}
 
