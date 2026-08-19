@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
+import AccountPage from '@/features/shared/Profile'
 import {
   CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -175,6 +176,12 @@ export default function App() {
             <I18nProvider>
             <Shell>
               <Routes>
+                {/* Outside the catalogue on purpose. Every signed-in person
+                    has a name, a password and contact details, whatever their
+                    role — and only faculty had a catalogue entry for it, so
+                    eight roles out of nine could not reach the screen that
+                    already existed to change their own password. */}
+                <Route path="/account" element={<AccountPage />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/:roleKey" element={<RoleIndex />} />
                 <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />

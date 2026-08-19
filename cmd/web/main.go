@@ -128,6 +128,14 @@ func run() error {
 	r.Post("/signup/pay/{order}", signup.Callback)
 	r.Get("/signup/welcome/{order}", signup.Welcome)
 
+	// Getting back in without telephoning the school office. Public by
+	// necessity: somebody who cannot sign in cannot be asked to sign in first.
+	reset := &api.PasswordReset{DB: db, Tpl: tpl, Hasher: hasher}
+	r.Get("/forgot", reset.ShowForgot)
+	r.Post("/forgot", reset.Forgot)
+	r.Get("/reset", reset.ShowReset)
+	r.Post("/reset", reset.Reset)
+
 	r.Get("/login", authHandler.ShowLogin)
 	r.Post("/login", authHandler.Login)
 	r.Post("/logout", authHandler.Logout)

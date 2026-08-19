@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink, useNavigate, useParams } from 'react-router-dom'
-import { Check, ChevronDown, LogOut, Menu, Moon, Rows3, Sun, X } from 'lucide-react'
+import { Link, NavLink, useNavigate, useParams } from 'react-router-dom'
+import { Check, ChevronDown, LogOut, Menu, Moon, Rows3, Sun, UserRound, X } from 'lucide-react'
 import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import FirstRunTour from './FirstRunTour'
@@ -527,6 +527,17 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
+            {/* Your own account, beside the way out of it. Reachable from
+                every role rather than from a catalogue entry only faculty
+                had. */}
+            <Link
+              to="/account"
+              aria-label="Your account"
+              title="Your account and password"
+              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+            >
+              <UserRound className="h-4 w-4" />
+            </Link>
             <a
               href="/logout"
               aria-label="Sign out"

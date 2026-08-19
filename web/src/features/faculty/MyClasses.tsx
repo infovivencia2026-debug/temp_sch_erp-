@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Accessibility, AlertTriangle, Award, Users } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -333,6 +333,9 @@ export default function MyClasses() {
           </Card>
         )}
 
+        {/* Opened from a table halfway down the page, the panel used to be
+            appended below everything else — off screen, so pressing Open
+            looked like pressing nothing. It scrolls itself into view now. */}
         {selected && (
           <ChildPanel
             child={selected}
@@ -361,13 +364,19 @@ function ChildPanel({
   onClose: () => void
 }) {
   const qc = useQueryClient()
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [child.student_id])
+
   const notes = useQuery({
     queryKey: ['notes', child.student_id],
     queryFn: () => api.get<List<Note>>(`/api/v1/students/notes?student_id=${child.student_id}`),
   })
 
   return (
-    <Card>
+    <div ref={box}>
+    <Card className="border-primary/50">
       <CardHeader
         title={`${child.full_name} · ${child.class_name}-${child.section}`}
         description={
@@ -431,6 +440,7 @@ function ChildPanel({
         </div>
       </div>
     </Card>
+    </div>
   )
 }
 

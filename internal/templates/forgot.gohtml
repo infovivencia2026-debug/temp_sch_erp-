@@ -1,0 +1,45 @@
+{{define "forgot.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your password · School ERP</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
+</head>
+<body class="auth">
+  <div class="auth-top">{{template "themebtn"}}</div>
+  <main class="card">
+    <h1>Reset your password</h1>
+    <p class="lede">We will send a link to the address on your account.</p>
+
+    {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+
+    {{if .Notice}}
+      <p class="sent">{{.Notice}}</p>
+      {{if .Link}}
+        <p class="fineprint">
+          This installation has no mail provider configured, so nothing was
+          actually delivered. Rather than pretend otherwise, here is the link:
+        </p>
+        <p><a class="cta" href="{{.Link}}">Choose a new password</a></p>
+      {{end}}
+      <p class="fineprint"><a href="/login">Back to sign in</a></p>
+    {{else}}
+      <form method="post" action="/forgot" autocomplete="on">
+        <div class="row">
+          <label for="identifier">Email, username or phone</label>
+          <input id="identifier" name="identifier" autocomplete="username" required autofocus>
+        </div>
+        <button type="submit">Send me a link</button>
+      </form>
+      <p class="fineprint">
+        Remembered it? <a href="/login">Sign in</a>. If you have no email on your
+        account, ask your school office to issue a password instead.
+      </p>
+    {{end}}
+  </main>
+{{template "themejs"}}
+</body>
+</html>{{end}}
