@@ -46,6 +46,14 @@ type PasswordReset struct {
 	DB     *database.DB
 	Tpl    *template.Template
 	Hasher *auth.Hasher
+	// BaseURL is what goes into the email. A relative path is fine on the page
+	// that produced it and useless in a mail client.
+	BaseURL string
+	// EmailReady reports whether this installation can actually carry the
+	// link. Where it can, the page stops printing the link on screen — showing
+	// it there would hand a reset to whoever is at the keyboard rather than to
+	// the account's owner.
+	EmailReady func(r *http.Request) bool
 }
 
 type resetView struct {
@@ -103,6 +111,10 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(token))
 
 	var link string
+	var queued bool
+	// Absolute: the link is opened from a mail client, not from the page that
+	// produced it.
+	base := strings.TrimSuffix(p.BaseURL, "/")
 	err := p.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		var userID uuid.UUID
 		var instID *uuid.UUID
@@ -128,17 +140,25 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		}
 		link = "/reset?token=" + token
 
-		// Recorded like every other outbound message. The body carries the
-		// link and not a password, because the link expires and a password in
-		// a log does not.
+		// Queued, not marked sent. The worker hands queued rows to whatever
+		// email provider the school has configured, so this becomes a real
+		// message the moment SMTP credentials exist — and stays honestly
+		// waiting when they do not. Writing 'sent' here made the log claim a
+		// delivery nothing had performed.
+		//
+		// The body carries the link and never a password: a link expires and a
+		// password sitting in a message log does not.
 		if instID != nil && email != nil {
-			_, _ = tx.Exec(r.Context(), `
+			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO message_log (institution_id, channel, template_code,
-				                         recipient, user_id, subject, body, status,
-				                         provider, sent_at)
-				VALUES ($1,'email','password_reset',$2,$3,$4,$5,'sent','simulated',now())`,
+				                         recipient, user_id, subject, body, status)
+				VALUES ($1,'email','password_reset',$2,$3,$4,$5,'queued')`,
 				*instID, *email, userID, "Reset your password",
-				"Open this link within fifteen minutes to choose a new password:\n"+link)
+				"Open this link within fifteen minutes to choose a new password:\n"+
+					base+link+"\n\nIf you did not ask for this, ignore it and nothing changes."); err != nil {
+				return err
+			}
+			queued = true
 		}
 		return nil
 	})
@@ -149,7 +169,11 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.render(w, r, "forgot.gohtml", http.StatusOK, resetView{Notice: sameAnswer, Link: link})
+	view := resetView{Notice: sameAnswer}
+	if !queued || p.EmailReady == nil || !p.EmailReady(r) {
+		view.Link = link
+	}
+	p.render(w, r, "forgot.gohtml", http.StatusOK, view)
 }
 
 // ShowReset renders the "choose a new password" page for a token.

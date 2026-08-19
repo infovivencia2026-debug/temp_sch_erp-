@@ -3070,3 +3070,41 @@ func (s *Server) listMessageLog(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})
 }
+
+// EmailProviderReady reports whether this installation can actually send an
+// email right now.
+//
+// Used by the pages that exist for people who cannot sign in: where the answer
+// is yes they are told to check their inbox, and where it is no they are shown
+// the link and told plainly that nothing was delivered. Guessing either way is
+// how somebody sits waiting for a message no configured provider could send.
+func (s *Server) EmailProviderReady(r *http.Request) bool {
+	id := httpx.IdentityFrom(r.Context())
+	var ready bool
+	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		// Any institution with a working email provider is enough: this is
+		// asked before anybody has signed in, so there is no tenant to ask
+		// about, and a school that has configured SMTP is the one whose
+		// message queue the worker will drain.
+		var cfg []byte
+		var secret string
+		err := tx.QueryRow(r.Context(), `
+			SELECT config, COALESCE(credentials,'')
+			  FROM integrations
+			 WHERE kind = 'messaging' AND provider = 'email' AND enabled
+			 LIMIT 1`).Scan(&cfg, &secret)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		ready = buildProvider("email", cfg, secret).Configured()
+		return nil
+	})
+	_ = id
+	if err != nil {
+		return false
+	}
+	return ready
+}

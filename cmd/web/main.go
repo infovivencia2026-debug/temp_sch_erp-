@@ -130,7 +130,13 @@ func run() error {
 
 	// Getting back in without telephoning the school office. Public by
 	// necessity: somebody who cannot sign in cannot be asked to sign in first.
-	reset := &api.PasswordReset{DB: db, Tpl: tpl, Hasher: hasher}
+	reset := &api.PasswordReset{
+		DB: db, Tpl: tpl, Hasher: hasher, BaseURL: cfg.BaseURL,
+		// The page prints the link only where nothing can carry it. Once a
+		// school has configured email, printing it would hand a reset to
+		// whoever is standing at the keyboard.
+		EmailReady: apiServer.EmailProviderReady,
+	}
 	r.Get("/forgot", reset.ShowForgot)
 	r.Post("/forgot", reset.Forgot)
 	r.Get("/reset", reset.ShowReset)

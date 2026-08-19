@@ -303,6 +303,12 @@ server {
     # flow continues into /signup/pay/{order} and /signup/welcome/{order}, and
     # an exact match would send a school that had just paid to the SPA shell.
     location /signup  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
+    # Password recovery, likewise server-rendered and likewise needed by
+    # somebody who cannot sign in — so it cannot live behind the application.
+    # Without these the SPA answers GET with its own shell and POST with 405,
+    # which reads as the form being broken rather than unrouted.
+    location = /forgot { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
+    location = /reset  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /logout  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /static/ { include /etc/nginx/snippets/${SERVICE}-proxy.conf; expires 7d; access_log off; }
 
