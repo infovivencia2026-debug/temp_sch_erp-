@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 393 of the catalog's features are implemented.
+// 394 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -316,6 +316,7 @@ var implementedFeatures = map[string]bool{
 	"parent.messages.communication":                                        true,
 	"parent.messages.concerns_grievance_ticketing":                         true,
 	"parent.messages.direct_teacher_messaging":                             true,
+	"parent.messages.parent_community_discussion_forum":                    true,
 	"parent.messages.private_counselor_chat_channel":                       true,
 	"parent.profile.digital_parent_id_card_for_campus_entry":               true,
 	"parent.profile.digital_student_id_card_view":                          true,

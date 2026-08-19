@@ -239,6 +239,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/results", s.getFamilyResults)
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
+			s.mountParentForum(r)
 			s.mountStudentLearning(r)
 			s.mountStudentLife(r)
 		})

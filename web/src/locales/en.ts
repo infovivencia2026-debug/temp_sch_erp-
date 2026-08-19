@@ -113,6 +113,83 @@ export const en = {
   'portal.parent_id_card.gate_note':
     'Read out the pass number and the code at the gate. A screenshot will not work for long — the code changes, which is what stops it being passed on.',
 
+  // --- portal / Forum.tsx -----------------------------------------------
+  // The parents' class board. Extracted because this screen is parent-facing
+  // and the convention above says parent-facing screens carry no inline
+  // English; every value here is the exact string the component used to hold.
+  'portal.forum.loading': 'Opening your class board…',
+  'portal.forum.loading_thread': 'Opening the thread…',
+  'portal.forum.eyebrow': 'Messages',
+  'portal.forum.title': 'Class parent forum',
+  'portal.forum.description':
+    'For coordinating between the parents of one class — the trip, the concert, who is driving.',
+  'portal.forum.stat_threads': 'Threads',
+  'portal.forum.stat_mine': 'Started by you',
+  'portal.forum.stat_class': 'Class',
+  'portal.forum.stat_class_all': 'All your classes',
+  'portal.forum.picker_title': 'Which class',
+  'portal.forum.picker_description':
+    'One board per child. You can read the boards of the classes your own children are in, and no others.',
+  'portal.forum.picker_label': 'Class board',
+  'portal.forum.picker_all': 'All your classes',
+  'portal.forum.no_board_title': 'No class board yet',
+  'portal.forum.no_board_body':
+    'A board appears once your child has an enrolment on record. If that looks wrong, the office can check the admission.',
+  'portal.forum.threads_title': 'Threads',
+  'portal.forum.threads_description': 'Pinned notices first, then whatever is being talked about.',
+  'portal.forum.threads_empty': 'Nobody has started a thread on this board yet.',
+  'portal.forum.col_thread': 'Thread',
+  'portal.forum.col_started_by': 'Started by',
+  'portal.forum.col_replies': 'Replies',
+  'portal.forum.col_last': 'Last activity',
+  'portal.forum.action_open': 'Open',
+  'portal.forum.action_close': 'Close',
+  'portal.forum.action_post': 'Post to the board',
+  'portal.forum.action_reply': 'Reply',
+  'portal.forum.action_report': 'Report this thread',
+  'portal.forum.posted': 'Posted.',
+  'portal.forum.badge_mine': 'you',
+  'portal.forum.badge_staff': 'school',
+  'portal.forum.badge_open': 'Open',
+  'portal.forum.badge_locked': 'Locked',
+  'portal.forum.compose_title': 'Start a thread',
+  'portal.forum.compose_description':
+    'Something the other parents in this class need to know or decide together.',
+  'portal.forum.field_child': 'Which child',
+  'portal.forum.field_child_hint': 'This decides which class board the thread goes to.',
+  'portal.forum.field_child_placeholder': 'Choose a child',
+  'portal.forum.field_category': 'What it is about',
+  'portal.forum.field_title': 'In one line',
+  'portal.forum.field_title_placeholder': 'Lifts to the museum on Friday',
+  'portal.forum.field_body': 'What you want to say',
+  'portal.forum.named_notice':
+    'Your name and your relation to your child appear on everything you post here. There is no anonymous posting.',
+  'portal.forum.grievance_notice':
+    'If something has gone wrong, raise it under Concerns instead. That route is private, tracked and answered to a deadline; this board is not.',
+  'portal.forum.thread_by': 'Started by {name} ({relation}) on {at}',
+  'portal.forum.thread_missing': 'That thread could not be opened.',
+  'portal.forum.no_replies': 'No replies yet.',
+  'portal.forum.reply_placeholder': 'Write a reply…',
+  'portal.forum.pick_child_first': 'Choose which child this is about before replying.',
+  'portal.forum.locked_because': 'Closed to new replies: {reason}',
+  'portal.forum.converted_notice':
+    'The school moved this into the concerns queue, where it is tracked and answered. You can follow it under Concerns.',
+  'portal.forum.taken_down': 'Taken down: {reason}',
+  'portal.forum.report_explainer':
+    'Report something a member of staff should read. Reporting does not hide it — a person decides.',
+  'portal.forum.report_label': 'What is wrong with it',
+  'portal.forum.report_placeholder': 'What is wrong with it',
+  'portal.forum.report_confirm': 'Report',
+  'portal.forum.report_question': 'A member of staff will read this thread and your reason.',
+  'portal.forum.reported': 'Reported. A member of staff will read it.',
+  'portal.forum.category_general': 'General',
+  'portal.forum.category_event': 'An event',
+  'portal.forum.category_trip': 'A trip',
+  'portal.forum.category_volunteering': 'Volunteering',
+  'portal.forum.category_logistics': 'Getting there and back',
+  'portal.forum.category_lost_found': 'Lost and found',
+  'portal.forum.category_question': 'A question',
+
   // --- display preferences ----------------------------------------------
   // The language selector's own strings live here so that switching language
   // also translates the control that switched it.

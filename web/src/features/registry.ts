@@ -23,6 +23,7 @@ import { hrGrowthKeys } from './hr/growth-keys'
 import { commsKeys } from './communication/comms-keys'
 import { studentLifeKeys } from './learning/student-life-keys'
 import { classroomKeys } from './faculty/classroom-keys'
+import { forumKeys } from './portal/forum-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -418,6 +419,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...commsKeys,
   ...studentLifeKeys,
   ...classroomKeys,
+  ...forumKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,
