@@ -278,6 +278,13 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/admin/assignable-roles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -472,6 +479,13 @@
    },
    {
     "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/assignable-roles",
     "methods": [
      "GET"
     ],
@@ -685,6 +699,13 @@
    },
    {
     "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/assignable-roles",
     "methods": [
      "GET"
     ],
@@ -1080,9 +1101,17 @@
   "description": "Configure payment gateway, email/SMS/WhatsApp, biometric devices, Google/Microsoft and other connectors.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/Integrations",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/integrations/index",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.platform_configuration.numbering_templates",
@@ -1230,9 +1259,31 @@
   "description": "Configure gateway API credentials, sender IDs, DLTI templates, and SMS delivery logs.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "communication/SmsGateway",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/sms-gateway/devices/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/sms-gateway/devices/:param/revoke",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/sms-gateway/pair",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.messaging.whatsapp_api_integration",
@@ -1243,9 +1294,63 @@
   "description": "Connect WhatsApp Business API, manage template approvals, automated triggers, and delivery logs.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/WhatsAppApi",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/messaging/recipients",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/recipients/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/messaging/recipients/mode",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/whatsapp/log",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/whatsapp/settings",
+    "methods": [
+     "DELETE",
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/whatsapp/templates",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/whatsapp/test",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.messaging.email_server_smtp_integration",
@@ -1442,9 +1547,46 @@
   "description": "Configure bus GPS tracker hardware protocols, IMEI mapping, and refresh intervals.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/TrackerPairing",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/transport/trackers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/trackers/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/trackers/:param/revoke",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/trackers/pair",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/tracking-policy",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.payments_devices.virtual_classroom_integration",
@@ -1455,9 +1597,59 @@
   "description": "Connect Zoom, Google Meet, and Microsoft Teams tenant accounts for seamless live streaming.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/VirtualClassroom",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/connectors/crm/conflicts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/credentials",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/queue",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/runs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/meetings/providers",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/meetings/providers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/meetings/requests",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.payments_devices.tally_erp_prime_connector",
@@ -1468,9 +1660,67 @@
   "description": "Configure ledger XML exports, cost-center mapping, and automated batch voucher sync.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/TallyConnector",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/tally/connector/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/tally/connector/gateway",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/tally/connector/mappings",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/tally/connector/voucher-types",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/tally/connector/voucher-types/defaults",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.payments_devices.meritto_leadsquared_sync",
@@ -1481,9 +1731,74 @@
   "description": "Map lead sources, counselor assignments, and multi-touch lead status sync with external CRMs.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "super_admin/CrmSync",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/connectors/crm/conflicts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/conflicts/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/credentials",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/export",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/mappings",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/queue",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/crm/runs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/connectors/meetings/requests",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.statutory_boards.sqaa_framework_management",
@@ -1644,9 +1959,53 @@
   "description": "Map school and student records to the Telangana Child Info portal register and reconcile differences.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "compliance/ChildInfoPortal",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin/institutions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/portal/connectors",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/portal/connectors/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/portal/connectors/:param/runs",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/portal/export",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/portal/runs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.operations.data_backup_restore",
@@ -1725,9 +2084,60 @@
   "description": "Genetic algorithms solving complex multi-variable faculty, room, and elective timetable constraints.",
   "scope": "All institutions / all campuses",
   "scope_key": "platform",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/TimetableOptimizer",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/timetable-optimizer/drafts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/discard",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/inputs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/load-rules",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/requirements",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "super_admin.ai_automation.ai_sentiment_analysis_on_feedback",
@@ -1800,6 +2210,13 @@
      "GET"
     ],
     "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/status",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -1835,6 +2252,13 @@
      "GET"
     ],
     "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/status",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -1847,8 +2271,8 @@
   "description": "Today's classes/exams/events and important announcements.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
+  "component": "analytics/Today",
+  "built": true,
   "endpoints": []
  },
  {
@@ -1911,6 +2335,13 @@
      "GET"
     ],
     "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/status",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -1972,6 +2403,14 @@
     "path": "/api/v1/students",
     "methods": [
      "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students/:param",
+    "methods": [
+     "GET",
+     "PUT"
     ],
     "conditional": true
    },
@@ -2281,6 +2720,14 @@
     "conditional": true
    },
    {
+    "path": "/api/v1/students/:param",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   },
+   {
     "path": "/api/v1/students/:param/profile",
     "methods": [
      "GET"
@@ -2468,7 +2915,7 @@
   "description": "Programs/classes, departments, subjects/courses, batches/sections, years/terms and rooms.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "shared/Academics",
+  "component": "setup/Wizard",
   "built": true,
   "endpoints": [
    {
@@ -2494,6 +2941,171 @@
    },
    {
     "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/assignable-roles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/institutions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/academic-years",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/assign-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/campuses",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/campuses/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/class-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/classes",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/exams",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/fee-heads",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/fee-structures",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/grading-scales",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/institution",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/institution/options",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/periods",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/sections",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/status",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/subjects",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/periods",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
     "methods": [
      "GET"
     ],
@@ -2595,9 +3207,60 @@
   "description": "Auto-generate clash-free class/faculty timetables with room and subject constraints.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "academics/MasterTimetable",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/master-timetable/drafts/:param/entries/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/master-timetable/drafts/:param/publish-preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/master-timetable/overview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/discard",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.academics.faculty_substitution_engine",
@@ -2976,7 +3639,7 @@
   "description": "The academic structure: classes, sections, subjects and which teacher takes what.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "shared/Academics",
+  "component": "setup/Wizard",
   "built": true,
   "endpoints": [
    {
@@ -3002,6 +3665,171 @@
    },
    {
     "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/assignable-roles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/institutions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/session",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/academic-years",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/assign-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/campuses",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/campuses/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/class-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/classes",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/exams",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/fee-heads",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/fee-structures",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/grading-scales",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/institution",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/institution/options",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/periods",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/sections",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/status",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/setup/subjects",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/periods",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
     "methods": [
      "GET"
     ],
@@ -3561,8 +4389,8 @@
   "description": "Collection, outstanding, defaulters, discounts/scholarships summary; detailed accounting stays with Finance.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
+  "component": "analytics/FeeOverview",
+  "built": true,
   "endpoints": []
  },
  {
@@ -3574,9 +4402,74 @@
   "description": "Prepare the fee structure justification and supporting accounts required by the state fee regulator.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/FeeFiling",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings/:param/documents",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/fee-filings/:param/variance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "institution_admin.directory_workload.staff_allocation_workload",
@@ -3685,9 +4578,46 @@
   "description": "Monitor teacher peer reviews, principal observations, and parent feedback ratings.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/EvaluationOversight",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin-ops/evaluation/cycles",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/evaluation/cycles/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/evaluation/cycles/:param/status",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/evaluation/reviewees/:param/release",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/evaluation/reviewees/:param/results",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.department.department_academics",
@@ -3698,8 +4628,8 @@
   "description": "Programs, courses/subjects, batches/sections and department academic calendar.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
+  "component": "analytics/DepartmentAcademics",
+  "built": true,
   "endpoints": []
  },
  {
@@ -3711,9 +4641,17 @@
   "description": "View class/faculty/room timetable and manage department substitutions within permission.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hod/DepartmentTimetable",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/department-timetable",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.communication.communication",
@@ -3760,9 +4698,68 @@
   "description": "Review escalated parent complaints, assign resolution owners, and track resolution SLA.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "communication/GrievanceHub",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/comms/grievance-sla",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/grievances",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/grievances/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/comms/grievances/:param/acknowledge",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/grievances/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/grievances/:param/triage",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/grievances/:param/updates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/comms/grievances/summary",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.communication.school_achievements_showcase",
@@ -3773,9 +4770,61 @@
   "description": "Log awards, sports victories, academic honors, and publish them to parent/student portals.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "communication/AchievementsShowcase",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/comms/achievements",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param",
+    "methods": [
+     "DELETE",
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param/consent",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param/media",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param/media/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/achievements/:param/unpublish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.communication.circulars_announcements",
@@ -3906,9 +4955,52 @@
   "description": "Compare the school roll against the Telangana Child Info register and resolve mismatches before the state deadline.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "compliance/ChildInfoReconciliation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/statutory/child-info/differences",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/child-info/differences/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/child-info/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/child-info/imports",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/child-info/resolutions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/child-info/resolutions/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.statutory_returns.working_days_instructional_hours",
@@ -3919,9 +5011,47 @@
   "description": "Track sanctioned working days and instructional hours against the state academic calendar.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "compliance/WorkingDays",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/statutory/working-days",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/working-days/adjustments",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/working-days/adjustments/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/working-days/norms",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/working-days/returns",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.boards_accreditation.board_exam_loc_submission",
@@ -3932,9 +5062,46 @@
   "description": "Prepare the Class X and XII List of Candidates, verify subject combinations and export in board format.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "compliance/BoardLOC",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/statutory/loc/submissions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/loc/submissions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/statutory/loc/submissions/:param/export",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/loc/submissions/:param/file",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/loc/submissions/:param/validate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.boards_accreditation.parakh_nep_credit_framework",
@@ -3994,9 +5161,60 @@
   "description": "Track internal audit checklists, document evidence, and evaluate board compliance ratings.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "compliance/SQAACompliance",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/statutory/sqaa/actions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/assessments",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/assessments/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/assessments/:param/entries",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/assessments/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/entries/:param/evidence",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/statutory/sqaa/frameworks",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.mid_day_meal.mid_day_meal_register",
@@ -4007,9 +5225,46 @@
   "description": "Record the daily cooked-meal headcount, rice consumption and menu for government and aided schools.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/MDMRegister",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/mdm-register/context",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/mdm-register/days",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/mdm-register/days/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/mdm-register/days/:param/close",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/mdm-register/days/:param/reopen",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.mid_day_meal.mdm_utilisation_report",
@@ -4020,9 +5275,38 @@
   "description": "Reconcile meals served against enrolment and attendance, and generate the monthly utilisation return.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/MDMUtilisation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin-ops/mdm/returns",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/mdm/returns/:param/finalise",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/mdm/returns/:param/reopen",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/mdm/utilisation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.standard.reports",
@@ -4117,9 +5401,45 @@
   "description": "View real-time fee collection breakdown by class, payment mode, and outstanding aging.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "analytics/CollectionSummaries",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/fees/collections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/fees/collections/by-collector",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/fees/collections/by-head",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/fees/collections/tie-out",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.analysis.custom_report_builder",
@@ -4130,9 +5450,60 @@
   "description": "Build custom drag-and-drop reports selecting desired data fields, filters, and export formats.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "analytics/ReportBuilder",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/report-builder/definitions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/definitions/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/definitions/:param/run",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/definitions/:param/shares",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/definitions/:param/shares/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/preview",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/report-builder/schema",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.analysis.performance_analytics",
@@ -4143,8 +5514,8 @@
   "description": "Subject pass rate, semester trends, at-risk students and department performance.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
+  "component": "analytics/PerformanceAnalytics",
+  "built": true,
   "endpoints": []
  },
  {
@@ -4156,9 +5527,24 @@
   "description": "Attendance, workload, results, backlogs and department summary reports.",
   "scope": "Assigned department only",
   "scope_key": "department",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "analytics/DepartmentReports",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/departments/reports",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.vehicle_master_registry",
@@ -4565,9 +5951,24 @@
   "description": "View live GPS map of moving school buses, current speed, route adherence, and delay alerts.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LiveVehicleMap",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/transport/live",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/map-stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.geo_fenced_bus_stop_alerts",
@@ -4578,9 +5979,24 @@
   "description": "Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/StopAlerts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/transport/map-stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/stop-events",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.bus_speeding_rash_driving_alerts",
@@ -4591,9 +6007,24 @@
   "description": "Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/SafetyAlerts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/transport/safety-events",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/safety-events/:param/review",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.transport.vehicle_fuel_maintenance_log",
@@ -5392,9 +6823,24 @@
   "description": "Where every bus is now, against the route it should be running.",
   "scope": "Only assigned operational module/campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/LiveVehicleMap",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/transport/live",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/transport/map-stops",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.hostel.hostel_building_room_setup",
@@ -6386,9 +7832,74 @@
   "description": "Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/DigitalLibrary",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/ops/digital-library/audiences",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/catalogue",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/holdings",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/holdings/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/holdings/:param/access",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/holdings/:param/borrow",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/holdings/:param/visibility",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/providers",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/ops/digital-library/providers/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.library.library_inventory_audit",
@@ -7062,9 +8573,89 @@
   "description": "Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "operations/PurchaseOrders",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admin-ops/purchasing/matches",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/orders",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/orders/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/orders/:param/issue",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/orders/:param/match",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/orders/:param/receipts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/requisitions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/requisitions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/requisitions/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/requisitions/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin-ops/purchasing/thresholds",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "institution_admin.stores.department_stock_issuance",
@@ -7303,9 +8894,38 @@
   "description": "Upload student artwork, project photos, certificates, and audio files into digital portfolios.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/PortfolioBuilder",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/portfolio/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/portfolio/curations",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.student_behavior_demerits",
@@ -7367,9 +8987,45 @@
   "description": "Log developmental milestones, sensory skills, motor skills, and social behavior observations.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/MontessoriTracking",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/montessori/child/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/montessori/materials",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/montessori/progress",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/montessori/section",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.cwsn_support_plan",
@@ -7431,9 +9087,47 @@
   "description": "Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/LanguageAllocation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/languages/allocation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/languages/elections",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/languages/options",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.my_classes.my_students",
@@ -7462,6 +9156,14 @@
     "conditional": true
    },
    {
+    "path": "/api/v1/students/:param",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   },
+   {
     "path": "/api/v1/students/:param/profile",
     "methods": [
      "GET"
@@ -7486,6 +9188,14 @@
     "path": "/api/v1/students",
     "methods": [
      "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students/:param",
+    "methods": [
+     "GET",
+     "PUT"
     ],
     "conditional": true
    },
@@ -7622,8 +9332,8 @@
   "description": "Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
+  "component": "communication/AbsenceAlerts",
+  "built": true,
   "endpoints": []
  },
  {
@@ -7635,9 +9345,52 @@
   "description": "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/OfflineRegister",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/attendance/capture",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/attendance/conflicts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/attendance/conflicts/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/diary",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/progress",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "faculty.teaching.homework_classwork",
@@ -8166,9 +9919,46 @@
   "description": "Request advance leave and propose peer faculty substitution for approval.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/SubstitutionRequest",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/timetable-cover/my-periods",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-cover/requests",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-cover/requests/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-cover/requests/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-cover/requests/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.marks_report_cards.marks_entry",
@@ -8475,32 +10265,6 @@
   ]
  },
  {
-  "key": "faculty.question_papers_online_tests.ai_examcell_paper_generator",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Question Papers & Online Tests",
-  "feature": "AI Examcell Paper Generator",
-  "description": "Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "faculty.question_papers_online_tests.ved_ai_assessment_assistant",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Question Papers & Online Tests",
-  "feature": "Ved AI Assessment Assistant",
-  "description": "Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
   "key": "faculty.question_papers_online_tests.objective_online_test_creation",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -8567,9 +10331,52 @@
   "description": "Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.",
   "scope": "Assigned classes/subjects",
   "scope_key": "assigned_classes",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "faculty/ExamGrading",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/grading/tests",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/grading/tests/:param/attempts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/grading/tests/:param/item-analysis",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/grading/tests/:param/key",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/grading/tests/:param/regrade",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "faculty.communication.communication",
@@ -8977,9 +10784,32 @@
   "description": "Track personal study schedules, project deadlines, and school calendar events.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/Diary",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/diary",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/diary/notes",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/diary/notes/:param",
+    "methods": [
+     "DELETE",
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.home.custom_theme_selection",
@@ -8990,9 +10820,18 @@
   "description": "Customize student portal appearance with dark mode, high-contrast mode, or color themes.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/ThemeSelection",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/preferences/display",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.timetable.timetable",
@@ -9137,9 +10976,45 @@
   "description": "Moderated discussion board where students can post homework questions and share study hints.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/HomeworkForum",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/homework/forum/threads",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/homework/forum/threads/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/homework/forum/threads/:param/posts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/homework/forum/threads/:param/resolve",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/homework/forum/threads:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.courses_subjects",
@@ -9280,9 +11155,38 @@
   "description": "Log student digital hand-raises during live virtual classes to measure real-time engagement.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/HandRaise",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/live-classes/:param/hand",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/live-classes/:param/hand/lower",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/live-classes/my-engagement:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/live-classes:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "student.learning.global_university_guidance_counselor",
@@ -9511,9 +11415,25 @@
   "description": "View school news, student council announcements, badge achievements, and art features.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/StudentWall",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/campus/wall",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/campus/wall/:param/report",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.campus_life.digital_hall_of_fame",
@@ -9601,9 +11521,46 @@
   "description": "View photos of lost items found on campus and submit digital claim proof to reclaim items.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/LostFoundClaims",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/campus/lost-found",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/campus/lost-found/:param/claims",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/campus/lost-found/:param/photo",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/campus/lost-found/claims/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/campus/lost-found/claims/:param/withdraw",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "student.campus_life.digital_locker_combination_access_log",
@@ -10048,19 +12005,6 @@
   ]
  },
  {
-  "key": "parent.academics.ai_child_performance_summary_audio",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Academics",
-  "feature": "AI Child Performance Summary Audio",
-  "description": "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
   "key": "parent.academics.iep_progress_goal_tracker",
   "role": "parent",
   "role_label": "Parent / Guardian",
@@ -10077,7 +12021,7 @@
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    },
    {
     "path": "/api/v1/portal/students",
@@ -10181,9 +12125,24 @@
   "description": "Bus route/stop/tracking only when transport module is enabled.",
   "scope": "Linked child/children only",
   "scope_key": "children",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/TransportSnapshot",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/me/child-bus",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/me/child-bus/prefs",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.my_childs_bus.live_bus_tracking_map",
@@ -10194,9 +12153,17 @@
   "description": "View real-time movement of child's bus on an interactive map with estimated time of arrival.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/ChildBus",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/me/child-bus",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.my_childs_bus.school_transport_driver_call_button",
@@ -10207,9 +12174,17 @@
   "description": "Direct masked call connection to bus attendant/driver during bus transit hours.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/DriverCall",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/me/child-bus",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.alerts_preferences.parent_bus_proximity_radius_customizer",
@@ -10220,9 +12195,24 @@
   "description": "Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away).",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/BusProximityAlert",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/me/child-bus",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/me/child-bus/prefs",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.alerts_preferences.real_time_school_bus_live_video_feed_access",
@@ -10246,9 +12236,24 @@
   "description": "Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/BusRefreshRate",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/me/child-bus",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/me/child-bus/prefs",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.messages.communication",
@@ -10360,22 +12365,53 @@
   "description": "Participate in moderated class-level parent forums for event coordination.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
-  "key": "parent.messages.ai_voice_search_for_school_notices",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Messages",
-  "feature": "AI Voice Search for School Notices",
-  "description": "Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "portal/Forum",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/parent-forum/boards",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/parent-forum/threads",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/portal/parent-forum/threads/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/parent-forum/threads/:param/posts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/parent-forum/threads/:param/report",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.messages.private_counselor_chat_channel",
@@ -10386,9 +12422,48 @@
   "description": "Encrypted communication link with school counselor for sensitive family/child updates.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "communication/CounselorChannel",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/comms/counselor/contacts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/counselor/threads",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/counselor/threads/:param/close",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/comms/counselor/threads/:param/messages",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/comms/counselor/threads/:param/participants",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "parent.school_life.calendar_ptm",
@@ -10476,9 +12551,17 @@
   "description": "Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "communication/PTMReminders",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/school-life/ptm/bookings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.school_life.school_photo_video_gallery",
@@ -10772,19 +12855,6 @@
   ]
  },
  {
-  "key": "parent.documents.digilocker_document_pull",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Documents",
-  "feature": "DigiLocker Document Pull",
-  "description": "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
- },
- {
   "key": "parent.profile.digital_student_id_card_view",
   "role": "parent",
   "role_label": "Parent / Guardian",
@@ -10801,7 +12871,7 @@
     "methods": [
      "GET"
     ],
-    "conditional": false
+    "conditional": true
    },
    {
     "path": "/api/v1/portal/students",
@@ -10855,9 +12925,18 @@
   "description": "Switch complete parent mobile app UI between English, Hindi, Telugu, Tamil, Marathi, and regional languages.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/ThemeSelection",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/preferences/display",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.profile.telugu_language_interface",
@@ -10868,9 +12947,18 @@
   "description": "Use the parent app entirely in Telugu, including circulars, fee notices and report cards.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/ThemeSelection",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/preferences/display",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "parent.profile.parent_app_dark_mode_high_contrast_accessibility",
@@ -10881,9 +12969,18 @@
   "description": "Toggle high-contrast text modes and dark UI themes for low-vision parent app users.",
   "scope": "Specific student",
   "scope_key": "unknown",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "learning/ThemeSelection",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/preferences/display",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.home.finance_kpis",
@@ -11131,9 +13228,138 @@
   "description": "Manage daily canteen meal purchases, card swipes, diet restrictions, and wallet debits.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/CanteenTerminal",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/collections/grants/certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/certificates/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/heads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/utilisation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/products",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/:param/close",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/variance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/stock-items",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/terminals",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/variants:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.collections.school_store_merchandise_sales",
@@ -11144,9 +13370,153 @@
   "description": "Sell uniforms, stationery, books, and track stock debits against student billing.",
   "scope": "Assigned campus",
   "scope_key": "campus",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/SchoolStore",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/collections/grants/certificates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/certificates/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/heads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/utilisation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/products",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sales/:param/return",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/:param/close",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/variance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/stock-items",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/terminals",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/variants",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/variants:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.collections.gst_compliant_receipt_numbering",
@@ -11157,9 +13527,66 @@
   "description": "Configure gapless receipt series, GST treatment per fee head and financial-year reset rules.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/ReceiptSeries",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/fee-engine/fine-rules",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/charges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/gst-heads/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/receipt-series",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/receipt-series/:param",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.student_dues.student_ledger",
@@ -11233,8 +13660,8 @@
   "description": "Schedule automated WhatsApp, SMS, and app push reminders to parents of defaulter students.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
+  "component": "communication/FeeReminders",
+  "built": true,
   "endpoints": []
  },
  {
@@ -11246,9 +13673,88 @@
   "description": "Configure daily, fixed, or percentage-based late fee fines with grace period thresholds.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/LateFineRules",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/fee-engine/fine-rules",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fine-rules/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/apply",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/charges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/charges/:param/waive",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/receipt-series",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.student_dues.post_dated_cheques_pdc_registry",
@@ -11355,6 +13861,13 @@
    },
    {
     "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admin/assignable-roles",
     "methods": [
      "GET"
     ],
@@ -11561,6 +14074,13 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/admin/assignable-roles",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -11729,9 +14249,94 @@
   "description": "Version fee structures across academic years with mid-year revision and pro-rata recalculation.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/FeeStructureVersions",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/fee-engine/fine-rules",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/charges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/fines/preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/receipt-series",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/structures/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/versions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/versions/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/versions/:param/activate",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/fee-engine/versions/:param/items",
+    "methods": [
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.fee_structure.demand_invoice_generation",
@@ -11875,9 +14480,141 @@
   "description": "Track National Scholarship Portal and state scholarship disbursements against student ledgers.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/ScholarshipReconciliation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/build",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/receipts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/sanction",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/ageing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/rates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/schemes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/:param/fee-credit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/imports",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/imports/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/lines/:param/match",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.concessions_refunds.student_loan_assistance_portal",
@@ -11888,9 +14625,75 @@
   "description": "Initiate and track third-party NBFC/Bank education loan application workflows.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/LoanAssistance",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/loans/applications",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/loans/applications/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/loans/applications/:param/documents",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/loans/applications/:param/status",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/loans/lenders",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/schemes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/imports",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.concessions_refunds.government_reimbursement_claims",
@@ -11901,9 +14704,97 @@
   "description": "Raise and track RTE and fee-reimbursement claims against the state, with sanction and receipt status.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/GovernmentClaims",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/years",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/build",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/receipts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/sanction",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/claims/ageing",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/rates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/schemes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/concessions/scholarships/imports",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.concessions_refunds.grant_in_aid_accounting",
@@ -11914,9 +14805,153 @@
   "description": "Track government grant-in-aid receipts, utilisation certificates and unspent balances.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/GrantInAid",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/collections/grants/certificates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/certificates/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/certificates/:param/dispose",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/certificates/:param/issue",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/heads",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions/:param/expenditures",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/sanctions/:param/receipts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/grants/utilisation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/products",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sales/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/finance/collections/sessions/variance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/stock-items",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/terminals",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/collections/variants:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.reconciliation.reconciliation",
@@ -11983,9 +15018,82 @@
   "description": "Reconcile internal cashbook entries against official bank statement passbooks.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/BankReconciliation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/banking/accounts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/lines/:param/match",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/lines/:param/unmatch",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/auto-match",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/candidates/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/finalise",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/reopen",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.reconciliation.connected_banking_payouts",
@@ -11996,9 +15104,88 @@
   "description": "Execute direct vendor payments and staff refund transfers directly from ERP via API.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/BankingPayouts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/banking/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param/file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param/items",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param/items/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/:param/submit",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/candidates",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/payouts/providers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "finance.reconciliation.student_bank_account_register",
@@ -12009,9 +15196,67 @@
   "description": "Maintain student bank account and IFSC details for scholarship and incentive direct benefit transfers.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/StudentBankAccounts",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/banking/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/reconciliations/:param/import",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/student-accounts",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/student-accounts/:param/primary",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/student-accounts/:param/reveal",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/banking/student-accounts/:param/verify",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/students/:param/profile",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.ledgers.expenses_accounting",
@@ -12373,9 +15618,66 @@
   "description": "Export daybook vouchers, fee sales, and cash receipts in Tally-compatible XML format.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "finance/TallyExport",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/finance/ledgers/accounts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/ledgers/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/export",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/runs",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/runs/:param/confirm",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/runs/:param/file",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/settings",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/finance/tally/validate",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
  },
  {
   "key": "finance.reports.finance_reports",
@@ -12845,9 +16147,103 @@
   "description": "Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/CampaignSequences",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admissions/campaign-enrolments/:param/stop",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/campaign-steps/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/campaigns",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/campaigns/:param/enrol",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/campaigns/:param/enrolments",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/campaigns/:param/steps",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/campaigns/outbox",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/campaigns/run",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/forms",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/leads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/lost-leads/reasons",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.enquiries.utm_tracking_digital_campaign_attribution",
@@ -13275,9 +16671,102 @@
   "description": "Configure custom digital admission application forms with file upload rules and field validation.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/FormBuilder",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admissions/campaigns",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-fields/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-sections/:param",
+    "methods": [
+     "DELETE"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param/fields",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param/sections",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms/:param",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms/:param/draft",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/leads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/lost-leads/reasons",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "admissions.applications.applicant_documents",
@@ -15456,9 +18945,94 @@
   "description": "Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school).",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "admissions/LostLeads",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/admissions/campaigns",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/form-versions/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/forms",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/forms/:param/versions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/admissions/leads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/leads/:param/lost",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/leads/:param/opt-out",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/leads/:param/reopen",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/lost-leads",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/lost-leads/analysis",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/admissions/lost-leads/reasons",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.home.hr_kpis",
@@ -16343,9 +19917,66 @@
   "description": "Configure morning, afternoon, or administrative staff shift timings and rotational rosters.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Rostering",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr-growth/roster",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster/:param/cancel",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster/conflicts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster/conflicts:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster/fairness",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster/shifts",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/roster:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.leave.leave",
@@ -17599,9 +21230,61 @@
   "description": "Openings, candidates, interviews and offers when ATS is enabled.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Recruitment",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr-growth/candidates",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/candidates/:param/hire",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/candidates/:param/stage",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/designations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/recruitment/funnel",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/vacancies",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/vacancies/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.hiring_growth.annual_performance_appraisal_kpi",
@@ -17612,9 +21295,69 @@
   "description": "Set staff KPIs, collect peer/principal ratings, and process annual increment percentages.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Appraisal",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr-growth/appraisal/cycles",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/kpis",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/records",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/records/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/records/:param/discussion",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/records/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/appraisal/records/:param/review",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/designations",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.hiring_growth.staff_training_workshop_logs",
@@ -17625,9 +21368,46 @@
   "description": "Log mandatory teacher professional development hours, workshops attended, and certs.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "hr/Training",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr-growth/training/compliance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/training/programmes",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/training/records",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr-growth/training/requirements",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/hr/employees",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "hr.welfare.staff_grievance_cell",
@@ -17812,9 +21592,31 @@
   "description": "Headcount, attendance, leave and payroll summaries.",
   "scope": "Assigned institution/campus employees",
   "scope_key": "institution",
-  "component": "",
-  "built": false,
-  "endpoints": []
+  "component": "analytics/HRReports",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/date-ranges",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/hr/attendance",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/rollups/hr/movement",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
  },
  {
   "key": "seller_admin.customers.tenant_directory",

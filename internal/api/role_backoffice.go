@@ -533,6 +533,21 @@ listEmployeeDocuments doubles as the expiry register.
 */
 func (s *Server) listEmployeeDocuments(w http.ResponseWriter, r *http.Request) {
 	onlyExpiring := r.URL.Query().Get("expiring") == "true"
+	/* Narrowed on the same boundary as the lifecycle registers this sits
+	   beside in the /hr group. The shelf holds one row per personal document
+	   per named employee, so leaving it open would have meant the register of
+	   everybody's Aadhaar and degree certificates stayed readable by a head of
+	   department after the registers themselves were closed — the same defect,
+	   one route along.
+
+	   listEmployees and the dashboard above are deliberately not narrowed: a
+	   staff directory of name, department and extension is what a directory is
+	   for, and the dashboard returns counts rather than anybody's record. */
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{onlyExpiring})
 	items, err := collect(s, r, `
 		SELECT ed.id::text,
 		       concat_ws(' ', e.first_name, e.last_name), e.employee_code,
@@ -542,10 +557,11 @@ func (s *Server) listEmployeeDocuments(w http.ResponseWriter, r *http.Request) {
 		       to_char(ed.created_at,'YYYY-MM-DD')
 		  FROM employee_documents ed
 		  JOIN employees e ON e.id = ed.employee_id
-		 WHERE NOT $1::bool
-		    OR (ed.expires_on IS NOT NULL AND ed.expires_on <= CURRENT_DATE + 60)
+		 WHERE (NOT $1::bool
+		    OR (ed.expires_on IS NOT NULL AND ed.expires_on <= CURRENT_DATE + 60))
+		   AND `+mine+`
 		 ORDER BY ed.expires_on IS NULL, ed.expires_on
-		 LIMIT 300`, []any{onlyExpiring},
+		 LIMIT 300`, args,
 		func(rows pgx.Rows) (employeeDocRow, error) {
 			var v employeeDocRow
 			return v, rows.Scan(&v.ID, &v.Employee, &v.Code, &v.DocType,

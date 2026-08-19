@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 9 roles, 452 features.
+// Roles is the catalog: 9 roles, 447 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -644,8 +644,6 @@ var Roles = []Role{
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.question_papers_online_tests.question_bank_management", Slug: "question_bank_management", Name: "Question Bank Management", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level."},
-					{Key: "faculty.question_papers_online_tests.ai_examcell_paper_generator", Slug: "ai_examcell_paper_generator", Name: "AI Examcell Paper Generator", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios."},
-					{Key: "faculty.question_papers_online_tests.ved_ai_assessment_assistant", Slug: "ved_ai_assessment_assistant", Name: "Ved AI Assessment Assistant", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts."},
 					{Key: "faculty.question_papers_online_tests.objective_online_test_creation", Slug: "objective_online_test_creation", Name: "Objective Online Test Creation", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers."},
 					{Key: "faculty.question_papers_online_tests.no_omr_exam_grading", Slug: "no_omr_exam_grading", Name: "No-OMR Exam Grading", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Input digital answer keys or scan sheets directly in browser without specialized OMR hardware."},
 				},
@@ -1194,7 +1192,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
-					{Key: "parent.academics.ai_child_performance_summary_audio", Slug: "ai_child_performance_summary_audio", Name: "AI Child Performance Summary Audio", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week."},
 					{Key: "parent.academics.iep_progress_goal_tracker", Slug: "iep_progress_goal_tracker", Name: "IEP Progress Goal Tracker", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "View real-time progress bars towards child's specific IEP milestones and therapy goals."},
 				},
 			},
@@ -1237,7 +1234,6 @@ var Roles = []Role{
 					{Key: "parent.messages.direct_teacher_messaging", Slug: "direct_teacher_messaging", Name: "Direct Teacher Messaging", Scope: Scope("children"), Tier: Tier("core"), Summary: "Send structured query messages directly to class teacher during designated hours."},
 					{Key: "parent.messages.concerns_grievance_ticketing", Slug: "concerns_grievance_ticketing", Name: "Concerns & Grievance Ticketing", Scope: Scope("children"), Tier: Tier("core"), Summary: "Raise academic or transport concerns and track resolution comments by school admin."},
 					{Key: "parent.messages.parent_community_discussion_forum", Slug: "parent_community_discussion_forum", Name: "Parent Community Discussion Forum", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Participate in moderated class-level parent forums for event coordination."},
-					{Key: "parent.messages.ai_voice_search_for_school_notices", Slug: "ai_voice_search_for_school_notices", Name: "AI Voice Search for School Notices", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages."},
 					{Key: "parent.messages.private_counselor_chat_channel", Slug: "private_counselor_chat_channel", Name: "Private Counselor Chat Channel", Scope: Scope("children"), Tier: Tier("core"), Summary: "Encrypted communication link with school counselor for sensitive family/child updates."},
 				},
 			},
@@ -1270,14 +1266,6 @@ var Roles = []Role{
 					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
 					{Key: "parent.consent.digital_parent_consent_slips", Slug: "digital_parent_consent_slips", Name: "Digital Parent Consent Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Provide digital signature consent for upcoming field trips, sports events, or health camps."},
 					{Key: "parent.consent.parent_delegation_for_emergency_pickup", Slug: "parent_delegation_for_emergency_pickup", Name: "Parent Delegation for Emergency Pickup", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
-				},
-			},
-			{
-				Slug:      "documents",
-				Name:      "Documents",
-				Workspace: "Requests",
-				Features: []Feature{
-					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{

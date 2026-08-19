@@ -713,6 +713,12 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "{{title}}",
 		Body:    "{{title}}\n\n{{body}}\n\n{{school_name}}",
 	},
+	// Carries whatever the sender typed. The only built-in whose body is a
+	// single variable: a direct send has no school-authored wording to render.
+	"messaging.direct": {
+		Subject: "{{text}}",
+		Body:    "{{text}}",
+	},
 	"messaging.test": {
 		Subject: "Test message from {{school_name}}",
 		Body:    "This is a test message sent from the messaging settings screen. If you are reading it, the provider works.",
@@ -2072,6 +2078,7 @@ func (s *Server) mountMessaging(r chi.Router) {
 	r.With(creds).Put("/messaging/providers/{channel}", s.saveMessagingProvider)
 	r.With(creds).Delete("/messaging/providers/{channel}", s.forgetMessagingProvider)
 	r.With(creds).Post("/messaging/providers/{channel}/test", s.testMessagingProvider)
+	s.mountDirectSend(r)
 
 	// Templates. Shared by both screens and by every feature that sends.
 	r.With(read).Get("/messaging/templates", s.listMessageTemplates)

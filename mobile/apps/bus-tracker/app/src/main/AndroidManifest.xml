@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Reaching the school's server. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- The whole point of the app. Coarse is declared alongside fine because
+         Android 12+ lets the user grant only the approximate location: the app
+         then still runs, and says on screen that the map will be vague. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Asked for separately, after the foreground grant, and only from a
+         screen that explains it. maxSdkVersion is NOT set: this is the
+         permission that keeps the bus on the map when the driver's screen is
+         off, which is most of a run. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- The foreground-service notification is the run's proof of life. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14 refuses to start a typed foreground service unless the
+         matching permission is declared. Without this line startForeground
+         throws SecurityException and the run dies at the depot. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Come back after a power cut mid-route. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Asked for from the run screen, never silently. Doze otherwise thins the
+         fixes out on a phone lying face-down on a dashboard. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- This app tracks a bus on a school run. It is not a phone book and not a
+         microphone. If a dependency ever tries to merge one of these in, the
+         merge fails loudly instead of the APK quietly asking a driver for their
+         contacts. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+
+    <!-- Required, not optional: a handset with no GPS cannot be a bus tracker,
+         and installing it there would produce a bus that is never on the map. -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="true" />
+
+    <application
+        android:name=".BusTrackerApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BusTracker"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.BusTracker">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            location, not specialUse or dataSync. The type is what the platform
+            checks the app's permissions against: from Android 10 a location
+            foreground service is the only arrangement in which the OS keeps
+            delivering fixes once the driver's screen goes off, and from
+            Android 14 a mistyped service is refused outright rather than
+            degraded. dataSync would additionally be capped near six hours a
+            day on Android 15, which a two-shift bus would hit.
+        -->
+        <service
+            android:name=".service.TrackerService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- WorkManager is initialised by Hilt so the flush worker can be
+             injected; the androidx.startup default initialiser is removed. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+</manifest>
