@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import en, { type Messages } from '@/locales/en'
+import te from '@/locales/te'
 
 /* The interface-language runtime: a catalogue lookup, a context and a hook.
 
@@ -51,6 +52,10 @@ export interface LocaleInfo {
 
 export const LOCALES: Record<string, LocaleInfo> = {
   en: { tag: 'en', endonym: 'English', dir: 'ltr' },
+  // Telugu. 'ltr' like English: Telugu script runs left to right, so the
+  // direction plumbing above stays a no-op and no stylesheet work was needed
+  // to add this language.
+  te: { tag: 'te', endonym: 'తెలుగు', dir: 'ltr' },
 }
 
 /* Registered catalogues.
@@ -65,6 +70,15 @@ export const LOCALES: Record<string, LocaleInfo> = {
    rendered means every screen visibly flips language on load. */
 export const CATALOGUES: Record<string, Partial<Messages>> = {
   en,
+  // Partial on purpose, and it is the reason this can be registered before the
+  // translation is exhaustive: an absent key falls through to English by the
+  // chain above, so an unfinished catalogue ships a mixed screen and never a
+  // blank one. Registering it here is the third of three widenings that only
+  // work together -- the others are localeChoices in internal/api/i18n.go and
+  // the locale CHECK in migrations/00092_locale_te.sql. Widen the database
+  // alone and a parent who picks Telugu gets a page of raw message keys,
+  // including on the selector they would need to change it back.
+  te,
 }
 
 export const DEFAULT_LOCALE = 'en'

@@ -8,6 +8,7 @@ import {
   Badge, Button, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise, cn } from '@/lib/utils'
+import { useT, type MessageKey, type Vars } from '@/lib/i18n'
 
 interface PortalChild {
   student_id: string; admission_no: string; full_name: string
@@ -36,14 +37,14 @@ const DOT: Record<string, string> = {
 }
 
 /** Days between today and a yyyy-mm-dd, in the reader's own words. */
-function dueIn(iso: string) {
+function dueIn(iso: string, t: (key: MessageKey, vars?: Vars) => string) {
   const days = Math.round(
     (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
   )
-  if (days < 0) return 'overdue'
-  if (days === 0) return 'today'
-  if (days === 1) return 'tomorrow'
-  return `in ${days} days`
+  if (days < 0) return t('portal.portal.due_overdue')
+  if (days === 0) return t('portal.portal.due_today')
+  if (days === 1) return t('portal.portal.due_tomorrow')
+  return t('portal.portal.due_in_days', { days })
 }
 
 /* Anything inside two days is tonight's problem rather than next week's, and
@@ -60,6 +61,7 @@ function isUrgent(iso: string) {
  * children — so a parent gets a switcher and a student does not.
  */
 export default function Portal() {
+  const t = useT()
   const [selected, setSelected] = useState<string | null>(null)
   /* One component serves the dashboard and the attendance register.
 
@@ -100,11 +102,11 @@ export default function Portal() {
   if (!kids.length) {
     return (
       <>
-        <PageHead eyebrow="Portal" title="My day" />
+        <PageHead eyebrow={t('portal.portal.eyebrow')} title={t('portal.portal.title')} />
         <PageBody>
           <EmptyState
-            title="No student record linked"
-            body="Your account is not linked to a student yet. Ask the school office to connect it."
+            title={t('portal.portal.no_link_title')}
+            body={t('portal.portal.no_link_body')}
           />
         </PageBody>
       </>
@@ -117,9 +119,9 @@ export default function Portal() {
   return (
     <>
       <PageHead
-        eyebrow="Portal"
-        title={s?.full_name ?? 'My day'}
-        description="Attendance, homework due, fees and what is coming up."
+        eyebrow={t('portal.portal.eyebrow')}
+        title={s?.full_name ?? t('portal.portal.title')}
+        description={t('portal.portal.description')}
         actions={
           kids.length > 1 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -147,20 +149,20 @@ export default function Portal() {
           <ErrorState error={summary.error} />
         ) : !s ? (
           <EmptyState
-            title="Nothing recorded yet"
-            body="Attendance, homework and fees appear here once the school starts recording them for this student."
+            title={t('portal.portal.empty_title')}
+            body={t('portal.portal.empty_body')}
           />
         ) : (
           <>
             <CellGrid cols={isAttendance ? 3 : 4}>
               <Stat
-                label="Overall attendance"
+                label={t('portal.portal.stat_attendance')}
                 value={`${s.attendance_pct}%`}
                 icon={CalendarCheck}
-                delta={{ value: `${s.total_days} days marked`, positive: s.attendance_pct >= 75 }}
+                delta={{ value: t('portal.portal.stat_attendance_delta', { count: s.total_days }), positive: s.attendance_pct >= 75 }}
               />
-              <Stat label="Present" value={`${s.present_days} days`} />
-              <Stat label="Absent" value={`${s.absent_days} days`} />
+              <Stat label={t('portal.portal.stat_present')} value={t('portal.portal.stat_days', { count: s.present_days })} />
+              <Stat label={t('portal.portal.stat_absent')} value={t('portal.portal.stat_days', { count: s.absent_days })} />
               {/* The attendance page is asked one question and should answer
                   that one. Homework, fees and the next exam are the
                   dashboard's business; here they are three numbers a family
@@ -168,25 +170,25 @@ export default function Portal() {
               {!isAttendance && (
               <>
               <Stat
-                label="Homework due"
-                value={`${s.homework_due} pending`}
+                label={t('portal.portal.stat_homework')}
+                value={t('portal.portal.stat_homework_value', { count: s.homework_due })}
                 icon={BookMarked}
                 delta={
                   s.homework_due === 0
-                    ? { value: 'Nothing outstanding', positive: true }
+                    ? { value: t('portal.portal.homework_none'), positive: true }
                     : s.next_homework_due
-                      ? { value: `Soonest ${dueIn(s.next_homework_due)}`, positive: !isUrgent(s.next_homework_due) }
+                      ? { value: t('portal.portal.homework_soonest', { when: dueIn(s.next_homework_due, t) }), positive: !isUrgent(s.next_homework_due) }
                       : undefined
                 }
                 hint={s.homework_due > 0 ? s.next_homework_title : undefined}
               />
               <Stat
-                label="Fees outstanding"
+                label={t('portal.portal.stat_fees')}
                 value={formatPaise(s.outstanding_paise)}
                 icon={Wallet}
-                hint={s.outstanding_paise ? 'Payable now' : 'All settled'}
+                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
               />
-              <Stat label="Next exam" value={s.next_exam ?? '—'} icon={GraduationCap} />
+              <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '—'} icon={GraduationCap} />
               </>
               )}
             </CellGrid>
@@ -194,17 +196,17 @@ export default function Portal() {
             {!isAttendance && (
             <Card>
               <CardHeader
-                title="Today's classes"
+                title={t('portal.portal.today_title')}
                 description={
                   s.today.length
-                    ? 'In order, with the teacher taking each one.'
-                    : 'Nothing timetabled today.'
+                    ? t('portal.portal.today_description')
+                    : t('portal.portal.today_none_description')
                 }
               />
               {s.today.length === 0 ? (
                 <EmptyState
-                  title="No classes today"
-                  body="A holiday, a weekend, or the timetable has not been set for this section."
+                  title={t('portal.portal.today_empty_title')}
+                  body={t('portal.portal.today_empty_body')}
                 />
               ) : (
                 <ul className="divide-y">
@@ -229,13 +231,13 @@ export default function Portal() {
 
             {kids.length > 1 && (
               <Card>
-                <CardHeader title="Linked children" description="Switch above to change the view" />
+                <CardHeader title={t('portal.portal.children_title')} description={t('portal.portal.children_description')} />
                 <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
                   {kids.map((c) => (
                     <div key={c.student_id} className="bg-card p-4">
                       <p className="text-[14px] font-medium">{c.full_name}</p>
                       <p className="mt-0.5 text-[13px] text-muted-foreground">
-                        {c.class_name ? `${c.class_name}-${c.section_name}` : 'Not enrolled'} ·{' '}
+                        {c.class_name ? `${c.class_name}-${c.section_name}` : t('portal.portal.not_enrolled')} ·{' '}
                         <span className="font-mono text-[12px]">{c.admission_no}</span>
                       </p>
                       {c.relation && <Badge>{c.relation}</Badge>}
@@ -247,13 +249,13 @@ export default function Portal() {
 
             <Card>
               <CardHeader
-                title="Attendance history"
-                description="Last 120 days, most recent first"
+                title={t('portal.portal.history_title')}
+                description={t('portal.portal.history_description')}
               />
               <div className="p-5">
                 {!days.length ? (
                   <p className="py-6 text-center text-[14px] text-muted-foreground">
-                    No attendance recorded yet.
+                    {t('portal.portal.history_empty')}
                   </p>
                 ) : (
                   <>

@@ -7,6 +7,7 @@ import {
   PrintButton, Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /* The family's own copy of a receipt.
 
@@ -55,13 +56,14 @@ interface ReceiptDetail {
 }
 
 export default function Receipts() {
+  const t = useT()
   const [open, setOpen] = useState<string | null>(null)
   const receipts = useQuery({
     queryKey: ['portal-receipts'],
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),
   })
 
-  if (receipts.isLoading) return <Loading label="Looking up your payments…" />
+  if (receipts.isLoading) return <Loading label={t('portal.receipts.loading')} />
   if (receipts.error) return <ErrorState error={receipts.error} />
 
   const rows = receipts.data?.items ?? []
@@ -70,28 +72,28 @@ export default function Receipts() {
   return (
     <>
       <PageHead
-        eyebrow="Fees"
-        title="Receipts"
-        description="Every payment the school has banked, with a receipt you can print or save."
+        eyebrow={t('portal.receipts.eyebrow')}
+        title={t('portal.receipts.title')}
+        description={t('portal.receipts.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Receipts" value={rows.length} icon={ReceiptIcon} />
-          <Stat label="Paid in total" value={formatPaise(total)} />
-          <Stat label="Most recent" value={rows.length ? formatDate(rows[0].paid_on) : '—'} />
+          <Stat label={t('portal.receipts.stat_receipts')} value={rows.length} icon={ReceiptIcon} />
+          <Stat label={t('portal.receipts.stat_paid_total')} value={formatPaise(total)} />
+          <Stat label={t('portal.receipts.stat_most_recent')} value={rows.length ? formatDate(rows[0].paid_on) : '—'} />
         </CellGrid>
 
         {/* The list is chrome once a receipt is open: printing it alongside
             wastes the first page of every saved PDF. */}
         <Card className="no-print">
           <CardHeader
-            title="Payments"
-            description="Only money the bank has cleared appears here."
+            title={t('portal.receipts.card_title')}
+            description={t('portal.receipts.card_description')}
           />
           <Table
-            head={['Receipt', 'Child', 'Paid on', 'How', 'Amount', '']}
+            head={[t('portal.receipts.col_receipt'), t('portal.receipts.col_child'), t('portal.receipts.col_paid_on'), t('portal.receipts.col_how'), t('portal.receipts.col_amount'), '']}
             empty={rows.length === 0}
-            emptyLabel="No payments have cleared yet."
+            emptyLabel={t('portal.receipts.empty')}
           >
             {rows.map((r) => (
               <tr key={r.payment_id}>
@@ -111,7 +113,7 @@ export default function Receipts() {
                     variant="secondary"
                     onClick={() => setOpen(open === r.payment_id ? null : r.payment_id)}
                   >
-                    {open === r.payment_id ? 'Hide' : 'Open'}
+                    {open === r.payment_id ? t('portal.receipts.action_hide') : t('portal.receipts.action_open')}
                   </Button>
                 </Td>
               </tr>
@@ -126,12 +128,13 @@ export default function Receipts() {
 }
 
 function PrintableReceipt({ paymentId }: { paymentId: string }) {
+  const t = useT()
   const detail = useQuery({
     queryKey: ['portal-receipt', paymentId],
     queryFn: () => api.get<ReceiptDetail>(`/api/v1/portal/receipts/${paymentId}`),
   })
 
-  if (detail.isLoading) return <Loading label="Rendering the receipt…" />
+  if (detail.isLoading) return <Loading label={t('portal.receipts.detail_loading')} />
   if (detail.error) return <ErrorState error={detail.error} />
   const d = detail.data
   if (!d) return null
@@ -139,21 +142,21 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   return (
     <Card>
       <CardHeader
-        title={`Receipt ${d.receipt_no}`}
-        description={`${d.institution} · financial year ${d.financial_year}`}
-        action={<PrintButton label="Download PDF" />}
+        title={t('portal.receipts.detail_title', { number: d.receipt_no })}
+        description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
+        action={<PrintButton label={t('portal.receipts.action_download')} />}
       />
       <div className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Detail label="Received from" value={d.student_name} />
-          <Detail label="Admission number" value={d.admission_no} />
+          <Detail label={t('portal.receipts.detail_received_from')} value={d.student_name} />
+          <Detail label={t('portal.receipts.detail_admission_no')} value={d.admission_no} />
           <Detail
-            label="Class"
+            label={t('portal.receipts.detail_class')}
             value={[d.class_name, d.section_name].filter(Boolean).join(' ') || '—'}
           />
-          <Detail label="Paid on" value={formatDate(d.paid_on)} />
-          <Detail label="Method" value={d.mode + (d.reference_no ? ` · ${d.reference_no}` : '')} />
-          <Detail label="Status" value={d.status} />
+          <Detail label={t('portal.receipts.detail_paid_on')} value={formatDate(d.paid_on)} />
+          <Detail label={t('portal.receipts.detail_method')} value={d.mode + (d.reference_no ? ` · ${d.reference_no}` : '')} />
+          <Detail label={t('portal.receipts.detail_status')} value={d.status} />
         </div>
 
         {/* The primitives, not a hand-rolled table: `responsive-table` alone
@@ -162,7 +165,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
             right-aligned values with nothing saying which was the invoice
             number and which the amount. */}
         <div className="mt-6">
-          <Table head={['Invoice', 'Particulars', { label: 'Amount', align: 'right' }]}>
+          <Table head={[t('portal.receipts.col_invoice'), t('portal.receipts.col_particulars'), { label: t('portal.receipts.col_line_amount'), align: 'right' }]}>
             {d.lines.map((l) => (
               <tr key={l.invoice_no}>
                 <Td>{l.invoice_no}</Td>
@@ -171,7 +174,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
               </tr>
             ))}
             <tr className="font-medium">
-              <Td colSpan={2}>Total</Td>
+              <Td colSpan={2}>{t('portal.receipts.total')}</Td>
               <Td className="text-right tabular-nums">{formatPaise(d.amount_paise)}</Td>
             </tr>
           </Table>

@@ -6,6 +6,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* What the child bought at the canteen, and when.
@@ -51,6 +52,7 @@ interface Day {
 }
 
 export default function Cafeteria() {
+  const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   const query = useQuery({
     queryKey: ['portal-cafeteria', studentId],
@@ -65,7 +67,7 @@ export default function Cafeteria() {
       }>(`/api/v1/portal/cafeteria/purchases${studentId ? `?student_id=${studentId}` : ''}`),
   })
 
-  if (query.isLoading) return <Loading label="Looking up the canteen till…" />
+  if (query.isLoading) return <Loading label={t('portal.cafeteria.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const purchases = query.data?.items ?? []
@@ -82,30 +84,30 @@ export default function Cafeteria() {
   return (
     <>
       <PageHead
-        eyebrow="Fees"
-        title="Canteen"
-        description="Every item bought at the counter, with the time it was bought."
+        eyebrow={t('portal.cafeteria.eyebrow')}
+        title={t('portal.cafeteria.title')}
+        description={t('portal.cafeteria.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
           <Stat
-            label="Spent"
+            label={t('portal.cafeteria.stat_spent')}
             value={formatPaise(query.data?.total_paise ?? 0)}
             icon={Wallet}
             period={query.data ? `${formatDate(query.data.from)} – ${formatDate(query.data.to)}` : undefined}
           />
-          <Stat label="Purchases" value={purchases.length} icon={Utensils} />
-          <Stat label="Calories" value={(query.data?.total_kcal ?? 0).toLocaleString('en-IN')} icon={Flame} />
+          <Stat label={t('portal.cafeteria.stat_purchases')} value={purchases.length} icon={Utensils} />
+          <Stat label={t('portal.cafeteria.stat_calories')} value={(query.data?.total_kcal ?? 0).toLocaleString('en-IN')} icon={Flame} />
         </CellGrid>
 
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
-              <Field label="Child">
+              <Field label={t('portal.cafeteria.field_child')}>
                 <Select
                   value={chosen}
                   onChange={setChosen}
-                  options={[{ value: '', label: 'All my children' }, ...childOptions(children)]}
+                  options={[{ value: '', label: t('portal.cafeteria.option_all_children') }, ...childOptions(children)]}
                 />
               </Field>
             </div>
@@ -115,8 +117,8 @@ export default function Cafeteria() {
         {byDay.length === 0 ? (
           <Card>
             <EmptyState
-              title="Nothing bought"
-              body="When your child buys something at the canteen counter it will appear here within minutes."
+              title={t('portal.cafeteria.empty_title')}
+              body={t('portal.cafeteria.empty_body')}
             />
           </Card>
         ) : (
@@ -124,7 +126,12 @@ export default function Cafeteria() {
             <Card key={d.on_date}>
               <CardHeader
                 title={formatDate(d.on_date)}
-                description={`${d.purchases} purchase${d.purchases === 1 ? '' : 's'} · ${d.kcal.toLocaleString('en-IN')} kcal`}
+                description={t(
+                  d.purchases === 1
+                    ? 'portal.cafeteria.day_summary_one'
+                    : 'portal.cafeteria.day_summary_many',
+                  { count: d.purchases, kcal: d.kcal.toLocaleString('en-IN') },
+                )}
                 action={<span className="text-[14px] font-semibold">{formatPaise(d.total_paise)}</span>}
               />
               <ul className="divide-y">
@@ -149,11 +156,11 @@ export default function Cafeteria() {
                           <span className="text-muted-foreground/70">{formatPaise(it.line_paise)}</span>
                           {it.kcal != null && (
                             <span className="text-muted-foreground/70">
-                              {it.kcal * it.quantity} kcal
+                              {t('portal.cafeteria.item_kcal', { kcal: String(it.kcal * it.quantity) })}
                             </span>
                           )}
-                          {it.is_vegetarian === false && <Badge tone="warning">Non-veg</Badge>}
-                          {it.allergens && <Badge tone="danger">Contains {it.allergens}</Badge>}
+                          {it.is_vegetarian === false && <Badge tone="warning">{t('portal.cafeteria.badge_non_veg')}</Badge>}
+                          {it.allergens && <Badge tone="danger">{t('portal.cafeteria.badge_allergens', { allergens: it.allergens })}</Badge>}
                         </li>
                       ))}
                     </ul>

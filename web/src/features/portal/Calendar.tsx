@@ -6,6 +6,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* The school year on one page.
@@ -42,16 +43,17 @@ const TONE: Record<string, 'danger' | 'warning' | 'success' | 'info' | 'primary'
   working_day: 'neutral',
 }
 
-const LABEL: Record<string, string> = {
-  ptm_booking: 'Your meeting',
-  working_day: 'Working day',
-  annual_day: 'Annual day',
-  sports_day: 'Sports day',
-  field_trip: 'Field trip',
+const LABEL: Record<string, MessageKey> = {
+  ptm_booking: 'portal.calendar.kind_ptm_booking',
+  working_day: 'portal.calendar.kind_working_day',
+  annual_day: 'portal.calendar.kind_annual_day',
+  sports_day: 'portal.calendar.kind_sports_day',
+  field_trip: 'portal.calendar.kind_field_trip',
 }
 
-function label(kind: string) {
-  return LABEL[kind] ?? kind.charAt(0).toUpperCase() + kind.slice(1).replace(/_/g, ' ')
+function label(kind: string, t: (key: MessageKey) => string) {
+  const key = LABEL[kind]
+  return key ? t(key) : kind.charAt(0).toUpperCase() + kind.slice(1).replace(/_/g, ' ')
 }
 
 function monthOf(iso: string) {
@@ -62,6 +64,7 @@ function monthOf(iso: string) {
 }
 
 export default function Calendar() {
+  const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   const query = useQuery({
     queryKey: ['portal-calendar', studentId],
@@ -71,7 +74,7 @@ export default function Calendar() {
       ),
   })
 
-  if (query.isLoading) return <Loading label="Looking up the calendar…" />
+  if (query.isLoading) return <Loading label={t('portal.calendar.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))
@@ -91,30 +94,30 @@ export default function Calendar() {
   return (
     <>
       <PageHead
-        eyebrow="School life"
-        title="Calendar"
-        description="Holidays, examinations, events and the meetings you have booked."
+        eyebrow={t('portal.calendar.eyebrow')}
+        title={t('portal.calendar.title')}
+        description={t('portal.calendar.description')}
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Coming up" value={upcoming.length} icon={CalendarDays} />
-          <Stat label="Examinations" value={upcoming.filter((e) => e.kind === 'exam').length} icon={GraduationCap} />
+          <Stat label={t('portal.calendar.stat_coming_up')} value={upcoming.length} icon={CalendarDays} />
+          <Stat label={t('portal.calendar.stat_examinations')} value={upcoming.filter((e) => e.kind === 'exam').length} icon={GraduationCap} />
           <Stat
-            label="Events"
+            label={t('portal.calendar.stat_events')}
             value={upcoming.filter((e) => !['exam', 'term', 'ptm', 'ptm_booking', 'holiday', 'vacation', 'working_day'].includes(e.kind)).length}
             icon={PartyPopper}
           />
-          <Stat label="Your meetings" value={upcoming.filter((e) => e.kind === 'ptm_booking').length} icon={Users} />
+          <Stat label={t('portal.calendar.stat_your_meetings')} value={upcoming.filter((e) => e.kind === 'ptm_booking').length} icon={Users} />
         </CellGrid>
 
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
-              <Field label="Child" hint="Events for a class are shown only for the child in it.">
+              <Field label={t('portal.calendar.field_child')} hint={t('portal.calendar.field_child_hint')}>
                 <Select
                   value={chosen}
                   onChange={setChosen}
-                  options={[{ value: '', label: 'All my children' }, ...childOptions(children)]}
+                  options={[{ value: '', label: t('portal.calendar.all_children') }, ...childOptions(children)]}
                 />
               </Field>
             </div>
@@ -124,14 +127,17 @@ export default function Calendar() {
         {months.length === 0 ? (
           <Card>
             <EmptyState
-              title="Nothing scheduled"
-              body="When the school publishes holidays, examinations or events they will appear here."
+              title={t('portal.calendar.empty_title')}
+              body={t('portal.calendar.empty_body')}
             />
           </Card>
         ) : (
           months.map((m) => (
             <Card key={m.name}>
-              <CardHeader title={m.name} description={`${m.rows.length} entries`} />
+              <CardHeader
+                title={m.name}
+                description={t('portal.calendar.entry_count', { count: m.rows.length })}
+              />
               <ul className="divide-y">
                 {m.rows.map((e, i) => (
                   <li key={`${e.ref_id ?? e.title}-${i}`} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-3">
@@ -150,7 +156,7 @@ export default function Calendar() {
                         </span>
                       )}
                     </span>
-                    <Badge tone={TONE[e.kind] ?? 'info'}>{label(e.kind)}</Badge>
+                    <Badge tone={TONE[e.kind] ?? 'info'}>{label(e.kind, t)}</Badge>
                   </li>
                 ))}
               </ul>

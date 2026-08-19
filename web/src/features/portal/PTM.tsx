@@ -8,6 +8,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* Taking a slot at the parent-teacher meeting.
@@ -59,6 +60,7 @@ const TONE: Record<string, 'primary' | 'success' | 'warning' | 'neutral'> = {
 }
 
 export default function PTM() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [note, setNote] = useState('')
@@ -101,7 +103,7 @@ export default function PTM() {
     onSuccess: refresh,
   })
 
-  if (slots.isLoading) return <Loading label="Looking up meeting times…" />
+  if (slots.isLoading) return <Loading label={t('portal.ptm.loading')} />
   if (slots.error) return <ErrorState error={slots.error} />
 
   const rows = slots.data?.items ?? []
@@ -114,59 +116,74 @@ export default function PTM() {
   return (
     <>
       <PageHead
-        eyebrow="School life"
-        title="Parent-teacher meeting"
-        description="Take a time with your child's teacher instead of queueing on the morning."
+        eyebrow={t('portal.ptm.eyebrow')}
+        title={t('portal.ptm.title')}
+        description={t('portal.ptm.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Times still free" value={free.length} icon={Clock} />
-          <Stat label="Your meetings" value={mine.filter((b) => b.status === 'booked').length} icon={CalendarCheck} />
-          <Stat label="Meetings held" value={mine.filter((b) => b.status === 'met').length} />
+          <Stat label={t('portal.ptm.stat_free')} value={free.length} icon={Clock} />
+          <Stat label={t('portal.ptm.stat_yours')} value={mine.filter((b) => b.status === 'booked').length} icon={CalendarCheck} />
+          <Stat label={t('portal.ptm.stat_held')} value={mine.filter((b) => b.status === 'met').length} />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Book a time"
-            description="Choose a child, add anything you would like raised, then take a slot."
+            title={t('portal.ptm.book_title')}
+            description={t('portal.ptm.book_description')}
           />
           <div className="px-5 py-4">
             <FormGrid>
               {children.length > 1 && (
-                <Field label="Child" required>
+                <Field label={t('portal.ptm.field_child')} required>
                   <Select
                     value={chosen}
                     onChange={setChosen}
                     options={childOptions(children)}
-                    placeholder="Which child…"
+                    placeholder={t('portal.ptm.child_placeholder')}
                   />
                 </Field>
               )}
-              <Field label="What would you like to discuss?" hint="Optional. The teacher sees this before the meeting." wide>
-                <Input value={note} onChange={setNote} placeholder="Reading progress" />
+              <Field label={t('portal.ptm.field_note')} hint={t('portal.ptm.field_note_hint')} wide>
+                <Input value={note} onChange={setNote} placeholder={t('portal.ptm.note_placeholder')} />
               </Field>
             </FormGrid>
-            <FormNotice error={book.error} ok={book.isSuccess ? 'Meeting booked.' : undefined} />
+            <FormNotice error={book.error} ok={book.isSuccess ? t('portal.ptm.booked_ok') : undefined} />
           </div>
           <Table
-            head={['Date', 'Time', 'Teacher', 'For', 'Where', '']}
+            head={[
+              t('portal.ptm.col_date'),
+              t('portal.ptm.col_time'),
+              t('portal.ptm.col_teacher'),
+              t('portal.ptm.col_for'),
+              t('portal.ptm.col_where'),
+              '',
+            ]}
             empty={rows.length === 0}
-            emptyLabel="The school has not opened any times yet."
+            emptyLabel={t('portal.ptm.empty_slots')}
           >
             {rows.map((s) => (
               <tr key={s.id} className={s.taken ? 'text-muted-foreground' : undefined}>
                 <Td>{formatDate(s.on_date)}</Td>
                 <Td>
                   {s.starts_at}
-                  <span className="text-muted-foreground"> · {s.minutes} min</span>
+                  <span className="text-muted-foreground">
+                    {t('portal.ptm.slot_minutes', { minutes: s.minutes })}
+                  </span>
                 </Td>
                 <Td>{s.teacher}</Td>
-                <Td>{s.section ? `Class ${s.section}` : 'Any class'}</Td>
+                <Td>
+                  {s.section
+                    ? t('portal.ptm.slot_class', { section: s.section })
+                    : t('portal.ptm.slot_any_class')}
+                </Td>
                 <Td>{s.location ?? s.mode.replace('_', ' ')}</Td>
                 <Td className="text-right">
                   {s.taken ? (
                     <Badge tone={s.booked_for ? 'primary' : 'neutral'}>
-                      {s.booked_for ? `Yours · ${s.booked_for}` : 'Taken'}
+                      {s.booked_for
+                        ? t('portal.ptm.slot_yours', { name: s.booked_for })
+                        : t('portal.ptm.slot_taken')}
                     </Badge>
                   ) : (
                     <Button
@@ -174,9 +191,9 @@ export default function PTM() {
                       variant="secondary"
                       disabled={!ready || book.isPending}
                       onClick={() => book.mutate(s.id)}
-                      title={ready ? undefined : 'Choose a child first'}
+                      title={ready ? undefined : t('portal.ptm.choose_child_first')}
                     >
-                      Take this time
+                      {t('portal.ptm.action_take')}
                     </Button>
                   )}
                 </Td>
@@ -187,11 +204,14 @@ export default function PTM() {
 
         <Card>
           <CardHeader
-            title="Your meetings"
-            description="Including what was agreed, where the school has shared it."
+            title={t('portal.ptm.mine_title')}
+            description={t('portal.ptm.mine_description')}
           />
           {mine.length === 0 ? (
-            <EmptyState title="No meetings yet" body="Take a time above and it will appear here." />
+            <EmptyState
+              title={t('portal.ptm.empty_title')}
+              body={t('portal.ptm.empty_body')}
+            />
           ) : (
             <ul className="divide-y">
               {mine.map((b) => (
@@ -200,10 +220,16 @@ export default function PTM() {
                     <div className="min-w-0">
                       <p className="text-[14px] font-medium">
                         {b.student_name}
-                        {b.teacher && <span className="text-muted-foreground"> with {b.teacher}</span>}
+                        {b.teacher && <span className="text-muted-foreground">
+                            {t('portal.ptm.with_teacher', { teacher: b.teacher })}
+                          </span>}
                       </p>
                       <p className="text-[13px] text-muted-foreground">
-                        {formatDate(b.on_date)} · {b.starts_at} · {b.minutes} min
+                        {t('portal.ptm.meeting_when', {
+                          date: formatDate(b.on_date),
+                          time: b.starts_at,
+                          minutes: b.minutes,
+                        })}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -213,11 +239,11 @@ export default function PTM() {
                           size="sm"
                           variant="ghost"
                           tone="danger"
-                          confirmLabel="Give up the slot"
-                          question="The time goes back to the school."
+                          confirmLabel={t('portal.ptm.cancel_confirm')}
+                          question={t('portal.ptm.cancel_question')}
                           onConfirm={() => cancel.mutate(b.id)}
                         >
-                          Cancel
+                          {t('portal.ptm.action_cancel')}
                         </ConfirmButton>
                       )}
                     </div>
@@ -225,13 +251,13 @@ export default function PTM() {
                   {b.purpose && <p className="mt-2 text-[13px]">{b.purpose}</p>}
                   {b.concerns && (
                     <p className="mt-2 text-[13px]">
-                      <span className="text-muted-foreground">Raised: </span>
+                      <span className="text-muted-foreground">{t('portal.ptm.label_raised')}</span>
                       {b.concerns}
                     </p>
                   )}
                   {b.agreed_actions && (
                     <p className="mt-1 text-[13px]">
-                      <span className="text-muted-foreground">Agreed: </span>
+                      <span className="text-muted-foreground">{t('portal.ptm.label_agreed')}</span>
                       {b.agreed_actions}
                     </p>
                   )}

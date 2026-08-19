@@ -7,6 +7,7 @@ import {
   Field, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* Photographs and video from the school's own events.
@@ -52,6 +53,7 @@ function fileSize(bytes: number) {
 }
 
 export default function Gallery() {
+  const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [open, setOpen] = useState<string | null>(null)
 
@@ -71,7 +73,7 @@ export default function Gallery() {
       ),
   })
 
-  if (albums.isLoading) return <Loading label="Looking up the gallery…" />
+  if (albums.isLoading) return <Loading label={t('portal.gallery.loading')} />
   if (albums.error) return <ErrorState error={albums.error} />
 
   const rows = albums.data?.items ?? []
@@ -83,34 +85,34 @@ export default function Gallery() {
     return (
       <>
         <PageHead
-          eyebrow="School life"
-          title={album.data?.album.name ?? 'Album'}
+          eyebrow={t('portal.gallery.eyebrow')}
+          title={album.data?.album.name ?? t('portal.gallery.album_fallback')}
           description={[album.data?.album.venue, album.data && formatDate(album.data.album.on_date)]
             .filter(Boolean)
             .join(' · ')}
           actions={
             <Button variant="secondary" size="sm" onClick={() => setOpen(null)}>
-              <ArrowLeft className="h-4 w-4" /> All albums
+              <ArrowLeft className="h-4 w-4" /> {t('portal.gallery.action_all_albums')}
             </Button>
           }
         />
         <PageBody>
           {album.isLoading ? (
-            <Loading label="Opening the album…" />
+            <Loading label={t('portal.gallery.album_loading')} />
           ) : album.error ? (
             <ErrorState error={album.error} />
           ) : items.length === 0 ? (
             <Card>
               <EmptyState
-                title="Nothing published yet"
-                body="The school has not released photographs from this event."
+                title={t('portal.gallery.album_empty_title')}
+                body={t('portal.gallery.album_empty_body')}
               />
             </Card>
           ) : (
             <Card>
               <CardHeader
-                title="Media"
-                description={`${items.length} items the school has published to families.`}
+                title={t('portal.gallery.media_title')}
+                description={t('portal.gallery.media_description', { count: items.length })}
               />
               <ul className="divide-y">
                 {items.map((it) => (
@@ -121,7 +123,11 @@ export default function Gallery() {
                     <span className="min-w-0 flex-1 text-[14px]">
                       {it.caption ?? it.original_name}
                       <span className="block text-[13px] text-muted-foreground">
-                        {it.original_name} · {fileSize(it.size_bytes)} · published {formatDate(it.published_on)}
+                        {t('portal.gallery.media_meta', {
+                          name: it.original_name,
+                          size: fileSize(it.size_bytes),
+                          date: formatDate(it.published_on),
+                        })}
                       </span>
                     </span>
                   </li>
@@ -137,25 +143,31 @@ export default function Gallery() {
   return (
     <>
       <PageHead
-        eyebrow="School life"
-        title="Photographs & video"
-        description="Sports day, annual day and everything else the school has shared."
+        eyebrow={t('portal.gallery.eyebrow')}
+        title={t('portal.gallery.title')}
+        description={t('portal.gallery.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Albums" value={rows.length} icon={Images} />
-          <Stat label="Photographs" value={photos} />
-          <Stat label="Videos" value={videos} icon={Film} />
+          <Stat label={t('portal.gallery.stat_albums')} value={rows.length} icon={Images} />
+          <Stat label={t('portal.gallery.stat_photographs')} value={photos} />
+          <Stat label={t('portal.gallery.stat_videos')} value={videos} icon={Film} />
         </CellGrid>
 
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
-              <Field label="Child" hint="An album for one class is shown only to that class.">
+              <Field
+                label={t('portal.gallery.field_child')}
+                hint={t('portal.gallery.field_child_hint')}
+              >
                 <Select
                   value={chosen}
                   onChange={setChosen}
-                  options={[{ value: '', label: 'All my children' }, ...childOptions(children)]}
+                  options={[
+                    { value: '', label: t('portal.gallery.all_children') },
+                    ...childOptions(children),
+                  ]}
                 />
               </Field>
             </div>
@@ -165,8 +177,8 @@ export default function Gallery() {
         {rows.length === 0 ? (
           <Card>
             <EmptyState
-              title="No albums yet"
-              body="When the school publishes photographs from an event they will appear here."
+              title={t('portal.gallery.empty_title')}
+              body={t('portal.gallery.empty_body')}
             />
           </Card>
         ) : (
@@ -177,7 +189,11 @@ export default function Gallery() {
                   <div className="min-w-0">
                     <p className="text-[14px] font-medium">{a.name}</p>
                     <p className="text-[13px] text-muted-foreground">
-                      {[formatDate(a.on_date), a.venue, a.section && `Class ${a.section}`]
+                      {[
+                        formatDate(a.on_date),
+                        a.venue,
+                        a.section && t('portal.gallery.class_label', { section: a.section }),
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                     </p>
@@ -187,7 +203,10 @@ export default function Gallery() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-[13px] text-muted-foreground">
-                      {a.photo_count} photos · {a.video_count} videos
+                      {t('portal.gallery.counts', {
+                        photos: a.photo_count,
+                        videos: a.video_count,
+                      })}
                     </span>
                     <Button
                       size="sm"
@@ -195,7 +214,7 @@ export default function Gallery() {
                       disabled={a.photo_count + a.video_count === 0}
                       onClick={() => setOpen(a.id)}
                     >
-                      Open
+                      {t('portal.gallery.action_open')}
                     </Button>
                   </div>
                 </li>

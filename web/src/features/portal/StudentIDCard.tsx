@@ -6,6 +6,7 @@ import {
   Loading, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
 
 /* The child's identity card, rendered live.
@@ -47,6 +48,7 @@ interface Pass {
 }
 
 export default function StudentIDCard() {
+  const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   /* One card, one child. The endpoint resolves it with whichChild
      (portal_school_life.go:1424), which answers for the eldest when no
@@ -72,28 +74,28 @@ export default function StudentIDCard() {
   const picker = children.length > 1 && (
     <Card>
       <div className="px-5 py-4">
-        <Field label="Child">
+        <Field label={t('portal.student_id_card.field_child')}>
           <Select value={chosen} onChange={setChosen} options={childOptions(children)} />
         </Field>
       </div>
     </Card>
   )
 
-  if (query.isLoading) return <Loading label="Building the card…" />
+  if (query.isLoading) return <Loading label={t('portal.student_id_card.loading')} />
   if (query.error) return <ErrorState error={query.error} />
   if (!ready)
     return (
       <>
         <PageHead
-          eyebrow="Profile"
-          title="Student ID card"
-          description="Your child's identity card, with a code that refreshes itself."
+          eyebrow={t('portal.student_id_card.eyebrow')}
+          title={t('portal.student_id_card.title')}
+          description={t('portal.student_id_card.description')}
         />
         <PageBody width="form">
           {picker}
           <EmptyState
-            title="Choose a child"
-            body="A card and its gate code belong to one child, so this screen has to know whose."
+            title={t('portal.student_id_card.choose_title')}
+            body={t('portal.student_id_card.choose_body')}
           />
         </PageBody>
       </>
@@ -101,17 +103,17 @@ export default function StudentIDCard() {
 
   const card = query.data?.card
   const pass = query.data?.pass
-  if (!card || !pass) return <ErrorState error={new Error('No card returned')} />
+  if (!card || !pass) return <ErrorState error={new Error(t('portal.student_id_card.no_card'))} />
 
   const klass = [card.class_name, card.section_name].filter(Boolean).join(' ')
 
   return (
     <>
       <PageHead
-        eyebrow="Profile"
-        title="Student ID card"
-        description="Your child's identity card, with a code that refreshes itself."
-        actions={<PrintButton label="Print card" />}
+        eyebrow={t('portal.student_id_card.eyebrow')}
+        title={t('portal.student_id_card.title')}
+        description={t('portal.student_id_card.description')}
+        actions={<PrintButton label={t('portal.student_id_card.action_print')} />}
       />
       <PageBody width="form">
         {picker}
@@ -125,40 +127,42 @@ export default function StudentIDCard() {
           </div>
           <div className="flex flex-wrap items-start gap-6 px-5 py-5">
             <div className="flex h-28 w-24 shrink-0 items-center justify-center rounded-md border bg-muted text-[12px] text-muted-foreground">
-              {card.photo_file_id ? 'Photo' : 'No photo'}
+              {card.photo_file_id
+                ? t('portal.student_id_card.photo')
+                : t('portal.student_id_card.no_photo')}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[20px] font-semibold tracking-[-0.01em]">{card.full_name}</p>
               <p className="text-[14px] text-muted-foreground">
-                {klass || 'Not enrolled'}
-                {card.roll_no != null && ` · Roll ${card.roll_no}`}
+                {klass || t('portal.student_id_card.not_enrolled')}
+                {card.roll_no != null && t('portal.student_id_card.roll', { roll: card.roll_no })}
               </p>
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
                 <div>
-                  <dt className="text-muted-foreground">Admission no.</dt>
+                  <dt className="text-muted-foreground">{t('portal.student_id_card.admission_no')}</dt>
                   <dd className="font-medium">{card.admission_no}</dd>
                 </div>
                 {card.date_of_birth && (
                   <div>
-                    <dt className="text-muted-foreground">Date of birth</dt>
+                    <dt className="text-muted-foreground">{t('portal.student_id_card.date_of_birth')}</dt>
                     <dd className="font-medium">{formatDate(card.date_of_birth)}</dd>
                   </div>
                 )}
                 {card.blood_group && (
                   <div>
-                    <dt className="text-muted-foreground">Blood group</dt>
+                    <dt className="text-muted-foreground">{t('portal.student_id_card.blood_group')}</dt>
                     <dd className="font-medium">{card.blood_group}</dd>
                   </div>
                 )}
                 {card.house && (
                   <div>
-                    <dt className="text-muted-foreground">House</dt>
+                    <dt className="text-muted-foreground">{t('portal.student_id_card.house')}</dt>
                     <dd className="font-medium">{card.house}</dd>
                   </div>
                 )}
                 {card.guardian_name && (
                   <div className="col-span-2">
-                    <dt className="text-muted-foreground">In an emergency</dt>
+                    <dt className="text-muted-foreground">{t('portal.student_id_card.emergency')}</dt>
                     <dd className="font-medium">
                       {card.guardian_name}
                       {card.guardian_phone && ` · ${card.guardian_phone}`}
@@ -167,7 +171,7 @@ export default function StudentIDCard() {
                 )}
                 {card.allergies && (
                   <div className="col-span-2">
-                    <dt className="text-muted-foreground">Allergies</dt>
+                    <dt className="text-muted-foreground">{t('portal.student_id_card.allergies')}</dt>
                     <dd className="font-medium text-destructive">{card.allergies}</dd>
                   </div>
                 )}
@@ -176,11 +180,13 @@ export default function StudentIDCard() {
             <Badge tone={card.status === 'active' ? 'success' : 'neutral'}>{card.status}</Badge>
           </div>
           <div className="border-t px-5 py-4">
-            <p className="text-[13px] text-muted-foreground">Card number {pass.serial}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {t('portal.student_id_card.pass_number', { serial: pass.serial })}
+            </p>
             <p className="mt-1 font-mono text-[28px] tracking-[0.2em]">{pass.code}</p>
             <p className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Refreshes about every two minutes. Show this screen, not a photograph of it.
+              {t('portal.student_id_card.gate_note')}
             </p>
           </div>
         </Card>

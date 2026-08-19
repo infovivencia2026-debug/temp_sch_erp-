@@ -6,6 +6,7 @@ import {
   FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* "He is not coming in today."
@@ -36,7 +37,19 @@ const REASONS = [
   'Other',
 ]
 
+// The value is what the server is told and what the form compares against; only
+// the label is shown to a parent, so only the label is translated.
+const REASON_KEYS: Record<string, MessageKey> = {
+  Fever: 'portal.report_absence.reason_fever',
+  'Cold and cough': 'portal.report_absence.reason_cold',
+  'Stomach upset': 'portal.report_absence.reason_stomach',
+  'Doctor’s appointment': 'portal.report_absence.reason_doctor',
+  'Family emergency': 'portal.report_absence.reason_family',
+  Other: 'portal.report_absence.reason_other',
+}
+
 export default function ReportAbsence() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen, query } = useChildren()
   const [reason, setReason] = useState('Fever')
@@ -62,7 +75,7 @@ export default function ReportAbsence() {
     },
   })
 
-  if (query.isLoading) return <Loading label="Finding your children…" />
+  if (query.isLoading) return <Loading label={t('portal.report_absence.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const ready = studentId !== '' && (reason !== 'Other' || detail.trim() !== '')
@@ -73,40 +86,47 @@ export default function ReportAbsence() {
   return (
     <>
       <PageHead
-        eyebrow="Attendance"
-        title="Report an absence"
-        description="Tell the school your child is not coming in. It reaches the class teacher straight away."
+        eyebrow={t('portal.report_absence.eyebrow')}
+        title={t('portal.report_absence.title')}
+        description={t('portal.report_absence.description')}
       />
       <PageBody>
         <Card>
           <CardHeader
-            title="Not coming in"
-            description="For today, or a day in the last week you have not told us about yet. To book a day off ahead, apply for leave instead."
+            title={t('portal.report_absence.form_title')}
+            description={t('portal.report_absence.form_description')}
           />
           <div className="p-4">
             <FormGrid>
               {children.length > 1 && (
-                <Field label="Child" required>
+                <Field label={t('portal.report_absence.field_child')} required>
                   <Select
                     value={chosen}
                     onChange={setChosen}
-                    placeholder="Choose a child"
+                    placeholder={t('portal.report_absence.choose_child')}
                     options={childOptions(children)}
                   />
                 </Field>
               )}
-              <Field label="Why" required>
+              <Field label={t('portal.report_absence.field_why')} required>
                 <Select
                   value={reason}
                   onChange={setReason}
-                  options={REASONS.map((r) => ({ value: r, label: r }))}
+                  options={REASONS.map((r) => ({ value: r, label: t(REASON_KEYS[r]) }))}
                 />
               </Field>
-              <Field label="Which day" hint="Leave blank for today.">
+              <Field
+                label={t('portal.report_absence.field_day')}
+                hint={t('portal.report_absence.field_day_hint')}
+              >
                 <Input type="date" value={onDate} onChange={setOnDate} />
               </Field>
               <Field
-                label={reason === 'Other' ? 'Say what happened' : 'Anything else'}
+                label={
+                  reason === 'Other'
+                    ? t('portal.report_absence.field_detail_other')
+                    : t('portal.report_absence.field_detail')
+                }
                 required={reason === 'Other'}
                 wide
               >
@@ -114,7 +134,7 @@ export default function ReportAbsence() {
                   rows={2}
                   value={detail}
                   onChange={setDetail}
-                  placeholder="Running a temperature since last night"
+                  placeholder={t('portal.report_absence.detail_placeholder')}
                 />
               </Field>
             </FormGrid>
@@ -123,25 +143,27 @@ export default function ReportAbsence() {
                 disabled={!ready || report.isPending}
                 onClick={() => report.mutate()}
               >
-                {report.isPending ? 'Telling the school…' : 'Tell the school'}
+                {report.isPending
+                  ? t('portal.report_absence.sending')
+                  : t('portal.report_absence.action_tell')}
               </Button>
             </div>
             <FormNotice
               error={report.error}
-              ok={report.isSuccess ? 'The class teacher has it.' : undefined}
+              ok={report.isSuccess ? t('portal.report_absence.sent_ok') : undefined}
             />
           </div>
         </Card>
 
         <Card>
           <CardHeader
-            title="Already reported"
-            description="Days the school knows about."
+            title={t('portal.report_absence.list_title')}
+            description={t('portal.report_absence.list_description')}
           />
           {today.length === 0 ? (
             <EmptyState
-              title="Nothing outstanding"
-              body="You have not reported any absence the school is still holding."
+              title={t('portal.report_absence.empty_title')}
+              body={t('portal.report_absence.empty_body')}
             />
           ) : (
             <ul className="divide-y">

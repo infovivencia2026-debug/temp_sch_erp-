@@ -24,9 +24,11 @@ package api
 // to guess which of those keys is the language selector. Validating here
 // means the worst a malicious or stale client achieves is a 400.
 //
-// The database CHECK constraint in migrations/00088_i18n.sql carries the same
-// list. Both must be widened to add a language; see that file's closing note.
-var localeChoices = []string{"en"}
+// The database CHECK constraint carries the same list -- added in
+// migrations/00088_i18n.sql and widened to include Telugu in
+// migrations/00092_locale_te.sql. All three must be widened together to add a
+// language; see the closing note in 00092.
+var localeChoices = []string{"en", "te"}
 
 // defaultLocale is English, and must stay English until a school opts out.
 // A user who has never opened the language selector has to see exactly the
