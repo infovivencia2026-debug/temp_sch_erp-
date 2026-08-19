@@ -190,33 +190,20 @@ Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, subst
 Faculty / Teacher,Home,Home,My day,"Today's periods, what is pending and anything about this class that needs attention.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,Student At-Risk Identification,"View AI alerts for students suffering academic drop, attendance risk, or fee delinquency.",Assigned classes/subjects,Nice-to-Have,advanced
-Faculty / Teacher,My Classes,My Classes,Student Portfolio Builder,"Upload student artwork, project photos, certificates, and audio files into digital portfolios.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,My Classes,My Classes,Student Behavior & Demerits,"Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,Montessori & Early Years Tracking,"Log developmental milestones, sensory skills, motor skills, and social behavior observations.",Assigned classes/subjects,Should-Have,advanced
-Faculty / Teacher,My Classes,My Classes,CWSN Support Plan,"Record children with special needs, disability type and the classroom accommodations agreed.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,My Classes,My Classes,Language Subject Allocation,"Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My students,"Every child in the class with attendance, marks and guardian contact in one place.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student details,"One child's full record: profile, guardians, attendance, marks and remarks.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,Discipline notes,"Conduct incidents recorded against a child, visible to the school's leadership.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Take attendance,Fast daily or period/subject-wise attendance for assigned students.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Attendance correction,Request or process correction within permitted window/workflow.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,Attendance,Absence Alert to Guardian,"Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Offline Attendance & Diary Capture,"Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.",Assigned classes/subjects,Nice-to-Have,core
 Faculty / Teacher,Teaching,Teaching,Homework / classwork,"Create homework/classwork with due date, attachments and instructions.",Self + assigned classes/subjects,Should-Have,core
 Faculty / Teacher,Teaching,Teaching,Assignments & submissions,"Create assignments, review submissions, grade and add feedback.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Teaching,Teaching,Lesson plans / content,Plan lessons and attach learning resources when LMS/lesson planning is enabled.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Teaching,Teaching,Syllabus Progress Tracker,"Update chapter completion status, syllabus coverage percentage, and lab practical completion.",Assigned classes/subjects,Should-Have,core
-Faculty / Teacher,Teaching,Teaching,Teacher Digital Diary,"Log daily topics taught, class behavior, homework assigned, and personal teaching notes.",Assigned classes/subjects,Should-Have,core
 Faculty / Teacher,Teaching,Teaching,LMS Study Material Upload,"Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.",Assigned classes/subjects,Should-Have,core
-Faculty / Teacher,Teaching,Teaching,Live Virtual Class Launcher,Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.,Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Teaching,Teaching,Study materials,"Notes, worksheets and reference material shared with the class.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Teaching,Teaching,Syllabus progress,Chapters covered against the plan for each subject taken.,Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Teaching,Timetable,My timetable,"Daily/weekly teaching schedule, rooms/labs and substitutions.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Teaching,Timetable,Substitution Request Submission,Request advance leave and propose peer faculty substitution for approval.,Assigned classes/subjects,Should-Have,core
 Faculty / Teacher,Assessments,Marks & Report Cards,Marks entry,Enter internal/exam marks for assigned subjects; validate before submission.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Assessments,Marks & Report Cards,NEP Holistic Progress Card (HPC),"Evaluate student cognitive, affective, psychomotor domains, self-assessment, and peer reviews.",Assigned classes/subjects,Must-Have,advanced
-Faculty / Teacher,Assessments,Marks & Report Cards,Holistic progress card,NEP holistic assessment across scholastic and co-scholastic domains.,Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Assessments,Marks & Report Cards,Report cards,Generate and issue the report card for every child in the class.,Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Assessments,Assessment Schemes,CCE Formative Assessment Entry,"Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Assessments,Assessment Schemes,CCE Summative Assessment Entry,Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.,Assigned classes/subjects,Must-Have,advanced
@@ -224,14 +211,8 @@ Faculty / Teacher,Assessments,Question Papers & Online Tests,Question Bank Manag
 Faculty / Teacher,Assessments,Question Papers & Online Tests,AI Examcell Paper Generator,"Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",Assigned classes/subjects,Nice-to-Have,advanced
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Ved AI Assessment Assistant,"Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",Assigned classes/subjects,Nice-to-Have,advanced
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Objective Online Test Creation,"Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",Assigned classes/subjects,Must-Have,advanced
-Faculty / Teacher,Assessments,Question Papers & Online Tests,No-OMR Exam Grading,Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.,Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Communication,Communication,Communication,"Announcements/messages to assigned classes, students or parents based on policy.",Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Communication,Communication,Classroom Communication Broadcasting,Send class-wide or student-specific notices directly to parents via app messenger.,Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Communication,Communication,Remarks,Add permitted academic/class remarks and observations.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Communication,Communication,Class Teacher Remarks,Enter term-end qualitative report card remarks and principal summary comments.,Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Communication,Communication,Anecdotal Records,Maintain private qualitative observation notes regarding individual student behavioral growth.,Assigned classes/subjects,Must-Have,advanced
-Faculty / Teacher,Communication,Communication,PTM Notes & Action Items,"Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Communication,Communication,Announcements,"Notices to this class's parents, with read acknowledgement.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Profile,"Own profile, password and leave.",Assigned classes/subjects,Must-Have,core
 Student,Home,Home,My day,"Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",Self only,Must-Have,core

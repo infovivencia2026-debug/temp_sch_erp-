@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 9 roles, 452 features. */
+/** 9 roles, 433 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -524,15 +524,10 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.my_classes.my_classes', slug: 'my_classes', name: 'My classes', scope: 'assigned_classes', tier: 'core', summary: 'Class roster, subject resources and relevant student academic information.' },
           { key: 'faculty.my_classes.student_progress', slug: 'student_progress', name: 'Student progress', scope: 'assigned_classes', tier: 'core', summary: 'View attendance and academic progress for students taught/mentored by the faculty member.' },
-          { key: 'faculty.my_classes.student_at_risk_identification', slug: 'student_at_risk_identification', name: 'Student At-Risk Identification', scope: 'assigned_classes', tier: 'advanced', summary: 'View AI alerts for students suffering academic drop, attendance risk, or fee delinquency.' },
-          { key: 'faculty.my_classes.student_portfolio_builder', slug: 'student_portfolio_builder', name: 'Student Portfolio Builder', scope: 'assigned_classes', tier: 'advanced', summary: 'Upload student artwork, project photos, certificates, and audio files into digital portfolios.' },
           { key: 'faculty.my_classes.student_behavior_demerits', slug: 'student_behavior_demerits', name: 'Student Behavior & Demerits', scope: 'assigned_classes', tier: 'core', summary: 'Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.' },
-          { key: 'faculty.my_classes.montessori_early_years_tracking', slug: 'montessori_early_years_tracking', name: 'Montessori & Early Years Tracking', scope: 'assigned_classes', tier: 'advanced', summary: 'Log developmental milestones, sensory skills, motor skills, and social behavior observations.' },
-          { key: 'faculty.my_classes.cwsn_support_plan', slug: 'cwsn_support_plan', name: 'CWSN Support Plan', scope: 'assigned_classes', tier: 'advanced', summary: 'Record children with special needs, disability type and the classroom accommodations agreed.' },
           { key: 'faculty.my_classes.language_subject_allocation', slug: 'language_subject_allocation', name: 'Language Subject Allocation', scope: 'assigned_classes', tier: 'core', summary: 'Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi.' },
           { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
           { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
-          { key: 'faculty.my_classes.discipline_notes', slug: 'discipline_notes', name: 'Discipline notes', scope: 'assigned_classes', tier: 'core', summary: 'Conduct incidents recorded against a child, visible to the school\'s leadership.' },
         ],
       },
       {
@@ -542,7 +537,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
-          { key: 'faculty.attendance.absence_alert_to_guardian', slug: 'absence_alert_to_guardian', name: 'Absence Alert to Guardian', scope: 'assigned_classes', tier: 'core', summary: 'Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window.' },
           { key: 'faculty.attendance.offline_attendance_diary_capture', slug: 'offline_attendance_diary_capture', name: 'Offline Attendance & Diary Capture', scope: 'assigned_classes', tier: 'core', summary: 'Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.' },
         ],
       },
@@ -554,12 +548,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.teaching.homework_classwork', slug: 'homework_classwork', name: 'Homework / classwork', scope: 'assigned_classes', tier: 'core', summary: 'Create homework/classwork with due date, attachments and instructions.' },
           { key: 'faculty.teaching.assignments_submissions', slug: 'assignments_submissions', name: 'Assignments & submissions', scope: 'assigned_classes', tier: 'core', summary: 'Create assignments, review submissions, grade and add feedback.' },
           { key: 'faculty.teaching.lesson_plans_content', slug: 'lesson_plans_content', name: 'Lesson plans / content', scope: 'assigned_classes', tier: 'core', summary: 'Plan lessons and attach learning resources when LMS/lesson planning is enabled.' },
-          { key: 'faculty.teaching.syllabus_progress_tracker', slug: 'syllabus_progress_tracker', name: 'Syllabus Progress Tracker', scope: 'assigned_classes', tier: 'core', summary: 'Update chapter completion status, syllabus coverage percentage, and lab practical completion.' },
-          { key: 'faculty.teaching.teacher_digital_diary', slug: 'teacher_digital_diary', name: 'Teacher Digital Diary', scope: 'assigned_classes', tier: 'core', summary: 'Log daily topics taught, class behavior, homework assigned, and personal teaching notes.' },
           { key: 'faculty.teaching.lms_study_material_upload', slug: 'lms_study_material_upload', name: 'LMS Study Material Upload', scope: 'assigned_classes', tier: 'core', summary: 'Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.' },
-          { key: 'faculty.teaching.live_virtual_class_launcher', slug: 'live_virtual_class_launcher', name: 'Live Virtual Class Launcher', scope: 'assigned_classes', tier: 'core', summary: 'Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.' },
-          { key: 'faculty.teaching.study_materials', slug: 'study_materials', name: 'Study materials', scope: 'assigned_classes', tier: 'core', summary: 'Notes, worksheets and reference material shared with the class.' },
-          { key: 'faculty.teaching.syllabus_progress', slug: 'syllabus_progress', name: 'Syllabus progress', scope: 'assigned_classes', tier: 'core', summary: 'Chapters covered against the plan for each subject taken.' },
         ],
       },
       {
@@ -577,8 +566,6 @@ export const ROLES: Role[] = [
         workspace: 'Assessments',
         features: [
           { key: 'faculty.marks_report_cards.marks_entry', slug: 'marks_entry', name: 'Marks entry', scope: 'assigned_classes', tier: 'core', summary: 'Enter internal/exam marks for assigned subjects; validate before submission.' },
-          { key: 'faculty.marks_report_cards.nep_holistic_progress_card_hpc', slug: 'nep_holistic_progress_card_hpc', name: 'NEP Holistic Progress Card (HPC)', scope: 'assigned_classes', tier: 'advanced', summary: 'Evaluate student cognitive, affective, psychomotor domains, self-assessment, and peer reviews.' },
-          { key: 'faculty.marks_report_cards.holistic_progress_card', slug: 'holistic_progress_card', name: 'Holistic progress card', scope: 'assigned_classes', tier: 'core', summary: 'NEP holistic assessment across scholastic and co-scholastic domains.' },
           { key: 'faculty.marks_report_cards.report_cards', slug: 'report_cards', name: 'Report cards', scope: 'assigned_classes', tier: 'core', summary: 'Generate and issue the report card for every child in the class.' },
         ],
       },
@@ -600,7 +587,6 @@ export const ROLES: Role[] = [
           { key: 'faculty.question_papers_online_tests.ai_examcell_paper_generator', slug: 'ai_examcell_paper_generator', name: 'AI Examcell Paper Generator', scope: 'assigned_classes', tier: 'advanced', summary: 'Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.' },
           { key: 'faculty.question_papers_online_tests.ved_ai_assessment_assistant', slug: 'ved_ai_assessment_assistant', name: 'Ved AI Assessment Assistant', scope: 'assigned_classes', tier: 'advanced', summary: 'Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.' },
           { key: 'faculty.question_papers_online_tests.objective_online_test_creation', slug: 'objective_online_test_creation', name: 'Objective Online Test Creation', scope: 'assigned_classes', tier: 'advanced', summary: 'Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.' },
-          { key: 'faculty.question_papers_online_tests.no_omr_exam_grading', slug: 'no_omr_exam_grading', name: 'No-OMR Exam Grading', scope: 'assigned_classes', tier: 'advanced', summary: 'Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.' },
         ],
       },
       {
@@ -609,12 +595,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'faculty.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Announcements/messages to assigned classes, students or parents based on policy.' },
-          { key: 'faculty.communication.classroom_communication_broadcasting', slug: 'classroom_communication_broadcasting', name: 'Classroom Communication Broadcasting', scope: 'assigned_classes', tier: 'core', summary: 'Send class-wide or student-specific notices directly to parents via app messenger.' },
           { key: 'faculty.communication.remarks', slug: 'remarks', name: 'Remarks', scope: 'assigned_classes', tier: 'core', summary: 'Add permitted academic/class remarks and observations.' },
-          { key: 'faculty.communication.class_teacher_remarks', slug: 'class_teacher_remarks', name: 'Class Teacher Remarks', scope: 'assigned_classes', tier: 'core', summary: 'Enter term-end qualitative report card remarks and principal summary comments.' },
-          { key: 'faculty.communication.anecdotal_records', slug: 'anecdotal_records', name: 'Anecdotal Records', scope: 'assigned_classes', tier: 'advanced', summary: 'Maintain private qualitative observation notes regarding individual student behavioral growth.' },
-          { key: 'faculty.communication.ptm_notes_action_items', slug: 'ptm_notes_action_items', name: 'PTM Notes & Action Items', scope: 'assigned_classes', tier: 'core', summary: 'Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans.' },
-          { key: 'faculty.communication.announcements', slug: 'announcements', name: 'Announcements', scope: 'assigned_classes', tier: 'core', summary: 'Notices to this class\'s parents, with read acknowledgement.' },
         ],
       },
       {

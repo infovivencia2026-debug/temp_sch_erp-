@@ -13,9 +13,5 @@ import { lazy } from 'react'
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const facultyCommsKeys = {
   'faculty.communication.remarks': lazy(() => import('./Remarks')),
-  'faculty.communication.anecdotal_records': lazy(() => import('./Anecdotal')),
-  'faculty.communication.class_teacher_remarks': lazy(() => import('./ClassTeacherRemarks')),
-  'faculty.communication.ptm_notes_action_items': lazy(() => import('./PTMNotes')),
-  'faculty.communication.classroom_communication_broadcasting': lazy(() => import('./Broadcasts')),
   'faculty.communication.communication': lazy(() => import('./Communication')),
 }

@@ -91,7 +91,7 @@ def ts_str(s: str) -> str:
 
 
 def main() -> int:
-    rows = list(csv.DictReader(CSV.open()))
+    rows = list(csv.DictReader(CSV.open(encoding="utf-8", newline="")))
     if not rows:
         print("no rows in CSV", file=sys.stderr)
         return 1
@@ -320,7 +320,7 @@ func AllFeatures() []Feature {
 ''')
     p = ROOT / "internal" / "catalog" / "catalog_gen.go"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text("".join(out))
+    p.write_text("".join(out), encoding="utf-8", newline="\n")
 
 
 def write_ts(roles, total):
@@ -363,7 +363,7 @@ export const FEATURE_BY_KEY = new Map(
   ROLES.flatMap((r) => r.sections.flatMap((s) => s.features)).map((f) => [f.key, f]),
 )
 ''')
-    (ROOT / "web" / "src" / "catalog.gen.ts").write_text("".join(out))
+    (ROOT / "web" / "src" / "catalog.gen.ts").write_text("".join(out), encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

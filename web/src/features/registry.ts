@@ -74,7 +74,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Homework — the same screen from the teacher's and the child's side.
   'faculty.teaching.homework_classwork': lazy(() => import('./workflow/Homework')),
-  'faculty.teaching.teacher_digital_diary': lazy(() => import('./workflow/Homework')),
   'student.homework.homework_assignments': lazy(() => import('./workflow/Homework')),
   'parent.academics.homework_academics': lazy(() => import('./workflow/Homework')),
 
@@ -105,7 +104,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // The NEP holistic card. One screen for the teacher recording observations
   // and the family reading them — the same card from two sides, and building
   // two would guarantee they drift.
-  'faculty.marks_report_cards.nep_holistic_progress_card_hpc': lazy(() => import('./exams/HolisticCard')),
   'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
 
   /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
@@ -116,8 +114,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.academics.syllabus_coverage_tracking': lazy(() => import('./academics/Syllabus')),
   'institution_admin.academics.syllabus_progress': lazy(() => import('./academics/Syllabus')),
   'faculty.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
-  'faculty.teaching.syllabus_progress_tracker': lazy(() => import('./academics/Syllabus')),
-  'faculty.teaching.syllabus_progress': lazy(() => import('./academics/Syllabus')),
 
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
@@ -235,15 +231,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      accommodations agreed for a child who needs them hang off the same row,
      because they are what a teacher does with the flag. */
   'faculty.my_classes.student_progress': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.student_at_risk_identification': lazy(() => import('./faculty/MyClasses')),
   'faculty.my_classes.student_behavior_demerits': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.discipline_notes': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.cwsn_support_plan': lazy(() => import('./faculty/MyClasses')),
   'faculty.my_classes.my_students': lazy(() => import('./shared/Students')),
   'faculty.my_classes.student_details': lazy(() => import('./shared/StudentProfile')),
-  'faculty.marks_report_cards.holistic_progress_card': lazy(() => import('./exams/HolisticCard')),
   'faculty.marks_report_cards.report_cards': lazy(() => import('./exams/ReportCards')),
-  'faculty.communication.announcements': lazy(() => import('./comms/Circulars')),
   'faculty.my_profile.profile': lazy(() => import('./shared/Profile')),
 
   // Transport Manager, Librarian, Hostel Warden — the operations umbrella
