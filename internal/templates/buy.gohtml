@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School ERP — pricing and enquiry</title>
-<meta name="description" content="A complete school ERP for Indian K-12 schools: admissions, attendance, fees, examinations, payroll and the UDISE+ return. Priced per year, unlimited users.">
+<title>School ERP — pricing</title>
+<meta name="description" content="A complete school ERP for Indian K-12 schools: admissions, attendance, fees, examinations, payroll and the UDISE+ return. Monthly or yearly, unlimited users.">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
 </head>
-<body class="marketing">
+<body class="marketing pricing">
 
 <header class="topbar">
   <span class="wordmark">School ERP</span>
@@ -15,35 +15,54 @@
 </header>
 
 <main>
-  <section class="hero">
-    <h1>Everything a school runs on, in one place</h1>
-    <p>
-      Admissions through to the UDISE+ return: attendance, fees and receipts,
-      examinations and report cards, payroll, transport and the parent app.
-      Built for Indian K-12 schools, priced per year, with no limit on how many
-      teachers or parents use it.
-    </p>
-    <a class="cta giant" href="/signup?plan=standard">Buy now and start today</a>
-    <a class="quiet under" href="#enquire">or talk to us about your school first</a>
-    <p class="fineprint">
-      Or subscribe below and start straight away — your school is set up the
-      moment the payment clears, and you are given your sign-in details on the
-      spot. If you would rather talk to somebody first, we are happy to.
-    </p>
+  <section class="price-hero">
+    <h1>Select your School ERP plan</h1>
+    <p class="lede">Start today. Your school is set up the moment the payment clears.</p>
+
+    <!-- The toggle is a real control with a real fallback: without JavaScript
+         the yearly prices are the ones rendered, which are the ones most
+         schools buy and the ones the system has always billed. -->
+    <div class="billing" id="billing">
+      <span class="bill-label" data-for="monthly">Monthly</span>
+      <button type="button" id="billing-toggle" class="switch" role="switch"
+              aria-checked="true" aria-label="Show monthly prices">
+        <span class="knob"></span>
+      </button>
+      <span class="bill-label on" data-for="yearly">
+        Yearly
+        <span class="save-tag" id="save-tag">save up to 33%</span>
+      </span>
+    </div>
   </section>
 
-  <section class="plans" aria-label="Plans">
-    {{range .Plans}}
-    <article class="plan{{if .Featured}} featured{{end}}">
-      {{if .Featured}}<span class="tag">Most schools choose this</span>{{end}}
-      <h2>{{.Name}}</h2>
-      <p class="price"><span class="rupee">₹</span>{{.Rupees}}<span class="per">per year</span></p>
-      <p class="cap">{{.MaxStudents}}</p>
-      <ul>
-        {{range .Modules}}<li>{{.}}</li>{{end}}
-      </ul>
-      <a class="cta choose" href="/signup?plan={{.Code}}">Subscribe to {{.Name}}</a>
-      <a class="quiet talk" href="#enquire" data-plan="{{.Code}}">or talk to us first</a>
+  <section class="tiers" aria-label="Plans">
+    {{range $i, $p := .Plans}}
+    <article class="tier tier-{{$p.Code}}{{if $p.Featured}} featured{{end}}">
+      {{if $p.Featured}}<span class="ribbon">Most schools choose this</span>{{end}}
+
+      <div class="tier-head">
+        <h2>{{$p.Name}}</h2>
+        <p class="amount">
+          <span class="rupee">₹</span><span class="figure"
+            data-yearly="{{$p.Rupees}}"
+            data-monthly="{{if $p.Monthly}}{{$p.Monthly}}{{else}}{{$p.Rupees}}{{end}}">{{$p.Rupees}}</span>
+          <span class="per" data-yearly="per year" data-monthly="{{if $p.Monthly}}per month{{else}}per year{{end}}">per year</span>
+        </p>
+        <p class="cap">{{$p.MaxStudents}}</p>
+        {{if and $p.Monthly $p.SavingPct}}
+          <p class="tier-save" data-saving="{{$p.SavingPct}}">Paying yearly saves {{$p.SavingPct}}%</p>
+        {{else if not $p.Monthly}}
+          <p class="tier-save">Sold by the year</p>
+        {{end}}
+        <a class="tier-cta" href="/signup?plan={{$p.Code}}" data-plan="{{$p.Code}}">Get started</a>
+      </div>
+
+      <div class="tier-body">
+        {{if $p.Featured}}<p class="tier-eyebrow">Everything in Starter, plus</p>{{end}}
+        <ul>
+          {{range $p.Modules}}<li>{{.}}</li>{{end}}
+        </ul>
+      </div>
     </article>
     {{end}}
   </section>
@@ -61,38 +80,25 @@
   </section>
 
   <section class="enquire" id="enquire">
-    <h2>Tell us about your school</h2>
+    <h2>Would rather talk to somebody first?</h2>
     <p class="lede">
-      We will call you back, show you the software with your own classes in it,
-      and set it up if you go ahead. Usually a week from this form to your staff
-      using it.
+      Leave your details and we will telephone you. No account is created and
+      nothing is charged.
     </p>
 
     {{if .Sent}}
-      <div class="sent" role="status">
-        <h3>Thank you — we have your enquiry</h3>
-        <p>
-          We will be in touch about <strong>{{.School}}</strong> within one
-          working day. If it is urgent, sign in details and a phone number are
-          on the email we are sending now.
-        </p>
-      </div>
+      <p class="sent">Thank you — we have your enquiry. Somebody will call you about {{.School}}.</p>
     {{else}}
       {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
       <form method="post" action="/buy">
-        <div class="row">
-          <label for="school_name">School name<span aria-hidden="true">*</span></label>
-          <input id="school_name" name="school_name" required value="{{.School}}"
-                 placeholder="Bharat Public School, Warangal">
-        </div>
         <div class="grid">
           <div class="row">
-            <label for="contact_name">Your name<span aria-hidden="true">*</span></label>
-            <input id="contact_name" name="contact_name" required value="{{.Contact}}">
+            <label for="school_name">School name<span aria-hidden="true">*</span></label>
+            <input id="school_name" name="school_name" value="{{.School}}" required>
           </div>
           <div class="row">
-            <label for="district">District</label>
-            <input id="district" name="district" value="{{.District}}">
+            <label for="contact_name">Your name<span aria-hidden="true">*</span></label>
+            <input id="contact_name" name="contact_name" value="{{.Contact}}" required>
           </div>
           <div class="row">
             <label for="email">Email</label>
@@ -100,51 +106,82 @@
           </div>
           <div class="row">
             <label for="phone">Phone</label>
-            <input id="phone" name="phone" value="{{.Phone}}" placeholder="98480 12345">
+            <input id="phone" name="phone" value="{{.Phone}}">
           </div>
           <div class="row">
-            <label for="students">How many students</label>
+            <label for="district">District</label>
+            <input id="district" name="district" value="{{.District}}">
+          </div>
+          <div class="row">
+            <label for="students">How many students?</label>
             <input id="students" name="students" inputmode="numeric" value="{{.Students}}">
-          </div>
-          <div class="row">
-            <label for="plan_code">Plan you are considering</label>
-            <select id="plan_code" name="plan_code">
-              <option value="">Not sure yet</option>
-              {{$sel := .Plan}}
-              {{range .Plans}}
-              <option value="{{.Code}}"{{if eq .Code $sel}} selected{{end}}>{{.Name}}</option>
-              {{end}}
-            </select>
           </div>
         </div>
         <div class="row">
-          <label for="message">Anything we should know</label>
-          <textarea id="message" name="message" rows="3"
-                    placeholder="Two campuses, moving off paper registers, need Telugu report cards…">{{.Message}}</textarea>
+          <label for="plan_code">Plan you are considering</label>
+          <select id="plan_code" name="plan_code">
+            <option value="">Not sure yet</option>
+            {{range .Plans}}<option value="{{.Code}}" {{if eq $.Plan .Code}}selected{{end}}>{{.Name}}</option>{{end}}
+          </select>
         </div>
-        <p class="fineprint">
-          One of the two contact fields is enough. We use these details to reply
-          to this enquiry and nothing else.
-        </p>
-        <button type="submit">Send enquiry</button>
+        <div class="row">
+          <label for="message">Anything you want us to know</label>
+          <textarea id="message" name="message" rows="3">{{.Message}}</textarea>
+        </div>
+        <button type="submit">Ask us to call</button>
       </form>
     {{end}}
   </section>
 </main>
 
-<footer>
-  <p>School ERP · Hyderabad · Already a customer? <a href="/login">Sign in</a></p>
+<footer class="foot">
+  <a href="/login">Sign in</a> · <a href="#enquire">Talk to us</a>
 </footer>
 
 <script>
-  /* Choosing a plan scrolls to the form with that plan already selected, so
-     the answer to "which one?" is not asked twice. */
-  document.querySelectorAll('.choose').forEach(function (a) {
-    a.addEventListener('click', function () {
-      var sel = document.getElementById('plan_code')
-      if (sel) sel.value = a.dataset.plan
-    })
-  })
+/* The billing toggle.
+ *
+ * Prices are rendered by the server and swapped from data attributes here,
+ * rather than fetched: the page must show a real price on first paint, and a
+ * figure that arrives after a round trip is a figure somebody screenshots
+ * mid-flight. Yearly is the default because it is what the system bills and
+ * what most schools buy.
+ */
+(function () {
+  var toggle = document.getElementById('billing-toggle');
+  if (!toggle) return;
+  var wrap = document.getElementById('billing');
+  var tag = document.getElementById('save-tag');
+  var yearly = true;
+
+  function apply() {
+    document.querySelectorAll('.figure, .per').forEach(function (el) {
+      var v = el.getAttribute(yearly ? 'data-yearly' : 'data-monthly');
+      if (v) el.textContent = v;
+    });
+    document.querySelectorAll('.tier-save[data-saving]').forEach(function (el) {
+      el.textContent = yearly
+        ? 'Paying yearly saves ' + el.getAttribute('data-saving') + '%'
+        : 'Save ' + el.getAttribute('data-saving') + '% by paying yearly';
+    });
+    // The link carries the choice through to checkout, so the order records
+    // what the school actually agreed to rather than the default.
+    document.querySelectorAll('.tier-cta').forEach(function (a) {
+      a.setAttribute('href', '/signup?plan=' + a.getAttribute('data-plan') +
+        '&billing=' + (yearly ? 'yearly' : 'monthly'));
+    });
+    wrap.querySelectorAll('.bill-label').forEach(function (l) {
+      l.classList.toggle('on', l.getAttribute('data-for') === (yearly ? 'yearly' : 'monthly'));
+    });
+    toggle.setAttribute('aria-checked', String(yearly));
+    toggle.classList.toggle('off', !yearly);
+    if (tag) tag.hidden = !yearly;
+  }
+
+  toggle.addEventListener('click', function () { yearly = !yearly; apply(); });
+  apply();
+})();
 </script>
+
 </body>
 </html>{{end}}

@@ -40,9 +40,14 @@ func TestPurchaseScreensRender(t *testing.T) {
 		Plan         struct {
 			Code, Name, Rupees, MaxStudents string
 			PricePaise                      int64
+			Monthly                         string
+			MonthlyPaise                    int64
+			SavingPct                       int
 			Modules                         []string
 			Featured                        bool
 		}
+		Billing                                                          string
+		Period                                                           string
 		Plans                                                            []any
 		School, Contact, Email, Phone, District, State, Board, Students  string
 		Username, OrderRef, Amount, Prefill, SignInAs, Password, PaidRef string
@@ -57,6 +62,10 @@ func TestPurchaseScreensRender(t *testing.T) {
 	view.Plan.Code = "standard"
 	view.Plan.Rupees = "90,000"
 	view.Plan.MaxStudents = "Up to 1,200 students"
+	view.Plan.Monthly = "10,000"
+	view.Plan.SavingPct = 25
+	view.Billing = "yearly"
+	view.Period = "per year"
 
 	for _, name := range []string{"signup.gohtml", "pay.gohtml", "welcome.gohtml"} {
 		var sb strings.Builder
@@ -103,8 +112,8 @@ func TestCredentialPagesAreNoindex(t *testing.T) {
 		if err := tpl.ExecuteTemplate(&sb, name, struct {
 			AssetVersion, Error, School, Contact, Email, Phone, District string
 			State, Board, Students, Username, OrderRef, Amount, Prefill  string
-			SignInAs, Password, PaidRef                                  string
-			Plan                                                         struct{ Code, Name, Rupees, MaxStudents string }
+			SignInAs, Password, PaidRef, Billing, Period                 string
+			Plan                                                         struct{ Code, Name, Rupees, MaxStudents, Monthly string }
 			Plans                                                        []any
 		}{}); err != nil {
 			t.Fatal(err)

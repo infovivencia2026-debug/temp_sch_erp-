@@ -42,7 +42,16 @@ type buyPlan struct {
 	// PricePaise is what the checkout quotes and what the order records.
 	// Rupees above is for reading; this is for arithmetic, and the two must
 	// never be derived from each other at the point of sale.
-	PricePaise  int64
+	PricePaise int64
+	// Monthly is the per-month price where one is offered. Empty means the
+	// plan is sold by the year only, and the page says so rather than
+	// dividing the annual figure by twelve.
+	Monthly      string
+	MonthlyPaise int64
+	// SavingPct is what a school actually saves by paying yearly, worked out
+	// per plan. Printing one rounded claim across three plans states a number
+	// that is true of none of them.
+	SavingPct   int
 	MaxStudents string
 	Modules     []string
 	Featured    bool
@@ -84,7 +93,7 @@ func (b *BuyPage) plans(r *http.Request) ([]buyPlan, error) {
 	var out []buyPlan
 	err := b.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			SELECT code, name, price_paise, max_students, modules
+			SELECT code, name, price_paise, price_monthly_paise, max_students, modules
 			  FROM plans ORDER BY sequence, price_paise`)
 		if err != nil {
 			return err
@@ -94,11 +103,19 @@ func (b *BuyPage) plans(r *http.Request) ([]buyPlan, error) {
 			var (
 				p       buyPlan
 				paise   int64
+				monthly *int64
 				maxStud *int
 				mods    []string
 			)
-			if err := rows.Scan(&p.Code, &p.Name, &paise, &maxStud, &mods); err != nil {
+			if err := rows.Scan(&p.Code, &p.Name, &paise, &monthly, &maxStud, &mods); err != nil {
 				return err
+			}
+			if monthly != nil && *monthly > 0 {
+				p.MonthlyPaise = *monthly
+				p.Monthly = indianRupees(*monthly / 100)
+				if year := *monthly * 12; year > paise && year > 0 {
+					p.SavingPct = int(((year - paise) * 100) / year)
+				}
 			}
 			p.PricePaise = paise
 			p.Rupees = indianRupees(paise / 100)

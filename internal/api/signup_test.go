@@ -162,3 +162,47 @@ func TestProvisionParamsValidate(t *testing.T) {
 		t.Error("an administrator with no name was accepted")
 	}
 }
+
+// The pricing page writes the period into the link, and a link is the easiest
+// thing in the world to edit. A school must not reach checkout holding a
+// monthly price for a plan that is not sold monthly.
+func TestBillingPeriodRefusesMonthlyWhereThereIsNoMonthlyPrice(t *testing.T) {
+	yearlyOnly := buyPlan{Code: "complete", PricePaise: 18000000}
+	both := buyPlan{Code: "standard", PricePaise: 9000000, MonthlyPaise: 1000000}
+
+	if got := billingPeriod("monthly", yearlyOnly); got != "yearly" {
+		t.Errorf("monthly on a yearly-only plan resolved to %q, want yearly", got)
+	}
+	if got := billingPeriod("monthly", both); got != "monthly" {
+		t.Errorf("monthly on a plan sold monthly resolved to %q", got)
+	}
+	for _, in := range []string{"", "yearly", "annual", "MONTHLY  ", "nonsense"} {
+		got := billingPeriod(in, both)
+		if in == "MONTHLY  " {
+			if got != "monthly" {
+				t.Errorf("%q should be read as monthly, got %q", in, got)
+			}
+			continue
+		}
+		if got != "yearly" {
+			t.Errorf("%q resolved to %q, want yearly", in, got)
+		}
+	}
+}
+
+// The order records the figure, not a join to the plan: a plan's price changes
+// and a receipt must not silently reprice itself.
+func TestAmountForMatchesTheChosenPeriod(t *testing.T) {
+	p := buyPlan{Code: "standard", PricePaise: 9000000, MonthlyPaise: 1000000}
+	if got := amountFor(p, "monthly"); got != 1000000 {
+		t.Errorf("monthly amount = %d, want 1000000", got)
+	}
+	if got := amountFor(p, "yearly"); got != 9000000 {
+		t.Errorf("yearly amount = %d, want 9000000", got)
+	}
+	// A plan with no monthly price bills the annual figure whatever is asked.
+	q := buyPlan{Code: "complete", PricePaise: 18000000}
+	if got := amountFor(q, "monthly"); got != 18000000 {
+		t.Errorf("a yearly-only plan billed %d for a monthly request", got)
+	}
+}
