@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -56,6 +57,13 @@ type importSpec struct {
 	// Required names the columns a row cannot be built without.
 	Required []string
 	Sample   []string
+	// Check validates one row without touching the database, during the dry
+	// run. Without it a value the writer will reject — a level that is not a
+	// number — is reported as valid, the clerk fixes the rows they were told
+	// about, uploads again, and the commit fails on a row the check had
+	// already seen and passed. A dry run that misses errors is worse than no
+	// dry run, because it is trusted.
+	Check func(row map[string]string) error
 	// Write inserts one row. It is called inside the import transaction, with
 	// the header-keyed values of that row.
 	Write func(ctx *importCtx, row map[string]string) error
@@ -100,12 +108,15 @@ var importSpecs = map[string]importSpec{
 		Columns:  []string{"name", "level", "stream"},
 		Required: []string{"name", "level"},
 		Sample:   []string{"Grade 6", "6", ""},
-		Write: func(c *importCtx, row map[string]string) error {
-			level, err := strconv.Atoi(strings.TrimSpace(row["level"]))
-			if err != nil || level <= 0 {
+		Check: func(row map[string]string) error {
+			if n, err := strconv.Atoi(strings.TrimSpace(row["level"])); err != nil || n <= 0 {
 				return errors.New("level must be a whole number above zero — it is what orders the classes")
 			}
-			_, err = c.tx.Exec(c.r.Context(), `
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			level, _ := strconv.Atoi(strings.TrimSpace(row["level"]))
+			_, err := c.tx.Exec(c.r.Context(), `
 				INSERT INTO classes (institution_id, campus_id, name, level, stream)
 				VALUES ($1,$2,$3,$4,NULLIF($5,''))
 				ON CONFLICT DO NOTHING`,
@@ -118,6 +129,14 @@ var importSpecs = map[string]importSpec{
 		Columns:  []string{"class", "name", "capacity", "room"},
 		Required: []string{"class", "name"},
 		Sample:   []string{"Grade 6", "A", "40", ""},
+		Check: func(row map[string]string) error {
+			if v := strings.TrimSpace(row["capacity"]); v != "" {
+				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
+					return errors.New("capacity must be a whole number above zero")
+				}
+			}
+			return nil
+		},
 		Write: func(c *importCtx, row map[string]string) error {
 			classID, err := c.classID(row["class"])
 			if err != nil {
@@ -145,6 +164,14 @@ var importSpecs = map[string]importSpec{
 		Columns:  []string{"employee_code", "first_name", "last_name", "email", "phone", "designation", "role", "joined_on"},
 		Required: []string{"employee_code", "first_name"},
 		Sample:   []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210", "Teacher", "faculty", "2026-06-01"},
+		Check: func(row map[string]string) error {
+			if v := strings.TrimSpace(row["joined_on"]); v != "" {
+				if _, err := time.Parse(time.DateOnly, v); err != nil {
+					return errors.New("joined_on must be a date written as YYYY-MM-DD")
+				}
+			}
+			return nil
+		},
 		Write: func(c *importCtx, row map[string]string) error {
 			req := employeeRequest{
 				EmployeeCode: strings.TrimSpace(row["employee_code"]),
@@ -274,6 +301,13 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			out.Rejected++
 			out.Problems = append(out.Problems, importRow{Row: n, Data: data, Problem: missing + " is required"})
 			continue
+		}
+		if spec.Check != nil {
+			if err := spec.Check(data); err != nil {
+				out.Rejected++
+				out.Problems = append(out.Problems, importRow{Row: n, Data: data, Problem: err.Error()})
+				continue
+			}
 		}
 		out.Valid++
 		rows = append(rows, parsed{row: n, data: data})

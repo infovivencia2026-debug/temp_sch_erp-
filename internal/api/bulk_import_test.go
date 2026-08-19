@@ -95,6 +95,44 @@ func TestImportTemplatesDescribeTheImporter(t *testing.T) {
 	}
 }
 
+// The dry run has to catch everything the writer would reject. A dry run that
+// passes a row the commit then fails on is worse than none, because it is
+// trusted: the clerk fixes what they were told about and the import still
+// breaks, on a row the check had already seen.
+func TestDryRunCatchesWhatTheWriterWouldReject(t *testing.T) {
+	classes := importSpecs["classes"]
+	if classes.Check == nil {
+		t.Fatal("classes has no dry-run check, so a non-numeric level reports as valid")
+	}
+	for _, bad := range []string{"notanumber", "0", "-3", "six", ""} {
+		if err := classes.Check(map[string]string{"name": "Grade 8", "level": bad}); err == nil {
+			t.Errorf("level %q passed the dry run but the writer would reject it", bad)
+		}
+	}
+	if err := classes.Check(map[string]string{"name": "Grade 8", "level": "8"}); err != nil {
+		t.Errorf("a good row was rejected: %v", err)
+	}
+
+	sections := importSpecs["sections"]
+	// Capacity is optional, so blank must pass and rubbish must not.
+	if err := sections.Check(map[string]string{"class": "Grade 6", "name": "A", "capacity": ""}); err != nil {
+		t.Errorf("a blank capacity should be allowed: %v", err)
+	}
+	for _, bad := range []string{"forty", "0", "-1"} {
+		if err := sections.Check(map[string]string{"class": "Grade 6", "name": "A", "capacity": bad}); err == nil {
+			t.Errorf("capacity %q passed the dry run", bad)
+		}
+	}
+
+	staff := importSpecs["staff"]
+	if err := staff.Check(map[string]string{"employee_code": "T-1", "first_name": "Priya", "joined_on": "01/06/2026"}); err == nil {
+		t.Error("a date in the wrong format passed the dry run")
+	}
+	if err := staff.Check(map[string]string{"employee_code": "T-1", "first_name": "Priya", "joined_on": ""}); err != nil {
+		t.Errorf("a blank joining date should be allowed: %v", err)
+	}
+}
+
 // A row whose required cell is only whitespace is a missing value, not a
 // present one. Spreadsheets are full of stray spaces.
 func TestImportSpecsRequireRealValues(t *testing.T) {
