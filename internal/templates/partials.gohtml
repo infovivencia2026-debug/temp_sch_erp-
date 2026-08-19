@@ -1,0 +1,59 @@
+{{/*
+Shared pieces for the server-rendered pages.
+
+The appearance control belongs on every page a visitor can reach before they
+have an account -- pricing, checkout, the gateway, the handover and sign-in.
+Offering it on one of them and not the others is worse than not offering it:
+the choice appears to be forgotten the moment they move on.
+
+Kept here as two blocks rather than copied into five templates, because the
+copy that gets missed is always the one somebody actually lands on.
+*/}}
+
+{{/* themeboot runs before the stylesheet paints. A theme restored afterwards
+     is a white flash on every load for anybody who chose dark. Wrapped
+     because storage throws in a locked-down browser, and a themed page is not
+     worth failing to render over. */}}
+{{define "themeboot"}}<script>
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>{{end}}
+
+{{/* themebtn is the control itself: a moon to go dark, a sun to come back.
+     The glyph shows what the button will do rather than what the page is --
+     a control labelled with its current state reads as a status light and
+     gets pressed by mistake. */}}
+{{define "themebtn"}}<button type="button" id="theme-toggle" class="theme-toggle"
+        aria-label="Switch between light and dark" title="Switch appearance">
+  <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+  <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+  </svg>
+</button>{{end}}
+
+{{/* themejs wires it. Three states, and the third is the one people forget:
+     an explicit choice is stored, and no choice at all means follow the
+     operating system. The button only ever writes 'dark' or 'light' --
+     following the system is the default nobody has to click for, and a third
+     position for it would be a control for the absence of a control. */}}
+{{define "themejs"}}<script>
+(function () {
+  var btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  var root = document.documentElement;
+  btn.addEventListener('click', function () {
+    var now = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = now === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+})();
+</script>{{end}}

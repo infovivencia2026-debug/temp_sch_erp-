@@ -186,6 +186,19 @@ body.marketing main { max-width: 1040px; margin: 0 auto; padding: 0 24px 64px; }
   display: flex; align-items: center; justify-content: space-between;
   max-width: 1040px; margin: 0 auto; padding: 20px 24px;
 }
+/* On the pricing page the bar follows you down. The appearance control lives
+   in it, and a control that scrolls away on a page this long is a control
+   nobody finds -- which is exactly what happened. */
+body.pricing .topbar {
+  position: sticky; top: 0; z-index: 30; max-width: none;
+  padding: 14px 24px;
+  background: color-mix(in srgb, var(--ground) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+@supports (backdrop-filter: blur(8px)) {
+  body.pricing .topbar { backdrop-filter: blur(8px); }
+}
+body.pricing .topbar > .wordmark { margin-right: auto; }
 .wordmark { font-weight: 600; letter-spacing: -0.01em; }
 .topbar .quiet { color: var(--muted); text-decoration: none; font-size: 14px; }
 .topbar .quiet:hover { color: var(--fg); }
@@ -414,7 +427,7 @@ body.pricing main { max-width: 1120px; margin: 0 auto; padding: 0 24px 72px; }
 
 /* Tiers */
 .tiers {
-  display: grid; gap: 20px; align-items: center;
+  display: grid; gap: 20px; align-items: stretch;
   grid-template-columns: repeat(auto-fit, minmax(288px, 1fr));
 }
 .tier {
@@ -529,9 +542,23 @@ body.pricing .enquire { margin-top: 40px; }
 }
 .tier > * { position: relative; z-index: 1; }
 .tier:hover::after, .tier:focus-within::after { opacity: 1; }
-.tier:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 14px 34px rgba(16, 24, 40, .13); }
+/* Hovering any card raises it to the prominence the middle one has by
+   default. The middle card is not special because of what it is, it is
+   special because it is the recommendation — so the pointer should be able to
+   put any of the three in that position and compare them on equal terms. */
+.tier:hover, .tier:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 22px 52px rgba(16, 24, 40, .18);
+}
 @media (min-width: 900px) {
-  .tier.featured:hover { transform: scale(1.045) translateY(-5px); }
+  .tier:hover, .tier:focus-within { transform: scale(1.045) translateY(-6px); }
+  /* The featured card is already scaled, so it lifts rather than growing
+     twice -- doubling the scale on hover would make it jump past the others
+     instead of meeting them. */
+  .tier.featured:hover, .tier.featured:focus-within { transform: scale(1.045) translateY(-6px); }
+}
+@media (max-width: 899px) {
+  .tier:hover, .tier:focus-within { transform: translateY(-5px); }
 }
 /* The two coloured cards already carry their own ground, so the accent wash
    would muddy them; they get a warmer light of their own. */
@@ -546,6 +573,12 @@ body.pricing .enquire { margin-top: 40px; }
 
 @media (prefers-reduced-motion: reduce) {
   .tier, .tier::after, .theme-toggle { transition: none; }
-  .tier:hover { transform: none; }
-  @media (min-width: 900px) { .tier.featured:hover { transform: scale(1.045); } }
+  .tier:hover, .tier:focus-within { transform: none; }
+  @media (min-width: 900px) {
+    .tier.featured, .tier.featured:hover, .tier.featured:focus-within { transform: scale(1.045); }
+  }
 }
+
+/* The sign-in card is centred on an otherwise empty page, so its appearance
+   control sits in the corner rather than in a bar that does not exist there. */
+.auth-top { position: fixed; top: 16px; right: 16px; z-index: 10; }
