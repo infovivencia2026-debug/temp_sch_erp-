@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/rbac"
 )
 
@@ -890,6 +892,60 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	return SendResult{ID: id}, nil
 }
 
+/*
+QueueOutbound is the queue package's way in, and the reason internal/queue does
+not have to import this one.
+
+	It is QueueMessage with the transaction opened here rather than passed in.
+	The distinction matters: QueueMessage takes a tx because a feature queueing
+	a message wants it to commit with the change that caused it, and a
+	rolled-back attendance correction must not leave a parent already told. A
+	worker task has no such surrounding change -- the thing that happened
+	committed before the job was enqueued -- so it opens its own.
+
+	Signature and types are queue.Messaging / queue.OutboundRequest, satisfied
+	structurally. This file names them explicitly so that a change to the
+	interface fails the build here rather than silently at the wiring in
+	cmd/worker, where a *Server that no longer satisfies it would only show up
+	as a compile error a long way from the cause.
+*/
+func (s *Server) QueueOutbound(ctx context.Context, inst uuid.UUID, req queue.OutboundRequest) error {
+	return s.DB.InTenant(ctx, tenantScopeFor(inst, false), func(tx pgx.Tx) error {
+		send := SendRequest{
+			Channel:       req.Channel,
+			TemplateCode:  req.TemplateCode,
+			Vars:          req.Vars,
+			SourceKind:    req.SourceKind,
+			OccurrenceKey: req.OccurrenceKey,
+		}
+		if req.ToUserID != uuid.Nil {
+			u := req.ToUserID
+			send.ToUserID = &u
+		}
+		if req.SourceID != uuid.Nil {
+			id := req.SourceID
+			send.SourceID = &id
+		}
+		res, err := s.QueueMessage(ctx, tx, inst, send)
+		if err != nil {
+			return err
+		}
+		if res.Duplicate {
+			// Not a failure. The one-per-occurrence index refused a second
+			// copy, which on a task retry is exactly the outcome wanted --
+			// reporting it as an error would make asynq retry it again.
+			slog.Info("outbound message already queued for this occurrence",
+				"institution_id", inst, "template", req.TemplateCode)
+		}
+		return nil
+	})
+}
+
+// Compile-time proof that the inversion holds. If queue.Messaging grows a
+// method, the build fails here, at the implementation, rather than at the
+// wiring in cmd/worker a long way from the cause.
+var _ queue.Messaging = (*Server)(nil)
+
 func nullIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
@@ -955,16 +1011,17 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				subject   *string
 				body      *string
 				code      *string
+				attempts  int
 			)
 			row := tx.QueryRow(ctx, `
-				SELECT id, channel, recipient, subject, body, template_code
+				SELECT id, channel, recipient, subject, body, template_code, attempts
 				  FROM message_log
 				 WHERE institution_id = $1 AND status = 'queued'
 				   AND (send_after IS NULL OR send_after <= now())
 				 ORDER BY queued_at
 				 FOR UPDATE SKIP LOCKED
 				 LIMIT 1`, inst)
-			if err := row.Scan(&id, &channel, &recipient, &subject, &body, &code); err != nil {
+			if err := row.Scan(&id, &channel, &recipient, &subject, &body, &code, &attempts); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					done = true
 					return nil
@@ -999,10 +1056,39 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			})
 			if sendErr != nil {
 				failed++
+				/* A failed send is held, not buried.
+
+				   Marking it 'failed' on the first error made every failure
+				   terminal, because the dispatcher only ever selects rows that
+				   are still 'queued'. The two failures that matter most here
+				   are both temporary: a provider nobody has finished setting
+				   up yet -- this deployment has no SMS or WhatsApp account, so
+				   that is the normal case -- and a gateway that is briefly
+				   unreachable. Burying either means the school configures the
+				   credentials and the backlog of reminders it was configured
+				   for stays dead in the table.
+
+				   So the row goes back to 'queued' with send_after pushed out,
+				   carrying the error text the whole time: visible on the log
+				   screen as a message that has not gone out and why, rather
+				   than silence. Only after retryAttempts does it become
+				   'failed', which is the honest reading of a message nobody is
+				   going to be able to send. */
+				retry, delay := retrySchedule(attempts + 1)
+				if !retry {
+					_, e := tx.Exec(ctx, `
+						UPDATE message_log
+						   SET status = 'failed', error = $2, attempts = attempts + 1, provider = $3
+						 WHERE id = $1`, id, truncate(sendErr.Error(), 500), p.Name())
+					return e
+				}
 				_, e := tx.Exec(ctx, `
 					UPDATE message_log
-					   SET status = 'failed', error = $2, attempts = attempts + 1, provider = $3
-					 WHERE id = $1`, id, truncate(sendErr.Error(), 500), p.Name())
+					   SET status = 'queued', error = $2, attempts = attempts + 1,
+					       provider = $3, send_after = now() + $4::interval
+					 WHERE id = $1`,
+					id, truncate(sendErr.Error(), 500), p.Name(),
+					fmt.Sprintf("%d seconds", int(delay.Seconds())))
 				return e
 			}
 			sent++
@@ -1018,6 +1104,44 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 		}
 	}
 	return sent, failed, nil
+}
+
+/*
+retryAttempts is where a message stops being late and starts being undeliverable.
+
+	Five, with the backoff below, spans a little over three hours. That is
+	chosen against the failure it is most likely to be waiting out: a gateway
+	outage or a mail host refusing connections, both of which resolve inside an
+	hour or are an incident somebody is already handling. Waiting longer would
+	mean a fee reminder arriving the following morning under a subject line
+	about yesterday, which is worse than the log saying plainly that it never
+	went.
+*/
+const retryAttempts = 5
+
+/*
+retrySchedule decides what happens to a message whose send just failed.
+
+	Exponential from five minutes, capped at an hour, so a provider that is
+	down does not get hit every five minutes by a growing backlog -- the cap
+	matters more than the growth, because the number of held messages rises
+	while the outage lasts and each one is a connection attempt.
+
+	It returns a duration rather than reading the clock so that the decision is
+	testable without one.
+*/
+func retrySchedule(attempt int) (retry bool, delay time.Duration) {
+	if attempt >= retryAttempts {
+		return false, 0
+	}
+	delay = 5 * time.Minute
+	for i := 1; i < attempt; i++ {
+		delay *= 3
+	}
+	if delay > time.Hour {
+		delay = time.Hour
+	}
+	return true, delay
 }
 
 func strVal(p *string) string {

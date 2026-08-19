@@ -17,6 +17,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/school-erp/erp/internal/api"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/queue"
@@ -81,7 +82,20 @@ func run() error {
 		},
 	})
 
-	handlers := &queue.Handlers{DB: db}
+	/* The one place that knows about both packages.
+
+	   internal/api imports internal/queue to enqueue, so queue cannot import
+	   api back to reach the dispatcher. queue declares the narrow interface it
+	   needs (queue.Messaging) and *api.Server satisfies it; this process, which
+	   already depends on both, is where the two are joined. Nothing else in the
+	   worker touches api, and api learns nothing about the worker.
+
+	   The Server here is deliberately partial: the dispatcher reaches Postgres
+	   and the provider registry and nothing else, so Sessions, Hasher, Queue,
+	   Inspector and Storage stay nil rather than being constructed to look
+	   complete. A worker that could serve HTTP would be a second web process
+	   nobody meant to deploy. */
+	handlers := &queue.Handlers{DB: db, Messaging: &api.Server{DB: db}}
 
 	scheduler, err := queue.NewScheduler(cfg.RedisURL, schedulerTimezone(ctx, db))
 	if err != nil {

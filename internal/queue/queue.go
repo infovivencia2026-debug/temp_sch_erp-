@@ -28,6 +28,7 @@ const (
 	TypeInvoiceGenerate    = "invoice:generate"
 	TypeFeeReminderFanout  = "fee:reminder_fanout"
 	TypeMessageSend        = "message:send"
+	TypeMessageDispatch    = "message:dispatch"
 	TypeBulkImport         = "bulk:import"
 	TypeExportBuild        = "export:build"
 	TypeAttendanceRollup   = "attendance:rollup"
@@ -92,6 +93,25 @@ type MessageSendPayload struct {
 	TemplateKey string         `json:"template_key"`
 	ToUserID    uuid.UUID      `json:"to_user_id"`
 	Vars        map[string]any `json:"vars,omitempty"`
+}
+
+/*
+MessageDispatchPayload drives the recurring flush of message_log.
+
+	It carries no work of its own -- the queue of what to send is the table,
+	not the payload -- so the only field is how much of it to drain in one
+	pass. That is deliberate: a payload that named the rows would go stale
+	between the scheduler enqueuing it and the worker running it, and a row
+	queued in between would wait for the next tick for no reason.
+
+	Limit bounds one run, not the queue. A tick that finds 4,000 due messages
+	sends the oldest Limit of them and leaves the rest for the next tick, which
+	is 5 minutes away -- the alternative, draining without bound, is one task
+	holding a worker slot for an hour with a timeout it cannot meet.
+*/
+type MessageDispatchPayload struct {
+	Envelope
+	Limit int `json:"limit"`
 }
 
 type BulkImportPayload struct {

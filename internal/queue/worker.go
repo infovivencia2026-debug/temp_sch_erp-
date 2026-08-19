@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 
@@ -18,21 +19,81 @@ import (
 // cannot read across tenants either.
 type Handlers struct {
 	DB *database.DB
+
+	/* Messaging is the way out of this package and into the messaging
+	   contract, which lives in internal/api.
+
+	   The dependency runs api -> queue: internal/api enqueues tasks, so queue
+	   cannot import it back to reach s.DispatchMessages. Rather than move the
+	   dispatcher -- its provider set, template resolution and quiet-hours
+	   rules are the messaging feature, not the queue's -- the direction is
+	   inverted here: queue declares the narrow interface it needs, api.Server
+	   already satisfies it, and cmd/worker is the one place that knows both.
+
+	   Nil is a supported state, not a bug. A worker built without messaging
+	   skips these tasks and says so in the log rather than panicking or
+	   reporting a success that did not happen. */
+	Messaging Messaging
+}
+
+/*
+Messaging is what the queue needs from the messaging feature, and no more.
+
+	Two methods, both already on api.Server. Declaring the interface here
+	rather than in internal/api is what makes the inversion work at all: Go
+	interfaces are satisfied structurally, so api.Server needs no reference to
+	this declaration and no import cycle is created.
+*/
+type Messaging interface {
+	// QueueOutbound resolves the template and the recipient's address and
+	// writes one row to message_log, respecting the one-per-occurrence index.
+	// It does not send; the dispatcher does that.
+	QueueOutbound(ctx context.Context, inst uuid.UUID, req OutboundRequest) error
+
+	// DispatchMessages hands due rows to their provider. platform selects the
+	// RLS scope: false for a single tenant's own queue, which is what the
+	// per-institution cron entries want.
+	DispatchMessages(ctx context.Context, inst uuid.UUID, platform bool, limit int) (sent, failed int, err error)
+}
+
+// OutboundRequest is one message to queue. Declared here for the same reason
+// the interface is: it is part of the contract queue depends on, and naming it
+// must not require importing api.
+type OutboundRequest struct {
+	Channel       string
+	TemplateCode  string
+	ToUserID      uuid.UUID
+	Vars          map[string]any
+	SourceKind    string
+	SourceID      uuid.UUID
+	OccurrenceKey string
+}
+
+// routes is the task table, as data rather than as a sequence of calls, so
+// that a test can ask which types are handled without executing any of them --
+// which is how a scheduled type with no handler is caught at test time instead
+// of as a "handler not found" in production at 00:30.
+func (h *Handlers) routes() map[string]func(context.Context, *asynq.Task) error {
+	return map[string]func(context.Context, *asynq.Task) error{
+		TypeReportCardGenerate: h.reportCardGenerate,
+		TypeInvoiceGenerate:    h.invoiceGenerate,
+		TypeFeeReminderFanout:  h.feeReminderFanout,
+		TypeMessageSend:        h.messageSend,
+		TypeMessageDispatch:    h.messageDispatch,
+		TypeBulkImport:         h.bulkImport,
+		TypeExportBuild:        h.exportBuild,
+		TypeAttendanceRollup:   h.attendanceRollup,
+		TypeSessionPrune:       h.sessionPrune,
+	}
 }
 
 // Mux wires task types to handlers.
 func (h *Handlers) Mux() *asynq.ServeMux {
 	mux := asynq.NewServeMux()
 	mux.Use(h.logging)
-
-	mux.HandleFunc(TypeReportCardGenerate, h.reportCardGenerate)
-	mux.HandleFunc(TypeInvoiceGenerate, h.invoiceGenerate)
-	mux.HandleFunc(TypeFeeReminderFanout, h.feeReminderFanout)
-	mux.HandleFunc(TypeMessageSend, h.messageSend)
-	mux.HandleFunc(TypeBulkImport, h.bulkImport)
-	mux.HandleFunc(TypeExportBuild, h.exportBuild)
-	mux.HandleFunc(TypeAttendanceRollup, h.attendanceRollup)
-	mux.HandleFunc(TypeSessionPrune, h.sessionPrune)
+	for typ, fn := range h.routes() {
+		mux.HandleFunc(typ, fn)
+	}
 	return mux
 }
 
@@ -148,19 +209,81 @@ func (h *Handlers) feeReminderFanout(ctx context.Context, t *asynq.Task) error {
 	})
 }
 
+/*
+messageSend queues one outbound message through the messaging contract.
+
+	It used to write message_log directly, naming columns the table has never
+	had -- template_key and to_user_id, where the columns are template_code and
+	user_id -- and omitting recipient, which is NOT NULL. Every execution
+	errored, was retried ten times under CriticalOptions and died, so the two
+	live callers (the absence SMS in mod_academics, the circular fan-out in
+	mod_ops) have never delivered anything. Rebuilding that INSERT correctly
+	here would mean rebuilding template resolution, address lookup and the
+	provider check beside it, and then maintaining two of each. It delegates.
+
+	Idempotency comes from the envelope's JobID. asynq redelivers the identical
+	payload on retry, so JobID is stable across attempts, and it names the
+	occurrence -- which makes the one-per-occurrence index the thing that stops
+	a parent being told twice, rather than this handler having to remember.
+*/
 func (h *Handlers) messageSend(ctx context.Context, t *asynq.Task) error {
-	p, scope, err := decode[MessageSendPayload](t)
+	p, _, err := decode[MessageSendPayload](t)
 	if err != nil {
 		return err
 	}
-	return h.DB.InTenant(ctx, scope, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			INSERT INTO message_log (institution_id, channel, template_key, to_user_id, status, sent_at)
-			VALUES ($1, $2, $3, $4, 'queued', now())
-			ON CONFLICT DO NOTHING`,
-			p.InstitutionID, p.Channel, p.TemplateKey, p.ToUserID)
-		return err
+	if h.Messaging == nil {
+		slog.Warn("message send skipped: no messaging contract wired",
+			"institution_id", p.InstitutionID, "template", p.TemplateKey)
+		return nil
+	}
+	return h.Messaging.QueueOutbound(ctx, p.InstitutionID, OutboundRequest{
+		Channel:      p.Channel,
+		TemplateCode: p.TemplateKey,
+		ToUserID:     p.ToUserID,
+		Vars:         p.Vars,
+		SourceKind:   "queue_task",
+		SourceID:     p.JobID,
+		// The template code is part of the occurrence, not only its source: a
+		// second template about the same event is a second message, and both
+		// are wanted.
+		OccurrenceKey: p.TemplateKey,
 	})
+}
+
+/*
+messageDispatch is the flush that had never been scheduled.
+
+	message_log accumulated rows with send_after set and nothing ever selected
+	them, so every trigger rule in the product queued correctly and delivered
+	nothing. This is the other end of that pipe, driven by the cron entry in
+	scheduler.go.
+
+	Safe to run twice. DispatchMessages claims each row with FOR UPDATE SKIP
+	LOCKED and only ever selects status = 'queued', so two overlapping ticks --
+	a retry firing beside the next scheduled run -- divide the queue between
+	them instead of both sending it. That property lives in the SQL rather than
+	in a lock held here, which is what makes an asynq retry harmless.
+*/
+func (h *Handlers) messageDispatch(ctx context.Context, t *asynq.Task) error {
+	p, _, err := decode[MessageDispatchPayload](t)
+	if err != nil {
+		return err
+	}
+	if h.Messaging == nil {
+		slog.Warn("message dispatch skipped: no messaging contract wired",
+			"institution_id", p.InstitutionID)
+		return nil
+	}
+	// platform=false: the sweep runs once per institution, inside that
+	// institution's own RLS scope. As platform, one tick would see every
+	// school's queue at once -- the dispatcher filters on institution_id
+	// anyway, but the row-level policy would stop being what guarantees it.
+	sent, failed, err := h.Messaging.DispatchMessages(ctx, p.InstitutionID, false, p.Limit)
+	if sent > 0 || failed > 0 || err != nil {
+		slog.Info("message dispatch", "institution_id", p.InstitutionID,
+			"sent", sent, "failed", failed)
+	}
+	return err
 }
 
 func (h *Handlers) bulkImport(ctx context.Context, t *asynq.Task) error {
