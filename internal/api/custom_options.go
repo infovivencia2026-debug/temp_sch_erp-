@@ -71,6 +71,10 @@ var customisableKinds = map[string][]option{
 	"expense_head":      nil,
 	"health_condition":  nil,
 	"achievement_type":  nil,
+	// Why a child is away. Six reasons cover most days and never all of them,
+	// and a parent who cannot say "school trip" picks the nearest wrong one —
+	// which is what the attendance report then aggregates.
+	"absence_reason": nil,
 }
 
 /* Deliberately NOT customisable, and worth naming so the next person does not
@@ -159,6 +163,7 @@ var kindLabels = map[string]string{
 	"expense_head":      "Expense heads",
 	"health_condition":  "Health conditions",
 	"achievement_type":  "Achievement types",
+	"absence_reason":    "Absence reasons",
 }
 
 // listOptions returns one kind: the built-in list first, then the school's own

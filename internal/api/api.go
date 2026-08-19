@@ -197,6 +197,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
+			// Completing an appointment: whoever may appoint somebody may let
+			// them in. Deliberately not access.users.write — that right would
+			// also let HR reset the principal's password.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/login", s.issueStaffLogin)
 
 			/* Setting a school up from the spreadsheets it already has.
 			   Classes, sections and staff all existed as forms that took one

@@ -32,7 +32,7 @@ export default function RoleSelect({
 }) {
   const qc = useQueryClient()
   const can = useCan()
-  const mayCreate = can('roles.write')
+  const mayCreate = can('access.roles.write')
 
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
