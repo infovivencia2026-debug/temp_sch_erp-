@@ -1,7 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
-import { OptionSelect } from '@/components/OptionSelect'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -156,12 +155,13 @@ function ProfilePanel({ onDone }: PanelProps) {
           <Input value={v.name ?? ''} onChange={(x) => set('name', x)} placeholder="Vivencia High School, Kompally" />
         </Field>
         <Field label="Board" required hint="Not listed? Add your own at the bottom of the list.">
-          <OptionSelect
+          <Select
             kind="affiliation_board"
+            addLabel="Add another board"
             value={v.affiliation_board ?? ''}
             onChange={(x) => set('affiliation_board', x)}
             placeholder="Choose a board"
-            addLabel="Add another board"
+            options={(opts?.affiliation_boards ?? []).map((o) => ({ value: o.value, label: o.label }))}
           />
         </Field>
         <Field label="Affiliation number" hint="Leave blank if the application is still pending.">
@@ -193,21 +193,23 @@ function ProfilePanel({ onDone }: PanelProps) {
           <Input value={v.village_or_ward ?? ''} onChange={(x) => set('village_or_ward', x)} />
         </Field>
         <Field label="School category">
-          <OptionSelect
+          <Select
             kind="school_category"
+            addLabel="Add another category"
             value={v.school_category ?? ''}
             onChange={(x) => set('school_category', x)}
             placeholder="Choose"
-            addLabel="Add another category"
+            options={opts?.school_categories ?? []}
           />
         </Field>
         <Field label="Management">
-          <OptionSelect
+          <Select
             kind="management_type"
+            addLabel="Add another management type"
             value={v.management_type ?? ''}
             onChange={(x) => set('management_type', x)}
             placeholder="Choose"
-            addLabel="Add another management type"
+            options={opts?.management_types ?? []}
           />
         </Field>
         <Field label="UDISE+ code" hint="Eleven digits. Needed before the annual return.">

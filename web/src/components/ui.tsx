@@ -1,11 +1,12 @@
 import {
-  Children, cloneElement, Fragment, isValidElement, useState,
+  Children, cloneElement, Fragment, isValidElement, useEffect, useState,
   type ReactElement, type ReactNode,
 } from 'react'
 import {
   CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Printer, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -696,29 +697,124 @@ export function Checkbox({
   )
 }
 
+/**
+ * A dropdown, optionally one the school may extend.
+ *
+ * Pass `kind` and the list stops being the vendor's opinion of what exists.
+ * The literal `options` stay as the built-in suggestions; the school's own
+ * additions for that kind are appended, and a final "+ Add your own" entry
+ * turns the control into a text box for as long as it takes to type one.
+ *
+ * Without `kind` this is exactly the plain select it always was, which is the
+ * right answer for anything the code branches on — a status, a yes/no, a
+ * scope. Those are not vocabulary, they are logic, and a school inventing a
+ * sixth invoice status would break every report that groups by it.
+ */
 export function Select({
   value,
   onChange,
   options,
   placeholder,
+  kind,
+  addLabel = 'Add your own',
 }: {
   value: string
   onChange: (v: string) => void
   options: { value: string; label: string }[]
   placeholder?: string
+  /** Enables school-defined additions. Must be a kind the server publishes. */
+  kind?: string
+  addLabel?: string
 }) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [custom, setCustom] = useState<{ value: string; label: string }[]>([])
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  // Only fetched when the dropdown is actually extendable, so the plain case
+  // costs nothing.
+  useEffect(() => {
+    if (!kind) return
+    let live = true
+    api
+      .get<{ items: { value: string; label: string; custom?: boolean }[] }>(
+        `/api/v1/setup/options?kind=${encodeURIComponent(kind)}`,
+      )
+      .then((r) => {
+        if (live) setCustom((r.items ?? []).filter((o) => o.custom))
+      })
+      .catch(() => {
+        /* The built-in list still works; a school just cannot see its own
+           additions this render. Failing loudly here would break a form over
+           a list that is only ever an aid. */
+      })
+    return () => {
+      live = false
+    }
+  }, [kind])
+
+  if (adding) {
+    const save = () => {
+      const label = draft.trim()
+      if (!label) return
+      setBusy(true)
+      setErr('')
+      api
+        .post<{ value: string; label: string }>('/api/v1/setup/options', { kind, label })
+        .then((created) => {
+          setCustom((c) => [...c, created])
+          onChange(created.value)
+          setAdding(false)
+          setDraft('')
+        })
+        .catch((e: Error) => setErr(e.message))
+        .finally(() => setBusy(false))
+    }
+    return (
+      <div className="flex flex-wrap items-start gap-2">
+        <input
+          className="field flex-1"
+          value={draft}
+          autoFocus
+          placeholder="Type it as it should appear"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save() }
+            if (e.key === 'Escape') { setAdding(false); setDraft(''); setErr('') }
+          }}
+        />
+        <Button size="sm" disabled={busy || !draft.trim()} onClick={save}>
+          {busy ? 'Adding…' : 'Add'}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => { setAdding(false); setDraft(''); setErr('') }}>
+          Cancel
+        </Button>
+        <p className={cn('w-full text-[12px]', err ? 'text-destructive' : 'text-muted-foreground')}>
+          {err || 'It joins the list for everyone at this school.'}
+        </p>
+      </div>
+    )
+  }
+
+  const merged = kind ? [...options, ...custom] : options
+
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        if (e.target.value === '__add__') { setAdding(true); return }
+        onChange(e.target.value)
+      }}
       className="field cursor-pointer pr-8"
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => (
+      {merged.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
+      {kind && <option value="__add__">+ {addLabel}…</option>}
     </select>
   )
 }
