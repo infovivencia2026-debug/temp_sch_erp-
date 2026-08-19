@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 401 of the catalog's features are implemented.
+// 405 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":             true,
 	"admissions.admissions.admission_fee_collection":                       true,
@@ -68,6 +68,8 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_classes.student_progress":                                  true,
 	"faculty.my_profile.leave_self_service":                                true,
 	"faculty.my_profile.profile":                                           true,
+	"faculty.my_profile.remarks_about_me":                                  true,
+	"faculty.my_profile.student_leave_requests":                            true,
 	"faculty.question_papers_online_tests.objective_online_test_creation":  true,
 	"faculty.question_papers_online_tests.question_bank_management":        true,
 	"faculty.teaching.assignments_submissions":                             true,
@@ -123,6 +125,7 @@ var implementedFeatures = map[string]bool{
 	"hod.academics.language_subject_allocation":                            true,
 	"hod.my_profile.profile":                                               true,
 	"hod.staff.leave_approvals":                                            true,
+	"hod.staff.teacher_remarks":                                            true,
 	"hod.timetable.class_timetable":                                        true,
 	"hod.timetable.department_timetable":                                   true,
 	"hod.timetable.staff_timetable":                                        true,
@@ -317,6 +320,7 @@ var implementedFeatures = map[string]bool{
 	"parent.leave_absence.requests":                                        true,
 	"parent.messages.communication":                                        true,
 	"parent.messages.direct_teacher_messaging":                             true,
+	"parent.messages.teacher_remarks":                                      true,
 	"parent.profile.digital_parent_id_card_for_campus_entry":               true,
 	"parent.profile.digital_student_id_card_view":                          true,
 	"parent.profile.multi_language_app_interface_toggle":                   true,

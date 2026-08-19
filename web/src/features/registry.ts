@@ -377,6 +377,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.statutory.contractor_security_staff_bill_verification': lazy(() => import('./hr/Statutory')),
 
   'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+  /* Two leave queues, deliberately two doors. Your own leave is an employment
+     matter that goes to HR and your head of department; a child's leave is a
+     note from a parent that the class teacher has to act on before tomorrow's
+     register. They were one entry, and the second was the one nobody found. */
+  'faculty.my_profile.student_leave_requests': lazy(() => import('./workflow/Approvals')),
+  'faculty.my_profile.remarks_about_me': lazy(() => import('./shared/MyRemarks')),
 
   // One export screen, filtered server-side by what the caller may take out.
   'super_admin.platform_configuration.import_export': lazy(() => import('./shared/Exports')),

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 10 roles, 439 features.
+// Roles is the catalog: 10 roles, 442 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -695,6 +695,8 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Apply for leave, view approval status, attendance and personal documents."},
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
+					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
+					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
 				},
 			},
 		},
@@ -1260,6 +1262,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Circulars, announcements and permitted teacher/school messages."},
 					{Key: "parent.messages.direct_teacher_messaging", Slug: "direct_teacher_messaging", Name: "Direct Teacher Messaging", Scope: Scope("children"), Tier: Tier("core"), Summary: "Send structured query messages directly to class teacher during designated hours."},
+					{Key: "parent.messages.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Write a remark about one of your child's teachers. It reaches the head of department and the teacher."},
 				},
 			},
 			{

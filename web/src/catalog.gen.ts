@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 10 roles, 439 features. */
+/** 10 roles, 442 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -648,6 +648,8 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'assigned_classes', tier: 'core', summary: 'Apply for leave, view approval status, attendance and personal documents.' },
           { key: 'faculty.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'assigned_classes', tier: 'core', summary: 'Own profile, password and leave.' },
+          { key: 'faculty.my_profile.student_leave_requests', slug: 'student_leave_requests', name: 'Student leave requests', scope: 'assigned_classes', tier: 'core', summary: 'Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.' },
+          { key: 'faculty.my_profile.remarks_about_me', slug: 'remarks_about_me', name: 'Remarks about me', scope: 'self', tier: 'core', summary: 'What your head of department, the principal or a parent has written about you. You are told when one is added.' },
         ],
       },
     ],
@@ -1213,6 +1215,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Circulars, announcements and permitted teacher/school messages.' },
           { key: 'parent.messages.direct_teacher_messaging', slug: 'direct_teacher_messaging', name: 'Direct Teacher Messaging', scope: 'children', tier: 'core', summary: 'Send structured query messages directly to class teacher during designated hours.' },
+          { key: 'parent.messages.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
         ],
       },
       {

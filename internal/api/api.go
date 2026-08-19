@@ -655,6 +655,16 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions/{id}", s.revokeSession)
 		})
 
+		/* Remarks about staff, as distinct from remarks about children.
+		   Gated on nothing beyond a session: who may write about whom is a
+		   question about the relationship between two people, not a
+		   capability, and the handler works it out. */
+		r.Route("/staff-remarks", func(r chi.Router) {
+			r.Get("/", s.listStaffRemarks)
+			r.Post("/", s.createStaffRemark)
+			r.Get("/teachers", s.listRemarkableTeachers)
+		})
+
 		r.Route("/files", func(r chi.Router) {
 			r.Post("/presign", s.presignUpload)
 			// The two that work without an object store. Any signed-in member
