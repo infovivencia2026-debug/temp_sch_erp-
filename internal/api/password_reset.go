@@ -119,11 +119,34 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		var userID uuid.UUID
 		var instID *uuid.UUID
 		var email *string
+
+		/* Exactly one, the way signing in insists on exactly one.
+
+		   An address is unique within a school and not across them, so two
+		   people at two schools can share one — and this identifier arrives
+		   with no school attached, because nobody has signed in yet. LIMIT 1
+		   would have picked whichever the planner returned first and mailed a
+		   link that resets a stranger's account. Refusing the ambiguous case
+		   matches what the sign-in handler already does with it. */
+		var matches int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*) FROM users
+			 WHERE status <> 'disabled'
+			   AND (email = $1::citext OR username = $1::citext OR phone = $1)`,
+			who).Scan(&matches); err != nil {
+			return err
+		}
+		if matches != 1 {
+			// Said the same way as "no such account": a form that distinguishes
+			// them tells a stranger which addresses are shared between schools.
+			return nil
+		}
+
 		err := tx.QueryRow(r.Context(), `
 			SELECT id, institution_id, email::text FROM users
 			 WHERE status <> 'disabled'
-			   AND (email = $1::citext OR username = $1::citext OR phone = $1)
-			 LIMIT 1`, who).Scan(&userID, &instID, &email)
+			   AND (email = $1::citext OR username = $1::citext OR phone = $1)`,
+			who).Scan(&userID, &instID, &email)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil // answered identically below
 		}
