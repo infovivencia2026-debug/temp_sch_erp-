@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 404 of the catalog's features are implemented.
+// 406 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -197,6 +197,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.timetable":                                true,
 	"institution_admin.admissions.admissions_overview":                     true,
 	"institution_admin.admissions.rte_25_reservation_register":             true,
+	"institution_admin.analysis.custom_report_builder":                     true,
 	"institution_admin.analysis.department_reports":                        true,
 	"institution_admin.analysis.performance_analytics":                     true,
 	"institution_admin.approvals.approvals":                                true,
@@ -258,6 +259,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.book_issue_return_terminal":                 true,
 	"institution_admin.library.book_reservation_queue":                     true,
 	"institution_admin.library.books_copies":                               true,
+	"institution_admin.library.digital_e_book_journal_integration":         true,
 	"institution_admin.library.fines":                                      true,
 	"institution_admin.library.issue_return":                               true,
 	"institution_admin.library.library_inventory_audit":                    true,

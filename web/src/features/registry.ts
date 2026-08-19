@@ -29,6 +29,8 @@ import { admissionsGrowthKeys } from './admissions/growth-keys'
 import { mdmKeys } from './operations/mdm-keys'
 import { masterTimetableKeys } from './academics/master-timetable-keys'
 import { connectorsKeys } from './super_admin/connectors-keys'
+import { reportBuilderKeys } from './analytics/report-builder-keys'
+import { digitalLibraryKeys } from './operations/digital-library-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -430,6 +432,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...mdmKeys,
   ...masterTimetableKeys,
   ...connectorsKeys,
+  ...reportBuilderKeys,
+  ...digitalLibraryKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

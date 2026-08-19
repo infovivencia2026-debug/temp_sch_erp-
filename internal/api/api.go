@@ -98,6 +98,7 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		s.mountAdminRollups(r)
+		s.mountReportBuilder(r)
 		s.mountAdminOps(r)
 		s.mountMDM(r)
 		s.mountTimetableOps(r)
@@ -482,6 +483,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Operations desks (module 10) ----------------------------------
 		r.Route("/ops", func(r chi.Router) {
 			s.mountInfirmary(r)
+			s.mountDigitalLibrary(r)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles", s.listLibraryTitles)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)
