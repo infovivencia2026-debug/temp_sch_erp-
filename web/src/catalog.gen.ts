@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 9 roles, 452 features. */
+/** 9 roles, 447 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -597,8 +597,6 @@ export const ROLES: Role[] = [
         workspace: 'Assessments',
         features: [
           { key: 'faculty.question_papers_online_tests.question_bank_management', slug: 'question_bank_management', name: 'Question Bank Management', scope: 'assigned_classes', tier: 'advanced', summary: 'Create objective/subjective question banks tagged by chapter, difficulty, and Bloom\'s level.' },
-          { key: 'faculty.question_papers_online_tests.ai_examcell_paper_generator', slug: 'ai_examcell_paper_generator', name: 'AI Examcell Paper Generator', scope: 'assigned_classes', tier: 'advanced', summary: 'Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.' },
-          { key: 'faculty.question_papers_online_tests.ved_ai_assessment_assistant', slug: 'ved_ai_assessment_assistant', name: 'Ved AI Assessment Assistant', scope: 'assigned_classes', tier: 'advanced', summary: 'Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.' },
           { key: 'faculty.question_papers_online_tests.objective_online_test_creation', slug: 'objective_online_test_creation', name: 'Objective Online Test Creation', scope: 'assigned_classes', tier: 'advanced', summary: 'Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.' },
           { key: 'faculty.question_papers_online_tests.no_omr_exam_grading', slug: 'no_omr_exam_grading', name: 'No-OMR Exam Grading', scope: 'assigned_classes', tier: 'advanced', summary: 'Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.' },
         ],
@@ -1147,7 +1145,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.ai_child_performance_summary_audio', slug: 'ai_child_performance_summary_audio', name: 'AI Child Performance Summary Audio', scope: 'children', tier: 'optional', summary: 'Generate a weekly 60-second audio podcast summarizing the child\'s academic and behavioral week.' },
           { key: 'parent.academics.iep_progress_goal_tracker', slug: 'iep_progress_goal_tracker', name: 'IEP Progress Goal Tracker', scope: 'children', tier: 'advanced', summary: 'View real-time progress bars towards child\'s specific IEP milestones and therapy goals.' },
         ],
       },
@@ -1190,7 +1187,6 @@ export const ROLES: Role[] = [
           { key: 'parent.messages.direct_teacher_messaging', slug: 'direct_teacher_messaging', name: 'Direct Teacher Messaging', scope: 'children', tier: 'core', summary: 'Send structured query messages directly to class teacher during designated hours.' },
           { key: 'parent.messages.concerns_grievance_ticketing', slug: 'concerns_grievance_ticketing', name: 'Concerns & Grievance Ticketing', scope: 'children', tier: 'core', summary: 'Raise academic or transport concerns and track resolution comments by school admin.' },
           { key: 'parent.messages.parent_community_discussion_forum', slug: 'parent_community_discussion_forum', name: 'Parent Community Discussion Forum', scope: 'children', tier: 'optional', summary: 'Participate in moderated class-level parent forums for event coordination.' },
-          { key: 'parent.messages.ai_voice_search_for_school_notices', slug: 'ai_voice_search_for_school_notices', name: 'AI Voice Search for School Notices', scope: 'children', tier: 'optional', summary: 'Voice-activated search allowing parents to ask \'When is the next fee due date?\' in regional languages.' },
           { key: 'parent.messages.private_counselor_chat_channel', slug: 'private_counselor_chat_channel', name: 'Private Counselor Chat Channel', scope: 'children', tier: 'core', summary: 'Encrypted communication link with school counselor for sensitive family/child updates.' },
         ],
       },
@@ -1223,14 +1219,6 @@ export const ROLES: Role[] = [
           { key: 'parent.consent.consent_acknowledgement', slug: 'consent_acknowledgement', name: 'Consent & acknowledgement', scope: 'children', tier: 'core', summary: 'Acknowledge circulars, permissions, trips and configured consent forms.' },
           { key: 'parent.consent.digital_parent_consent_slips', slug: 'digital_parent_consent_slips', name: 'Digital Parent Consent Slips', scope: 'children', tier: 'core', summary: 'Provide digital signature consent for upcoming field trips, sports events, or health camps.' },
           { key: 'parent.consent.parent_delegation_for_emergency_pickup', slug: 'parent_delegation_for_emergency_pickup', name: 'Parent Delegation for Emergency Pickup', scope: 'children', tier: 'core', summary: 'Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.' },
-        ],
-      },
-      {
-        slug: 'documents',
-        name: 'Documents',
-        workspace: 'Requests',
-        features: [
-          { key: 'parent.documents.digilocker_document_pull', slug: 'digilocker_document_pull', name: 'DigiLocker Document Pull', scope: 'children', tier: 'advanced', summary: 'Fetch the child\'s school-issued certificates and mark sheets directly into the parent\'s DigiLocker.' },
         ],
       },
       {

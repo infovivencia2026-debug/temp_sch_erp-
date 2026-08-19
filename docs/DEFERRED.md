@@ -3,9 +3,12 @@
 Everything the catalogue lists that this codebase does not build, and why.
 Written down so the reason survives the person who decided it.
 
-As of ac7399f: **452 catalogued, 414 built, 38 deferred** — the three that
-moved are the section immediately below, which this file had named as the first
-things to pick up.
+As of 19 Aug 2026: **447 catalogued, 414 built, 33 deferred.**
+
+Five entries left the catalogue entirely rather than being deferred — the
+product owner's decision, recorded under "Withdrawn" below. Three others moved
+into the product; they are the section immediately after this one, which this
+file had named as the first things to pick up.
 
 The product owner's instruction was to leave the rest alone for now. Nothing
 here is abandoned; each entry says what would unblock it.
@@ -59,7 +62,6 @@ with a test pinning the refusal so it cannot quietly become a fake success.
 | parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer | Parent | GPS tracker fitted to each vehicle |
 | parent.alerts_preferences.parent_bus_proximity_radius_customizer | Parent | GPS tracker fitted to each vehicle |
 | parent.alerts_preferences.real_time_school_bus_live_video_feed_access | Parent | cameras fitted to each vehicle |
-| parent.documents.digilocker_document_pull | Parent | DigiLocker issuer onboarding (government) |
 | parent.my_childs_bus.live_bus_tracking_map | Parent | GPS tracker fitted to each vehicle |
 | parent.my_childs_bus.school_transport_driver_call_button | Parent | GPS tracker fitted to each vehicle |
 | parent.my_childs_bus.transport_snapshot | Parent | GPS tracker fitted to each vehicle |
@@ -82,17 +84,40 @@ device. Software claiming compliance without the hardware would be a false
 claim, not merely an empty screen.
 
 
+## Withdrawn from the catalogue
+
+Not deferred — removed. These were catalogued, never built, and the product
+owner decided against them on 19 Aug 2026. Recorded here because a feature that
+simply disappears from the CSV looks like an accident to the next person to
+count, and because "we decided not to" is a different answer from "not yet".
+
+| Feature | Role | Was |
+|---|---|---|
+| `faculty.question_papers_online_tests.ai_examcell_paper_generator` | Faculty | AI Examcell Paper Generator |
+| `faculty.question_papers_online_tests.ved_ai_assessment_assistant` | Faculty | Ved AI Assessment Assistant |
+| `parent.academics.ai_child_performance_summary_audio` | Parent | AI Child Performance Summary Audio |
+| `parent.messages.ai_voice_search_for_school_notices` | Parent | AI Voice Search for School Notices |
+| `parent.documents.digilocker_document_pull` | Parent | DigiLocker Document Pull |
+
+`super_admin.statutory_boards.digilocker_issuer_integration` was **not**
+withdrawn: it is the school pushing certificates *into* DigiLocker, which is a
+different act from a parent pulling them out, and it remains blocked on issuer
+onboarding.
+
+`parent.profile.parent_app_biometric_lock_face_id_fingerprint` is **archived,
+not withdrawn** — it stays catalogued at tier `optional`, which in this
+codebase means routable but never in anyone's navigation. It is listed in the
+hardware table below and is reachable only by direct link.
+
+
 ## Speculative — AI and gamification
 
-Untouched by explicit instruction across every run. Listed so nobody mistakes
-the omission for an oversight.
+The ten that remain after the four withdrawals above. Untouched by explicit
+instruction across every run, and listed so nobody mistakes the omission for an
+oversight.
 
 - `admissions.enquiries.24_7_admission_chatbot` — admissions.enquiries.24_7_admission_chatbot
 - `admissions.enquiries.ai_voice_agent_integration` — admissions.enquiries.ai_voice_agent_integration
-- `faculty.question_papers_online_tests.ai_examcell_paper_generator` — faculty.question_papers_online_tests.ai_examcell_paper_generator
-- `faculty.question_papers_online_tests.ved_ai_assessment_assistant` — faculty.question_papers_online_tests.ved_ai_assessment_assistant
-- `parent.academics.ai_child_performance_summary_audio` — parent.academics.ai_child_performance_summary_audio
-- `parent.messages.ai_voice_search_for_school_notices` — parent.messages.ai_voice_search_for_school_notices
 - `student.campus_life.digital_hall_of_fame` — student.campus_life.digital_hall_of_fame
 - `student.learning.ai_personal_learning_companion` — student.learning.ai_personal_learning_companion
 - `student.learning.gamified_learning_badge_showcase` — student.learning.gamified_learning_badge_showcase

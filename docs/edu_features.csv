@@ -221,8 +221,6 @@ Faculty / Teacher,Assessments,Marks & Report Cards,Report cards,Generate and iss
 Faculty / Teacher,Assessments,Assessment Schemes,CCE Formative Assessment Entry,"Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Assessments,Assessment Schemes,CCE Summative Assessment Entry,Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.,Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Question Bank Management,"Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level.",Assigned classes/subjects,Should-Have,advanced
-Faculty / Teacher,Assessments,Question Papers & Online Tests,AI Examcell Paper Generator,"Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",Assigned classes/subjects,Nice-to-Have,advanced
-Faculty / Teacher,Assessments,Question Papers & Online Tests,Ved AI Assessment Assistant,"Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",Assigned classes/subjects,Nice-to-Have,advanced
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Objective Online Test Creation,"Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Assessments,Question Papers & Online Tests,No-OMR Exam Grading,Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.,Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Communication,Communication,Communication,"Announcements/messages to assigned classes, students or parents based on policy.",Self + assigned classes/subjects,Must-Have,core
@@ -273,7 +271,6 @@ Parent / Guardian,My Child,Attendance,Attendance,Daily/monthly attendance and ab
 Parent / Guardian,My Child,Attendance,Child Absence Reporting Button,Notify class teacher in advance of child's planned absence with 1-click reason selection.,Specific student,Must-Have,core
 Parent / Guardian,My Child,Academics,Homework & academics,"Homework, classwork, subjects and published academic progress.",Linked child/children only,Should-Have,core
 Parent / Guardian,My Child,Academics,Results & report cards,"Exam schedule, marks/grades and downloadable published report cards.",Linked child/children only,Must-Have,core
-Parent / Guardian,My Child,Academics,AI Child Performance Summary Audio,Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.,Specific student,Nice-to-Have,optional
 Parent / Guardian,My Child,Academics,IEP Progress Goal Tracker,View real-time progress bars towards child's specific IEP milestones and therapy goals.,Specific student,Should-Have,advanced
 Parent / Guardian,Fees,Fees,Fees & payments,"Dues, installments, online payment, payment history and receipts.",Linked child/children only,Must-Have,core
 Parent / Guardian,Fees,Fees,Digital Fee Receipt PDF Download,Download official stamped PDF fee receipts directly to parent smartphone storage.,Specific student,Must-Have,core
@@ -288,7 +285,6 @@ Parent / Guardian,School,Messages,Communication,"Circulars, announcements and pe
 Parent / Guardian,School,Messages,Direct Teacher Messaging,Send structured query messages directly to class teacher during designated hours.,Specific student,Should-Have,core
 Parent / Guardian,School,Messages,Concerns & Grievance Ticketing,Raise academic or transport concerns and track resolution comments by school admin.,Specific student,Should-Have,core
 Parent / Guardian,School,Messages,Parent Community Discussion Forum,Participate in moderated class-level parent forums for event coordination.,Specific student,Should-Have,optional
-Parent / Guardian,School,Messages,AI Voice Search for School Notices,Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages.,Specific student,Nice-to-Have,optional
 Parent / Guardian,School,Messages,Private Counselor Chat Channel,Encrypted communication link with school counselor for sensitive family/child updates.,Specific student,Must-Have,core
 Parent / Guardian,School,School Life,Calendar & PTM,"Exams, holidays, events, parent-teacher meetings and booking where enabled.",Linked child/children only,Must-Have,core
 Parent / Guardian,School,School Life,Parent-Teacher Meeting Booking,Select available PTM time slots to meet subject teachers without queueing.,Specific student,Should-Have,core
@@ -300,7 +296,6 @@ Parent / Guardian,Requests,Leave & Absence,Apply Student Leave,Submit digital st
 Parent / Guardian,Requests,Consent,Consent & acknowledgement,"Acknowledge circulars, permissions, trips and configured consent forms.",Linked child/children only,Must-Have,core
 Parent / Guardian,Requests,Consent,Digital Parent Consent Slips,"Provide digital signature consent for upcoming field trips, sports events, or health camps.",Specific student,Should-Have,core
 Parent / Guardian,Requests,Consent,Parent Delegation for Emergency Pickup,Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.,Specific student,Should-Have,core
-Parent / Guardian,Requests,Documents,DigiLocker Document Pull,Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker.,Specific student,Must-Have,advanced
 Parent / Guardian,Profile,Profile,Digital Student ID Card View,Access child's digital student ID card with QR code directly within the mobile app.,Specific student,Must-Have,optional
 Parent / Guardian,Profile,Profile,Digital Parent ID Card for Campus Entry,Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates.,Specific student,Should-Have,optional
 Parent / Guardian,Profile,Profile,Parent App Biometric Lock (Face ID / Fingerprint),Allow parents to secure mobile app access using smartphone hardware biometric authentication.,Specific student,Should-Have,optional
