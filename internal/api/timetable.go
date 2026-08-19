@@ -64,10 +64,21 @@ func (s *Server) listTimetableEntries(w http.ResponseWriter, r *http.Request) {
 	// TRUE and FALSE take no argument, so $4 must only be supplied when the
 	// predicate actually references it — pgx rejects an unused parameter.
 	mine, mineArg := res.TimetablePredicate("te.section_id", 4)
+	/* teacher_id=me, because the caller does not know their own user id.
+
+	   "My timetable" showed a section picker and an empty grid until a
+	   teacher chose one of the classes they teach — so the screen named
+	   after their own week was the only one that could not show it. The
+	   filter existed; there was no way to say "the person asking". */
+	teacher := q.Get("teacher_id")
+	if teacher == "me" {
+		teacher = httpx.IdentityFrom(r.Context()).UserID.String()
+	}
+
 	args := []any{
 		nullString(q.Get("section_id")),
 		nullString(q.Get("academic_year_id")),
-		nullString(q.Get("teacher_id")),
+		nullString(teacher),
 	}
 	if mineArg != nil {
 		args = append(args, mineArg)
