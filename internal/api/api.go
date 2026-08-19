@@ -160,6 +160,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/", s.listHomework)
 			r.With(httpx.RequirePermission(rbac.HomeworkWrite)).Post("/", s.publishHomework)
 			r.Post("/{id}/submit", s.submitHomework)
+			// Not gated on HomeworkWrite: a subject teacher who did not set
+			// this task still covers the lesson it is due in, and the handler
+			// narrows to sections the caller actually teaches anyway.
+			r.Get("/{id}/submissions", s.listHomeworkSubmissions)
 		})
 
 		// --- CSV export ------------------------------------------------------

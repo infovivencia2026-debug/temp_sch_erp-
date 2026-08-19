@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, Clock, Plus, Send } from 'lucide-react'
+import { BookOpen, CheckCircle2, Clock, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  Loading, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -36,13 +36,36 @@ interface Homework {
   teacher?: string
 }
 
+interface Filters {
+  kind: string
+  class_id: string
+  section_id: string
+  subject_id: string
+  from: string
+  to: string
+}
+
+const NO_FILTERS: Filters = { kind: '', class_id: '', section_id: '', subject_id: '', from: '', to: '' }
+
 export default function Homework() {
   const qc = useQueryClient()
   const [composing, setComposing] = useState(false)
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
+  const [openRegister, setOpenRegister] = useState<string | null>(null)
+
+  /* Filtering happens on the server, and the query key carries the filters so
+     the cache does not serve one narrowing's answer to another's question.
+     The list is capped at a hundred rows there, which is the reason this is
+     not a filter over what has already arrived: narrowing a page that has
+     already dropped the rows being looked for finds nothing and looks like an
+     empty term. */
+  const query = new URLSearchParams(
+    Object.entries(filters).filter(([, v]) => v !== ''),
+  ).toString()
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['homework'],
-    queryFn: () => api.get<List<Homework>>('/api/v1/homework'),
+    queryKey: ['homework', query],
+    queryFn: () => api.get<List<Homework>>('/api/v1/homework' + (query ? `?${query}` : '')),
   })
   const { data: session } = useQuery({
     queryKey: ['session'],
@@ -102,8 +125,21 @@ export default function Homework() {
 
         {composing && <Compose canPublish={canPublish} onClose={() => setComposing(false)} />}
 
+        <FilterBar
+          canPublish={canPublish}
+          value={filters}
+          onChange={setFilters}
+        />
+
         <Card>
-          <CardHeader title="Diary" description={`${items.length} entries`} />
+          <CardHeader
+            title="Diary"
+            description={
+              query
+                ? `${items.length} entries matching the filter`
+                : `${items.length} entries`
+            }
+          />
           {items.length === 0 ? (
             <EmptyState
               title="Nothing set"
@@ -116,7 +152,8 @@ export default function Homework() {
           ) : (
             <ul className="divide-y">
               {items.map((h) => (
-                <li key={h.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                <li key={h.id} className="px-5 py-4">
+                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-[14px] font-medium">
                       {h.subject && <span className="text-muted-foreground">{h.subject} · </span>}
@@ -145,9 +182,18 @@ export default function Homework() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {canPublish ? (
-                      <span className="text-[13px] tabular-nums text-muted-foreground">
+                      /* The count was the whole answer, and "14 of 32" tells a
+                         teacher that eighteen children have not done the work
+                         and nothing about which eighteen. Opening it names
+                         them. */
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setOpenRegister(openRegister === h.id ? null : h.id)}
+                      >
+                        <Users className="h-3.5 w-3.5" />
                         {h.submissions}/{h.strength} submitted
-                      </span>
+                      </Button>
                     ) : h.submitted ? (
                       <Badge tone="success">
                         <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -160,6 +206,8 @@ export default function Homework() {
                       </Button>
                     )}
                   </div>
+                 </div>
+                  {openRegister === h.id && <Register homeworkId={h.id} />}
                 </li>
               ))}
             </ul>
@@ -272,11 +320,16 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
             <Select
               value={f.kind}
               onChange={(x) => setF({ ...f, kind: x })}
+              /* 'notice' was offered here and the homework table's CHECK
+                 constraint does not allow it, so choosing "Diary note" failed
+                 the insert. Classwork was missing and is the entry a teacher
+                 makes most days — the diary is now this list rather than a
+                 separate screen, which is the other half of the same fix. */
               options={[
                 { value: 'homework', label: 'Homework' },
+                { value: 'classwork', label: 'Classwork (today’s diary)' },
                 { value: 'assignment', label: 'Assignment' },
                 { value: 'project', label: 'Project' },
-                { value: 'notice', label: 'Diary note' },
               ]}
             />
           </Field>
@@ -299,4 +352,171 @@ function tomorrow() {
   const d = new Date()
   d.setDate(d.getDate() + 1)
   return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Narrowing the diary.
+ *
+ * Six filters, all optional, all applied by the server. A teacher with five
+ * sections and three subjects sets a few hundred tasks a term and was shown
+ * the most recent hundred of all of them together; "Class 8B, maths, this
+ * week" is how anybody actually looks for one.
+ *
+ * A family gets the date range and nothing else. Class, section and subject
+ * are lists of the school's own records, which is staff data, and a child has
+ * exactly one section anyway — the filter would narrow a list to itself.
+ */
+function FilterBar({
+  canPublish,
+  value,
+  onChange,
+}: {
+  canPublish: boolean
+  value: Filters
+  onChange: (f: Filters) => void
+}) {
+  const { data: sections } = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+    enabled: canPublish,
+  })
+  const { data: subjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects'),
+    enabled: canPublish,
+  })
+
+  const set = (k: keyof Filters) => (v: string) => onChange({ ...value, [k]: v })
+  const active = Object.values(value).some((v) => v !== '')
+
+  return (
+    <Card>
+      <CardHeader
+        title="Find"
+        description="Every box is optional. Leave them all blank for everything."
+      />
+      <div className="px-5 pb-5">
+        <FormGrid>
+          <Field label="Kind">
+            <Select
+              value={value.kind}
+              onChange={set('kind')}
+              placeholder="Any kind"
+              options={[
+                { value: '', label: 'Any kind' },
+                { value: 'homework', label: 'Homework' },
+                { value: 'classwork', label: 'Classwork' },
+                { value: 'assignment', label: 'Assignment' },
+                { value: 'project', label: 'Project' },
+              ]}
+            />
+          </Field>
+          {canPublish && (
+            <>
+              <Field label="Class and section">
+                <Select
+                  value={value.section_id}
+                  onChange={set('section_id')}
+                  placeholder="Any section"
+                  options={[
+                    { value: '', label: 'Any section' },
+                    ...(sections?.items ?? []).map((x) => ({
+                      value: x.id,
+                      label: `${x.class_name}-${x.name}`,
+                    })),
+                  ]}
+                />
+              </Field>
+              <Field label="Subject">
+                <Select
+                  value={value.subject_id}
+                  onChange={set('subject_id')}
+                  placeholder="Any subject"
+                  options={[
+                    { value: '', label: 'Any subject' },
+                    ...(subjects?.items ?? []).map((x) => ({ value: x.id, label: x.name })),
+                  ]}
+                />
+              </Field>
+            </>
+          )}
+          <Field label="Set on or after">
+            <Input type="date" value={value.from} onChange={set('from')} />
+          </Field>
+          <Field label="Set on or before">
+            <Input type="date" value={value.to} onChange={set('to')} />
+          </Field>
+        </FormGrid>
+        {active && (
+          <div className="mt-3">
+            <Button size="sm" variant="ghost" onClick={() => onChange(NO_FILTERS)}>
+              Clear filters
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * Who did it, and who did not.
+ *
+ * Built from the enrolment register rather than from the submissions, because
+ * the children being looked for are precisely the ones with no submission row
+ * — a query over submissions cannot return a child who never made one.
+ *
+ * Roll order, because that is the order the teacher's own mark list is in.
+ */
+function Register({ homeworkId }: { homeworkId: string }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['homework-submissions', homeworkId],
+    queryFn: () =>
+      api.get<List<Submitter>>(`/api/v1/homework/${homeworkId}/submissions`),
+  })
+
+  if (isLoading) return <div className="pt-3"><Loading /></div>
+  if (error) return <div className="pt-3"><ErrorState error={error} /></div>
+
+  const rows = data?.items ?? []
+  const done = rows.filter((x) => x.status !== 'pending')
+
+  return (
+    <div className="mt-3 rounded-md border bg-muted/30">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2.5">
+        <span className="text-[13px] font-medium">Submission register</span>
+        <span className="text-[13px] text-muted-foreground">
+          {done.length} of {rows.length} turned in
+          {rows.length - done.length > 0 && ` · ${rows.length - done.length} still owing`}
+        </span>
+      </div>
+      <Table head={['Roll', 'Name', 'Status', 'When']}>
+        {rows.map((x) => (
+          <tr key={x.student_id} className="border-t">
+            <Td className="tabular-nums">{x.roll_no ?? '—'}</Td>
+            <Td>{x.full_name}</Td>
+            <Td>
+              {x.status === 'pending' ? (
+                <Badge tone="warning">Not turned in</Badge>
+              ) : (
+                <Badge tone="success">{x.status}</Badge>
+              )}
+            </Td>
+            <Td className="text-muted-foreground">
+              {x.submitted_at ? formatDate(x.submitted_at.slice(0, 10)) : '—'}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </div>
+  )
+}
+
+interface Submitter {
+  student_id: string
+  roll_no?: string
+  full_name: string
+  status: string
+  submitted_at?: string
+  text_answer?: string
 }
