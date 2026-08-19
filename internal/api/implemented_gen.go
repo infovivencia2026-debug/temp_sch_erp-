@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 394 of the catalog's features are implemented.
+// 402 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -29,12 +29,14 @@ var implementedFeatures = map[string]bool{
 	"admissions.applications.entrance_exam_scheduling":                    true,
 	"admissions.applications.foreign_nri_student_visa_documentation":      true,
 	"admissions.applications.interview_interaction_scheduler":             true,
+	"admissions.applications.online_application_form_builder":             true,
 	"admissions.communication.applicant_communication":                    true,
 	"admissions.enquiries.admissions_open_day_scheduler":                  true,
 	"admissions.enquiries.counselor_activity_follow_ups":                  true,
 	"admissions.enquiries.counselor_lead_assignment":                      true,
 	"admissions.enquiries.enquiries_leads":                                true,
 	"admissions.enquiries.lead_source_tracking":                           true,
+	"admissions.enquiries.multi_touch_campaign_sequences":                 true,
 	"admissions.enquiries.prospectus_kit_sales_log":                       true,
 	"admissions.enquiries.utm_tracking_digital_campaign_attribution":      true,
 	"admissions.gate_security.emergency_gate_lockout":                     true,
@@ -43,6 +45,7 @@ var implementedFeatures = map[string]bool{
 	"admissions.office_log.front_office_calls_register":                   true,
 	"admissions.office_log.postal_courier_log":                            true,
 	"admissions.reports.admission_conversion_reports":                     true,
+	"admissions.reports.lost_lead_reason_analysis":                        true,
 	"admissions.visitors.parent_appointment_booking":                      true,
 	"admissions.visitors.visitor_checkout_tracking":                       true,
 	"admissions.visitors.visitor_gate_pass_generation":                    true,
@@ -98,9 +101,12 @@ var implementedFeatures = map[string]bool{
 	"finance.collections.gst_compliant_receipt_numbering":                 true,
 	"finance.collections.online_payments":                                 true,
 	"finance.collections.partial_advance_payments":                        true,
+	"finance.collections.pos_canteen_terminal_integration":                true,
 	"finance.collections.receipts":                                        true,
+	"finance.collections.school_store_merchandise_sales":                  true,
 	"finance.concessions_refunds.discounts_scholarships":                  true,
 	"finance.concessions_refunds.government_reimbursement_claims":         true,
+	"finance.concessions_refunds.grant_in_aid_accounting":                 true,
 	"finance.concessions_refunds.multi_level_concession_approvals":        true,
 	"finance.concessions_refunds.nsp_scholarship_reconciliation":          true,
 	"finance.concessions_refunds.refunds":                                 true,
@@ -182,6 +188,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.faculty_allocation":                       true,
 	"institution_admin.academics.faculty_substitution_engine":              true,
 	"institution_admin.academics.lesson_plan_approval_queue":               true,
+	"institution_admin.academics.master_timetable_generation":              true,
 	"institution_admin.academics.obe_outcomes":                             true,
 	"institution_admin.academics.subject_chapter_planner":                  true,
 	"institution_admin.academics.syllabus_coverage_tracking":               true,
@@ -259,6 +266,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.overdue_fine_calculation":                   true,
 	"institution_admin.library.reservations":                               true,
 	"institution_admin.mid_day_meal.mdm_utilisation_report":                true,
+	"institution_admin.mid_day_meal.mid_day_meal_register":                 true,
 	"institution_admin.standard.comprehensive_attendance_report":           true,
 	"institution_admin.standard.exam_grade_analytics":                      true,
 	"institution_admin.standard.fee_collection_summaries":                  true,

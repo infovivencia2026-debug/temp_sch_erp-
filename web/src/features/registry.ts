@@ -24,6 +24,10 @@ import { commsKeys } from './communication/comms-keys'
 import { studentLifeKeys } from './learning/student-life-keys'
 import { classroomKeys } from './faculty/classroom-keys'
 import { forumKeys } from './portal/forum-keys'
+import { collectionsKeys } from './finance/collections-keys'
+import { admissionsGrowthKeys } from './admissions/growth-keys'
+import { mdmKeys } from './operations/mdm-keys'
+import { masterTimetableKeys } from './academics/master-timetable-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -420,6 +424,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...studentLifeKeys,
   ...classroomKeys,
   ...forumKeys,
+  ...collectionsKeys,
+  ...admissionsGrowthKeys,
+  ...mdmKeys,
+  ...masterTimetableKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

@@ -33,6 +33,7 @@ func (s *Server) Routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/session", s.getSession)
+	s.mountAdmissionsPublic(r)
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
@@ -98,7 +99,9 @@ func (s *Server) Routes() http.Handler {
 
 		s.mountAdminRollups(r)
 		s.mountAdminOps(r)
+		s.mountMDM(r)
 		s.mountTimetableOps(r)
+		s.mountMasterTimetable(r)
 		s.mountHRGrowth(r)
 		s.mountClassroom(r)
 		s.mountComms(r)
@@ -252,6 +255,7 @@ func (s *Server) Routes() http.Handler {
 			s.mountTally(r)
 			s.mountBanking(r)
 			s.mountConcessions(r)
+			s.mountCollections(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)
@@ -277,6 +281,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Admissions & Front Office ------------------------------------
 		r.Route("/admissions", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AdmissionsRead))
+			s.mountAdmissionsGrowth(r)
 			r.Get("/dashboard", s.getAdmissionsDashboard)
 			r.Get("/enquiries", s.listEnquiries)
 			r.Get("/applications", s.listApplications)
@@ -436,7 +441,6 @@ func (s *Server) Routes() http.Handler {
 		// --- Timetable generation (module 7) -------------------------------
 		r.Route("/timetable-admin", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.TimetableWrite))
-			r.Post("/generate", s.generateTimetable)
 			r.Post("/substitutions", s.createSubstitution)
 		})
 
