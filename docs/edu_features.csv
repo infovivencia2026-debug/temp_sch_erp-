@@ -266,10 +266,6 @@ Parent / Guardian,Transport,Alerts & Preferences,Real-time School Bus Live Video
 Parent / Guardian,Transport,Alerts & Preferences,Parent App Live Bus Tracking Refresh Rate Customizer,"Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery.",Specific student,Should-Have,optional
 Parent / Guardian,School,Messages,Communication,"Circulars, announcements and permitted teacher/school messages.",Linked child/children only,Must-Have,core
 Parent / Guardian,School,Messages,Direct Teacher Messaging,Send structured query messages directly to class teacher during designated hours.,Specific student,Should-Have,core
-Parent / Guardian,School,Messages,Concerns & Grievance Ticketing,Raise academic or transport concerns and track resolution comments by school admin.,Specific student,Should-Have,core
-Parent / Guardian,School,Messages,Parent Community Discussion Forum,Participate in moderated class-level parent forums for event coordination.,Specific student,Should-Have,optional
-Parent / Guardian,School,Messages,AI Voice Search for School Notices,Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages.,Specific student,Nice-to-Have,optional
-Parent / Guardian,School,Messages,Private Counselor Chat Channel,Encrypted communication link with school counselor for sensitive family/child updates.,Specific student,Must-Have,core
 Parent / Guardian,School,School Life,Calendar & PTM,"Exams, holidays, events, parent-teacher meetings and booking where enabled.",Linked child/children only,Must-Have,core
 Parent / Guardian,School,School Life,Parent-Teacher Meeting Booking,Select available PTM time slots to meet subject teachers without queueing.,Specific student,Should-Have,core
 Parent / Guardian,School,School Life,PTM Appointment Reminder Alert,Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.,Specific student,Should-Have,core
@@ -441,3 +437,4 @@ HOD / Department Head,Staff,Staff,Teacher remarks,"Write a remark about a teache
 HOD / Department Head,Staff,Staff,Leave approvals,"Leave requested by the department's staff, with the periods it would leave uncovered shown next to it.",Assigned department only,Must-Have,core
 HOD / Department Head,My Work,My Profile,Profile,Own details and password.,Self only,Must-Have,core
 Institution Admin / Principal,Academics,Academics,Language subject allocation,"Which language each student takes as L1 and as L2, for one student or for a whole class at once. A teacher was choosing this; it decides how sections are grouped, so it belongs to whoever groups them.",Assigned institution/campus,Must-Have,core
+Parent / Guardian,My Child,Academics,Child remarks,"Everything your child's teachers have written about them — commendations and concerns alike — newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening.",Linked child/children only,Must-Have,core

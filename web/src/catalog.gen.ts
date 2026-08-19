@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 10 roles, 442 features. */
+/** 10 roles, 439 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1173,6 +1173,7 @@ export const ROLES: Role[] = [
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
           { key: 'parent.academics.ai_child_performance_summary_audio', slug: 'ai_child_performance_summary_audio', name: 'AI Child Performance Summary Audio', scope: 'children', tier: 'optional', summary: 'Generate a weekly 60-second audio podcast summarizing the child\'s academic and behavioral week.' },
           { key: 'parent.academics.iep_progress_goal_tracker', slug: 'iep_progress_goal_tracker', name: 'IEP Progress Goal Tracker', scope: 'children', tier: 'advanced', summary: 'View real-time progress bars towards child\'s specific IEP milestones and therapy goals.' },
+          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them — commendations and concerns alike — newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
       },
       {
@@ -1212,10 +1213,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Circulars, announcements and permitted teacher/school messages.' },
           { key: 'parent.messages.direct_teacher_messaging', slug: 'direct_teacher_messaging', name: 'Direct Teacher Messaging', scope: 'children', tier: 'core', summary: 'Send structured query messages directly to class teacher during designated hours.' },
-          { key: 'parent.messages.concerns_grievance_ticketing', slug: 'concerns_grievance_ticketing', name: 'Concerns & Grievance Ticketing', scope: 'children', tier: 'core', summary: 'Raise academic or transport concerns and track resolution comments by school admin.' },
-          { key: 'parent.messages.parent_community_discussion_forum', slug: 'parent_community_discussion_forum', name: 'Parent Community Discussion Forum', scope: 'children', tier: 'optional', summary: 'Participate in moderated class-level parent forums for event coordination.' },
-          { key: 'parent.messages.ai_voice_search_for_school_notices', slug: 'ai_voice_search_for_school_notices', name: 'AI Voice Search for School Notices', scope: 'children', tier: 'optional', summary: 'Voice-activated search allowing parents to ask \'When is the next fee due date?\' in regional languages.' },
-          { key: 'parent.messages.private_counselor_chat_channel', slug: 'private_counselor_chat_channel', name: 'Private Counselor Chat Channel', scope: 'children', tier: 'core', summary: 'Encrypted communication link with school counselor for sensitive family/child updates.' },
         ],
       },
       {

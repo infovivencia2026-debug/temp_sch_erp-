@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 10 roles, 442 features.
+// Roles is the catalog: 10 roles, 439 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1220,6 +1220,7 @@ var Roles = []Role{
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
 					{Key: "parent.academics.ai_child_performance_summary_audio", Slug: "ai_child_performance_summary_audio", Name: "AI Child Performance Summary Audio", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week."},
 					{Key: "parent.academics.iep_progress_goal_tracker", Slug: "iep_progress_goal_tracker", Name: "IEP Progress Goal Tracker", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "View real-time progress bars towards child's specific IEP milestones and therapy goals."},
+					{Key: "parent.academics.child_remarks", Slug: "child_remarks", Name: "Child remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Everything your child's teachers have written about them — commendations and concerns alike — newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening."},
 				},
 			},
 			{
@@ -1259,10 +1260,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Circulars, announcements and permitted teacher/school messages."},
 					{Key: "parent.messages.direct_teacher_messaging", Slug: "direct_teacher_messaging", Name: "Direct Teacher Messaging", Scope: Scope("children"), Tier: Tier("core"), Summary: "Send structured query messages directly to class teacher during designated hours."},
-					{Key: "parent.messages.concerns_grievance_ticketing", Slug: "concerns_grievance_ticketing", Name: "Concerns & Grievance Ticketing", Scope: Scope("children"), Tier: Tier("core"), Summary: "Raise academic or transport concerns and track resolution comments by school admin."},
-					{Key: "parent.messages.parent_community_discussion_forum", Slug: "parent_community_discussion_forum", Name: "Parent Community Discussion Forum", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Participate in moderated class-level parent forums for event coordination."},
-					{Key: "parent.messages.ai_voice_search_for_school_notices", Slug: "ai_voice_search_for_school_notices", Name: "AI Voice Search for School Notices", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Voice-activated search allowing parents to ask 'When is the next fee due date?' in regional languages."},
-					{Key: "parent.messages.private_counselor_chat_channel", Slug: "private_counselor_chat_channel", Name: "Private Counselor Chat Channel", Scope: Scope("children"), Tier: Tier("core"), Summary: "Encrypted communication link with school counselor for sensitive family/child updates."},
 				},
 			},
 			{

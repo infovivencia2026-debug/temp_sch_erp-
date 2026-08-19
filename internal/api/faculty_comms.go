@@ -370,7 +370,7 @@ func (s *Server) createRemark(w http.ResponseWriter, r *http.Request) {
 			subjectID = csID
 		}
 
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO student_remarks (institution_id, student_id, section_id,
 			                             class_subject_id, term_id, kind, body,
 			                             visible_to_family, observed_on, recorded_by)
@@ -383,7 +383,31 @@ func (s *Server) createRemark(w http.ResponseWriter, r *http.Request) {
 			RETURNING id`,
 			id.InstitutionID, studentID, subjectID, nullString(req.TermID),
 			req.Kind, strings.TrimSpace(req.Body), !private,
-			nullString(req.ObservedOn), id.UserID).Scan(&newID)
+			nullString(req.ObservedOn), id.UserID).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* And tell the parents, by name, tonight.
+
+		   A remark about a child's behaviour that sits in a table until
+		   somebody opens a screen is a remark the family learns about at the
+		   parents' evening in November. The whole value of writing "did not
+		   bring the notebook, third time" on the day it happened is that the
+		   person who can do something about it hears it on the day.
+
+		   Only where the remark is visible to the family. A private note is
+		   the teacher's own record — the anecdotal kind is constrained to
+		   private for exactly this reason — and delivering it would make the
+		   private flag a lie.
+
+		   Every guardian, not just the primary contact. The primary flag is a
+		   billing and consent field, and a father who is not on it is still
+		   the child's father. */
+		if private {
+			return nil
+		}
+		return notifyGuardiansOfRemark(r, tx, id.InstitutionID, studentID, newID,
+			req.Kind, strings.TrimSpace(req.Body))
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -1135,4 +1159,158 @@ func (s *Server) getCommunicationSummary(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+/*
+notifyGuardiansOfRemark puts a teacher's remark in front of the child's family.
+
+	The remark table has had a visible_to_family flag since it was created and
+	nothing ever acted on it. A note written the afternoon it happened reached
+	the parents at the next parents' evening, by which point "did not bring the
+	notebook, third time" is a fact about last term rather than something
+	anybody can still act on.
+
+	Named, on both sides. The alert carries the child's name because a parent
+	with three children at the school needs to know which one, and it carries
+	the teacher's because a remark from the Physics teacher and one from the
+	class teacher are read differently — which is the same reason the table
+	keeps class_subject_id.
+
+	Every guardian with a login, not only the primary contact. is_primary is a
+	billing and consent field; a father who is not ticked on it is still the
+	child's father.
+*/
+func notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx, inst, studentID, remarkID uuid.UUID,
+	kind, body string) error {
+
+	var child string
+	if err := tx.QueryRow(r.Context(), `
+		SELECT trim(first_name || ' ' || COALESCE(last_name,''))
+		  FROM students WHERE id = $1`, studentID).Scan(&child); err != nil {
+		return err
+	}
+
+	// The teacher's own name, from the session rather than from the row, so
+	// this does not depend on the insert above having been read back.
+	var from string
+	if err := tx.QueryRow(r.Context(), `SELECT full_name FROM users WHERE id = $1`,
+		httpx.IdentityFrom(r.Context()).UserID).Scan(&from); err != nil {
+		return err
+	}
+
+	rows, err := tx.Query(r.Context(), `
+		SELECT g.user_id
+		  FROM student_guardians sg
+		  JOIN guardians g ON g.id = sg.guardian_id
+		 WHERE sg.student_id = $1 AND g.user_id IS NOT NULL`, studentID)
+	if err != nil {
+		return err
+	}
+	var parents []uuid.UUID
+	for rows.Next() {
+		var uid uuid.UUID
+		if err := rows.Scan(&uid); err != nil {
+			rows.Close()
+			return err
+		}
+		parents = append(parents, uid)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// Trimmed for the alert, whole in the remark. A notification is a summons
+	// to read something, not the thing itself.
+	summary := body
+	if len(summary) > 240 {
+		summary = summary[:237] + "…"
+	}
+
+	title := "A note about " + child
+	switch kind {
+	case "achievement":
+		title = child + " was commended"
+	case "concern", "behaviour":
+		title = "About " + child + "’s conduct"
+	}
+
+	for _, p := range parents {
+		if err := notify(r, tx, inst, p, &studentID, "student_remark",
+			title, summary+" — "+from, "/portal/remarks", "student_remark",
+			&remarkID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// --- the family's copy ---------------------------------------------------
+
+type childRemarkRow struct {
+	ID         string  `json:"id"`
+	StudentID  string  `json:"student_id"`
+	ChildName  string  `json:"child_name"`
+	ObservedOn string  `json:"observed_on"`
+	Kind       string  `json:"kind"`
+	Body       string  `json:"body"`
+	Subject    *string `json:"subject,omitempty"`
+	ClassName  *string `json:"class_name,omitempty"`
+	Section    *string `json:"section_name,omitempty"`
+	Teacher    *string `json:"teacher,omitempty"`
+}
+
+/*
+listChildRemarks is what the school has written about your child.
+
+	The staff list and this one read the same table and are not the same query,
+	and it matters that they are not. The staff query narrows by whom the
+	caller teaches; this one narrows by whose parent they are, and adds the
+	condition the staff query has no business applying — visible_to_family.
+
+	A remark marked private is the teacher's own working note. It is excluded
+	here in SQL rather than filtered afterwards, because the difference between
+	"not sent" and "sent and hidden by the client" is the whole of whether the
+	flag means anything.
+*/
+func (s *Server) listChildRemarks(w http.ResponseWriter, r *http.Request) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if len(res.StudentIDs) == 0 {
+		// A member of staff has the other screen. Answering with an empty list
+		// would read as "nothing has been written", which is a different and
+		// wrong statement.
+		httpx.Forbidden(w, r, "a family's own remarks")
+		return
+	}
+
+	// One child, when the portal's child switcher has picked one.
+	args := []any{res.StudentIDs, nullString(strings.TrimSpace(r.URL.Query().Get("student_id")))}
+
+	items, err := collect(s, r, `
+		SELECT sr.id::text, sr.student_id::text,
+		       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
+		       to_char(sr.observed_on,'YYYY-MM-DD'),
+		       sr.kind, sr.body, sub.name, c.name, sec.name, u.full_name
+		  FROM student_remarks sr
+		  JOIN students st ON st.id = sr.student_id
+		  LEFT JOIN sections sec ON sec.id = sr.section_id
+		  LEFT JOIN classes  c   ON c.id = sec.class_id
+		  LEFT JOIN class_subjects cs ON cs.id = sr.class_subject_id
+		  LEFT JOIN subjects sub ON sub.id = cs.subject_id
+		  LEFT JOIN users    u   ON u.id = sr.recorded_by
+		 WHERE sr.student_id = ANY($1)
+		   AND ($2::uuid IS NULL OR sr.student_id = $2)
+		   AND sr.visible_to_family
+		 ORDER BY sr.observed_on DESC, sr.created_at DESC
+		 LIMIT 200`, args,
+		func(rows pgx.Rows) (childRemarkRow, error) {
+			var v childRemarkRow
+			return v, rows.Scan(&v.ID, &v.StudentID, &v.ChildName, &v.ObservedOn,
+				&v.Kind, &v.Body, &v.Subject, &v.ClassName, &v.Section, &v.Teacher)
+		})
+	respond(w, r, items, err)
 }

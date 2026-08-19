@@ -264,6 +264,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/students", s.listMyStudents)
 			r.Get("/summary", s.getPortalSummary)
 			r.Get("/attendance", s.listPortalAttendance)
+			// What the school has written about your child. The staff screen
+			// reads the same table under a different narrowing; this one adds
+			// visible_to_family, which is the condition that makes a private
+			// note private.
+			r.Get("/remarks", s.listChildRemarks)
 			r.Get("/fees", s.getFamilyFees)
 			// The same conduct file, narrowed by the handler to the notes the
 			// school chose to share. Without this the visible_to_student flag
