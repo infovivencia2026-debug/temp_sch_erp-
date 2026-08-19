@@ -66,6 +66,30 @@ The heartbeat is how the admin screen knows the phone is alive. A gateway that
 has not been heard from is worse than no gateway, because the school believes
 messages are going out.
 
+## Field shapes, named because leaving them unsaid cost a bug
+
+The first build of the two halves disagreed on one field: the server sent
+`per_minute_cap` and the app read `max_per_minute`, so the phone silently fell
+back to its own timid default and the school's configured rate was never
+applied. Nothing failed; it just quietly did the wrong thing. Hence this
+section.
+
+- **`per_minute_cap`** — integer, on `/outbox`, `/heartbeat` and the claim
+  response. The phone obeys it and does not decide its own rate.
+- **`poll_seconds`** — integer, same three responses.
+- **`institution`** — a bare string (the school's name). The app tolerates
+  `{id, name}` as well, but the string is the contract.
+- **`sent_at`** — RFC 3339 with an explicit offset, e.g. `2026-08-19T14:02:11+05:30`.
+- **Receipt `status`** — `sent`, `failed`, or **`unknown`**. The third exists
+  because a phone whose process dies between the send call and the radio's
+  callback genuinely does not know what happened, and forcing that into
+  `failed` invites a duplicate. `unknown` hands the decision to the server,
+  which can see whether the lease budget is spent.
+- **`accepted`** — the receipts response returns the ids it accepted, not a
+  count. A count leaves a phone unable to tell which of a partial batch landed,
+  so it re-sends the whole batch; harmless because receipts are idempotent, but
+  wasteful and needlessly opaque.
+
 ## Rules the phone must honour
 
 - **Never send without a message id from the server.** No local composition.

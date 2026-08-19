@@ -80,7 +80,7 @@ data class OutboxResponse(
      * but gives it no field, so this is read if the server ever sends one and
      * otherwise falls back to a conservative local default.
      */
-    @SerialName("max_per_minute") val maxPerMinute: Int? = null,
+    @SerialName("per_minute_cap") val maxPerMinute: Int? = null,
 )
 
 @Serializable
@@ -132,5 +132,5 @@ data class HeartbeatRequest(
 data class HeartbeatResponse(
     @SerialName("poll_seconds") val pollSeconds: Int? = null,
     val paused: Boolean = false,
-    @SerialName("max_per_minute") val maxPerMinute: Int? = null,
+    @SerialName("per_minute_cap") val maxPerMinute: Int? = null,
 )
