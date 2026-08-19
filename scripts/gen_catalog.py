@@ -28,6 +28,11 @@ ROLE_KEYS = {
     "Super Admin": "super_admin",
     "Institution Admin / Principal": "institution_admin",
     "Faculty / Teacher": "faculty",
+    # A head of department held capabilities and no navigation at all: the
+    # rbac role existed, the catalogue did not, so a HOD signed in to an
+    # empty menu. The department is the boundary, not the institution --
+    # internal/scope narrows the rows these features return.
+    "HOD / Department Head": "hod",
     "Student": "student",
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
@@ -44,7 +49,7 @@ ROLE_KEYS = {
 # is "most of your day" rather than alphabetical.
 ROLE_ORDER = [
     "seller_admin", "super_admin",
-    "institution_admin", "faculty",
+    "institution_admin", "hod", "faculty",
     "finance", "admissions", "hr",
     "student", "parent",
 ]

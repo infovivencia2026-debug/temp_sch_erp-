@@ -168,6 +168,15 @@ func TestOptionalRolesMatchMigration(t *testing.T) {
 	if err != nil {
 		t.Skipf("migration not readable: %v", err)
 	}
+	// A later migration may promote a role out of the optional set. Reading
+	// only 00016 would then fail forever on a list the database no longer
+	// agrees with, which teaches people to edit an applied migration.
+	promoted := map[string]bool{}
+	if later, err := os.ReadFile("../../migrations/00132_hod_is_default.sql"); err == nil {
+		for _, m := range regexp.MustCompile(`key = '([a-z_]+)'`).FindAllStringSubmatch(string(later), -1) {
+			promoted[m[1]] = true
+		}
+	}
 	quoted := regexp.MustCompile(`'([a-z_]+)'`)
 	block := string(sql)
 	start := strings.Index(block, "WHERE is_system")
@@ -177,6 +186,9 @@ func TestOptionalRolesMatchMigration(t *testing.T) {
 	}
 	inSQL := map[string]bool{}
 	for _, m := range quoted.FindAllStringSubmatch(block[start:end], -1) {
+		if promoted[m[1]] {
+			continue
+		}
 		inSQL[m[1]] = true
 	}
 	for key := range optionalRoles {

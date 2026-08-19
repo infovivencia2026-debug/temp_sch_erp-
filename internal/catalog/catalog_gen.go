@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 9 roles, 433 features.
+// Roles is the catalog: 10 roles, 442 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -335,6 +335,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.classes_sections", Slug: "classes_sections", Name: "Classes & sections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The academic structure: classes, sections, subjects and which teacher takes what."},
 					{Key: "institution_admin.academics.teacher_allocation", Slug: "teacher_allocation", Name: "Teacher allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, and the workload that adds up to."},
 					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Chapter-level coverage per subject and section against the plan."},
+					{Key: "institution_admin.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, for one student or for a whole class at once. A teacher was choosing this; it decides how sections are grouped, so it belongs to whoever groups them."},
 				},
 			},
 			{
@@ -551,6 +552,49 @@ var Roles = []Role{
 		},
 	},
 	{
+		Key:  "hod",
+		Name: "HOD / Department Head",
+		Sections: []Section{
+			{
+				Slug: "timetable",
+				Name: "Timetable",
+				Workspace: "Timetable",
+				Features: []Feature{
+					{Key: "hod.timetable.class_timetable", Slug: "class_timetable", Name: "Class timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for."},
+					{Key: "hod.timetable.staff_timetable", Slug: "staff_timetable", Name: "Staff timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after."},
+					{Key: "hod.timetable.department_timetable", Slug: "department_timetable", Name: "Department timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "The department's grid by class, by faculty and by room, read together so a gap in one is explained by the other two."},
+					{Key: "hod.timetable.substitution_requests", Slug: "substitution_requests", Name: "Substitution requests", Scope: Scope("department"), Tier: Tier("core"), Summary: "Cover requests from the department's teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately."},
+				},
+			},
+			{
+				Slug: "academics",
+				Name: "Academics",
+				Workspace: "Academics",
+				Features: []Feature{
+					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
+					{Key: "hod.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set."},
+				},
+			},
+			{
+				Slug: "staff",
+				Name: "Staff",
+				Workspace: "Staff",
+				Features: []Feature{
+					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
+					{Key: "hod.staff.leave_approvals", Slug: "leave_approvals", Name: "Leave approvals", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by the department's staff, with the periods it would leave uncovered shown next to it."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Work",
+				Features: []Feature{
+					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
+				},
+			},
+		},
+	},
+	{
 		Key:  "faculty",
 		Name: "Faculty / Teacher",
 		Sections: []Section{
@@ -572,7 +616,6 @@ var Roles = []Role{
 					{Key: "faculty.my_classes.my_classes", Slug: "my_classes", Name: "My classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Class roster, subject resources and relevant student academic information."},
 					{Key: "faculty.my_classes.student_progress", Slug: "student_progress", Name: "Student progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "View attendance and academic progress for students taught/mentored by the faculty member."},
 					{Key: "faculty.my_classes.student_behavior_demerits", Slug: "student_behavior_demerits", Name: "Student Behavior & Demerits", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points."},
-					{Key: "faculty.my_classes.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language Subject Allocation", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi."},
 					{Key: "faculty.my_classes.my_students", Slug: "my_students", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child in the class with attendance, marks and guardian contact in one place."},
 					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "Student details", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
 				},

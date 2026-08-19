@@ -17,6 +17,7 @@ import { bankingKeys } from './finance/banking-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
+import { hodKeys } from './hod/keys'
 import { concessionsKeys } from './finance/concessions-keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
 import { hrGrowthKeys } from './hr/growth-keys'
@@ -414,6 +415,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...bankingKeys,
   ...statutoryKeys,
   ...tallyKeys,
+  ...hodKeys,
   ...timetableOpsKeys,
   ...concessionsKeys,
   ...adminOpsKeys,

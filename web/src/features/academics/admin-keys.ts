@@ -12,6 +12,9 @@ export const adminAcademicsKeys = {
   'institution_admin.academics.academic_calendar': lazy(() => import('./AcademicCalendar')),
   'institution_admin.academics.exams_marks_monitoring': lazy(() => import('./ExamMonitoring')),
   'institution_admin.academics.faculty_allocation': lazy(() => import('./FacultyAllocation')),
+  'institution_admin.academics.language_subject_allocation': lazy(
+    () => import('../faculty/LanguageAllocation'),
+  ),
   'institution_admin.academics.faculty_substitution_engine': lazy(
     () => import('./SubstitutionBoard'),
   ),

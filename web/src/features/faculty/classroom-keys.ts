@@ -20,19 +20,7 @@ import { lazy } from 'react'
    otherwise. */
 
 export const classroomKeys = {
-  'faculty.my_classes.language_subject_allocation': lazy(
-    () => import('./LanguageAllocation'),
-  ),
-  'faculty.my_classes.student_portfolio_builder': lazy(
-    () => import('./PortfolioBuilder'),
-  ),
-  'faculty.my_classes.montessori_early_years_tracking': lazy(
-    () => import('./MontessoriTracking'),
-  ),
   'faculty.attendance.offline_attendance_diary_capture': lazy(
     () => import('./OfflineRegister'),
-  ),
-  'faculty.question_papers_online_tests.no_omr_exam_grading': lazy(
-    () => import('./ExamGrading'),
   ),
 }
