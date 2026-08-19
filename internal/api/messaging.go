@@ -1366,7 +1366,18 @@ func (s *Server) recordRuleRun(ctx context.Context, tx pgx.Tx, rule uuid.UUID, o
 	return err
 }
 
-// loadRules reads the active rules for an event, or one rule by id.
+/*
+loadRules reads the active rules for an event, or one rule by id.
+
+	plan_kind IS NULL excludes reminder plans (00103), which are driven by
+	runMessagePlans in message_rules.go instead. Both halves matter and the
+	exclusion is not tidiness: a plan's occurrence key carries the chase number
+	(invoice#2) or the absent day (student:2026-08-19), and the generic finder
+	for the same event produces neither. Letting both evaluate one rule would
+	write two message_log rows the one-per-occurrence index cannot see as
+	duplicates -- which is a family chased twice on the same morning, the exact
+	failure the index exists to prevent.
+*/
 func (s *Server) loadRules(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	event string, only *uuid.UUID) ([]triggerRule, error) {
 
@@ -1374,7 +1385,7 @@ func (s *Server) loadRules(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		SELECT id, name, event, condition, audience, channel, template_code,
 		       lead_minutes, quiet_from::text, quiet_to::text
 		  FROM message_trigger_rules
-		 WHERE institution_id = $1 AND is_active
+		 WHERE institution_id = $1 AND is_active AND plan_kind IS NULL
 		   AND ($2::text IS NULL OR event = $2)
 		   AND ($3::uuid IS NULL OR id = $3)
 		 ORDER BY name`, inst, nullIfEmpty(event), only)
@@ -2525,8 +2536,17 @@ type eventView struct {
 	Swept       bool   `json:"swept"`
 }
 
-// listTriggerRules is the Automated Trigger Rules screen in one call: the
-// rules, the events they may name, and whether each rule's channel can send.
+/*
+listTriggerRules is the Automated Trigger Rules screen in one call: the rules,
+the events they may name, and whether each rule's channel can send.
+
+	Reminder plans are excluded (plan_kind IS NOT NULL). Not to hide them, but
+	because this screen's save handler writes the columns it knows about and
+	leaves the plan columns alone -- so a fee chase edited here would keep its
+	repeat and its cap while its event, condition and audience were rewritten
+	underneath them. The plan screens in message_rules.go own those rows and
+	edit them whole.
+*/
 func (s *Server) listTriggerRules(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	items := []triggerRuleView{}
@@ -2543,7 +2563,7 @@ func (s *Server) listTriggerRules(w http.ResponseWriter, r *http.Request) {
 			       is_active,
 			       to_char(last_run_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), last_queued, last_error
 			  FROM message_trigger_rules
-			 WHERE institution_id = $1
+			 WHERE institution_id = $1 AND plan_kind IS NULL
 			 ORDER BY event, name`, id.InstitutionID)
 		if err != nil {
 			return err

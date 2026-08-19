@@ -90,6 +90,34 @@ func schedulerEntries(env Envelope) []cronEntry {
 		{"*/5 * * * *", TypeMessageDispatch,
 			MessageDispatchPayload{Envelope: env, Limit: 50},
 			Options(QueueDefault, 3, 10*time.Minute)},
+
+		/* Every 15 minutes — fill message_log from the reminder plans.
+
+		   The other half of the pipe the entry above drains. A plan is a
+		   standing policy rather than an event, so nothing pushes it: an
+		   invoice does not announce that it has become 23 days overdue, and a
+		   register marked at 10:40 does not announce that a child is still
+		   absent at 11:30. Somebody has to come back and look, and this is
+		   that somebody.
+
+		   Fifteen rather than five because a plan's occurrences change on the
+		   scale of a school morning, not a minute, and each tick is a scan of
+		   the overdue invoices and today's absences for one institution --
+		   real work, unlike a dispatch tick that usually finds nothing. It
+		   still means an absence alert reaches a parent within a quarter of an
+		   hour of the register being taken, and a chase due today goes out
+		   today.
+
+		   Safe to run twice, and that is not incidental. Every occurrence key
+		   a plan produces is derived from the data rather than counted -- the
+		   chase number from the days overdue, the absence from the child and
+		   the date -- so a retry firing beside the next tick writes the same
+		   keys and the one-per-occurrence index refuses the second copy. A
+		   duplicate fee reminder is worse than a late one, so the guarantee
+		   lives in the key rather than in this schedule. */
+		{"*/15 * * * *", TypeMessagePlans,
+			MessagePlansPayload{Envelope: env},
+			Options(QueueDefault, 3, 10*time.Minute)},
 	}
 }
 

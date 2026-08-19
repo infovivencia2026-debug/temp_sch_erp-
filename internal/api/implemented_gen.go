@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 412 of the catalog's features are implemented.
+// 414 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -51,6 +51,7 @@ var implementedFeatures = map[string]bool{
 	"admissions.visitors.visitor_gate_pass_generation":                    true,
 	"faculty.assessment_schemes.cce_formative_assessment_entry":           true,
 	"faculty.assessment_schemes.cce_summative_assessment_entry":           true,
+	"faculty.attendance.absence_alert_to_guardian":                        true,
 	"faculty.attendance.attendance_correction":                            true,
 	"faculty.attendance.offline_attendance_diary_capture":                 true,
 	"faculty.attendance.take_attendance":                                  true,
@@ -132,6 +133,7 @@ var implementedFeatures = map[string]bool{
 	"finance.reports.daybook_cashbook_reports":                            true,
 	"finance.reports.finance_reports":                                     true,
 	"finance.reports.taxation_audit_reports":                              true,
+	"finance.student_dues.automated_fee_reminders":                        true,
 	"finance.student_dues.cheque_bounce_fine_engine":                      true,
 	"finance.student_dues.defaulters_reminders":                           true,
 	"finance.student_dues.late_fine_rules_engine":                         true,

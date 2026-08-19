@@ -41,6 +41,9 @@ type fakeMessaging struct {
 	sent, failed int
 	queueErr     error
 	dispatchErr  error
+
+	plansFor []uuid.UUID
+	plansErr error
 }
 
 func (f *fakeMessaging) QueueOutbound(_ context.Context, inst uuid.UUID, req OutboundRequest) error {
@@ -54,6 +57,11 @@ func (f *fakeMessaging) DispatchMessages(_ context.Context, inst uuid.UUID, plat
 	f.dispatchedAs = append(f.dispatchedAs, platform)
 	f.limits = append(f.limits, limit)
 	return f.sent, f.failed, f.dispatchErr
+}
+
+func (f *fakeMessaging) RunMessagePlans(_ context.Context, inst uuid.UUID) error {
+	f.plansFor = append(f.plansFor, inst)
+	return f.plansErr
 }
 
 func task(t *testing.T, typ string, payload any) *asynq.Task {
