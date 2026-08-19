@@ -1,6 +1,7 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import BulkImport from '@/components/BulkImport'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
@@ -1088,35 +1089,42 @@ function Assignments({ onDone }: PanelProps) {
 
 // --- 10. students -----------------------------------------------------------
 
-function StudentsPanel(_: PanelProps) {
+function StudentsPanel({ onDone }: PanelProps) {
+  /* Both cards used to be plain links to routes this account cannot reach:
+     one to a section slug that does not exist (students_admissions), the other
+     into /super_admin, which is not in a principal's catalogue at all. A
+     principal clicking either was bounced back to their dashboard, which reads
+     as "adding students is broken" rather than "that link was wrong".
+
+     So the import happens here, on the step, rather than sending anybody
+     anywhere — and the one link that remains goes to a screen the catalogue
+     says this role actually has. */
   return (
     <div className="space-y-4 text-[14px]">
       <p className="text-muted-foreground">
         Two ways in, and for a school moving off paper the second is the only realistic one.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <a href="/institution_admin/students_admissions/student_directory_student_360" className="block">
-          <div className="card h-full p-4 transition-colors duration-150 hover:bg-accent">
-            <p className="font-medium">Admit one student</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              The walk-in case: parent at the counter, admission number issued on the spot.
-            </p>
-          </div>
-        </a>
-        <a href="/super_admin/platform_configuration/data_operations" className="block">
-          <div className="card h-full p-4 transition-colors duration-150 hover:bg-accent">
-            <p className="font-medium">Import a spreadsheet</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Checked row by row and shown to you before anything is written.
-            </p>
-          </div>
-        </a>
-      </div>
+
+      <BulkImport
+        entity="students"
+        endpoint="/api/v1/students/import"
+        templateUrl="/api/v1/students/import/template"
+        title="Import your student list"
+        hint="Checked row by row and shown to you before anything is written. Guardians and section placement come across in the same file."
+        onDone={onDone}
+      />
+
+      <Link to="/institution_admin/students/student_directory" className="block">
+        <div className="card p-4 transition-colors duration-150 hover:bg-accent">
+          <p className="font-medium">Or admit one student</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            The walk-in case: parent at the counter, admission number issued on the spot.
+          </p>
+        </div>
+      </Link>
     </div>
   )
 }
-
-// --- 11. grading ------------------------------------------------------------
 
 function GradingPanel({ onDone }: PanelProps) {
   type Band = { grade: string; min_percent: number; max_percent: number; grade_point: number }

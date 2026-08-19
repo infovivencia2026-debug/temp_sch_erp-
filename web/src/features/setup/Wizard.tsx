@@ -155,9 +155,16 @@ export default function Wizard() {
     setActive((rest.find((s) => !s.done) ?? rest[0] ?? current).key)
   }
 
+  /* Saving does not move you.
+   *
+   * It used to advance to the next unfinished step, which is wrong for every
+   * step that is a list: adding one section, one class or one subject almost
+   * always means adding another, and being thrown to the next step after each
+   * one made the common case the punished case. The tick on the left and the
+   * refreshed counts are the confirmation; "Next step" is right there when the
+   * work is actually finished. */
   const done = () => {
     refetch()
-    advance()
   }
 
   const Panel = PANELS[current.key]
