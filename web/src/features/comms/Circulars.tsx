@@ -4,7 +4,7 @@ import { Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Textarea, Loading, ErrorState,
+  Table, Td, Badge, Button, Input, Select, Textarea, Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -20,6 +20,12 @@ export default function Circulars() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [sectionIds, setSectionIds] = useState<Set<string>>(new Set())
+  /* Who it is addressed to. audience_role has been a column on announcements
+     since the beginning and this form never set it, so every circular went out
+     as 'all' and the fan-out ran over guardians regardless — a notice for
+     students was delivered to their parents. */
+  const [audience, setAudience] = useState('all')
+  const [sendEmail, setSendEmail] = useState(false)
   const [requiresAck, setRequiresAck] = useState(true)
   const [sendSMS, setSendSMS] = useState(false)
 
@@ -44,10 +50,14 @@ export default function Circulars() {
   })
   const publish = useMutation({
     mutationFn: () =>
-      api.post<{ recipients: number; sms_queued: number }>('/api/v1/communication/circulars', {
-        title, body, section_ids: [...sectionIds],
-        requires_ack: requiresAck, send_sms: sendSMS,
-      }),
+      api.post<{ recipients: number; sms_queued: number; email_queued: number }>(
+        '/api/v1/communication/circulars',
+        {
+          title, body, section_ids: [...sectionIds],
+          audience_role: audience,
+          requires_ack: requiresAck, send_sms: sendSMS, send_email: sendEmail,
+        },
+      ),
     onSuccess: () => {
       setTitle(''); setBody(''); setSectionIds(new Set())
       qc.invalidateQueries({ queryKey: ['circulars'] })
@@ -68,7 +78,7 @@ export default function Circulars() {
         title="Circulars"
         description={
           canPublish
-            ? 'Publish to the portal and optionally push as SMS. Target the whole school or specific sections.'
+            ? 'Publish to the portal, and push it as SMS or email as well. Address it to parents, to students or to both, and to the whole school or named sections.'
             : 'Notices the school has published, newest first.'
         }
       />
@@ -86,6 +96,18 @@ export default function Circulars() {
           <form className="space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); publish.mutate() }}>
             <Input value={title} onChange={setTitle} placeholder="Title" className="w-full" />
             <Textarea value={body} onChange={setBody} placeholder="Body" rows={4} className="w-full" />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13px] text-muted-foreground">Send to</span>
+              <Select
+                value={audience}
+                onChange={setAudience}
+                options={[
+                  { value: 'all', label: 'Parents and students' },
+                  { value: 'parents', label: 'Parents only' },
+                  { value: 'students', label: 'Students only' },
+                ]}
+              />
+            </div>
             <div>
               <p className="mb-1.5 text-[13px] text-muted-foreground">
                 Sections — leave empty to reach the whole school
@@ -112,6 +134,10 @@ export default function Circulars() {
                 <input type="checkbox" checked={sendSMS} onChange={(e) => setSendSMS(e.target.checked)} />
                 Also send SMS
               </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
+                Also send email
+              </label>
             </div>
             {publish.isError && (
               <p className="text-[13px] text-destructive">
@@ -119,9 +145,15 @@ export default function Circulars() {
               </p>
             )}
             {publish.isSuccess && (
+              // "Queued", not "sent": neither an SMS gateway nor an SMTP
+              // provider is configured here, so the worker holds these until
+              // one is. Claiming a delivery nothing performed is the single
+              // thing a communication tool must not do.
               <p className="text-[13px] text-success">
-                Published to {publish.data.recipients} guardians
-                {publish.data.sms_queued > 0 && `, ${publish.data.sms_queued} SMS queued`}.
+                Published to {publish.data.recipients}{' '}
+                {audience === 'students' ? 'students' : audience === 'parents' ? 'guardians' : 'recipients'}
+                {publish.data.sms_queued > 0 && `, ${publish.data.sms_queued} SMS queued`}
+                {publish.data.email_queued > 0 && `, ${publish.data.email_queued} emails queued`}.
               </p>
             )}
             <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>

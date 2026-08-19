@@ -27,7 +27,40 @@ type circularRequest struct {
 	SectionIDs   []string `json:"section_ids,omitempty"`
 	RequiresAck  bool     `json:"requires_ack"`
 	SendSMS      bool     `json:"send_sms"`
+	// SendEmail is the other half of "publish it". SMS was the only channel
+	// offered, on a deployment with no SMS gateway either — so a circular
+	// reached whoever happened to open the portal and nobody else.
+	SendEmail bool `json:"send_email"`
 }
+
+/* Who a circular is addressed to, as one query used three times.
+
+   The recipient count, the SMS fan-out and the email fan-out were three
+   copies of the same SELECT, and only the first two existed. All three ran
+   over guardians regardless of audience_role, so a notice addressed to
+   students was counted, and would have been sent, to their parents instead.
+
+   audience_role has been on the announcements table from the start and
+   nothing had ever read it here. 'parents' is guardians with a login;
+   'students' is students with one; 'all' is both, deduplicated, because a
+   sixth-former with their own account and a parent on the same address should
+   receive one notice each and not two on one screen. */
+const circularRecipients = `
+	SELECT g.user_id
+	  FROM students st
+	  JOIN student_guardians sg ON sg.student_id = st.id
+	  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+	  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+	 WHERE st.status = 'active'
+	   AND $2::text IN ('all','parents')
+	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))
+	UNION
+	SELECT st.user_id
+	  FROM students st
+	  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+	 WHERE st.status = 'active' AND st.user_id IS NOT NULL
+	   AND $2::text IN ('all','students')
+	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))`
 
 // publishCircular posts an announcement and optionally pushes it as SMS.
 //
@@ -76,62 +109,72 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 		}
 		// Count who it actually reaches, so the author sees the blast radius
 		// before wondering why nobody replied.
-		return tx.QueryRow(r.Context(), `
-			SELECT count(DISTINCT g.user_id)
-			  FROM students st
-			  JOIN student_guardians sg ON sg.student_id = st.id
-			  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
-			  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status='active'
-			 WHERE st.status = 'active'
-			   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))`,
-			uuidArray(req.SectionIDs)).Scan(&recipients)
+		return tx.QueryRow(r.Context(),
+			`SELECT count(*) FROM (`+circularRecipients+`) AS t`,
+			uuidArray(req.SectionIDs), req.AudienceRole).Scan(&recipients)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 
-	queued := 0
+	// One task per recipient per channel: a rejection for one number or one
+	// address must not lose the rest of the circular.
+	channels := make([]string, 0, 2)
 	if req.SendSMS {
-		// One task per recipient: a DLT rejection for one number must not lose
-		// the rest of the circular.
+		channels = append(channels, "sms")
+	}
+	if req.SendEmail {
+		channels = append(channels, "email")
+	}
+
+	queued := map[string]int{"sms": 0, "email": 0}
+	if len(channels) > 0 {
 		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-			rows, err := tx.Query(r.Context(), `
-				SELECT DISTINCT g.user_id
-				  FROM students st
-				  JOIN student_guardians sg ON sg.student_id = st.id
-				  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
-				  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status='active'
-				 WHERE st.status='active'
-				   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))`,
-				uuidArray(req.SectionIDs))
+			rows, err := tx.Query(r.Context(), circularRecipients,
+				uuidArray(req.SectionIDs), req.AudienceRole)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
+			var to []uuid.UUID
 			for rows.Next() {
 				var uid uuid.UUID
 				if err := rows.Scan(&uid); err != nil {
+					rows.Close()
 					return err
 				}
-				if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
-					queue.MessageSendPayload{
-						Envelope: queue.Envelope{
-							InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
-							RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
-						},
-						Channel: "sms", TemplateKey: "circular.published", ToUserID: uid,
-						Vars: map[string]any{"title": req.Title},
-					}, queue.HeavyOptions()...); err == nil {
-					queued++
+				to = append(to, uid)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+
+			// Collected before enqueueing rather than enqueued inside the row
+			// loop: the queue write and the cursor were sharing one connection,
+			// and a slow enqueue held the cursor open for the whole fan-out.
+			for _, uid := range to {
+				for _, ch := range channels {
+					if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+						queue.MessageSendPayload{
+							Envelope: queue.Envelope{
+								InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
+								RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+							},
+							Channel: ch, TemplateKey: "circular.published", ToUserID: uid,
+							Vars: map[string]any{"title": req.Title, "body": req.Body},
+						}, queue.HeavyOptions()...); err == nil {
+						queued[ch]++
+					}
 				}
 			}
-			return rows.Err()
+			return nil
 		})
 	}
 
 	httpx.JSON(w, http.StatusCreated, map[string]any{
-		"id": annID.String(), "recipients": recipients, "sms_queued": queued,
+		"id": annID.String(), "recipients": recipients,
+		"sms_queued": queued["sms"], "email_queued": queued["email"],
 	})
 }
 
