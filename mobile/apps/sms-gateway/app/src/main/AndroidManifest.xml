@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Reaching the school's server. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- The whole point of the app. Requested at runtime with an explanation. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- Signal strength for the heartbeat. Refusing it costs signal_dbm and
+         nothing else; the app keeps sending. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- The foreground-service notification is the app's proof of life. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Come back after a power cut. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Asked for from the status screen, never silently. Doze otherwise stops
+         the polling loop on a phone that has been idle in a drawer. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- This app is a worker, not an inbox, and not an address book. If a
+         dependency ever tries to merge one of these in, the merge fails loudly
+         instead of the APK quietly asking a school for inbox access. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_SMS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" tools:node="remove" />
+
+    <!-- Required, not optional: a handset with no telephony hardware cannot be
+         this school's SMS gateway, and installing it there would only produce a
+         phone that silently sends nothing. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="true"
+        tools:ignore="UnnecessaryRequiredFeature" />
+
+    <application
+        android:name=".SmsGatewayApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmsGateway"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.SmsGateway">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            specialUse, not dataSync. From Android 15 a dataSync foreground
+            service is capped at roughly six hours in any 24, which is fatal for
+            a gateway that must be reachable all day. This is a sideloaded app on
+            a dedicated handset, so the Play policy justification that normally
+            gates specialUse does not apply.
+        -->
+        <service
+            android:name=".service.GatewayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Continuously polls the school's server for queued SMS and sends them from this handset's SIM. The device is a dedicated, sideloaded SMS gateway." />
+        </service>
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Targets of the sent/delivered PendingIntents. Explicit and not
+             exported: nothing outside the app can forge a send result. -->
+        <receiver
+            android:name=".sms.SmsResultReceiver"
+            android:exported="false" />
+
+        <!-- WorkManager is initialised by Hilt so the restart worker can be
+             injected; the androidx.startup default initialiser is removed. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+</manifest>

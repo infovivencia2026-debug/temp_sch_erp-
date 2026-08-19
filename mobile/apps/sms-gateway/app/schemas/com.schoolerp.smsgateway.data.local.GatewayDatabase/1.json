@@ -1,0 +1,141 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "8ee11edeecfa70190b0fdd0f36795600",
+    "entities": [
+      {
+        "tableName": "queued_message",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `toAddress` TEXT NOT NULL, `bodyRaw` TEXT NOT NULL, `attempt` INTEGER NOT NULL, `state` TEXT NOT NULL, `parts` INTEGER NOT NULL, `partsPending` INTEGER NOT NULL, `error` TEXT, `claimedAt` INTEGER NOT NULL, `sendStartedAt` INTEGER, `sentAt` INTEGER, `receiptAccepted` INTEGER NOT NULL, `receiptAttempts` INTEGER NOT NULL, `nextReceiptAt` INTEGER NOT NULL, `delivered` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "toAddress",
+            "columnName": "toAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bodyRaw",
+            "columnName": "bodyRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempt",
+            "columnName": "attempt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parts",
+            "columnName": "parts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "partsPending",
+            "columnName": "partsPending",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimedAt",
+            "columnName": "claimedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sendStartedAt",
+            "columnName": "sendStartedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sentAt",
+            "columnName": "sentAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "receiptAccepted",
+            "columnName": "receiptAccepted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receiptAttempts",
+            "columnName": "receiptAttempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextReceiptAt",
+            "columnName": "nextReceiptAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "delivered",
+            "columnName": "delivered",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_queued_message_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_queued_message_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_queued_message_receiptAccepted_nextReceiptAt",
+            "unique": false,
+            "columnNames": [
+              "receiptAccepted",
+              "nextReceiptAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_queued_message_receiptAccepted_nextReceiptAt` ON `${TABLE_NAME}` (`receiptAccepted`, `nextReceiptAt`)"
+          },
+          {
+            "name": "index_queued_message_sentAt",
+            "unique": false,
+            "columnNames": [
+              "sentAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_queued_message_sentAt` ON `${TABLE_NAME}` (`sentAt`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8ee11edeecfa70190b0fdd0f36795600')"
+    ]
+  }
+}

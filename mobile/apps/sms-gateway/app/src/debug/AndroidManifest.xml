@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        Debug builds only, so a developer can point the app at a laptop on the
+        school LAN. Release keeps usesCleartextTraffic="false", and BuildConfig
+        .ALLOW_INSECURE_HTTP is false there, so BaseUrl.parse rejects http://
+        outright. Even in debug the operator must switch on "allow plain HTTP"
+        in the app before an http:// base URL is accepted.
+    -->
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic" />
+</manifest>
