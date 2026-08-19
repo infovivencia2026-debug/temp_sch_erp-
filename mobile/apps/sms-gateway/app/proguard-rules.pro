@@ -23,3 +23,11 @@
 
 # Never let R8 keep a synthetic toString that would defeat body redaction.
 -dontnote com.schoolerp.smsgateway.**
+
+# Tink, pulled in by Jetpack Security Crypto for EncryptedSharedPreferences,
+# is compiled against Error Prone's annotations but does not ship them. They
+# are compile-time only -- nothing reads them at runtime -- so R8 needs to be
+# told the absence is expected rather than a missing dependency. Without this
+# minifyRelease fails outright on ~100 references it cannot resolve.
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
