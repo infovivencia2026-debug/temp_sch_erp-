@@ -421,6 +421,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/subjects", s.listExamSubjects)
 			r.Get("/gradebook", s.getGradebook)
 			r.Get("/report-cards", s.listReportCards)
+			// Whether every subject teacher has finished. A card generated
+			// before they have totals the marks that exist over the marks
+			// that were expected, so a missing paper reads as a failed one.
+			r.Get("/report-cards/readiness", s.getReportCardReadiness)
 			r.With(httpx.RequirePermission(rbac.MarksWrite)).Post("/marks", s.enterMarks)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/generate", s.generateReportCards)
 

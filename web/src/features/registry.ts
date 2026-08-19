@@ -220,7 +220,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.academics.classes_sections': lazy(() => import('./setup/Wizard')),
   'institution_admin.academics.teacher_allocation': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.examinations.report_cards': lazy(() => import('./exams/HolisticCard')),
+  /* The principal's report card is the class teacher's report card.
+     It pointed at HolisticCard — the NEP progress card, a different document
+     with different columns — so the school had two screens both called
+     "report cards" showing different numbers for the same child, and no way
+     to tell which one a parent had been sent. */
+  'institution_admin.examinations.report_cards': lazy(() => import('./exams/ReportCards')),
   'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
   'institution_admin.directory_workload.faculty_directory_workload': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.communication.circulars_announcements': lazy(() => import('./comms/Circulars')),
