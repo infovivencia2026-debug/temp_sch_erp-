@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Approvals, leave, staff attendance and homework.
@@ -154,13 +155,29 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 		var employeeID *uuid.UUID
 		var leaveTypeID *uuid.UUID
 		var days float64
+		// Who may answer this one. HR answers anything; a class teacher
+		// answers their own students and nothing else. The predicate is part
+		// of the UPDATE rather than a check before it, so a request that is
+		// not theirs simply matches no row instead of being read first and
+		// refused second.
+		guard := ` AND (
+			$5 OR EXISTS (
+				SELECT 1 FROM students st
+				  JOIN LATERAL (
+				      SELECT e.section_id FROM enrollments e
+				       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  JOIN sections sec ON sec.id = en.section_id
+				 WHERE st.id = leave_requests.student_id AND sec.class_teacher_id = $6
+			))`
 		if err := tx.QueryRow(r.Context(), `
 			UPDATE leave_requests
 			   SET status = $2, decided_by = $3, decided_at = now(),
 			       decision_note = COALESCE($4, decision_note)
-			 WHERE id = $1 AND status = 'pending'
+			 WHERE id = $1 AND status = 'pending'`+guard+`
 			 RETURNING employee_id, leave_type_id, days`,
-			lid, req.Decision, id.UserID, nullString(req.Note)).
+			lid, req.Decision, id.UserID, nullString(req.Note),
+			id.Can(rbac.LeaveApprove), id.UserID).
 			Scan(&employeeID, &leaveTypeID, &days); err != nil {
 			return err
 		}
@@ -365,6 +382,58 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					})
 					return nil
 				}); err != nil {
+				return err
+			}
+		}
+
+		/* A child's leave belongs to their class teacher.
+
+		   Every pending request — a teacher's casual leave and a six-year-old's
+		   fever — went to whoever holds hr.leave.approve, and nowhere else. So
+		   the person who marks that child's register, notices the empty chair
+		   and has to decide whether it is explained never saw the note their
+		   parent sent. HR did, which is the wrong desk: HR does not know
+		   whether the child was in school yesterday.
+
+		   Staff leave still goes to HR alone, because that is an employment
+		   decision with a balance behind it. Student leave now reaches both:
+		   the class teacher because it is theirs to act on, and HR because the
+		   attendance return is theirs to answer for. */
+		if !id.Can("hr.leave.approve") {
+			if err := scanInto(r.Context(), tx, `
+				SELECT lr.id::text,
+				       concat_ws(' ', st.first_name, st.last_name),
+				       COALESCE(lt.name,'Leave'),
+				       to_char(lr.from_date,'DD Mon') || ' to ' || to_char(lr.to_date,'DD Mon')
+				         || ' (' || lr.days || ' day' || CASE WHEN lr.days = 1 THEN '' ELSE 's' END || ')',
+				       lr.reason, u.full_name,
+				       to_char(lr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				  FROM leave_requests lr
+				  JOIN students st ON st.id = lr.student_id
+				  JOIN LATERAL (
+				      SELECT e.section_id FROM enrollments e
+				       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  JOIN sections sec ON sec.id = en.section_id AND sec.class_teacher_id = $1
+				  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+				  LEFT JOIN users u ON u.id = lr.applied_by
+				 WHERE lr.status = 'pending' AND lr.subject_kind = 'student'
+				 ORDER BY lr.created_at`,
+				func(rows pgx.Rows) error {
+					var lid, who, kind, span, reason, raised string
+					var by *string
+					if err := rows.Scan(&lid, &who, &kind, &span, &reason, &by, &raised); err != nil {
+						return err
+					}
+					out = append(out, approvalItem{
+						ID: lid, Kind: "leave",
+						Title:     who + " — " + kind,
+						Detail:    span + ". " + reason,
+						Requester: by, RaisedAt: raised,
+						DecideURL: "/api/v1/workflow/leave/" + lid + "/decide",
+					})
+					return nil
+				}, id.UserID); err != nil {
 				return err
 			}
 		}

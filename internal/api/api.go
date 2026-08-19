@@ -146,7 +146,11 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/workflow", func(r chi.Router) {
 			r.Get("/approvals", s.getApprovals)
 			r.Post("/leave", s.applyForLeave)
-			r.With(httpx.RequirePermission(rbac.LeaveApprove)).Post("/leave/{id}/decide", s.decideLeave)
+			// Gated in the handler: HR decides staff leave, and a class
+			// teacher decides their own students' leave. Requiring
+			// hr.leave.approve on the route meant the person who marks the
+			// register could see a parent's note and not answer it.
+			r.Post("/leave/{id}/decide", s.decideLeave)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/concessions/{id}/decide", s.decideConcession)
 			r.With(httpx.RequirePermission(rbac.StaffAttend)).Get("/staff-register", s.getStaffRegister)
 			r.With(httpx.RequirePermission(rbac.StaffAttend)).Post("/staff-attendance", s.markStaffAttendance)

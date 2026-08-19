@@ -211,8 +211,13 @@ func (s *Server) getRefData(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-func scanInto(ctx context.Context, tx pgx.Tx, sql string, fn func(pgx.Rows) error) error {
-	rows, err := tx.Query(ctx, sql)
+// scanInto runs a query and hands each row to fn.
+//
+// Variadic args rather than string interpolation: the approvals queue narrows
+// student leave to the caller's own sections, and a user id spliced into SQL
+// is the one place this codebase must never start.
+func scanInto(ctx context.Context, tx pgx.Tx, sql string, fn func(pgx.Rows) error, args ...any) error {
+	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
