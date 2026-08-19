@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
-  FormNotice, Input, Loading, ErrorState, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
+  FormNotice, Input, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The first job of the morning in every Indian school.
@@ -137,30 +137,33 @@ export default function SubstitutionBoard() {
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {r.covered_by ? (
                         <Badge tone="success">covered by {r.covered_by}</Badge>
-                      ) : r.candidates.length === 0 ? (
-                        <Badge tone="danger">nobody free this period</Badge>
                       ) : (
-                        r.candidates.slice(0, 4).map((c) => (
-                          <Button
-                            key={c.user_id}
-                            size="sm"
-                            variant={c.teaches_subject ? 'primary' : 'secondary'}
-                            disabled={cover.isPending}
-                            title={
-                              c.teaches_subject
-                                ? `Takes ${r.subject} elsewhere · ${c.periods_today} periods today`
-                                : `${c.periods_today} periods today`
-                            }
-                            onClick={() =>
-                              cover.mutate({
-                                timetable_entry_id: r.timetable_entry_id,
-                                substitute_user_id: c.user_id,
-                              })
-                            }
-                          >
-                            {c.full_name}
-                          </Button>
-                        ))
+                        /* A dropdown rather than four buttons.
+                         *
+                         * The board printed the first four free teachers as
+                         * buttons and silently dropped the rest, so a period
+                         * with nine free teachers offered four of them and a
+                         * head of department who wanted the fifth had no way
+                         * to say so. And "nobody free" was shown as a dead end
+                         * — which is exactly the period somebody has to be
+                         * asked to cover anyway.
+                         *
+                         * Free teachers come first, marked with what they are
+                         * carrying today and whether they take the subject.
+                         * Everybody else follows under a heading that says
+                         * what choosing them means, because the person doing
+                         * this at eight in the morning already knows their
+                         * staff and is entitled to overrule the list. */
+                        <AssignSelect
+                          slot={r}
+                          busy={cover.isPending}
+                          onAssign={(userID) =>
+                            cover.mutate({
+                              timetable_entry_id: r.timetable_entry_id,
+                              substitute_user_id: userID,
+                            })
+                          }
+                        />
                       )}
                     </div>
                   </div>
@@ -174,5 +177,65 @@ export default function SubstitutionBoard() {
         )}
       </PageBody>
     </>
+  )
+}
+
+
+/**
+ * Choosing who takes the period.
+ *
+ * Two groups in one list. The server worked out who is genuinely free in this
+ * slot — no class of their own, not already promised elsewhere, not absent
+ * themselves — and those are offered first with their load for the day. The
+ * rest of the staff follow, labelled as busy, because a period nobody is free
+ * for still has to be covered by somebody and the alternative on offer was a
+ * red badge saying it could not be done.
+ */
+function AssignSelect({
+  slot,
+  busy,
+  onAssign,
+}: {
+  slot: Slot
+  busy: boolean
+  onAssign: (userID: string) => void
+}) {
+  const teachers = useQuery({
+    queryKey: ['timetable-teachers'],
+    queryFn: () => api.get<List<{ user_id: string; full_name: string }>>('/api/v1/timetable/teachers'),
+    staleTime: 5 * 60_000,
+  })
+
+  const free = new Set(slot.candidates.map((c) => c.user_id))
+  const others = (teachers.data?.items ?? []).filter(
+    (t) => !free.has(t.user_id) && t.user_id !== slot.absent_user_id,
+  )
+
+  return (
+    <div className="min-w-[16rem]">
+      <Select
+        value=""
+        onChange={(v) => v && onAssign(v)}
+        placeholder={
+          slot.candidates.length
+            ? `${slot.candidates.length} free — choose one`
+            : 'Nobody free — choose anyway'
+        }
+        options={[
+          ...slot.candidates.map((c) => ({
+            value: c.user_id,
+            label:
+              `${c.full_name} — free` +
+              (c.teaches_subject ? `, takes ${slot.subject}` : '') +
+              `, ${c.periods_today} today`,
+          })),
+          ...others.map((t) => ({
+            value: t.user_id,
+            label: `${t.full_name} — busy this period`,
+          })),
+        ]}
+      />
+      {busy && <p className="mt-1 text-[12px] text-muted-foreground">Assigning…</p>}
+    </div>
   )
 }

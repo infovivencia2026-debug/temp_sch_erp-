@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 400 of the catalog's features are implemented.
+// 401 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":             true,
 	"admissions.admissions.admission_fee_collection":                       true,
@@ -126,6 +126,7 @@ var implementedFeatures = map[string]bool{
 	"hod.timetable.class_timetable":                                        true,
 	"hod.timetable.department_timetable":                                   true,
 	"hod.timetable.staff_timetable":                                        true,
+	"hod.timetable.substitution_requests":                                  true,
 	"hr.attendance.staff_attendance":                                       true,
 	"hr.attendance.staff_shift_rostering":                                  true,
 	"hr.hiring_growth.annual_performance_appraisal_kpi":                    true,
