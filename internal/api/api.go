@@ -579,6 +579,7 @@ func (s *Server) Routes() http.Handler {
 			s.mountPlatformConfig(r)
 			s.mountMessaging(r)
 			s.mountTallyConnector(r)
+			s.mountConnectors(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
