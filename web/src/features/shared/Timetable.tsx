@@ -50,8 +50,22 @@ export default function Timetable() {
   )
 }
 
+/* Whose week is on screen.
+
+   'me' is a teacher's own teaching week — the periods they stand in front of
+   a class for. It is the default for staff and it is the thing "My timetable"
+   was named after, and could not show: the screen opened on a section picker
+   and an empty grid, so a teacher had to choose one of their own classes
+   before seeing anything, and then saw that class's week rather than theirs.
+
+   A class teacher wants the other one too — the whole week of the section
+   they are responsible for, including the periods somebody else teaches — so
+   picking a section is still offered, it is simply no longer compulsory. */
+type View = { mode: 'me' } | { mode: 'section'; sectionId: string }
+
 function Grid({ isStaff }: { isStaff: boolean }) {
-  const [sectionId, setSectionId] = useState('')
+  const [view, setView] = useState<View>(isStaff ? { mode: 'me' } : { mode: 'section', sectionId: '' })
+  const sectionId = view.mode === 'section' ? view.sectionId : ''
 
   const sections = useQuery({
     queryKey: ['sections'],
@@ -62,12 +76,11 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     queryKey: ['periods'],
     queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
   })
+  const query =
+    view.mode === 'me' ? '?teacher_id=me' : sectionId ? `?section_id=${sectionId}` : ''
   const entries = useQuery({
-    queryKey: ['timetable', sectionId],
-    queryFn: () =>
-      api.get<List<TimetableEntry>>(
-        `/api/v1/timetable/entries${sectionId ? `?section_id=${sectionId}` : ''}`,
-      ),
+    queryKey: ['timetable', view.mode, sectionId],
+    queryFn: () => api.get<List<TimetableEntry>>(`/api/v1/timetable/entries${query}`),
   })
 
   if (periods.isLoading || entries.isLoading) return <Loading />
@@ -82,20 +95,25 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   return (
     <>
       {isStaff && (
-        <div className="flex items-center gap-2 border-b px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
           <Select
-            value={sectionId}
-            onChange={setSectionId}
-            placeholder="All sections"
-            options={(sections.data?.items ?? []).map((s) => ({
-              value: s.id, label: `${s.class_name}-${s.name}`,
-            }))}
+            value={view.mode === 'me' ? '__me__' : sectionId}
+            onChange={(v) =>
+              setView(v === '__me__' ? { mode: 'me' } : { mode: 'section', sectionId: v })
+            }
+            options={[
+              { value: '__me__', label: 'My own teaching week' },
+              ...(sections.data?.items ?? []).map((s) => ({
+                value: s.id,
+                label: `${s.class_name}-${s.name}`,
+              })),
+            ]}
           />
-          {!sectionId && (
-            <span className="text-xs text-muted-foreground">
-              Pick a section — the grid collapses overlapping entries otherwise.
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground">
+            {view.mode === 'me'
+              ? 'Every period you teach, across all your classes.'
+              : 'The whole week for this section, whoever teaches it.'}
+          </span>
         </div>
       )}
 
@@ -123,8 +141,13 @@ function Grid({ isStaff }: { isStaff: boolean }) {
                       {e ? (
                         <>
                           <div className="text-xs font-medium">{e.subject_code}</div>
+                          {/* On your own week the teacher is always you, and
+                              printing your own name in thirty cells tells you
+                              nothing. Which room to walk into does. */}
                           <div className="truncate text-[12px] text-muted-foreground">
-                            {e.teacher_name ?? 'Unassigned'}
+                            {view.mode === 'me'
+                              ? `${e.class_name}-${e.section_name}${e.room ? ` · ${e.room}` : ''}`
+                              : (e.teacher_name ?? 'Unassigned')}
                           </div>
                         </>
                       ) : (

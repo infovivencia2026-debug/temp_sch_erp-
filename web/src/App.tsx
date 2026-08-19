@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
+import AccountPage from '@/features/shared/Profile'
 import {
   CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -35,7 +36,29 @@ function RoleIndex() {
      offered, since it hides unbuilt items. super_admin did exactly this. */
   const first = firstUsable(role)
   if (!first) {
-    return <EmptyState title={role.name} body="No screen in this workspace is ready yet." />
+    /* Two very different reasons for an empty workspace, and they used to read
+       the same.
+
+       A teacher with no section and no subject holds every grant their role
+       carries and can reach none of it, because reach comes from assignments
+       rather than from the role. Telling them "no screen is ready yet" blames
+       the product for something the office has not done, and they wait for a
+       release that will not fix it. Telling them who to ask takes about a day
+       off that. */
+    const built = role.sections.some((sec) => sec.features.some((f) => f.live))
+    return built ? (
+      <EmptyState
+        title="No class assigned to you yet"
+        body={
+          'Everything in this workspace opens once you are made class teacher of a ' +
+          'section or given a subject in one. Ask your principal or head of ' +
+          'department to assign you — that is what decides which children you see, ' +
+          'not your role.'
+        }
+      />
+    ) : (
+      <EmptyState title={role.name} body="No screen in this workspace is ready yet." />
+    )
   }
   return <Navigate to={featurePath(role.key, first.section.slug, first.feature.slug)} replace />
 }
@@ -175,6 +198,12 @@ export default function App() {
             <I18nProvider>
             <Shell>
               <Routes>
+                {/* Outside the catalogue on purpose. Every signed-in person
+                    has a name, a password and contact details, whatever their
+                    role — and only faculty had a catalogue entry for it, so
+                    eight roles out of nine could not reach the screen that
+                    already existed to change their own password. */}
+                <Route path="/account" element={<AccountPage />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/:roleKey" element={<RoleIndex />} />
                 <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />

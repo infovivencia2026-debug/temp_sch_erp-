@@ -17,8 +17,9 @@ export const parentKeys = {
   'parent.leave_absence.apply_student_leave': lazy(() => import('./LeaveRequests')),
   'parent.attendance.child_absence_reporting_button': lazy(() => import('./ReportAbsence')),
   'parent.consent.parent_delegation_for_emergency_pickup': lazy(() => import('./Pickup')),
-  'parent.messages.concerns_grievance_ticketing': lazy(() => import('./Concerns')),
   'parent.messages.direct_teacher_messaging': lazy(() => import('./TeacherMessages')),
+  'parent.messages.teacher_remarks': lazy(() => import('../shared/StaffRemarks')),
+  'parent.academics.child_remarks': lazy(() => import('./ChildRemarks')),
   'parent.fees.digital_fee_receipt_pdf_download': lazy(() => import('./Receipts')),
   'student.requests.requests': lazy(() => import('./Requests')),
 }

@@ -206,7 +206,10 @@ type portalChild struct {
 	FullName    string  `json:"full_name"`
 	ClassName   *string `json:"class_name,omitempty"`
 	SectionName *string `json:"section_name,omitempty"`
-	Relation    *string `json:"relation,omitempty"`
+	// RollNo is what a parent recognises their child by on a class list, and
+	// what the school asks for on the telephone.
+	RollNo   *int    `json:"roll_no,omitempty"`
+	Relation *string `json:"relation,omitempty"`
 }
 
 // listMyStudents powers parent.dashboard.child_switcher and the student's own
@@ -216,13 +219,13 @@ func (s *Server) listMyStudents(w http.ResponseWriter, r *http.Request) {
 	items, err := scoped(s, r, catalog.ScopeChildren, "st.id", `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-		       c.name, sec.name,
+		       c.name, sec.name, en.roll_no,
 		       (SELECT g.relation FROM student_guardians sg
 		          JOIN guardians g ON g.id = sg.guardian_id
 		         WHERE sg.student_id = st.id LIMIT 1)
 		  FROM students st
 		  LEFT JOIN LATERAL (
-		      SELECT e.class_id, e.section_id FROM enrollments e
+		      SELECT e.class_id, e.section_id, e.roll_no FROM enrollments e
 		       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
 		  ) en ON true
 		  LEFT JOIN classes  c   ON c.id = en.class_id
@@ -232,7 +235,7 @@ func (s *Server) listMyStudents(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (portalChild, error) {
 			var v portalChild
 			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName,
-				&v.ClassName, &v.SectionName, &v.Relation)
+				&v.ClassName, &v.SectionName, &v.RollNo, &v.Relation)
 		})
 	respond(w, r, items, err)
 }

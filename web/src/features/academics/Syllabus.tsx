@@ -4,10 +4,11 @@ import { BookOpen, CheckCircle2, ClipboardCheck, TrendingDown } from 'lucide-rea
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Field, FormNotice, Input, Select, Textarea,
+  Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 
 /* Are we behind?
 
@@ -208,6 +209,7 @@ export default function Syllabus() {
         </Card>
 
         <MyPlans plans={mine.data?.items ?? []} canReview={canReview} />
+        <NewLessonPlan />
         {canReview && <ChapterPlanner />}
       </PageBody>
     </>
@@ -435,4 +437,189 @@ function ChapterPlanner() {
       )}
     </Card>
   )
+}
+
+/**
+ * Writing a lesson plan.
+ *
+ * The plans table, the review queue and the coverage percentage all existed
+ * and there was no way to create a plan. The empty state said "write one for
+ * the coming week below" and there was nothing below it: every plan in the
+ * product had to be inserted in SQL, which is why the review queue was empty
+ * in every school.
+ *
+ * A file, and four boxes, and both are optional except that one of them has to
+ * be filled. Teachers do not write lesson plans into four boxes — they write
+ * them in Word, or on a school proforma, or on the state's template — so the
+ * attachment is the plan as it actually exists. The boxes stay because a head
+ * of department reviewing twenty plans wants the objectives on screen rather
+ * than twenty attachments to open.
+ *
+ * The day is optional and means what its absence means: a plan for the whole
+ * week. Schools that plan per lesson pick a day; schools that plan per week
+ * leave it, and neither is made to pretend to be the other.
+ */
+function NewLessonPlan() {
+  const qc = useQueryClient()
+  const classSubjects = useQuery({
+    queryKey: ['class-subjects'],
+    queryFn: () => api.get<List<ClassSubject>>('/api/v1/setup/class-subjects'),
+  })
+  const [f, setF] = useState({
+    class_subject_id: '',
+    section_id: '',
+    week_of: monday(),
+    teaching_day: '',
+    objectives: '',
+    activities: '',
+    resources: '',
+    homework: '',
+  })
+  const [file, setFile] = useState<UploadedFile | null>(null)
+
+  const sections = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<List<{ id: string; name: string; class_name: string }>>('/api/v1/academics/sections'),
+  })
+
+  const save = useMutation({
+    mutationFn: (submit: boolean) =>
+      api.post('/api/v1/syllabus/lesson-plans', {
+        ...f,
+        teaching_day: f.teaching_day ? Number(f.teaching_day) : undefined,
+        file_id: file?.file_id,
+        submit,
+      }),
+    onSuccess: () => {
+      setF({ ...f, objectives: '', activities: '', resources: '', homework: '' })
+      setFile(null)
+      qc.invalidateQueries()
+    },
+  })
+
+  const ready =
+    !!f.section_id &&
+    !!f.class_subject_id &&
+    !!f.week_of &&
+    (!!file || !!f.objectives.trim())
+
+  return (
+    <Card>
+      <CardHeader
+        title="Write a lesson plan"
+        description="Attach the plan you already wrote, or fill in the boxes, or both."
+      />
+      <form
+        className="px-5 pb-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          save.mutate(true)
+        }}
+      >
+        <FormGrid>
+          <Field label="Class and section" required>
+            <Select
+              value={f.section_id}
+              onChange={(v) => setF({ ...f, section_id: v })}
+              placeholder="Choose a section"
+              options={(sections.data?.items ?? []).map((s) => ({
+                value: s.id,
+                label: `${s.class_name}-${s.name}`,
+              }))}
+            />
+          </Field>
+          <Field label="Subject" required>
+            <Select
+              value={f.class_subject_id}
+              onChange={(v) => setF({ ...f, class_subject_id: v })}
+              placeholder="Choose a subject"
+              options={(classSubjects.data?.items ?? []).map((s) => ({
+                value: s.id,
+                label: `${s.class_name} · ${s.subject_name}`,
+              }))}
+            />
+          </Field>
+          <Field label="Week beginning" required>
+            <Input
+              type="date"
+              value={f.week_of}
+              onChange={(v) => setF({ ...f, week_of: v })}
+            />
+          </Field>
+          <Field label="Day" hint="Leave blank if the plan covers the whole week.">
+            <Select
+              value={f.teaching_day}
+              onChange={(v) => setF({ ...f, teaching_day: v })}
+              placeholder="Whole week"
+              options={[
+                { value: '', label: 'Whole week' },
+                { value: '1', label: 'Monday' },
+                { value: '2', label: 'Tuesday' },
+                { value: '3', label: 'Wednesday' },
+                { value: '4', label: 'Thursday' },
+                { value: '5', label: 'Friday' },
+                { value: '6', label: 'Saturday' },
+              ]}
+            />
+          </Field>
+          <Field label="Attach the plan" wide hint="Word, PDF, slides, a scan of the proforma — anything up to 64 MB.">
+            <FilePicker value={file} onChange={setFile} purpose="lesson_plan" />
+          </Field>
+          <Field label="Objectives" wide hint="What the class should be able to do afterwards. Shown to your head of department.">
+            <Textarea
+              value={f.objectives}
+              onChange={(v) => setF({ ...f, objectives: v })}
+              rows={2}
+              placeholder="Add and subtract fractions with unlike denominators."
+            />
+          </Field>
+          <Field label="Activities" wide>
+            <Textarea
+              value={f.activities}
+              onChange={(v) => setF({ ...f, activities: v })}
+              rows={2}
+              placeholder="Board work, pair work on the worksheet, three at the board."
+            />
+          </Field>
+          <Field label="Resources">
+            <Input
+              value={f.resources}
+              onChange={(v) => setF({ ...f, resources: v })}
+              placeholder="Textbook p. 74, fraction strips"
+            />
+          </Field>
+          <Field label="Homework set">
+            <Input
+              value={f.homework}
+              onChange={(v) => setF({ ...f, homework: v })}
+              placeholder="Exercise 6.3, sums 1 to 8"
+            />
+          </Field>
+        </FormGrid>
+        <FormNotice error={save.error} />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button type="submit" disabled={!ready || save.isPending}>
+            {save.isPending ? 'Saving…' : 'Submit for approval'}
+          </Button>
+          {/* Saving without submitting, because a plan written on Friday for
+              the following week is not ready to be reviewed on Friday. */}
+          <Button
+            variant="secondary"
+            disabled={!ready || save.isPending}
+            onClick={() => save.mutate(false)}
+          >
+            Save as draft
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
+/** The Monday of the coming week, which is what "week beginning" nearly always
+ *  means when somebody opens this form. */
+function monday(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
+  return d.toISOString().slice(0, 10)
 }

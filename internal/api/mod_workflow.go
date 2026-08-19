@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Approvals, leave, staff attendance and homework.
@@ -154,13 +156,29 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 		var employeeID *uuid.UUID
 		var leaveTypeID *uuid.UUID
 		var days float64
+		// Who may answer this one. HR answers anything; a class teacher
+		// answers their own students and nothing else. The predicate is part
+		// of the UPDATE rather than a check before it, so a request that is
+		// not theirs simply matches no row instead of being read first and
+		// refused second.
+		guard := ` AND (
+			$5 OR EXISTS (
+				SELECT 1 FROM students st
+				  JOIN LATERAL (
+				      SELECT e.section_id FROM enrollments e
+				       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  JOIN sections sec ON sec.id = en.section_id
+				 WHERE st.id = leave_requests.student_id AND sec.class_teacher_id = $6
+			))`
 		if err := tx.QueryRow(r.Context(), `
 			UPDATE leave_requests
 			   SET status = $2, decided_by = $3, decided_at = now(),
 			       decision_note = COALESCE($4, decision_note)
-			 WHERE id = $1 AND status = 'pending'
+			 WHERE id = $1 AND status = 'pending'`+guard+`
 			 RETURNING employee_id, leave_type_id, days`,
-			lid, req.Decision, id.UserID, nullString(req.Note)).
+			lid, req.Decision, id.UserID, nullString(req.Note),
+			id.Can(rbac.LeaveApprove), id.UserID).
 			Scan(&employeeID, &leaveTypeID, &days); err != nil {
 			return err
 		}
@@ -365,6 +383,58 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					})
 					return nil
 				}); err != nil {
+				return err
+			}
+		}
+
+		/* A child's leave belongs to their class teacher.
+
+		   Every pending request — a teacher's casual leave and a six-year-old's
+		   fever — went to whoever holds hr.leave.approve, and nowhere else. So
+		   the person who marks that child's register, notices the empty chair
+		   and has to decide whether it is explained never saw the note their
+		   parent sent. HR did, which is the wrong desk: HR does not know
+		   whether the child was in school yesterday.
+
+		   Staff leave still goes to HR alone, because that is an employment
+		   decision with a balance behind it. Student leave now reaches both:
+		   the class teacher because it is theirs to act on, and HR because the
+		   attendance return is theirs to answer for. */
+		if !id.Can("hr.leave.approve") {
+			if err := scanInto(r.Context(), tx, `
+				SELECT lr.id::text,
+				       concat_ws(' ', st.first_name, st.last_name),
+				       COALESCE(lt.name,'Leave'),
+				       to_char(lr.from_date,'DD Mon') || ' to ' || to_char(lr.to_date,'DD Mon')
+				         || ' (' || lr.days || ' day' || CASE WHEN lr.days = 1 THEN '' ELSE 's' END || ')',
+				       lr.reason, u.full_name,
+				       to_char(lr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				  FROM leave_requests lr
+				  JOIN students st ON st.id = lr.student_id
+				  JOIN LATERAL (
+				      SELECT e.section_id FROM enrollments e
+				       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  JOIN sections sec ON sec.id = en.section_id AND sec.class_teacher_id = $1
+				  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+				  LEFT JOIN users u ON u.id = lr.applied_by
+				 WHERE lr.status = 'pending' AND lr.subject_kind = 'student'
+				 ORDER BY lr.created_at`,
+				func(rows pgx.Rows) error {
+					var lid, who, kind, span, reason, raised string
+					var by *string
+					if err := rows.Scan(&lid, &who, &kind, &span, &reason, &by, &raised); err != nil {
+						return err
+					}
+					out = append(out, approvalItem{
+						ID: lid, Kind: "leave",
+						Title:     who + " — " + kind,
+						Detail:    span + ". " + reason,
+						Requester: by, RaisedAt: raised,
+						DecideURL: "/api/v1/workflow/leave/" + lid + "/decide",
+					})
+					return nil
+				}, id.UserID); err != nil {
 				return err
 			}
 		}
@@ -648,6 +718,31 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 		where = `FALSE`
 	}
 
+	/* Filters, because a diary is only useful narrowed.
+
+	   A teacher with five sections and three subjects sets a few hundred
+	   tasks a term, and the screen showed the most recent hundred of all of
+	   them at once. Every one of these is optional and absent means "all",
+	   so the unfiltered call behaves exactly as it did.
+
+	   Applied as SQL rather than in the browser on purpose: the LIMIT is
+	   here, so filtering after the fact would filter a page that had already
+	   dropped the rows being looked for. */
+	q := r.URL.Query()
+	filter := func(clause, value string) {
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		args = append(args, value)
+		where += fmt.Sprintf(" AND "+clause, len(args))
+	}
+	filter("h.section_id = $%d::uuid", q.Get("section_id"))
+	filter("sec.class_id = $%d::uuid", q.Get("class_id"))
+	filter("cs.subject_id = $%d::uuid", q.Get("subject_id"))
+	filter("h.kind = $%d", q.Get("kind"))
+	filter("h.assigned_on >= $%d::date", q.Get("from"))
+	filter("h.assigned_on <= $%d::date", q.Get("to"))
+
 	items, err := collect(s, r, `
 		SELECT h.id::text, h.title, h.kind, sub.name, c.name, sec.name,
 		       to_char(h.assigned_on,'YYYY-MM-DD'), to_char(h.due_on,'YYYY-MM-DD'),
@@ -715,19 +810,130 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, err := tx.Exec(r.Context(), `
+		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO homework_submissions (institution_id, homework_id, student_id,
 			                                  submitted_at, text_answer, status)
 			VALUES ($1,$2,$3, now(), $4, 'submitted')
 			ON CONFLICT (homework_id, student_id)
 			DO UPDATE SET submitted_at = now(), text_answer = EXCLUDED.text_answer,
 			              status = 'submitted'`,
-			id.InstitutionID, hid, target, nullString(req.TextAnswer))
-		return err
+			id.InstitutionID, hid, target, nullString(req.TextAnswer)); err != nil {
+			return err
+		}
+
+		/* Tell the teacher who set it.
+
+		   A submission that only increments a counter is a submission the
+		   teacher finds by going to look. The child pressed a button because
+		   they wanted somebody to know; this is the somebody.
+
+		   Keyed on the homework and the child, so the alert survives a
+		   resubmission without becoming two alerts — notify's ON CONFLICT
+		   does that, and source_id has to be the task rather than the
+		   submission row for it to work, because a resubmit writes the same
+		   submission row again. */
+		var (
+			teacher *uuid.UUID
+			title   string
+			child   string
+		)
+		if err := tx.QueryRow(r.Context(), `
+			SELECT h.created_by, h.title,
+			       trim(st.first_name || ' ' || COALESCE(st.last_name,''))
+			  FROM homework h, students st
+			 WHERE h.id = $1 AND st.id = $2`, hid, target).Scan(&teacher, &title, &child); err != nil {
+			return err
+		}
+		if teacher == nil || *teacher == id.UserID {
+			return nil
+		}
+		return notify(r, tx, id.InstitutionID, *teacher, &target, "homework_submitted",
+			child+" turned in "+title,
+			"Submitted "+time.Now().Format("2 January")+". Open the diary to mark it.",
+			"/faculty/teaching/homework_classwork", "homework", &hid)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"submitted": true})
+}
+
+// --- who has turned it in -------------------------------------------------
+
+type homeworkSubmitterRow struct {
+	StudentID   string  `json:"student_id"`
+	RollNo      *string `json:"roll_no,omitempty"`
+	FullName    string  `json:"full_name"`
+	Status      string  `json:"status"`
+	SubmittedAt *string `json:"submitted_at,omitempty"`
+	TextAnswer  *string `json:"text_answer,omitempty"`
+}
+
+/*
+listHomeworkSubmissions names the class against one task.
+
+	"14/32 submitted" tells a teacher that eighteen children have not done
+	their homework and nothing about which eighteen, which is the only form of
+	the fact they can act on. This is the register: every child enrolled in the
+	section, in roll order, with what they did or did not turn in.
+
+	A LEFT JOIN from enrollments rather than a list of submissions, for exactly
+	that reason — the children who are missing from the submissions table are
+	the ones being looked for, and a query over submissions cannot return a row
+	that does not exist.
+*/
+func (s *Server) listHomeworkSubmissions(w http.ResponseWriter, r *http.Request) {
+	hid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid homework id")
+		return
+	}
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	// The same boundary that governs setting the work governs reading who did
+	// it: a teacher may see the register for a section they teach, and the
+	// office may see any. A guardian gets 403 here rather than a filtered list,
+	// because there is no version of this list that is theirs to read.
+	var sectionID uuid.UUID
+	if err := s.DB.InTenant(r.Context(), tenantScope(httpx.IdentityFrom(r.Context())),
+		func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(),
+				`SELECT section_id FROM homework WHERE id = $1`, hid).Scan(&sectionID)
+		}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			httpx.NotFound(w, r)
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !res.AllAttendance && !res.CanMarkSection(sectionID) {
+		httpx.Forbidden(w, r, "the submission register for this section")
+		return
+	}
+
+	items, err := collect(s, r, `
+		SELECT st.id::text, e.roll_no,
+		       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
+		       COALESCE(hs.status, 'pending'),
+		       to_char(hs.submitted_at, 'YYYY-MM-DD"T"HH24:MI'),
+		       hs.text_answer
+		  FROM enrollments e
+		  JOIN students st ON st.id = e.student_id
+		  LEFT JOIN homework_submissions hs
+		         ON hs.homework_id = $1 AND hs.student_id = st.id
+		 WHERE e.section_id = $2 AND e.status = 'active'
+		 ORDER BY e.roll_no NULLS LAST, st.first_name`,
+		[]any{hid, sectionID},
+		func(rows pgx.Rows) (homeworkSubmitterRow, error) {
+			var v homeworkSubmitterRow
+			return v, rows.Scan(&v.StudentID, &v.RollNo, &v.FullName, &v.Status,
+				&v.SubmittedAt, &v.TextAnswer)
+		})
+	respond(w, r, items, err)
 }

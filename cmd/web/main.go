@@ -91,6 +91,7 @@ func run() error {
 	apiServer := &api.Server{
 		DB: db, Sessions: sessions, Hasher: hasher,
 		Queue: qc, Inspector: inspector, Storage: store,
+		FileStoreDir: cfg.FileStoreDir,
 	}
 
 	r := chi.NewRouter()
@@ -127,6 +128,20 @@ func run() error {
 	r.Get("/signup/pay/{order}", signup.Pay)
 	r.Post("/signup/pay/{order}", signup.Callback)
 	r.Get("/signup/welcome/{order}", signup.Welcome)
+
+	// Getting back in without telephoning the school office. Public by
+	// necessity: somebody who cannot sign in cannot be asked to sign in first.
+	reset := &api.PasswordReset{
+		DB: db, Tpl: tpl, Hasher: hasher, BaseURL: cfg.BaseURL,
+		// The page prints the link only where nothing can carry it. Once a
+		// school has configured email, printing it would hand a reset to
+		// whoever is standing at the keyboard.
+		EmailReady: apiServer.EmailProviderReady,
+	}
+	r.Get("/forgot", reset.ShowForgot)
+	r.Post("/forgot", reset.Forgot)
+	r.Get("/reset", reset.ShowReset)
+	r.Post("/reset", reset.Reset)
 
 	r.Get("/login", authHandler.ShowLogin)
 	r.Post("/login", authHandler.Login)

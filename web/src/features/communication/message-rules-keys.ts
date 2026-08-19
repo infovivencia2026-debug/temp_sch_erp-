@@ -35,5 +35,4 @@ import { lazy } from 'react'
  */
 export const messageRulesKeys = {
   'finance.student_dues.automated_fee_reminders': lazy(() => import('./FeeReminders')),
-  'faculty.attendance.absence_alert_to_guardian': lazy(() => import('./AbsenceAlerts')),
 }

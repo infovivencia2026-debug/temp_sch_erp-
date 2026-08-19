@@ -17,9 +17,7 @@ import { lazy } from 'react'
    both and no way for them to disagree. */
 export const teachingKeys = {
   'faculty.teaching.assignments_submissions': lazy(() => import('./Assignments')),
-  'faculty.teaching.study_materials': lazy(() => import('./StudyMaterials')),
   'faculty.teaching.lms_study_material_upload': lazy(() => import('./LMSUpload')),
-  'faculty.teaching.live_virtual_class_launcher': lazy(() => import('./VirtualClasses')),
   'faculty.question_papers_online_tests.question_bank_management': lazy(
     () => import('./QuestionBank'),
   ),

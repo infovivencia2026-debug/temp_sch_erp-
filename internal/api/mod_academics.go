@@ -463,7 +463,23 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		created = int(tag.RowsAffected())
-		return nil
+		if !req.Publish {
+			return nil
+		}
+
+		/* Publishing is the moment the school stands behind the card, so it
+		   is the moment the family is told.
+
+		   Generating without publishing is silent on purpose: a class teacher
+		   regenerates a section several times while marks are still arriving,
+		   and an alert on each pass would train the family to ignore the one
+		   that matters.
+
+		   Each child's own card and nobody else's. The alert carries a
+		   student_id and the endpoint behind the link narrows on the
+		   caller's children, so a family of three gets three alerts and each
+		   opens one card. */
+		return s.notifyReportCardPublished(r, tx, id.InstitutionID, sectionID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -474,10 +490,113 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// notifyReportCardPublished tells each family, and each student with a login,
+// that their card is ready.
+func (s *Server) notifyReportCardPublished(r *http.Request, tx pgx.Tx,
+	inst, sectionID uuid.UUID) error {
+
+	rows, err := tx.Query(r.Context(), `
+		SELECT DISTINCT recipient, st.id,
+		       trim(st.first_name || ' ' || COALESCE(st.last_name,''))
+		  FROM enrollments e
+		  JOIN students st ON st.id = e.student_id
+		  CROSS JOIN LATERAL (
+		        SELECT g.user_id AS recipient
+		          FROM student_guardians sg
+		          JOIN guardians g ON g.id = sg.guardian_id
+		         WHERE sg.student_id = st.id AND g.user_id IS NOT NULL
+		        UNION
+		        SELECT st.user_id WHERE st.user_id IS NOT NULL
+		  ) AS who
+		 WHERE e.section_id = $1 AND e.status = 'active'`, sectionID)
+	if err != nil {
+		return err
+	}
+	type target struct {
+		user, student uuid.UUID
+		name          string
+	}
+	var targets []target
+	for rows.Next() {
+		var t target
+		if err := rows.Scan(&t.user, &t.student, &t.name); err != nil {
+			rows.Close()
+			return err
+		}
+		targets = append(targets, t)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, t := range targets {
+		student := t.student
+		if err := notify(r, tx, inst, t.user, &student, "report_card",
+			t.name+"’s report card is ready",
+			"The school has published it. Open it to see the marks, the grade and the attendance.",
+			"/portal/report-cards", "report_card", &student); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type reportReadinessRow struct {
+	Subject  string  `json:"subject"`
+	Teacher  *string `json:"teacher,omitempty"`
+	Entered  int     `json:"marks_entered"`
+	Expected int     `json:"students"`
+}
+
+/*
+getReportCardReadiness answers "can I publish yet".
+
+	A report card is only true once every subject teacher has entered their
+	marks, and the class teacher had no way to find out except by opening each
+	paper in turn. A card generated early is not blank — it totals the marks
+	that exist and divides by the marks that were expected, so a missing paper
+	reads as a child who failed it.
+
+	One row per paper, with who owes it. Which is the other half: "three
+	papers outstanding" is a fact, and "Physics, Mrs Rao" is an action.
+*/
+func (s *Server) getReportCardReadiness(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	items, err := collect(s, r, `
+		SELECT sub.name,
+		       (SELECT u.full_name
+		          FROM section_subject_teachers sst
+		          JOIN users u ON u.id = sst.teacher_user_id
+		         WHERE sst.section_id = $1 AND sst.class_subject_id = cs.id
+		         LIMIT 1),
+		       (SELECT count(*) FROM marks m
+		         WHERE m.exam_subject_id = es.id
+		           AND m.student_id IN (SELECT e.student_id FROM enrollments e
+		                                 WHERE e.section_id = $1 AND e.status='active'))::int,
+		       (SELECT count(*) FROM enrollments e
+		         WHERE e.section_id = $1 AND e.status = 'active')::int
+		  FROM exam_subjects es
+		  JOIN class_subjects cs ON cs.id = es.class_subject_id
+		  JOIN subjects sub      ON sub.id = cs.subject_id
+		  JOIN sections sec      ON sec.id = $1 AND sec.class_id = cs.class_id
+		 WHERE es.exam_id = $2
+		 ORDER BY sub.name`,
+		[]any{nullString(q.Get("section_id")), nullString(q.Get("exam_id"))},
+		func(rows pgx.Rows) (reportReadinessRow, error) {
+			var v reportReadinessRow
+			return v, rows.Scan(&v.Subject, &v.Teacher, &v.Entered, &v.Expected)
+		})
+	respond(w, r, items, err)
+}
+
 type reportCardRow struct {
 	StudentID   string   `json:"student_id"`
 	AdmissionNo string   `json:"admission_no"`
+	RollNo      *int     `json:"roll_no,omitempty"`
 	FullName    string   `json:"full_name"`
+	ClassName   *string  `json:"class_name,omitempty"`
+	SectionName *string  `json:"section_name,omitempty"`
 	Total       *float64 `json:"total_marks,omitempty"`
 	MaxMarks    *float64 `json:"max_marks,omitempty"`
 	Percentage  *float64 `json:"percentage,omitempty"`
@@ -485,24 +604,120 @@ type reportCardRow struct {
 	Rank        *int     `json:"rank_in_section,omitempty"`
 	Attendance  *float64 `json:"attendance_percent,omitempty"`
 	Published   bool     `json:"is_published"`
+	// Subjects is the breakdown the card is actually made of. The row carried
+	// a total and a grade and nothing to explain either, so "62%" arrived at a
+	// parent with no indication of which subject produced it.
+	Subjects []reportCardSubject `json:"subjects"`
 }
 
+type reportCardSubject struct {
+	Subject  string   `json:"subject"`
+	Marks    *float64 `json:"marks_obtained,omitempty"`
+	MaxMarks float64  `json:"max_marks"`
+	Percent  *float64 `json:"percent,omitempty"`
+	Grade    *string  `json:"grade,omitempty"`
+	Absent   bool     `json:"is_absent"`
+}
+
+/*
+listReportCards serves the class teacher, the family and the child.
+
+	One list with three narrowings, which is the whole of the request that
+	there be exactly one report card in the product. A class teacher gets
+	their section in roll order; a parent gets their children; a student gets
+	themselves. Nobody gets a screen of their own to drift out of step with
+	the other two.
+
+	Two things it did not do and now does.
+
+	It was not scoped at all. Anybody who could read exams could read every
+	report card in the school — a subject teacher, and via the same route a
+	guardian, could enumerate the marks of children they have nothing to do
+	with. The narrowing is the resolver's, the same one attendance and
+	remarks use.
+
+	And it returned totals only. The subject breakdown is what a report card
+	is; a percentage with nothing underneath it tells a parent their child
+	got 62% and not which subject to help them with. Aggregated in SQL as
+	json rather than fetched per student, because the alternative is one
+	query per child and a class teacher opens thirty at a time.
+
+	Unpublished cards are hidden from families and shown to staff. That is the
+	point of the flag: the class teacher checks the card before the school
+	stands behind it, and a family reading a draft removes the checking step.
+*/
 func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	args := []any{
+		nullString(r.URL.Query().Get("section_id")),
+		nullString(r.URL.Query().Get("exam_id")),
+	}
+
+	// Families see published cards only; staff see drafts, which is what makes
+	// checking one before it goes out possible.
+	var where string
+	switch {
+	case len(res.StudentIDs) > 0:
+		args = append(args, res.StudentIDs)
+		where = `rc.student_id = ANY($` + itoa(len(args)) + `) AND rc.is_published`
+	case res.AllStudents:
+		where = `TRUE`
+	case len(res.SectionIDs) > 0:
+		args = append(args, res.SectionIDs)
+		where = `e.section_id = ANY($` + itoa(len(args)) + `)`
+	default:
+		where = `FALSE`
+	}
+
 	items, err := collect(s, r, `
-		SELECT st.id::text, st.admission_no,
+		SELECT st.id::text, st.admission_no, e.roll_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		       c.name, sec.name,
 		       rc.total_marks, rc.max_marks, rc.percentage, rc.grade,
-		       rc.rank_in_section, rc.attendance_percent, rc.is_published
+		       rc.rank_in_section, rc.attendance_percent, rc.is_published,
+		       COALESCE((
+		         SELECT json_agg(json_build_object(
+		                  'subject',        sub.name,
+		                  'marks_obtained', m.marks_obtained,
+		                  'max_marks',      es.max_marks,
+		                  'percent',        round(100.0 * m.marks_obtained
+		                                            / NULLIF(es.max_marks,0), 2),
+		                  'is_absent',      COALESCE(m.is_absent, false),
+		                  'grade', (SELECT gb.grade FROM grade_bands gb
+		                             WHERE gb.grading_scale_id = ex.grading_scale_id
+		                               AND round(100.0 * m.marks_obtained
+		                                          / NULLIF(es.max_marks,0), 2)
+		                                   BETWEEN gb.min_percent AND gb.max_percent
+		                             LIMIT 1))
+		                ORDER BY sub.name)
+		           FROM exam_subjects es
+		           JOIN exams ex          ON ex.id = es.exam_id
+		           JOIN class_subjects cs ON cs.id = es.class_subject_id
+		           JOIN subjects sub      ON sub.id = cs.subject_id
+		           LEFT JOIN marks m      ON m.exam_subject_id = es.id
+		                                 AND m.student_id = st.id
+		          WHERE cs.class_id = e.class_id
+		            AND ($2::uuid IS NULL OR es.exam_id = $2)
+		       ), '[]'::json)
 		  FROM report_cards rc
 		  JOIN students st ON st.id = rc.student_id
 		  JOIN enrollments e ON e.id = rc.enrollment_id
+		  LEFT JOIN sections sec ON sec.id = e.section_id
+		  LEFT JOIN classes  c   ON c.id = sec.class_id
 		 WHERE ($1::uuid IS NULL OR e.section_id = $1)
-		 ORDER BY rc.rank_in_section NULLS LAST, st.admission_no`,
-		[]any{nullString(r.URL.Query().Get("section_id"))},
+		   AND `+where+`
+		 ORDER BY e.roll_no NULLS LAST, st.admission_no`, args,
 		func(rows pgx.Rows) (reportCardRow, error) {
 			var v reportCardRow
-			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName, &v.Total,
-				&v.MaxMarks, &v.Percentage, &v.Grade, &v.Rank, &v.Attendance, &v.Published)
+			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.RollNo, &v.FullName,
+				&v.ClassName, &v.SectionName,
+				&v.Total, &v.MaxMarks, &v.Percentage, &v.Grade, &v.Rank,
+				&v.Attendance, &v.Published, &v.Subjects)
 		})
 	respond(w, r, items, err)
 }
@@ -771,7 +986,9 @@ type examSubjectRow struct {
 	ID        string  `json:"id"`
 	ExamID    string  `json:"exam_id"`
 	ExamName  string  `json:"exam_name"`
+	ExamKind  string  `json:"exam_kind"`
 	Subject   string  `json:"subject"`
+	ClassID   string  `json:"class_id"`
 	ClassName string  `json:"class_name"`
 	Label     string  `json:"label"`
 	MaxMarks  float64 `json:"max_marks"`
@@ -782,8 +999,46 @@ type examSubjectRow struct {
 // listExamSubjects lists the papers a teacher can enter marks against, with
 // how many are already done so the pending ones are obvious.
 func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	/* Narrowed to what the caller teaches.
+
+	   This listed every paper in the school to everybody who could reach the
+	   endpoint. A subject teacher picking "the paper I have to mark" scrolled
+	   past every paper of every class, and the one screen whose entire job is
+	   to be a short list was the longest list in the product. The exam
+	   controller and the office still see all of it — AllStudents is what
+	   distinguishes them — and this is the same predicate the rest of the
+	   teaching screens narrow by, not a second idea of what a teacher reaches.
+
+	   The filters below are what the request asked for: pick the class and the
+	   kind of exam before the paper, rather than reading three facts out of a
+	   single concatenated label. */
+	q := r.URL.Query()
+	args := []any{
+		nullString(q.Get("exam_id")),
+		nullString(q.Get("class_id")),
+		nullString(q.Get("exam_kind")),
+	}
+	mine := "TRUE"
+	if !res.AllStudents {
+		if len(res.SectionIDs) == 0 {
+			mine = "FALSE"
+		} else {
+			args = append(args, res.SectionIDs)
+			mine = `EXISTS (SELECT 1 FROM sections msec
+			                 WHERE msec.class_id = cs.class_id
+			                   AND msec.id = ANY($` + itoa(len(args)) + `))`
+		}
+	}
+
 	items, err := collect(s, r, `
-		SELECT es.id::text, e.id::text, e.name, sub.name, c.name,
+		SELECT es.id::text, e.id::text, e.name, COALESCE(e.kind,''), sub.name,
+		       c.id::text, c.name,
 		       e.name || ' · ' || c.name || ' · ' || sub.name,
 		       es.max_marks,
 		       (SELECT count(*) FROM marks m WHERE m.exam_subject_id = es.id)::int,
@@ -795,12 +1050,14 @@ func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
 		  JOIN subjects sub      ON sub.id = cs.subject_id
 		  JOIN classes c         ON c.id = cs.class_id
 		 WHERE ($1::uuid IS NULL OR es.exam_id = $1)
-		 ORDER BY c.level, sub.name`,
-		[]any{nullString(r.URL.Query().Get("exam_id"))},
+		   AND ($2::uuid IS NULL OR c.id = $2)
+		   AND ($3::text IS NULL OR e.kind = $3)
+		   AND `+mine+`
+		 ORDER BY c.level, sub.name`, args,
 		func(rows pgx.Rows) (examSubjectRow, error) {
 			var v examSubjectRow
-			return v, rows.Scan(&v.ID, &v.ExamID, &v.ExamName, &v.Subject, &v.ClassName,
-				&v.Label, &v.MaxMarks, &v.Entered, &v.Expected)
+			return v, rows.Scan(&v.ID, &v.ExamID, &v.ExamName, &v.ExamKind, &v.Subject,
+				&v.ClassID, &v.ClassName, &v.Label, &v.MaxMarks, &v.Entered, &v.Expected)
 		})
 	respond(w, r, items, err)
 }

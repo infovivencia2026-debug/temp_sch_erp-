@@ -1,5 +1,3 @@
-import { lazy } from 'react'
-
 /* The parent community forum, keyed by catalogue entry.
 
    The key below was checked against internal/catalog/catalog_gen.go before it
@@ -32,6 +30,8 @@ import { lazy } from 'react'
    boards of the classes their own children are enrolled in; the server
    computes that list per request from active enrolments and refuses any
    section id the client names outside it. */
-export const forumKeys = {
-  'parent.messages.parent_community_discussion_forum': lazy(() => import('./Forum')),
-}
+/* The forum was removed from the parent catalogue: a school portal had five
+   separate places a parent could write to somebody, and the request was for
+   one. The server routes under /portal/parent-forum are untouched, so the
+   feature can be restored by putting its catalogue row back. */
+export const forumKeys = {}

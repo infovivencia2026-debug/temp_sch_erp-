@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Search, Phone, Mail } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -7,6 +7,8 @@ import {
   Button, Input, Loading, ErrorState,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
+import { useCan } from '@/lib/session'
+import AddStaff from './AddStaff'
 import { formatDate, cn } from '@/lib/utils'
 
 /* The staff file, and the papers that lapse.
@@ -20,6 +22,14 @@ import { formatDate, cn } from '@/lib/utils'
  * So expiry leads. Already-expired first, then soonest; documents that never
  * lapse sort last, because a degree certificate needs nobody's attention.
  */
+
+interface StaffLogin {
+  employee_code: string
+  full_name: string
+  sign_in_as: string
+  password: string
+  note: string
+}
 
 interface Employee {
   id: string
@@ -45,6 +55,22 @@ interface Doc {
 }
 
 export default function Employees() {
+  const can = useCan()
+  const [issuing, setIssuing] = useState<string | null>(null)
+  const [handover, setHandover] = useState<StaffLogin | null>(null)
+
+  /* Issuing a password is the last step of appointing somebody, so it lives on
+     the row rather than behind a separate screen. The result is shown once and
+     never stored — a password the system can show you twice is one it is
+     keeping somewhere a third party can read. */
+  const issue = useMutation({
+    mutationFn: (e: Employee) => {
+      setIssuing(e.id)
+      return api.post<StaffLogin>(`/api/v1/setup/employees/${e.id}/login`, {})
+    },
+    onSuccess: (h) => { setHandover(h); staff.refetch() },
+    onSettled: () => setIssuing(null),
+  })
   const [search, setSearch] = useState('')
   const [expiringOnly, setExpiringOnly] = useState(true)
 
@@ -79,6 +105,47 @@ export default function Employees() {
         description="Who works here, and which of their papers are about to lapse."
       />
       <PageBody>
+        {/* The screen HR lands on to look somebody up is the screen they land
+            on to add somebody. Holding hr.employees.write and finding nothing
+            that writes reads as "the product cannot do that" rather than "that
+            form is somewhere else". */}
+        {can('hr.employees.write') && <AddStaff onDone={() => staff.refetch()} />}
+
+        {/* The one moment the password exists in readable form. It is not in
+            the employee record, not in the audit trail and not retrievable —
+            so the card says so, and stays until it is dismissed rather than
+            disappearing on the next render. */}
+        {handover && (
+          <div className="mb-5 rounded-lg border-2 border-primary bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-semibold">
+                  Sign-in details for {handover.full_name}
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground">{handover.note}</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setHandover(null)}>Done</Button>
+            </div>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Sign in at</dt>
+                <dd className="font-mono text-[14px]">/login</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Employee</dt>
+                <dd className="font-mono text-[14px]">{handover.employee_code}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Username</dt>
+                <dd className="select-all font-mono text-[17px] font-semibold">{handover.sign_in_as}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Password</dt>
+                <dd className="select-all font-mono text-[17px] font-semibold">{handover.password}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
         <CellGrid cols={4}>
           <Stat label="Active staff" value={all.filter((e) => e.status === 'active').length} />
           <Stat label="Departments" value={departments.length} />
@@ -174,7 +241,7 @@ export default function Employees() {
             <ErrorState error={staff.error} />
           ) : (
             <Table
-              head={['Code', 'Name', 'Designation', 'Department', 'Contact', 'Joined', 'Status']}
+              head={['Code', 'Name', 'Designation', 'Department', 'Contact', 'Joined', 'Status', '']}
               empty={!rows.length}
               emptyLabel={search ? 'Nobody matches that.' : 'No employees on file.'}
             >
@@ -201,6 +268,18 @@ export default function Employees() {
                     {e.joined_on ? formatDate(e.joined_on) : '—'}
                   </Td>
                   <Td><StatusPill status={e.status} /></Td>
+                  <Td>
+                    {can('hr.employees.write') && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={issuing === e.id}
+                        onClick={() => issue.mutate(e)}
+                      >
+                        {issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Reset password'}
+                      </Button>
+                    )}
+                  </Td>
                 </tr>
               ))}
             </Table>

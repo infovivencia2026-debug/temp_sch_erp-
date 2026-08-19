@@ -1,0 +1,45 @@
+{{define "reset.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose a new password · School ERP</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
+</head>
+<body class="auth">
+  <div class="auth-top">{{template "themebtn"}}</div>
+  <main class="card">
+    {{if .Done}}
+      <h1>Password changed</h1>
+      <p class="lede">You have been signed out everywhere else.</p>
+      <p><a class="cta" href="/login">Sign in</a></p>
+    {{else}}
+      <h1>Choose a new password</h1>
+      {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+      {{if .Token}}
+        <form method="post" action="/reset" autocomplete="on">
+          <input type="hidden" name="token" value="{{.Token}}">
+          <div class="row">
+            <label for="password">New password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" required autofocus>
+          </div>
+          <div class="row">
+            <label for="password2">Type it again</label>
+            <input id="password2" name="password2" type="password" autocomplete="new-password" required>
+          </div>
+          <button type="submit">Change my password</button>
+        </form>
+        <p class="fineprint">
+          At least ten characters. Changing it signs out every device you are
+          currently signed in on, including this one.
+        </p>
+      {{else}}
+        <p class="fineprint"><a href="/forgot">Ask for a new link</a></p>
+      {{end}}
+    {{end}}
+  </main>
+{{template "themejs"}}
+</body>
+</html>{{end}}

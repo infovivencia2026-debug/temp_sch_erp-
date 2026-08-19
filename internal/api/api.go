@@ -22,6 +22,9 @@ type Server struct {
 	Queue     *queue.Client
 	Inspector *queue.Inspector
 	Storage   *storage.Store // nil when R2 is unconfigured
+	// FileStoreDir backs uploads from the server's own disk when there is no
+	// object store. Empty means neither exists and uploads answer 503.
+	FileStoreDir string
 }
 
 // Routes returns the /api/v1 subtree.
@@ -150,7 +153,11 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/workflow", func(r chi.Router) {
 			r.Get("/approvals", s.getApprovals)
 			r.Post("/leave", s.applyForLeave)
-			r.With(httpx.RequirePermission(rbac.LeaveApprove)).Post("/leave/{id}/decide", s.decideLeave)
+			// Gated in the handler: HR decides staff leave, and a class
+			// teacher decides their own students' leave. Requiring
+			// hr.leave.approve on the route meant the person who marks the
+			// register could see a parent's note and not answer it.
+			r.Post("/leave/{id}/decide", s.decideLeave)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/concessions/{id}/decide", s.decideConcession)
 			r.With(httpx.RequirePermission(rbac.StaffAttend)).Get("/staff-register", s.getStaffRegister)
 			r.With(httpx.RequirePermission(rbac.StaffAttend)).Post("/staff-attendance", s.markStaffAttendance)
@@ -160,6 +167,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/", s.listHomework)
 			r.With(httpx.RequirePermission(rbac.HomeworkWrite)).Post("/", s.publishHomework)
 			r.Post("/{id}/submit", s.submitHomework)
+			// Not gated on HomeworkWrite: a subject teacher who did not set
+			// this task still covers the lesson it is due in, and the handler
+			// narrows to sections the caller actually teaches anyway.
+			r.Get("/{id}/submissions", s.listHomeworkSubmissions)
 		})
 
 		// --- CSV export ------------------------------------------------------
@@ -201,6 +212,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
+			// Completing an appointment: whoever may appoint somebody may let
+			// them in. Deliberately not access.users.write — that right would
+			// also let HR reset the principal's password.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/login", s.issueStaffLogin)
 
 			/* Setting a school up from the spreadsheets it already has.
 			   Classes, sections and staff all existed as forms that took one
@@ -253,6 +268,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/students", s.listMyStudents)
 			r.Get("/summary", s.getPortalSummary)
 			r.Get("/attendance", s.listPortalAttendance)
+			// What the school has written about your child. The staff screen
+			// reads the same table under a different narrowing; this one adds
+			// visible_to_family, which is the condition that makes a private
+			// note private.
+			r.Get("/remarks", s.listChildRemarks)
 			r.Get("/fees", s.getFamilyFees)
 			// The same conduct file, narrowed by the handler to the notes the
 			// school chose to share. Without this the visible_to_student flag
@@ -405,6 +425,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/subjects", s.listExamSubjects)
 			r.Get("/gradebook", s.getGradebook)
 			r.Get("/report-cards", s.listReportCards)
+			// Whether every subject teacher has finished. A card generated
+			// before they have totals the marks that exist over the marks
+			// that were expected, so a missing paper reads as a failed one.
+			r.Get("/report-cards/readiness", s.getReportCardReadiness)
 			r.With(httpx.RequirePermission(rbac.MarksWrite)).Post("/marks", s.enterMarks)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/generate", s.generateReportCards)
 
@@ -607,7 +631,11 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/users/{id}/roles", s.setRoles)
-			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/assignable-roles", s.listAssignableRoles)
+			// Gated in the handler, not here: appointing somebody requires
+			// choosing their role, so hr.employees.write has to be able to
+			// read the list. Requiring roles.read meant an HR manager with
+			// every right to appoint staff was shown an empty dropdown.
+			r.Get("/assignable-roles", s.listAssignableRoles)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/role-presets", s.listRolePresets)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit", s.listAudit)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit/summary", s.getAuditSummary)
@@ -631,8 +659,24 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions/{id}", s.revokeSession)
 		})
 
+		/* Remarks about staff, as distinct from remarks about children.
+		   Gated on nothing beyond a session: who may write about whom is a
+		   question about the relationship between two people, not a
+		   capability, and the handler works it out. */
+		r.Route("/staff-remarks", func(r chi.Router) {
+			r.Get("/", s.listStaffRemarks)
+			r.Post("/", s.createStaffRemark)
+			r.Get("/teachers", s.listRemarkableTeachers)
+		})
+
 		r.Route("/files", func(r chi.Router) {
 			r.Post("/presign", s.presignUpload)
+			// The two that work without an object store. Any signed-in member
+			// of the school may upload and read; which screens offer it is a
+			// catalogue decision, and narrowing per purpose here would mean
+			// this handler had to know what every future caller is for.
+			r.Post("/", s.uploadFile)
+			r.Get("/{id}", s.downloadFile)
 		})
 	})
 

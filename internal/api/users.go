@@ -11,6 +11,7 @@ import (
 
 	"github.com/school-erp/erp/internal/catalog"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Accounts and role assignment.
@@ -409,6 +410,13 @@ func (s *Server) listAssignableRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := httpx.IdentityFrom(r.Context())
+	// Either right is enough. Reading the roles is administration; choosing
+	// one while appointing a member of staff is the ordinary work of an HR
+	// office, and it cannot be done from a list nobody is allowed to see.
+	if !id.Can(rbac.RolesRead) && !id.Can(rbac.EmployeesWrite) {
+		httpx.Error(w, r, http.StatusForbidden, "forbidden", "you cannot read the role list")
+		return
+	}
 	items, err := collect(s, r, `
 		SELECT r.key, r.name,
 		       (SELECT count(*) FROM role_permissions rp WHERE rp.role_id = r.id)::int,

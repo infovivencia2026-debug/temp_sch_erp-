@@ -28,6 +28,11 @@ ROLE_KEYS = {
     "Super Admin": "super_admin",
     "Institution Admin / Principal": "institution_admin",
     "Faculty / Teacher": "faculty",
+    # A head of department held capabilities and no navigation at all: the
+    # rbac role existed, the catalogue did not, so a HOD signed in to an
+    # empty menu. The department is the boundary, not the institution --
+    # internal/scope narrows the rows these features return.
+    "HOD / Department Head": "hod",
     "Student": "student",
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
@@ -44,7 +49,7 @@ ROLE_KEYS = {
 # is "most of your day" rather than alphabetical.
 ROLE_ORDER = [
     "seller_admin", "super_admin",
-    "institution_admin", "faculty",
+    "institution_admin", "hod", "faculty",
     "finance", "admissions", "hr",
     "student", "parent",
 ]
@@ -91,7 +96,7 @@ def ts_str(s: str) -> str:
 
 
 def main() -> int:
-    rows = list(csv.DictReader(CSV.open()))
+    rows = list(csv.DictReader(CSV.open(encoding="utf-8", newline="")))
     if not rows:
         print("no rows in CSV", file=sys.stderr)
         return 1
@@ -320,7 +325,7 @@ func AllFeatures() []Feature {
 ''')
     p = ROOT / "internal" / "catalog" / "catalog_gen.go"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text("".join(out))
+    p.write_text("".join(out), encoding="utf-8", newline="\n")
 
 
 def write_ts(roles, total):
@@ -363,7 +368,7 @@ export const FEATURE_BY_KEY = new Map(
   ROLES.flatMap((r) => r.sections.flatMap((s) => s.features)).map((f) => [f.key, f]),
 )
 ''')
-    (ROOT / "web" / "src" / "catalog.gen.ts").write_text("".join(out))
+    (ROOT / "web" / "src" / "catalog.gen.ts").write_text("".join(out), encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

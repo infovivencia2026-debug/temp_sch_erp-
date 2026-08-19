@@ -17,6 +17,7 @@ import { bankingKeys } from './finance/banking-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
+import { hodKeys } from './hod/keys'
 import { concessionsKeys } from './finance/concessions-keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
 import { hrGrowthKeys } from './hr/growth-keys'
@@ -74,7 +75,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Homework — the same screen from the teacher's and the child's side.
   'faculty.teaching.homework_classwork': lazy(() => import('./workflow/Homework')),
-  'faculty.teaching.teacher_digital_diary': lazy(() => import('./workflow/Homework')),
   'student.homework.homework_assignments': lazy(() => import('./workflow/Homework')),
   'parent.academics.homework_academics': lazy(() => import('./workflow/Homework')),
 
@@ -105,7 +105,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // The NEP holistic card. One screen for the teacher recording observations
   // and the family reading them — the same card from two sides, and building
   // two would guarantee they drift.
-  'faculty.marks_report_cards.nep_holistic_progress_card_hpc': lazy(() => import('./exams/HolisticCard')),
   'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
 
   /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
@@ -116,8 +115,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.academics.syllabus_coverage_tracking': lazy(() => import('./academics/Syllabus')),
   'institution_admin.academics.syllabus_progress': lazy(() => import('./academics/Syllabus')),
   'faculty.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
-  'faculty.teaching.syllabus_progress_tracker': lazy(() => import('./academics/Syllabus')),
-  'faculty.teaching.syllabus_progress': lazy(() => import('./academics/Syllabus')),
 
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
@@ -223,7 +220,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.academics.classes_sections': lazy(() => import('./setup/Wizard')),
   'institution_admin.academics.teacher_allocation': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.examinations.report_cards': lazy(() => import('./exams/HolisticCard')),
+  /* The principal's report card is the class teacher's report card.
+     It pointed at HolisticCard — the NEP progress card, a different document
+     with different columns — so the school had two screens both called
+     "report cards" showing different numbers for the same child, and no way
+     to tell which one a parent had been sent. */
+  'institution_admin.examinations.report_cards': lazy(() => import('./exams/ReportCards')),
   'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
   'institution_admin.directory_workload.faculty_directory_workload': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.communication.circulars_announcements': lazy(() => import('./comms/Circulars')),
@@ -235,15 +237,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      accommodations agreed for a child who needs them hang off the same row,
      because they are what a teacher does with the flag. */
   'faculty.my_classes.student_progress': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.student_at_risk_identification': lazy(() => import('./faculty/MyClasses')),
   'faculty.my_classes.student_behavior_demerits': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.discipline_notes': lazy(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.cwsn_support_plan': lazy(() => import('./faculty/MyClasses')),
   'faculty.my_classes.my_students': lazy(() => import('./shared/Students')),
   'faculty.my_classes.student_details': lazy(() => import('./shared/StudentProfile')),
-  'faculty.marks_report_cards.holistic_progress_card': lazy(() => import('./exams/HolisticCard')),
   'faculty.marks_report_cards.report_cards': lazy(() => import('./exams/ReportCards')),
-  'faculty.communication.announcements': lazy(() => import('./comms/Circulars')),
   'faculty.my_profile.profile': lazy(() => import('./shared/Profile')),
 
   // Transport Manager, Librarian, Hostel Warden — the operations umbrella
@@ -380,6 +377,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.statutory.contractor_security_staff_bill_verification': lazy(() => import('./hr/Statutory')),
 
   'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+  /* Two leave queues, deliberately two doors. Your own leave is an employment
+     matter that goes to HR and your head of department; a child's leave is a
+     note from a parent that the class teacher has to act on before tomorrow's
+     register. They were one entry, and the second was the one nobody found. */
+  'faculty.my_profile.student_leave_requests': lazy(() => import('./workflow/Approvals')),
+  'faculty.my_profile.remarks_about_me': lazy(() => import('./shared/MyRemarks')),
 
   // One export screen, filtered server-side by what the caller may take out.
   'super_admin.platform_configuration.import_export': lazy(() => import('./shared/Exports')),
@@ -423,6 +426,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...bankingKeys,
   ...statutoryKeys,
   ...tallyKeys,
+  ...hodKeys,
   ...timetableOpsKeys,
   ...concessionsKeys,
   ...adminOpsKeys,

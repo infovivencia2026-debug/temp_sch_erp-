@@ -112,6 +112,8 @@ export default function ReportAbsence() {
                 <Select
                   value={reason}
                   onChange={setReason}
+                  kind="absence_reason"
+                  addLabel="Add a reason"
                   options={REASONS.map((r) => ({ value: r, label: t(REASON_KEYS[r]) }))}
                 />
               </Field>

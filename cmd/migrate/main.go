@@ -353,6 +353,30 @@ func seedMergedPersonas(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 			return fmt.Errorf("merged persona %s: no such role %s", roleKey, m.From)
 		}
 		want := make([]string, 0, 32)
+
+		/* A persona's own workspace, where it has grown one.
+
+		   These roles were folded into somebody else's catalogue because they
+		   had no entry of their own: a HOD borrowed the principal's academics
+		   and staff sections because there was nothing called hod to grant.
+		   Now that there is, the borrowing has to stop excluding it. The
+		   delete below removes every catalog grant outside `want`, so leaving
+		   the role's own keys out of the set wiped them microseconds after
+		   SeedCatalogRoles wrote them — the head of department kept exactly
+		   the screens addressed to the principal and none addressed to them.
+
+		   Additive on purpose. The borrowed sections are still the right
+		   answer for the parts of the job this role shares with the role it
+		   was merged from; the point is that its own screens now survive
+		   alongside them. */
+		if own, ok := catalog.RoleByKey(roleKey); ok {
+			for _, sec := range own.Sections {
+				for _, f := range sec.Features {
+					want = append(want, f.Key)
+				}
+			}
+		}
+
 		for _, sec := range src.Sections {
 			if m.Sections != nil && !slices.Contains(m.Sections, sec.Slug) {
 				continue

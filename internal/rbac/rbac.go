@@ -264,8 +264,13 @@ optionalRoles are seeded on request rather than into every new school.
 	they have: SeedInstitution re-seeds any role that already exists, so this
 	list changes what a new tenant starts with and nothing else.
 */
+// A head of department is not optional any more. Timetable assignment,
+// cover, faculty allocation and leave approval were all moved to that desk,
+// and a role a school has to create before any of them work is a feature
+// nobody finds. Eight of the nine schools on this installation had no hod
+// row at all.
 var optionalRoles = map[string]bool{
-	"support_admin": true, "vice_principal": true, "hod": true, "it_admin": true,
+	"support_admin": true, "vice_principal": true, "it_admin": true,
 	"exam_controller": true, "front_office": true, "operations": true,
 	"librarian": true, "transport_manager": true, "hostel_warden": true,
 	"driver": true, "counsellor": true, "nurse": true,

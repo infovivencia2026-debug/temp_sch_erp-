@@ -28,7 +28,6 @@ export const commsKeys = {
     () => import('./AchievementsShowcase'),
   ),
   'parent.school_life.ptm_appointment_reminder_alert': lazy(() => import('./PTMReminders')),
-  'parent.messages.private_counselor_chat_channel': lazy(() => import('./CounselorChannel')),
 }
 
 /**

@@ -1,3 +1,4 @@
+import ClassTeachers from './ClassTeachers'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, GraduationCap, UserCheck, UserX } from 'lucide-react'
@@ -140,6 +141,11 @@ export default function FacultyAllocation() {
             hint="Somebody else is timetabled for the period"
           />
         </CellGrid>
+      {/* Who owns each section, beside who teaches what: the two are decided
+          in the same sitting, and setting a class teacher used to be possible
+          only from the first-run wizard. */}
+      <ClassTeachers />
+
 
         <Card>
           <CardHeader

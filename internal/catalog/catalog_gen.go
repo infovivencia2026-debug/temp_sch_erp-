@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 9 roles, 447 features.
+// Roles is the catalog: 10 roles, 442 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -335,6 +335,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.classes_sections", Slug: "classes_sections", Name: "Classes & sections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The academic structure: classes, sections, subjects and which teacher takes what."},
 					{Key: "institution_admin.academics.teacher_allocation", Slug: "teacher_allocation", Name: "Teacher allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, and the workload that adds up to."},
 					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Chapter-level coverage per subject and section against the plan."},
+					{Key: "institution_admin.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, for one student or for a whole class at once. A teacher was choosing this; it decides how sections are grouped, so it belongs to whoever groups them."},
 				},
 			},
 			{
@@ -551,6 +552,49 @@ var Roles = []Role{
 		},
 	},
 	{
+		Key:  "hod",
+		Name: "HOD / Department Head",
+		Sections: []Section{
+			{
+				Slug:      "timetable",
+				Name:      "Timetable",
+				Workspace: "Timetable",
+				Features: []Feature{
+					{Key: "hod.timetable.class_timetable", Slug: "class_timetable", Name: "Class timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for."},
+					{Key: "hod.timetable.staff_timetable", Slug: "staff_timetable", Name: "Staff timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after."},
+					{Key: "hod.timetable.department_timetable", Slug: "department_timetable", Name: "Department timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "The department's grid by class, by faculty and by room, read together so a gap in one is explained by the other two."},
+					{Key: "hod.timetable.substitution_requests", Slug: "substitution_requests", Name: "Substitution requests", Scope: Scope("department"), Tier: Tier("core"), Summary: "Cover requests from the department's teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately."},
+				},
+			},
+			{
+				Slug:      "academics",
+				Name:      "Academics",
+				Workspace: "Academics",
+				Features: []Feature{
+					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
+					{Key: "hod.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set."},
+				},
+			},
+			{
+				Slug:      "staff",
+				Name:      "Staff",
+				Workspace: "Staff",
+				Features: []Feature{
+					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
+					{Key: "hod.staff.leave_approvals", Slug: "leave_approvals", Name: "Leave approvals", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by the department's staff, with the periods it would leave uncovered shown next to it."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Work",
+				Features: []Feature{
+					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
+				},
+			},
+		},
+	},
+	{
 		Key:  "faculty",
 		Name: "Faculty / Teacher",
 		Sections: []Section{
@@ -571,15 +615,9 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.my_classes.my_classes", Slug: "my_classes", Name: "My classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Class roster, subject resources and relevant student academic information."},
 					{Key: "faculty.my_classes.student_progress", Slug: "student_progress", Name: "Student progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "View attendance and academic progress for students taught/mentored by the faculty member."},
-					{Key: "faculty.my_classes.student_at_risk_identification", Slug: "student_at_risk_identification", Name: "Student At-Risk Identification", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "View AI alerts for students suffering academic drop, attendance risk, or fee delinquency."},
-					{Key: "faculty.my_classes.student_portfolio_builder", Slug: "student_portfolio_builder", Name: "Student Portfolio Builder", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Upload student artwork, project photos, certificates, and audio files into digital portfolios."},
 					{Key: "faculty.my_classes.student_behavior_demerits", Slug: "student_behavior_demerits", Name: "Student Behavior & Demerits", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points."},
-					{Key: "faculty.my_classes.montessori_early_years_tracking", Slug: "montessori_early_years_tracking", Name: "Montessori & Early Years Tracking", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Log developmental milestones, sensory skills, motor skills, and social behavior observations."},
-					{Key: "faculty.my_classes.cwsn_support_plan", Slug: "cwsn_support_plan", Name: "CWSN Support Plan", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Record children with special needs, disability type and the classroom accommodations agreed."},
-					{Key: "faculty.my_classes.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language Subject Allocation", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi."},
 					{Key: "faculty.my_classes.my_students", Slug: "my_students", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child in the class with attendance, marks and guardian contact in one place."},
 					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "Student details", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
-					{Key: "faculty.my_classes.discipline_notes", Slug: "discipline_notes", Name: "Discipline notes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Conduct incidents recorded against a child, visible to the school's leadership."},
 				},
 			},
 			{
@@ -589,7 +627,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
 					{Key: "faculty.attendance.attendance_correction", Slug: "attendance_correction", Name: "Attendance correction", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Request or process correction within permitted window/workflow."},
-					{Key: "faculty.attendance.absence_alert_to_guardian", Slug: "absence_alert_to_guardian", Name: "Absence Alert to Guardian", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window."},
 					{Key: "faculty.attendance.offline_attendance_diary_capture", Slug: "offline_attendance_diary_capture", Name: "Offline Attendance & Diary Capture", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns."},
 				},
 			},
@@ -601,12 +638,7 @@ var Roles = []Role{
 					{Key: "faculty.teaching.homework_classwork", Slug: "homework_classwork", Name: "Homework / classwork", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Create homework/classwork with due date, attachments and instructions."},
 					{Key: "faculty.teaching.assignments_submissions", Slug: "assignments_submissions", Name: "Assignments & submissions", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Create assignments, review submissions, grade and add feedback."},
 					{Key: "faculty.teaching.lesson_plans_content", Slug: "lesson_plans_content", Name: "Lesson plans / content", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Plan lessons and attach learning resources when LMS/lesson planning is enabled."},
-					{Key: "faculty.teaching.syllabus_progress_tracker", Slug: "syllabus_progress_tracker", Name: "Syllabus Progress Tracker", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Update chapter completion status, syllabus coverage percentage, and lab practical completion."},
-					{Key: "faculty.teaching.teacher_digital_diary", Slug: "teacher_digital_diary", Name: "Teacher Digital Diary", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Log daily topics taught, class behavior, homework assigned, and personal teaching notes."},
 					{Key: "faculty.teaching.lms_study_material_upload", Slug: "lms_study_material_upload", Name: "LMS Study Material Upload", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter."},
-					{Key: "faculty.teaching.live_virtual_class_launcher", Slug: "live_virtual_class_launcher", Name: "Live Virtual Class Launcher", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal."},
-					{Key: "faculty.teaching.study_materials", Slug: "study_materials", Name: "Study materials", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notes, worksheets and reference material shared with the class."},
-					{Key: "faculty.teaching.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Chapters covered against the plan for each subject taken."},
 				},
 			},
 			{
@@ -624,8 +656,6 @@ var Roles = []Role{
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter internal/exam marks for assigned subjects; validate before submission."},
-					{Key: "faculty.marks_report_cards.nep_holistic_progress_card_hpc", Slug: "nep_holistic_progress_card_hpc", Name: "NEP Holistic Progress Card (HPC)", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Evaluate student cognitive, affective, psychomotor domains, self-assessment, and peer reviews."},
-					{Key: "faculty.marks_report_cards.holistic_progress_card", Slug: "holistic_progress_card", Name: "Holistic progress card", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "NEP holistic assessment across scholastic and co-scholastic domains."},
 					{Key: "faculty.marks_report_cards.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Generate and issue the report card for every child in the class."},
 				},
 			},
@@ -644,8 +674,9 @@ var Roles = []Role{
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.question_papers_online_tests.question_bank_management", Slug: "question_bank_management", Name: "Question Bank Management", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level."},
+					{Key: "faculty.question_papers_online_tests.ai_examcell_paper_generator", Slug: "ai_examcell_paper_generator", Name: "AI Examcell Paper Generator", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios."},
+					{Key: "faculty.question_papers_online_tests.ved_ai_assessment_assistant", Slug: "ved_ai_assessment_assistant", Name: "Ved AI Assessment Assistant", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts."},
 					{Key: "faculty.question_papers_online_tests.objective_online_test_creation", Slug: "objective_online_test_creation", Name: "Objective Online Test Creation", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers."},
-					{Key: "faculty.question_papers_online_tests.no_omr_exam_grading", Slug: "no_omr_exam_grading", Name: "No-OMR Exam Grading", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Input digital answer keys or scan sheets directly in browser without specialized OMR hardware."},
 				},
 			},
 			{
@@ -654,12 +685,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "faculty.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Announcements/messages to assigned classes, students or parents based on policy."},
-					{Key: "faculty.communication.classroom_communication_broadcasting", Slug: "classroom_communication_broadcasting", Name: "Classroom Communication Broadcasting", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Send class-wide or student-specific notices directly to parents via app messenger."},
 					{Key: "faculty.communication.remarks", Slug: "remarks", Name: "Remarks", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Add permitted academic/class remarks and observations."},
-					{Key: "faculty.communication.class_teacher_remarks", Slug: "class_teacher_remarks", Name: "Class Teacher Remarks", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter term-end qualitative report card remarks and principal summary comments."},
-					{Key: "faculty.communication.anecdotal_records", Slug: "anecdotal_records", Name: "Anecdotal Records", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Maintain private qualitative observation notes regarding individual student behavioral growth."},
-					{Key: "faculty.communication.ptm_notes_action_items", Slug: "ptm_notes_action_items", Name: "PTM Notes & Action Items", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans."},
-					{Key: "faculty.communication.announcements", Slug: "announcements", Name: "Announcements", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notices to this class's parents, with read acknowledgement."},
 				},
 			},
 			{
@@ -669,6 +695,8 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Apply for leave, view approval status, attendance and personal documents."},
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
+					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
+					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
 				},
 			},
 		},
@@ -1192,7 +1220,9 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
+					{Key: "parent.academics.ai_child_performance_summary_audio", Slug: "ai_child_performance_summary_audio", Name: "AI Child Performance Summary Audio", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week."},
 					{Key: "parent.academics.iep_progress_goal_tracker", Slug: "iep_progress_goal_tracker", Name: "IEP Progress Goal Tracker", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "View real-time progress bars towards child's specific IEP milestones and therapy goals."},
+					{Key: "parent.academics.child_remarks", Slug: "child_remarks", Name: "Child remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Everything your child's teachers have written about them — commendations and concerns alike — newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening."},
 				},
 			},
 			{
@@ -1232,9 +1262,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Circulars, announcements and permitted teacher/school messages."},
 					{Key: "parent.messages.direct_teacher_messaging", Slug: "direct_teacher_messaging", Name: "Direct Teacher Messaging", Scope: Scope("children"), Tier: Tier("core"), Summary: "Send structured query messages directly to class teacher during designated hours."},
-					{Key: "parent.messages.concerns_grievance_ticketing", Slug: "concerns_grievance_ticketing", Name: "Concerns & Grievance Ticketing", Scope: Scope("children"), Tier: Tier("core"), Summary: "Raise academic or transport concerns and track resolution comments by school admin."},
-					{Key: "parent.messages.parent_community_discussion_forum", Slug: "parent_community_discussion_forum", Name: "Parent Community Discussion Forum", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Participate in moderated class-level parent forums for event coordination."},
-					{Key: "parent.messages.private_counselor_chat_channel", Slug: "private_counselor_chat_channel", Name: "Private Counselor Chat Channel", Scope: Scope("children"), Tier: Tier("core"), Summary: "Encrypted communication link with school counselor for sensitive family/child updates."},
+					{Key: "parent.messages.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Write a remark about one of your child's teachers. It reaches the head of department and the teacher."},
 				},
 			},
 			{
@@ -1266,6 +1294,14 @@ var Roles = []Role{
 					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
 					{Key: "parent.consent.digital_parent_consent_slips", Slug: "digital_parent_consent_slips", Name: "Digital Parent Consent Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Provide digital signature consent for upcoming field trips, sports events, or health camps."},
 					{Key: "parent.consent.parent_delegation_for_emergency_pickup", Slug: "parent_delegation_for_emergency_pickup", Name: "Parent Delegation for Emergency Pickup", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
+				},
+			},
+			{
+				Slug:      "documents",
+				Name:      "Documents",
+				Workspace: "Requests",
+				Features: []Feature{
+					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{

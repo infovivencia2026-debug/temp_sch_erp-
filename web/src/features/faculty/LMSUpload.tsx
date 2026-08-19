@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Panel, Table, Td, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
   Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState, UnavailableState,
+  Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { formatDate } from '@/lib/utils'
 import {
   MATERIAL_KINDS, useTeachingClasses, useTeachingSubjects, label,
@@ -26,8 +27,6 @@ import {
    than offering a file picker that fails at the last step, and a link works
    today and will keep working once storage is wired. */
 
-interface PresignResponse { file_id: string; url: string }
-
 export default function LMSUpload() {
   const toast = useToast()
   const qc = useQueryClient()
@@ -40,6 +39,7 @@ export default function LMSUpload() {
   const [description, setDescription] = useState('')
   const [kind, setKind] = useState('note')
   const [externalURL, setExternalURL] = useState('')
+  const [file, setFile] = useState<UploadedFile | null>(null)
   const [publishNow, setPublishNow] = useState(true)
 
   const list = useQuery({
@@ -47,25 +47,6 @@ export default function LMSUpload() {
     queryFn: () => api.get<List<Material>>('/api/v1/teaching/materials'),
   })
 
-  /* Asked once, on load, so the form can tell the truth about uploads before
-     the teacher has picked a file rather than after. */
-  const storage = useQuery({
-    queryKey: ['files-presign-probe'],
-    retry: false,
-    queryFn: async () => {
-      try {
-        await api.post<PresignResponse>('/api/v1/files/presign', {
-          filename: 'probe.pdf',
-          content_type: 'application/pdf',
-          size_bytes: 1,
-          purpose: 'study_material',
-        })
-        return { available: true }
-      } catch {
-        return { available: false }
-      }
-    },
-  })
 
   const save = useMutation({
     mutationFn: () =>
@@ -76,6 +57,7 @@ export default function LMSUpload() {
         description: description || undefined,
         kind,
         external_url: externalURL || undefined,
+        file_id: file?.file_id,
         is_published: publishNow,
       }),
     onSuccess: () => {
@@ -83,6 +65,7 @@ export default function LMSUpload() {
       setTitle('')
       setDescription('')
       setExternalURL('')
+      setFile(null)
       qc.invalidateQueries({ queryKey: ['teaching-materials'] })
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not add'),
@@ -91,7 +74,6 @@ export default function LMSUpload() {
   if (list.isLoading) return <Loading />
   if (list.error) return <ErrorState error={list.error} />
   const recent = (list.data?.items ?? []).slice(0, 12)
-  const uploadsWork = storage.data?.available === true
 
   return (
     <>
@@ -101,20 +83,6 @@ export default function LMSUpload() {
         description="Share notes, recordings, slides and video links with a class."
       />
       <PageBody>
-        {!uploadsWork && (
-          <Panel>
-            <UnavailableState
-              title="File upload is unavailable on this deployment"
-              body="Object storage is not configured, so the school cannot host a file yet. Share a link instead — a Drive document, a YouTube lesson or a published PDF — which works now and keeps working once storage is connected."
-              technical={[
-                { label: 'Endpoint', value: 'POST /api/v1/files/presign' },
-                { label: 'Response', value: '503 storage_unconfigured' },
-                { label: 'Workaround', value: 'external_url' },
-              ]}
-            />
-          </Panel>
-        )}
-
         <Card>
           <CardHeader
             title="Add material"
@@ -154,15 +122,19 @@ export default function LMSUpload() {
                   options={MATERIAL_KINDS.map((k) => ({ value: k.value, label: k.label }))}
                 />
               </Field>
+              {/* A file or a link, and at least one of the two. Uploads are
+                  served from the server's own disk now, so the honest panel
+                  that used to sit above this form explaining that the school
+                  could not host a document is gone along with the limitation
+                  it described. A link is still first class: a YouTube lesson
+                  is not something anybody wants to re-host. */}
+              <Field label="Upload a file" wide hint="Any document, image, slide deck, recording or archive, up to 64 MB.">
+                <FilePicker value={file} onChange={setFile} purpose="study_material" />
+              </Field>
               <Field
-                label="Link"
-                required
+                label="Or share a link"
                 wide
-                hint={
-                  uploadsWork
-                    ? 'A link to the document, recording or video.'
-                    : 'Required while file storage is unconfigured.'
-                }
+                hint="A Drive document, a YouTube lesson, a published PDF."
               >
                 <Input
                   value={externalURL}
@@ -191,7 +163,11 @@ export default function LMSUpload() {
             <div className="mt-3">
               <Button
                 onClick={() => save.mutate()}
-                disabled={!title.trim() || !externalURL.trim() || (!classSubjectID && !sectionID)}
+                disabled={
+                  !title.trim() ||
+                  (!externalURL.trim() && !file) ||
+                  (!classSubjectID && !sectionID)
+                }
               >
                 <Upload className="h-3.5 w-3.5" />
                 Add material

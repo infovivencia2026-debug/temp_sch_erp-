@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
@@ -90,6 +91,7 @@ export default function StudentProfile() {
      name that does not have exactly two words -- the record is fetched for the
      fields the form actually edits. */
   const [editing, setEditing] = useState(false)
+  const [admitting, setAdmitting] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
     queryFn: () => api.get<StudentDetail>(`/api/v1/students/${selected}`),
@@ -148,9 +150,27 @@ export default function StudentProfile() {
           eyebrow="Student Information"
           title="Student 360"
           description="Search a student to see everything about them on one page."
-          actions={<Input value={search} onChange={setSearch} placeholder="Name or admission no." />}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
+              {can('students.write') && (
+                <Button variant={admitting ? 'secondary' : 'primary'} onClick={() => setAdmitting(!admitting)}>
+                  {admitting ? 'Close' : 'Admit a student'}
+                </Button>
+              )}
+            </div>
+          }
         />
         <PageBody>
+          {/* This screen is where somebody looking to add a child ends up, so
+              the form belongs here rather than only in the setup wizard: a
+              search box that answers "no student matches" and offers no way to
+              create one is a dead end at the exact moment it matters. */}
+          {admitting && can('students.write') && (
+            <div className="mb-4">
+              <AdmitStudent onDone={() => results.refetch()} />
+            </div>
+          )}
           {search.trim().length < 2 ? (
             <EmptyState title="Search for a student" body="Type at least two characters." />
           ) : results.isLoading ? (
@@ -179,6 +199,13 @@ export default function StudentProfile() {
   if (profile.isLoading) return <Loading />
   if (profile.error) return <ErrorState error={profile.error} />
   const p = profile.data!
+
+  /* Whether the person reading this is teaching the child or filing returns
+     about them. The workspace they are actually in, not the roles they hold:
+     a principal who also teaches a class still runs the school, and while
+     they are standing in the principal's workspace they still need the
+     admissions identifiers on this page. */
+  const teacherOnly = role?.key === 'faculty'
 
   const cls = p.class_name ? `${p.class_name}${p.section_name ? `-${p.section_name}` : ''}` : 'Unplaced'
   const overdue = p.invoices.filter((i) => i.status === 'overdue').length
@@ -250,10 +277,23 @@ export default function StudentProfile() {
               <Field k="Blood group" v={p.blood_group} />
               <Field k="Mother tongue" v={p.mother_tongue} />
               <Field k="Medium" v={p.medium} />
-              <Field k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
-              <Field k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
-              <Field k="Previous school" v={p.prior_school} />
-              <Field k="Category" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') || 'General'} />
+              {/* APAAR, Child Info, the previous school and the RTE/CWSN
+                  category are admissions records. The office needs them to
+                  file returns; a teacher opening a child's page wants to know
+                  who to ring, and four government identifiers between them and
+                  the phone number is four rows of noise.
+
+                  Hidden rather than deleted: the same component serves the
+                  front office and the principal, and taking these off their
+                  screen would break the returns those screens exist to file. */}
+              {!teacherOnly && (
+                <>
+                  <Field k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
+                  <Field k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
+                  <Field k="Previous school" v={p.prior_school} />
+                  <Field k="Category" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') || 'General'} />
+                </>
+              )}
             </dl>
           </Card>
           <Guardians p={p} />
@@ -439,7 +479,18 @@ export default function StudentProfile() {
 function Guardians({ p }: { p: Profile }) {
   return (
     <Card>
-      <CardHeader title="Guardians" description="Primary contact first" />
+      {/* The block a teacher opens this page for. Father and mother first,
+          because "ring the parents" is the action, and a list sorted by a
+          primary-contact flag put an uncle at the top of it whenever somebody
+          had ticked that box.
+
+          The email is printed rather than hidden behind the word "email". A
+          teacher writing to a parent copies the address; a mailto link is the
+          wrong tool on a school desktop where the default mail client is
+          usually nothing at all. Email stays optional — a phone number is the
+          contact that matters and a parent without an address is not a
+          record with something missing from it. */}
+      <CardHeader title="Parents and guardians" description="Father and mother first" />
       {p.guardians.length === 0 ? (
         <div className="p-6">
           <EmptyState title="No guardian on record"
@@ -447,7 +498,9 @@ function Guardians({ p }: { p: Profile }) {
         </div>
       ) : (
         <ul className="divide-y">
-          {p.guardians.map((g) => (
+          {[...p.guardians]
+            .sort((a, b) => rankRelation(a.relation) - rankRelation(b.relation))
+            .map((g) => (
             <li key={g.full_name + g.phone} className="px-5 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -465,7 +518,8 @@ function Guardians({ p }: { p: Profile }) {
                   )}
                   {g.email && (
                     <a href={`mailto:${g.email}`} className="inline-flex items-center gap-1 text-primary">
-                      <Mail className="h-3 w-3" />email
+                      <Mail className="h-3 w-3" />
+                      {g.email}
                     </a>
                   )}
                 </div>
@@ -578,4 +632,24 @@ function StudentForm({
       </div>
     </>
   )
+}
+
+
+/**
+ * Father, then mother, then everybody else.
+ *
+ * The list was ordered by the is_primary flag, which is a billing and consent
+ * field — whoever the office ticked. A teacher looking for a parent wants the
+ * parents, and an uncle recorded as the primary contact should not be the
+ * first row on the page every time.
+ *
+ * Unknown relations sort last rather than being hidden. A grandmother who is
+ * raising the child is exactly the person somebody needs to reach.
+ */
+function rankRelation(relation: string): number {
+  const r = (relation || '').trim().toLowerCase()
+  if (r.startsWith('father') || r === 'dad') return 0
+  if (r.startsWith('mother') || r === 'mum' || r === 'mom') return 1
+  if (r.startsWith('guardian')) return 2
+  return 3
 }

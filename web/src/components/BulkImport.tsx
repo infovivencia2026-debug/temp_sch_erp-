@@ -46,12 +46,19 @@ export default function BulkImport({
   title,
   hint,
   onDone,
+  endpoint,
+  templateUrl,
 }: {
   /** classes | sections | staff — must be an entity the server imports. */
   entity: string
   title: string
   hint: string
   onDone?: () => void
+  /** Overrides for entities with an importer of their own. Students had one
+   *  long before this component existed, and it knows about guardians and
+   *  placement; pointing at it beats reimplementing it here. */
+  endpoint?: string
+  templateUrl?: string
 }) {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -68,8 +75,9 @@ export default function BulkImport({
     setBusy(true)
     setError('')
     try {
+      const base = endpoint ?? `/api/v1/setup/import/${entity}`
       const res = await fetch(
-        `/api/v1/setup/import/${entity}${commit ? '?commit=true' : ''}`,
+        `${base}${commit ? '?commit=true' : ''}`,
         {
           method: 'POST',
           credentials: 'same-origin',
@@ -143,7 +151,7 @@ export default function BulkImport({
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">{hint}</p>
         </div>
         <a
-          href={`/api/v1/setup/import/${entity}/template`}
+          href={templateUrl ?? `/api/v1/setup/import/${entity}/template`}
           download
           className="inline-flex items-center gap-1.5 text-[12.5px] underline underline-offset-2"
         >
