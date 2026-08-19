@@ -91,6 +91,9 @@ type signupView struct {
 	Students string
 	Username string
 
+	// Billing period the school chose on the pricing page.
+	Billing string
+	Period  string
 	// Gateway screen.
 	OrderRef string
 	Amount   string
@@ -118,7 +121,10 @@ func (sp *SignupPages) Show(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/buy", http.StatusSeeOther)
 		return
 	}
-	sp.render(w, r, "signup.gohtml", http.StatusOK, signupView{Plan: plan, Plans: plans})
+	billing := billingPeriod(r.URL.Query().Get("billing"), plan)
+	sp.render(w, r, "signup.gohtml", http.StatusOK, signupView{
+		Plan: plan, Plans: plans, Billing: billing, Period: periodLabel(billing),
+	})
 }
 
 // Start validates the school's details and opens an order.
@@ -149,12 +155,17 @@ func (sp *SignupPages) Start(w http.ResponseWriter, r *http.Request) {
 		Students: strings.TrimSpace(r.PostFormValue("students")),
 		Username: strings.ToLower(strings.TrimSpace(r.PostFormValue("admin_username"))),
 	}
+	v.Billing = billingPeriod(r.PostFormValue("billing"), buyPlan{})
 	plan, ok := findPlan(plans, strings.TrimSpace(r.PostFormValue("plan_code")))
 	if !ok {
 		http.Redirect(w, r, "/buy", http.StatusSeeOther)
 		return
 	}
 	v.Plan = plan
+	// Re-resolved against the plan now that we have it: a monthly choice on a
+	// plan sold only by the year must not survive into the order.
+	v.Billing = billingPeriod(v.Billing, plan)
+	v.Period = periodLabel(v.Billing)
 
 	switch {
 	case v.School == "":
@@ -186,11 +197,11 @@ func (sp *SignupPages) Start(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO signup_orders (school_name, contact_name, email, phone,
 			                           district, state, board, students,
 			                           admin_username, plan_code, amount_paise,
-			                           order_ref)
+			                           order_ref, billing_period)
 			VALUES ($1,$2,$3::citext,NULLIF($4,''),NULLIF($5,''),NULLIF($6,''),
-			        NULLIF($7,''),$8,NULLIF($9,'')::citext,$10,$11,$12)`,
+			        NULLIF($7,''),$8,NULLIF($9,'')::citext,$10,$11,$12,$13)`,
 			v.School, v.Contact, v.Email, v.Phone, v.District, v.State, v.Board,
-			students, v.Username, plan.Code, plan.PricePaise, orderRef)
+			students, v.Username, plan.Code, amountFor(plan, v.Billing), orderRef, v.Billing)
 		return err
 	})
 	if err != nil {
@@ -587,4 +598,37 @@ func welcomeBody(school, contact, signInAs string) string {
 		"You will be asked to change the password when you first sign in.\n" +
 		"Your next step is the setup wizard, which walks you through the " +
 		"academic year, classes, sections, subjects, staff and students.\n"
+}
+
+// billingPeriod resolves what the school chose, refusing monthly on a plan
+// that is not sold monthly.
+//
+// Checked here rather than trusted from the query string: the pricing page
+// writes it into the link, and a link is the easiest thing in the world to
+// edit. A school must not reach checkout holding a monthly price for a plan
+// that has none.
+func billingPeriod(v string, plan buyPlan) string {
+	if strings.EqualFold(strings.TrimSpace(v), "monthly") {
+		if plan.Code == "" || plan.MonthlyPaise > 0 {
+			return "monthly"
+		}
+	}
+	return "yearly"
+}
+
+func periodLabel(billing string) string {
+	if billing == "monthly" {
+		return "per month"
+	}
+	return "per year"
+}
+
+// amountFor is what this order is actually for. The order carries the figure
+// rather than joining to the plan, because a plan's price changes and a
+// receipt must not silently reprice itself.
+func amountFor(plan buyPlan, billing string) int64 {
+	if billing == "monthly" && plan.MonthlyPaise > 0 {
+		return plan.MonthlyPaise
+	}
+	return plan.PricePaise
 }

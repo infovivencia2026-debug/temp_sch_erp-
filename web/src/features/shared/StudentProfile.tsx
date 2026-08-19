@@ -536,13 +536,20 @@ function StudentForm({
           <Select value={f.gender} onChange={set('gender')} placeholder="Not recorded"
             options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} />
         </FormField>
-        <FormField label="Blood group"><Input value={f.blood_group} onChange={set('blood_group')} placeholder="O+" /></FormField>
+        <FormField label="Blood group">
+          <Select kind="blood_group" addLabel="Add another group" value={f.blood_group} onChange={set('blood_group')} placeholder="Not recorded"
+            options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => ({ value: b, label: b }))} />
+        </FormField>
         <FormField label="Medium">
-          <Select value={f.medium} onChange={set('medium')} placeholder="Not recorded"
+          <Select kind="medium" addLabel="Add another medium" value={f.medium} onChange={set('medium')} placeholder="Not recorded"
             options={['telugu', 'english', 'urdu', 'hindi', 'other'].map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))} />
         </FormField>
-        <FormField label="Mother tongue"><Input value={f.mother_tongue} onChange={set('mother_tongue')} /></FormField>
-        <FormField label="Religion"><Input value={f.religion} onChange={set('religion')} /></FormField>
+        <FormField label="Mother tongue">
+          <Select kind="mother_tongue" addLabel="Add a language" value={f.mother_tongue} onChange={set('mother_tongue')} placeholder="Not recorded" options={[]} />
+        </FormField>
+        <FormField label="Religion">
+          <Select kind="religion" addLabel="Add one" value={f.religion} onChange={set('religion')} placeholder="Not recorded" options={[]} />
+        </FormField>
         <FormField label="City"><Input value={f.city} onChange={set('city')} /></FormField>
         <FormField label="State"><Input value={f.state} onChange={set('state')} /></FormField>
         <FormField label="Pincode" hint="Six digits"><Input value={f.pincode} onChange={set('pincode')} /></FormField>

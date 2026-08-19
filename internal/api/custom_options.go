@@ -46,7 +46,38 @@ var customisableKinds = map[string][]option{
 	"staff_designation": nil,
 	"leaving_reason":    nil,
 	"concession_reason": nil,
+
+	// Vocabulary the rest of the product asks for. Each is a list a school
+	// genuinely disagrees about — a designation one school calls "Senior
+	// Assistant" and another calls "Head Clerk" — as distinct from the state
+	// machines below, which are logic and stay closed.
+	"employee_type":     nil,
+	"qualification":     nil,
+	"department_type":   nil,
+	"room_type":         nil,
+	"vehicle_type":      nil,
+	"stop_landmark":     nil,
+	"item_category":     nil,
+	"book_category":     nil,
+	"hostel_block_type": nil,
+	"visitor_purpose":   nil,
+	"complaint_type":    nil,
+	"activity_type":     nil,
+	"exam_type":         nil,
+	"lead_source":       nil,
+	"relation":          nil,
+	"nationality":       nil,
+	"payment_mode":      nil,
+	"expense_head":      nil,
+	"health_condition":  nil,
+	"achievement_type":  nil,
 }
+
+/* Deliberately NOT customisable, and worth naming so the next person does not
+   add them: any status, state or scope the code branches on. A school
+   inventing a sixth invoice status does not gain a category — it loses every
+   report that groups by the five, and the handler that decides what "paid"
+   means stops covering its own data. */
 
 // Built-in lists that had no named slice of their own, because until now they
 // were literals inside a single form.
@@ -108,6 +139,26 @@ var kindLabels = map[string]string{
 	"staff_designation": "Staff designations",
 	"leaving_reason":    "Reasons for leaving",
 	"concession_reason": "Concession reasons",
+	"employee_type":     "Employment types",
+	"qualification":     "Qualifications",
+	"department_type":   "Department types",
+	"room_type":         "Room types",
+	"vehicle_type":      "Vehicle types",
+	"stop_landmark":     "Bus stop landmarks",
+	"item_category":     "Stores item categories",
+	"book_category":     "Book categories",
+	"hostel_block_type": "Hostel block types",
+	"visitor_purpose":   "Visitor purposes",
+	"complaint_type":    "Complaint types",
+	"activity_type":     "Activity types",
+	"exam_type":         "Examination types",
+	"lead_source":       "Enquiry sources",
+	"relation":          "Guardian relations",
+	"nationality":       "Nationalities",
+	"payment_mode":      "Payment modes",
+	"expense_head":      "Expense heads",
+	"health_condition":  "Health conditions",
+	"achievement_type":  "Achievement types",
 }
 
 // listOptions returns one kind: the built-in list first, then the school's own

@@ -33,14 +33,17 @@
   <section class="summary" aria-label="What you are buying">
     <div class="summary-row">
       <span>{{.Plan.Name}} — {{.Plan.MaxStudents}}</span>
-      <strong><span class="rupee">₹</span>{{.Plan.Rupees}}</strong>
+      <strong>
+        <span class="rupee">₹</span>{{if eq .Billing "monthly"}}{{.Plan.Monthly}}{{else}}{{.Plan.Rupees}}{{end}}
+      </strong>
     </div>
-    <p class="fineprint">Per year, including every module in the plan, unlimited staff and parent accounts, and first-year setup and training.</p>
-    <p class="fineprint"><a href="/buy">Choose a different plan</a></p>
+    <p class="fineprint">Billed {{if eq .Billing "monthly"}}monthly{{else}}yearly{{end}}. <a href="/buy">Change plan or billing</a></p>
+    <p class="fineprint">Every module in the plan, unlimited staff and parent accounts, and first-year setup and training.</p>
   </section>
 
   <form method="post" action="/signup" class="stack" autocomplete="on">
     <input type="hidden" name="plan_code" value="{{.Plan.Code}}">
+    <input type="hidden" name="billing" value="{{.Billing}}">
 
     <h2>Your school</h2>
 

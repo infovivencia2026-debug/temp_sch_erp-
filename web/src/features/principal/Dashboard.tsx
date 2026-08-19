@@ -9,6 +9,7 @@ import {
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
+import SetupProgress from './SetupProgress'
 
 interface PrincipalKPIs {
   students: number; staff: number; sections: number
@@ -63,6 +64,10 @@ export default function PrincipalDashboard() {
         }
       />
       <PageBody>
+        {/* Before the numbers, not after them. A school that has not finished
+            setting up is looking at zeroes, and the explanation has to arrive
+            first or the dashboard reads as broken. */}
+        <SetupProgress />
         <CellGrid cols={4}>
           <Stat label="Students" value={k.students} icon={GraduationCap}
             hint={`${k.sections} sections`} period={asOf} />

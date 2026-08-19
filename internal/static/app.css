@@ -42,8 +42,16 @@
 }
 
 /* Four tonal steps rather than black on white, matching the app's dark mode. */
+/* Three theme states, not two.
+   An explicit choice stamps data-theme on <html>; the default "system" setting
+   stamps nothing, and only prefers-color-scheme separates light from dark
+   there. So the dark tokens are declared twice: once behind the media query,
+   guarded so an explicit light choice beats a dark OS, and once behind the
+   attribute so the toggle wins in the other direction. Declaring them only
+   inside the media query is how a page ends up rendering one theme's text on
+   the other theme's ground. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --ground: #0a0a0a;
     --surface: #111111;
     --fg: #fafafa;
@@ -53,6 +61,16 @@
     --accent: #3b82f6;
     --danger: #ef4444;
   }
+}
+:root[data-theme="dark"] {
+  --ground: #0a0a0a;
+  --surface: #111111;
+  --fg: #fafafa;
+  --secondary: #a1a1aa;
+  --muted: #71717a;
+  --border: #272727;
+  --accent: #3b82f6;
+  --danger: #ef4444;
 }
 
 * { box-sizing: border-box; }
@@ -181,33 +199,6 @@ body.marketing main { max-width: 1040px; margin: 0 auto; padding: 0 24px 64px; }
 }
 .cta:hover { background: color-mix(in srgb, var(--accent) 90%, #000); }
 .fineprint { margin-top: 16px; color: var(--muted); font-size: 13px; }
-
-.plans { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.plan {
-  position: relative; padding: 24px; border: 1px solid var(--border);
-  border-radius: 12px; background: var(--surface);
-}
-/* The recommended plan is marked by a border and a label, not by being bigger
-   or a different colour — a plan that shouts is a plan people distrust. */
-.plan.featured { border-color: var(--accent); }
-.tag {
-  position: absolute; top: -10px; left: 24px; padding: 2px 8px; border-radius: 4px;
-  background: var(--accent); color: #fff; font-size: 12px; font-weight: 500;
-}
-.plan h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
-.price { margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
-.price .rupee { font-size: 22px; margin-right: 2px; }
-.price .per { display: block; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
-.cap { margin: 8px 0 16px; color: var(--secondary); font-size: 14px; }
-.plan ul { margin: 0 0 20px; padding: 0; list-style: none; }
-.plan li { padding: 5px 0 5px 20px; position: relative; font-size: 14px; color: var(--secondary); }
-.plan li::before { content: '✓'; position: absolute; left: 0; color: var(--accent); }
-.choose {
-  display: block; text-align: center; padding: 9px; border: 1px solid var(--border);
-  border-radius: 6px; text-decoration: none; color: inherit; font-size: 14px; font-weight: 500;
-}
-.choose:hover { background: color-mix(in srgb, var(--fg) 4%, transparent); }
-.featured .choose { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .included { margin-top: 56px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .included h2 { margin: 0 0 12px; font-size: 17px; font-weight: 600; }
@@ -374,3 +365,187 @@ main.narrow .centered { text-align: center; }
   border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 .locked h1 { font-size: 24px; margin: 0 0 12px; }
 .locked p { color: var(--secondary); margin: 0 0 20px; }
+
+/* ---------------------------------------------------------------------------
+   The pricing page.
+
+   Three tiers, and the middle one is the answer for most schools -- so it is
+   the one that is lifted, coloured and labelled, and the other two are quiet
+   around it. The top tier is dark because it is the one bought by somebody who
+   has already decided; it does not need to persuade, it needs to look like the
+   end of the range.
+
+   The prices are rendered by the server in both periods and swapped by the
+   toggle. A price that arrives after a round trip is a price somebody
+   screenshots mid-flight. */
+
+body.pricing main { max-width: 1120px; margin: 0 auto; padding: 0 24px 72px; }
+
+.price-hero { padding: 64px 0 40px; text-align: center; }
+.price-hero h1 {
+  margin: 0 0 12px; font-size: clamp(30px, 5vw, 46px); font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1.08;
+}
+.price-hero .lede { margin: 0 auto; max-width: 46ch; color: var(--secondary); font-size: 17px; }
+
+/* Billing toggle */
+.billing { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 30px; }
+.bill-label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.bill-label.on { color: var(--fg); font-weight: 500; }
+.save-tag {
+  padding: 2px 9px; border-radius: 999px; font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+}
+.switch {
+  position: relative; width: 54px; height: 28px; padding: 0; flex: none;
+  border: 0; border-radius: 999px; background: var(--accent); cursor: pointer;
+  transition: background-color .15s ease;
+}
+.switch .knob {
+  position: absolute; top: 4px; left: 4px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; transition: transform .15s ease;
+  transform: translateX(26px);
+}
+.switch.off { background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.switch.off .knob { transform: translateX(0); }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Tiers */
+.tiers {
+  display: grid; gap: 20px; align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(288px, 1fr));
+}
+.tier {
+  position: relative; border: 1px solid var(--border); border-radius: 20px;
+  background: var(--surface); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.tier-head { padding: 30px 28px 26px; }
+.tier-head h2 { margin: 0 0 10px; font-size: 18px; font-weight: 600; }
+.amount { margin: 0 0 6px; font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.amount .rupee { font-size: 26px; font-weight: 600; margin-right: 1px; }
+.amount .per { display: block; margin-top: 8px; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.tier .cap { margin: 0; font-size: 14px; color: var(--secondary); }
+.tier-save { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+.tier-cta {
+  display: block; margin-top: 22px; padding: 13px 18px; border-radius: 12px;
+  text-align: center; text-decoration: none; font-weight: 600; font-size: 15px;
+  background: var(--ground); color: var(--fg); border: 1px solid var(--border);
+  transition: border-color .12s ease, background-color .12s ease;
+}
+.tier-cta:hover { border-color: var(--accent); color: var(--accent); }
+.tier-body { padding: 0 28px 30px; }
+.tier-eyebrow {
+  margin: 0 0 14px; font-size: 11px; font-weight: 600; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted);
+}
+.tier-body ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+.tier-body li { position: relative; padding-left: 26px; font-size: 14px; color: var(--secondary); }
+.tier-body li::before {
+  content: ''; position: absolute; left: 0; top: 6px; width: 14px; height: 8px;
+  border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+
+/* The middle tier: lifted, coloured, and the only one that says anything about
+   itself. Two shouting cards is two cards nobody trusts. */
+.tier.featured { border-color: transparent; box-shadow: 0 18px 44px rgba(16, 24, 40, .16); z-index: 1; }
+@media (min-width: 900px) { .tier.featured { transform: scale(1.045); } }
+.tier.featured .tier-head { background: #d7f34b; color: #182100; }
+.tier.featured .tier-head h2,
+.tier.featured .amount { color: #182100; }
+.tier.featured .cap,
+.tier.featured .tier-save,
+.tier.featured .amount .per { color: #3c4a12; }
+.tier.featured .tier-cta {
+  background: #182100; color: #f2ffd0; border-color: #182100;
+}
+.tier.featured .tier-cta:hover { background: #26320a; color: #fff; }
+.ribbon {
+  position: absolute; top: 0; right: 0; z-index: 2;
+  padding: 5px 12px; border-bottom-left-radius: 10px;
+  background: #182100; color: #d7f34b; font-size: 11px; font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* The top tier: the end of the range, bought by somebody who has decided. */
+.tier-complete { border-color: transparent; background: linear-gradient(160deg, #2bb8d6 0%, #1b2a6b 58%, #101a44 100%); }
+.tier-complete .tier-head h2 { color: #cdeefb; }
+.tier-complete .amount { color: #fff; }
+.tier-complete .amount .per,
+.tier-complete .cap,
+.tier-complete .tier-save { color: #b9c6ef; }
+.tier-complete .tier-cta { background: #101a44; color: #fff; border-color: #33407e; }
+.tier-complete .tier-cta:hover { background: #1a2758; color: #fff; border-color: #5566b5; }
+.tier-complete .tier-body li { color: #dce4ff; }
+.tier-complete .tier-body li::before { border-color: #7fe3ff; }
+.tier-complete .tier-eyebrow { color: #93a3dd; }
+
+body.pricing .included { margin-top: 56px; }
+body.pricing .enquire { margin-top: 40px; }
+
+/* ---------------------------------------------------------------------------
+   Appearance toggle, and the cards under the pointer. */
+
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; flex: none;
+  border: 1px solid var(--border); border-radius: 9px;
+  background: var(--surface); color: var(--secondary); cursor: pointer;
+  transition: color .12s ease, border-color .12s ease;
+}
+.theme-toggle:hover { color: var(--fg); border-color: var(--muted); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 17px; height: 17px; }
+/* One button, two glyphs: the sun shows in dark mode because it is what the
+   button will do, not what the page currently is. A control labelled with its
+   current state reads as a status light and gets clicked by mistake. */
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
+}
+.topbar { gap: 14px; }
+.topbar .spacer { flex: 1; }
+
+/* The pointer highlight.
+   A soft light follows the cursor across the card and the card lifts a little
+   to meet it. Both are cheap: the light is one radial-gradient layer driven by
+   two custom properties, and the lift is a transform, so neither triggers
+   layout. The featured card carries its own scale, so the lift composes with
+   it rather than replacing it — animating transform alone would drop the
+   1.045 and make the middle card shrink on hover, which is the opposite of
+   what a highlight should do. */
+.tier { --mx: 50%; --my: 0%; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.tier::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  opacity: 0; transition: opacity .2s ease;
+  background: radial-gradient(340px circle at var(--mx) var(--my),
+              color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%);
+}
+.tier > * { position: relative; z-index: 1; }
+.tier:hover::after, .tier:focus-within::after { opacity: 1; }
+.tier:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 14px 34px rgba(16, 24, 40, .13); }
+@media (min-width: 900px) {
+  .tier.featured:hover { transform: scale(1.045) translateY(-5px); }
+}
+/* The two coloured cards already carry their own ground, so the accent wash
+   would muddy them; they get a warmer light of their own. */
+.tier.featured::after {
+  background: radial-gradient(340px circle at var(--mx) var(--my), rgba(255,255,255,.34), transparent 62%);
+}
+.tier-complete::after {
+  background: radial-gradient(340px circle at var(--mx) var(--my), rgba(127,227,255,.26), transparent 62%);
+}
+.tier.featured:hover { box-shadow: 0 22px 52px rgba(16, 24, 40, .2); }
+.tier-complete:hover { border-color: transparent; box-shadow: 0 18px 42px rgba(16, 33, 84, .35); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tier, .tier::after, .theme-toggle { transition: none; }
+  .tier:hover { transform: none; }
+  @media (min-width: 900px) { .tier.featured:hover { transform: scale(1.045); } }
+}

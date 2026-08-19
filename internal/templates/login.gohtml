@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in · School ERP</title>
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+<script>
+  /* The appearance chosen on the pricing page carries here. Without it a
+     visitor who picked dark, clicked Sign in, and was handed a white card
+     would reasonably conclude the setting had not taken. */
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
 </head>
 <body class="auth">
   <main class="card">

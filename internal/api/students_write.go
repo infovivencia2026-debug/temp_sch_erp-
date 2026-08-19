@@ -58,8 +58,37 @@ type studentWriteRequest struct {
 }
 
 var validGenders = map[string]bool{"male": true, "female": true, "other": true}
-var validMediums = map[string]bool{
-	"telugu": true, "english": true, "urdu": true, "hindi": true, "other": true}
+
+// checkVocabulary validates the fields a school is allowed to extend.
+//
+// Kept out of validate() because that method has neither the request nor the
+// server, and the answer now depends on both: the medium a school teaches in
+// is theirs to add, and a hardcoded map refusing "Kannada" is the product
+// telling a school it does not exist.
+func (s *Server) checkVocabulary(r *http.Request, req *studentWriteRequest) error {
+	for _, f := range []struct{ kind, value string }{
+		{"medium", strings.ToLower(strings.TrimSpace(req.Medium))},
+		{"blood_group", strings.TrimSpace(req.BloodGroup)},
+		{"mother_tongue", strings.TrimSpace(req.MotherTongue)},
+		{"religion", strings.TrimSpace(req.Religion)},
+	} {
+		ok, err := s.allowsValue(r, f.kind, f.value)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("that is not one of your " + kindLabels[f.kind] +
+				" — add it to the list first, then choose it")
+		}
+	}
+	return nil
+}
+
+/* validMediums was here. It listed five media of instruction and refused
+   everything else, which is why a school teaching in Kannada could not record
+   the fact. Media are now part of the vocabulary a school extends for itself —
+   see checkVocabulary above and internal/api/custom_options.go — so the list
+   is gone rather than left dead for somebody to wire back in. */
 
 // errSectionFull is a refusal the caller can act on: waitlist the child,
 // choose another section, or re-send with allow_overflow.
@@ -71,9 +100,6 @@ func (req *studentWriteRequest) validate() error {
 	}
 	if req.Gender != "" && !validGenders[req.Gender] {
 		return errors.New("gender must be male, female or other")
-	}
-	if req.Medium != "" && !validMediums[strings.ToLower(req.Medium)] {
-		return errors.New("medium must be telugu, english, urdu, hindi or other")
 	}
 	if req.DateOfBirth != "" {
 		if _, err := time.Parse(time.DateOnly, req.DateOfBirth); err != nil {
@@ -235,6 +261,10 @@ func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, err.Error())
 		return
 	}
+	if err := s.checkVocabulary(r, &req); err != nil {
+		httpx.BadRequest(w, r, err.Error())
+		return
+	}
 
 	var studentID, admissionNo string
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -282,6 +312,10 @@ func (s *Server) updateStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := req.validate(); err != nil {
+		httpx.BadRequest(w, r, err.Error())
+		return
+	}
+	if err := s.checkVocabulary(r, &req); err != nil {
 		httpx.BadRequest(w, r, err.Error())
 		return
 	}
