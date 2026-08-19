@@ -100,6 +100,22 @@ type OutboundMessage struct {
 	// The DLT template id the Indian SMS regime requires on every commercial
 	// message. Empty for channels that have no such regime.
 	DLTTemplateID string
+
+	/* WA is the approved WhatsApp template this message is to be sent as.
+
+	   Added by internal/api/whatsapp.go. Outside a 24-hour customer-service
+	   window the WhatsApp Cloud API accepts only a pre-approved template --
+	   a name and positional parameters, not a body -- and every message this
+	   product sends is outside that window, because parents do not message
+	   the school first. Body alone is therefore not enough to send WhatsApp,
+	   and pretending otherwise produces a provider that passes every test
+	   here and is rejected by Meta for every real parent.
+
+	   Still post-render, like the rest of this struct: it carries resolved
+	   values, never a template lookup. Nil for every other channel, and nil
+	   for a WhatsApp message with no approved template mapped -- which the
+	   Cloud provider refuses by name rather than downgrading to free text. */
+	WA *whatsappTemplateSend
 }
 
 /*
@@ -636,7 +652,14 @@ func buildProvider(channel string, cfg []byte, secret string) MessagingProvider 
 			}
 		}
 		return smtpProvider{cfg: st, password: secret}
-	case "sms", "whatsapp":
+	case "whatsapp":
+		// WhatsApp is two products wearing one channel name: Meta's own Cloud
+		// API, whose body shape and template policy the generic gateway below
+		// cannot express, and a reseller, for which it is exactly right.
+		// buildWhatsAppProvider (whatsapp.go) picks by what is stored, so a
+		// school already sending through a reseller is untouched.
+		return buildWhatsAppProvider(channel, cfg, secret)
+	case "sms":
 		var st gatewaySettings
 		if len(cfg) > 0 {
 			if err := json.Unmarshal(cfg, &st); err != nil {
@@ -862,13 +885,26 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	   inference clause against the index expression, and a near-miss raises
 	   instead of skipping, which would turn a suppressed duplicate into a
 	   failed fee run. */
+	/* The vars are kept as well as the rendered body.
+
+	   A WhatsApp Cloud template send transmits the approved template's name
+	   and its parameter VALUES; Meta hydrates the text itself, so the rendered
+	   body is the wrong thing to carry and the values cannot be recovered from
+	   it once a school rewords its own body. This is the same data that is
+	   already in body, in the form the other wire needs. See whatsapp.go. */
+	varsJSON, err := json.Marshal(req.Vars)
+	if err != nil {
+		return SendResult{}, err
+	}
+
 	var id uuid.UUID
 	err = tx.QueryRow(ctx, `
 		INSERT INTO message_log (institution_id, channel, template_code, recipient,
 		                         user_id, student_id, subject, body, status, provider,
-		                         source_kind, source_id, occurrence_key, send_after)
+		                         source_kind, source_id, occurrence_key, send_after,
+		                         template_vars)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9,
-		        NULLIF($10,''), $11, NULLIF($12,''), $13)
+		        NULLIF($10,''), $11, NULLIF($12,''), $13, $14)
 		ON CONFLICT (institution_id, channel, source_kind,
 		             COALESCE(source_id,  '00000000-0000-0000-0000-000000000000'::uuid),
 		             COALESCE(user_id,    '00000000-0000-0000-0000-000000000000'::uuid),
@@ -879,7 +915,8 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		RETURNING id`,
 		inst, req.Channel, req.TemplateCode, req.Recipient, req.ToUserID, req.StudentID,
 		nullIfEmpty(subject), body, p.Name(),
-		req.SourceKind, req.SourceID, req.OccurrenceKey, req.SendAfter).Scan(&id)
+		req.SourceKind, req.SourceID, req.OccurrenceKey, req.SendAfter,
+		varsJSON).Scan(&id)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		// The index refused it: this exact occurrence has already been sent to
@@ -1012,21 +1049,52 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				body      *string
 				code      *string
 				attempts  int
+				varsRaw   []byte
 			)
 			row := tx.QueryRow(ctx, `
-				SELECT id, channel, recipient, subject, body, template_code, attempts
+				SELECT id, channel, recipient, subject, body, template_code, attempts,
+				       template_vars
 				  FROM message_log
 				 WHERE institution_id = $1 AND status = 'queued'
 				   AND (send_after IS NULL OR send_after <= now())
 				 ORDER BY queued_at
 				 FOR UPDATE SKIP LOCKED
 				 LIMIT 1`, inst)
-			if err := row.Scan(&id, &channel, &recipient, &subject, &body, &code, &attempts); err != nil {
+			if err := row.Scan(&id, &channel, &recipient, &subject, &body, &code, &attempts,
+				&varsRaw); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					done = true
 					return nil
 				}
 				return err
+			}
+
+			/* The recipient allowlist, checked here and nowhere else.
+
+			   Here because this is the single road every queued message takes
+			   -- the screen's Dispatch button, the scheduler's five-minute
+			   sweep, and the worker task all arrive at this loop -- so a
+			   caller that queues directly cannot go around it. Inside one
+			   provider it would guard one channel, and "we are testing, do
+			   not message real families" is not a per-channel sentence.
+
+			   A held message is marked, not dropped. status 'suppressed'
+			   carries the reason to the log screen, so the school can see
+			   exactly what would have gone out; a silent discard is how
+			   somebody concludes the product is broken. It is deliberately
+			   not counted as failed: failing it would put it on the retry
+			   schedule to be refused four more times, and it is not a
+			   failure. See whatsapp.go for the guard itself. */
+			guard, err := s.loadRecipientGuard(ctx, tx, inst)
+			if err != nil {
+				return err
+			}
+			if allowed, why := guard.permits(channel, recipient); !allowed {
+				_, e := tx.Exec(ctx, `
+					UPDATE message_log
+					   SET status = 'suppressed', error = $2, send_after = NULL
+					 WHERE id = $1`, id, truncate(why, 500))
+				return e
 			}
 
 			set, err := s.loadProviders(ctx, tx, inst)
@@ -1045,15 +1113,34 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				}
 			}
 
+			/* The approved WhatsApp template, resolved here rather than in
+			   the provider, because a provider never touches the database and
+			   never knows about tenancy. A resolution failure is treated as a
+			   send failure so it lands in message_log.error where somebody
+			   will read it, rather than aborting the whole sweep. */
+			var wa *whatsappTemplateSend
+			var waErr error
+			if channel == "whatsapp" && code != nil {
+				vars := map[string]any{}
+				if len(varsRaw) > 0 {
+					_ = json.Unmarshal(varsRaw, &vars)
+				}
+				wa, waErr = s.whatsappSendFor(ctx, tx, inst, *code, vars)
+			}
+
 			// A per-send deadline the provider cannot exceed. Without it a
 			// hung mail host holds this row's lock for as long as the HTTP
 			// request lives, and the dispatch endpoint never answers.
 			sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 			defer cancel()
 
-			msgID, sendErr := p.Send(sendCtx, OutboundMessage{
-				To: recipient, Subject: strVal(subject), Body: strVal(body), DLTTemplateID: dlt,
-			})
+			msgID, sendErr := "", waErr
+			if sendErr == nil {
+				msgID, sendErr = p.Send(sendCtx, OutboundMessage{
+					To: recipient, Subject: strVal(subject), Body: strVal(body),
+					DLTTemplateID: dlt, WA: wa,
+				})
+			}
 			if sendErr != nil {
 				failed++
 				/* A failed send is held, not buried.

@@ -451,6 +451,18 @@ func TestFailedSendStaysQueuedAndVisible(t *testing.T) {
 			VALUES ($1,'messaging','email',
 			        '{"host":"127.0.0.1","port":1,"from_address":"school@example.test"}'::jsonb,
 			        $2, true)`, inst, sealed)
+		if e != nil {
+			return e
+		}
+		/* The recipient allowlist (00101) is on by default and fails closed,
+		   so a school that has configured nothing sends to nobody. This test
+		   is about what happens when a provider FAILS, which is a state
+		   reachable only once the guard has let the message past -- so the
+		   one address it uses is permitted here. Without this the row is
+		   suppressed and the retry path below is never exercised. */
+		_, e = tx.Exec(ctx, `
+			INSERT INTO messaging_allowed_recipients (institution_id, kind, raw, normalised)
+			VALUES ($1,'email','parent@example.test','parent@example.test')`, inst)
 		return e
 	})
 	if err != nil {

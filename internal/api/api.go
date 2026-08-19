@@ -580,6 +580,7 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/admin", func(r chi.Router) {
 			s.mountPlatformConfig(r)
 			s.mountMessaging(r)
+			s.mountWhatsApp(r)
 			s.mountTallyConnector(r)
 			s.mountConnectors(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
