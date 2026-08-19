@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Select, Loading, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /* The family's own bill.
 
@@ -63,6 +64,7 @@ const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> 
 }
 
 export default function PortalFees() {
+  const t = useT()
   const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
@@ -88,11 +90,11 @@ export default function PortalFees() {
   if (!kids.length)
     return (
       <>
-        <PageHead eyebrow="Fees" title="Fees" />
+        <PageHead eyebrow={t('portal.fees.eyebrow')} title={t('portal.fees.title')} />
         <PageBody>
           <EmptyState
-            title="No student record linked"
-            body="Your account is not linked to a student yet. Ask the school office to connect it."
+            title={t('portal.fees.no_link_title')}
+            body={t('portal.fees.no_link_body')}
           />
         </PageBody>
       </>
@@ -102,11 +104,11 @@ export default function PortalFees() {
   if (!data)
     return (
       <>
-        <PageHead eyebrow="Fees" title="Fees" />
+        <PageHead eyebrow={t('portal.fees.eyebrow')} title={t('portal.fees.title')} />
         <PageBody>
           <EmptyState
-            title="No fee record yet"
-            body="The school has not raised a bill for this student. It appears here as soon as it does."
+            title={t('portal.fees.no_record_title')}
+            body={t('portal.fees.no_record_body')}
           />
         </PageBody>
       </>
@@ -121,17 +123,17 @@ export default function PortalFees() {
   return (
     <>
       <PageHead
-        eyebrow="Fees"
-        title={d.outstanding_paise > 0 ? `${formatPaise(d.outstanding_paise)} due` : 'Nothing due'}
+        eyebrow={t('portal.fees.eyebrow')}
+        title={d.outstanding_paise > 0 ? t('portal.fees.title_due', { amount: formatPaise(d.outstanding_paise) }) : t('portal.fees.title_nothing_due')}
         description={
           d.outstanding_paise > 0
-            ? `For ${d.student_name}. Pay at the school office and the receipt appears here.`
-            : `${d.student_name}'s fees are fully paid. Receipts are listed below.`
+            ? t('portal.fees.description_due', { name: d.student_name })
+            : t('portal.fees.description_paid', { name: d.student_name })
         }
         actions={
           <>
             {/* A fee statement is a document a parent takes to the office. */}
-            <PrintButton label="Print statement" />
+            <PrintButton label={t('portal.fees.action_print')} />
             {/* The switcher is only for a guardian with more than one child;
                 a student has one bill and it would be furniture. */}
             {kids.length > 1 && (
@@ -149,39 +151,39 @@ export default function PortalFees() {
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Outstanding" value={formatPaise(d.outstanding_paise)} icon={IndianRupee} />
+          <Stat label={t('portal.fees.stat_outstanding')} value={formatPaise(d.outstanding_paise)} icon={IndianRupee} />
           <Stat
-            label="Overdue instalments"
+            label={t('portal.fees.stat_overdue')}
             value={overdue.length}
             icon={AlertTriangle}
             delta={
               overdue.length
-                ? { value: `${Math.max(...overdue.map((o) => o.days_overdue))} days late`, positive: false }
-                : { value: 'Nothing late', positive: true }
+                ? { value: t('portal.fees.stat_overdue_delta', { days: Math.max(...overdue.map((o) => o.days_overdue)) }), positive: false }
+                : { value: t('portal.fees.stat_overdue_none'), positive: true }
             }
           />
-          <Stat label="Paid so far" value={formatPaise(paidThisYear)} icon={Receipt} />
+          <Stat label={t('portal.fees.stat_paid')} value={formatPaise(paidThisYear)} icon={Receipt} />
         </CellGrid>
 
         <Card>
-          <CardHeader title="Instalments" description="What the school has billed, and when it falls due" />
+          <CardHeader title={t('portal.fees.instalments_title')} description={t('portal.fees.instalments_description')} />
           {d.invoices.length === 0 ? (
             <EmptyState
-              title="No bill raised yet"
-              body="Instalments appear here as the school issues them for the year."
+              title={t('portal.fees.instalments_empty_title')}
+              body={t('portal.fees.instalments_empty_body')}
             />
           ) : (
-            <Table head={['Instalment', 'Due', 'Amount', 'Paid', 'Still due', 'Status']}>
+            <Table head={[t('portal.fees.col_instalment'), t('portal.fees.col_due'), t('portal.fees.col_amount'), t('portal.fees.col_paid'), t('portal.fees.col_still_due'), t('portal.fees.col_status')]}>
               {d.invoices.map((i) => (
                 <tr key={i.invoice_no}>
                   <Td className="font-medium">
-                    {i.instalment_no ? `Instalment ${i.instalment_no}` : i.invoice_no}
+                    {i.instalment_no ? t('portal.fees.instalment_no', { number: i.instalment_no }) : i.invoice_no}
                     <span className="ml-2 text-[12px] text-muted-foreground">{i.invoice_no}</span>
                   </Td>
                   <Td className={i.days_overdue > 0 && i.due_paise > 0 ? 'text-destructive' : undefined}>
                     {formatDate(i.due_on)}
                     {i.days_overdue > 0 && i.due_paise > 0 && (
-                      <span className="ml-1.5 text-[12px]">{i.days_overdue}d late</span>
+                      <span className="ml-1.5 text-[12px]">{t('portal.fees.days_late', { days: i.days_overdue })}</span>
                     )}
                   </Td>
                   <Td className="tabular-nums">{formatPaise(i.net_paise)}</Td>
@@ -190,7 +192,7 @@ export default function PortalFees() {
                     {i.due_paise > 0 ? formatPaise(i.due_paise) : '—'}
                     {i.fine_paise > 0 && (
                       <span className="ml-1.5 text-[12px] text-destructive">
-                        incl. {formatPaise(i.fine_paise)} fine
+                        {t('portal.fees.incl_fine', { amount: formatPaise(i.fine_paise) })}
                       </span>
                     )}
                   </Td>
@@ -204,11 +206,11 @@ export default function PortalFees() {
         </Card>
 
         <Card>
-          <CardHeader title="Receipts" description="Every payment recorded against this student" />
+          <CardHeader title={t('portal.fees.receipts_title')} description={t('portal.fees.receipts_description')} />
           {d.receipts.length === 0 ? (
-            <EmptyState title="No payments yet" />
+            <EmptyState title={t('portal.fees.receipts_empty_title')} />
           ) : (
-            <Table head={['Receipt', 'Date', 'Amount', 'Mode', 'Reference', 'Status']}>
+            <Table head={[t('portal.fees.col_receipt'), t('portal.fees.col_date'), t('portal.fees.col_amount'), t('portal.fees.col_mode'), t('portal.fees.col_reference'), t('portal.fees.col_status')]}>
               {d.receipts.map((r) => (
                 <tr key={r.receipt_no}>
                   <Td className="font-medium">{r.receipt_no}</Td>
@@ -225,8 +227,7 @@ export default function PortalFees() {
           )}
           {d.receipts.some((r) => r.status === 'bounced') && (
             <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
-              A payment above was returned by the bank, so the amount is still owed. Please contact
-              the office.
+              {t('portal.fees.bounced_note')}
             </p>
           )}
         </Card>

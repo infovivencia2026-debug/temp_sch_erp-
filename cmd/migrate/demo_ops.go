@@ -471,6 +471,15 @@ func seedCorrections(ctx context.Context, tx pgx.Tx, inst, _, _ uuid.UUID) (int,
 		  FROM student_attendance sa
 		 WHERE sa.institution_id = $1 AND sa.status = 'absent'
 		   AND sa.on_date > CURRENT_DATE - 14
+		   -- requested_by is NOT NULL and the subselect above is the only
+		   -- source for it. A demo tenant with no employees yet -- which is
+		   -- every fresh one, because demo-data seeds none -- made that
+		   -- subselect NULL and took the whole seeding transaction down with
+		   -- it, so nothing after this point ran either. An absent
+		   -- corrections queue is a missing demo screen; a failed seed is a
+		   -- broken install.
+		   AND EXISTS (SELECT 1 FROM employees e
+		                WHERE e.institution_id = $1 AND e.user_id IS NOT NULL)
 		 ORDER BY sa.on_date DESC
 		 LIMIT 6`, inst)
 	if err != nil {

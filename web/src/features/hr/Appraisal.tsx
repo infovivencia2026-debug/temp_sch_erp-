@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
   Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 
 /* The annual KPI appraisal.
 
@@ -153,7 +154,20 @@ export default function Appraisal() {
   )
 }
 
+/* The cycle, the KPI set, raising, publishing and the discussion note are all
+   employees.write (hr_growth.go:100-113); the lists ride the group's
+   employees.read.
+
+   One route in this feature is deliberately NOT write-gated: POST
+   /appraisal/records/{id}/review, because the reviewer is a head of department
+   holding employees.read only and the handler checks they are the named
+   reviewer, which is a narrower rule than any permission. ReviewCard below is
+   that control, and it is deliberately outside this flag: gating it on
+   employees.write would hide it from exactly the person it exists for, and
+   leave the status chain with nothing able to move an appraisal from
+   self_submitted to reviewed. */
 function CyclesTab({ cycles }: { cycles: Cycle[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [name, setName] = useState('')
   const [opensOn, setOpensOn] = useState('')
@@ -193,7 +207,8 @@ function CyclesTab({ cycles }: { cycles: Cycle[] }) {
             <Field label="Scored out of"><Input value={scale} onChange={setScale} type="number" /></Field>
           </FormGrid>
           <FormNotice error={create.error} ok={create.isSuccess ? 'Cycle opened.' : undefined} />
-          <Button onClick={() => create.mutate()} disabled={!name || create.isPending}>
+          <Button onClick={() => create.mutate()}
+            disabled={!mayWrite || !name || create.isPending}>
             {create.isPending ? 'Opening…' : 'Open cycle'}
           </Button>
         </div>
@@ -238,6 +253,7 @@ function KPITab({
   cycles, cycleID, onCycle,
 }: { cycles: Cycle[]; cycleID: string; onCycle: (v: string) => void }) {
   const qc = useQueryClient()
+  const mayWrite = useCan()('hr.employees.write')
   const [designation, setDesignation] = useState('')
   const [draft, setDraft] = useState<{ code: string; title: string; weight: string }[]>([])
 
@@ -263,7 +279,11 @@ function KPITab({
       }))
 
   const total = rows.reduce((n, r) => n + (Number(r.weight) || 0), 0)
-  const balanced = total > 99.98 && total < 100.02
+  /* The same hundredth of a percent the handler allows and the trigger now
+     allows, stated as the same inequality rather than a wider one that happens
+     to agree on the values numeric(5,2) can reach. Three equal KPIs total
+     99.99; refusing that would make thirds unusable. */
+  const balanced = total >= 99.99 && total <= 100.01
 
   const save = useMutation({
     mutationFn: () =>
@@ -295,7 +315,7 @@ function KPITab({
             <Select value={cycleID} onChange={onCycle}
               options={cycles.map((c) => ({ value: c.id, label: c.name }))} />
             <Select value={designation} onChange={(v) => { setDesignation(v); setDraft([]) }}
-              placeholder="Default set (all roles)"
+              placeholder={designations.error ? 'Roles unavailable' : 'Default set (all roles)'}
               options={(designations.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))} />
           </div>
         }
@@ -341,7 +361,7 @@ function KPITab({
 
         <FormNotice error={save.error} ok={save.isSuccess ? 'Weights saved.' : undefined} />
         <Button onClick={() => save.mutate()}
-          disabled={!balanced || rows.length === 0 || save.isPending}>
+          disabled={!mayWrite || !balanced || rows.length === 0 || save.isPending}>
           {save.isPending ? 'Saving…' : 'Save this KPI set'}
         </Button>
       </div>
@@ -353,6 +373,7 @@ function RecordsTab({
   cycles, cycleID, onCycle,
 }: { cycles: Cycle[]; cycleID: string; onCycle: (v: string) => void }) {
   const qc = useQueryClient()
+  const mayWrite = useCan()('hr.employees.write')
   const [open, setOpen] = useState<Appraisal | null>(null)
 
   const records = useQuery({
@@ -408,7 +429,8 @@ function RecordsTab({
               )}
             </div>
           )}
-          <Button onClick={() => raise.mutate()} disabled={!cycleID || raise.isPending}>
+          <Button onClick={() => raise.mutate()}
+            disabled={!mayWrite || !cycleID || raise.isPending}>
             {raise.isPending ? 'Raising…' : 'Raise for all active staff'}
           </Button>
         </div>
@@ -450,7 +472,7 @@ function RecordsTab({
               <Td className="text-right">
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setOpen(a)}>Open</Button>
-                  {(a.status === 'reviewed' || a.status === 'moderated') && (
+                  {mayWrite && (a.status === 'reviewed' || a.status === 'moderated') && (
                     <Button size="sm" onClick={() => publish.mutate(a.id)}>Publish</Button>
                   )}
                 </div>
@@ -460,8 +482,224 @@ function RecordsTab({
         </Table>
       </Card>
 
-      {open && <DiscussionCard appraisal={open} onDone={() => { setOpen(null); invalidate() }} />}
+      {open && (
+        /* Keyed by the appraisal for the same reason as the discussion card:
+           every score box below is initialised from the record, and a card
+           that survived the swap would post one colleague's ratings against
+           another's appraisal. */
+        <ReviewCard key={`review-${open.id}`} appraisal={open} onSaved={invalidate} />
+      )}
+
+      {open && (
+        /* Keyed by the appraisal. The card prefills the discussion date from
+           the record and holds the note, so opening a second appraisal reused
+           both — and the note is the written record of a performance
+           conversation, filed against whoever was open when Save was pressed. */
+        <DiscussionCard
+          key={open.id}
+          appraisal={open}
+          onDone={() => { setOpen(null); invalidate() }}
+        />
+      )}
     </>
+  )
+}
+
+interface Rating {
+  id: string
+  kpi_id: string
+  code: string
+  title: string
+  description?: string
+  source: string
+  weight: number
+  self_score?: number
+  self_note?: string
+  reviewer_score?: number
+  reviewer_note?: string
+  moderated_score?: number
+}
+
+interface AppraisalDetail extends Appraisal {
+  self_comments?: string
+  reviewer_comments?: string
+  ratings: Rating[]
+}
+
+/* The reviewer's rating.
+
+   The one control on this screen that is not behind employees.write, because
+   the reviewer is a head of department who holds employees.read and nothing
+   more. The rule is the handler's, not the button's: you may review the
+   appraisals you were named on, and the back office may review any of them —
+   so the control is shown and the server answers. Hiding it from everyone
+   without a write grant was how the status chain came to stop dead at
+   self_submitted with no way past.
+
+   The self-assessment is shown beside each box on purpose. A reviewer rating
+   somebody without reading what they said about themselves is the appraisal
+   that gets appealed. */
+function ReviewCard({ appraisal, onSaved }: { appraisal: Appraisal; onSaved: () => void }) {
+  const detail = useQuery({
+    queryKey: ['hr-growth', 'record', appraisal.id],
+    queryFn: () => api.get<AppraisalDetail>(`/api/v1/hr-growth/appraisal/records/${appraisal.id}`),
+  })
+
+  if (detail.isLoading) return <Card><Loading label="Reading the ratings…" /></Card>
+  if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
+  if (!detail.data) return null
+
+  return <ReviewForm key={detail.data.id} appraisal={detail.data} onSaved={onSaved} />
+}
+
+function ReviewForm({
+  appraisal, onSaved,
+}: { appraisal: AppraisalDetail; onSaved: () => void }) {
+  /* Scores as the text that was typed. An emptied box is not a zero: '' is
+     sent as null, which is "not rated", while Number('') is 0 — a mark
+     against a KPI that nobody gave. */
+  const [scores, setScores] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      appraisal.ratings.map((r) => [
+        r.kpi_id, r.reviewer_score != null ? String(r.reviewer_score) : '',
+      ]),
+    ),
+  )
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(appraisal.ratings.map((r) => [r.kpi_id, r.reviewer_note ?? ''])),
+  )
+  const [comments, setComments] = useState(appraisal.reviewer_comments ?? '')
+
+  const max = appraisal.score_scale_max
+  const closed = appraisal.status === 'published' || appraisal.status === 'acknowledged'
+  const badScore = appraisal.ratings.some((r) => {
+    const raw = (scores[r.kpi_id] ?? '').trim()
+    if (raw === '') return false
+    const n = Number(raw)
+    return !Number.isFinite(n) || n < 0 || n > max
+  })
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.post(`/api/v1/hr-growth/appraisal/records/${appraisal.id}/review`, {
+        ratings: appraisal.ratings.map((r) => {
+          const raw = (scores[r.kpi_id] ?? '').trim()
+          return {
+            kpi_id: r.kpi_id,
+            score: raw === '' ? null : Number(raw),
+            note: (notes[r.kpi_id] ?? '').trim() || undefined,
+          }
+        }),
+        comments: comments.trim() || undefined,
+      }),
+    onSuccess: onSaved,
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Review — ${appraisal.full_name}`}
+        description={
+          closed
+            ? 'This appraisal is published. The ratings are shown as they were signed off and can no longer be changed here.'
+            : 'Your rating against each KPI, beside what the person said about themselves. The weighted total is worked out by the school from the ratings stored, not by this page.'
+        }
+        action={
+          <Badge tone={statusTone(appraisal.status)}>
+            {STATUS_LABEL[appraisal.status] ?? appraisal.status}
+          </Badge>
+        }
+      />
+      <Table
+        head={[
+          'KPI',
+          { label: 'Weight %', align: 'right' },
+          { label: 'Self', align: 'right' },
+          { label: `Your score (of ${max})`, align: 'right' },
+          'Your note',
+        ]}
+        empty={appraisal.ratings.length === 0}
+        emptyLabel="No KPIs are attached to this appraisal."
+      >
+        {appraisal.ratings.map((r) => (
+          <tr key={r.kpi_id}>
+            <Td>
+              <span className="font-medium">{r.title}</span>
+              <span className="block text-[12.5px] text-muted-foreground">
+                {r.code}
+                {r.self_note ? ` — “${r.self_note}”` : ''}
+              </span>
+            </Td>
+            <Td className="text-right tabular-nums">{r.weight}</Td>
+            <Td className="text-right tabular-nums text-muted-foreground">
+              {r.self_score != null ? r.self_score.toFixed(2) : '—'}
+            </Td>
+            <Td className="text-right">
+              {closed ? (
+                <span className="tabular-nums">
+                  {r.reviewer_score != null ? r.reviewer_score.toFixed(2) : '—'}
+                </span>
+              ) : (
+                <Input
+                  type="number"
+                  srLabel={`Your score out of ${max} for ${r.title}`}
+                  value={scores[r.kpi_id] ?? ''}
+                  onChange={(v) => setScores({ ...scores, [r.kpi_id]: v })}
+                />
+              )}
+            </Td>
+            <Td>
+              {closed ? (
+                <span className="text-muted-foreground">{r.reviewer_note ?? '—'}</span>
+              ) : (
+                <Input
+                  srLabel={`Your note for ${r.title}`}
+                  placeholder="Consistently prepared; weakest on record-keeping"
+                  value={notes[r.kpi_id] ?? ''}
+                  onChange={(v) => setNotes({ ...notes, [r.kpi_id]: v })}
+                />
+              )}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <div className="space-y-5 p-5">
+        {closed ? (
+          <Field label="Reviewer's comments" wide>
+            <p className="text-[14px] text-muted-foreground">{appraisal.reviewer_comments ?? '—'}</p>
+          </Field>
+        ) : (
+          <>
+            <Field
+              label="Your comments"
+              hint="Read by moderation, by the employee once this is published, and by anybody hearing an appeal."
+              wide
+            >
+              <Textarea
+                value={comments}
+                onChange={setComments}
+                rows={3}
+                placeholder="Strong classroom practice; asked to take on the Class 10 remedial group next year."
+              />
+            </Field>
+            <FormNotice
+              error={save.error}
+              ok={save.isSuccess ? 'Review recorded.' : undefined}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => save.mutate()} disabled={badScore || save.isPending}>
+                {save.isPending ? 'Saving…' : 'Record my review'}
+              </Button>
+              <span className="text-[13px] text-muted-foreground">
+                {badScore
+                  ? `Every score must be a number between 0 and ${max}.`
+                  : 'Only the reviewer named on this appraisal, or the HR office, may record it. A box left empty is sent as no score, not as a zero.'}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
   )
 }
 
@@ -471,6 +709,7 @@ function RecordsTab({
    complains about, so recording it is a first-class action rather than a
    notes field somebody may or may not fill in. */
 function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: () => void }) {
+  const mayWrite = useCan()('hr.employees.write')
   const [on, setOn] = useState(appraisal.discussion_on ?? '')
   const [note, setNote] = useState('')
 
@@ -500,7 +739,8 @@ function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: (
         </Field>
         <FormNotice error={save.error} />
         <div className="flex items-center gap-2">
-          <Button onClick={() => save.mutate()} disabled={!note.trim() || save.isPending}>
+          <Button onClick={() => save.mutate()}
+            disabled={!mayWrite || !note.trim() || save.isPending}>
             {save.isPending ? 'Saving…' : 'Record the discussion'}
           </Button>
           <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">

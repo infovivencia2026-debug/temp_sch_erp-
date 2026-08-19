@@ -73,6 +73,48 @@ var redactKeys = map[string]bool{
 	"secret": true, "api_key": true, "access_key": true,
 }
 
+/*
+Some bodies are not the audit trail's business.
+
+	The trail answers "who changed what, and when". For almost everything the
+	payload is part of that answer: an auditor asking why a fee was waived wants
+	the amount and the reason. For a clinical record and a counselling message it
+	is not — the content is the confidential thing itself, and recording it puts
+	a copy somewhere the permission that guards the original does not reach.
+
+	GET /audit is gated on admin.audit.read alone, and two seeded roles hold that
+	and nothing clinical: it_admin, who cannot open a student record at all, and
+	the vendor's support_admin. Before this, `?entity=infirmary.visits` returned
+	every child's complaint, observations and treatment to both of them, and
+	`?entity=comms.counselor` returned the text of private counselling messages —
+	past a screen that tells the family only the people named on the conversation
+	can read it.
+
+	So for these routes the trail keeps the fact and drops the content: actor,
+	action, entity, address and time are all still recorded, and an auditor can
+	still see that this person wrote to this part of the system at this moment.
+	What they cannot do is read the record through the log. Nothing is recorded
+	about which child, either — that a named child was seen in the infirmary is
+	itself clinical.
+*/
+var confidentialBodyPrefixes = []string{
+	"/api/v1/infirmary/",
+	"/api/v1/comms/counselor/",
+}
+
+func confidentialBody(path string) bool {
+	for _, p := range confidentialBodyPrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// What stands in for a body the trail may not keep.
+const auditWithheld = "[withheld: a confidential record. The audit trail records " +
+	"that this changed and who changed it, not what it said.]"
+
 func redact(v any) any {
 	switch t := v.(type) {
 	case map[string]any:
@@ -159,6 +201,10 @@ func AuditMiddleware(db *database.DB) func(http.Handler) http.Handler {
 				if json.Unmarshal(rec.body.Bytes(), &parsed) == nil {
 					result = redact(parsed)
 				}
+			}
+
+			if confidentialBody(r.URL.Path) {
+				payload, result = auditWithheld, auditWithheld
 			}
 
 			before, _ := json.Marshal(payload)

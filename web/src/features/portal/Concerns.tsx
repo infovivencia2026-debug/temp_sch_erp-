@@ -7,6 +7,7 @@ import {
   FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* Raising a concern, and following it.
@@ -43,18 +44,19 @@ const TONE: Record<Concern['status'], 'warning' | 'info' | 'success' | 'neutral'
 }
 
 const CATEGORIES = [
-  { value: 'academic', label: 'Teaching and learning' },
-  { value: 'fees', label: 'Fees and billing' },
-  { value: 'transport', label: 'Bus and transport' },
-  { value: 'hostel', label: 'Hostel' },
-  { value: 'discipline', label: 'Behaviour and discipline' },
-  { value: 'safety', label: 'Safety' },
-  { value: 'staff', label: 'A member of staff' },
-  { value: 'facilities', label: 'Building and facilities' },
-  { value: 'other', label: 'Something else' },
-]
+  { value: 'academic', key: 'portal.concerns.category_academic' },
+  { value: 'fees', key: 'portal.concerns.category_fees' },
+  { value: 'transport', key: 'portal.concerns.category_transport' },
+  { value: 'hostel', key: 'portal.concerns.category_hostel' },
+  { value: 'discipline', key: 'portal.concerns.category_discipline' },
+  { value: 'safety', key: 'portal.concerns.category_safety' },
+  { value: 'staff', key: 'portal.concerns.category_staff' },
+  { value: 'facilities', key: 'portal.concerns.category_facilities' },
+  { value: 'other', key: 'portal.concerns.category_other' },
+] as const
 
 export default function Concerns() {
+  const t = useT()
   const qc = useQueryClient()
   const concerns = useQuery({
     queryKey: ['portal-concerns'],
@@ -83,73 +85,91 @@ export default function Concerns() {
     },
   })
 
-  if (concerns.isLoading) return <Loading label="Looking up your concerns…" />
+  if (concerns.isLoading) return <Loading label={t('portal.concerns.loading')} />
   if (concerns.error) return <ErrorState error={concerns.error} />
 
   const rows = concerns.data?.items ?? []
   const open = rows.filter((c) => c.status !== 'resolved' && c.status !== 'closed')
+  const categoryLabel = (value: string) => {
+    const found = CATEGORIES.find((x) => x.value === value)
+    return found ? t(found.key) : value
+  }
 
   return (
     <>
       <PageHead
-        eyebrow="Messages"
-        title="Concerns"
-        description="Anything that has gone wrong, put in writing so the school can answer it."
+        eyebrow={t('portal.concerns.eyebrow')}
+        title={t('portal.concerns.title')}
+        description={t('portal.concerns.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Open" value={open.length} icon={MessageSquareWarning} />
-          <Stat label="Answered" value={rows.filter((c) => c.status === 'resolved').length} />
+          <Stat label={t('portal.concerns.stat_open')} value={open.length} icon={MessageSquareWarning} />
           <Stat
-            label="Longest waiting"
-            value={open.length ? `${Math.max(...open.map((c) => c.open_days))} days` : '—'}
+            label={t('portal.concerns.stat_answered')}
+            value={rows.filter((c) => c.status === 'resolved').length}
+          />
+          <Stat
+            label={t('portal.concerns.stat_longest')}
+            value={
+              open.length
+                ? t('portal.concerns.days', { count: Math.max(...open.map((c) => c.open_days)) })
+                : '—'
+            }
           />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Raise a concern"
-            description="Say what happened and when. The office decides how urgent it is, so tell them the facts rather than marking it urgent."
+            title={t('portal.concerns.raise_title')}
+            description={t('portal.concerns.raise_description')}
           />
           <div className="p-4">
             <FormGrid>
-              <Field label="What is it about" required>
-                <Select value={category} onChange={setCategory} options={CATEGORIES} />
+              <Field label={t('portal.concerns.field_category')} required>
+                <Select
+                  value={category}
+                  onChange={setCategory}
+                  options={CATEGORIES.map((x) => ({ value: x.value, label: t(x.key) }))}
+                />
               </Field>
               {children.length > 0 && (
-                <Field label="Which child" hint="Leave blank if it is not about one child.">
+                <Field
+                  label={t('portal.concerns.field_child')}
+                  hint={t('portal.concerns.field_child_hint')}
+                >
                   <Select
                     value={chosen}
                     onChange={setChosen}
-                    placeholder="Not about a particular child"
+                    placeholder={t('portal.concerns.child_placeholder')}
                     options={childOptions(children)}
                   />
                 </Field>
               )}
-              <Field label="How pressing">
+              <Field label={t('portal.concerns.field_priority')}>
                 <Select
                   value={priority}
                   onChange={setPriority}
                   options={[
-                    { value: 'low', label: 'Whenever you can' },
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'high', label: 'Needs attention soon' },
+                    { value: 'low', label: t('portal.concerns.priority_low') },
+                    { value: 'normal', label: t('portal.concerns.priority_normal') },
+                    { value: 'high', label: t('portal.concerns.priority_high') },
                   ]}
                 />
               </Field>
-              <Field label="In one line" required wide>
+              <Field label={t('portal.concerns.field_subject')} required wide>
                 <Input
                   value={subject}
                   onChange={setSubject}
-                  placeholder="Bus has been 30 minutes late all week"
+                  placeholder={t('portal.concerns.subject_placeholder')}
                 />
               </Field>
-              <Field label="What happened" required wide>
+              <Field label={t('portal.concerns.field_body')} required wide>
                 <Textarea
                   rows={4}
                   value={body}
                   onChange={setBody}
-                  placeholder="Dates, times, and who you have already spoken to."
+                  placeholder={t('portal.concerns.body_placeholder')}
                 />
               </Field>
             </FormGrid>
@@ -158,22 +178,25 @@ export default function Concerns() {
                 disabled={raise.isPending || subject.trim() === '' || body.trim() === ''}
                 onClick={() => raise.mutate()}
               >
-                {raise.isPending ? 'Sending…' : 'Send it'}
+                {raise.isPending ? t('portal.concerns.sending') : t('portal.concerns.action_send')}
               </Button>
             </div>
             <FormNotice
               error={raise.error}
-              ok={raise.isSuccess ? 'Raised. The office can see it now.' : undefined}
+              ok={raise.isSuccess ? t('portal.concerns.raise_ok') : undefined}
             />
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Your concerns" description="Only yours — not those raised by anyone else in the family." />
+          <CardHeader
+            title={t('portal.concerns.list_title')}
+            description={t('portal.concerns.list_description')}
+          />
           {rows.length === 0 ? (
             <EmptyState
-              title="Nothing raised"
-              body="When you raise something, it stays here with the school's answer."
+              title={t('portal.concerns.empty_title')}
+              body={t('portal.concerns.empty_body')}
             />
           ) : (
             <ul className="divide-y">
@@ -184,18 +207,17 @@ export default function Concerns() {
                       <div className="font-medium">{c.subject}</div>
                       <div className="mt-0.5 text-[13px] text-muted-foreground">{c.body}</div>
                       <div className="mt-1 text-[12px] text-muted-foreground">
-                        {CATEGORIES.find((x) => x.value === c.category)?.label ?? c.category}
+                        {categoryLabel(c.category)}
                         {c.student_name && ` · ${c.student_name}`}
-                        {' · raised '}
-                        {formatDate(c.created_at)}
-                        {c.assigned_to && ` · with ${c.assigned_to}`}
+                        {t('portal.concerns.raised_on', { date: formatDate(c.created_at) })}
+                        {c.assigned_to && t('portal.concerns.assigned_to', { name: c.assigned_to })}
                       </div>
                     </div>
                     <Badge tone={TONE[c.status]}>{c.status.replace('_', ' ')}</Badge>
                   </div>
                   {c.resolution && (
                     <div className="mt-3 rounded-sm bg-muted px-3 py-2 text-[13px]">
-                      <span className="font-medium">The school says: </span>
+                      <span className="font-medium">{t('portal.concerns.school_says')}</span>
                       {c.resolution}
                     </div>
                   )}

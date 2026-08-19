@@ -7,6 +7,7 @@ import {
   Button, Field, FormGrid, FormNotice, Select, Textarea, Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 interface DocumentRow {
@@ -68,6 +69,7 @@ const TONE: Record<RequestRow['status'], 'warning' | 'info' | 'success' | 'neutr
 }
 
 export default function Requests() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [typeCode, setTypeCode] = useState('')
@@ -95,7 +97,7 @@ export default function Requests() {
     },
   })
 
-  if (requests.isLoading) return <Loading label="Looking up your requests…" />
+  if (requests.isLoading) return <Loading label={t('portal.requests.loading')} />
   if (requests.error) return <ErrorState error={requests.error} />
 
   const rows = requests.data?.items ?? []
@@ -106,80 +108,91 @@ export default function Requests() {
   return (
     <>
       <PageHead
-        eyebrow="Requests"
-        title="Certificates"
-        description="Ask the office for a document, and see how far it has got without ringing them."
+        eyebrow={t('portal.requests.eyebrow')}
+        title={t('portal.requests.title')}
+        description={t('portal.requests.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="With the office" value={waiting.length} icon={FileCheck2} />
-          <Stat label="Issued" value={rows.filter((r) => r.status === 'issued').length} />
-          <Stat label="Ready to collect" value={rows.filter((r) => r.has_file).length} />
+          <Stat label={t('portal.requests.stat_with_office')} value={waiting.length} icon={FileCheck2} />
+          <Stat label={t('portal.requests.stat_issued')} value={rows.filter((r) => r.status === 'issued').length} />
+          <Stat label={t('portal.requests.stat_ready')} value={rows.filter((r) => r.has_file).length} />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Ask for a certificate"
-            description="The office writes the purpose on the certificate itself, so say what it is for."
+            title={t('portal.requests.form_title')}
+            description={t('portal.requests.form_description')}
           />
           <div className="p-4">
             <FormGrid>
               {children.length > 1 && (
-                <Field label="Child" required>
+                <Field label={t('portal.requests.field_child')} required>
                   <Select
                     value={chosen}
                     onChange={setChosen}
-                    placeholder="Choose a child"
+                    placeholder={t('portal.requests.choose_child')}
                     options={childOptions(children)}
                   />
                 </Field>
               )}
               <Field
-                label="Which certificate"
+                label={t('portal.requests.field_which')}
                 required
                 hint={
-                  available.find((t) => t.code === typeCode)?.requires_approval
-                    ? 'This one needs the principal to approve it first.'
+                  available.find((rt) => rt.code === typeCode)?.requires_approval
+                    ? t('portal.requests.hint_needs_approval')
                     : undefined
                 }
               >
                 <Select
                   value={typeCode}
                   onChange={setTypeCode}
-                  placeholder={available.length ? 'Choose one' : 'The school has not set any up'}
-                  options={available.map((t) => ({ value: t.code, label: t.name }))}
+                  placeholder={
+                    available.length
+                      ? t('portal.requests.choose_one')
+                      : t('portal.requests.no_types')
+                  }
+                  options={available.map((rt) => ({ value: rt.code, label: rt.name }))}
                 />
               </Field>
-              <Field label="What it is for" required wide>
+              <Field label={t('portal.requests.field_purpose')} required wide>
                 <Textarea
                   rows={2}
                   value={reason}
                   onChange={setReason}
-                  placeholder="Passport application"
+                  placeholder={t('portal.requests.purpose_placeholder')}
                 />
               </Field>
             </FormGrid>
             <div className="mt-4">
               <Button disabled={!ready || raise.isPending} onClick={() => raise.mutate()}>
-                {raise.isPending ? 'Sending…' : 'Ask the office'}
+                {raise.isPending ? t('portal.requests.sending') : t('portal.requests.action_ask')}
               </Button>
             </div>
             <FormNotice
               error={raise.error}
-              ok={raise.isSuccess ? 'Asked. The office can see it now.' : undefined}
+              ok={raise.isSuccess ? t('portal.requests.sent_ok') : undefined}
             />
           </div>
         </Card>
 
         <Card>
           <CardHeader
-            title="Your requests"
-            description="The number is what to quote if you ring the office."
+            title={t('portal.requests.list_title')}
+            description={t('portal.requests.list_description')}
           />
           <Table
-            head={['Number', 'Certificate', 'Child', 'For', 'Asked on', 'Where it is']}
+            head={[
+              t('portal.requests.col_number'),
+              t('portal.requests.col_certificate'),
+              t('portal.requests.col_child'),
+              t('portal.requests.col_for'),
+              t('portal.requests.col_asked_on'),
+              t('portal.requests.col_where'),
+            ]}
             empty={rows.length === 0}
-            emptyLabel="You have not asked for any certificates."
+            emptyLabel={t('portal.requests.empty')}
           >
             {rows.map((r) => (
               <tr key={r.id}>
@@ -191,7 +204,7 @@ export default function Requests() {
                 <Td>
                   <Badge tone={TONE[r.status]}>{r.status}</Badge>
                   {r.has_file && (
-                    <div className="text-[12px] text-muted-foreground">signed copy on file</div>
+                    <div className="text-[12px] text-muted-foreground">{t('portal.requests.signed_copy')}</div>
                   )}
                 </Td>
               </tr>
@@ -212,6 +225,7 @@ export default function Requests() {
    entries made that one question look like two.
 */
 function DocumentsOnFile() {
+  const t = useT()
   const q = useQuery({
     queryKey: ['portal-documents'],
     queryFn: () => api.get<List<DocumentRow>>('/api/v1/portal/documents'),
@@ -222,17 +236,26 @@ function DocumentsOnFile() {
   return (
     <Card>
       <CardHeader
-        title="Documents the school holds"
+        title={t('portal.requests.docs_title')}
         description={
           rows.length
-            ? `${rows.length} on file, ${unchecked.length} still to be checked. Anything missing has to go to the office — the portal does not accept uploads yet.`
-            : 'Nothing on file yet. Documents given to the office appear here.'
+            ? t('portal.requests.docs_description', {
+                count: rows.length,
+                unchecked: unchecked.length,
+              })
+            : t('portal.requests.docs_description_empty')
         }
       />
       <Table
-        head={['Document', 'Child', 'Given on', 'Size', 'Checked']}
+        head={[
+          t('portal.requests.docs_col_document'),
+          t('portal.requests.docs_col_child'),
+          t('portal.requests.docs_col_given_on'),
+          t('portal.requests.docs_col_size'),
+          t('portal.requests.docs_col_checked'),
+        ]}
         empty={rows.length === 0}
-        emptyLabel="The school holds nothing on file."
+        emptyLabel={t('portal.requests.docs_empty')}
       >
         {rows.map((d) => (
           <tr key={d.id}>
@@ -246,10 +269,14 @@ function DocumentsOnFile() {
             <Td className="tabular-nums">{fileSize(d.size_bytes)}</Td>
             <Td>
               <Badge tone={d.verified ? 'success' : 'warning'}>
-                {d.verified ? 'checked' : 'not checked yet'}
+                {d.verified
+                  ? t('portal.requests.docs_badge_checked')
+                  : t('portal.requests.docs_badge_unchecked')}
               </Badge>
               {d.verified_by && (
-                <div className="text-[12px] text-muted-foreground">by {d.verified_by}</div>
+                <div className="text-[12px] text-muted-foreground">
+                  {t('portal.requests.docs_checked_by', { name: d.verified_by })}
+                </div>
               )}
             </Td>
           </tr>

@@ -6,6 +6,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
 
 /* How the support plan is actually going.
@@ -78,6 +79,7 @@ function ProgressBar({ percent }: { percent: number }) {
 }
 
 export default function IEPGoals() {
+  const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   /* A support plan is one child's, and the endpoint resolves it with
      whichChild (portal_school_life.go:1164), which answers for the eldest when
@@ -98,7 +100,7 @@ export default function IEPGoals() {
     enabled: ready,
   })
 
-  if (query.isLoading) return <Loading label="Looking up the support plan…" />
+  if (query.isLoading) return <Loading label={t('portal.iep_goals.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const plan = query.data?.plan
@@ -108,15 +110,15 @@ export default function IEPGoals() {
   return (
     <>
       <PageHead
-        eyebrow="Academics"
-        title="Support plan & goals"
-        description="What the school agreed to do, and how far each goal has come."
+        eyebrow={t('portal.iep_goals.eyebrow')}
+        title={t('portal.iep_goals.title')}
+        description={t('portal.iep_goals.description')}
       />
       <PageBody>
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
-              <Field label="Child">
+              <Field label={t('portal.iep_goals.field_child')}>
                 <Select value={chosen} onChange={setChosen} options={childOptions(children)} />
               </Field>
             </div>
@@ -126,47 +128,49 @@ export default function IEPGoals() {
         {!ready ? (
           <Card>
             <EmptyState
-              title="Choose a child"
-              body="A support plan is agreed for one child, so this screen has to know whose."
+              title={t('portal.iep_goals.choose_child_title')}
+              body={t('portal.iep_goals.choose_child_body')}
             />
           </Card>
         ) : !query.data?.has_plan ? (
           <Card>
             <EmptyState
-              title="No support plan"
-              body="Your child does not have a support plan on file. If you believe they should, speak to the class teacher."
+              title={t('portal.iep_goals.no_plan_title')}
+              body={t('portal.iep_goals.no_plan_body')}
             />
           </Card>
         ) : (
           <>
             <CellGrid cols={3}>
-              <Stat label="Goals" value={goals.length} icon={Target} />
-              <Stat label="Met" value={goals.filter((g) => g.status === 'met').length} />
+              <Stat label={t('portal.iep_goals.stat_goals')} value={goals.length} icon={Target} />
+              <Stat label={t('portal.iep_goals.stat_met')} value={goals.filter((g) => g.status === 'met').length} />
               <Stat
-                label="Average progress"
+                label={t('portal.iep_goals.stat_average_progress')}
                 value={
                   measured.length
                     ? `${Math.round(measured.reduce((n, g) => n + (g.progress_percent ?? 0), 0) / measured.length)}%`
                     : '—'
                 }
-                hint={measured.length ? undefined : 'Nothing measured yet'}
+                hint={measured.length ? undefined : t('portal.iep_goals.stat_average_hint')}
               />
             </CellGrid>
 
             <Card>
               <CardHeader
-                title="The plan"
+                title={t('portal.iep_goals.plan_title')}
                 description={
-                  plan?.review_on ? `Next review ${formatDate(plan.review_on)}.` : 'No review date set.'
+                  plan?.review_on
+                    ? t('portal.iep_goals.plan_next_review', { date: formatDate(plan.review_on) })
+                    : t('portal.iep_goals.plan_no_review')
                 }
                 action={plan?.status ? <Badge tone={TONE[plan.status] ?? 'neutral'}>{plan.status.replace('_', ' ')}</Badge> : undefined}
               />
               <dl className="divide-y">
                 {[
-                  ['What we are working on', plan?.concern],
-                  ['In the classroom', plan?.accommodations],
-                  ['In examinations', plan?.exam_concession],
-                  ['Outside the school', plan?.external_support],
+                  [t('portal.iep_goals.plan_concern'), plan?.concern],
+                  [t('portal.iep_goals.plan_accommodations'), plan?.accommodations],
+                  [t('portal.iep_goals.plan_exam_concession'), plan?.exam_concession],
+                  [t('portal.iep_goals.plan_external_support'), plan?.external_support],
                 ]
                   .filter(([, v]) => v)
                   .map(([k, v]) => (
@@ -180,13 +184,13 @@ export default function IEPGoals() {
 
             <Card>
               <CardHeader
-                title="Goals"
-                description="Each bar is the most recent measurement between where your child started and where the plan is aiming."
+                title={t('portal.iep_goals.goals_title')}
+                description={t('portal.iep_goals.goals_description')}
               />
               {goals.length === 0 ? (
                 <EmptyState
-                  title="No goals yet"
-                  body="The plan is in place but no measurable goals have been written against it."
+                  title={t('portal.iep_goals.no_goals_title')}
+                  body={t('portal.iep_goals.no_goals_body')}
                 />
               ) : (
                 <ul className="divide-y">
@@ -197,7 +201,8 @@ export default function IEPGoals() {
                           <p className="text-[14px] font-medium">{g.title}</p>
                           <p className="text-[13px] text-muted-foreground">
                             {g.domain.replace(/_/g, ' ')}
-                            {g.target_on && ` · aiming for ${formatDate(g.target_on)}`}
+                            {g.target_on &&
+                              t('portal.iep_goals.aiming_for', { date: formatDate(g.target_on) })}
                           </p>
                         </div>
                         <Badge tone={TONE[g.status] ?? 'neutral'}>{g.status}</Badge>
@@ -207,30 +212,33 @@ export default function IEPGoals() {
                         <>
                           <div className="mt-3 flex items-baseline justify-between gap-3 text-[13px]">
                             <span className="text-muted-foreground">
-                              Started at {g.baseline_value}
-                              {g.unit ? ` ${g.unit}` : ''}
+                              {t('portal.iep_goals.started_at', {
+                                value: `${g.baseline_value ?? ''}${g.unit ? ` ${g.unit}` : ''}`,
+                              })}
                             </span>
                             <span className="font-medium">
-                              Now {g.latest_value}
+                              {t('portal.iep_goals.now', { value: g.latest_value ?? '' })}
                               {g.latest_on && (
                                 <span className="text-muted-foreground"> ({formatDate(g.latest_on)})</span>
                               )}
                             </span>
                             <span className="text-muted-foreground">
-                              Target {g.target_value}
+                              {t('portal.iep_goals.target', { value: g.target_value ?? '' })}
                             </span>
                           </div>
                           <ProgressBar percent={g.progress_percent} />
                           <p className="mt-1 text-[12px] text-muted-foreground">
-                            {g.progress_percent}% of the way
-                            {!g.higher_is_better && ' — for this goal a lower number is better'}
+                            {t('portal.iep_goals.progress_of_the_way', {
+                              percent: g.progress_percent,
+                            })}
+                            {!g.higher_is_better && t('portal.iep_goals.lower_is_better')}
                           </p>
                         </>
                       ) : (
                         <p className="mt-2 text-[13px] text-muted-foreground">
                           {g.updates.length
-                            ? 'Recorded in words rather than numbers — see the notes below.'
-                            : 'Not measured yet.'}
+                            ? t('portal.iep_goals.recorded_in_words')
+                            : t('portal.iep_goals.not_measured')}
                         </p>
                       )}
 
@@ -253,9 +261,7 @@ export default function IEPGoals() {
 
             <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
               <ClipboardList className="mt-0.5 h-4 w-4 shrink-0" />
-              Some goals may be recorded but not shared here — a school may withhold a
-              goal written from a clinical referral. Ask the class teacher if something
-              you expected is missing.
+              {t('portal.iep_goals.footnote')}
             </p>
           </>
         )}

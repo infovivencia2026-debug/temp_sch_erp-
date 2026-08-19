@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, Loading, ErrorState, PrintButton,
 } from '@/components/ui'
+import { useT } from '@/lib/i18n'
 
 /* The guardian's own card for the school gate.
 
@@ -41,6 +42,7 @@ interface Pass {
 }
 
 export default function ParentIDCard() {
+  const t = useT()
   const query = useQuery({
     queryKey: ['parent-id-card'],
     queryFn: () =>
@@ -50,27 +52,29 @@ export default function ParentIDCard() {
     refetchInterval: 60_000,
   })
 
-  if (query.isLoading) return <Loading label="Building your card…" />
+  if (query.isLoading) return <Loading label={t('portal.parent_id_card.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const card = query.data?.card
   const pass = query.data?.pass
   const children = query.data?.children ?? []
-  if (!card || !pass) return <ErrorState error={new Error('No card returned')} />
+  if (!card || !pass) return <ErrorState error={new Error(t('portal.parent_id_card.no_card'))} />
 
   return (
     <>
       <PageHead
-        eyebrow="Profile"
-        title="Campus entry pass"
-        description="Show this at the gate. The code refreshes itself every couple of minutes."
-        actions={<PrintButton label="Print pass" />}
+        eyebrow={t('portal.parent_id_card.eyebrow')}
+        title={t('portal.parent_id_card.title')}
+        description={t('portal.parent_id_card.description')}
+        actions={<PrintButton label={t('portal.parent_id_card.action_print')} />}
       />
       <PageBody width="form">
         <Card className="overflow-hidden">
           <div className="border-b bg-muted/40 px-5 py-4">
             <p className="text-[13px] text-muted-foreground">{card.school_name}</p>
-            <p className="text-[12px] text-muted-foreground">Guardian entry pass</p>
+            <p className="text-[12px] text-muted-foreground">
+              {t('portal.parent_id_card.card_kind')}
+            </p>
           </div>
 
           <div className="px-5 py-5">
@@ -84,10 +88,10 @@ export default function ParentIDCard() {
             <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <Users className="h-3.5 w-3.5" />
               {children.length === 0
-                ? 'No children linked to this account'
+                ? t('portal.parent_id_card.no_children')
                 : children.length === 1
-                  ? 'Guardian of'
-                  : `Guardian of ${children.length} children`}
+                  ? t('portal.parent_id_card.guardian_of_one')
+                  : t('portal.parent_id_card.guardian_of_many', { count: children.length })}
             </p>
             <ul className="mt-2 space-y-1">
               {children.map((c) => (
@@ -105,12 +109,13 @@ export default function ParentIDCard() {
           </div>
 
           <div className="border-t px-5 py-5">
-            <p className="text-[13px] text-muted-foreground">Pass number {pass.serial}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {t('portal.parent_id_card.pass_number', { serial: pass.serial })}
+            </p>
             <p className="mt-1 font-mono text-[32px] tracking-[0.2em]">{pass.code}</p>
             <p className="mt-2 flex items-start gap-1.5 text-[12px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Read out the pass number and the code at the gate. A screenshot will not
-              work for long — the code changes, which is what stops it being passed on.
+              {t('portal.parent_id_card.gate_note')}
             </p>
           </div>
         </Card>

@@ -24,6 +24,21 @@ export const familyKeys = {
   'parent.academics.iep_progress_goal_tracker': lazy(() => import('./IEPGoals')),
   'parent.profile.digital_student_id_card_view': lazy(() => import('./StudentIDCard')),
   'parent.profile.digital_parent_id_card_for_campus_entry': lazy(() => import('./ParentIDCard')),
+
+  /* The display-preferences screen serves three catalogue rows and one screen.
+     Language, theme and contrast are one panel a person opens once; splitting
+     them into three pages to match three keys would be the catalogue shaping
+     the product rather than describing it. The screen lives under learning/
+     because a student reaches it too -- same preferences, same row. */
+  'parent.profile.multi_language_app_interface_toggle': lazy(
+    () => import('../learning/ThemeSelection'),
+  ),
+  'parent.profile.telugu_language_interface': lazy(
+    () => import('../learning/ThemeSelection'),
+  ),
+  'parent.profile.parent_app_dark_mode_high_contrast_accessibility': lazy(
+    () => import('../learning/ThemeSelection'),
+  ),
   'parent.home.real_time_push_notifications': lazy(() => import('./Alerts')),
   'parent.fees.child_daily_cafeteria_purchase_timeline': lazy(() => import('./Cafeteria')),
 }

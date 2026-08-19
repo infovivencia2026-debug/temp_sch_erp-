@@ -6,6 +6,7 @@ import {
   Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /* What the school holds on file for your child.
 
@@ -38,12 +39,13 @@ function fileSize(bytes: number) {
 }
 
 export default function Documents() {
+  const t = useT()
   const docs = useQuery({
     queryKey: ['portal-documents'],
     queryFn: () => api.get<List<DocumentRow>>('/api/v1/portal/documents'),
   })
 
-  if (docs.isLoading) return <Loading label="Looking up the file…" />
+  if (docs.isLoading) return <Loading label={t('portal.documents.loading')} />
   if (docs.error) return <ErrorState error={docs.error} />
 
   const rows = docs.data?.items ?? []
@@ -52,26 +54,35 @@ export default function Documents() {
   return (
     <>
       <PageHead
-        eyebrow="Requests"
-        title="Documents on file"
-        description="What the school holds for your child, and whether the office has checked it."
+        eyebrow={t('portal.documents.eyebrow')}
+        title={t('portal.documents.title')}
+        description={t('portal.documents.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="On file" value={rows.length} icon={FolderCheck} />
-          <Stat label="Checked by the office" value={rows.length - unverified.length} />
-          <Stat label="Still to be checked" value={unverified.length} />
+          <Stat label={t('portal.documents.stat_on_file')} value={rows.length} icon={FolderCheck} />
+          <Stat
+            label={t('portal.documents.stat_checked')}
+            value={rows.length - unverified.length}
+          />
+          <Stat label={t('portal.documents.stat_unchecked')} value={unverified.length} />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Documents"
-            description="Anything missing has to go to the office — the portal does not accept uploads yet."
+            title={t('portal.documents.card_title')}
+            description={t('portal.documents.card_description')}
           />
           <Table
-            head={['Document', 'Child', 'Given on', 'Size', 'Checked']}
+            head={[
+              t('portal.documents.col_document'),
+              t('portal.documents.col_child'),
+              t('portal.documents.col_given_on'),
+              t('portal.documents.col_size'),
+              t('portal.documents.col_checked'),
+            ]}
             empty={rows.length === 0}
-            emptyLabel="The school holds nothing on file for your child."
+            emptyLabel={t('portal.documents.empty')}
           >
             {rows.map((d) => (
               <tr key={d.id}>
@@ -87,10 +98,14 @@ export default function Documents() {
                 <Td className="tabular-nums">{fileSize(d.size_bytes)}</Td>
                 <Td>
                   <Badge tone={d.verified ? 'success' : 'warning'}>
-                    {d.verified ? 'checked' : 'not checked yet'}
+                    {d.verified
+                      ? t('portal.documents.badge_checked')
+                      : t('portal.documents.badge_unchecked')}
                   </Badge>
                   {d.verified_by && (
-                    <div className="text-[12px] text-muted-foreground">by {d.verified_by}</div>
+                    <div className="text-[12px] text-muted-foreground">
+                      {t('portal.documents.checked_by', { name: d.verified_by })}
+                    </div>
                   )}
                 </Td>
               </tr>

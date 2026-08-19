@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /* Results, as a family sees them.
 
@@ -55,6 +56,7 @@ interface Child {
 }
 
 export default function PortalResults() {
+  const t = useT()
   const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
@@ -78,11 +80,11 @@ export default function PortalResults() {
   if (!kids.length)
     return (
       <>
-        <PageHead eyebrow="Results" title="Results" />
+        <PageHead eyebrow={t('portal.results.eyebrow')} title={t('portal.results.title')} />
         <PageBody>
           <EmptyState
-            title="No student record linked"
-            body="Your account is not linked to a student yet. Ask the school office to connect it."
+            title={t('portal.results.no_child_title')}
+            body={t('portal.results.no_child_body')}
           />
         </PageBody>
       </>
@@ -92,11 +94,11 @@ export default function PortalResults() {
   if (!data)
     return (
       <>
-        <PageHead eyebrow="Results" title="Results" />
+        <PageHead eyebrow={t('portal.results.eyebrow')} title={t('portal.results.title')} />
         <PageBody>
           <EmptyState
-            title="No results published yet"
-            body="Your school has not released any results yet. They appear here as soon as it does — nothing provisional is shown."
+            title={t('portal.results.none_title')}
+            body={t('portal.results.none_body')}
           />
         </PageBody>
       </>
@@ -115,12 +117,12 @@ export default function PortalResults() {
   return (
     <>
       <PageHead
-        eyebrow="Results"
-        title={d.published ? 'Published results' : 'No results published yet'}
+        eyebrow={t('portal.results.eyebrow')}
+        title={d.published ? t('portal.results.published_title') : t('portal.results.none_title')}
         description={
           d.published
-            ? `Report cards the school has released for ${name}.`
-            : 'Your school has not released any results yet. They appear here as soon as it does — nothing provisional is shown.'
+            ? t('portal.results.published_description', { name })
+            : t('portal.results.none_body')
         }
         actions={
           kids.length > 1 && (
@@ -139,34 +141,50 @@ export default function PortalResults() {
         {latest && (
           <CellGrid cols={4}>
             <Stat
-              label="Latest"
+              label={t('portal.results.stat_latest')}
               value={latest.percentage != null ? `${latest.percentage.toFixed(1)}%` : '—'}
               icon={GraduationCap}
               hint={latest.term ?? latest.exam}
             />
-            <Stat label="Grade" value={latest.grade ?? '—'} icon={Award} />
+            <Stat label={t('portal.results.stat_grade')} value={latest.grade ?? '—'} icon={Award} />
             <Stat
-              label="Rank in section"
+              label={t('portal.results.stat_rank')}
               value={latest.rank_in_section ?? '—'}
-              hint={latest.gpa != null ? `GPA ${latest.gpa.toFixed(1)}` : undefined}
+              hint={
+                latest.gpa != null
+                  ? t('portal.results.gpa', { value: latest.gpa.toFixed(1) })
+                  : undefined
+              }
             />
             <Stat
-              label="Attendance"
+              label={t('portal.results.stat_attendance')}
               value={latest.attendance_percent != null ? `${Math.round(latest.attendance_percent)}%` : '—'}
-              hint="On the report card"
+              hint={t('portal.results.stat_attendance_hint')}
             />
           </CellGrid>
         )}
 
         <Card>
-          <CardHeader title="Report cards" description="Only what the school has released" />
+          <CardHeader
+            title={t('portal.results.cards_title')}
+            description={t('portal.results.cards_description')}
+          />
           {d.cards.length === 0 ? (
             <EmptyState
-              title="Nothing released yet"
-              body="Marks may already be entered; they appear here once the school publishes the card."
+              title={t('portal.results.cards_empty_title')}
+              body={t('portal.results.cards_empty_body')}
             />
           ) : (
-            <Table head={['Term', 'Total', 'Percentage', 'Grade', 'Rank', 'Published']}>
+            <Table
+              head={[
+                t('portal.results.col_term'),
+                t('portal.results.col_total'),
+                t('portal.results.col_percentage'),
+                t('portal.results.col_grade'),
+                t('portal.results.col_rank'),
+                t('portal.results.col_published'),
+              ]}
+            >
               {d.cards.map((c, i) => (
                 <tr key={i}>
                   <Td className="font-medium">{c.term ?? c.exam}</Td>
@@ -185,7 +203,7 @@ export default function PortalResults() {
           )}
           {latest?.class_teacher_remarks && (
             <p className="border-t px-5 py-3 text-[14px]">
-              <span className="eyebrow mr-2">Class teacher</span>
+              <span className="eyebrow mr-2">{t('portal.results.class_teacher')}</span>
               {latest.class_teacher_remarks}
             </p>
           )}
@@ -193,13 +211,23 @@ export default function PortalResults() {
 
         {[...byExam.entries()].map(([exam, marks]) => (
           <Card key={exam}>
-            <CardHeader title={exam} description={`${marks.length} subjects`} />
-            <Table head={['Subject', 'Marks', 'Out of', 'Grade']}>
+            <CardHeader
+              title={exam}
+              description={t('portal.results.subject_count', { count: marks.length })}
+            />
+            <Table
+              head={[
+                t('portal.results.col_subject'),
+                t('portal.results.col_marks'),
+                t('portal.results.col_out_of'),
+                t('portal.results.col_subject_grade'),
+              ]}
+            >
               {marks.map((m, i) => (
                 <tr key={i}>
                   <Td className="font-medium">{m.subject}</Td>
                   <Td className="tabular-nums">
-                    {m.is_absent ? <Badge tone="danger">Absent</Badge> : (m.marks_obtained ?? '—')}
+                    {m.is_absent ? <Badge tone="danger">{t('portal.results.absent')}</Badge> : (m.marks_obtained ?? '—')}
                   </Td>
                   <Td className="tabular-nums">{m.max_marks ?? '—'}</Td>
                   <Td>{m.grade ?? '—'}</Td>

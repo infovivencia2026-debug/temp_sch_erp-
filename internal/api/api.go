@@ -33,6 +33,8 @@ func (s *Server) Routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/session", s.getSession)
+	s.mountAdmissionsPublic(r)
+	s.mountSMSGatewayDevice(r)
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
@@ -97,9 +99,15 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		s.mountAdminRollups(r)
+		s.mountReportBuilder(r)
 		s.mountAdminOps(r)
+		s.mountMDM(r)
 		s.mountTimetableOps(r)
+		s.mountMasterTimetable(r)
 		s.mountHRGrowth(r)
+		s.mountClassroom(r)
+		s.mountComms(r)
+		s.mountSMSGateway(r)
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
@@ -237,7 +245,9 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/results", s.getFamilyResults)
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
+			s.mountParentForum(r)
 			s.mountStudentLearning(r)
+			s.mountStudentLife(r)
 		})
 
 		// --- Accounts & Finance -------------------------------------------
@@ -248,6 +258,7 @@ func (s *Server) Routes() http.Handler {
 			s.mountTally(r)
 			s.mountBanking(r)
 			s.mountConcessions(r)
+			s.mountCollections(r)
 			r.Get("/dashboard", s.getFinanceDashboard)
 			r.Get("/invoices", s.listInvoices)
 			r.Get("/payments", s.listPayments)
@@ -273,6 +284,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Admissions & Front Office ------------------------------------
 		r.Route("/admissions", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AdmissionsRead))
+			s.mountAdmissionsGrowth(r)
 			r.Get("/dashboard", s.getAdmissionsDashboard)
 			r.Get("/enquiries", s.listEnquiries)
 			r.Get("/applications", s.listApplications)
@@ -432,7 +444,6 @@ func (s *Server) Routes() http.Handler {
 		// --- Timetable generation (module 7) -------------------------------
 		r.Route("/timetable-admin", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.TimetableWrite))
-			r.Post("/generate", s.generateTimetable)
 			r.Post("/substitutions", s.createSubstitution)
 		})
 
@@ -474,6 +485,7 @@ func (s *Server) Routes() http.Handler {
 		// --- Operations desks (module 10) ----------------------------------
 		r.Route("/ops", func(r chi.Router) {
 			s.mountInfirmary(r)
+			s.mountDigitalLibrary(r)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles", s.listLibraryTitles)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)
@@ -570,7 +582,9 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/admin", func(r chi.Router) {
 			s.mountPlatformConfig(r)
 			s.mountMessaging(r)
+			s.mountWhatsApp(r)
 			s.mountTallyConnector(r)
+			s.mountConnectors(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

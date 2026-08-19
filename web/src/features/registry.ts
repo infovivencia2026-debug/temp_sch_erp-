@@ -20,6 +20,19 @@ import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { concessionsKeys } from './finance/concessions-keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
 import { hrGrowthKeys } from './hr/growth-keys'
+import { commsKeys } from './communication/comms-keys'
+import { studentLifeKeys } from './learning/student-life-keys'
+import { classroomKeys } from './faculty/classroom-keys'
+import { forumKeys } from './portal/forum-keys'
+import { collectionsKeys } from './finance/collections-keys'
+import { admissionsGrowthKeys } from './admissions/growth-keys'
+import { mdmKeys } from './operations/mdm-keys'
+import { masterTimetableKeys } from './academics/master-timetable-keys'
+import { connectorsKeys } from './super_admin/connectors-keys'
+import { whatsappKeys } from './super_admin/whatsapp-keys'
+import { smsGatewayKeys } from './communication/sms-gateway-keys'
+import { reportBuilderKeys } from './analytics/report-builder-keys'
+import { digitalLibraryKeys } from './operations/digital-library-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -412,6 +425,19 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...concessionsKeys,
   ...adminOpsKeys,
   ...hrGrowthKeys,
+  ...commsKeys,
+  ...studentLifeKeys,
+  ...classroomKeys,
+  ...forumKeys,
+  ...collectionsKeys,
+  ...admissionsGrowthKeys,
+  ...mdmKeys,
+  ...masterTimetableKeys,
+  ...connectorsKeys,
+  ...whatsappKeys,
+  ...smsGatewayKeys,
+  ...reportBuilderKeys,
+  ...digitalLibraryKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

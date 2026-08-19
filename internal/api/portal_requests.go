@@ -653,6 +653,13 @@ type concernRow struct {
 /*
 listPortalConcerns powers parent.messages.concerns_grievance_ticketing.
 
+	The audience filter is not redundant, though it is close to it. Today only
+	a school administrator raises an audience='vendor' ticket, so a parent's
+	own rows are all 'school' -- but a member of staff whose child studies at
+	the school is one user, and their fault report to the vendor has no
+	business appearing on their family's concerns screen. The vendor side
+	already filters the other way (seller.go); this is the matching half.
+
 	Narrowed to raised_by = the caller, not to the caller's children. A
 	grievance is the complainant's, and two guardians of one child are two
 	complainants: a mother raising a concern about a teacher has not agreed to
@@ -671,7 +678,7 @@ func (s *Server) listPortalConcerns(w http.ResponseWriter, r *http.Request) {
 		  FROM support_tickets t
 		  LEFT JOIN students st ON st.id = t.student_id
 		  LEFT JOIN users u ON u.id = t.assigned_to
-		 WHERE t.raised_by = $1
+		 WHERE t.raised_by = $1 AND t.audience = 'school'
 		 ORDER BY t.created_at DESC
 		 LIMIT 100`, []any{id.UserID},
 		func(rows pgx.Rows) (concernRow, error) {

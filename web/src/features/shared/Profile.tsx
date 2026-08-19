@@ -5,6 +5,7 @@ import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
 } from '@/components/ui'
 import { useSession } from '@/lib/session'
+import { MyGrowthPanels } from '@/features/hr/MyGrowth'
 
 interface Profile {
   id: string; full_name: string; email?: string; phone?: string
@@ -67,6 +68,7 @@ export default function ProfileView() {
   if (error) return <ErrorState error={error} />
 
   return (
+    <>
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader
@@ -149,6 +151,21 @@ export default function ProfileView() {
         </form>
       </Card>
     </div>
+
+    {/* The staff side of "my own record".
+
+        A teacher's appraisal, training hours and duty roster are read through
+        /hr-growth/me/*, which is gated on self.profile.read — the same
+        entitlement that opens this screen — and narrowed to the caller's own
+        employee row by the server. They belong here because this is where
+        somebody looks for what the school holds about them; the HR screens
+        that hold the other side of these records are gated on
+        hr.employees.read and a teacher cannot open them. Renders nothing for
+        a signed-in user who has no staff record. */}
+    <div className="mt-4 grid gap-4">
+      <MyGrowthPanels quiet />
+    </div>
+    </>
   )
 }
 

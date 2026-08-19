@@ -7,6 +7,7 @@ import {
   Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* The family's seats, and the number that gets them through the door.
@@ -54,15 +55,16 @@ const EVENT_KINDS = [
   'competition', 'field_trip', 'assembly', 'fete',
 ]
 
-function seatLabel(p: Pass) {
-  if (!p.row_label || !p.seat_from) return `${p.seats} seats`
+function seatLabel(p: Pass, t: ReturnType<typeof useT>) {
+  if (!p.row_label || !p.seat_from) return t('portal.event_passes.seats_count', { count: p.seats })
   const to = p.seat_from + p.seats - 1
   return p.seats === 1
-    ? `Row ${p.row_label}, seat ${p.seat_from}`
-    : `Row ${p.row_label}, seats ${p.seat_from}–${to}`
+    ? t('portal.event_passes.row_seat', { row: p.row_label, seat: p.seat_from })
+    : t('portal.event_passes.row_seats', { row: p.row_label, from: p.seat_from, to })
 }
 
 export default function EventPasses() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [eventId, setEventId] = useState('')
@@ -99,7 +101,7 @@ export default function EventPasses() {
     },
   })
 
-  if (passes.isLoading) return <Loading label="Looking up your passes…" />
+  if (passes.isLoading) return <Loading label={t('portal.event_passes.loading')} />
   if (passes.error) return <ErrorState error={passes.error} />
 
   const rows = passes.data?.items ?? []
@@ -117,44 +119,55 @@ export default function EventPasses() {
   return (
     <>
       <PageHead
-        eyebrow="School life"
-        title="Event seating"
-        description="Claim your seats for a school event and show the number at the door."
-        actions={<PrintButton label="Print passes" />}
+        eyebrow={t('portal.event_passes.eyebrow')}
+        title={t('portal.event_passes.title')}
+        description={t('portal.event_passes.description')}
+        actions={<PrintButton label={t('portal.event_passes.action_print')} />}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Passes to use" value={live.length} icon={Ticket} />
-          <Stat label="Seats held" value={live.reduce((n, p) => n + p.seats, 0)} icon={Armchair} />
-          <Stat label="Events attended" value={rows.filter((p) => p.admitted_at).length} />
+          <Stat label={t('portal.event_passes.stat_passes')} value={live.length} icon={Ticket} />
+          <Stat
+            label={t('portal.event_passes.stat_seats')}
+            value={live.reduce((n, p) => n + p.seats, 0)}
+            icon={Armchair}
+          />
+          <Stat
+            label={t('portal.event_passes.stat_attended')}
+            value={rows.filter((p) => p.admitted_at).length}
+          />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Claim seats"
-            description="Seats are given out in the order families claim them."
+            title={t('portal.event_passes.claim_title')}
+            description={t('portal.event_passes.claim_description')}
           />
           <div className="px-5 py-4">
             <FormGrid>
               {children.length > 1 && (
-                <Field label="Child" required>
+                <Field label={t('portal.event_passes.field_child')} required>
                   <Select
                     value={chosen}
                     onChange={setChosen}
                     options={childOptions(children)}
-                    placeholder="Which child…"
+                    placeholder={t('portal.event_passes.child_placeholder')}
                   />
                 </Field>
               )}
-              <Field label="Event" required>
+              <Field label={t('portal.event_passes.field_event')} required>
                 <Select
                   value={eventId}
                   onChange={setEventId}
                   options={options}
-                  placeholder={options.length ? 'Choose an event…' : 'No events open'}
+                  placeholder={
+                    options.length
+                      ? t('portal.event_passes.event_placeholder')
+                      : t('portal.event_passes.event_placeholder_none')
+                  }
                 />
               </Field>
-              <Field label="Seats" hint="How many of you are coming.">
+              <Field label={t('portal.event_passes.field_seats')} hint={t('portal.event_passes.field_seats_hint')}>
                 <Select
                   value={seats}
                   onChange={setSeats}
@@ -162,10 +175,13 @@ export default function EventPasses() {
                 />
               </Field>
             </FormGrid>
-            <FormNotice error={claim.error} ok={claim.isSuccess ? 'Seats confirmed.' : undefined} />
+            <FormNotice
+              error={claim.error}
+              ok={claim.isSuccess ? t('portal.event_passes.claim_ok') : undefined}
+            />
             <div className="mt-3">
               <Button disabled={!ready || claim.isPending} onClick={() => claim.mutate()}>
-                Claim seats
+                {t('portal.event_passes.action_claim')}
               </Button>
             </div>
           </div>
@@ -174,8 +190,8 @@ export default function EventPasses() {
         {rows.length === 0 ? (
           <Card>
             <EmptyState
-              title="No passes yet"
-              body="Claim seats above and the pass will appear here."
+              title={t('portal.event_passes.empty_title')}
+              body={t('portal.event_passes.empty_body')}
             />
           </Card>
         ) : (
@@ -190,18 +206,18 @@ export default function EventPasses() {
                     </p>
                   </div>
                   {p.revoked_at ? (
-                    <Badge tone="neutral">Withdrawn</Badge>
+                    <Badge tone="neutral">{t('portal.event_passes.badge_withdrawn')}</Badge>
                   ) : p.admitted_at ? (
-                    <Badge tone="success">Admitted</Badge>
+                    <Badge tone="success">{t('portal.event_passes.badge_admitted')}</Badge>
                   ) : (
-                    <Badge tone="primary">Valid</Badge>
+                    <Badge tone="primary">{t('portal.event_passes.badge_valid')}</Badge>
                   )}
                 </div>
                 <p className="mt-3 text-[14px]">{p.student_name}</p>
-                <p className="text-[13px] text-muted-foreground">{seatLabel(p)}</p>
+                <p className="text-[13px] text-muted-foreground">{seatLabel(p, t)}</p>
                 <p className="mt-3 font-mono text-[24px] tracking-[0.18em]">{p.code}</p>
                 <p className="text-[12px] text-muted-foreground">
-                  Show this number at the door.
+                  {t('portal.event_passes.show_code')}
                 </p>
               </div>
             ))}

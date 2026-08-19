@@ -2,14 +2,28 @@
 
 ## 0. Base check (MANDATORY, before any other command)
 
-    git log --oneline -1        # MUST print: cbed2c7 Messaging foundation...
-    ls migrations/*.sql | wc -l # MUST print: 40
+    git log --oneline -1
+    git log --oneline -1 origin/operational-erp
 
-If either is wrong you are on a stale base. STOP. Run:
+**Do NOT `git reset --hard origin/operational-erp` on reflex.** On three
+occasions in a single day `origin` was *behind* the local branch, and a worker
+obeying an earlier version of this instruction would have destroyed a commit it
+had been told to build on. Three workers caught it independently. That is luck,
+not a process.
 
-    git fetch origin && git reset --hard origin/operational-erp
+What to do instead:
 
-Never build on a stale base. Never resurrect an old patch.
+1. The coordinator names your base commit in your brief. That SHA is the truth.
+2. If `git log --oneline -1` already shows it, you are on the right base. Stop.
+3. If it does not, `git fetch origin`, then **`git reset --hard <that SHA>`** —
+   the explicit commit, never a branch name. Verify with `git log --oneline -1`
+   before touching anything.
+4. If the SHA does not exist after fetching, stop and report. Do not guess a
+   nearby commit.
+
+Every worker so far has found their worktree branched from an old commit, so
+assume yours is wrong until you have checked. If you have uncommitted work,
+**never reset at all** — you would lose it; finish where you are and say so.
 
 ## 1. Files you must NEVER edit (contention points)
 

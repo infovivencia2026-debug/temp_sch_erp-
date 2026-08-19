@@ -8,6 +8,7 @@ import {
   Loading, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* Letting somebody else collect your child.
@@ -49,6 +50,7 @@ const TONE: Record<Pass['status'], 'success' | 'neutral' | 'danger'> = {
 const RELATIONS = ['Driver', 'Grandparent', 'Uncle / Aunt', 'Neighbour', 'Family friend', 'Other']
 
 export default function Pickup() {
+  const t = useT()
   const qc = useQueryClient()
   const passes = useQuery({
     queryKey: ['portal-pickup'],
@@ -60,7 +62,7 @@ export default function Pickup() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-pickup'] }),
   })
 
-  if (passes.isLoading) return <Loading label="Checking your passes…" />
+  if (passes.isLoading) return <Loading label={t('portal.pickup.loading')} />
   if (passes.error) return <ErrorState error={passes.error} />
 
   const rows = passes.data?.items ?? []
@@ -69,22 +71,22 @@ export default function Pickup() {
   return (
     <>
       <PageHead
-        eyebrow="Consent"
-        title="Someone else collecting"
-        description="Name a person the school may release your child to, once, on one day."
+        eyebrow={t('portal.pickup.eyebrow')}
+        title={t('portal.pickup.title')}
+        description={t('portal.pickup.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Passes in force" value={live.length} icon={KeyRound} />
-          <Stat label="Used" value={rows.filter((p) => p.status === 'used').length} />
-          <Stat label="Cancelled" value={rows.filter((p) => p.status === 'revoked').length} icon={ShieldAlert} />
+          <Stat label={t('portal.pickup.stat_in_force')} value={live.length} icon={KeyRound} />
+          <Stat label={t('portal.pickup.stat_used')} value={rows.filter((p) => p.status === 'used').length} />
+          <Stat label={t('portal.pickup.stat_cancelled')} value={rows.filter((p) => p.status === 'revoked').length} icon={ShieldAlert} />
         </CellGrid>
 
         {live.length > 0 && (
           <Card>
             <CardHeader
-              title="Give them this number"
-              description="The gate will ask for it. Do not send it to anyone but the person collecting."
+              title={t('portal.pickup.code_title')}
+              description={t('portal.pickup.code_description')}
             />
             <ul className="divide-y">
               {live.map((p) => (
@@ -97,16 +99,19 @@ export default function Pickup() {
                       {p.full_name} · {p.relation}
                     </div>
                     <div className="text-[13px] text-muted-foreground">
-                      collecting {p.student_name} on {formatDate(p.valid_on)}
+                      {t('portal.pickup.collecting', {
+                        child: p.student_name,
+                        date: formatDate(p.valid_on),
+                      })}
                     </div>
                   </div>
                   <ConfirmButton
-                    confirmLabel="Cancel it"
-                    question="The code stops working immediately."
+                    confirmLabel={t('portal.pickup.cancel_confirm')}
+                    question={t('portal.pickup.cancel_question')}
                     tone="danger"
                     onConfirm={() => revoke.mutate(p.id)}
                   >
-                    Cancel
+                    {t('portal.pickup.action_cancel')}
                   </ConfirmButton>
                 </li>
               ))}
@@ -118,11 +123,20 @@ export default function Pickup() {
         <AuthoriseSomeone />
 
         <Card>
-          <CardHeader title="Everything you have authorised" description="Kept so the school can answer who collected whom." />
+          <CardHeader
+            title={t('portal.pickup.history_title')}
+            description={t('portal.pickup.history_description')}
+          />
           <Table
-            head={['Person', 'Child', 'Day', 'Why', 'What happened']}
+            head={[
+              t('portal.pickup.col_person'),
+              t('portal.pickup.col_child'),
+              t('portal.pickup.col_day'),
+              t('portal.pickup.col_why'),
+              t('portal.pickup.col_what_happened'),
+            ]}
             empty={rows.length === 0}
-            emptyLabel="You have not asked anyone else to collect your child."
+            emptyLabel={t('portal.pickup.empty')}
           >
             {rows.map((p) => (
               <tr key={p.id}>
@@ -130,7 +144,7 @@ export default function Pickup() {
                   <div className="font-medium">{p.full_name}</div>
                   <div className="text-[12px] text-muted-foreground">
                     {p.relation} · {p.phone}
-                    {p.id_last4 && ` · ${p.id_type ?? 'ID'} ••${p.id_last4}`}
+                    {p.id_last4 && ` · ${p.id_type ?? t('portal.pickup.id_fallback')} ••${p.id_last4}`}
                   </div>
                 </Td>
                 <Td>{p.student_name}</Td>
@@ -140,8 +154,8 @@ export default function Pickup() {
                   <Badge tone={TONE[p.status]}>{p.status}</Badge>
                   {p.used_at && (
                     <div className="text-[12px] text-muted-foreground">
-                      collected {formatDate(p.used_at)}
-                      {p.released_by && ` · released by ${p.released_by}`}
+                      {t('portal.pickup.collected_on', { date: formatDate(p.used_at) })}
+                      {p.released_by && t('portal.pickup.released_by', { name: p.released_by })}
                     </div>
                   )}
                 </Td>
@@ -155,6 +169,7 @@ export default function Pickup() {
 }
 
 function AuthoriseSomeone() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [name, setName] = useState('')
@@ -192,42 +207,42 @@ function AuthoriseSomeone() {
   return (
     <Card>
       <CardHeader
-        title="Authorise somebody"
-        description="Good for one collection on one day. Leaving the last four digits of their ID lets the gate check the person in front of them is the person you meant."
+        title={t('portal.pickup.form_title')}
+        description={t('portal.pickup.form_description')}
       />
       <div className="p-4">
         <FormGrid>
           {children.length > 1 && (
-            <Field label="Child" required>
+            <Field label={t('portal.pickup.field_child')} required>
               <Select
                 value={chosen}
                 onChange={setChosen}
-                placeholder="Choose a child"
+                placeholder={t('portal.pickup.child_placeholder')}
                 options={childOptions(children)}
               />
             </Field>
           )}
-          <Field label="Their name" required>
-            <Input value={name} onChange={setName} placeholder="Suresh Menon" />
+          <Field label={t('portal.pickup.field_name')} required>
+            <Input value={name} onChange={setName} placeholder={t('portal.pickup.name_placeholder')} />
           </Field>
-          <Field label="Their number" required>
+          <Field label={t('portal.pickup.field_phone')} required>
             <Input value={phone} onChange={setPhone} placeholder="98480 12345" />
           </Field>
-          <Field label="Who they are to the child" required>
+          <Field label={t('portal.pickup.field_relation')} required>
             <Select
               value={relation}
               onChange={setRelation}
               options={RELATIONS.map((r) => ({ value: r, label: r }))}
             />
           </Field>
-          <Field label="Which day" hint="Leave blank for today. A month ahead at most.">
+          <Field label={t('portal.pickup.field_day')} hint={t('portal.pickup.field_day_hint')}>
             <Input type="date" value={validOn} onChange={setValidOn} />
           </Field>
-          <Field label="ID they will carry">
+          <Field label={t('portal.pickup.field_id')}>
             <Select
               value={idType}
               onChange={setIdType}
-              placeholder="None"
+              placeholder={t('portal.pickup.id_placeholder')}
               options={[
                 { value: 'Aadhaar', label: 'Aadhaar' },
                 { value: 'Driving licence', label: 'Driving licence' },
@@ -235,26 +250,26 @@ function AuthoriseSomeone() {
               ]}
             />
           </Field>
-          <Field label="Last four digits of it">
+          <Field label={t('portal.pickup.field_id_last4')}>
             <Input value={idLast4} onChange={setIdLast4} placeholder="4821" />
           </Field>
-          <Field label="Why somebody else" wide required>
+          <Field label={t('portal.pickup.field_reason')} wide required>
             <Textarea
               rows={2}
               value={reason}
               onChange={setReason}
-              placeholder="I am travelling and will not be back before school closes"
+              placeholder={t('portal.pickup.reason_placeholder')}
             />
           </Field>
         </FormGrid>
         <div className="mt-4">
           <Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>
-            {create.isPending ? 'Creating…' : 'Create the pass'}
+            {create.isPending ? t('portal.pickup.action_creating') : t('portal.pickup.action_create')}
           </Button>
         </div>
         <FormNotice
           error={create.error}
-          ok={create.data ? `Give them the code ${create.data.code}.` : undefined}
+          ok={create.data ? t('portal.pickup.created_ok', { code: create.data.code }) : undefined}
         />
       </div>
     </Card>

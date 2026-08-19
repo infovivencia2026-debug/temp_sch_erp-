@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -302,178 +301,31 @@ type generateTimetableRequest struct {
 	Replace        bool   `json:"replace"`
 }
 
-// generateTimetable fills a section's grid without clashes.
-//
-// Greedy assignment, not an optimiser: walk the week period by period and place
-// the subject with the largest remaining requirement whose teacher is free at
-// that slot. A genetic solver produces prettier timetables but is impossible to
-// explain to a head of department who wants to know why 8-B has no Physics on
-// Tuesday. Greedy is predictable and re-runnable.
+/*
+generateTimetable is retired. It answers 410 and points at the draft path.
+
+	It used to fill a section's grid greedily and write the result straight into
+	timetable_entries. That is the exact behaviour the draft model in 00050
+	exists to prevent: a generator that writes the live grid has replaced the
+	arrangement a school is mid-term through, and the previous one existed only
+	in those rows. There is no undo, and "replace: true" made it one request
+	away.
+
+	Its replacement is POST /timetable-optimizer/drafts, which runs the real
+	solver (internal/timetable), stores a candidate plus a written account of
+	every requirement it could not meet, and leaves the live timetable alone
+	until a human publishes the draft deliberately.
+
+	Kept as a 410 rather than deleted because the route is registered in api.go
+	and this file must not be the one that changes it. Nothing calls it: no
+	screen in web/src, no test, no other handler -- grepped before retiring it.
+	The integrator should drop the r.Post("/generate", ...) line from the
+	/timetable-admin group, and this function with it.
+*/
 func (s *Server) generateTimetable(w http.ResponseWriter, r *http.Request) {
-	id := httpx.IdentityFrom(r.Context())
-	var req generateTimetableRequest
-	if !httpx.Decode(w, r, &req) {
-		return
-	}
-	sectionID, err := uuid.Parse(req.SectionID)
-	if err != nil {
-		httpx.BadRequest(w, r, "section_id must be a uuid")
-		return
-	}
-
-	type slot struct {
-		periodID uuid.UUID
-		weekday  int
-	}
-	type subject struct {
-		classSubjectID uuid.UUID
-		teacherID      *uuid.UUID
-		remaining      int
-	}
-
-	placed, clashes := 0, 0
-	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var yearID uuid.UUID
-		if req.AcademicYearID != "" {
-			yearID, _ = uuid.Parse(req.AcademicYearID)
-		}
-		if yearID == uuid.Nil {
-			if err := tx.QueryRow(r.Context(),
-				`SELECT academic_year_id FROM sections WHERE id = $1`, sectionID).Scan(&yearID); err != nil {
-				return err
-			}
-		}
-
-		if req.Replace {
-			if _, err := tx.Exec(r.Context(),
-				`DELETE FROM timetable_entries WHERE section_id = $1 AND academic_year_id = $2`,
-				sectionID, yearID); err != nil {
-				return err
-			}
-		}
-
-		// Teaching slots: Monday-Saturday, excluding breaks.
-		var slots []slot
-		rows, err := tx.Query(r.Context(),
-			`SELECT id FROM periods WHERE NOT is_break ORDER BY sequence`)
-		if err != nil {
-			return err
-		}
-		var periods []uuid.UUID
-		for rows.Next() {
-			var p uuid.UUID
-			if err := rows.Scan(&p); err != nil {
-				rows.Close()
-				return err
-			}
-			periods = append(periods, p)
-		}
-		rows.Close()
-		for wd := 1; wd <= 6; wd++ {
-			for _, p := range periods {
-				slots = append(slots, slot{periodID: p, weekday: wd})
-			}
-		}
-
-		// Every subject the class offers, with its assigned teacher. Periods per
-		// week are spread evenly across the available slots.
-		var subs []subject
-		srows, err := tx.Query(r.Context(), `
-			SELECT cs.id,
-			       (SELECT sst.teacher_user_id FROM section_subject_teachers sst
-			         WHERE sst.class_subject_id = cs.id AND sst.section_id = $1 LIMIT 1)
-			  FROM class_subjects cs
-			  JOIN sections sec ON sec.class_id = cs.class_id
-			 WHERE sec.id = $1
-			 ORDER BY cs.id`, sectionID)
-		if err != nil {
-			return err
-		}
-		for srows.Next() {
-			var sub subject
-			if err := srows.Scan(&sub.classSubjectID, &sub.teacherID); err != nil {
-				srows.Close()
-				return err
-			}
-			subs = append(subs, sub)
-		}
-		srows.Close()
-		if len(subs) == 0 || len(slots) == 0 {
-			return nil
-		}
-
-		per := len(slots) / len(subs)
-		if per == 0 {
-			per = 1
-		}
-		for i := range subs {
-			subs[i].remaining = per
-		}
-
-		// Teacher occupancy across the whole school, so a teacher shared by two
-		// sections is not double-booked.
-		busy := map[string]bool{}
-		brows, err := tx.Query(r.Context(), `
-			SELECT teacher_user_id, weekday, period_id
-			  FROM timetable_entries
-			 WHERE teacher_user_id IS NOT NULL AND academic_year_id = $1`, yearID)
-		if err != nil {
-			return err
-		}
-		for brows.Next() {
-			var t uuid.UUID
-			var wd int
-			var p uuid.UUID
-			if err := brows.Scan(&t, &wd, &p); err != nil {
-				brows.Close()
-				return err
-			}
-			busy[fmt.Sprintf("%s|%d|%s", t, wd, p)] = true
-		}
-		brows.Close()
-
-		for _, sl := range slots {
-			// Largest remaining requirement first, so subjects finish evenly
-			// rather than one filling Monday entirely.
-			sort.SliceStable(subs, func(a, b int) bool { return subs[a].remaining > subs[b].remaining })
-			for i := range subs {
-				if subs[i].remaining <= 0 {
-					continue
-				}
-				key := ""
-				if subs[i].teacherID != nil {
-					key = fmt.Sprintf("%s|%d|%s", *subs[i].teacherID, sl.weekday, sl.periodID)
-					if busy[key] {
-						clashes++
-						continue
-					}
-				}
-				if _, err := tx.Exec(r.Context(), `
-					INSERT INTO timetable_entries (institution_id, academic_year_id, section_id,
-					                               period_id, weekday, class_subject_id, teacher_user_id)
-					VALUES ($1,$2,$3,$4,$5,$6,$7)
-					ON CONFLICT DO NOTHING`,
-					id.InstitutionID, yearID, sectionID, sl.periodID, sl.weekday,
-					subs[i].classSubjectID, subs[i].teacherID); err != nil {
-					return err
-				}
-				if key != "" {
-					busy[key] = true
-				}
-				subs[i].remaining--
-				placed++
-				break
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, map[string]any{
-		"periods_placed": placed, "clashes_avoided": clashes,
-	})
+	httpx.Error(w, r, http.StatusGone, "generator_retired",
+		"this generator wrote straight into the live timetable and has been withdrawn; "+
+			"generate a draft with POST /timetable-optimizer/drafts and publish it once you have read the report")
 }
 
 type substitutionRequest struct {

@@ -8,6 +8,7 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 
 /* Staff shift and duty rostering.
 
@@ -188,7 +189,12 @@ export default function Rostering() {
   )
 }
 
+/* Assigning a duty and cancelling one are employees.write
+   (hr_growth.go:128-129); the roster, the shifts, the conflicts and the
+   fairness figures are all reads on the group's employees.read, so a reader
+   sees the whole roster and is not offered the buttons that would 403. */
 function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [shift, setShift] = useState('')
   const [user, setUser] = useState('')
@@ -196,6 +202,22 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
   const [to, setTo] = useState('')
   const [reason, setReason] = useState('')
   const [clashes, setClashes] = useState<Clash[]>([])
+
+  /* Change who, what or when and the clash list and the override both lapse.
+
+     The reason is written onto every duty it covers, so it is a record of why
+     this person was rostered over that period — and it survived a change of
+     person. Typing "Board practical; the period is suspended" for one teacher,
+     then picking another from the list, left the reason in the box, the old
+     clashes on screen describing an assignment nobody was making any more, and
+     the button still reading "Roster anyway" — so a second teacher could be
+     rostered carrying the first one's explanation, or over a clash-free slot
+     that never needed one. */
+  const retarget = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v)
+    setClashes([])
+    setReason('')
+  }
 
   const teachers = useQuery({
     queryKey: ['timetable', 'teachers'],
@@ -261,18 +283,23 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
           <FormGrid>
             <Field label="Shift" required
               hint={chosen ? `${chosen.starts_at}–${chosen.ends_at}, ${chosen.weekdays.map((d) => WEEKDAYS[d - 1]).join(' ')}` : undefined}>
-              <Select value={shift} onChange={setShift} placeholder="Choose a duty"
+              <Select value={shift} onChange={retarget(setShift)} placeholder="Choose a duty"
                 options={shifts.filter((s) => s.is_active).map((s) => ({
                   value: s.id,
                   label: `${s.name} (${s.starts_at}–${s.ends_at})${s.is_onerous ? ' ·  unpopular' : ''}`,
                 }))} />
             </Field>
-            <Field label="Member of staff" required>
-              <Select value={user} onChange={setUser} placeholder="Choose"
+            <Field
+              label="Member of staff"
+              required
+              hint={teachers.error ? 'The staff list could not be loaded, so there is nobody to choose.' : undefined}
+            >
+              <Select value={user} onChange={retarget(setUser)}
+                placeholder={teachers.error ? 'Unavailable' : 'Choose'}
                 options={(teachers.data?.items ?? []).map((t) => ({ value: t.id, label: nameOf(t) }))} />
             </Field>
-            <Field label="From" required><Input value={from} onChange={setFrom} type="date" /></Field>
-            <Field label="To" hint="Leave blank for a single day"><Input value={to} onChange={setTo} type="date" /></Field>
+            <Field label="From" required><Input value={from} onChange={retarget(setFrom)} type="date" /></Field>
+            <Field label="To" hint="Leave blank for a single day"><Input value={to} onChange={retarget(setTo)} type="date" /></Field>
           </FormGrid>
 
           {clashes.length > 0 && (
@@ -295,7 +322,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
 
           <FormNotice error={assign.error} />
           <Button onClick={() => assign.mutate()}
-            disabled={!shift || !user || !from || assign.isPending ||
+            disabled={!mayWrite || !shift || !user || !from || assign.isPending ||
               (clashes.length > 0 && !reason.trim())}>
             {assign.isPending ? 'Rostering…' : clashes.length > 0 ? 'Roster anyway' : 'Roster'}
           </Button>
@@ -334,13 +361,15 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
                           : '—'}
                       </Td>
                       <Td className="text-right">
-                        <ConfirmButton
-                          confirmLabel="Cancel duty"
-                          question="The slot will be left unfilled until somebody else is rostered."
-                          onConfirm={() => cancel.mutate(d.id)}
-                        >
-                          Cancel
-                        </ConfirmButton>
+                        {mayWrite && (
+                          <ConfirmButton
+                            confirmLabel="Cancel duty"
+                            question="The slot will be left unfilled until somebody else is rostered."
+                            onConfirm={() => cancel.mutate(d.id)}
+                          >
+                            Cancel
+                          </ConfirmButton>
+                        )}
                       </Td>
                     </tr>
                   ))}

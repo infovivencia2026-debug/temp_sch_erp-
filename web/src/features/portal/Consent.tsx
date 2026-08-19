@@ -8,6 +8,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /* What is waiting on a parent's signature.
 
@@ -59,6 +60,7 @@ const TONE: Record<Outpass['status'], 'neutral' | 'warning' | 'success' | 'dange
 }
 
 export default function Consent() {
+  const t = useT()
   const qc = useQueryClient()
 
   const passes = useQuery({
@@ -84,7 +86,7 @@ export default function Consent() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
 
-  if (passes.isLoading) return <Loading label="Checking what needs signing…" />
+  if (passes.isLoading) return <Loading label={t('portal.consent.loading')} />
   if (passes.error) return <ErrorState error={passes.error} />
 
   const allPasses = passes.data?.items ?? []
@@ -98,26 +100,26 @@ export default function Consent() {
   return (
     <>
       <PageHead
-        eyebrow="Consent"
-        title="Waiting on you"
-        description="Permissions the school has asked you to give, and the trips your child has asked to take."
+        eyebrow={t('portal.consent.eyebrow')}
+        title={t('portal.consent.title')}
+        description={t('portal.consent.description')}
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Trips to agree to" value={needConsent.length} icon={ShieldCheck} />
-          <Stat label="Circulars to sign" value={unsigned.length} icon={FileSignature} />
-          <Stat label="Out now" value={allPasses.filter((p) => p.status === 'out').length} />
+          <Stat label={t('portal.consent.stat_trips')} value={needConsent.length} icon={ShieldCheck} />
+          <Stat label={t('portal.consent.stat_circulars')} value={unsigned.length} icon={FileSignature} />
+          <Stat label={t('portal.consent.stat_out_now')} value={allPasses.filter((p) => p.status === 'out').length} />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Leaving campus"
-            description="Your agreement is separate from the warden's, and the gate needs both before your child can leave."
+            title={t('portal.consent.trips_title')}
+            description={t('portal.consent.trips_description')}
           />
           {needConsent.length === 0 ? (
             <EmptyState
-              title="Nothing waiting"
-              body="When your child asks to go out, the request appears here for you to agree to."
+              title={t('portal.consent.trips_empty_title')}
+              body={t('portal.consent.trips_empty_body')}
             />
           ) : (
             <ul className="divide-y">
@@ -129,22 +131,25 @@ export default function Consent() {
                         {p.student_name} · {p.destination ?? p.reason}
                       </div>
                       <div className="text-[13px] text-muted-foreground">
-                        {formatDate(p.expected_out)} until {formatDate(p.expected_in)}
+                        {t('portal.consent.pass_window', {
+                          from: formatDate(p.expected_out),
+                          to: formatDate(p.expected_in),
+                        })}
                       </div>
                       {p.escort_name && (
                         <div className="text-[13px] text-muted-foreground">
-                          Going with {p.escort_name}
+                          {t('portal.consent.going_with', { name: p.escort_name })}
                           {p.escort_phone && ` · ${p.escort_phone}`}
                         </div>
                       )}
                       <div className="mt-1 text-[12px] text-muted-foreground">
                         {p.approved_by
-                          ? `The warden has permitted this (${p.approved_by}).`
-                          : 'The warden has not permitted this yet.'}
+                          ? t('portal.consent.warden_permitted', { name: p.approved_by })
+                          : t('portal.consent.warden_not_permitted')}
                       </div>
                     </div>
                     <Button disabled={consent.isPending} onClick={() => consent.mutate(p.id)}>
-                      I agree
+                      {t('portal.consent.action_agree')}
                     </Button>
                   </div>
                 </li>
@@ -158,11 +163,14 @@ export default function Consent() {
 
         <Card>
           <CardHeader
-            title="Circulars to sign"
-            description="Notices the school has asked you to acknowledge."
+            title={t('portal.consent.circulars_title')}
+            description={t('portal.consent.circulars_description')}
           />
           {unsigned.length === 0 ? (
-            <EmptyState title="All signed" body="Nothing from the school is waiting on you." />
+            <EmptyState
+              title={t('portal.consent.circulars_empty_title')}
+              body={t('portal.consent.circulars_empty_body')}
+            />
           ) : (
             <ul className="divide-y">
               {unsigned.map((c) => (
@@ -181,7 +189,7 @@ export default function Consent() {
                     disabled={ack.isPending}
                     onClick={() => ack.mutate(c.id)}
                   >
-                    I have read this
+                    {t('portal.consent.action_ack')}
                   </Button>
                 </li>
               ))}
@@ -198,6 +206,7 @@ export default function Consent() {
 
 /** A guardian asking for a trip, rather than only agreeing to one. */
 function RequestTrip({ children_ }: { children_: Child[] }) {
+  const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState('')
@@ -238,10 +247,10 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">
           <div className="flex-1 text-[14px] text-muted-foreground">
-            Taking your child out for a wedding, a hospital visit or a weekend home?
+            {t('portal.consent.request_prompt')}
           </div>
           <Button variant="secondary" onClick={() => setOpen(true)}>
-            Ask for a pass
+            {t('portal.consent.request_action')}
           </Button>
         </div>
       </Card>
@@ -251,42 +260,54 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
   return (
     <Card>
       <CardHeader
-        title="Ask for a pass"
-        description="The warden still has to permit it. Leaving the escort's number lets the hostel reach whoever the child is with."
+        title={t('portal.consent.request_title')}
+        description={t('portal.consent.request_description')}
       />
       <div className="p-4">
         <FormGrid>
           {children_.length > 1 && (
-            <Field label="Child">
+            <Field label={t('portal.consent.field_child')}>
               <Select
                 value={student}
                 onChange={setPicked}
-                placeholder="Choose a child"
+                placeholder={t('portal.consent.field_child_placeholder')}
                 options={children_.map((c) => ({ value: c.student_id, label: c.full_name }))}
               />
             </Field>
           )}
-          <Field label="Going to">
-            <Input value={destination} onChange={setDestination} placeholder="Karimnagar" />
+          <Field label={t('portal.consent.field_going_to')}>
+            <Input
+              value={destination}
+              onChange={setDestination}
+              placeholder={t('portal.consent.field_going_to_placeholder')}
+            />
           </Field>
-          <Field label="Leaving" hint="Date and time the child goes out.">
+          <Field label={t('portal.consent.field_leaving')} hint={t('portal.consent.field_leaving_hint')}>
             <Input type="datetime-local" value={out} onChange={setOut} />
           </Field>
-          <Field label="Back by" hint="The hour the hostel will start looking for them.">
+          <Field label={t('portal.consent.field_back_by')} hint={t('portal.consent.field_back_by_hint')}>
             <Input type="datetime-local" value={back} onChange={setBack} />
           </Field>
-          <Field label="Who they are going with">
-            <Input value={escort} onChange={setEscort} placeholder="Suresh Menon" />
+          <Field label={t('portal.consent.field_escort')}>
+            <Input
+              value={escort}
+              onChange={setEscort}
+              placeholder={t('portal.consent.field_escort_placeholder')}
+            />
           </Field>
-          <Field label="That person's number">
-            <Input value={phone} onChange={setPhone} placeholder="98480 12345" />
+          <Field label={t('portal.consent.field_escort_phone')}>
+            <Input
+              value={phone}
+              onChange={setPhone}
+              placeholder={t('portal.consent.field_escort_phone_placeholder')}
+            />
           </Field>
-          <Field label="Reason" wide required>
+          <Field label={t('portal.consent.field_reason')} wide required>
             <Textarea
               rows={2}
               value={reason}
               onChange={setReason}
-              placeholder="Cousin's wedding"
+              placeholder={t('portal.consent.field_reason_placeholder')}
             />
           </Field>
         </FormGrid>
@@ -295,10 +316,10 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
             disabled={create.isPending || !student || reason.trim() === '' || !out || !back}
             onClick={() => create.mutate()}
           >
-            {create.isPending ? 'Sending…' : 'Send to the warden'}
+            {create.isPending ? t('portal.consent.action_sending') : t('portal.consent.action_send')}
           </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
         <FormNotice error={create.error} />
@@ -308,10 +329,14 @@ function RequestTrip({ children_ }: { children_: Child[] }) {
 }
 
 function PassHistory({ rows }: { rows: Outpass[] }) {
+  const t = useT()
   if (rows.length === 0) return null
   return (
     <Card>
-      <CardHeader title="Past passes" description="Every trip asked for, and what came of it." />
+      <CardHeader
+        title={t('portal.consent.history_title')}
+        description={t('portal.consent.history_description')}
+      />
       <ul className="divide-y">
         {rows.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">

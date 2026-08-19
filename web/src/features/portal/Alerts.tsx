@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
   Field, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
 /* Everything the school has told you, in the order it happened.
@@ -49,13 +50,13 @@ const TONE: Record<string, 'danger' | 'warning' | 'info' | 'primary' | 'neutral'
   event: 'primary',
 }
 
-const LABEL: Record<string, string> = {
-  fee_due: 'Fees',
-  attendance: 'Attendance',
-  homework: 'Homework',
-  circular: 'Circular',
-  ptm: 'Meeting',
-  event: 'Event',
+const LABEL: Record<string, MessageKey> = {
+  fee_due: 'portal.alerts.kind_fee_due',
+  attendance: 'portal.alerts.kind_attendance',
+  homework: 'portal.alerts.kind_homework',
+  circular: 'portal.alerts.kind_circular',
+  ptm: 'portal.alerts.kind_ptm',
+  event: 'portal.alerts.kind_event',
 }
 
 function when(iso: string) {
@@ -67,6 +68,7 @@ function when(iso: string) {
 }
 
 export default function Alerts() {
+  const t = useT()
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
 
@@ -91,7 +93,7 @@ export default function Alerts() {
     onSuccess: invalidate,
   })
 
-  if (query.isLoading) return <Loading label="Looking up your alerts…" />
+  if (query.isLoading) return <Loading label={t('portal.alerts.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const items = query.data?.items ?? []
@@ -100,32 +102,32 @@ export default function Alerts() {
   return (
     <>
       <PageHead
-        eyebrow="Home"
-        title="Alerts"
-        description="Circulars, absences, fees and homework — in the order they happened."
+        eyebrow={t('portal.alerts.eyebrow')}
+        title={t('portal.alerts.title')}
+        description={t('portal.alerts.description')}
         actions={
           unread > 0 ? (
             <Button variant="secondary" size="sm" onClick={() => readAll.mutate()}>
-              Mark all read
+              {t('portal.alerts.action_mark_all_read')}
             </Button>
           ) : undefined
         }
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Unread" value={unread} icon={Bell} />
-          <Stat label="Fee alerts" value={items.filter((a) => a.kind === 'fee_due').length} icon={Receipt} />
-          <Stat label="Absences flagged" value={items.filter((a) => a.kind === 'attendance').length} icon={CalendarX2} />
+          <Stat label={t('portal.alerts.stat_unread')} value={unread} icon={Bell} />
+          <Stat label={t('portal.alerts.stat_fee_alerts')} value={items.filter((a) => a.kind === 'fee_due').length} icon={Receipt} />
+          <Stat label={t('portal.alerts.stat_absences_flagged')} value={items.filter((a) => a.kind === 'attendance').length} icon={CalendarX2} />
         </CellGrid>
 
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
-              <Field label="Child" hint="School-wide circulars are shown whichever child you choose.">
+              <Field label={t('portal.alerts.field_child')} hint={t('portal.alerts.field_child_hint')}>
                 <Select
                   value={chosen}
                   onChange={setChosen}
-                  options={[{ value: '', label: 'All my children' }, ...childOptions(children)]}
+                  options={[{ value: '', label: t('portal.alerts.all_children') }, ...childOptions(children)]}
                 />
               </Field>
             </div>
@@ -133,11 +135,14 @@ export default function Alerts() {
         )}
 
         <Card>
-          <CardHeader title="Everything" description={`${items.length} alerts.`} />
+          <CardHeader
+            title={t('portal.alerts.card_title')}
+            description={t('portal.alerts.card_description', { count: items.length })}
+          />
           {items.length === 0 ? (
             <EmptyState
-              title="Nothing yet"
-              body="Circulars, absences and fee reminders will appear here as they happen."
+              title={t('portal.alerts.empty_title')}
+              body={t('portal.alerts.empty_body')}
             />
           ) : (
             <ul className="divide-y">
@@ -158,10 +163,10 @@ export default function Alerts() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <Badge tone={TONE[a.kind] ?? 'neutral'}>{LABEL[a.kind] ?? a.kind}</Badge>
+                      <Badge tone={TONE[a.kind] ?? 'neutral'}>{LABEL[a.kind] ? t(LABEL[a.kind]) : a.kind}</Badge>
                       {!a.read_at && (
                         <Button variant="ghost" size="sm" onClick={() => readOne.mutate(a.id)}>
-                          Dismiss
+                          {t('portal.alerts.action_dismiss')}
                         </Button>
                       )}
                     </div>

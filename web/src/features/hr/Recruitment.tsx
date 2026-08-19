@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Briefcase, ClipboardList, GraduationCap, UserCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useCan } from '@/lib/session'
 import { formatPaise } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -189,7 +190,16 @@ export default function Recruitment() {
   )
 }
 
+/* Every write in this file is employees.write (hr_growth.go:85-96); the reads
+   ride the group's employees.read. So an HR reader sees the pipeline and the
+   posts and is not offered the buttons that would 403.
+
+   Note for whoever wires up the reviewer's screen: POST
+   /appraisal/records/{id}/review is deliberately NOT write-gated, because the
+   reviewer is a head of department holding employees.read only and the handler
+   checks they are the named reviewer. Do not wrap that control in this flag. */
 function PostsTab({ posts }: { posts: Vacancy[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [code, setCode] = useState('')
   const [title, setTitle] = useState('')
@@ -251,8 +261,12 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
             <Field label="Post" required>
               <Input value={title} onChange={setTitle} placeholder="TGT Science" />
             </Field>
-            <Field label="Designation">
-              <Select value={designation} onChange={setDesignation} placeholder="Not specified"
+            <Field
+              label="Designation"
+              hint={designations.error ? 'The list of roles could not be loaded.' : undefined}
+            >
+              <Select value={designation} onChange={setDesignation}
+                placeholder={designations.error ? 'Unavailable' : 'Not specified'}
                 options={(designations.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))} />
             </Field>
             <Field label="Positions" hint="Three PRTs against one requisition is one post with three seats">
@@ -273,7 +287,8 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
             </Field>
           </FormGrid>
           <FormNotice error={raise.error} ok={raise.isSuccess ? 'Post raised for approval.' : undefined} />
-          <Button onClick={() => raise.mutate()} disabled={!code || !title || raise.isPending}>
+          <Button onClick={() => raise.mutate()}
+            disabled={!mayWrite || !code || !title || raise.isPending}>
             {raise.isPending ? 'Raising…' : 'Raise for approval'}
           </Button>
         </div>
@@ -314,7 +329,7 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
               </Td>
               <Td><Badge tone={statusTone(v.status)}>{v.status.replace(/_/g, ' ')}</Badge></Td>
               <Td className="text-right">
-                {v.status === 'pending_approval' && (
+                {mayWrite && v.status === 'pending_approval' && (
                   <div className="flex justify-end gap-2">
                     <Button size="sm" onClick={() => decide.mutate({ id: v.id, action: 'approve' })}>
                       Approve
@@ -325,7 +340,7 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
                     </Button>
                   </div>
                 )}
-                {v.status === 'approved' && (
+                {mayWrite && v.status === 'approved' && (
                   <Button size="sm" variant="ghost"
                     onClick={() => decide.mutate({ id: v.id, action: 'close' })}>
                     Close
@@ -341,6 +356,7 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
 }
 
 function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[] }) {
+  const mayWrite = useCan()('hr.employees.write')
   const qc = useQueryClient()
   const [vacancy, setVacancy] = useState('')
   const [name, setName] = useState('')
@@ -431,7 +447,8 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
               <Field label="Years of experience"><Input value={experience} onChange={setExperience} type="number" /></Field>
             </FormGrid>
             <FormNotice error={add.error} ok={add.isSuccess ? 'Candidate added.' : undefined} />
-            <Button onClick={() => add.mutate()} disabled={!name || (!phone && !email) || add.isPending}>
+            <Button onClick={() => add.mutate()}
+              disabled={!mayWrite || !name || (!phone && !email) || add.isPending}>
               {add.isPending ? 'Adding…' : 'Add candidate'}
             </Button>
           </div>
@@ -479,7 +496,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
                   : `${c.days_since_move} days`}
               </Td>
               <Td className="text-right">
-                {c.stage !== 'joined' && (
+                {mayWrite && c.stage !== 'joined' && (
                   <div className="flex flex-wrap justify-end gap-2">
                     <Select
                       value=""
@@ -496,7 +513,18 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
         </Table>
       </Card>
 
-      {hiring && <HireCard candidate={hiring} onDone={() => { setHiring(null); invalidate() }} />}
+      {hiring && (
+        /* Keyed by the candidate. The card holds the employee code, the joining
+           date and the employment type; opening a second candidate reused them,
+           so one person could be appointed on another's terms — and an employee
+           code is unique, so the mistake surfaces as a constraint violation on
+           a screen that had shown the number as already filled in. */
+        <HireCard
+          key={hiring.id}
+          candidate={hiring}
+          onDone={() => { setHiring(null); invalidate() }}
+        />
+      )}
     </>
   )
 }
@@ -508,6 +536,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
    is asked for rather than generated: it is the school's own numbering and
    payroll already knows it. */
 function HireCard({ candidate, onDone }: { candidate: Candidate; onDone: () => void }) {
+  const mayWrite = useCan()('hr.employees.write')
   const [employeeCode, setEmployeeCode] = useState('')
   const [joinedOn, setJoinedOn] = useState('')
   const [employmentType, setEmploymentType] = useState('probation')
@@ -563,7 +592,8 @@ function HireCard({ candidate, onDone }: { candidate: Candidate; onDone: () => v
         </FormGrid>
         <FormNotice error={hire.error} />
         <div className="flex items-center gap-2">
-          <Button onClick={() => hire.mutate()} disabled={!employeeCode || hire.isPending}>
+          <Button onClick={() => hire.mutate()}
+            disabled={!mayWrite || !employeeCode || hire.isPending}>
             {hire.isPending ? 'Appointing…' : 'Appoint and create staff record'}
           </Button>
           <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">

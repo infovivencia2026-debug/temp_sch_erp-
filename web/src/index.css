@@ -215,6 +215,52 @@
   :root[data-density='comfortable'] { --row-py: 0.875rem; }
   :root[data-density='spacious'] { --row-py: 1.125rem; }
 
+  /* High contrast, opt in, as a token override and nothing else.
+
+     It is an attribute on the root exactly like data-density, set by the same
+     preference screen, and it is ABSENT unless the user asks for it — a
+     reader who never opens the setting has a root element and a palette
+     identical to before this existed. No layout, spacing, radius or type
+     changes here; only the handful of tokens that decide how far text and
+     edges sit from their background.
+
+     Deliberately a separate axis from the theme rather than a fourth theme
+     value: somebody wants high contrast *and* dark, and folding it into the
+     theme enum would make them choose. So both blocks exist and the dark one
+     wins by being later and more specific. */
+  :root[data-contrast='high'] {
+    --foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 12%;
+    --muted-foreground: 0 0% 26%;
+    --border: 0 0% 45%;
+    --border-strong: 0 0% 25%;
+    --input: 0 0% 40%;
+    --ring: 217 91% 40%;
+    --primary: 217 91% 38%;
+    --primary-hover: 217 91% 30%;
+    --success: 142 80% 20%;
+    --warning: 32 100% 24%;
+    --destructive: 0 80% 36%;
+    --info: 192 100% 22%;
+  }
+
+  .dark:root[data-contrast='high'],
+  :root[data-contrast='high'] .dark {
+    --foreground: 0 0% 100%;
+    --secondary-foreground: 0 0% 90%;
+    --muted-foreground: 0 0% 78%;
+    --border: 0 0% 45%;
+    --border-strong: 0 0% 65%;
+    --input: 0 0% 50%;
+    --ring: 217 91% 72%;
+    --primary: 217 95% 74%;
+    --primary-hover: 217 95% 82%;
+    --success: 142 70% 62%;
+    --warning: 35 95% 66%;
+    --destructive: 0 85% 70%;
+    --info: 192 85% 62%;
+  }
+
   * { border-color: hsl(var(--border)); }
   html, body, #root { height: 100%; }
   html, body { overflow-x: clip; max-width: 100%; }
