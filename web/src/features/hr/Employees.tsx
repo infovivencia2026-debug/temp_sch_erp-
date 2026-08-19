@@ -7,6 +7,8 @@ import {
   Button, Input, Loading, ErrorState,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
+import { useCan } from '@/lib/session'
+import AddStaff from './AddStaff'
 import { formatDate, cn } from '@/lib/utils'
 
 /* The staff file, and the papers that lapse.
@@ -45,6 +47,7 @@ interface Doc {
 }
 
 export default function Employees() {
+  const can = useCan()
   const [search, setSearch] = useState('')
   const [expiringOnly, setExpiringOnly] = useState(true)
 
@@ -79,6 +82,11 @@ export default function Employees() {
         description="Who works here, and which of their papers are about to lapse."
       />
       <PageBody>
+        {/* The screen HR lands on to look somebody up is the screen they land
+            on to add somebody. Holding hr.employees.write and finding nothing
+            that writes reads as "the product cannot do that" rather than "that
+            form is somewhere else". */}
+        {can('hr.employees.write') && <AddStaff onDone={() => staff.refetch()} />}
         <CellGrid cols={4}>
           <Stat label="Active staff" value={all.filter((e) => e.status === 'active').length} />
           <Stat label="Departments" value={departments.length} />
