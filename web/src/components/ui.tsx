@@ -1,5 +1,5 @@
 import {
-  Children, cloneElement, Fragment, isValidElement, useEffect, useState,
+  Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
   type ReactElement, type ReactNode,
 } from 'react'
 import {
@@ -710,6 +710,25 @@ export function Checkbox({
  * scope. Those are not vocabulary, they are logic, and a school inventing a
  * sixth invoice status would break every report that groups by it.
  */
+/**
+ * A dropdown you can type into.
+ *
+ * Every list in this product is a school's own data — forty teachers, thirty
+ * sections, twenty roles — and a native select makes you scroll all of them to
+ * reach the one you already know the name of. So this filters as you type.
+ * Same props as before, so every dropdown in the application inherits it
+ * without being touched.
+ *
+ * `kind` adds the other half: where the list is vocabulary rather than
+ * records, typing something that is not on it offers to add it, and the value
+ * joins the list for the whole school. Records cannot work that way — you
+ * cannot allocate a subject to a teacher who does not exist — so a dropdown
+ * without `kind` filters but never invents.
+ *
+ * Deliberately not a native <select>. That gets typeahead free but only on the
+ * first letter, only while the menu is open, and never on the middle of a
+ * name, which is how people actually search for "Priya Rao" by typing "rao".
+ */
 export function Select({
   value,
   onChange,
@@ -726,14 +745,14 @@ export function Select({
   kind?: string
   addLabel?: string
 }) {
-  const [adding, setAdding] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(0)
   const [custom, setCustom] = useState<{ value: string; label: string }[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const box = useRef<HTMLDivElement>(null)
 
-  // Only fetched when the dropdown is actually extendable, so the plain case
-  // costs nothing.
   useEffect(() => {
     if (!kind) return
     let live = true
@@ -741,81 +760,117 @@ export function Select({
       .get<{ items: { value: string; label: string; custom?: boolean }[] }>(
         `/api/v1/setup/options?kind=${encodeURIComponent(kind)}`,
       )
-      .then((r) => {
-        if (live) setCustom((r.items ?? []).filter((o) => o.custom))
-      })
-      .catch(() => {
-        /* The built-in list still works; a school just cannot see its own
-           additions this render. Failing loudly here would break a form over
-           a list that is only ever an aid. */
-      })
-    return () => {
-      live = false
-    }
+      .then((r) => { if (live) setCustom((r.items ?? []).filter((o) => o.custom)) })
+      .catch(() => { /* the built-in list still works */ })
+    return () => { live = false }
   }, [kind])
 
-  if (adding) {
-    const save = () => {
-      const label = draft.trim()
-      if (!label) return
-      setBusy(true)
-      setErr('')
-      api
-        .post<{ value: string; label: string }>('/api/v1/setup/options', { kind, label })
-        .then((created) => {
-          setCustom((c) => [...c, created])
-          onChange(created.value)
-          setAdding(false)
-          setDraft('')
-        })
-        .catch((e: Error) => setErr(e.message))
-        .finally(() => setBusy(false))
+  // Closing on an outside click rather than on blur: blur fires before the
+  // click that chose an option, so a blur-closed menu is a menu you cannot
+  // click anything in.
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) { setOpen(false); setQuery('') }
     }
-    return (
-      <div className="flex flex-wrap items-start gap-2">
-        <input
-          className="field flex-1"
-          value={draft}
-          autoFocus
-          placeholder="Type it as it should appear"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); save() }
-            if (e.key === 'Escape') { setAdding(false); setDraft(''); setErr('') }
-          }}
-        />
-        <Button size="sm" disabled={busy || !draft.trim()} onClick={save}>
-          {busy ? 'Adding…' : 'Add'}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => { setAdding(false); setDraft(''); setErr('') }}>
-          Cancel
-        </Button>
-        <p className={cn('w-full text-[12px]', err ? 'text-destructive' : 'text-muted-foreground')}>
-          {err || 'It joins the list for everyone at this school.'}
-        </p>
-      </div>
-    )
+    document.addEventListener('mousedown', away)
+    return () => document.removeEventListener('mousedown', away)
+  }, [open])
+
+  const all = kind ? [...options, ...custom] : options
+  const selected = all.find((o) => o.value === value)
+  const q = query.trim().toLowerCase()
+  const shown = q ? all.filter((o) => o.label.toLowerCase().includes(q)) : all
+  const canAdd = !!kind && !!q && !all.some((o) => o.label.toLowerCase() === q)
+
+  const choose = (v: string) => { onChange(v); setOpen(false); setQuery('') }
+
+  const add = () => {
+    const label = query.trim()
+    if (!label) return
+    setBusy(true); setErr('')
+    api
+      .post<{ value: string; label: string }>('/api/v1/setup/options', { kind, label })
+      .then((made) => { setCustom((c) => [...c, made]); choose(made.value) })
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setBusy(false))
   }
 
-  const merged = kind ? [...options, ...custom] : options
+  const rows = canAdd ? shown.length + 1 : shown.length
 
   return (
-    <select
-      value={value}
-      onChange={(e) => {
-        if (e.target.value === '__add__') { setAdding(true); return }
-        onChange(e.target.value)
-      }}
-      className="field cursor-pointer pr-8"
-    >
-      {placeholder && <option value="">{placeholder}</option>}
-      {merged.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-      {kind && <option value="__add__">+ {addLabel}…</option>}
-    </select>
+    <div ref={box} className="relative">
+      <input
+        className="field cursor-text pr-8"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        value={open ? query : selected?.label ?? ''}
+        placeholder={selected ? selected.label : placeholder ?? 'Type to search'}
+        onFocus={() => { setOpen(true); setActive(0) }}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0) }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((i) => Math.min(i + 1, rows - 1)) }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
+          else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (canAdd && active === shown.length) add()
+            else if (shown[active]) choose(shown[active].value)
+          } else if (e.key === 'Escape') { setOpen(false); setQuery('') }
+        }}
+      />
+      <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+        <ChevronDown className="h-4 w-4" />
+      </span>
+
+      {open && (
+        <div className="absolute z-40 mt-1 max-h-64 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md">
+          {placeholder && !q && (
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
+              className="block w-full rounded px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent">
+              {placeholder}
+            </button>
+          )}
+          {shown.map((o, i) => (
+            <button
+              key={o.value}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => choose(o.value)}
+              className={cn(
+                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                i === active ? 'bg-accent' : 'hover:bg-accent',
+                o.value === value && 'font-medium',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+          {canAdd && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActive(shown.length)}
+              onClick={add}
+              disabled={busy}
+              className={cn(
+                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                active === shown.length ? 'bg-accent' : 'hover:bg-accent',
+              )}
+            >
+              {busy ? 'Adding…' : `+ ${addLabel}: “${query.trim()}”`}
+            </button>
+          )}
+          {!shown.length && !canAdd && (
+            <p className="px-2 py-2 text-[12.5px] text-muted-foreground">
+              {kind ? 'Nothing matches. Keep typing to add it.' : 'Nothing matches that.'}
+            </p>
+          )}
+          {err && <p className="px-2 py-1.5 text-[12px] text-destructive">{err}</p>}
+        </div>
+      )}
+    </div>
   )
 }
 
