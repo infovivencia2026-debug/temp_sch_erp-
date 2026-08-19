@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 411 of the catalog's features are implemented.
+// 412 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -409,6 +409,7 @@ var implementedFeatures = map[string]bool{
 	"super_admin.platform_configuration.audit_log":                         true,
 	"super_admin.platform_configuration.data_operations":                   true,
 	"super_admin.platform_configuration.import_export":                     true,
+	"super_admin.platform_configuration.integrations":                      true,
 	"super_admin.platform_configuration.module_configuration":              true,
 	"super_admin.platform_configuration.numbering_templates":               true,
 	"super_admin.statutory_boards.apaar_id_provisioning":                   true,
