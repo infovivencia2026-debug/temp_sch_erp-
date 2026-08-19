@@ -6,11 +6,14 @@
 <title>Subscribe — {{.Plan.Name}} — School ERP</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
 </head>
 <body class="marketing">
 
 <header class="topbar">
   <a class="wordmark" href="/buy">School ERP</a>
+  <span class="spacer"></span>
+  {{template "themebtn"}}
   <a class="quiet" href="/login">Sign in</a>
 </header>
 
@@ -113,5 +116,6 @@
   <a href="/buy">Plans</a> · <a href="/login">Sign in</a>
 </footer>
 
+{{template "themejs"}}
 </body>
 </html>{{end}}

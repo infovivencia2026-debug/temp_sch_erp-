@@ -6,6 +6,7 @@
 <title>School ERP — pricing</title>
 <meta name="description" content="A complete school ERP for Indian K-12 schools: admissions, attendance, fees, examinations, payroll and the UDISE+ return. Monthly or yearly, unlimited users.">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
 <script>
   /* Before the first paint, deliberately: a theme restored afterwards is a
      white flash on every load for anybody who chose dark. Wrapped because
@@ -22,18 +23,7 @@
 <header class="topbar">
   <span class="wordmark">School ERP</span>
   <span class="spacer"></span>
-  <button type="button" id="theme-toggle" class="theme-toggle"
-          aria-label="Switch between light and dark" title="Switch appearance">
-    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-    </svg>
-  </button>
+  {{template "themebtn"}}
   <a class="quiet" href="/login">Sign in</a>
 </header>
 
@@ -205,39 +195,6 @@
   apply();
 })();
 
-/* Appearance.
- *
- * Three states, and the third is the one people forget: an explicit choice is
- * stored, and no choice at all means follow the operating system. The button
- * only ever writes 'dark' or 'light' — leaving the page on system is the
- * default nobody has to click for, and offering a third position for it would
- * be a control for the absence of a control.
- */
-(function () {
-  var btn = document.getElementById('theme-toggle');
-  if (!btn) return;
-  var root = document.documentElement;
-
-  function current() {
-    var set = root.getAttribute('data-theme');
-    if (set) return set;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  btn.addEventListener('click', function () {
-    var next = current() === 'dark' ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    try { localStorage.setItem('theme', next); } catch (e) {}
-  });
-
-  // Somebody on system appearance who changes it in the OS should see the
-  // page follow, rather than sit on whatever it was when they opened it.
-  try {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-      if (!root.getAttribute('data-theme')) { /* nothing to do — the media query already applies */ }
-    });
-  } catch (e) {}
-})();
 
 /* The light under the pointer.
  *
@@ -272,5 +229,6 @@
 })();
 </script>
 
+{{template "themejs"}}
 </body>
 </html>{{end}}
