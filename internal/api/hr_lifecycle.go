@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -80,6 +81,126 @@ func (s *Server) mountHRLifecycle(r chi.Router) {
 	r.Get("/lop", s.getLOPRegister)
 }
 
+// ===========================================================================
+// Who may see whom
+// ===========================================================================
+
+/*
+The registers below divide in two, and only one half is a staff-room
+noticeboard.
+
+	Seniority, the celebration diary, the recognitions board, the clearance
+	department master and the leave policy are institution-wide by their
+	nature. A seniority list ordered within one department is not a seniority
+	list — the whole point of it is the single order transfer counselling is
+	run from — and a birthday only one department may see is not much of a
+	birthday. Those five are unchanged.
+
+	Everything else here is personal to one employee: the KYC an appointment
+	was conditional on, police verification and what it found, medical fitness
+	and what somebody is not fit for, the exit file and its settlement, the
+	service book, qualifications, and the month's loss of pay. All of it was
+	readable in full by any holder of hr.employees.read — which the seeded hod,
+	vice principal and examinations controller roles all carry, none of them
+	holding hr.employees.write. One GET returned the school's police
+	verifications. No id guessing, a real seeded role, one request.
+
+	The narrowing is growthReach, the boundary hr_growth.go already defines and
+	tests: the back office (hr.employees.write, or a platform admin) reads the
+	institution, a head of department reads their department and their own row,
+	anybody else reads their own row alone. Reusing it rather than writing a
+	second predicate is deliberate — two boundaries over one subject drift
+	apart, and the first sign of the drift is a record visible through one
+	screen and withheld by the other.
+
+	The writes need no narrowing. Every one of them carries
+	RequirePermission(EmployeesWrite), and holding that is precisely what
+	growthReach calls the back office, so a caller who may write already reads
+	everything. TestHRLifecycleWritesNeedEmployeesWrite walks the router rather
+	than trusting that sentence, so a route added later without the gate fails
+	here instead of in a school.
+*/
+
+// lifecycleReach resolves the caller's boundary and answers the request itself
+// if it cannot be resolved, so each handler below spends one line on it.
+func (s *Server) lifecycleReach(w http.ResponseWriter, r *http.Request) (*growthReach, bool) {
+	re, err := s.growthReach(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return nil, false
+	}
+	return re, true
+}
+
+// narrow appends the employee predicate's arguments to a handler's own and
+// returns the SQL fragment to splice in.
+//
+// The fragment is always a complete boolean expression — TRUE for the back
+// office, FALSE for somebody who heads nothing and has no employee row — so it
+// can be concatenated unconditionally. FALSE rather than an omitted clause is
+// the same choice internal/scope makes, and for the same reason: "this person
+// heads nothing" has to mean no rows, because the other direction turns a
+// scope bug into a breach.
+func narrow(re *growthReach, alias string, args []any) (string, []any) {
+	frag, extra := re.employeeFilter(alias, len(args)+1)
+	return frag, append(args, extra...)
+}
+
+// exitInReach answers whether the caller may see this exit at all.
+//
+// Asked before the clearance list rather than folded into it so an exit
+// belonging to another department reads as "no such exit" instead of "no
+// clearances raised". The second sentence is untrue, and it tells the asker
+// the id was worth trying.
+func (s *Server) exitInReach(r *http.Request, re *growthReach, exitID uuid.UUID) (bool, error) {
+	if re.All {
+		return true, nil
+	}
+	id := httpx.IdentityFrom(r.Context())
+	frag, args := re.employeeFilter("e", 2)
+	var ok bool
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			    SELECT 1 FROM staff_exits x
+			      JOIN employees e ON e.id = x.employee_id
+			     WHERE x.id = $1 AND `+frag+`)`,
+			append([]any{exitID}, args...)...).Scan(&ok)
+	})
+	return ok, err
+}
+
+/*
+grievanceFilter is narrower than employeeFilter, and deliberately so.
+
+	A grievance is the one register in this file whose subject is frequently
+	the reader. Handing a head of department every complaint raised inside
+	their department includes the complaints raised about them, and a
+	grievance mechanism whose complaints reach the person complained of is
+	not a mechanism — the staff work that out in one round and stop using it.
+
+	So there is no departmental widening here. Outside the back office a
+	caller sees the grievances they raised about themselves, and the ones they
+	were assigned to handle, which is the same "you were named on it" rule
+	appraisalFilter uses. An anonymous grievance carries no employee_id at all
+	and so reaches neither.
+
+	It lives here rather than beside growthReach because the rule is this
+	register's, not the staff record's.
+*/
+func grievanceFilter(re *growthReach, alias string, next int) (string, []any) {
+	if re.All {
+		return "TRUE", nil
+	}
+	parts := []string{fmt.Sprintf("%s.assigned_to = $%d", alias, next)}
+	args := []any{re.UserID}
+	if re.OwnEmpID != nil {
+		parts = append(parts, fmt.Sprintf("%s.employee_id = $%d", alias, next+1))
+		args = append(args, *re.OwnEmpID)
+	}
+	return "(" + strings.Join(parts, " OR ") + ")", args
+}
+
 // --- onboarding -----------------------------------------------------------
 
 type onboardingRow struct {
@@ -118,6 +239,11 @@ should.
 */
 func (s *Server) listOnboarding(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{q.Get("pending") == "true"})
 	items, err := collect(s, r, `
 		SELECT o.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
@@ -145,9 +271,10 @@ func (s *Server) listOnboarding(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN staff_onboarding o ON o.employee_id = e.id
 		  LEFT JOIN designations d ON d.id = e.designation_id
 		 WHERE ($1::bool IS NOT TRUE OR o.id IS NULL OR o.status <> 'completed')
+		   AND `+mine+`
 		 ORDER BY e.joined_on DESC, e.employee_code
 		 LIMIT 500`,
-		[]any{q.Get("pending") == "true"},
+		args,
 		func(rows pgx.Rows) (onboardingRow, error) {
 			var v onboardingRow
 			var id *string
@@ -317,6 +444,11 @@ const exitClearanceProgress = `
 
 func (s *Server) listExits(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{q.Get("open") == "true"})
 	items, err := collect(s, r, `
 		SELECT x.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name), d.name,
@@ -335,9 +467,10 @@ func (s *Server) listExits(w http.ResponseWriter, r *http.Request) {
 		  JOIN employees e ON e.id = x.employee_id
 		  LEFT JOIN designations d ON d.id = e.designation_id`+exitClearanceProgress+`
 		 WHERE ($1::bool IS NOT TRUE OR x.status NOT IN ('settled','withdrawn'))
+		   AND `+mine+`
 		 ORDER BY x.notice_on DESC
 		 LIMIT 300`,
-		[]any{q.Get("open") == "true"},
+		args,
 		func(rows pgx.Rows) (exitRow, error) {
 			var v exitRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.EmployeeCode, &v.Name,
@@ -495,6 +628,18 @@ type clearanceRow struct {
 func (s *Server) listExitClearances(w http.ResponseWriter, r *http.Request) {
 	exitID, ok := uuidParam(w, r, "id")
 	if !ok {
+		return
+	}
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	switch reachable, err := s.exitInReach(r, re, exitID); {
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	case !reachable:
+		httpx.NotFound(w, r)
 		return
 	}
 	items, err := collect(s, r, `
@@ -867,6 +1012,11 @@ type staffCertificateRow struct {
 }
 
 func (s *Server) listServiceCertificates(w http.ResponseWriter, r *http.Request) {
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nullID(r.URL.Query().Get("employee_id"))})
 	items, err := collect(s, r, `
 		SELECT ic.serial_no, ct.name, ct.code,
 		       concat_ws(' ', e.first_name, e.last_name),
@@ -876,9 +1026,10 @@ func (s *Server) listServiceCertificates(w http.ResponseWriter, r *http.Request)
 		  JOIN certificate_types ct ON ct.id = ic.certificate_type_id
 		  JOIN employees e ON e.id = ic.employee_id
 		 WHERE ($1::uuid IS NULL OR ic.employee_id = $1::uuid)
+		   AND `+mine+`
 		 ORDER BY ic.issued_on DESC, ic.serial_no DESC
 		 LIMIT 300`,
-		[]any{nullID(r.URL.Query().Get("employee_id"))},
+		args,
 		func(rows pgx.Rows) (staffCertificateRow, error) {
 			var v staffCertificateRow
 			return v, rows.Scan(&v.Serial, &v.Type, &v.Code, &v.Name, &v.IssuedOn,
@@ -912,6 +1063,12 @@ type transferRow struct {
 }
 
 func (s *Server) listTransfers(w http.ResponseWriter, r *http.Request) {
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nowInIndia().Format("2006-01-02"),
+		nullID(r.URL.Query().Get("employee_id"))})
 	items, err := collect(s, r, `
 		SELECT t.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name), t.kind,
@@ -929,9 +1086,10 @@ func (s *Server) listTransfers(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN campuses fc ON fc.id = t.from_campus_id
 		  LEFT JOIN campuses tc ON tc.id = t.to_campus_id
 		 WHERE ($2::uuid IS NULL OR t.employee_id = $2::uuid)
+		   AND `+mine+`
 		 ORDER BY t.effective_from DESC
 		 LIMIT 300`,
-		[]any{nowInIndia().Format("2006-01-02"), nullID(r.URL.Query().Get("employee_id"))},
+		args,
 		func(rows pgx.Rows) (transferRow, error) {
 			var v transferRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.EmployeeCode, &v.Name, &v.Kind,
@@ -1117,6 +1275,11 @@ type serviceBookRow struct {
 }
 
 func (s *Server) listServiceBook(w http.ResponseWriter, r *http.Request) {
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nullID(r.URL.Query().Get("employee_id"))})
 	items, err := collect(s, r, `
 		SELECT sb.id::text, e.id::text, concat_ws(' ', e.first_name, e.last_name),
 		       sb.entry_kind, to_char(sb.event_date,'YYYY-MM-DD'), sb.title,
@@ -1128,10 +1291,11 @@ func (s *Server) listServiceBook(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN designations d ON d.id = sb.designation_id
 		  LEFT JOIN users u ON u.id = sb.attested_by
 		 WHERE ($1::uuid IS NULL OR sb.employee_id = $1::uuid)
+		   AND `+mine+`
 		 -- The book reads forwards: a service record is a chronology, not a feed.
 		 ORDER BY sb.event_date, sb.created_at
 		 LIMIT 500`,
-		[]any{nullID(r.URL.Query().Get("employee_id"))},
+		args,
 		func(rows pgx.Rows) (serviceBookRow, error) {
 			var v serviceBookRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.Name, &v.Kind, &v.EventDate,
@@ -1256,6 +1420,12 @@ type qualificationRow struct {
 
 func (s *Server) listQualifications(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nowInIndia().Format("2006-01-02"),
+		nullID(q.Get("employee_id")), q.Get("teaching") == "true"})
 	items, err := collect(s, r, `
 		SELECT q.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
@@ -1269,10 +1439,10 @@ func (s *Server) listQualifications(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN users u ON u.id = q.verified_by
 		 WHERE ($2::uuid IS NULL OR q.employee_id = $2::uuid)
 		   AND ($3::bool IS NOT TRUE OR q.is_teaching_qualification)
+		   AND `+mine+`
 		 ORDER BY e.employee_code, q.year_of_passing DESC NULLS LAST
 		 LIMIT 500`,
-		[]any{nowInIndia().Format("2006-01-02"), nullID(q.Get("employee_id")),
-			q.Get("teaching") == "true"},
+		args,
 		func(rows pgx.Rows) (qualificationRow, error) {
 			var v qualificationRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.EmployeeCode, &v.Name,
@@ -1377,6 +1547,12 @@ listMedicalFitness is the registry, newest certificate per person first.
 */
 func (s *Server) listMedicalFitness(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nowInIndia().Format("2006-01-02"),
+		nullID(q.Get("employee_id")), nullInt(q.Get("within_days"))})
 	items, err := collect(s, r, `
 		SELECT m.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
@@ -1389,10 +1565,10 @@ func (s *Server) listMedicalFitness(w http.ResponseWriter, r *http.Request) {
 		  JOIN employees e ON e.id = m.employee_id
 		 WHERE ($2::uuid IS NULL OR m.employee_id = $2::uuid)
 		   AND ($3::int IS NULL OR m.valid_until <= $1::date + $3::int)
+		   AND `+mine+`
 		 ORDER BY m.valid_until, e.employee_code
 		 LIMIT 500`,
-		[]any{nowInIndia().Format("2006-01-02"), nullID(q.Get("employee_id")),
-			nullInt(q.Get("within_days"))},
+		args,
 		func(rows pgx.Rows) (medicalRow, error) {
 			var v medicalRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.EmployeeCode, &v.Name,
@@ -1485,6 +1661,12 @@ type backgroundRow struct {
 
 func (s *Server) listBackgroundChecks(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{nowInIndia().Format("2006-01-02"),
+		nullID(q.Get("employee_id"))})
 	items, err := collect(s, r, `
 		SELECT b.id::text, e.id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
@@ -1496,9 +1678,10 @@ func (s *Server) listBackgroundChecks(w http.ResponseWriter, r *http.Request) {
 		  FROM background_verifications b
 		  JOIN employees e ON e.id = b.employee_id
 		 WHERE ($2::uuid IS NULL OR b.employee_id = $2::uuid)
+		   AND `+mine+`
 		 ORDER BY b.valid_until NULLS FIRST, b.requested_on DESC
 		 LIMIT 500`,
-		[]any{nowInIndia().Format("2006-01-02"), nullID(q.Get("employee_id"))},
+		args,
 		func(rows pgx.Rows) (backgroundRow, error) {
 			var v backgroundRow
 			return v, rows.Scan(&v.ID, &v.EmployeeID, &v.EmployeeCode, &v.Name,
@@ -1750,6 +1933,13 @@ type grievanceRow struct {
 
 func (s *Server) listGrievances(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	args := []any{q.Get("open") == "true"}
+	mine, extra := grievanceFilter(re, "g", len(args)+1)
+	args = append(args, extra...)
 	items, err := collect(s, r, `
 		SELECT g.id::text, g.reference_no, g.is_anonymous,
 		       CASE WHEN g.is_anonymous THEN NULL
@@ -1763,11 +1953,12 @@ func (s *Server) listGrievances(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN employees e ON e.id = g.employee_id
 		  LEFT JOIN users u ON u.id = g.assigned_to
 		 WHERE ($1::bool IS NOT TRUE OR g.status NOT IN ('resolved','closed','withdrawn'))
+		   AND `+mine+`
 		 ORDER BY g.status IN ('resolved','closed','withdrawn'),
 		          array_position(ARRAY['high','medium','low'], g.severity),
 		          g.created_at
 		 LIMIT 300`,
-		[]any{q.Get("open") == "true"},
+		args,
 		func(rows pgx.Rows) (grievanceRow, error) {
 			var v grievanceRow
 			return v, rows.Scan(&v.ID, &v.Reference, &v.Anonymous, &v.Name,
@@ -2218,14 +2409,20 @@ payroll reads.
 */
 func (s *Server) getLOPRegister(w http.ResponseWriter, r *http.Request) {
 	year, month := periodFrom(r)
+	re, ok := s.lifecycleReach(w, r)
+	if !ok {
+		return
+	}
+	mine, args := narrow(re, "e", []any{year, month})
 	items, err := collect(s, r, `
 		SELECT e.id::text, e.employee_code, concat_ws(' ', e.first_name, e.last_name),
 		       l.absent_days::float8, l.half_days::float8, l.unpaid_leave_days::float8,
 		       l.late_marks, l.lop_days::float8
 		  FROM staff_lop_register($1::int, $2::int) l
 		  JOIN employees e ON e.id = l.employee_id
+		 WHERE `+mine+`
 		 ORDER BY l.lop_days DESC, e.employee_code`,
-		[]any{year, month},
+		args,
 		func(rows pgx.Rows) (lopRow, error) {
 			var v lopRow
 			return v, rows.Scan(&v.EmployeeID, &v.EmployeeCode, &v.Name, &v.Absent,

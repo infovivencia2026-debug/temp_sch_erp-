@@ -3,31 +3,34 @@
 Everything the catalogue lists that this codebase does not build, and why.
 Written down so the reason survives the person who decided it.
 
-As of the last run: **452 catalogued, 411 built, 41 deferred.**
+As of ac7399f: **452 catalogued, 414 built, 38 deferred** — the three that
+moved are the section immediately below, which this file had named as the first
+things to pick up.
 
-The product owner's instruction was to leave these alone for now. Nothing here
-is abandoned; each entry says what would unblock it.
+The product owner's instruction was to leave the rest alone for now. Nothing
+here is abandoned; each entry says what would unblock it.
 
 
-## Buildable today — deferred by choice, not by dependency
+## Buildable today — all three now built
 
-These need no hardware and no vendor account. They are deferred because the
-owner does not want them now, and they are the first things to pick up.
+These needed no hardware and no vendor account, and all three have since been
+picked up. Kept here with what was actually done, because the next person to
+read this file will otherwise go looking for them in the catalogue.
 
-### `faculty.attendance.absence_alert_to_guardian`
+### ~~`faculty.attendance.absence_alert_to_guardian`~~ — built in ac7399f
 **faculty.attendance.absence_alert_to_guardian** — Faculty
 
-Same shape as the fee reminder and the same story: the `student.absent` finder exists, dispatch runs, and TypeMessageSend was fixed in 3233b89 after never having delivered anything. Needs the rule and the screen.
+Built as a policy over the rules that already existed: the absence occurrence keys on the child and the date, which collapses eight period rows into one message home, and a queued message is withdrawn when the absence is explained. Screen is `web/src/features/communication/AbsenceAlerts.tsx`.
 
-### `finance.student_dues.automated_fee_reminders`
+### ~~`finance.student_dues.automated_fee_reminders`~~ — built in ac7399f
 **finance.student_dues.automated_fee_reminders** — Accounts & Finance
 
-Was blocked on delivery; is not any more. 3233b89 wired dispatch to the asynq scheduler and 9a6c9ad made a paired phone an SMS provider. What is missing is a trigger rule on an overdue-invoice event plus its screen. The finder already exists (`invoice.overdue`).
+Built as a `message_trigger_rules` row evaluated by the existing `applyRule`. The chase number is derived from how overdue the invoice is rather than counted, so the sweep is idempotent and a week the worker was down resumes at the right chase. Screens are `FeeReminders.tsx` and `ReminderPlans.tsx`.
 
-### `super_admin.platform_configuration.integrations`
+### ~~`super_admin.platform_configuration.integrations`~~ — built in 0b57c65
 **super_admin.platform_configuration.integrations** — Super Admin
 
-An index of every connector and its status. Everything it would list now exists -- Tally, Child Info portal, CRM, meeting platforms, SMTP, WhatsApp, the phone SMS gateway. This is an aggregation view over `integrations` and the provider tables, not new machinery. Cheapest item left in the catalogue.
+An index of every connector and its status, aggregating `integrations` and the provider tables. It reports rather than decides: nothing on the screen changes a connector's behaviour.
 
 
 ## Blocked on hardware or a vendor account
@@ -110,20 +113,52 @@ features — they are things that are wrong or undecided in code that ships toda
 
 Each of these changes who can see what, so none was changed unilaterally.
 
-### A head of department can read every staff member's police verification
+### ~~A head of department can read every staff member's police verification~~ — fixed
 
-`internal/api/hr_lifecycle.go` calls `resolveScope` **zero times** across 35
+`internal/api/hr_lifecycle.go` called `resolveScope` zero times across 35
 handlers. `hod` holds `EmployeesRead`, so one GET to `/hr/background-checks`
-returns the whole school's — plus medical fitness, exits and settlements,
+returned the whole school's — plus medical fitness, exits and settlements,
 grievances, service book and the LOP register. No id guessing, a real seeded
 role, one request.
 
-The lists divide, which is why this is a decision rather than a sweep:
-seniority and celebrations are legitimately school-wide (an ordering per
-department is meaningless); background checks, medical fitness, exits,
-grievances, qualifications and LOP are personal and should narrow.
-`internal/api/hr_growth.go` is the model — `growthReach`, department narrowing,
-and 404 rather than 403 for a record the caller may not see.
+**Decided as this file recommended**, and along the boundary `hr_growth.go`
+already defines: `growthReach` narrows the back office (anyone holding
+`hr.employees.write`) to the institution, a head of department to their
+department and their own row, and everybody else to their own row.
+
+Eleven personal registers narrowed — onboarding and its KYC, exits, exit
+clearances, service certificates, transfers, the service book, qualifications,
+medical fitness, background checks, grievances and the LOP register — plus
+`listEmployeeDocuments` in `role_backoffice.go`, which sits in the same `/hr`
+group and was the same defect one route along.
+
+Five stayed institution-wide on the reasoning already written here: seniority
+(an ordering per department is not a seniority list), the celebration diary,
+the recognitions board, the clearance-department master and the leave policy.
+`listEmployees` and the HR dashboard are also unnarrowed — a staff directory of
+name, department and extension is what a directory is for, and the dashboard
+returns counts rather than anybody's record.
+
+Grievances got a **narrower** rule than the rest, which was the one judgement
+call this file did not pre-decide. There is no departmental widening: outside
+the back office a caller sees the grievances they raised about themselves and
+the ones they were assigned to handle. Handing a head of department every
+complaint raised inside their department includes the complaints raised about
+them, and the staff work that out in one round.
+
+Writes needed no narrowing — every one carries
+`RequirePermission(EmployeesWrite)`, which is what `growthReach` calls the back
+office — and a router walk now pins that, because the reads depend on it.
+
+Two loose ends this did **not** close, both worth a decision:
+
+- A teacher cannot raise their own grievance. `POST /hr/grievances` requires
+  `hr.employees.write`, so the complaint has to be entered by the office it may
+  be about. That is a product gap rather than a leak, and closing it means a
+  self-service route on `self.profile.read`.
+- The narrowing covers the metadata rows only. Whether `GET /files/{id}` lets a
+  narrowed caller fetch a document whose row they can no longer list was not
+  checked.
 
 ### `operations` reaches every child's clinical record
 
@@ -167,12 +202,9 @@ with pastoral and record callers moved onto it and finance left alone.
 
 ## Bugs that ship today
 
-- **`docs/AGENT_CONTRACT.md` §0 is dangerous.** It instructs a worker to
-  `git reset --hard origin/operational-erp`. On three occasions in one day
-  `origin` was *behind* local and obeying it would have destroyed merged work.
-  Three workers caught it independently. Fix the instruction; luck is not a
-  process. Its stated base commit and migration count are also ~60 migrations
-  stale.
+- ~~**`docs/AGENT_CONTRACT.md` §0 is dangerous.**~~ Fixed: §0 now names the
+  explicit-SHA rule and tells a worker never to reset to a branch name on
+  reflex.
 - **`relaxed` density does nothing.** The API and database accept
   `relaxed`; `web/src/index.css` implements `spacious`. Silently inert.
 - **"1 subjects" and "1 seats"** — `portal.results.subject_count` and
