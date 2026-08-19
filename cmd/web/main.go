@@ -91,6 +91,7 @@ func run() error {
 	apiServer := &api.Server{
 		DB: db, Sessions: sessions, Hasher: hasher,
 		Queue: qc, Inspector: inspector, Storage: store,
+		FileStoreDir: cfg.FileStoreDir,
 	}
 
 	r := chi.NewRouter()

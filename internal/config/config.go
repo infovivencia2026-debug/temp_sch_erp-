@@ -37,6 +37,18 @@ type Config struct {
 	GatewaySecret string
 
 	R2 R2Config
+
+	// FileStoreDir is where uploaded files live when there is no object store.
+	//
+	// R2 has never been configured on this deployment, so /api/v1/files/presign
+	// answered 503 and every screen offering an upload had to fall back to
+	// asking for a link. A school that wants to put a worksheet in front of a
+	// class does not have a bucket; it has a server with disk on it.
+	//
+	// Not a replacement for R2 and not pretending to be: a single box with no
+	// replication. It is the difference between a feature that works and one
+	// that explains why it cannot.
+	FileStoreDir string
 }
 
 type R2Config struct {
@@ -77,6 +89,7 @@ func Load() (*Config, error) {
 		PasswordPepper: os.Getenv("PASSWORD_PEPPER"),
 		CredentialKey:  os.Getenv("CREDENTIAL_KEY"),
 		GatewaySecret:  os.Getenv("PAYMENT_GATEWAY_SECRET"),
+		FileStoreDir:   env("FILE_STORE_DIR", "/var/lib/temperp/files"),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),

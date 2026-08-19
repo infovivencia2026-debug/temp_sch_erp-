@@ -170,6 +170,15 @@ R2_PUBLIC_HOST=${R2_PUBLIC_HOST:-}
 R2_PRESIGN_EXPIRY=10m
 ENV
 chown root:"$RUN_USER" "$ENV_FILE"
+
+# Where uploaded files live. There is no object store on this deployment, so
+# study material, lesson plans and scanned documents are written here. Owned by
+# the service account and readable by nobody else: these are children's records.
+FILE_STORE_DIR=${FILE_STORE_DIR:-/var/lib/${SERVICE}/files}
+mkdir -p "$FILE_STORE_DIR"
+chown -R "$RUN_USER":"$RUN_USER" "$FILE_STORE_DIR"
+chmod 750 "$FILE_STORE_DIR"
+grep -q '^FILE_STORE_DIR=' "$ENV_FILE" || echo "FILE_STORE_DIR=$FILE_STORE_DIR" >> "$ENV_FILE"
 chmod 0640 "$ENV_FILE"
 umask 022
 
@@ -283,7 +292,11 @@ server {
     root ${WEBROOT};
     index index.html;
 
-    client_max_body_size 16m;
+    # 64m matches maxLocalUploadBytes in internal/api/files_local.go. A
+    # teacher uploading a recorded lesson hits the proxy limit before the
+    # application's, so a smaller number here would refuse the upload with
+    # nginx's own error page and no explanation the school could act on.
+    client_max_body_size 64m;
 
     access_log /var/log/nginx/${SERVICE}.access.log;
     error_log  /var/log/nginx/${SERVICE}.error.log;

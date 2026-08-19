@@ -22,6 +22,9 @@ type Server struct {
 	Queue     *queue.Client
 	Inspector *queue.Inspector
 	Storage   *storage.Store // nil when R2 is unconfigured
+	// FileStoreDir backs uploads from the server's own disk when there is no
+	// object store. Empty means neither exists and uploads answer 503.
+	FileStoreDir string
 }
 
 // Routes returns the /api/v1 subtree.
@@ -645,6 +648,12 @@ func (s *Server) Routes() http.Handler {
 
 		r.Route("/files", func(r chi.Router) {
 			r.Post("/presign", s.presignUpload)
+			// The two that work without an object store. Any signed-in member
+			// of the school may upload and read; which screens offer it is a
+			// catalogue decision, and narrowing per purpose here would mean
+			// this handler had to know what every future caller is for.
+			r.Post("/", s.uploadFile)
+			r.Get("/{id}", s.downloadFile)
 		})
 	})
 
