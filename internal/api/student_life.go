@@ -1300,6 +1300,12 @@ type displayPreference struct {
 	Theme        string `json:"theme"`
 	Density      string `json:"density"`
 	ReduceMotion bool   `json:"reduce_motion"`
+	// Interface language, and the high-contrast override. Both live on this
+	// same row rather than a store of their own: they are the same kind of
+	// fact -- this account's own reading comfort -- and one Save must not be
+	// able to half-succeed across two tables. See internal/api/i18n.go.
+	Locale       string `json:"locale"`
+	HighContrast bool   `json:"high_contrast"`
 }
 
 // themeChoices and densityChoices are exactly what web/src/index.css already
@@ -1336,12 +1342,12 @@ getDisplayPreferences returns this account's choice, defaulted.
 */
 func (s *Server) getDisplayPreferences(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
-	pref := displayPreference{Theme: "system", Density: "comfortable"}
+	pref := displayPreference{Theme: "system", Density: "comfortable", Locale: defaultLocale}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		err := tx.QueryRow(r.Context(), `
-			SELECT theme, density, reduce_motion
+			SELECT theme, density, reduce_motion, locale, high_contrast
 			  FROM user_display_preferences WHERE user_id = $1`, id.UserID).
-			Scan(&pref.Theme, &pref.Density, &pref.ReduceMotion)
+			Scan(&pref.Theme, &pref.Density, &pref.ReduceMotion, &pref.Locale, &pref.HighContrast)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -1357,6 +1363,8 @@ func (s *Server) getDisplayPreferences(w http.ResponseWriter, r *http.Request) {
 		"density_choices": densityChoices,
 		"default_theme":   "system",
 		"default_density": "comfortable",
+		"locale_choices":  localeChoices,
+		"default_locale":  defaultLocale,
 	})
 }
 
@@ -1393,15 +1401,30 @@ func (s *Server) saveDisplayPreferences(w http.ResponseWriter, r *http.Request) 
 		httpx.BadRequest(w, r, "density must be one of compact, comfortable, relaxed")
 		return
 	}
+	// An unknown locale is rejected rather than quietly coerced to English:
+	// storing something this build cannot render turns every screen into a
+	// list of message keys. Empty means "not sent", which is the default.
+	req.Locale = strings.TrimSpace(req.Locale)
+	if req.Locale == "" {
+		req.Locale = defaultLocale
+	}
+	if !isAllowedLocale(req.Locale) {
+		httpx.BadRequest(w, r, "locale is not one this build has strings for")
+		return
+	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
 			INSERT INTO user_display_preferences
-			    (user_id, institution_id, theme, density, reduce_motion, updated_at)
-			VALUES ($1, $2, $3, $4, $5, now())
+			    (user_id, institution_id, theme, density, reduce_motion,
+			     locale, high_contrast, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, now())
 			ON CONFLICT (user_id) DO UPDATE
 			   SET theme = EXCLUDED.theme, density = EXCLUDED.density,
-			       reduce_motion = EXCLUDED.reduce_motion, updated_at = now()`,
-			id.UserID, id.InstitutionID, req.Theme, req.Density, req.ReduceMotion)
+			       reduce_motion = EXCLUDED.reduce_motion,
+			       locale = EXCLUDED.locale,
+			       high_contrast = EXCLUDED.high_contrast, updated_at = now()`,
+			id.UserID, id.InstitutionID, req.Theme, req.Density, req.ReduceMotion,
+			req.Locale, req.HighContrast)
 		return err
 	})
 	if err != nil {

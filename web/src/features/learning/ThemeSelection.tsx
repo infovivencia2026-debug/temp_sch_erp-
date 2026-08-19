@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Palette, Rows3, MonitorCog } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
+  useI18n, useT, LOCALES, DEFAULT_LOCALE, storeContrast, isKnownLocale,
+} from '@/lib/i18n'
+import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button,
   Checkbox, Field, FormGrid, FormNotice, Select,
   Loading, ErrorState,
@@ -12,13 +15,17 @@ interface Preference {
   theme: string
   density: string
   reduce_motion: boolean
+  locale: string
+  high_contrast: boolean
 }
 interface PreferenceResponse {
   preference: Preference
   theme_choices: string[]
   density_choices: string[]
+  locale_choices: string[]
   default_theme: string
   default_density: string
+  default_locale: string
 }
 
 const THEME_LABEL: Record<string, string> = {
@@ -56,6 +63,16 @@ export default function ThemeSelection() {
   const [theme, setTheme] = useState('system')
   const [density, setDensity] = useState('comfortable')
   const [reduceMotion, setReduceMotion] = useState(false)
+  /* Language and contrast join the same form rather than getting a screen of
+     their own. They are the same kind of choice -- how this account reads --
+     they are stored on the same row, and one Save must write that row once.
+     Two screens would mean two writes and a state where one succeeded. */
+  const { locale, setLocale } = useI18n()
+  const t = useT()
+  const [chosenLocale, setChosenLocale] = useState(locale)
+  const [highContrast, setHighContrast] = useState(
+    () => document.documentElement.getAttribute('data-contrast') === 'high',
+  )
   const [loaded, setLoaded] = useState(false)
 
   const prefs = useQuery({
@@ -70,9 +87,19 @@ export default function ThemeSelection() {
       setTheme(prefs.data.preference.theme)
       setDensity(prefs.data.preference.density)
       setReduceMotion(prefs.data.preference.reduce_motion)
+      // The account is the truth across devices; localStorage was only the
+      // fast first paint. Reconciling here is what stops the lab machine's
+      // choice from outliving the one made on the phone.
+      const stored = prefs.data.preference.locale
+      if (isKnownLocale(stored)) {
+        setChosenLocale(stored)
+        if (stored !== locale) setLocale(stored)
+      }
+      setHighContrast(prefs.data.preference.high_contrast)
+      storeContrast(prefs.data.preference.high_contrast)
       setLoaded(true)
     }
-  }, [prefs.data, loaded])
+  }, [prefs.data, loaded, locale, setLocale])
 
   const save = useMutation({
     mutationFn: () =>
@@ -80,9 +107,13 @@ export default function ThemeSelection() {
         theme,
         density,
         reduce_motion: reduceMotion,
+        locale: chosenLocale,
+        high_contrast: highContrast,
       }),
     onSuccess: () => {
       apply(theme, density)
+      setLocale(chosenLocale)
+      storeContrast(highContrast)
       qc.invalidateQueries({ queryKey: ['display-preferences'] })
     },
   })
@@ -92,12 +123,18 @@ export default function ThemeSelection() {
 
   const themeChoices = prefs.data?.theme_choices ?? ['system', 'light', 'dark']
   const densityChoices = prefs.data?.density_choices ?? ['compact', 'comfortable', 'relaxed']
+  // Only offer a language this build has strings for. The server sends the
+  // same list it validates against, so a stale client cannot store a locale
+  // that would render every screen as raw message keys.
+  const localeChoices = (prefs.data?.locale_choices ?? [DEFAULT_LOCALE]).filter(isKnownLocale)
   const stored = prefs.data?.preference
   const dirty =
     !!stored &&
     (stored.theme !== theme ||
       stored.density !== density ||
-      stored.reduce_motion !== reduceMotion)
+      stored.reduce_motion !== reduceMotion ||
+      stored.locale !== chosenLocale ||
+      stored.high_contrast !== highContrast)
 
   return (
     <>
@@ -147,6 +184,27 @@ export default function ThemeSelection() {
                     value: v,
                     label: DENSITY_LABEL[v] ?? v,
                   }))}
+                />
+              </Field>
+              <Field label={t('preferences.language.label')} hint={t('preferences.language.hint')}>
+                <Select
+                  value={chosenLocale}
+                  onChange={setChosenLocale}
+                  options={localeChoices.map((v) => ({
+                    value: v,
+                    // A person looking for their own language is not helped
+                    // by seeing it named in a language they cannot read, so
+                    // each is listed in itself.
+                    label: LOCALES[v]?.endonym ?? v,
+                  }))}
+                />
+              </Field>
+              <Field label={t('preferences.contrast.label')}>
+                <Checkbox
+                  checked={highContrast}
+                  onChange={setHighContrast}
+                  label={t('preferences.contrast.checkbox')}
+                  hint={t('preferences.contrast.hint')}
                 />
               </Field>
               <Field label="Movement" wide>

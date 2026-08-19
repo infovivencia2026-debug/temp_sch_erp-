@@ -10,6 +10,7 @@ import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/com
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
 import NeedsAttention from '@/components/NeedsAttention'
+import { I18nProvider } from '@/lib/i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -171,6 +172,7 @@ export default function App() {
       <BrowserRouter>
         <SessionProvider>
           <CatalogProvider>
+            <I18nProvider>
             <Shell>
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -180,6 +182,7 @@ export default function App() {
                 <Route path="*" element={<Home />} />
               </Routes>
             </Shell>
+            </I18nProvider>
           </CatalogProvider>
         </SessionProvider>
       </BrowserRouter>

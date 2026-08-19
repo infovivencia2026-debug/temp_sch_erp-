@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Button,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useT } from '@/lib/i18n'
 
 /* Things waiting on you.
 
@@ -40,12 +41,13 @@ const TONE: Record<string, 'danger' | 'warning' | 'neutral'> = {
 }
 
 export default function Reminders() {
+  const t = useT()
   const q = useQuery({
     queryKey: ['attention', 'self'],
     queryFn: () => api.get<Attention>('/api/v1/attention'),
   })
 
-  if (q.isLoading) return <Loading label="Checking what needs doing…" />
+  if (q.isLoading) return <Loading label={t('portal.reminders.loading')} />
   if (q.error) return <ErrorState error={q.error} />
 
   const items = q.data?.items ?? []
@@ -54,23 +56,27 @@ export default function Reminders() {
   return (
     <>
       <PageHead
-        eyebrow="Reminders"
-        title="Waiting on you"
-        description="Homework not turned in, fees not paid, notices not acknowledged — only the things that still need an action."
+        eyebrow={t('portal.reminders.eyebrow')}
+        title={t('portal.reminders.title')}
+        description={t('portal.reminders.description')}
       />
       <PageBody>
         {items.length === 0 ? (
           <Card>
             <EmptyState
-              title="Nothing outstanding"
-              body="Everything the school has asked of you is done. This list stays empty until something needs doing."
+              title={t('portal.reminders.empty_title')}
+              body={t('portal.reminders.empty_body')}
             />
           </Card>
         ) : (
           <Card>
             <CardHeader
-              title={urgent.length ? `${urgent.length} needing attention now` : 'To do'}
-              description="Most pressing first."
+              title={
+                urgent.length
+                  ? t('portal.reminders.card_title_urgent', { count: urgent.length })
+                  : t('portal.reminders.card_title')
+              }
+              description={t('portal.reminders.card_description')}
             />
             <ul className="divide-y">
               {items.map((i) => (
@@ -104,7 +110,7 @@ export default function Reminders() {
         {items.length > 0 && (
           <p className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-            Anything already done drops off this list on its own.
+            {t('portal.reminders.footnote')}
           </p>
         )}
       </PageBody>
