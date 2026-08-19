@@ -771,7 +771,9 @@ type examSubjectRow struct {
 	ID        string  `json:"id"`
 	ExamID    string  `json:"exam_id"`
 	ExamName  string  `json:"exam_name"`
+	ExamKind  string  `json:"exam_kind"`
 	Subject   string  `json:"subject"`
+	ClassID   string  `json:"class_id"`
 	ClassName string  `json:"class_name"`
 	Label     string  `json:"label"`
 	MaxMarks  float64 `json:"max_marks"`
@@ -782,8 +784,46 @@ type examSubjectRow struct {
 // listExamSubjects lists the papers a teacher can enter marks against, with
 // how many are already done so the pending ones are obvious.
 func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	/* Narrowed to what the caller teaches.
+
+	   This listed every paper in the school to everybody who could reach the
+	   endpoint. A subject teacher picking "the paper I have to mark" scrolled
+	   past every paper of every class, and the one screen whose entire job is
+	   to be a short list was the longest list in the product. The exam
+	   controller and the office still see all of it — AllStudents is what
+	   distinguishes them — and this is the same predicate the rest of the
+	   teaching screens narrow by, not a second idea of what a teacher reaches.
+
+	   The filters below are what the request asked for: pick the class and the
+	   kind of exam before the paper, rather than reading three facts out of a
+	   single concatenated label. */
+	q := r.URL.Query()
+	args := []any{
+		nullString(q.Get("exam_id")),
+		nullString(q.Get("class_id")),
+		nullString(q.Get("exam_kind")),
+	}
+	mine := "TRUE"
+	if !res.AllStudents {
+		if len(res.SectionIDs) == 0 {
+			mine = "FALSE"
+		} else {
+			args = append(args, res.SectionIDs)
+			mine = `EXISTS (SELECT 1 FROM sections msec
+			                 WHERE msec.class_id = cs.class_id
+			                   AND msec.id = ANY($` + itoa(len(args)) + `))`
+		}
+	}
+
 	items, err := collect(s, r, `
-		SELECT es.id::text, e.id::text, e.name, sub.name, c.name,
+		SELECT es.id::text, e.id::text, e.name, COALESCE(e.kind,''), sub.name,
+		       c.id::text, c.name,
 		       e.name || ' · ' || c.name || ' · ' || sub.name,
 		       es.max_marks,
 		       (SELECT count(*) FROM marks m WHERE m.exam_subject_id = es.id)::int,
@@ -795,12 +835,14 @@ func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
 		  JOIN subjects sub      ON sub.id = cs.subject_id
 		  JOIN classes c         ON c.id = cs.class_id
 		 WHERE ($1::uuid IS NULL OR es.exam_id = $1)
-		 ORDER BY c.level, sub.name`,
-		[]any{nullString(r.URL.Query().Get("exam_id"))},
+		   AND ($2::uuid IS NULL OR c.id = $2)
+		   AND ($3::text IS NULL OR e.kind = $3)
+		   AND `+mine+`
+		 ORDER BY c.level, sub.name`, args,
 		func(rows pgx.Rows) (examSubjectRow, error) {
 			var v examSubjectRow
-			return v, rows.Scan(&v.ID, &v.ExamID, &v.ExamName, &v.Subject, &v.ClassName,
-				&v.Label, &v.MaxMarks, &v.Entered, &v.Expected)
+			return v, rows.Scan(&v.ID, &v.ExamID, &v.ExamName, &v.ExamKind, &v.Subject,
+				&v.ClassID, &v.ClassName, &v.Label, &v.MaxMarks, &v.Entered, &v.Expected)
 		})
 	respond(w, r, items, err)
 }

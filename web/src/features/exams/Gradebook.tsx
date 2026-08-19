@@ -10,6 +10,8 @@ import { useToast } from '@/components/Toast'
 interface Paper {
   id: string; label: string; max_marks: number
   marks_entered: number; students: number
+  exam_id: string; exam_name: string; exam_kind: string
+  class_id: string; class_name: string; subject: string
 }
 
 interface Row {
@@ -22,6 +24,16 @@ interface Row {
 export default function Gradebook() {
   const qc = useQueryClient()
   const [esID, setESID] = useState('')
+  /* Class, then kind of exam, then the paper.
+   *
+   * There was one dropdown listing every paper in the school as
+   * "Half Yearly · Class 8 · Mathematics", and a teacher with four classes
+   * and three subjects read three facts out of one concatenated string to
+   * find the one they were about to mark. Choosing the class and the exam
+   * type first is how anybody describes the job — "Class 8B half-yearly
+   * maths" — and it is what was asked for. */
+  const [classID, setClassID] = useState('')
+  const [examKind, setExamKind] = useState('')
 
   // A teacher picks the paper from a list. Asking them to paste a UUID was the
   // single worst thing left in the interface.
@@ -96,6 +108,11 @@ export default function Gradebook() {
     return { student_id: r.student_id, marks_obtained: marks, is_absent: false }
   }
 
+  const all = papers.data?.items ?? []
+  const visible = all.filter(
+    (p) => (!classID || p.class_id === classID) && (!examKind || p.exam_kind === examKind),
+  )
+
   const save = useMutation({
     mutationFn: () =>
       api.post('/api/v1/exams/marks', {
@@ -125,15 +142,35 @@ export default function Gradebook() {
         title="Marks entry"
         description="Enter marks for a paper. Grades are derived from the exam's grading scale, not typed."
         actions={
-          <Select
-            value={esID}
-            onChange={pickPaper}
-            placeholder="Choose a paper"
-            options={(papers.data?.items ?? []).map((p) => ({
-              value: p.id,
-              label: `${p.label} — ${p.marks_entered}/${p.students} entered`,
-            }))}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={classID}
+              onChange={(v) => { setClassID(v); setESID('') }}
+              placeholder="Any class"
+              options={[
+                { value: '', label: 'Any class' },
+                ...classOptions(all),
+              ]}
+            />
+            <Select
+              value={examKind}
+              onChange={(v) => { setExamKind(v); setESID('') }}
+              placeholder="Any exam type"
+              options={[
+                { value: '', label: 'Any exam type' },
+                ...kindOptions(all),
+              ]}
+            />
+            <Select
+              value={esID}
+              onChange={pickPaper}
+              placeholder={visible.length ? 'Choose a paper' : 'No papers match'}
+              options={visible.map((p) => ({
+                value: p.id,
+                label: `${p.subject} · ${p.exam_name} — ${p.marks_entered}/${p.students} entered`,
+              }))}
+            />
+          </div>
         }
       />
       <PageBody>
@@ -220,4 +257,24 @@ export default function Gradebook() {
       </PageBody>
     </>
   )
+}
+
+
+/* The two narrowing lists, built from the papers themselves.
+ *
+ * Not separate endpoints. The classes a teacher may enter marks for are
+ * exactly the classes appearing in their own paper list, and asking the
+ * server a second question could only produce a list with entries that
+ * narrow to nothing.
+ */
+function classOptions(papers: Paper[]) {
+  const seen = new Map<string, string>()
+  for (const p of papers) seen.set(p.class_id, p.class_name)
+  return [...seen].map(([value, label]) => ({ value, label }))
+}
+
+function kindOptions(papers: Paper[]) {
+  const seen = new Set<string>()
+  for (const p of papers) if (p.exam_kind) seen.add(p.exam_kind)
+  return [...seen].map((k) => ({ value: k, label: k.replace(/_/g, ' ') }))
 }
