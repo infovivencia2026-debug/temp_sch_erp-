@@ -35,6 +35,9 @@ func (s *Server) Routes() http.Handler {
 	r.Get("/session", s.getSession)
 	s.mountAdmissionsPublic(r)
 	s.mountSMSGatewayDevice(r)
+	// The driver's phone, for the same reason: it holds a device token and no
+	// session, and the claim has no credential at all until it succeeds.
+	s.mountBusTrackerDevice(r)
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
@@ -108,6 +111,7 @@ func (s *Server) Routes() http.Handler {
 		s.mountClassroom(r)
 		s.mountComms(r)
 		s.mountSMSGateway(r)
+		s.mountBusTrackerAdmin(r)
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))

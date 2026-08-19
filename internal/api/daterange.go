@@ -90,14 +90,26 @@ nowInIndia is the current moment in the only timezone this product has.
 	had each fixed for themselves before this existed.
 */
 func nowInIndia() time.Time {
+	return time.Now().In(indiaTZ())
+}
+
+/*
+indiaTZ is the location every date in this product is resolved in.
+
+	Split out of nowInIndia because anchoring a scheduled time-of-day to a
+	date needs the location without needing the moment — a bus stop's 07:40 is
+	a time-of-day, and turning it into an instant to measure lateness against
+	requires this and not time.Now().
+*/
+func indiaTZ() *time.Location {
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
 		// A container without tzdata should not make dates wrong by five and a
 		// half hours in silence; the fixed offset is India's and does not
 		// change with the season.
-		loc = time.FixedZone("IST", 5*3600+1800)
+		return time.FixedZone("IST", 5*3600+1800)
 	}
-	return time.Now().In(loc)
+	return loc
 }
 
 // resolveRange reads ?period= or ?from=&to= and works out the bounds.

@@ -1,0 +1,23 @@
+# Gradle / Android build outputs
+.gradle/
+build/
+*/build/
+captures/
+.cxx/
+
+# Local machine configuration — never commit, it holds an absolute SDK path
+local.properties
+
+# Signing material — never commit
+*.jks
+*.keystore
+keystore.properties
+release/
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+
+# OS
+.DS_Store

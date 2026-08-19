@@ -1,0 +1,13 @@
+import { lazy } from 'react'
+
+/* Geo-fenced bus stop alerts, for the transport office.
+
+   Kept out of registry.ts so this lands without several agents editing one
+   object at once. Spread into FEATURE_COMPONENTS there.
+
+   The key was checked against internal/catalog/catalog_gen.go before being
+   written; a key the catalogue does not carry renders the placeholder
+   silently. */
+export const geofenceKeys = {
+  'institution_admin.transport.geo_fenced_bus_stop_alerts': lazy(() => import('./StopAlerts')),
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">School Bus Tracker</string>
+
+    <string name="notification_channel_run">Run in progress</string>
+    <string name="notification_channel_run_desc">The permanent notice shown while a run is open. Dismissing it stops the bus appearing on the school\'s map.</string>
+    <string name="notification_channel_problem">Tracking problems</string>
+    <string name="notification_channel_problem_desc">Raised when the phone cannot report — location switched off, permission revoked, or the run closed by the office.</string>
+</resources>
