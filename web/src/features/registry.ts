@@ -31,6 +31,8 @@ import { masterTimetableKeys } from './academics/master-timetable-keys'
 import { connectorsKeys } from './super_admin/connectors-keys'
 import { whatsappKeys } from './super_admin/whatsapp-keys'
 import { smsGatewayKeys } from './communication/sms-gateway-keys'
+import { integrationsKeys } from './super_admin/integrations-keys'
+import { messageRulesKeys } from './communication/message-rules-keys'
 import { reportBuilderKeys } from './analytics/report-builder-keys'
 import { digitalLibraryKeys } from './operations/digital-library-keys'
 
@@ -436,6 +438,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...connectorsKeys,
   ...whatsappKeys,
   ...smsGatewayKeys,
+  ...integrationsKeys,
+  ...messageRulesKeys,
   ...reportBuilderKeys,
   ...digitalLibraryKeys,
   ...familyKeys,

@@ -29,6 +29,7 @@ const (
 	TypeFeeReminderFanout  = "fee:reminder_fanout"
 	TypeMessageSend        = "message:send"
 	TypeMessageDispatch    = "message:dispatch"
+	TypeMessagePlans       = "message:plans"
 	TypeBulkImport         = "bulk:import"
 	TypeExportBuild        = "export:build"
 	TypeAttendanceRollup   = "attendance:rollup"
@@ -112,6 +113,18 @@ MessageDispatchPayload drives the recurring flush of message_log.
 type MessageDispatchPayload struct {
 	Envelope
 	Limit int `json:"limit"`
+}
+
+/*
+MessagePlansPayload drives the reminder-plan sweep for one school.
+
+	Nothing but the envelope: which plans exist, how often each chases and
+	what it skips are the school's own configuration, held in
+	message_trigger_rules, not in a job payload. A payload carrying a rule id
+	would be a schedule that goes stale the moment somebody edits the rule.
+*/
+type MessagePlansPayload struct {
+	Envelope
 }
 
 type BulkImportPayload struct {

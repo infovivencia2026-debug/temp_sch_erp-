@@ -54,6 +54,12 @@ type Messaging interface {
 	// RLS scope: false for a single tenant's own queue, which is what the
 	// per-institution cron entries want.
 	DispatchMessages(ctx context.Context, inst uuid.UUID, platform bool, limit int) (sent, failed int, err error)
+
+	// RunMessagePlans evaluates one school's reminder plans -- the overdue-fee
+	// chase and the absence alert -- and queues what they produce. It queues
+	// only; DispatchMessages is still the one road out of the building, which
+	// is what keeps the recipient allowlist in front of every message.
+	RunMessagePlans(ctx context.Context, inst uuid.UUID) error
 }
 
 // OutboundRequest is one message to queue. Declared here for the same reason
@@ -80,6 +86,7 @@ func (h *Handlers) routes() map[string]func(context.Context, *asynq.Task) error 
 		TypeFeeReminderFanout:  h.feeReminderFanout,
 		TypeMessageSend:        h.messageSend,
 		TypeMessageDispatch:    h.messageDispatch,
+		TypeMessagePlans:       h.messagePlans,
 		TypeBulkImport:         h.bulkImport,
 		TypeExportBuild:        h.exportBuild,
 		TypeAttendanceRollup:   h.attendanceRollup,
@@ -284,6 +291,31 @@ func (h *Handlers) messageDispatch(ctx context.Context, t *asynq.Task) error {
 			"sent", sent, "failed", failed)
 	}
 	return err
+}
+
+/*
+messagePlans runs the reminder plans for one school.
+
+	Separate from messageDispatch because they are opposite ends of the same
+	pipe and fail differently: this one fills message_log from what is true
+	right now, and a fault here means nothing was queued; that one drains it,
+	and a fault there means a provider is refusing. Merging them would report
+	one number for two questions.
+
+	A nil Messaging is a supported state, not a bug -- a worker built without
+	the messaging feature says so and moves on rather than panicking.
+*/
+func (h *Handlers) messagePlans(ctx context.Context, t *asynq.Task) error {
+	p, _, err := decode[MessagePlansPayload](t)
+	if err != nil {
+		return err
+	}
+	if h.Messaging == nil {
+		slog.Warn("message plans skipped: no messaging contract wired",
+			"institution_id", p.InstitutionID)
+		return nil
+	}
+	return h.Messaging.RunMessagePlans(ctx, p.InstitutionID)
 }
 
 func (h *Handlers) bulkImport(ctx context.Context, t *asynq.Task) error {
