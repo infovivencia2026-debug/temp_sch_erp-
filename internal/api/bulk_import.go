@@ -150,11 +150,17 @@ var importSpecs = map[string]importSpec{
 					return errors.New("capacity must be a whole number above zero")
 				}
 			}
+			// Mirrors createSection exactly, campus and conflict target
+			// included. Writing a shorter INSERT here was how the importer
+			// came to omit campus_id, which the column forbids — an importer
+			// that diverges from the form it replaces will diverge again.
 			_, err = c.tx.Exec(c.r.Context(), `
-				INSERT INTO sections (institution_id, class_id, academic_year_id, name, capacity, room)
-				VALUES ($1,$2,$3,$4,$5,NULLIF($6,''))
-				ON CONFLICT DO NOTHING`,
-				c.inst, classID, c.year, strings.TrimSpace(row["name"]), capacity,
+				INSERT INTO sections (institution_id, campus_id, class_id, academic_year_id,
+				                      name, capacity, room)
+				VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''))
+				ON CONFLICT (class_id, academic_year_id, name)
+				DO UPDATE SET capacity = EXCLUDED.capacity, room = EXCLUDED.room`,
+				c.inst, c.campus, classID, c.year, strings.TrimSpace(row["name"]), capacity,
 				strings.TrimSpace(row["room"]))
 			return err
 		},
