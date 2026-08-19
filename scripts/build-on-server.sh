@@ -82,7 +82,12 @@ install -o root -g root -m 0755 /tmp/build-web    "$APP_DIR/web"
 install -o root -g root -m 0755 /tmp/build-worker "$APP_DIR/worker"
 rm -f /tmp/build-web /tmp/build-worker /tmp/build-migrate
 mkdir -p "$WEBROOT"
-rsync -a --delete "$SRC/web/dist/" "$WEBROOT/"
+# --delete keeps the webroot honest: a bundle removed from the build should
+# disappear from the server too. /download is the one thing under it that the
+# SPA build does not produce -- the signed Android APKs are uploaded once and
+# are not rebuilt on every deploy -- so it has to be held back from --delete
+# or shipping the web app would silently break the app download link.
+rsync -a --delete --exclude '/download/' "$SRC/web/dist/" "$WEBROOT/"
 systemctl restart "${SERVICE}-web" "${SERVICE}-worker"
 sleep 2
 systemctl is-active "${SERVICE}-web" "${SERVICE}-worker"
