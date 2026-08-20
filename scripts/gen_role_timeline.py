@@ -157,6 +157,157 @@ JOINS = {
     "15 Self service": ("An account", "The person's own record"),
 }
 
+
+# --- who hands what to whom -------------------------------------------------
+# Keyed on a fragment of the feature key, most specific first. Each entry is
+# (upstream role, downstream role, approver, who is notified, the chain).
+#
+# The "Notifies" values are not invented. They are the notification kinds
+# actually emitted by notify() and deliverFamilyAlerts() in internal/api --
+# student_remark, staff_remark, homework, homework_submitted, report_card,
+# circular, absence_alert, fee, attendance, ptm. Where a flow emits nothing the
+# column says "None" rather than describing an alert nobody receives.
+FLOWS = [
+    ("homework_submitted", "", "", "", "", ""),
+    (".homework", "Faculty (sets the work)", "Student and Parent (turn it in)", "",
+     "Parent on publish; Faculty on submission",
+     "Faculty sets -> Parent/Student see it -> they submit -> Faculty marks"),
+    ("classwork", "Faculty (sets the work)", "Student and Parent", "",
+     "Parent on publish; Faculty on submission",
+     "Faculty sets -> Parent/Student see it -> they submit -> Faculty marks"),
+    ("assignments_submissions", "Faculty", "Student and Parent", "",
+     "Parent on publish; Faculty on submission",
+     "Faculty sets -> Student submits -> Faculty marks and returns feedback"),
+    ("lesson_plan", "Faculty (writes it)", "HOD (reviews it)", "HOD / Principal", "None",
+     "Faculty writes -> HOD approves or returns -> Faculty marks it taught -> coverage moves"),
+    ("syllabus", "Faculty (marks lessons taught)", "HOD / Principal", "", "None",
+     "Faculty teaches -> coverage percentage -> HOD sees who is behind"),
+    ("child_remarks", "Faculty (writes it)", "Parent (reads it)", "",
+     "Parent, same day (student_remark)",
+     "Faculty writes -> every guardian alerted -> Parent reads it in the portal"),
+    ("student_remark", "Faculty", "Parent", "", "Parent (student_remark)",
+     "Faculty writes -> guardians alerted -> Parent reads"),
+    ("behavior_demerits", "Faculty", "Parent", "", "Parent (student_remark)",
+     "Faculty records conduct -> guardians alerted -> Parent reads"),
+    ("teacher_remarks", "HOD / Principal / Parent (writes it)", "Faculty (reads it)", "",
+     "The teacher it is about (staff_remark)",
+     "HOD, Principal or Parent writes -> teacher alerted -> teacher reads it on their own screen"),
+    ("remarks_about_me", "HOD / Principal / Parent", "Faculty (the subject)", "",
+     "The teacher it is about (staff_remark)",
+     "Somebody writes -> teacher alerted -> teacher reads"),
+    ("substitution", "Faculty (asks for cover)", "HOD (assigns it)", "HOD",
+     "The teacher given the period",
+     "Faculty requests -> HOD sees who is free -> HOD assigns -> covering teacher alerted"),
+    ("report_card", "Faculty (subject teachers enter marks)",
+     "Parent and Student (read the published card)", "Class teacher publishes",
+     "Parent and Student on publish (report_card)",
+     "Subject teachers enter marks -> class teacher checks and publishes -> family alerted"),
+    ("marks_entry", "Faculty (the subject teacher)", "Class teacher (compiles the card)", "",
+     "None until the card is published",
+     "Subject teacher enters -> grade derived from the school's scale -> class teacher compiles"),
+    ("grading_scale", "Institution Admin (sets the bands)", "Faculty (marks derive grades)", "",
+     "None", "Principal sets 91-100 = A1 -> every mark entered afterwards derives its grade"),
+    ("circular", "Institution Admin / Faculty (publishes)", "Parent and Student", "",
+     "Parent and Student (circular); SMS and email queued",
+     "Author publishes -> addressed to parents, students or both -> alerts and queued messages"),
+    ("announcement", "Institution Admin", "Parent, Student, Staff", "", "Recipients (circular)",
+     "Published -> appears in the portal and the alert feed"),
+    ("apply_student_leave", "Parent (applies)", "Class teacher (decides)", "Class teacher",
+     "Class teacher and HR",
+     "Parent applies -> class teacher approves -> register and HR return updated"),
+    ("student_leave_requests", "Parent", "Class teacher", "Class teacher", "Class teacher",
+     "Parent applies -> class teacher decides -> attendance reflects it"),
+    ("leave", "Faculty / staff member (applies)", "HOD and HR (decide)", "HOD / HR",
+     "The applicant on decision",
+     "Staff applies -> HOD and HR see it -> approved -> cover requested -> payroll balance updated"),
+    ("attendance", "Faculty (marks the register)", "Parent, HR, Compliance", "",
+     "Parent on absence (absence_alert)",
+     "Faculty marks -> parent alerted if absent -> report card line and statutory return"),
+    ("timetable", "HOD / Institution Admin (builds it)", "Faculty and Student", "", "None",
+     "HOD builds -> published -> defines each teacher's scope -> Faculty and Student read it"),
+    ("faculty_allocation", "HOD / Institution Admin", "Faculty", "", "None",
+     "Allocation decides who teaches what, which is what sets every teacher's data scope"),
+    ("language_subject_allocation", "Institution Admin / HOD", "Faculty and Student", "", "None",
+     "L1 and L2 chosen per student -> decides section grouping and the report card subjects"),
+    ("admission", "Admissions & Front Office", "Accounts (invoices) and Faculty (teaches)",
+     "Institution Admin", "None",
+     "Enquiry -> application -> admitted -> enrolled -> invoiced -> on a register"),
+    ("enquir", "Admissions & Front Office", "Admissions", "", "None",
+     "Enquiry captured -> followed up -> becomes an application"),
+    ("fee", "Accounts & Finance (raises)", "Parent (pays)",
+     "Institution Admin approves the structure", "Parent on dues (fee)",
+     "Structure approved -> invoices raised -> parent pays -> receipt -> arrears chased"),
+    ("payroll", "HR & Payroll (runs it)", "Accounts & Finance (pays it)", "Institution Admin",
+     "None", "Attendance and leave -> loss of pay -> payroll run -> approved -> bank export"),
+    ("employee", "HR & Payroll (appoints)", "HOD and Institution Admin", "Institution Admin",
+     "None", "HR appoints -> HR issues the login -> HOD allocates the timetable"),
+    ("promotion", "Class teacher / Institution Admin", "Next year's enrolment",
+     "Institution Admin", "None",
+     "Results -> promotion decision -> new enrolment -> old one closed with history kept"),
+    ("certificate", "Institution Admin / Front Office", "Parent (receives it)",
+     "Institution Admin", "None",
+     "Dues cleared -> TC generated from a snapshot -> issued to the family"),
+    ("transport", "Operations (routes and stops)", "Parent and Accounts", "", "None",
+     "Route built -> student allocated -> transport fee head -> parent billed"),
+    ("hostel", "Operations", "Parent and Accounts", "", "None",
+     "Room allotted -> hostel fee head -> parent billed"),
+    ("payment", "Parent (pays)", "Accounts & Finance", "", "Parent (receipt)",
+     "Parent pays -> receipt issued -> ledger and arrears updated"),
+    ("tenant", "Seller Admin", "Institution Admin", "Seller Admin", "New school's admin",
+     "Vendor provisions -> credentials sent -> principal sets the school up"),
+    ("subscription", "Seller Admin", "Institution Admin", "Seller Admin", "None",
+     "Plan chosen -> entitlement set -> decides which modules the school sees"),
+]
+
+GENERIC_FLOW = ("", "", "", "None", "")
+
+
+
+# Where no specific flow above matches, the phase still says who is upstream
+# and downstream of this kind of work. Blank columns read as "nobody hands this
+# to anybody", which is almost never true and is worse than a general answer.
+PHASE_FLOW = {
+    "00 Vendor": ("Seller Admin", "Institution Admin", "Seller Admin", "None",
+                  "Vendor acts -> the school sees the result in what it may use"),
+    "01 Admissions": ("Admissions & Front Office", "Accounts and Faculty",
+                      "Institution Admin", "None",
+                      "Enquiry -> application -> admission -> enrolment -> invoice and register"),
+    "02 Year setup": ("Institution Admin", "Every other role", "Institution Admin", "None",
+                      "Principal builds the year -> everybody else works inside it"),
+    "03 Staffing": ("HR & Payroll", "HOD and Institution Admin", "Institution Admin", "None",
+                    "HR appoints -> issues the login -> HOD allocates the work"),
+    "04 Timetable": ("HOD / Institution Admin", "Faculty and Student", "Institution Admin", "None",
+                     "Grid built -> published -> sets every teacher's scope -> read by class and family"),
+    "05 Fees": ("Accounts & Finance", "Parent", "Institution Admin", "Parent on dues (fee)",
+                "Structure -> invoice -> parent pays -> receipt -> arrears"),
+    "06 Daily attendance": ("Faculty", "Parent, HR, Compliance", "",
+                            "Parent on absence (absence_alert)",
+                            "Register marked -> family alerted -> report card and statutory return"),
+    "07 Teaching": ("Faculty", "Student and Parent", "HOD where a plan is reviewed",
+                    "Parent on published work (homework)",
+                    "Faculty teaches and sets work -> family sees it -> coverage tracked"),
+    "08 Examinations": ("Faculty (subject teachers)", "Class teacher, then Parent and Student",
+                        "Class teacher publishes", "Family on publish (report_card)",
+                        "Marks entered -> card compiled -> checked -> published -> family alerted"),
+    "09 Communication": ("Institution Admin / Faculty", "Parent and Student", "",
+                         "Recipients (circular)",
+                         "Author writes -> addressed -> delivered in-app, and queued for SMS or email"),
+    "10 Operations": ("Operations staff", "Parent and Accounts", "Institution Admin", "None",
+                      "Facility recorded -> student allocated -> fee head -> parent billed"),
+    "11 Pastoral": ("Faculty", "Parent and Institution Admin", "", "Parent (student_remark)",
+                    "Observed -> recorded -> family told -> support plan where needed"),
+    "12 Year end": ("Class teacher / Institution Admin", "Next year, and the family",
+                    "Institution Admin", "None",
+                    "Results -> promotion -> dues cleared -> certificate -> next year's enrolment"),
+    "13 Compliance": ("Institution Admin", "Government and the board", "Institution Admin", "None",
+                      "Records kept all year -> return compiled -> filed on the statutory date"),
+    "14 Oversight": ("Every role above (they produce the data)", "Institution Admin", "", "None",
+                     "Work happens -> it is counted -> the principal reads it and decides"),
+    "15 Self service": ("The person themselves", "Nobody", "", "None",
+                        "Read or edited by its owner; nothing downstream depends on it"),
+}
+
+
 FEATURE_RE = re.compile(
     r"\{ key: '([^']+)', slug: '([^']+)', name: '((?:[^'\\]|\\.)*)', "
     r"scope: '([a-z_]+)', tier: '([a-z]+)', summary: '((?:[^'\\]|\\.)*)' \},$"
@@ -193,6 +344,20 @@ BY_ROLE = {
     ("school_life", True): "09 Communication",
     ("consent", True): "15 Self service",
 }
+
+
+def flow_for(feature_key: str):
+    """The role handoff around one feature, or blanks where there is none.
+
+    Matched on the feature key rather than the name, because a name is prose
+    and a key is the thing the API gates on. Most specific first: the
+    homework_submitted alert has to be excluded before ".homework" matches it,
+    or the alert is itself described as a piece of work somebody sets.
+    """
+    for frag, up, down, approver, notifies, chain in FLOWS:
+        if frag in feature_key:
+            return up, down, approver, notifies, chain
+    return GENERIC_FLOW
 
 
 def _by_name(name: str):
@@ -291,6 +456,10 @@ def main() -> int:
         key, slug, name, scope, tier, summary = m.groups()
         phase, months, when = phase_for(role_key, sec_slug, slug)
         upstream, downstream = JOINS.get(phase, ("", ""))
+        up_role, down_role, approver, notifies, chain = flow_for(key)
+        if not chain:
+            up_role, down_role, approver, notifies, chain = PHASE_FLOW.get(
+                phase, GENERIC_FLOW)
         rows.append({
             "Year Phase": phase,
             "Typical Months": months,
@@ -307,6 +476,11 @@ def main() -> int:
             "When Used": when,
             "Depends On": upstream,
             "Feeds Into": downstream,
+            "Acts Before (role)": up_role,
+            "Hands Off To (role)": down_role,
+            "Approved By": approver,
+            "Notifies": notifies,
+            "Handoff Chain": chain,
             "Also Held By": "",
             "What The User Does": unquote(summary),
         })
