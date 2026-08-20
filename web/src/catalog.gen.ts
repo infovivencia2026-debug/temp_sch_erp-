@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 413 features. */
+/** 12 roles, 408 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -225,11 +225,7 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'institution_admin.home.executive_kpis', slug: 'executive_kpis', name: 'Executive KPIs', scope: 'institution', tier: 'core', summary: 'Students, faculty/staff, attendance today, fee collection, outstanding fees and admissions. Show only 5-7 cards.' },
-          { key: 'institution_admin.home.needs_attention', slug: 'needs_attention', name: 'Needs attention', scope: 'institution', tier: 'core', summary: 'Pending approvals, attendance shortage, absent faculty, timetable conflicts, marks not submitted and overdue fees.' },
-          { key: 'institution_admin.home.today', slug: 'today', name: 'Today', scope: 'institution', tier: 'core', summary: 'Today\'s classes/exams/events and important announcements.' },
-          { key: 'institution_admin.home.department_kpis', slug: 'department_kpis', name: 'Department KPIs', scope: 'department', tier: 'core', summary: 'Department students, faculty, today\'s classes, student attendance, faculty attendance and pending approvals.' },
-          { key: 'institution_admin.home.academic_kpis', slug: 'academic_kpis', name: 'Academic KPIs', scope: 'institution', tier: 'core', summary: 'Attendance, syllabus coverage and exam readiness across the school, with what needs attention today.' },
+          { key: 'institution_admin.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'The school on one page: the numbers at the top, what needs the principal today in the middle, and the day\'s events and cover at the foot.' },
         ],
       },
       {
@@ -245,8 +241,7 @@ export const ROLES: Role[] = [
         name: 'Approvals',
         workspace: 'Home',
         features: [
-          { key: 'institution_admin.approvals.approvals_center', slug: 'approvals_center', name: 'Approvals center', scope: 'institution', tier: 'core', summary: 'Approve leave, academic requests, marks/result workflows, certificates and configured operational requests.' },
-          { key: 'institution_admin.approvals.approvals', slug: 'approvals', name: 'Approvals', scope: 'department', tier: 'core', summary: 'Faculty leave, attendance corrections, marks submissions, add/drop and department requests.' },
+          { key: 'institution_admin.approvals.approvals', slug: 'approvals', name: 'Approvals', scope: 'institution', tier: 'core', summary: 'Everything waiting on a signature — leave, attendance corrections, fee concessions — in one queue rather than one queue per module.' },
         ],
       },
       {

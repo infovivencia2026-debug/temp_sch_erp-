@@ -81,7 +81,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.access_security.login_session_audit': lazy(() => import('./super_admin/SessionAudit')),
   'super_admin.operations.system_health_integration_alerts': lazy(() => import('./shared/Jobs')),
   // Approvals — one queue for leave, corrections and concessions.
-  'institution_admin.approvals.approvals_center': lazy(() => import('./workflow/Approvals')),
   'institution_admin.approvals.approvals': lazy(() => import('./workflow/Approvals')),
 
   // Homework — the same screen from the teacher's and the child's side.
@@ -101,11 +100,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.subscription_ledger': lazy(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.seat_overage_renewals': lazy(() => import('./seller/Tenants')),
 
-  'institution_admin.home.executive_kpis': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.home.needs_attention': lazy(() => import('./principal/Dashboard')),
+  'institution_admin.home.dashboard': lazy(() => import('./principal/Dashboard')),
   'institution_admin.academics.attendance_audit': lazy(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.standard.attendance_overview': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.home.department_kpis': lazy(() => import('./hod/Department')),
   'institution_admin.directory_workload.faculty_directory': lazy(() => import('./hod/Department')),
   'institution_admin.directory_workload.teacher_workload_timetable_overview': lazy(() => import('./hod/Department')),
   'faculty.home.todays_classes': lazy(() => import('./faculty/TodaysClasses')),
@@ -217,7 +214,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      "not built yet" placeholder, exactly as it does for every other role. */
 
   // Vice Principal / Academic Coordinator — runs teaching and learning.
-  'institution_admin.home.academic_kpis': lazy(() => import('./principal/Dashboard')),
   'institution_admin.academics.class_setup': lazy(() => import('./setup/Wizard')),
   'institution_admin.academics.teacher_assignment': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),

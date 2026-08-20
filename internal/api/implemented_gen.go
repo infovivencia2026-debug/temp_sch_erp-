@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 379 of the catalog's features are implemented.
+// 374 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -186,7 +186,6 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.analysis.department_reports":                                  true,
 	"institution_admin.analysis.performance_analytics":                               true,
 	"institution_admin.approvals.approvals":                                          true,
-	"institution_admin.approvals.approvals_center":                                   true,
 	"institution_admin.communication.circulars":                                      true,
 	"institution_admin.communication.grievances":                                     true,
 	"institution_admin.communication.messages":                                       true,
@@ -202,11 +201,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.fees.fee_dashboard":                                           true,
 	"institution_admin.fees.fee_default":                                             true,
 	"institution_admin.getting_started.school_setup":                                 true,
-	"institution_admin.home.academic_kpis":                                           true,
-	"institution_admin.home.department_kpis":                                         true,
-	"institution_admin.home.executive_kpis":                                          true,
-	"institution_admin.home.needs_attention":                                         true,
-	"institution_admin.home.today":                                                   true,
+	"institution_admin.home.dashboard":                                               true,
 	"institution_admin.hostel.boarder_laundry_tracking":                              true,
 	"institution_admin.hostel.buildings_rooms":                                       true,
 	"institution_admin.hostel.complaints":                                            true,
