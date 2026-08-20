@@ -87,8 +87,8 @@ var Roles = []Role{
 		Name: "Seller Admin",
 		Sections: []Section{
 			{
-				Slug:      "customers",
-				Name:      "Customers",
+				Slug: "customers",
+				Name: "Customers",
 				Workspace: "Customers",
 				Features: []Feature{
 					{Key: "seller_admin.customers.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support."},
@@ -98,8 +98,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "subscriptions_billing",
-				Name:      "Subscriptions & Billing",
+				Slug: "subscriptions_billing",
+				Name: "Subscriptions & Billing",
 				Workspace: "Subscriptions & Billing",
 				Features: []Feature{
 					{Key: "seller_admin.subscriptions_billing.plans_pricing", Slug: "plans_pricing", Name: "Plans & Pricing", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Define plans with a student cap, included modules and an annual or per-student price."},
@@ -108,16 +108,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "entitlements",
-				Name:      "Entitlements",
+				Slug: "entitlements",
+				Name: "Entitlements",
 				Workspace: "Entitlements",
 				Features: []Feature{
 					{Key: "seller_admin.entitlements.module_entitlement_matrix", Slug: "module_entitlement_matrix", Name: "Module Entitlement Matrix", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Which modules each plan and each school may use; switching one off hides it from that school's navigation."},
 				},
 			},
 			{
-				Slug:      "usage_health",
-				Name:      "Usage & Health",
+				Slug: "usage_health",
+				Name: "Usage & Health",
 				Workspace: "Usage & Health",
 				Features: []Feature{
 					{Key: "seller_admin.usage_health.adoption_metrics", Slug: "adoption_metrics", Name: "Adoption Metrics", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Sign-ins, active users and transactions per school per week — the leading indicator of renewal."},
@@ -125,8 +125,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "support",
-				Name:      "Support",
+				Slug: "support",
+				Name: "Support",
 				Workspace: "Support",
 				Features: []Feature{
 					{Key: "seller_admin.support.support_tickets", Slug: "support_tickets", Name: "Support Tickets", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Tickets raised by schools, with the tenant, severity, owner and time open."},
@@ -140,8 +140,8 @@ var Roles = []Role{
 		Name: "Super Admin",
 		Sections: []Section{
 			{
-				Slug:      "dashboard",
-				Name:      "Dashboard",
+				Slug: "dashboard",
+				Name: "Dashboard",
 				Workspace: "Dashboard",
 				Features: []Feature{
 					{Key: "super_admin.dashboard.campus_cards", Slug: "campus_cards", Name: "Campus cards", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action."},
@@ -155,8 +155,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "institution_setup",
-				Name:      "Institution Setup",
+				Slug: "institution_setup",
+				Name: "Institution Setup",
 				Workspace: "Institution Setup",
 				Features: []Feature{
 					{Key: "super_admin.institution_setup.institutions_campuses", Slug: "institutions_campuses", Name: "Institutions & campuses", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create/edit institution and campuses; address, timezone, academic model, contact details and status."},
@@ -166,8 +166,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "access_security",
-				Name:      "Access & Security",
+				Slug: "access_security",
+				Name: "Access & Security",
 				Workspace: "Access & Security",
 				Features: []Feature{
 					{Key: "super_admin.access_security.users", Slug: "users", Name: "Users", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create, activate, suspend and search users."},
@@ -178,8 +178,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "platform_configuration",
-				Name:      "Platform Configuration",
+				Slug: "platform_configuration",
+				Name: "Platform Configuration",
 				Workspace: "Platform Configuration",
 				Features: []Feature{
 					{Key: "super_admin.platform_configuration.module_configuration", Slug: "module_configuration", Name: "Module configuration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Enable/disable modules by institution so users only see what their institution uses."},
@@ -191,8 +191,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "campuses_academic_year",
-				Name:      "Campuses & Academic Year",
+				Slug: "campuses_academic_year",
+				Name: "Campuses & Academic Year",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.campuses_academic_year.franchise_management", Slug: "franchise_management", Name: "Franchise Management", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Centralized administrative oversight, asset sharing, and brand compliance for franchise chains."},
@@ -201,8 +201,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "messaging",
-				Name:      "Messaging",
+				Slug: "messaging",
+				Name: "Messaging",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.messaging.sms_gateway_integration", Slug: "sms_gateway_integration", Name: "SMS Gateway Integration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Configure gateway API credentials, sender IDs, DLTI templates, and SMS delivery logs."},
@@ -212,8 +212,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "payments_devices",
-				Name:      "Payments & Devices",
+				Slug: "payments_devices",
+				Name: "Payments & Devices",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.payments_devices.payment_gateway_connectors", Slug: "payment_gateway_connectors", Name: "Payment Gateway Connectors", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Manage credentials for Razorpay, Paytm, CCAvenue, BillDesk, Easebuzz, and CCAvenue."},
@@ -225,8 +225,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "statutory_boards",
-				Name:      "Statutory & Boards",
+				Slug: "statutory_boards",
+				Name: "Statutory & Boards",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.statutory_boards.sqaa_framework_management", Slug: "sqaa_framework_management", Name: "SQAA Framework Management", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Configure School Quality Assessment and Assurance standards and self-assessment checklists."},
@@ -241,8 +241,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "operations",
-				Name:      "Operations",
+				Slug: "operations",
+				Name: "Operations",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.operations.data_backup_restore", Slug: "data_backup_restore", Name: "Data Backup & Restore", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schedule automated cloud database backups and manage point-in-time recovery archives."},
@@ -250,8 +250,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "ai_automation",
-				Name:      "AI & Automation",
+				Slug: "ai_automation",
+				Name: "AI & Automation",
 				Workspace: "AI & Automation",
 				Features: []Feature{
 					{Key: "super_admin.ai_automation.predictive_dropout_risk_engine", Slug: "predictive_dropout_risk_engine", Name: "Predictive Dropout Risk Engine", Scope: Scope("platform"), Tier: Tier("core"), Summary: "AI models analyzing attendance, grades, and fee delays to predict student churn risk."},
@@ -268,8 +268,8 @@ var Roles = []Role{
 		Name: "Institution Admin / Principal",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "institution_admin.home.executive_kpis", Slug: "executive_kpis", Name: "Executive KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Students, faculty/staff, attendance today, fee collection, outstanding fees and admissions. Show only 5-7 cards."},
@@ -280,8 +280,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "approvals",
-				Name:      "Approvals",
+				Slug: "approvals",
+				Name: "Approvals",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "institution_admin.approvals.approvals_center", Slug: "approvals_center", Name: "Approvals center", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Approve leave, academic requests, marks/result workflows, certificates and configured operational requests."},
@@ -289,8 +289,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "students",
-				Name:      "Students",
+				Slug: "students",
+				Name: "Students",
 				Workspace: "Students",
 				Features: []Feature{
 					{Key: "institution_admin.students.student_directory_student_360", Slug: "student_directory_student_360", Name: "Student directory & Student 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Search students and view enrollment, guardian, attendance, academic, fee-summary, documents and status based on permission."},
@@ -306,8 +306,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "admissions",
-				Name:      "Admissions",
+				Slug: "admissions",
+				Name: "Admissions",
 				Workspace: "Students",
 				Features: []Feature{
 					{Key: "institution_admin.admissions.admissions_overview", Slug: "admissions_overview", Name: "Admissions overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monitor enquiries/applications, admitted students and enrollment conversion."},
@@ -315,8 +315,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "institution_admin.academics.academic_structure", Slug: "academic_structure", Name: "Academic structure", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Programs/classes, departments, subjects/courses, batches/sections, years/terms and rooms."},
@@ -339,8 +339,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "examinations",
-				Name:      "Examinations",
+				Slug: "examinations",
+				Name: "Examinations",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "institution_admin.examinations.exams_result_status", Slug: "exams_result_status", Name: "Exams & result status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Exam schedule, marks-entry completion, result publishing status and report cards."},
@@ -355,8 +355,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Finance",
 				Features: []Feature{
 					{Key: "institution_admin.fees.fee_overview", Slug: "fee_overview", Name: "Fee overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collection, outstanding, defaulters, discounts/scholarships summary; detailed accounting stays with Finance."},
@@ -364,8 +364,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "directory_workload",
-				Name:      "Directory & Workload",
+				Slug: "directory_workload",
+				Name: "Directory & Workload",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.directory_workload.staff_allocation_workload", Slug: "staff_allocation_workload", Name: "Staff Allocation & Workload", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View teacher period allocations, weekly teaching load, and balance faculty workloads."},
@@ -375,16 +375,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "evaluation",
-				Name:      "Evaluation",
+				Slug: "evaluation",
+				Name: "Evaluation",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.evaluation.360_evaluation_oversight", Slug: "360_evaluation_oversight", Name: "360 Evaluation Oversight", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monitor teacher peer reviews, principal observations, and parent feedback ratings."},
 				},
 			},
 			{
-				Slug:      "department",
-				Name:      "Department",
+				Slug: "department",
+				Name: "Department",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.department.department_academics", Slug: "department_academics", Name: "Department academics", Scope: Scope("department"), Tier: Tier("core"), Summary: "Programs, courses/subjects, batches/sections and department academic calendar."},
@@ -392,8 +392,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "institution_admin.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Publish announcements/circulars to targeted students, parents and staff."},
@@ -403,8 +403,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "statutory_returns",
-				Name:      "Statutory Returns",
+				Slug: "statutory_returns",
+				Name: "Statutory Returns",
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.statutory_returns.udise_return_preparation", Slug: "udise_return_preparation", Name: "UDISE+ Return Preparation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Review the annual UDISE+ return, resolve validation errors and lock the submitted snapshot."},
@@ -415,8 +415,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "boards_accreditation",
-				Name:      "Boards & Accreditation",
+				Slug: "boards_accreditation",
+				Name: "Boards & Accreditation",
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.boards_accreditation.board_exam_loc_submission", Slug: "board_exam_loc_submission", Name: "Board Exam LOC Submission", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Prepare the Class X and XII List of Candidates, verify subject combinations and export in board format."},
@@ -425,8 +425,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "mid_day_meal",
-				Name:      "Mid-Day Meal",
+				Slug: "mid_day_meal",
+				Name: "Mid-Day Meal",
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.mid_day_meal.mid_day_meal_register", Slug: "mid_day_meal_register", Name: "Mid-Day Meal Register", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Record the daily cooked-meal headcount, rice consumption and menu for government and aided schools."},
@@ -434,8 +434,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "standard",
-				Name:      "Standard",
+				Slug: "standard",
+				Name: "Standard",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
@@ -445,8 +445,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "analysis",
-				Name:      "Analysis",
+				Slug: "analysis",
+				Name: "Analysis",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.analysis.custom_report_builder", Slug: "custom_report_builder", Name: "Custom Report Builder", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Build custom drag-and-drop reports selecting desired data fields, filters, and export formats."},
@@ -455,8 +455,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "transport",
-				Name:      "Transport",
+				Slug: "transport",
+				Name: "Transport",
 				Workspace: "Operations",
 				Features: []Feature{
 					{Key: "institution_admin.transport.vehicle_master_registry", Slug: "vehicle_master_registry", Name: "Vehicle Master Registry", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs."},
@@ -484,8 +484,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "hostel",
-				Name:      "Hostel",
+				Slug: "hostel",
+				Name: "Hostel",
 				Workspace: "Operations",
 				Features: []Feature{
 					{Key: "institution_admin.hostel.hostel_building_room_setup", Slug: "hostel_building_room_setup", Name: "Hostel Building & Room Setup", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Define hostel blocks, floors, room types (Single, Shared), and total bed capacity."},
@@ -506,8 +506,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "library",
-				Name:      "Library",
+				Slug: "library",
+				Name: "Library",
 				Workspace: "Operations",
 				Features: []Feature{
 					{Key: "institution_admin.library.book_cataloging_accession_register", Slug: "book_cataloging_accession_register", Name: "Book Cataloging & Accession Register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location."},
@@ -527,8 +527,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "infirmary",
-				Name:      "Infirmary",
+				Slug: "infirmary",
+				Name: "Infirmary",
 				Workspace: "Operations",
 				Features: []Feature{
 					{Key: "institution_admin.infirmary.student_health_master_file", Slug: "student_health_master_file", Name: "Student Health Master File", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts."},
@@ -540,8 +540,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "stores",
-				Name:      "Stores",
+				Slug: "stores",
+				Name: "Stores",
 				Workspace: "Operations",
 				Features: []Feature{
 					{Key: "institution_admin.stores.item_category_store_setup", Slug: "item_category_store_setup", Name: "Item Category & Store Setup", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels."},
@@ -556,8 +556,8 @@ var Roles = []Role{
 		Name: "HOD / Department Head",
 		Sections: []Section{
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Timetable",
 				Features: []Feature{
 					{Key: "hod.timetable.class_timetable", Slug: "class_timetable", Name: "Class timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for."},
@@ -567,8 +567,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
@@ -576,8 +576,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "staff",
-				Name:      "Staff",
+				Slug: "staff",
+				Name: "Staff",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
@@ -585,8 +585,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
@@ -599,8 +599,8 @@ var Roles = []Role{
 		Name: "Faculty / Teacher",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "faculty.home.todays_classes", Slug: "todays_classes", Name: "Today's classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Next/current classes with one-click Take Attendance, Open Class and Add Homework actions."},
@@ -609,8 +609,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_classes",
-				Name:      "My Classes",
+				Slug: "my_classes",
+				Name: "My Classes",
 				Workspace: "My Classes",
 				Features: []Feature{
 					{Key: "faculty.my_classes.my_classes", Slug: "my_classes", Name: "My classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Class roster, subject resources and relevant student academic information."},
@@ -621,8 +621,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "My Classes",
 				Features: []Feature{
 					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
@@ -631,8 +631,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "teaching",
-				Name:      "Teaching",
+				Slug: "teaching",
+				Name: "Teaching",
 				Workspace: "Teaching",
 				Features: []Feature{
 					{Key: "faculty.teaching.homework_classwork", Slug: "homework_classwork", Name: "Homework / classwork", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Create homework/classwork with due date, attachments and instructions."},
@@ -642,8 +642,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Teaching",
 				Features: []Feature{
 					{Key: "faculty.timetable.my_timetable", Slug: "my_timetable", Name: "My timetable", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Daily/weekly teaching schedule, rooms/labs and substitutions."},
@@ -651,8 +651,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "marks_report_cards",
-				Name:      "Marks & Report Cards",
+				Slug: "marks_report_cards",
+				Name: "Marks & Report Cards",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter internal/exam marks for assigned subjects; validate before submission."},
@@ -660,8 +660,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "assessment_schemes",
-				Name:      "Assessment Schemes",
+				Slug: "assessment_schemes",
+				Name: "Assessment Schemes",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.assessment_schemes.cce_formative_assessment_entry", Slug: "cce_formative_assessment_entry", Name: "CCE Formative Assessment Entry", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation."},
@@ -669,8 +669,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "question_papers_online_tests",
-				Name:      "Question Papers & Online Tests",
+				Slug: "question_papers_online_tests",
+				Name: "Question Papers & Online Tests",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.question_papers_online_tests.question_bank_management", Slug: "question_bank_management", Name: "Question Bank Management", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level."},
@@ -680,8 +680,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "faculty.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Announcements/messages to assigned classes, students or parents based on policy."},
@@ -689,8 +689,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "faculty.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Apply for leave, view approval status, attendance and personal documents."},
@@ -706,8 +706,8 @@ var Roles = []Role{
 		Name: "Accounts & Finance",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "finance.home.finance_kpis", Slug: "finance_kpis", Name: "Finance KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Today's collection, month collection, outstanding, overdue, refunds pending and failed/unreconciled online payments."},
@@ -715,8 +715,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "collections",
-				Name:      "Collections",
+				Slug: "collections",
+				Name: "Collections",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.collections.collect_payment", Slug: "collect_payment", Name: "Collect payment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record cash/bank/online/manual payments with controls and receipt generation."},
@@ -730,8 +730,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "student_dues",
-				Name:      "Student Dues",
+				Slug: "student_dues",
+				Name: "Student Dues",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.student_dues.student_ledger", Slug: "student_ledger", Name: "Student ledger", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Single account view of charges, payments, credits, refunds and outstanding balance."},
@@ -743,8 +743,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fee_structure",
-				Name:      "Fee Structure",
+				Slug: "fee_structure",
+				Name: "Fee Structure",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.fee_structure.fee_head_group_setup", Slug: "fee_head_group_setup", Name: "Fee Head & Group Setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Define fee heads (Tuition, Transport, Admission, Lab, Sports) and frequency schedules."},
@@ -754,8 +754,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "concessions_refunds",
-				Name:      "Concessions & Refunds",
+				Slug: "concessions_refunds",
+				Name: "Concessions & Refunds",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.concessions_refunds.discounts_scholarships", Slug: "discounts_scholarships", Name: "Discounts / scholarships", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Apply approved concessions, scholarships and sibling discounts with audit trail."},
@@ -768,8 +768,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reconciliation",
-				Name:      "Reconciliation",
+				Slug: "reconciliation",
+				Name: "Reconciliation",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.reconciliation.reconciliation", Slug: "reconciliation", Name: "Reconciliation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Reconcile payment gateway/bank collections and identify mismatches."},
@@ -780,8 +780,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "ledgers",
-				Name:      "Ledgers",
+				Slug: "ledgers",
+				Name: "Ledgers",
 				Workspace: "Accounting",
 				Features: []Feature{
 					{Key: "finance.ledgers.expenses_accounting", Slug: "expenses_accounting", Name: "Expenses / accounting", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Basic institutional expense/account views if accounting is part of the ERP; otherwise integrate with finance system."},
@@ -791,8 +791,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "payables",
-				Name:      "Payables",
+				Slug: "payables",
+				Name: "Payables",
 				Workspace: "Accounting",
 				Features: []Feature{
 					{Key: "finance.payables.petty_cash_voucher_management", Slug: "petty_cash_voucher_management", Name: "Petty Cash Voucher Management", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Log daily cash expenses, upload paper receipts, and enforce petty cash limit approvals."},
@@ -800,8 +800,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "assets_budget",
-				Name:      "Assets & Budget",
+				Slug: "assets_budget",
+				Name: "Assets & Budget",
 				Workspace: "Accounting",
 				Features: []Feature{
 					{Key: "finance.assets_budget.budgeting_variance_analysis", Slug: "budgeting_variance_analysis", Name: "Budgeting & Variance Analysis", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Set annual departmental budgets and track real-time actual spend versus allocated budget."},
@@ -809,16 +809,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "export",
-				Name:      "Export",
+				Slug: "export",
+				Name: "Export",
 				Workspace: "Accounting",
 				Features: []Feature{
 					{Key: "finance.export.tally_prime_xml_export", Slug: "tally_prime_xml_export", Name: "Tally Prime XML Export", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Export daybook vouchers, fee sales, and cash receipts in Tally-compatible XML format."},
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "finance.reports.finance_reports", Slug: "finance_reports", Name: "Finance reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Daily collection, outstanding, aging/defaulters, student ledger, payment mode, discount and refund reports."},
@@ -833,8 +833,8 @@ var Roles = []Role{
 		Name: "Admissions & Front Office",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "admissions.home.admissions_kpis", Slug: "admissions_kpis", Name: "Admissions KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "New enquiries, applications received, incomplete applications, interviews/tests today, offers pending and enrollments."},
@@ -842,8 +842,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "enquiries",
-				Name:      "Enquiries",
+				Slug: "enquiries",
+				Name: "Enquiries",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.enquiries.enquiries_leads", Slug: "enquiries_leads", Name: "Enquiries / leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Capture prospective student enquiries and source/campaign."},
@@ -859,8 +859,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "applications",
-				Name:      "Applications",
+				Slug: "applications",
+				Name: "Applications",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.applications.applications", Slug: "applications", Name: "Applications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Create/review applications and track status."},
@@ -873,8 +873,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "admissions",
-				Name:      "Admissions",
+				Slug: "admissions",
+				Name: "Admissions",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.admissions.offers_admission_decisions", Slug: "offers_admission_decisions", Name: "Offers / admission decisions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Issue offers/admission decisions based on configured workflow."},
@@ -895,8 +895,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "visitors",
-				Name:      "Visitors",
+				Slug: "visitors",
+				Name: "Visitors",
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "admissions.visitors.visitor_gate_pass_generation", Slug: "visitor_gate_pass_generation", Name: "Visitor Gate Pass Generation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Log guest photo, phone number, host staff member, visit reason, and print paper/digital badge."},
@@ -905,8 +905,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "gate_security",
-				Name:      "Gate Security",
+				Slug: "gate_security",
+				Name: "Gate Security",
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "admissions.gate_security.gate_rfid_entry_management", Slug: "gate_rfid_entry_management", Name: "Gate RFID Entry Management", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Monitor real-time student/staff gate scans for late arrivals or early departures."},
@@ -914,8 +914,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "office_log",
-				Name:      "Office Log",
+				Slug: "office_log",
+				Name: "Office Log",
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "admissions.office_log.front_office_calls_register", Slug: "front_office_calls_register", Name: "Front Office Calls Register", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Maintain daily telephone call logs, caller identity, inquiry nature, and message forwarding."},
@@ -923,16 +923,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "admissions.communication.applicant_communication", Slug: "applicant_communication", Name: "Applicant communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Send status updates, reminders and admission instructions."},
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "admissions.reports.admission_conversion_reports", Slug: "admission_conversion_reports", Name: "Admission Conversion Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled."},
@@ -946,16 +946,16 @@ var Roles = []Role{
 		Name: "HR & Payroll",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "hr.home.hr_kpis", Slug: "hr_kpis", Name: "HR KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Headcount, present/absent today, leave pending, new joiners and payroll status if payroll enabled."},
 				},
 			},
 			{
-				Slug:      "records",
-				Name:      "Records",
+				Slug: "records",
+				Name: "Records",
 				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.records.employee_master", Slug: "employee_master", Name: "Employee master", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Employee/faculty profiles, department, designation, documents and employment status."},
@@ -967,8 +967,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "onboarding_exit",
-				Name:      "Onboarding & Exit",
+				Slug: "onboarding_exit",
+				Name: "Onboarding & Exit",
 				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.onboarding_exit.staff_onboarding_kyc_verification", Slug: "staff_onboarding_kyc_verification", Name: "Staff Onboarding & KYC Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collect online employee onboarding forms, Aadhaar/PAN verification, and contract letters."},
@@ -979,8 +979,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "verification",
-				Name:      "Verification",
+				Slug: "verification",
+				Name: "Verification",
 				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.verification.staff_criminal_background_verification", Slug: "staff_criminal_background_verification", Name: "Staff Criminal Background Verification", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Upload and verify third-party police verification certificates for all teaching and non-teaching staff."},
@@ -988,8 +988,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "Attendance & Leave",
 				Features: []Feature{
 					{Key: "hr.attendance.staff_attendance", Slug: "staff_attendance", Name: "Staff attendance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Employee attendance, late/early records and attendance reports."},
@@ -999,8 +999,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "leave",
-				Name:      "Leave",
+				Slug: "leave",
+				Name: "Leave",
 				Workspace: "Attendance & Leave",
 				Features: []Feature{
 					{Key: "hr.leave.leave", Slug: "leave", Name: "Leave", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave balances, requests, approvals and holiday calendar."},
@@ -1010,8 +1010,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "payroll",
-				Name:      "Payroll",
+				Slug: "payroll",
+				Name: "Payroll",
 				Workspace: "Payroll",
 				Features: []Feature{
 					{Key: "hr.payroll.payroll", Slug: "payroll", Name: "Payroll", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Salary structures, payroll runs, payslips, deductions and reimbursements when payroll is enabled."},
@@ -1026,8 +1026,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "statutory",
-				Name:      "Statutory",
+				Slug: "statutory",
+				Name: "Statutory",
 				Workspace: "Payroll",
 				Features: []Feature{
 					{Key: "hr.statutory.pf_esi_statutory_compliance", Slug: "pf_esi_statutory_compliance", Name: "PF & ESI Statutory Compliance", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Generate monthly Provident Fund (ECR) files, ESI returns, and statutory deduction registers."},
@@ -1039,8 +1039,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "hiring_growth",
-				Name:      "Hiring & Growth",
+				Slug: "hiring_growth",
+				Name: "Hiring & Growth",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.hiring_growth.recruitment", Slug: "recruitment", Name: "Recruitment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Openings, candidates, interviews and offers when ATS is enabled."},
@@ -1049,8 +1049,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "welfare",
-				Name:      "Welfare",
+				Slug: "welfare",
+				Name: "Welfare",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.welfare.staff_grievance_cell", Slug: "staff_grievance_cell", Name: "Staff Grievance Cell", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Confidential ticketing channel for staff members to report workplace issues to management."},
@@ -1059,8 +1059,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "hr.reports.hr_reports", Slug: "hr_reports", Name: "HR reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Headcount, attendance, leave and payroll summaries."},
@@ -1073,8 +1073,8 @@ var Roles = []Role{
 		Name: "Student",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "student.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("self"), Tier: Tier("core"), Summary: "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement."},
@@ -1083,24 +1083,24 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.timetable.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("self"), Tier: Tier("core"), Summary: "Daily/weekly class timetable and exam timetable."},
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
 				},
 			},
 			{
-				Slug:      "homework",
-				Name:      "Homework",
+				Slug: "homework",
+				Name: "Homework",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.homework.homework_assignments", Slug: "homework_assignments", Name: "Homework & assignments", Scope: Scope("self"), Tier: Tier("core"), Summary: "View due/overdue/submitted work; submit files/text where enabled."},
@@ -1108,8 +1108,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "learning",
-				Name:      "Learning",
+				Slug: "learning",
+				Name: "Learning",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.learning.courses_subjects", Slug: "courses_subjects", Name: "Courses / subjects", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current enrolled courses/subjects, teacher and learning resources."},
@@ -1124,8 +1124,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "exams_results",
-				Name:      "Exams & Results",
+				Slug: "exams_results",
+				Name: "Exams & Results",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.exams_results.exams_grades", Slug: "exams_grades", Name: "Exams & grades", Scope: Scope("self"), Tier: Tier("core"), Summary: "Exam schedule, marks, grades, published results and report cards."},
@@ -1133,16 +1133,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "student.fees.fees", Slug: "fees", Name: "Fees", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current dues, fee history, payment status, online payment and receipts."},
 				},
 			},
 			{
-				Slug:      "notices_calendar",
-				Name:      "Notices & Calendar",
+				Slug: "notices_calendar",
+				Name: "Notices & Calendar",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "student.notices_calendar.calendar", Slug: "calendar", Name: "Calendar", Scope: Scope("self"), Tier: Tier("core"), Summary: "Academic calendar, holidays, events and deadlines."},
@@ -1150,8 +1150,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "campus_life",
-				Name:      "Campus Life",
+				Slug: "campus_life",
+				Name: "Campus Life",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "student.campus_life.student_wall_peer_recognition", Slug: "student_wall_peer_recognition", Name: "Student Wall & Peer Recognition", Scope: Scope("self"), Tier: Tier("optional"), Summary: "View school news, student council announcements, badge achievements, and art features."},
@@ -1163,8 +1163,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "alumni",
-				Name:      "Alumni",
+				Slug: "alumni",
+				Name: "Alumni",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "student.alumni.alumni_network_registration", Slug: "alumni_network_registration", Name: "Alumni Network Registration", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Register for the official school alumni network upon passing out to stay connected with batchmates."},
@@ -1172,16 +1172,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "requests",
-				Name:      "Requests",
+				Slug: "requests",
+				Name: "Requests",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type."},
 				},
 			},
 			{
-				Slug:      "profile",
-				Name:      "Profile",
+				Slug: "profile",
+				Name: "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
 					{Key: "student.profile.digital_student_id_card_nfc_tap_pass", Slug: "digital_student_id_card_nfc_tap_pass", Name: "Digital Student ID Card NFC Tap Pass", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts."},
@@ -1194,8 +1194,8 @@ var Roles = []Role{
 		Name: "Parent / Guardian",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "parent.home.child_switcher", Slug: "child_switcher", Name: "Child switcher", Scope: Scope("children"), Tier: Tier("core"), Summary: "Switch between linked children without separate accounts."},
@@ -1205,8 +1205,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "My Child",
 				Features: []Feature{
 					{Key: "parent.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("children"), Tier: Tier("core"), Summary: "Daily/monthly attendance and absence history for the selected child."},
@@ -1214,8 +1214,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "My Child",
 				Features: []Feature{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
@@ -1226,8 +1226,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "parent.fees.fees_payments", Slug: "fees_payments", Name: "Fees & payments", Scope: Scope("children"), Tier: Tier("core"), Summary: "Dues, installments, online payment, payment history and receipts."},
@@ -1236,8 +1236,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_childs_bus",
-				Name:      "My Child's Bus",
+				Slug: "my_childs_bus",
+				Name: "My Child's Bus",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "parent.my_childs_bus.transport_snapshot", Slug: "transport_snapshot", Name: "Transport snapshot", Scope: Scope("children"), Tier: Tier("core"), Summary: "Bus route/stop/tracking only when transport module is enabled."},
@@ -1246,8 +1246,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "alerts_preferences",
-				Name:      "Alerts & Preferences",
+				Slug: "alerts_preferences",
+				Name: "Alerts & Preferences",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "parent.alerts_preferences.parent_bus_proximity_radius_customizer", Slug: "parent_bus_proximity_radius_customizer", Name: "Parent Bus Proximity Radius Customizer", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away)."},
@@ -1256,8 +1256,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "messages",
-				Name:      "Messages",
+				Slug: "messages",
+				Name: "Messages",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Circulars, announcements and permitted teacher/school messages."},
@@ -1266,8 +1266,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "school_life",
-				Name:      "School Life",
+				Slug: "school_life",
+				Name: "School Life",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.school_life.calendar_ptm", Slug: "calendar_ptm", Name: "Calendar & PTM", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exams, holidays, events, parent-teacher meetings and booking where enabled."},
@@ -1278,8 +1278,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "leave_absence",
-				Name:      "Leave & Absence",
+				Slug: "leave_absence",
+				Name: "Leave & Absence",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.leave_absence.requests", Slug: "requests", Name: "Requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit leave/permission/certificate/help requests on behalf of child where allowed."},
@@ -1287,8 +1287,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "consent",
-				Name:      "Consent",
+				Slug: "consent",
+				Name: "Consent",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
@@ -1297,16 +1297,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "documents",
-				Name:      "Documents",
+				Slug: "documents",
+				Name: "Documents",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{
-				Slug:      "profile",
-				Name:      "Profile",
+				Slug: "profile",
+				Name: "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
 					{Key: "parent.profile.digital_student_id_card_view", Slug: "digital_student_id_card_view", Name: "Digital Student ID Card View", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Access child's digital student ID card with QR code directly within the mobile app."},

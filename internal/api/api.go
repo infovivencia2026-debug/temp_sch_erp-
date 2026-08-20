@@ -217,6 +217,19 @@ func (s *Server) Routes() http.Handler {
 			// also let HR reset the principal's password.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/login", s.issueStaffLogin)
 
+			/* The family's way in.
+
+			   Nothing outside the demo seeder had ever written
+			   students.user_id or guardians.user_id, so the parent workspace
+			   (40 features) and the student workspace (30) were unreachable in
+			   every real school on the installation. Gated on students.write,
+			   because the office that admits a child is the office that hands
+			   their family the login. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/students/{id}/login", s.issueStudentLogin)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/guardians/{id}/login", s.issueGuardianLogin)
+
 			/* Setting a school up from the spreadsheets it already has.
 			   Classes, sections and staff all existed as forms that took one
 			   row at a time, which is eighty separate typings for a school of

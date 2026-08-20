@@ -1,0 +1,3 @@
+@echo off
+echo Opening Education ERP Live Web Application in Google Chrome...
+start chrome "https://temperp.187-127-178-100.sslip.io/login"
