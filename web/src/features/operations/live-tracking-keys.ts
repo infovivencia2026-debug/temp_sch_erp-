@@ -16,7 +16,7 @@ import { lazy } from 'react'
    office two menu items that must never disagree. */
 export const liveTrackingKeys = {
   'institution_admin.transport.live_vehicle_tracking': lazy(() => import('./LiveVehicleMap')),
-  'institution_admin.transport.real_time_vehicle_tracking_vts': lazy(
+  'transport_manager.transport.real_time_vehicle_tracking_vts': lazy(
     () => import('./LiveVehicleMap'),
   ),
 }

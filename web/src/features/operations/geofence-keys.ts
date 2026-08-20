@@ -9,5 +9,5 @@ import { lazy } from 'react'
    written; a key the catalogue does not carry renders the placeholder
    silently. */
 export const geofenceKeys = {
-  'institution_admin.transport.geo_fenced_bus_stop_alerts': lazy(() => import('./StopAlerts')),
+  'transport_manager.transport.geo_fenced_bus_stop_alerts': lazy(() => import('./StopAlerts')),
 }

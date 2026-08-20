@@ -25,7 +25,7 @@ import { lazy } from 'react'
  * queue owns it, so this screen places a hold and never invents a due date.
  */
 export const digitalLibraryKeys = {
-  'institution_admin.library.digital_e_book_journal_integration': lazy(
+  'institution_admin.library.digital_library_usage': lazy(
     () => import('./DigitalLibrary'),
   ),
 }

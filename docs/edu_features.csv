@@ -126,28 +126,31 @@ Institution Admin / Principal,Reports,Standard,Fee Collection Summaries,"View re
 Institution Admin / Principal,Reports,Analysis,Custom Report Builder,"Build custom drag-and-drop reports selecting desired data fields, filters, and export formats.",Assigned institution/campus,Should-Have,core
 Institution Admin / Principal,Reports,Analysis,Performance analytics,"Subject pass rate, semester trends, at-risk students and department performance.",Assigned department only,Must-Have,core
 Institution Admin / Principal,Reports,Analysis,Department reports,"Attendance, workload, results, backlogs and department summary reports.",Assigned department only,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Vehicle Master Registry,"Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Transport,Driver & Attendant Profiles,"Store driver licenses, police verification docs, phone numbers, and assigned bus routes.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Transport,Route & Pickup Stop Mapping,"Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Student Route Assignment,Assign students to specific bus routes and pick-up stops with automated fee mapping.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Route Distance Fee Slabs,Define transport fee slabs by route distance and auto-apply them to the student's fee structure.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Transport Attendance Scans,Scan student RFID tags as they step on and off the bus to confirm safe transit.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Real-time Vehicle Tracking (VTS),"View live GPS map of moving school buses, current speed, route adherence, and delay alerts.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Transport,Geo-fenced Bus Stop Alerts,Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.,Assigned campus,Should-Have,advanced
-Institution Admin / Principal,Operations,Transport,Bus Speeding & Rash Driving Alerts,Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.,Assigned campus,Must-Have,advanced
-Institution Admin / Principal,Operations,Transport,Vehicle Fuel & Maintenance Log,"Track fuel purchases, mileage performance, routine servicing, and repair expense logs.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Transport,Fuel Sensor & Mileage Telematics,Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage.,Assigned campus,Should-Have,optional
-Institution Admin / Principal,Operations,Transport,Driver Sobriety & Safety Checklist,Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.,Assigned campus,Should-Have,optional
-Institution Admin / Principal,Operations,Transport,Bus Breakdown Emergency Dispatch,Trigger emergency notifications and dispatch replacement buses with auto-route updates.,Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Transport,Seatbelt & CCTV Video Streaming,Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring.,Assigned campus,Must-Have,optional
-Institution Admin / Principal,Operations,Transport,AIS-140 Telematics & VAHAN Compliance,"Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires.",Assigned campus,Nice-to-Have,advanced
-Institution Admin / Principal,Operations,Transport,Vehicles,"The vehicle register: registration, capacity, permit, insurance and fitness expiry.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Drivers & attendants,"Who drives what, with licence expiry and background verification.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Routes & stops,"Route definitions, the stops on each and the timing between them.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Student allocation,"Which child boards at which stop on which route, and the fee slab that implies.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Route attendance,"Boarding and alighting scans for each route, morning and afternoon.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Delays & exceptions,"Routes running late, breakdowns and any child not scanned.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Live vehicle tracking,"Where every bus is now, against the route it should be running.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Vehicle Master Registry,"Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.",Assigned campus,Should-Have,core
+Transport Manager,Transport,Transport,Driver & Attendant Profiles,"Store driver licenses, police verification docs, phone numbers, and assigned bus routes.",Assigned campus,Should-Have,core
+Transport Manager,Transport,Transport,Route & Pickup Stop Mapping,"Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.",Assigned campus,Must-Have,core
+Transport Manager,Transport,Transport,Student Route Assignment,Assign students to specific bus routes and pick-up stops with automated fee mapping.,Assigned campus,Must-Have,core
+Transport Manager,Transport,Transport,Route Distance Fee Slabs,Define transport fee slabs by route distance and auto-apply them to the student's fee structure.,Assigned campus,Must-Have,core
+Transport Manager,Transport,Transport,Transport Attendance Scans,Scan student RFID tags as they step on and off the bus to confirm safe transit.,Assigned campus,Must-Have,core
+Transport Manager,Transport,Transport,Real-time Vehicle Tracking (VTS),"View live GPS map of moving school buses, current speed, route adherence, and delay alerts.",Assigned campus,Should-Have,core
+Transport Manager,Transport,Transport,Geo-fenced Bus Stop Alerts,Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.,Assigned campus,Should-Have,advanced
+Transport Manager,Transport,Transport,Bus Speeding & Rash Driving Alerts,Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.,Assigned campus,Must-Have,advanced
+Transport Manager,Transport,Transport,Vehicle Fuel & Maintenance Log,"Track fuel purchases, mileage performance, routine servicing, and repair expense logs.",Assigned campus,Should-Have,core
+Transport Manager,Transport,Transport,Fuel Sensor & Mileage Telematics,Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage.,Assigned campus,Should-Have,optional
+Transport Manager,Transport,Transport,Driver Sobriety & Safety Checklist,Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.,Assigned campus,Should-Have,optional
+Transport Manager,Transport,Transport,Bus Breakdown Emergency Dispatch,Trigger emergency notifications and dispatch replacement buses with auto-route updates.,Assigned campus,Should-Have,core
+Transport Manager,Transport,Transport,Seatbelt & CCTV Video Streaming,Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring.,Assigned campus,Must-Have,optional
+Transport Manager,Transport,Transport,AIS-140 Telematics & VAHAN Compliance,"Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires.",Assigned campus,Nice-to-Have,advanced
+Institution Admin / Principal,Operations,Transport,Compliance & Expiry Alerts,"Insurance, permits, fitness and licences about to lapse. One list, because a bus running on expired insurance is the school's problem and not the driver's.",Assigned campus,Nice-to-Have,advanced
+Transport Manager,Transport,Transport,Vehicles,"The vehicle register: registration, capacity, permit, insurance and fitness expiry.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Drivers & attendants,"Who drives what, with licence expiry and background verification.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Routes & stops,"Route definitions, the stops on each and the timing between them.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Student allocation,"Which child boards at which stop on which route, and the fee slab that implies.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Route attendance,"Boarding and alighting scans for each route, morning and afternoon.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Delays & exceptions,"Routes running late, breakdowns and any child not scanned.",Only assigned operational module/campus,Must-Have,core
+Institution Admin / Principal,Operations,Transport,"Delays, Breakdowns & Emergency Alerts","A breakdown, an accident or a panic button, the moment it happens, so help can be sent and the families on that route told.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Live vehicle tracking,"Where every bus is now, against the route it should be running.",Only assigned operational module/campus,Must-Have,core
+Institution Admin / Principal,Operations,Transport,Live Vehicle Tracking,"Where every bus is now, on one map. Opened when a parent rings to say the bus has not reached stop 4 yet.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Hostel,Hostel Building & Room Setup,"Define hostel blocks, floors, room types (Single, Shared), and total bed capacity.",Assigned campus,Should-Have,core
 Institution Admin / Principal,Operations,Hostel,Room Allocation Engine,"Assign students to specific rooms/beds, view room occupancy rate, and handle room changes.",Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Hostel,Room Inventory Checklists,"Inspect room furniture, lights, and appliances upon student check-in and check-out.",Assigned campus,Must-Have,core
@@ -167,15 +170,15 @@ Librarian,Library,Library,Book Cataloging & Accession Register,"Maintain master 
 Librarian,Library,Library,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have,core
 Librarian,Library,Library,Book Issue & Return Terminal,Scan student ID and book barcode to issue or return books in <5 seconds.,Assigned campus,Must-Have,core
 Librarian,Library,Library,Book Reservation Queue,Auto-notify students when a reserved book is returned and available for collection.,Assigned campus,Must-Have,core
-Librarian,Library,Library,Overdue Fine Calculation,Auto-calculate daily overdue fines for late book returns and post fine to student ledger.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Overdue Fine Calculation,Auto-calculate daily overdue fines for late book returns and post fine to student ledger.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Fine & Penalty Summary,"Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.",Assigned campus,Must-Have,core
+Institution Admin / Principal,Operations,Library,Fine & Penalty Summary,"Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.",Assigned campus,Must-Have,core
 Librarian,Library,Library,OPAC Digital Book Search,Online Public Access Catalog for students to search book availability and reserve books.,Assigned campus,Must-Have,core
-Librarian,Library,Library,Digital E-Book & Journal Integration,"Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Digital E-Book & Journal Integration,"Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",Assigned campus,Must-Have,core
-Librarian,Library,Library,Library Inventory Audit,Scan shelves with handheld barcode reader to perform annual physical inventory audits.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Library Inventory Audit,Scan shelves with handheld barcode reader to perform annual physical inventory audits.,Assigned campus,Must-Have,core
-Librarian,Library,Library,NCERT Textbook Indent,"Raise the annual NCERT textbook indent per class, track receipt and issue to students.",Assigned campus,Must-Have,advanced
-Institution Admin / Principal,Operations,Library,NCERT Textbook Indent,"Raise the annual NCERT textbook indent per class, track receipt and issue to students.",Assigned campus,Must-Have,advanced
+Librarian,Library,Library,Digital Library Usage,Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.,Assigned campus,Must-Have,core
+Institution Admin / Principal,Operations,Library,Digital Library Usage,Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Annual Book Stock Verification,"The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record.",Assigned campus,Must-Have,core
+Institution Admin / Principal,Operations,Library,Annual Book Stock Verification,"The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record.",Assigned campus,Must-Have,core
+Librarian,Library,Library,New Session Textbook Orders,"Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered.",Assigned campus,Must-Have,advanced
+Institution Admin / Principal,Operations,Library,New Session Textbook Orders,"Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered.",Assigned campus,Must-Have,advanced
 Librarian,Library,Library,Books & copies,"Titles, editions and the individual copies held against each.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Accession register,"The statutory accession register, with barcode and spine label printing.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core

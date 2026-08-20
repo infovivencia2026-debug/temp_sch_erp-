@@ -37,6 +37,9 @@ ROLE_KEYS = {
     # librarian borrowed them from there, so trimming the principal's copy
     # would have taken the librarian's with it.
     "Librarian": "librarian",
+    # The transport office. Same reason as the library: this role held no
+    # catalogue of its own and borrowed the principal's transport section.
+    "Transport Manager": "transport_manager",
     "Student": "student",
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
@@ -54,7 +57,7 @@ ROLE_KEYS = {
 ROLE_ORDER = [
     "seller_admin", "super_admin",
     "institution_admin", "hod", "faculty",
-    "librarian",
+    "librarian", "transport_manager",
     "finance", "admissions", "hr",
     "student", "parent",
 ]

@@ -311,22 +311,22 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      registration are deliberately absent: each needs a certified device in the
      vehicle and a vendor feed, and drawing a bus on a map from no position
      data would be a lie told convincingly. */
-  'institution_admin.transport.driver_attendant_profiles': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.student_route_assignment': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.transport_attendance_scans': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.vehicle_fuel_maintenance_log': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.driver_sobriety_safety_checklist': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.bus_breakdown_emergency_dispatch': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.drivers_attendants': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.student_allocation': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.route_attendance': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.delays_exceptions': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.driver_attendant_profiles': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.student_route_assignment': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.transport_attendance_scans': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.vehicle_fuel_maintenance_log': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.driver_sobriety_safety_checklist': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.bus_breakdown_emergency_dispatch': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.drivers_attendants': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.student_allocation': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.route_attendance': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.delays_exceptions': lazy(() => import('./operations/TransportOffice')),
 
-  'institution_admin.transport.vehicles': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.routes_stops': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.route_pickup_stop_mapping': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.route_distance_fee_slabs': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.vehicles': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.routes_stops': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.route_pickup_stop_mapping': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.route_distance_fee_slabs': lazy(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --
      do we have it, who has it, what do they owe -- so the catalogue, the
@@ -337,7 +337,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'librarian.library.accession_register': lazy(() => import('./operations/Library')),
   'librarian.library.issue_return': lazy(() => import('./operations/Library')),
   'librarian.library.book_issue_return_terminal': lazy(() => import('./operations/Library')),
-  'institution_admin.library.overdue_fine_calculation': lazy(() => import('./operations/Library')),
+  'institution_admin.library.fine_penalty_summary': lazy(() => import('./operations/Library')),
   'librarian.library.fines': lazy(() => import('./operations/Library')),
   'librarian.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
 
@@ -346,8 +346,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
   'librarian.library.reservations': lazy(() => import('./operations/LibraryDesk')),
   'librarian.library.book_reservation_queue': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.library_inventory_audit': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.ncert_textbook_indent': lazy(() => import('./operations/LibraryDesk')),
+  'institution_admin.library.annual_book_stock_verification': lazy(() => import('./operations/LibraryDesk')),
+  'institution_admin.library.new_session_textbook_orders': lazy(() => import('./operations/LibraryDesk')),
   'librarian.library.barcode_spine_label_printing': lazy(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
