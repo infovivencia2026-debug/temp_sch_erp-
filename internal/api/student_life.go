@@ -1306,6 +1306,11 @@ type displayPreference struct {
 	// able to half-succeed across two tables. See internal/api/i18n.go.
 	Locale       string `json:"locale"`
 	HighContrast bool   `json:"high_contrast"`
+	// Which dashboard layout the shell renders. Same row, same Save, same
+	// reasoning as the locale above: one row, one write, and a header toggle
+	// that cannot disagree with a settings screen. See
+	// docs/BENTO_UI_CONTRACT.md.
+	Layout string `json:"layout"`
 }
 
 // themeChoices and densityChoices are exactly what web/src/index.css already
@@ -1319,7 +1324,18 @@ type displayPreference struct {
 var (
 	themeChoices   = []string{"system", "light", "dark"}
 	densityChoices = []string{"compact", "comfortable", "relaxed"}
+	// The layouts the client actually implements. Closed for the same reason
+	// the theme list is closed: a stored layout with no implementation behind
+	// it is a preference that appears to work and does nothing. It must stay
+	// in step with LAYOUTS in web/src/lib/layout.tsx and with the CHECK
+	// constraint added in migrations/00136_bento_layout.sql.
+	layoutChoices = []string{"classic", "bento"}
 )
+
+// defaultLayout is the layout an account that has never touched the switch
+// gets, and the one anything unrecognised falls through to. Classic is the
+// product as it ships; see docs/BENTO_UI_CONTRACT.md.
+const defaultLayout = "classic"
 
 func isAllowedChoice(v string, allowed []string) bool {
 	for _, a := range allowed {
@@ -1342,12 +1358,13 @@ getDisplayPreferences returns this account's choice, defaulted.
 */
 func (s *Server) getDisplayPreferences(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
-	pref := displayPreference{Theme: "system", Density: "comfortable", Locale: defaultLocale}
+	pref := displayPreference{Theme: "system", Density: "comfortable", Locale: defaultLocale, Layout: defaultLayout}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		err := tx.QueryRow(r.Context(), `
-			SELECT theme, density, reduce_motion, locale, high_contrast
+			SELECT theme, density, reduce_motion, locale, high_contrast, layout
 			  FROM user_display_preferences WHERE user_id = $1`, id.UserID).
-			Scan(&pref.Theme, &pref.Density, &pref.ReduceMotion, &pref.Locale, &pref.HighContrast)
+			Scan(&pref.Theme, &pref.Density, &pref.ReduceMotion, &pref.Locale,
+				&pref.HighContrast, &pref.Layout)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -1365,6 +1382,8 @@ func (s *Server) getDisplayPreferences(w http.ResponseWriter, r *http.Request) {
 		"default_density": "comfortable",
 		"locale_choices":  localeChoices,
 		"default_locale":  defaultLocale,
+		"layout_choices":  layoutChoices,
+		"default_layout":  defaultLayout,
 	})
 }
 
@@ -1412,24 +1431,57 @@ func (s *Server) saveDisplayPreferences(w http.ResponseWriter, r *http.Request) 
 		httpx.BadRequest(w, r, "locale is not one this build has strings for")
 		return
 	}
+	// An unknown layout is rejected rather than coerced, for the same reason
+	// an unknown locale is: storing a value this build cannot render is a
+	// setting that is silently dead.
+	//
+	// Empty is NOT coerced to the default here. Every client that predates
+	// the layout switch -- the settings screen among them -- PUTs this body
+	// without a layout field, and defaulting that to 'classic' would mean
+	// saving your theme silently threw away your layout. Empty means "not
+	// sent, leave the stored value alone", handled by the COALESCE below.
+	req.Layout = strings.TrimSpace(req.Layout)
+	if req.Layout != "" && !isAllowedChoice(req.Layout, layoutChoices) {
+		httpx.BadRequest(w, r, "layout must be one of classic, bento")
+		return
+	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
 			INSERT INTO user_display_preferences
 			    (user_id, institution_id, theme, density, reduce_motion,
-			     locale, high_contrast, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+			     locale, high_contrast, layout, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7,
+			        COALESCE(NULLIF($8, ''), 'classic'), now())
 			ON CONFLICT (user_id) DO UPDATE
 			   SET theme = EXCLUDED.theme, density = EXCLUDED.density,
 			       reduce_motion = EXCLUDED.reduce_motion,
 			       locale = EXCLUDED.locale,
-			       high_contrast = EXCLUDED.high_contrast, updated_at = now()`,
+			       high_contrast = EXCLUDED.high_contrast,
+			       -- Not EXCLUDED.layout: the VALUES clause has already
+			       -- coerced an empty layout to 'classic' for the insert
+			       -- path, so EXCLUDED can never be empty here. The
+			       -- parameter itself is the only thing that still knows
+			       -- whether the caller sent one.
+			       layout = COALESCE(NULLIF($8, ''),
+			                         user_display_preferences.layout),
+			       updated_at = now()`,
 			id.UserID, id.InstitutionID, req.Theme, req.Density, req.ReduceMotion,
-			req.Locale, req.HighContrast)
+			req.Locale, req.HighContrast, req.Layout)
 		return err
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())
 		return
+	}
+	if req.Layout == "" {
+		// The response is what the account now holds, so a caller that sent no
+		// layout must not be told it holds "".
+		req.Layout = defaultLayout
+		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(),
+				`SELECT layout FROM user_display_preferences WHERE user_id = $1`,
+				id.UserID).Scan(&req.Layout)
+		})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"preference": req})
 }

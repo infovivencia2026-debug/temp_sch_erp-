@@ -937,6 +937,25 @@ export const en = {
   'preferences.contrast.label': 'Contrast',
   'preferences.contrast.checkbox': 'Higher contrast',
   'preferences.contrast.hint': 'Stronger text and borders. Off unless you turn it on.',
+
+  // --- the layout switch --------------------------------------------------
+  // Two buttons in the shell header. Classic is the product as it ships;
+  // Bento is the opt-in experiment. See docs/BENTO_UI_CONTRACT.md.
+  'shell.layout.group': 'Dashboard layout',
+  'shell.layout.classic': 'Classic',
+  'shell.layout.bento': 'Bento',
+
+  // --- bento: my work -----------------------------------------------------
+  // The smoke-test Bento screen. A later worker replaces it; these keys are
+  // the ones the replacement should keep.
+  'bento.my_work.title': 'My work',
+  'bento.my_work.eyebrow': 'Bento',
+  'bento.my_work.outstanding': 'Outstanding',
+  'bento.my_work.overdue': 'Overdue',
+  'bento.my_work.sections': 'Sections',
+  'bento.my_work.nothing': 'Nothing outstanding.',
+  'bento.my_work.loading': 'Checking what is outstanding…',
+  'bento.my_work.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
 } as const
 
 /** Every key the product has extracted. A locale file is a `Partial` of this,

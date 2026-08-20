@@ -7,6 +7,12 @@ import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+/* The layout switch and its routing seam. Both are new files; nothing the
+   classic layout renders is changed by their presence, and with the switch
+   left on 'classic' BentoOutlet renders its children unchanged.
+   See docs/BENTO_UI_CONTRACT.md. */
+import { LayoutSwitch } from '@/components/LayoutSwitch'
+import { BentoOutlet } from '@/features/bento/BentoOutlet'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -525,6 +531,10 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               <Rows3 className="h-4 w-4" />
             </button>
+            {/* Classic | Bento, beside the theme control. Added, not moved:
+                every control that was here is still here, in the same order,
+                with the same classes. */}
+            <LayoutSwitch />
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
@@ -553,7 +563,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <BentoOutlet>{children}</BentoOutlet>
+        </main>
       </div>
     </div>
   )
