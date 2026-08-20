@@ -528,7 +528,10 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			}
 			out.Imported++
 		}
-		return nil
+		// Written inside the same transaction as the children, so a log entry
+		// cannot survive an import that rolled back.
+		return recordImportRun(r, tx, id.InstitutionID, "students",
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
 	})
 	if err != nil {
 		out.Imported = 0

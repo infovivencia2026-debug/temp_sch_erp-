@@ -348,7 +348,15 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			}
 			out.Imported++
 		}
-		return nil
+
+		/* The record of what was loaded, written in the same transaction as
+		   the rows themselves.
+
+		   Outside it, a failed import could still leave a log entry claiming
+		   success -- which is worse than no log, because somebody would then
+		   not re-import a file that never landed. */
+		return recordImportRun(r, tx, id.InstitutionID, entity,
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
 	})
 	if err != nil {
 		out.Imported = 0
@@ -378,4 +386,64 @@ func allBlank(data map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// --- what was loaded, and by whom ----------------------------------------
+
+// recordImportRun logs one committed import. Dry runs are deliberately not
+// recorded: nothing happened, and a log full of things that did not happen is
+// a log people stop reading.
+func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int) error {
+
+	_, err := tx.Exec(r.Context(), `
+		INSERT INTO import_runs (institution_id, entity, filename,
+		                         rows_read, rows_imported, rows_rejected, imported_by)
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)`,
+		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
+		httpx.IdentityFrom(r.Context()).UserID)
+	return err
+}
+
+type importRunRow struct {
+	Entity   string  `json:"entity"`
+	Filename *string `json:"filename,omitempty"`
+	RowsRead int     `json:"rows_read"`
+	Imported int     `json:"rows_imported"`
+	Rejected int     `json:"rows_rejected"`
+	By       *string `json:"imported_by,omitempty"`
+	At       string  `json:"created_at"`
+}
+
+/*
+listImportRuns answers "has somebody already loaded this?"
+
+	The question a school office asks when three people share the work and the
+	second one is holding the same spreadsheet as the first. Every importer
+	reported a count on screen and forgot it on refresh, so the honest answer
+	was to go and look at the rows and guess.
+
+	Newest first, and not narrowed by who did it: the point is to see the other
+	person's upload, not your own.
+*/
+func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	items, err := collect(s, r, `
+		SELECT ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
+		       ir.rows_rejected, u.full_name,
+		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+		  FROM import_runs ir
+		  LEFT JOIN users u ON u.id = ir.imported_by
+		 WHERE ($1::text IS NULL OR ir.entity = $1)
+		 ORDER BY ir.created_at DESC
+		 LIMIT 50`,
+		[]any{nullString(r.URL.Query().Get("entity"))},
+		func(rows pgx.Rows) (importRunRow, error) {
+			var v importRunRow
+			return v, rows.Scan(&v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
+				&v.Rejected, &v.By, &v.At)
+		})
+	respond(w, r, items, err)
 }

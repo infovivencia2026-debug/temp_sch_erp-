@@ -239,6 +239,9 @@ func (s *Server) Routes() http.Handler {
 			// The real gate is per entity, inside the handler: one route
 			// serves classes, sections and staff, and staff must cost
 			// employees.write rather than academics.write.
+			// What has been uploaded before, by whom. Every importer used to
+			// report a count and forget it on the next refresh.
+			r.Get("/import/history", s.listImportRuns)
 			r.Get("/import/{entity}/template", s.getBulkTemplate)
 			r.Post("/import/{entity}", s.bulkImport)
 		})
