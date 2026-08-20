@@ -71,6 +71,8 @@ export default function SmsGateway() {
           <NothingSendingBanner reason={data.reason} />
         )}
 
+        {data.devices.length === 0 && <GetTheAppPanel />}
+
         {pair.data && <PairCodePanel code={pair.data} />}
         {pair.error && (
           <Card>
@@ -416,6 +418,60 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
             />
           </Field>
         </FormGrid>
+      </div>
+    </Card>
+  )
+}
+
+
+/* Where the app comes from.
+
+   Google Play restricts SEND_SMS to apps registered as the default SMS
+   handler, which this is not and should not be -- it sends on the school's
+   behalf and never reads an inbox. So there is no store listing and the app is
+   sideloaded from this server, over the same certificate as the rest of the
+   product.
+
+   The fingerprint is printed because a sideloaded APK is exactly the case
+   where somebody should be able to check what they installed. It is the
+   signing certificate's SHA-256, which Android shows under the app's details,
+   and it will not change across updates -- the key is what ties an update to
+   the app it updates.
+
+   No QR code: this project carries no QR library, and EventPasses.tsx already
+   settled that question -- a barcode-shaped picture no scanner reads is worse
+   than a short address somebody types. */
+function GetTheAppPanel() {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin
+  return (
+    <Card>
+      <CardHeader
+        title="Get the app onto the phone"
+        description="Do this before generating a pairing code — the code expires in ten minutes."
+      />
+      <div className="space-y-3 p-5 text-[13px]">
+        <p className="text-muted">
+          On the handset that will send the messages, open a browser and go to:
+        </p>
+        <p className="select-all break-all font-mono text-[15px]">
+          {origin}/download
+        </p>
+        <p className="text-muted">
+          Download <span className="font-mono">sms-gateway-latest.apk</span> and open it.
+          Android will ask permission to install from this source; that is expected for an
+          app that does not come from the Play Store.
+        </p>
+        <p className="text-muted">
+          Verify what you installed, if you wish. Android shows the app's signing
+          certificate under its details; it should read:
+        </p>
+        <p className="select-all break-all font-mono text-[12px] text-muted">
+          70:11:18:A6:FF:1E:B1:E3:8A:E0:D8:6F:D2:F4:BE:A2:50:D8:D7:11:39:EF:C6:0E:D9:39:31:FD:6A:DE:28:9A
+        </p>
+        <p className="text-muted">
+          Keep the phone on a charger and exempt it from battery optimisation, or Android
+          will stop it overnight and the school's messages will queue until somebody notices.
+        </p>
       </div>
     </Card>
   )
