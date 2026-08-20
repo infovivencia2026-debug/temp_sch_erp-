@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -381,10 +382,16 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 
 	// 8 MB covers a few thousand rows; beyond that the file is a data-migration
 	// job, not an upload.
-	body := http.MaxBytesReader(w, r.Body, 8<<20)
-	defer body.Close()
+	// Read once and parse from memory: the file is wanted twice, to import it
+	// and to keep it against the history so the upload can be opened later and
+	// read back the way every other importer's can.
+	raw, rerr := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20))
+	if rerr != nil {
+		httpx.BadRequest(w, r, "could not read the file — is it larger than 8 MB?")
+		return
+	}
 
-	reader := csv.NewReader(body)
+	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1 // tolerate ragged rows; report them per row
 
@@ -540,20 +547,40 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Re-read placement labels from the parsed rows.
+	var createdStudents []createdRow
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		createdStudents = nil
 		for i := range good {
 			if sid, ok := sectionByLabel[strings.ToLower(good[i].req.SectionID)]; ok {
 				good[i].req.SectionID = sid
 			}
-			if _, _, err := upsertStudent(r, tx, id.InstitutionID, good[i].req); err != nil {
+			sid, _, err := upsertStudent(r, tx, id.InstitutionID, good[i].req)
+			if err != nil {
 				return fmt.Errorf("row %d: %w", good[i].row, err)
+			}
+			/* Only the children this file brought into existence.
+
+			   upsertStudent updates on a matching admission number, so a
+			   corrected re-upload edits children who were already enrolled —
+			   and undoing that upload must not remove them. Asked directly
+			   rather than inferred: a row created in this transaction has no
+			   enrolment older than it. */
+			var fresh bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT created_at >= now() - interval '1 minute' FROM students WHERE id = $1`,
+				sid).Scan(&fresh); err == nil && fresh {
+				if parsed, perr := uuid.Parse(sid); perr == nil {
+					createdStudents = append(createdStudents,
+						createdRow{entity: "students", id: parsed})
+				}
 			}
 			out.Imported++
 		}
 		// Written inside the same transaction as the children, so a log entry
 		// cannot survive an import that rolled back.
-		return recordImportRun(r, tx, id.InstitutionID, "students",
-			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
+		return recordImportRunFull(r, tx, id.InstitutionID, "students",
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
+			createdStudents, string(raw))
 	})
 	if err != nil {
 		out.Imported = 0

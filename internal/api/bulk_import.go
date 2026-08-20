@@ -1044,7 +1044,28 @@ var undoableTables = map[string]string{
 	"subjects":  "subjects",
 	"periods":   "periods",
 	"fee_heads": "fee_heads",
+	"students":  "students",
 }
+
+/*
+Deleting a student cascades.
+
+	Nearly forty tables reference students with ON DELETE CASCADE — marks,
+	attendance, invoices, report cards, discipline records. That is right for a
+	school removing a record deliberately and wrong for an undo, which would
+	take a term's work with it without saying so.
+
+	So a child is removed only while nothing has happened to them yet. The
+	enrolment and the guardian the import itself created are expected and do
+	not count; anything else means the school has begun using the record, and
+	the row is kept and reported instead.
+*/
+const studentIsUntouched = `
+	SELECT NOT EXISTS (SELECT 1 FROM student_attendance a WHERE a.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM marks m            WHERE m.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM invoices i         WHERE i.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM report_cards rc    WHERE rc.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM homework_submissions h WHERE h.student_id = $1)`
 
 type undoResult struct {
 	Removed int      `json:"removed"`
@@ -1121,6 +1142,22 @@ func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				out.Kept++
 				continue
+			}
+			// A child who has been marked present, examined or invoiced is no
+			// longer just a row this file created.
+			if t.entity == "students" {
+				var untouched bool
+				if err := tx.QueryRow(r.Context(), studentIsUntouched, t.id).Scan(&untouched); err != nil {
+					return err
+				}
+				if !untouched {
+					out.Kept++
+					if len(out.Reasons) < 5 {
+						out.Reasons = append(out.Reasons,
+							"a child already has attendance, marks or fees recorded and was left alone")
+					}
+					continue
+				}
 			}
 			// A savepoint per row, so one row held back by a foreign key does
 			// not abort the transaction and lose the rest of the undo.
