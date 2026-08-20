@@ -124,19 +124,22 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 
 	var out familyLoginResponse
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* A student record carries no email and no phone.
+
+		   Those columns are on guardians, which is the right modelling: the
+		   school contacts the family, not the six-year-old. So a child's
+		   account is username-only, which is also why the admission number
+		   has to be the username rather than a fallback for one. */
 		var (
 			userID      *uuid.UUID
 			admissionNo string
 			fullName    string
-			email       *string
-			phone       *string
 		)
 		if err := tx.QueryRow(r.Context(), `
 			SELECT s.user_id, s.admission_no,
-			       trim(s.first_name || ' ' || COALESCE(s.last_name,'')),
-			       s.email, s.phone
+			       trim(s.first_name || ' ' || COALESCE(s.last_name,''))
 			  FROM students s WHERE s.id = $1`, studentID).
-			Scan(&userID, &admissionNo, &fullName, &email, &phone); err != nil {
+			Scan(&userID, &admissionNo, &fullName); err != nil {
 			return err
 		}
 		out.FullName = fullName
@@ -159,21 +162,17 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		/* No email or phone is fine for a child and not for an adult.
-
-		   Most children in an Indian school have neither, and the username on
-		   their admission number is enough to sign in with. What they lose is
-		   self-service password reset, which is the office's job for a child
-		   anyway. */
+		// Username only, and no self-service reset as a result -- which is the
+		// office's job for a child in any case.
 		var newID uuid.UUID
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO users (institution_id, username, email, phone, full_name,
+			INSERT INTO users (institution_id, username, full_name,
 			                   password_hash, status)
-			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
+			VALUES ($1, $2::citext, $3, $4, 'active')
 			RETURNING id`,
-			id.InstitutionID, username, email, phone, fullName, hash).Scan(&newID); err != nil {
+			id.InstitutionID, username, fullName, hash).Scan(&newID); err != nil {
 			if isUniqueViolation(err) {
-				return errors.New("that email or phone already belongs to another account")
+				return errors.New("that username already belongs to another account")
 			}
 			return err
 		}
