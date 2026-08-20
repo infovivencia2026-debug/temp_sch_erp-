@@ -1067,6 +1067,32 @@ const studentIsUntouched = `
 	   AND NOT EXISTS (SELECT 1 FROM report_cards rc    WHERE rc.student_id = $1)
 	   AND NOT EXISTS (SELECT 1 FROM homework_submissions h WHERE h.student_id = $1)`
 
+/*
+permForImportEntity is the right an import of this kind needed.
+
+	importSpecs covers the entities the shared importer handles. Students go in
+	through their own endpoint and are not in that map, so looking their
+	permission up there returned the empty string — and Can("") is false for
+	everybody, including the principal who did the upload. Reading back or
+	undoing a student import was refused to the one person certain to be
+	allowed.
+
+	Falling back to a deny would repeat that mistake for the next importer
+	added outside the map, so an unknown entity resolves to the right that
+	governs the records it would touch, and an entity with no answer at all is
+	the only one refused.
+*/
+func permForImportEntity(entity string) string {
+	if spec, ok := importSpecs[entity]; ok {
+		return spec.Perm
+	}
+	switch entity {
+	case "students":
+		return rbac.StudentsWrite
+	}
+	return ""
+}
+
 type undoResult struct {
 	Removed int      `json:"removed"`
 	Kept    int      `json:"kept"`
@@ -1110,7 +1136,8 @@ func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
 		if undone != nil {
 			return errAlreadyUndone
 		}
-		if !id.Can(importSpecs[entity].Perm) {
+		need := permForImportEntity(entity)
+		if need == "" || !id.Can(need) {
 			return errNotYours
 		}
 
@@ -1258,7 +1285,8 @@ func (s *Server) getImportContent(w http.ResponseWriter, r *http.Request) {
 	}
 	// The same right the import needed. Reading back a staff sheet is reading
 	// staff records, whatever route it arrives by.
-	if !id.Can(importSpecs[entity].Perm) {
+	need := permForImportEntity(entity)
+	if need == "" || !id.Can(need) {
 		httpx.Forbidden(w, r, "reading this upload")
 		return
 	}
