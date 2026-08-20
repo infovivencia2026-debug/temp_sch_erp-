@@ -403,9 +403,21 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		// was given a generated one instead.
 		col[strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, "\ufeff")))] = i
 	}
-	if _, ok := col["first_name"]; !ok {
+	/* One column is genuinely required and the rest are not.
+
+	   Every other column is read through get(), which answers "" for a header
+	   the file does not have — so a sheet with six columns imports exactly as
+	   well as one with eighteen, and a school that keeps no blood groups does
+	   not have to invent an empty column to satisfy a template.
+
+	   The name is the exception, because a child with no name is not a record.
+	   full_name or first_name will do: schools write one column and the older
+	   template wrote three, and both keep working. */
+	_, hasFull := col["full_name"]
+	_, hasFirst := col["first_name"]
+	if !hasFull && !hasFirst {
 		httpx.BadRequest(w, r,
-			"the CSV needs at least a first_name column; see the template for the full set")
+			"the CSV needs a full_name column (or first_name) — everything else is optional")
 		return
 	}
 
@@ -440,11 +452,21 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		}
 		out.Total++
 
+		// full_name wins where the sheet has one; the three-column form is
+		// still read, so a file written against the older template imports
+		// unchanged.
+		first, middle, last := splitName(get(rec, "full_name"))
+		if first == "" {
+			first = get(rec, "first_name")
+			middle = get(rec, "middle_name")
+			last = get(rec, "last_name")
+		}
+
 		req := studentWriteRequest{
 			AdmissionNo:      get(rec, "admission_no"),
-			FirstName:        get(rec, "first_name"),
-			MiddleName:       get(rec, "middle_name"),
-			LastName:         get(rec, "last_name"),
+			FirstName:        first,
+			MiddleName:       middle,
+			LastName:         last,
 			DateOfBirth:      normaliseDate(get(rec, "date_of_birth")),
 			Gender:           strings.ToLower(get(rec, "gender")),
 			BloodGroup:       get(rec, "blood_group"),
@@ -544,6 +566,35 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 // normaliseDate accepts the formats Indian spreadsheets actually contain and
 // returns ISO. Excel exports dd/mm/yyyy far more often than yyyy-mm-dd, and
 // rejecting those would fail almost every real upload.
+
+/*
+splitName turns "Aarav Kumar Sharma" into the three columns students has.
+
+	The table stores first, middle and last because a report card prints them
+	separately and a transfer certificate is required to. A school's own
+	spreadsheet almost never does: it has one column called Name, and asking an
+	office to split six hundred of them by hand before they can import is how a
+	migration stops.
+
+	The rule is the ordinary Indian one for a written name — first word is the
+	given name, last word is the surname, anything between is the middle. A
+	single word is a given name and nothing else, which is correct for the
+	children who genuinely have one.
+*/
+func splitName(full string) (first, middle, last string) {
+	parts := strings.Fields(strings.TrimSpace(full))
+	switch len(parts) {
+	case 0:
+		return "", "", ""
+	case 1:
+		return parts[0], "", ""
+	case 2:
+		return parts[0], "", parts[1]
+	default:
+		return parts[0], strings.Join(parts[1:len(parts)-1], " "), parts[len(parts)-1]
+	}
+}
+
 func normaliseDate(v string) string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -575,16 +626,29 @@ func isTruthy(v string) bool {
 func (s *Server) getImportTemplate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="students-template.csv"`)
+	/* The columns a school actually has, and no more.
+
+	   APAAR, Child Info, RTE and CWSN came off: they are admissions and
+	   government-return fields, they are blank in every sheet a school hands
+	   over on the first day, and four empty columns at the front of a template
+	   read as four things somebody has to go and find out. They are still on
+	   the record and still editable on the child's own page.
+
+	   One name column instead of three, because that is what a school's
+	   spreadsheet has. The importer splits it and still reads the three-column
+	   form, so nothing written against the old template breaks.
+
+	   Every column here except full_name is optional. A file with four of
+	   them imports. */
 	_, _ = io.WriteString(w, strings.Join([]string{
-		"admission_no", "first_name", "middle_name", "last_name", "date_of_birth",
-		"gender", "blood_group", "medium", "mother_tongue", "section",
-		"roll_no", "address", "city", "state", "pincode", "apaar_id",
-		"child_info_id", "prior_school", "is_rte", "is_cwsn",
+		"full_name", "admission_no", "date_of_birth", "gender", "blood_group",
+		"medium", "mother_tongue", "section", "roll_no",
+		"address", "city", "state", "pincode", "prior_school",
 		"guardian_name", "guardian_relation", "guardian_phone", "guardian_email",
 	}, ",")+"\n")
 	_, _ = io.WriteString(w,
-		"ADM0001,Meera,,Menon,14/06/2013,female,B+,english,Malayalam,Class 6-A,1,"+
-			"12 Green Park,Hyderabad,Telangana,500001,,,St Teresa's,N,N,"+
+		"Meera Menon,ADM0001,14/06/2013,female,B+,english,Malayalam,Class 6-A,1,"+
+			"12 Green Park,Hyderabad,Telangana,500001,St Teresa's,"+
 			"Suresh Menon,father,9845012345,suresh@example.com\n")
 }
 

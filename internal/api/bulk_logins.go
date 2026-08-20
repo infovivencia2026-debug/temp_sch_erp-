@@ -40,6 +40,16 @@ type bulkLoginRequest struct {
 	// SectionID narrows to one class, which is how a class teacher uses this.
 	// Empty means the whole school, which only the office would want.
 	SectionID string `json:"section_id,omitempty"`
+	/* Reset replaces the password of everybody who already has one.
+
+	   Never a default and never implied. The ordinary run leaves working
+	   logins alone, because the alternative is that pressing "generate" a
+	   second time stops every password the school has already handed out.
+
+	   It exists because the opposite trap is real: a list of one-time
+	   passwords can be lost — a closed tab, a failed download — and without
+	   this the only way back is to open every record one at a time. */
+	Reset bool `json:"reset,omitempty"`
 }
 
 type bulkLoginRow struct {
@@ -205,6 +215,33 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			// Already has one. Left alone, unless a reset was asked for by
+			// name — in which case this is the deliberate act of replacing a
+			// list somebody has lost.
+			if p.userID != nil && req.Reset {
+				password, err := temporaryPassword()
+				if err != nil {
+					return err
+				}
+				hash, err := s.Hasher.Hash(password)
+				if err != nil {
+					return err
+				}
+				var signIn string
+				if err := tx.QueryRow(r.Context(), `
+					UPDATE users SET password_hash = $2, status = 'active'
+					 WHERE id = $1
+					RETURNING COALESCE(username::text, email::text, phone, '')`,
+					*p.userID, hash).Scan(&signIn); err != nil {
+					return err
+				}
+				out.Created++
+				out.Rows = append(out.Rows, bulkLoginRow{
+					Name: p.name, SignInAs: signIn, Password: password,
+				})
+				continue
+			}
+
 			// Already has one. Named, with their username, and left alone.
 			if p.userID != nil {
 				var signIn string
@@ -300,8 +337,14 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out.Note = "Passwords are shown once and are not stored. Download this list " +
-		"before leaving the page. Anybody who already had a login kept it — their " +
-		"password is not shown and has not been changed."
+		"before leaving the page."
+	if req.Reset {
+		out.Note += " Every password here is new: the ones handed out before this " +
+			"have stopped working."
+	} else {
+		out.Note += " Anybody who already had a login kept it — their password is " +
+			"not shown and has not been changed."
+	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 

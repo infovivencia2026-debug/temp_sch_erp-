@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
-import { Button, Table, Td } from '@/components/ui'
+import { Button, Input, Table, Td } from '@/components/ui'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -508,6 +508,9 @@ function IssueLogins({ entity }: { entity: string }) {
   const [result, setResult] = useState<BulkLoginResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState('')
+  // Finding one person in three hundred. A class teacher wants Aarav's
+  // password, not a scroll through the whole school.
+  const [find, setFind] = useState('')
 
   // Which kinds of person this sheet produces. A student list produces both
   // children and the guardians that came across on the same rows.
@@ -515,12 +518,17 @@ function IssueLogins({ entity }: { entity: string }) {
     entity === 'students' ? ['students', 'guardians'] : entity === 'staff' ? ['staff'] : []
   if (!kinds.length) return null
 
-  const run = async (kind: string) => {
+  const run = async (kind: string, reset = false) => {
+    if (reset && !confirm(
+      'This replaces the password of everybody who already has one. ' +
+      'Any password already handed out will stop working. Continue?'
+    )) return
     setBusy(true)
     setFailed('')
     try {
-      const body = await api.post<BulkLoginResult>('/api/v1/setup/logins/bulk', { kind })
+      const body = await api.post<BulkLoginResult>('/api/v1/setup/logins/bulk', { kind, reset })
       setResult(body)
+      setFind('')
     } catch (e) {
       setFailed(e instanceof Error ? e.message : 'Could not issue the logins.')
     } finally {
@@ -567,13 +575,28 @@ function IssueLogins({ entity }: { entity: string }) {
             {busy ? 'Working…' : `Issue ${k} logins`}
           </Button>
         ))}
+        {/* Separate button, separate confirm. A lost list of one-time
+            passwords has no other way back, and the cost of the wrong press
+            is every password in the school. */}
+        {kinds.map((k) => (
+          <Button
+            key={`reset-${k}`}
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            title="Only if the list was lost — this stops the passwords already handed out"
+            onClick={() => run(k, true)}
+          >
+            Reset all {k} passwords
+          </Button>
+        ))}
       </div>
 
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
 
       {result && (
         <div className="mt-3">
-          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
             <span className="text-success"><b className="tabular-nums">{result.created}</b> new</span>
             <span className="text-muted-foreground">
               <b className="tabular-nums">{result.existing}</b> already had one
@@ -583,12 +606,23 @@ function IssueLogins({ entity }: { entity: string }) {
                 <b className="tabular-nums">{result.skipped}</b> could not be given one
               </span>
             )}
-            {result.created > 0 && (
-              <Button size="sm" className="ml-auto" onClick={download}>
-                <Download className="h-3.5 w-3.5" />
-                Download the list
+            <span className="ml-auto flex flex-wrap items-center gap-2">
+              <Input
+                value={find}
+                onChange={setFind}
+                placeholder="Find a name"
+                className="w-44"
+              />
+              {result.created > 0 && (
+                <Button size="sm" onClick={download}>
+                  <Download className="h-3.5 w-3.5" />
+                  Download the list
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
+                Close
               </Button>
-            )}
+            </span>
           </div>
           {result.created > 0 && (
             <p className="mb-2 text-[12.5px] text-destructive">
@@ -606,7 +640,14 @@ function IssueLogins({ entity }: { entity: string }) {
                 </tr>
               </thead>
               <tbody>
-                {result.rows.map((r, i) => (
+                {result.rows
+                  .filter(
+                    (r) =>
+                      !find.trim() ||
+                      r.name.toLowerCase().includes(find.trim().toLowerCase()) ||
+                      r.sign_in_as.toLowerCase().includes(find.trim().toLowerCase()),
+                  )
+                  .map((r, i) => (
                   <tr key={i} className="border-t">
                     <td className="px-2 py-1">{r.name}</td>
                     <td className="px-2 py-1 font-mono">{r.sign_in_as || '—'}</td>
@@ -620,7 +661,7 @@ function IssueLogins({ entity }: { entity: string }) {
                       )}
                     </td>
                   </tr>
-                ))}
+                  ))}
               </tbody>
             </table>
           </div>
