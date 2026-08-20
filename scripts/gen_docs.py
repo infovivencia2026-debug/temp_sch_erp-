@@ -15,6 +15,8 @@ import sys
 from collections import OrderedDict
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(ROOT / "scripts"))
 from gen_catalog import ROLE_KEYS, ROLE_ORDER, SCOPE_MAP, AMBIGUOUS, BY_ROLE_SCOPE, slug  # noqa: E402
 
@@ -176,7 +178,7 @@ def main() -> int:
                       f"{f['tier']} | {'✅' if f['built'] else '○'} | {api} |\n")
                 w("\n")
 
-    OUT.write_text("".join(out))
+    OUT.write_text("".join(out), encoding="utf-8")
     print(f"docs: {total} features documented, {nbuilt} built → {OUT.relative_to(ROOT)}")
     return 0
 

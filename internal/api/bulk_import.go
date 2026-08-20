@@ -165,6 +165,159 @@ var importSpecs = map[string]importSpec{
 			return err
 		},
 	},
+	/* Subjects. Code is what the report card prints and what the upsert keys
+	   on, so a second upload of a corrected sheet edits rather than doubles. */
+	"subjects": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"name", "code", "is_scholastic"},
+		Required: []string{"name", "code"},
+		Sample:   []string{"Mathematics", "MATH", "Y"},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["code"]) == "" {
+				return errors.New("code is what the report card prints; it cannot be blank")
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			// Blank means scholastic: most subjects are, and a school that
+			// leaves the column off should get the common case.
+			scholastic := !isNo(row["is_scholastic"])
+			_, err := c.tx.Exec(c.r.Context(), `
+				INSERT INTO subjects (institution_id, campus_id, name, code, is_scholastic)
+				VALUES ($1,$2,$3,upper($4),$5)
+				ON CONFLICT (institution_id, campus_id, code)
+				DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic`,
+				c.inst, c.campus, strings.TrimSpace(row["name"]),
+				strings.TrimSpace(row["code"]), scholastic)
+			return err
+		},
+	},
+	/* The school day. sequence orders the grid, so it is required and has to
+	   be a number -- a period list sorted by name puts P10 before P2. */
+	"periods": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"sequence", "name", "starts_at", "ends_at", "is_break"},
+		Required: []string{"sequence", "name"},
+		Sample:   []string{"1", "P1", "09:00", "09:45", "N"},
+		Check: func(row map[string]string) error {
+			if n, err := strconv.Atoi(strings.TrimSpace(row["sequence"])); err != nil || n <= 0 {
+				return errors.New("sequence must be a whole number above zero — it is what orders the day")
+			}
+			for _, k := range []string{"starts_at", "ends_at"} {
+				if v := strings.TrimSpace(row[k]); v != "" {
+					if _, err := time.Parse("15:04", v); err != nil {
+						return errors.New(k + " must be a 24-hour time such as 09:45")
+					}
+				}
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			seq, _ := strconv.Atoi(strings.TrimSpace(row["sequence"]))
+			_, err := c.tx.Exec(c.r.Context(), `
+				INSERT INTO periods (institution_id, campus_id, name, sequence,
+				                     starts_at, ends_at, is_break)
+				VALUES ($1,$2,$3,$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7)
+				ON CONFLICT (institution_id, campus_id, sequence)
+				DO UPDATE SET name = EXCLUDED.name, starts_at = EXCLUDED.starts_at,
+				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break`,
+				c.inst, c.campus, strings.TrimSpace(row["name"]), seq,
+				strings.TrimSpace(row["starts_at"]), strings.TrimSpace(row["ends_at"]),
+				isYes(row["is_break"]))
+			return err
+		},
+	},
+	/* Fee heads. Not fee amounts -- those are per class and belong to the
+	   structure, which is a different sheet and a different decision. */
+	"fee_heads": {
+		Perm:     rbac.FeesWrite,
+		Columns:  []string{"name", "code", "is_recurring"},
+		Required: []string{"name", "code"},
+		Sample:   []string{"Tuition", "TUI", "Y"},
+		Write: func(c *importCtx, row map[string]string) error {
+			recurring := !isNo(row["is_recurring"])
+			_, err := c.tx.Exec(c.r.Context(), `
+				INSERT INTO fee_heads (institution_id, name, code, is_recurring,
+				                       is_taxable, gst_rate_bp)
+				VALUES ($1,$2,upper($3),$4,false,0)
+				ON CONFLICT (institution_id, code)
+				DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring`,
+				c.inst, strings.TrimSpace(row["name"]), strings.TrimSpace(row["code"]),
+				recurring)
+			return err
+		},
+	},
+	/* Which subjects a class studies, and -- in the same row -- who teaches
+	   them. The two were separate steps, so a school listed the subject on
+	   step seven and came back on step nine to say who takes it, reading the
+	   same sheet twice. A class list from a school already has both columns
+	   next to each other. */
+	"class_subjects": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"class", "subject_code", "max_marks", "teacher_email"},
+		Required: []string{"class", "subject_code"},
+		Sample:   []string{"Grade 6", "MATH", "100", "priya.rao@jsm.test"},
+		Check: func(row map[string]string) error {
+			if v := strings.TrimSpace(row["max_marks"]); v != "" {
+				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
+					return errors.New("max_marks must be a whole number above zero")
+				}
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			classID, err := c.classID(row["class"])
+			if err != nil {
+				return err
+			}
+			code := strings.ToUpper(strings.TrimSpace(row["subject_code"]))
+			var subjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM subjects WHERE upper(code) = $1`, code).Scan(&subjectID); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("no subject with code %q — add the subjects first", code)
+				}
+				return err
+			}
+			maxMarks := 100
+			if v := strings.TrimSpace(row["max_marks"]); v != "" {
+				maxMarks, _ = strconv.Atoi(v)
+			}
+			var csID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO class_subjects (institution_id, class_id, subject_id, max_marks)
+				VALUES ($1,$2,$3,$4)
+				ON CONFLICT (class_id, subject_id)
+				DO UPDATE SET max_marks = EXCLUDED.max_marks
+				RETURNING id`, c.inst, classID, subjectID, maxMarks).Scan(&csID); err != nil {
+				return err
+			}
+
+			// The teacher column is optional, and naming one attaches them to
+			// every section of that class -- which is what "who teaches Grade 6
+			// maths" means in a school with two sections and one maths teacher.
+			email := strings.TrimSpace(row["teacher_email"])
+			if email == "" {
+				return nil
+			}
+			var teacher uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM users WHERE email = $1::citext`, email).Scan(&teacher); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("no member of staff with the email %q — import the staff first", email)
+				}
+				return err
+			}
+			_, err = c.tx.Exec(c.r.Context(), `
+				INSERT INTO section_subject_teachers (institution_id, section_id,
+				                                      class_subject_id, teacher_user_id)
+				SELECT $1, sec.id, $2, $3 FROM sections sec WHERE sec.class_id = $4
+				ON CONFLICT (section_id, class_subject_id)
+				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+				c.inst, csID, teacher, classID)
+			return err
+		},
+	},
 	"staff": {
 		Perm:     rbac.EmployeesWrite,
 		Columns:  []string{"employee_code", "first_name", "last_name", "email", "phone", "designation", "role", "joined_on"},
@@ -348,7 +501,15 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			}
 			out.Imported++
 		}
-		return nil
+
+		/* The record of what was loaded, written in the same transaction as
+		   the rows themselves.
+
+		   Outside it, a failed import could still leave a log entry claiming
+		   success -- which is worse than no log, because somebody would then
+		   not re-import a file that never landed. */
+		return recordImportRun(r, tx, id.InstitutionID, entity,
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
 	})
 	if err != nil {
 		out.Imported = 0
@@ -361,6 +522,10 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 // normaliseHeader makes "Employee Code", "employee_code" and "EMPLOYEE CODE"
 // the same column, because the sheet came from somebody else's software.
 func normaliseHeader(h string) string {
+	// The byte order mark Excel writes is not whitespace, so TrimSpace
+	// leaves it on the first column and that column stops matching its
+	// own name.
+	h = strings.TrimPrefix(h, "\ufeff")
 	h = strings.ToLower(strings.TrimSpace(h))
 	h = strings.ReplaceAll(h, " ", "_")
 	h = strings.ReplaceAll(h, "-", "_")
@@ -374,4 +539,84 @@ func allBlank(data map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// --- what was loaded, and by whom ----------------------------------------
+
+// recordImportRun logs one committed import. Dry runs are deliberately not
+// recorded: nothing happened, and a log full of things that did not happen is
+// a log people stop reading.
+func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int) error {
+
+	_, err := tx.Exec(r.Context(), `
+		INSERT INTO import_runs (institution_id, entity, filename,
+		                         rows_read, rows_imported, rows_rejected, imported_by)
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)`,
+		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
+		httpx.IdentityFrom(r.Context()).UserID)
+	return err
+}
+
+type importRunRow struct {
+	Entity   string  `json:"entity"`
+	Filename *string `json:"filename,omitempty"`
+	RowsRead int     `json:"rows_read"`
+	Imported int     `json:"rows_imported"`
+	Rejected int     `json:"rows_rejected"`
+	By       *string `json:"imported_by,omitempty"`
+	At       string  `json:"created_at"`
+}
+
+/*
+listImportRuns answers "has somebody already loaded this?"
+
+	The question a school office asks when three people share the work and the
+	second one is holding the same spreadsheet as the first. Every importer
+	reported a count on screen and forgot it on refresh, so the honest answer
+	was to go and look at the rows and guess.
+
+	Newest first, and not narrowed by who did it: the point is to see the other
+	person's upload, not your own.
+*/
+func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	items, err := collect(s, r, `
+		SELECT ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
+		       ir.rows_rejected, u.full_name,
+		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+		  FROM import_runs ir
+		  LEFT JOIN users u ON u.id = ir.imported_by
+		 WHERE ($1::text IS NULL OR ir.entity = $1)
+		 ORDER BY ir.created_at DESC
+		 LIMIT 50`,
+		[]any{nullString(r.URL.Query().Get("entity"))},
+		func(rows pgx.Rows) (importRunRow, error) {
+			var v importRunRow
+			return v, rows.Scan(&v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
+				&v.Rejected, &v.By, &v.At)
+		})
+	respond(w, r, items, err)
+}
+
+// isYes and isNo read the Y/N, yes/no, true/false and 1/0 that a school's
+// spreadsheet actually contains. Kept as two functions rather than one with a
+// default, because "blank means yes" is right for a subject being scholastic
+// and wrong for a period being a break.
+func isYes(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "y", "yes", "true", "1":
+		return true
+	}
+	return false
+}
+
+func isNo(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "n", "no", "false", "0":
+		return true
+	}
+	return false
 }

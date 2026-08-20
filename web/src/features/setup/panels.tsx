@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wand2 } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
@@ -532,6 +532,13 @@ function SectionsPanel({ onDone }: PanelProps) {
   const [names, setNames] = useState('A')
   const [capacity, setCapacity] = useState('40')
   const [scope, setScope] = useState('all')
+  /* Which class's sections are listed below.
+   *
+   * Separate from "Apply to" on purpose: one decides what you are about to
+   * create, the other what you are looking at. A school with ten classes and
+   * four sections each was shown forty chips in one row and had to read the
+   * prefix on every one of them to find 8-C. */
+  const [filter, setFilter] = useState('all')
 
   const save = useSave(async () => {
     const letters = names
@@ -581,13 +588,33 @@ function SectionsPanel({ onDone }: PanelProps) {
       </FormGrid>
       <SaveRow pending={save.isPending} error={save.error} label="Create sections" />
       {(sections?.items.length ?? 0) > 0 && (
-        <Existing label="Sections">
-          {sections!.items.map((s) => (
-            <Chip key={s.id}>
-              {s.class_name}-{s.name} · {s.enrolled}/{s.capacity}
-            </Chip>
-          ))}
-        </Existing>
+        <>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="text-[13px] text-muted-foreground">Show sections in</span>
+            <Select
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: 'all', label: `Every class (${sections?.items.length ?? 0} sections)` },
+                ...(classes?.items ?? []).map((c) => ({
+                  value: c.id,
+                  label: `${c.name} (${
+                    (sections?.items ?? []).filter((x) => x.class_id === c.id).length
+                  })`,
+                })),
+              ]}
+            />
+          </div>
+          <Existing label="Sections">
+            {sections!.items
+              .filter((s) => filter === 'all' || s.class_id === filter)
+              .map((s) => (
+                <Chip key={s.id}>
+                  {s.class_name}-{s.name} · {s.enrolled}/{s.capacity}
+                </Chip>
+              ))}
+          </Existing>
+        </>
       )}
           <div className="mt-5 border-t pt-5">
         <BulkImport
@@ -702,6 +729,15 @@ function SubjectsPanel({ onDone }: PanelProps) {
         error={save.error}
         label={`Add ${picked.size + (custom.name.trim() ? 1 : 0) || ''} subjects`}
       />
+
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="subjects"
+          title="Or add every subject from a sheet"
+          hint="Name and code. The code is what a report card prints, and it is what a second upload matches on — so a corrected sheet edits rather than doubles."
+          onDone={onDone}
+        />
+      </div>
     </form>
   )
 }
@@ -720,6 +756,33 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
   const [classID, setClassID] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [applyAll, setApplyAll] = useState(false)
+  // Narrows the subject buttons below. A school running the full state list
+  // has thirteen of them and is usually looking for one.
+  const [find, setFind] = useState('')
+
+  /* What this class already studies.
+   *
+   * The panel opened with nothing selected and saving replaces the class's
+   * list with exactly what is ticked -- so choosing a class that already had
+   * six subjects, changing nothing, and pressing Save removed all six. The
+   * sentence under the buttons said so and was easy to read as a description
+   * of adding rather than of replacing.
+   *
+   * Loading the current set makes the screen mean what it says: it opens
+   * showing the truth, and Save writes back what you can see. */
+  const current = useQuery({
+    queryKey: ['class-subjects', classID],
+    queryFn: () =>
+      api.get<List<{ subject_id: string }>>(
+        `/api/v1/setup/class-subjects?class_id=${classID}`,
+      ),
+    enabled: !!classID,
+  })
+
+  useEffect(() => {
+    if (!classID) return
+    setPicked(new Set((current.data?.items ?? []).map((x) => x.subject_id)))
+  }, [classID, current.data])
 
   const save = useSave(async () => {
     const ids = [...picked]
@@ -768,9 +831,26 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
         </Field>
       </FormGrid>
 
-      <p className="eyebrow mb-2 mt-4">Subjects this class studies</p>
+      <div className="mb-2 mt-4 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="eyebrow">
+          Subjects this class studies
+          {classID && (
+            <span className="ml-1.5 normal-case text-muted-foreground">
+              {picked.size} of {subjects?.items.length ?? 0} selected
+            </span>
+          )}
+        </p>
+        {(subjects?.items.length ?? 0) > 8 && (
+          <Input value={find} onChange={setFind} placeholder="Find a subject" className="w-48" />
+        )}
+      </div>
+      {classID && current.isLoading && (
+        <p className="text-[13px] text-muted-foreground">Reading what this class already studies…</p>
+      )}
       <div className="flex flex-wrap gap-1.5">
-        {(subjects?.items ?? []).map((s) => (
+        {(subjects?.items ?? [])
+          .filter((s) => !find.trim() || s.name.toLowerCase().includes(find.trim().toLowerCase()))
+          .map((s) => (
           <button
             key={s.id}
             type="button"
@@ -785,9 +865,19 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
         ))}
       </div>
       <p className="mt-2 text-[13px] text-muted-foreground">
-        Saving replaces the class's subject list with exactly what is selected here.
+        {classID
+          ? 'This is what the class studies now. Saving writes back exactly what is selected — untick one and it is removed.'
+          : 'Choose a class above and its current subjects appear ticked.'}
       </p>
       <SaveRow pending={save.isPending} error={save.error} label="Save mapping" />
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="class_subjects"
+          title="Or map every class from a sheet"
+          hint="Class, subject code, max marks and — in the same row — the teacher's email. Naming a teacher here assigns them to every section of that class, so there is no second pass to do it."
+          onDone={onDone}
+        />
+      </div>
     </form>
   )
 }

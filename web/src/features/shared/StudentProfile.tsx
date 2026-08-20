@@ -34,7 +34,7 @@ interface Profile {
   is_rte: boolean; is_cwsn: boolean; admission_date: string
   attendance: { present: number; total: number; percent: number; below_threshold: boolean }
   fees: { outstanding_paise: number; paid_paise: number }
-  guardians: { full_name: string; relation: string; phone: string; email: string; is_primary: boolean }[]
+  guardians: { id?: string; full_name: string; relation: string; phone: string; email: string; is_primary: boolean }[]
   recent_attendance: { date: string; status: string }[]
   results: { exam: string; percentage: string; grade: string; rank: string }[]
   invoices: { date: string; invoice_no: string; net_paise: number; paid_paise: number; status: string }[]
@@ -219,6 +219,23 @@ export default function StudentProfile() {
      than hidden. A disabled control that explains itself tells you the product
      knows what it is missing; an absent one just looks like you cannot get
      there from here. */
+  /* Issued, shown once, never stored. The response is held in component state
+     rather than refetched, because the server does not keep the password and a
+     second request would issue a different one. */
+  const [issued, setIssued] = useState<IssuedLogin | null>(null)
+  const studentLogin = useMutation({
+    mutationFn: () => api.post<IssuedLogin>(`/api/v1/setup/students/${p.id}/login`, {}),
+    onSuccess: (v) => setIssued({ ...v, who: p.full_name }),
+  })
+
+  const mayIssue = can('students.write')
+  const guardianLogin = useMutation({
+    mutationFn: (g: Profile['guardians'][number]) =>
+      api.post<IssuedLogin>(`/api/v1/setup/guardians/${g.id}/login`, {}),
+    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+  })
+  const issueGuardian = (g: Profile['guardians'][number]) => guardianLogin.mutate(g)
+
   const actions: RecordAction[] = [
     { label: 'Record payment', onClick: () => go('fees'),
       disabled: !can('finance.fees.collect_payment'),
@@ -233,10 +250,35 @@ export default function StudentProfile() {
       disabled: !can('comms.messages.send'), disabledReason: 'Needs the messaging permission' },
     { label: 'Change section', onClick: () => go('promotion'),
       disabled: true, disabledReason: 'Not built yet' },
+    /* The child's own way in. Nothing outside the demo seeder had ever given
+       a student an account, so the whole student workspace was unreachable in
+       a real school. The admission number becomes the username. */
+    { label: 'Give this student a login', onClick: () => studentLogin.mutate(),
+      disabled: !can('students.write') || studentLogin.isPending,
+      disabledReason: 'Needs permission to change student records' },
     { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
       disabled: !can('students.write'),
       disabledReason: 'Needs permission to change student records' },
   ]
+
+  const credentials = issued && (
+    <Card className="mb-4 border-success">
+      <CardHeader
+        title={`Login issued for ${issued.who}`}
+        description="Shown once and not stored anywhere. Copy it now — if it is lost, issue another rather than looking this one up."
+      />
+      <dl className="divide-y text-[14px]">
+        <Field k="Sign in as" v={issued.sign_in_as} mono />
+        <Field k="Password" v={issued.password} mono />
+        {issued.relation && <Field k="Relation" v={issued.relation} />}
+      </dl>
+      <div className="px-5 py-3">
+        <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
+          I have copied it
+        </Button>
+      </div>
+    </Card>
+  )
 
   const tabs: RecordTab[] = [
     {
@@ -296,7 +338,7 @@ export default function StudentProfile() {
               )}
             </dl>
           </Card>
-          <Guardians p={p} />
+          <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined} />
         </div>
       ),
     },
@@ -450,6 +492,8 @@ export default function StudentProfile() {
   ]
 
   return (
+    <>
+    {credentials}
     <RecordShell
       title={p.full_name}
       subtitle={`${p.admission_no} · ${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''}`}
@@ -472,11 +516,25 @@ export default function StudentProfile() {
       onBack={() => { setSelected(null); setSearch('') }}
       backLabel="Back to search"
     />
+    </>
   )
 }
 
+/** A login handed over once. The server does not keep the password, so this
+ *  lives in component state and a refetch would lose it -- which is correct:
+ *  a password a system can show you twice is one it is storing in a form
+ *  somebody else can read. */
+interface IssuedLogin {
+  sign_in_as: string
+  full_name: string
+  password: string
+  relation?: string
+  note: string
+  who: string
+}
+
 /** Who to call. First thing anyone needs when a child is the subject. */
-function Guardians({ p }: { p: Profile }) {
+function Guardians({ p, onIssue }: { p: Profile; onIssue?: (g: Profile['guardians'][number]) => void }) {
   return (
     <Card>
       {/* The block a teacher opens this page for. Father and mother first,
@@ -510,7 +568,12 @@ function Guardians({ p }: { p: Profile }) {
                   </p>
                   <p className="text-[13px] text-muted-foreground">{g.relation}</p>
                 </div>
-                <div className="flex shrink-0 gap-3 text-[13px]">
+                <div className="flex shrink-0 flex-wrap items-center gap-3 text-[13px]">
+                  {onIssue && (
+                    <Button size="sm" variant="secondary" onClick={() => onIssue(g)}>
+                      Give a login
+                    </Button>
+                  )}
                   {g.phone && (
                     <a href={`tel:${g.phone}`} className="inline-flex items-center gap-1 text-primary">
                       <Phone className="h-3 w-3" />{g.phone}

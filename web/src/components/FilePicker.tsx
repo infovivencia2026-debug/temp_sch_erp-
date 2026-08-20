@@ -50,6 +50,35 @@ export default function FilePicker({
   const input = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState('')
+  /* Chosen but not yet sent.
+   *
+   * Picking a file used to start the upload on the same click, so there was no
+   * moment at which somebody could check they had picked the right one — and
+   * on a school connection a 40 MB video is a slow mistake to make. Now the
+   * choice and the send are two separate acts, and what is about to go up is
+   * on screen in between. */
+  const [pending, setPending] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string>('')
+
+  function choose(file: File) {
+    setError('')
+    setPending(file)
+    // An image is worth showing rather than describing. Revoked when the
+    // choice is replaced or cleared, so a long session does not accumulate
+    // object URLs for files nobody kept.
+    setPreview((old) => {
+      if (old) URL.revokeObjectURL(old)
+      return file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+    })
+  }
+
+  function clear() {
+    setPending(null)
+    setPreview((old) => {
+      if (old) URL.revokeObjectURL(old)
+      return ''
+    })
+  }
 
   function send(file: File) {
     setError('')
@@ -70,6 +99,7 @@ export default function FilePicker({
       setProgress(null)
       if (xhr.status === 201) {
         onChange(JSON.parse(xhr.responseText) as UploadedFile)
+        clear()
         return
       }
       // The server's own sentence, where it sent one. Its refusals name the
@@ -112,25 +142,67 @@ export default function FilePicker({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
-          if (f) send(f)
+          if (f) choose(f)
           // Cleared so choosing the same file twice in a row still fires.
           e.target.value = ''
         }}
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={progress !== null}
-          onClick={() => input.current?.click()}
-        >
-          <Paperclip className="h-3.5 w-3.5" />
-          {progress !== null ? `Uploading ${progress}%` : label}
-        </Button>
-        <span className="text-[12.5px] text-muted-foreground">
-          {hint ?? 'Any document, image, recording or archive, up to 64 MB.'}
-        </span>
-      </div>
+      {pending ? (
+        <div className="rounded-md border p-3">
+          <p className="mb-2 text-[12.5px] font-medium">About to upload</p>
+          <div className="flex flex-wrap items-center gap-3">
+            {preview ? (
+              <img
+                src={preview}
+                alt=""
+                className="h-14 w-14 rounded border object-cover"
+              />
+            ) : (
+              <span className="flex h-14 w-14 items-center justify-center rounded border bg-muted">
+                <Paperclip className="h-5 w-5 text-muted-foreground" aria-hidden />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium">{pending.name}</p>
+              <p className="text-[12.5px] text-muted-foreground">
+                {human(pending.size)}
+                {pending.type ? ` · ${pending.type}` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" disabled={progress !== null} onClick={() => send(pending)}>
+              {progress !== null ? `Uploading ${progress}%` : 'Upload this file'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={progress !== null}
+              onClick={() => input.current?.click()}
+            >
+              Choose a different one
+            </Button>
+            <Button size="sm" variant="ghost" disabled={progress !== null} onClick={clear}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={progress !== null}
+            onClick={() => input.current?.click()}
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+            {label}
+          </Button>
+          <span className="text-[12.5px] text-muted-foreground">
+            {hint ?? 'Any document, image, recording or archive, up to 64 MB.'}
+          </span>
+        </div>
+      )}
       {progress !== null && (
         <div className="mt-2 h-1 w-full overflow-hidden rounded bg-muted">
           <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
