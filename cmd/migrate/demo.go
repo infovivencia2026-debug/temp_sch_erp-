@@ -23,7 +23,7 @@ import (
 // department, a teacher with no sections and a guardian with no children all
 // resolve to an empty scope, which is correct behaviour but proves nothing.
 // This gives every role something real to see.
-func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password string) error {
+func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, institution string) error {
 	hasher := auth.NewHasher(pepper)
 	hash, err := hasher.Hash(password)
 	if err != nil {
@@ -31,10 +31,9 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password string
 	}
 
 	return db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		var instID uuid.UUID
-		if err := tx.QueryRow(ctx,
-			`SELECT id FROM institutions ORDER BY created_at LIMIT 1`).Scan(&instID); err != nil {
-			return fmt.Errorf("no institution: %w", err)
+		instID, err := pickInstitution(ctx, tx, institution)
+		if err != nil {
+			return err
 		}
 
 		var campusID uuid.UUID
@@ -113,6 +112,65 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password string
 		}
 		return nil
 	})
+}
+
+/* Which school the demo is being built in.
+
+   Every seeder here took "the oldest institution", which is fine on a fresh
+   installation with one school and destructive on one with nine: the wiring
+   below reassigns the first two sections' class teacher, and pointed at a
+   school that is actually running, it takes those sections away from the
+   people who teach them.
+
+   An empty name keeps the old behaviour so existing invocations are
+   unchanged. A name matches exactly, and a uuid matches by id, because the
+   nine schools on this installation include two called SGHS.
+*/
+func pickInstitution(ctx context.Context, tx pgx.Tx, want string) (uuid.UUID, error) {
+	want = strings.TrimSpace(want)
+	var id uuid.UUID
+	if want == "" {
+		err := tx.QueryRow(ctx,
+			`SELECT id FROM institutions ORDER BY created_at LIMIT 1`).Scan(&id)
+		if err != nil {
+			return id, fmt.Errorf("no institution: %w", err)
+		}
+		return id, nil
+	}
+	if parsed, err := uuid.Parse(want); err == nil {
+		if err := tx.QueryRow(ctx,
+			`SELECT id FROM institutions WHERE id = $1`, parsed).Scan(&id); err != nil {
+			return id, fmt.Errorf("no institution with id %s: %w", want, err)
+		}
+		return id, nil
+	}
+	rows, err := tx.Query(ctx, `SELECT id FROM institutions WHERE name = $1`, want)
+	if err != nil {
+		return id, err
+	}
+	defer rows.Close()
+	var found []uuid.UUID
+	for rows.Next() {
+		var one uuid.UUID
+		if err := rows.Scan(&one); err != nil {
+			return id, err
+		}
+		found = append(found, one)
+	}
+	if err := rows.Err(); err != nil {
+		return id, err
+	}
+	switch len(found) {
+	case 0:
+		return id, fmt.Errorf("no institution named %q", want)
+	case 1:
+		return found[0], nil
+	default:
+		// Refusing beats picking one: seeding demo data into the wrong school
+		// of two with the same name is not something anybody notices quickly.
+		return id, fmt.Errorf("%d institutions are named %q — pass the uuid instead",
+			len(found), want)
+	}
 }
 
 // staffRoles are the roles held by people the school employs. Each needs an
@@ -289,12 +347,12 @@ func wireScope(ctx context.Context, tx pgx.Tx, roleKey string, inst, campus, use
 // It exists so the scope-narrowed roles have something to resolve to. A demo
 // where every teacher has no sections and every guardian has no children
 // exercises none of the interesting code.
-func seedDemoData(ctx context.Context, db *database.DB) error {
+func seedDemoData(ctx context.Context, db *database.DB, institution string) error {
 	return db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		var inst, campus uuid.UUID
-		if err := tx.QueryRow(ctx,
-			`SELECT id FROM institutions ORDER BY created_at LIMIT 1`).Scan(&inst); err != nil {
-			return fmt.Errorf("no institution: %w", err)
+		var perr error
+		if inst, perr = pickInstitution(ctx, tx, institution); perr != nil {
+			return perr
 		}
 		/* Reuse whatever campus the school already has.
 

@@ -25,12 +25,12 @@ Everything here is idempotent: each block asks whether its table already has
 rows for this institution and returns early if it does. Re-running tops up a
 school that was seeded before these existed without duplicating what is there.
 */
-func seedDemoOperations(ctx context.Context, db *database.DB) error {
+func seedDemoOperations(ctx context.Context, db *database.DB, institution string) error {
 	return db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		var inst, campus, year uuid.UUID
-		if err := tx.QueryRow(ctx,
-			`SELECT id FROM institutions ORDER BY created_at LIMIT 1`).Scan(&inst); err != nil {
-			return fmt.Errorf("no institution: %w", err)
+		var perr error
+		if inst, perr = pickInstitution(ctx, tx, institution); perr != nil {
+			return perr
 		}
 		if err := tx.QueryRow(ctx,
 			`SELECT id FROM campuses WHERE institution_id = $1 ORDER BY created_at LIMIT 1`,

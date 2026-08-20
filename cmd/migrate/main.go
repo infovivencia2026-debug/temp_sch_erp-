@@ -49,7 +49,7 @@ func run() error {
 		email    = flag.String("email", "", "create-admin: email")
 		password = flag.String("password", "", "create-admin: password")
 		name     = flag.String("name", "Administrator", "create-admin: full name")
-		instName = flag.String("institution", "", "create-admin: institution name (created if absent)")
+		instName = flag.String("institution", "", "institution name or uuid. create-admin creates it if absent; demo-data and demo-users target it, defaulting to the oldest school when empty")
 	)
 	// The stdlib flag package stops parsing at the first non-flag argument, so
 	// `migrate create-admin -email ...` would silently see no flags at all.
@@ -125,11 +125,11 @@ func run() error {
 			return err
 		}
 		defer db.Close()
-		if err := seedDemoData(ctx, db); err != nil {
+		if err := seedDemoData(ctx, db, *instName); err != nil {
 			return err
 		}
 		// The spine, then everything the spine left blank.
-		return seedDemoOperations(ctx, db)
+		return seedDemoOperations(ctx, db, *instName)
 	case "demo-users":
 		if *password == "" {
 			return fmt.Errorf("demo-users requires -password")
@@ -139,7 +139,7 @@ func run() error {
 			return err
 		}
 		defer db.Close()
-		return seedDemoUsers(ctx, db, cfg.PasswordPepper, *password)
+		return seedDemoUsers(ctx, db, cfg.PasswordPepper, *password, *instName)
 	case "create-seller":
 		if *email == "" || *password == "" {
 			return fmt.Errorf("create-seller requires -email and -password")
