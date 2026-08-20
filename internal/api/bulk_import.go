@@ -43,6 +43,20 @@ import (
    One transaction per import, so a file that fails halfway leaves nothing
    behind. Half a class list is worse than none: nobody can tell which half. */
 
+/* Every lookup below names the institution explicitly.
+
+   Relying on row level security alone was wrong in a way that only shows up
+   at the worst moment: RLS is bypassed for a platform administrator, and an
+   operator acting inside a school is exactly such a session. A lookup written
+   as "the class called Grade 6" then means "the first Grade 6 on the
+   installation", and an import run that way writes one school's rows against
+   another school's sections. Eighty-four rows on this installation were in
+   that state before this was fixed.
+
+   The tenant predicate is therefore in the SQL as well as in the policy. RLS
+   is the guarantee for ordinary sessions; this is the guarantee for the ones
+   that outrank it. */
+
 // importSpec is one entity's worth of importer.
 type importSpec struct {
 	// Perm is the permission the equivalent single-row form requires. Checked
@@ -120,7 +134,8 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 	}
 	var id uuid.UUID
 	err := c.tx.QueryRow(c.r.Context(),
-		`SELECT id FROM classes WHERE lower(name) = $1`, key).Scan(&id)
+		`SELECT id FROM classes WHERE institution_id = $1 AND lower(name) = $2`,
+		c.inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("no class called %q — create the classes first", name)
 	}
@@ -343,7 +358,8 @@ var importSpecs = map[string]importSpec{
 			code := strings.ToUpper(strings.TrimSpace(row["subject_code"]))
 			var subjectID uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM subjects WHERE upper(code) = $1`, code).Scan(&subjectID); err != nil {
+				`SELECT id FROM subjects WHERE institution_id = $1 AND upper(code) = $2`,
+				c.inst, code).Scan(&subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					return fmt.Errorf("no subject with code %q — add the subjects first", code)
 				}
@@ -372,7 +388,8 @@ var importSpecs = map[string]importSpec{
 			}
 			var teacher uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM users WHERE email = $1::citext`, email).Scan(&teacher); err != nil {
+				`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+				c.inst, email).Scan(&teacher); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					return fmt.Errorf("no member of staff with the email %q — import the staff first", email)
 				}
@@ -450,9 +467,9 @@ var importSpecs = map[string]importSpec{
 				  FROM class_subjects cs
 				  JOIN subjects sub ON sub.id = cs.subject_id
 				  JOIN sections sec ON sec.class_id = cs.class_id
-				 WHERE sec.id = $1
+				 WHERE sec.id = $1 AND cs.institution_id = $3
 				   AND (upper(sub.code) = upper($2) OR lower(sub.name) = lower($2))`,
-				sectionID, code).Scan(&csID, &subjectID); err != nil {
+				sectionID, code, c.inst).Scan(&csID, &subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					return fmt.Errorf("%s does not study %q — map the subject to the class first",
 						row["class"], code)
@@ -500,8 +517,9 @@ var importSpecs = map[string]importSpec{
 				var exists bool
 				if err := c.tx.QueryRow(c.r.Context(), `
 					SELECT EXISTS (SELECT 1 FROM subjects
-					                WHERE upper(code) = upper($1) OR lower(name) = lower($1))`,
-					want).Scan(&exists); err != nil {
+					                WHERE institution_id = $2
+					                  AND (upper(code) = upper($1) OR lower(name) = lower($1)))`,
+					want, c.inst).Scan(&exists); err != nil {
 					return err
 				}
 				if !exists {
@@ -932,8 +950,10 @@ func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, erro
 	}
 	var id uuid.UUID
 	err = c.tx.QueryRow(c.r.Context(),
-		`SELECT id FROM sections WHERE class_id = $1 AND lower(name) = $2 LIMIT 1`,
-		classID, strings.ToLower(strings.TrimSpace(sectionName))).Scan(&id)
+		`SELECT id FROM sections
+		  WHERE institution_id = $1 AND class_id = $2 AND lower(name) = $3
+		  LIMIT 1`,
+		c.inst, classID, strings.ToLower(strings.TrimSpace(sectionName))).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("%s has no section %q — create the sections first",
 			className, sectionName)
@@ -957,7 +977,8 @@ func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
 	}
 	var id uuid.UUID
 	err := c.tx.QueryRow(c.r.Context(),
-		`SELECT id FROM users WHERE email = $1::citext`, key).Scan(&id)
+		`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+		c.inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("no member of staff with the email %q — import the staff first", email)
 	}
