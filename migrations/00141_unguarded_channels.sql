@@ -1,3 +1,17 @@
+-- Renumbered from 00138, which had already been taken.
+--
+-- Two people wrote a migration against the same repository within a few hours
+-- and both reached for the next free number as they saw it. goose keys a
+-- migration on its numeric prefix and refuses to load a directory with the
+-- same version twice, so the pair of them would have stopped every deploy on
+-- the installation rather than one of them losing a race.
+--
+-- Safe to renumber precisely because it had not run anywhere: version 138 in
+-- goose_db_version is the other file, applied at 09:12, and
+-- unguarded_channels did not exist on the database. Every statement here is
+-- IF NOT EXISTS in any case, so a database that did somehow have it applied
+-- under the old number takes this as a no-op rather than an error.
+
 -- +goose Up
 --
 -- Per-channel exemption from the recipient allowlist.
