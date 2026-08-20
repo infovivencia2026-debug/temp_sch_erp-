@@ -1,4 +1,7 @@
 -- +goose Up
+-- Renumbered 00136 -> 00142 at integration: another session deployed through
+-- 00141 while this was in flight, and goose skips a migration below the
+-- current version rather than failing, which is how it silently did nothing.
 -- 00136_bento_layout.sql -- number claimed per the work order; may be
 -- renumbered at integration. Depends only on 00083 having created
 -- user_display_preferences.
