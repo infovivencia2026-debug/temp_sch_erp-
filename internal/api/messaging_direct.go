@@ -30,6 +30,12 @@ One message, one number, sent now.
 type directSendRequest struct {
 	To   string `json:"to"`
 	Text string `json:"text"`
+	// Channel defaults to sms when empty, which is what the SMS test page
+	// sends and keeps that page working unchanged. email and whatsapp let one
+	// page exercise every channel the school has configured.
+	Channel string `json:"channel"`
+	// Subject is used only by email; sms and whatsapp ignore it.
+	Subject string `json:"subject"`
 }
 
 func (s *Server) sendDirectMessage(w http.ResponseWriter, r *http.Request) {
@@ -41,28 +47,43 @@ func (s *Server) sendDirectMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	to := strings.TrimSpace(req.To)
 	text := strings.TrimSpace(req.Text)
+	channel := strings.TrimSpace(req.Channel)
+	if channel == "" {
+		channel = "sms"
+	}
+	if channel != "sms" && channel != "email" && channel != "whatsapp" {
+		httpx.BadRequest(w, r, "channel must be sms, email or whatsapp")
+		return
+	}
 	if to == "" {
-		httpx.BadRequest(w, r, "a phone number is required")
+		httpx.BadRequest(w, r, "a recipient is required")
 		return
 	}
 	if text == "" {
 		httpx.BadRequest(w, r, "a message is required")
 		return
 	}
-	// An SMS longer than this is billed as several and silently truncated by
-	// some carriers. Refusing is kinder than sending half a sentence.
-	if len(text) > 480 {
+	// The 480 cap is an SMS concern -- one text silently split or truncated by
+	// a carrier. Email and WhatsApp carry long bodies fine, so the limit only
+	// applies to the channel it protects.
+	if channel == "sms" && len(text) > 480 {
 		httpx.BadRequest(w, r, "message is too long -- keep it under 480 characters")
 		return
+	}
+	// Email wants a subject line; the others ignore it. A sensible default
+	// rather than an empty header, which some servers score as spam.
+	subject := strings.TrimSpace(req.Subject)
+	if subject == "" {
+		subject = "Message from school"
 	}
 
 	var res SendResult
 	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var err error
 		res, err = s.QueueMessage(r.Context(), tx, id.InstitutionID, SendRequest{
-			Channel:      "sms",
+			Channel:      channel,
 			TemplateCode: "messaging.direct",
-			Vars:         map[string]any{"text": text},
+			Vars:         map[string]any{"text": text, "subject": subject},
 			Recipient:    to,
 		})
 		return err
