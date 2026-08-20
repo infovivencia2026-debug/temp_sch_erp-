@@ -37,6 +37,12 @@ type teacher struct {
 	FullName string `json:"full_name"`
 	Code     string `json:"employee_code"`
 	Periods  int    `json:"weekly_periods"`
+	// EmployeeID is what the login endpoint is addressed by.
+	EmployeeID string `json:"employee_id"`
+	// SignInAs is the username, email or phone they sign in with, and CanSignIn
+	// says whether that account has a password yet.
+	SignInAs  string `json:"sign_in_as"`
+	CanSignIn bool   `json:"can_sign_in"`
 	// Subjects is the comma-joined list of what they teach, for a label that
 	// does not require the reader to already know the staff.
 	Subjects string `json:"subjects"`
@@ -120,7 +126,16 @@ func (s *Server) listTimetableEntries(w http.ResponseWriter, r *http.Request) {
 // can flag over-allocation without a second round trip per teacher.
 func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT u.id::text, u.full_name, e.employee_code,
+		SELECT u.id::text, u.full_name, e.employee_code, e.id::text,
+		       /* What they sign in with, and whether they can.
+		
+		          The staff list showed names and nothing else, so the only way
+		          to find out whether somebody had a working login was to ask
+		          them to try. An account created with a staff record but never
+		          given a password is 'invited': it exists, and nobody can sign
+		          in as it, which is the state ten people were left in here. */
+		       COALESCE(u.username::text, u.email::text, u.phone, ''),
+		       (u.password_hash IS NOT NULL AND u.status <> 'invited'),
 		       (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = u.id),
 		       /* What they teach, joined for the label.
 
@@ -178,8 +193,8 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		},
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
-			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.Periods,
-				&v.Subjects, &v.ClassTeacherOf)
+			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
+				&v.SignInAs, &v.CanSignIn, &v.Periods, &v.Subjects, &v.ClassTeacherOf)
 		})
 	respond(w, r, items, err)
 }

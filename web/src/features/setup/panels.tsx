@@ -27,8 +27,14 @@ import { cn } from '@/lib/utils'
 interface Teacher {
   user_id: string
   full_name: string
+  employee_id: string
   subjects: string
   class_teacher_of?: string
+  /** What they type into the sign-in box, and whether that account has a
+   *  password yet. An employee imported with an email has an account and no
+   *  password: it exists and nobody can sign in as it. */
+  sign_in_as: string
+  can_sign_in: boolean
 }
 
 export interface PanelProps {
@@ -986,7 +992,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
 function StaffPanel({ onDone }: PanelProps) {
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<{ user_id: string; full_name: string; employee_code: string }>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
   const [f, setF] = useState({
     employee_code: '',
@@ -1035,13 +1041,7 @@ function StaffPanel({ onDone }: PanelProps) {
         </Field>
       </FormGrid>
       <SaveRow pending={save.isPending} error={save.error} label="Add staff member" />
-      {(teachers?.items.length ?? 0) > 0 && (
-        <Existing label="Teaching staff">
-          {teachers!.items.map((t) => (
-            <Chip key={t.user_id}>{t.full_name}</Chip>
-          ))}
-        </Existing>
-      )}
+      {(teachers?.items.length ?? 0) > 0 && <StaffLogins staff={teachers!.items} />}
       <Assignments onDone={onDone} />
           <div className="mt-5 border-t pt-5">
         <BulkImport
@@ -2015,5 +2015,117 @@ function SubjectTeacherSelect({
       }
       options={options}
     />
+  )
+}
+
+/**
+ * The staff on the roll, and what each of them signs in with.
+ *
+ * This was a row of names and nothing else, so the only way to find out
+ * whether somebody could sign in was to ask them to try — and the only place a
+ * password was ever shown was the panel that appears after an import, which is
+ * gone the moment you leave the page.
+ *
+ * An account created alongside a staff record has no password until somebody
+ * issues one. That state is worth showing plainly: "no login yet" is a
+ * different problem from "has a login and has forgotten it", and they are
+ * fixed by the same button for different reasons.
+ */
+function StaffLogins({ staff }: { staff: Teacher[] }) {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState('')
+  const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
+  const [failed, setFailed] = useState('')
+
+  const issue = async (t: Teacher, reset: boolean) => {
+    if (reset && !confirm(
+      `Reset ${t.full_name}'s password? The one they are using now will stop working.`
+    )) return
+    setBusy(t.user_id)
+    setFailed('')
+    try {
+      const body = await api.post<{ sign_in_as: string; password: string }>(
+        `/api/v1/setup/employees/${t.employee_id}/login${reset ? '?reset=true' : ''}`, {},
+      )
+      if (body.password) {
+        setIssued((v) => ({ ...v, [t.user_id]: { user: body.sign_in_as, pass: body.password } }))
+      }
+      await qc.invalidateQueries({ queryKey: ['teachers'] })
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not issue that login.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="eyebrow mb-2">Staff and their logins</p>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-[13px]">
+          <thead className="bg-muted text-left text-muted-foreground">
+            <tr>
+              <th className="px-3 py-1.5 font-medium">Name</th>
+              <th className="px-3 py-1.5 font-medium">Signs in as</th>
+              <th className="px-3 py-1.5 font-medium">Password</th>
+              <th className="px-3 py-1.5 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((t) => {
+              const fresh = issued[t.user_id]
+              return (
+                <tr key={t.user_id} className="border-t">
+                  <td className="px-3 py-1.5">
+                    <span className="font-medium">{t.full_name}</span>
+                    {t.subjects && (
+                      <span className="ml-1.5 text-muted-foreground">· {t.subjects}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 font-mono">
+                    {fresh?.user ?? t.sign_in_as ?? '—'}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    {fresh ? (
+                      <span className="font-mono font-medium">{fresh.pass}</span>
+                    ) : t.can_sign_in ? (
+                      <span
+                        className="text-muted-foreground"
+                        title="Shown once when it was issued and not stored anywhere. Reset it to hand over a new one."
+                      >
+                        already set
+                      </span>
+                    ) : (
+                      <span className="text-destructive">no login yet</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-right">
+                    <button
+                      type="button"
+                      disabled={busy === t.user_id}
+                      onClick={() => issue(t, t.can_sign_in)}
+                      className="underline underline-offset-2 text-muted-foreground hover:text-primary"
+                    >
+                      {busy === t.user_id
+                        ? 'working…'
+                        : t.can_sign_in
+                          ? 'reset password'
+                          : 'give a login'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {Object.keys(issued).length > 0 && (
+        <p className="mt-2 text-[12.5px] text-destructive">
+          Copy these before you leave the page. A password is shown once and cannot be
+          looked up again — only replaced.
+        </p>
+      )}
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+    </div>
   )
 }
