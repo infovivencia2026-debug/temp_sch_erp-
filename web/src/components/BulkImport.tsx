@@ -72,6 +72,7 @@ function parseCsv(text: string): string[][] {
 }
 
 interface ImportRun {
+  id: string
   entity: string
   filename?: string
   rows_read: number
@@ -79,6 +80,10 @@ interface ImportRun {
   rows_rejected: number
   imported_by?: string
   created_at: string
+  undone_at?: string
+  /** How many records this upload created, as opposed to edited. Only these
+   *  can be taken back out, so zero means there is nothing to undo. */
+  created_rows: number
 }
 
 interface Problem {
@@ -166,6 +171,20 @@ export default function BulkImport({
     } finally {
       setBusy(false)
     }
+  }
+
+  /* Putting the file down again.
+   *
+   * Nothing has been written at this point — the dry run reads and reports —
+   * so this only clears what is on screen. It exists because the preview
+   * invites a decision and one of the two answers had no button. */
+  const discard = () => {
+    setCsv('')
+    setName('')
+    setResult(null)
+    setGrid([])
+    setShowAll(false)
+    setError('')
   }
 
   const take = (text: string, label: string) => {
@@ -369,10 +388,22 @@ export default function BulkImport({
                   {result.imported} added
                 </span>
               ) : clean ? (
-                <Button size="sm" className="ml-auto" disabled={busy} onClick={() => send(csv, true)}>
-                  {busy ? 'Uploading…' : `Upload these ${result.valid}`}
+                <span className="ml-auto flex flex-wrap items-center gap-2">
+                  {/* Looking at the file is the point of showing it, and
+                      deciding against it is a normal outcome. Without this the
+                      only way out of a preview was to reload the page. */}
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={discard}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => send(csv, true)}>
+                    {busy ? 'Uploading…' : `Upload these ${result.valid}`}
+                  </Button>
+                </span>
+              ) : (
+                <Button size="sm" variant="ghost" className="ml-auto" disabled={busy} onClick={discard}>
+                  Cancel
                 </Button>
-              ) : null}
+              )}
             </div>
 
             {result.rejected > 0 && (
@@ -424,6 +455,40 @@ export default function BulkImport({
  * else's upload.
  */
 function History({ entity, refresh }: { entity: string; refresh: number }) {
+  const qc = useQueryClient()
+  const [undoing, setUndoing] = useState('')
+  const [outcome, setOutcome] = useState('')
+
+  /* Taking one upload back out.
+   *
+   * Deletes only the records that upload created — every importer upserts, so
+   * a corrected re-upload edits rows that were already there and undoing it
+   * must not remove a class somebody typed in by hand. Rows something else now
+   * depends on are kept and counted rather than cascaded away. */
+  const undo = async (run: ImportRun) => {
+    if (!confirm(
+      `Remove the ${run.created_rows} ${run.created_rows === 1 ? 'record' : 'records'} ` +
+      `that ${run.filename ?? 'this upload'} created? ` +
+      'Anything it only updated, and anything now in use, is left alone.'
+    )) return
+    setUndoing(run.id)
+    setOutcome('')
+    try {
+      const res = await api.post<{ removed: number; kept: number; reasons: string[] }>(
+        `/api/v1/setup/import/history/${run.id}/undo`, {},
+      )
+      setOutcome(
+        `${res.removed} removed` +
+          (res.kept ? `, ${res.kept} kept because they are in use` : ''),
+      )
+      await qc.invalidateQueries()
+    } catch (e) {
+      setOutcome(e instanceof Error ? e.message : 'Could not undo that upload.')
+    } finally {
+      setUndoing('')
+    }
+  }
+
   const q = useQuery({
     queryKey: ['import-history', entity, refresh],
     queryFn: () =>
@@ -451,6 +516,7 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
               <th className="py-1 pr-3 font-medium">When</th>
               <th className="py-1 pr-3 font-medium">By</th>
               <th className="py-1 pr-3 font-medium">Rows</th>
+              <th className="py-1 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -467,11 +533,33 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
                     <span className="text-destructive"> · {r.rows_rejected} rejected</span>
                   )}
                 </td>
+                <td className="py-1 text-right">
+                  {r.undone_at ? (
+                    <span className="text-muted-foreground">undone</span>
+                  ) : r.created_rows > 0 ? (
+                    <button
+                      type="button"
+                      disabled={undoing === r.id}
+                      onClick={() => undo(r)}
+                      className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                    >
+                      {undoing === r.id ? 'removing…' : `delete these ${r.created_rows}`}
+                    </button>
+                  ) : (
+                    <span
+                      className="text-muted-foreground"
+                      title="This upload only updated records that already existed, so there is nothing of its own to remove."
+                    >
+                      nothing to remove
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {outcome && <p className="mt-2 text-[12.5px] text-muted-foreground">{outcome}</p>}
     </div>
   )
 }

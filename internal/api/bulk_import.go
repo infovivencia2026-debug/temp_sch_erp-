@@ -64,9 +64,27 @@ type importSpec struct {
 	// already seen and passed. A dry run that misses errors is worse than no
 	// dry run, because it is trusted.
 	Check func(row map[string]string) error
+	/* Verify checks what only the database can answer, during the dry run.
+
+	   Check runs before any connection is open, so it can catch "level must
+	   be a number" and cannot catch "there is no subject called SCI". That
+	   second kind was reported at commit time, after the screen had already
+	   said the file was ready — which is the failure the comment on Check
+	   warns about, in the one place Check could not reach.
+
+	   Read-only by contract. It runs in the same transaction the commit would
+	   use, and on a dry run that transaction writes nothing. */
+	Verify func(ctx *importCtx, row map[string]string) error
 	// Write inserts one row. It is called inside the import transaction, with
 	// the header-keyed values of that row.
 	Write func(ctx *importCtx, row map[string]string) error
+}
+
+// createdRow is one record an import brought into existence, as opposed to one
+// it edited. Only these are removed when an import is undone.
+type createdRow struct {
+	entity string
+	id     uuid.UUID
 }
 
 type importCtx struct {
@@ -86,7 +104,13 @@ type importCtx struct {
 	// of values that cannot change during one import.
 	sections map[string]uuid.UUID
 	teachers map[string]uuid.UUID
-	server   *Server
+	/* What this import created.
+
+	   Every writer here upserts, so a second upload of a corrected sheet
+	   edits rows that existed before it — and undoing that upload must not
+	   delete a class the school created by hand in March. */
+	created []createdRow
+	server  *Server
 }
 
 func (c *importCtx) classID(name string) (uuid.UUID, error) {
@@ -107,6 +131,21 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 	return id, nil
 }
 
+/*
+noteCreated remembers a row so the import can be taken back out.
+
+	Called only where the insert actually inserted. Postgres answers that with
+	xmax = 0 on the returned row — zero means no transaction has updated it, so
+	the INSERT branch was taken — and, where the writer says DO NOTHING, by
+	returning no row at all on a conflict. Both are exact, where counting rows
+	before and after is not.
+*/
+func (c *importCtx) noteCreated(entity string, id uuid.UUID, inserted bool) {
+	if inserted {
+		c.created = append(c.created, createdRow{entity: entity, id: id})
+	}
+}
+
 var importSpecs = map[string]importSpec{
 	"classes": {
 		Perm:     rbac.AcademicsWrite,
@@ -121,11 +160,21 @@ var importSpecs = map[string]importSpec{
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			level, _ := strconv.Atoi(strings.TrimSpace(row["level"]))
-			_, err := c.tx.Exec(c.r.Context(), `
+			/* RETURNING with DO NOTHING yields no row on a conflict, which is
+			   exactly the signal wanted: a row came back means this INSERT
+			   created the class, and ErrNoRows means it was already there. */
+			var id uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO classes (institution_id, campus_id, name, level, stream)
 				VALUES ($1,$2,$3,$4,NULLIF($5,''))
-				ON CONFLICT DO NOTHING`,
-				c.inst, c.campus, strings.TrimSpace(row["name"]), level, strings.TrimSpace(row["stream"]))
+				ON CONFLICT DO NOTHING
+				RETURNING id`,
+				c.inst, c.campus, strings.TrimSpace(row["name"]), level,
+				strings.TrimSpace(row["stream"])).Scan(&id)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			c.noteCreated("classes", id, err == nil)
 			return err
 		},
 	},
@@ -159,14 +208,18 @@ var importSpecs = map[string]importSpec{
 			// included. Writing a shorter INSERT here was how the importer
 			// came to omit campus_id, which the column forbids — an importer
 			// that diverges from the form it replaces will diverge again.
-			_, err = c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err = c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO sections (institution_id, campus_id, class_id, academic_year_id,
 				                      name, capacity, room)
 				VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''))
 				ON CONFLICT (class_id, academic_year_id, name)
-				DO UPDATE SET capacity = EXCLUDED.capacity, room = EXCLUDED.room`,
+				DO UPDATE SET capacity = EXCLUDED.capacity, room = EXCLUDED.room
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, classID, c.year, strings.TrimSpace(row["name"]), capacity,
-				strings.TrimSpace(row["room"]))
+				strings.TrimSpace(row["room"])).Scan(&id, &inserted)
+			c.noteCreated("sections", id, inserted)
 			return err
 		},
 	},
@@ -187,13 +240,17 @@ var importSpecs = map[string]importSpec{
 			// Blank means scholastic: most subjects are, and a school that
 			// leaves the column off should get the common case.
 			scholastic := !isNo(row["is_scholastic"])
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO subjects (institution_id, campus_id, name, code, is_scholastic)
 				VALUES ($1,$2,$3,upper($4),$5)
 				ON CONFLICT (institution_id, campus_id, code)
-				DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic`,
+				DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, strings.TrimSpace(row["name"]),
-				strings.TrimSpace(row["code"]), scholastic)
+				strings.TrimSpace(row["code"]), scholastic).Scan(&id, &inserted)
+			c.noteCreated("subjects", id, inserted)
 			return err
 		},
 	},
@@ -219,16 +276,20 @@ var importSpecs = map[string]importSpec{
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			seq, _ := strconv.Atoi(strings.TrimSpace(row["sequence"]))
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO periods (institution_id, campus_id, name, sequence,
 				                     starts_at, ends_at, is_break)
 				VALUES ($1,$2,$3,$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7)
 				ON CONFLICT (institution_id, campus_id, sequence)
 				DO UPDATE SET name = EXCLUDED.name, starts_at = EXCLUDED.starts_at,
-				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break`,
+				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, strings.TrimSpace(row["name"]), seq,
 				strings.TrimSpace(row["starts_at"]), strings.TrimSpace(row["ends_at"]),
-				isYes(row["is_break"]))
+				isYes(row["is_break"])).Scan(&id, &inserted)
+			c.noteCreated("periods", id, inserted)
 			return err
 		},
 	},
@@ -241,14 +302,18 @@ var importSpecs = map[string]importSpec{
 		Sample:   []string{"Tuition", "TUI", "Y"},
 		Write: func(c *importCtx, row map[string]string) error {
 			recurring := !isNo(row["is_recurring"])
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO fee_heads (institution_id, name, code, is_recurring,
 				                       is_taxable, gst_rate_bp)
 				VALUES ($1,$2,upper($3),$4,false,0)
 				ON CONFLICT (institution_id, code)
-				DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring`,
+				DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring
+				RETURNING id, (xmax = 0)`,
 				c.inst, strings.TrimSpace(row["name"]), strings.TrimSpace(row["code"]),
-				recurring)
+				recurring).Scan(&id, &inserted)
+			c.noteCreated("fee_heads", id, inserted)
 			return err
 		},
 	},
@@ -426,6 +491,25 @@ var importSpecs = map[string]importSpec{
 			}
 			return nil
 		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			// Named before the upload rather than after it: a subject that
+			// does not exist is the commonest thing wrong with a staff sheet,
+			// because a school writes "Science" where the list says "General
+			// Science".
+			for _, want := range splitSubjects(row["subjects"]) {
+				var exists bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM subjects
+					                WHERE upper(code) = upper($1) OR lower(name) = lower($1))`,
+					want).Scan(&exists); err != nil {
+					return err
+				}
+				if !exists {
+					return fmt.Errorf("no subject called %q — check the Subjects step for the exact name", want)
+				}
+			}
+			return nil
+		},
 		Write: func(c *importCtx, row map[string]string) error {
 			req := employeeRequest{
 				EmployeeCode: strings.TrimSpace(row["employee_code"]),
@@ -466,13 +550,7 @@ var importSpecs = map[string]importSpec{
 			if list == "" || strings.TrimSpace(userID) == "" {
 				return nil
 			}
-			for _, raw := range strings.FieldsFunc(list, func(r rune) bool {
-				return r == ';' || r == ',' || r == '|'
-			}) {
-				want := strings.TrimSpace(raw)
-				if want == "" {
-					continue
-				}
+			for _, want := range splitSubjects(list) {
 				var subjectID uuid.UUID
 				if err := c.tx.QueryRow(c.r.Context(), `
 					SELECT id FROM subjects
@@ -616,6 +694,50 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, parsed{row: n, data: data})
 	}
 
+	/* The database-dependent checks, before the screen says "ready".
+
+	   Runs on a dry run and on a commit alike: on a commit it is the same
+	   answer a moment earlier, and the cost of asking twice is a few selects
+	   against rows already in cache. */
+	if spec.Verify != nil && len(rows) > 0 {
+		verr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			campus, err := ensureCampus(r, tx, id.InstitutionID)
+			if err != nil {
+				return err
+			}
+			ctx := &importCtx{r: r, tx: tx, inst: id.InstitutionID, campus: campus,
+				classes: map[string]uuid.UUID{}, server: s}
+			for _, p := range rows {
+				if err := spec.Verify(ctx, p.data); err != nil {
+					out.Valid--
+					out.Rejected++
+					out.Problems = append(out.Problems,
+						importRow{Row: p.row, Data: p.data, Problem: err.Error()})
+				}
+			}
+			return nil
+		})
+		if verr != nil {
+			httpx.Internal(w, r, verr)
+			return
+		}
+		if out.Rejected > 0 {
+			// Rebuilt so the rows that failed verification are not written on
+			// a commit that got this far.
+			kept := rows[:0]
+			bad := map[int]bool{}
+			for _, p := range out.Problems {
+				bad[p.Row] = true
+			}
+			for _, p := range rows {
+				if !bad[p.row] {
+					kept = append(kept, p)
+				}
+			}
+			rows = kept
+		}
+	}
+
 	if !commit || out.Rejected > 0 || len(rows) == 0 {
 		// Refusing to write a file with any bad row is deliberate: a partial
 		// import leaves the office reconciling what went in against what did
@@ -652,8 +774,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		   Outside it, a failed import could still leave a log entry claiming
 		   success -- which is worse than no log, because somebody would then
 		   not re-import a file that never landed. */
-		return recordImportRun(r, tx, id.InstitutionID, entity,
-			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
+		return recordImportRunWith(r, tx, id.InstitutionID, entity,
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
+			ctx.created)
 	})
 	if err != nil {
 		out.Imported = 0
@@ -693,16 +816,37 @@ func allBlank(data map[string]string) bool {
 func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 	entity, filename string, read, imported, rejected int) error {
 
-	_, err := tx.Exec(r.Context(), `
+	return recordImportRunWith(r, tx, inst, entity, filename, read, imported, rejected, nil)
+}
+
+// recordImportRunWith also remembers which records the import created, which
+// is the whole of what makes undoing it possible.
+func recordImportRunWith(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int, created []createdRow) error {
+
+	var runID uuid.UUID
+	if err := tx.QueryRow(r.Context(), `
 		INSERT INTO import_runs (institution_id, entity, filename,
 		                         rows_read, rows_imported, rows_rejected, imported_by)
-		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)`,
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)
+		RETURNING id`,
 		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
-		httpx.IdentityFrom(r.Context()).UserID)
-	return err
+		httpx.IdentityFrom(r.Context()).UserID).Scan(&runID); err != nil {
+		return err
+	}
+	for _, c := range created {
+		if _, err := tx.Exec(r.Context(), `
+			INSERT INTO import_run_rows (run_id, institution_id, entity, record_id)
+			VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+			runID, inst, c.entity, c.id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type importRunRow struct {
+	ID       string  `json:"id"`
 	Entity   string  `json:"entity"`
 	Filename *string `json:"filename,omitempty"`
 	RowsRead int     `json:"rows_read"`
@@ -710,6 +854,10 @@ type importRunRow struct {
 	Rejected int     `json:"rows_rejected"`
 	By       *string `json:"imported_by,omitempty"`
 	At       string  `json:"created_at"`
+	UndoneAt *string `json:"undone_at,omitempty"`
+	// Created counts what this upload brought into existence rather than
+	// edited, which is the only part an undo can remove.
+	Created int `json:"created_rows"`
 }
 
 /*
@@ -728,9 +876,11 @@ func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := collect(s, r, `
-		SELECT ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
+		SELECT ir.id::text, ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
 		       ir.rows_rejected, u.full_name,
-		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+		       to_char(ir.undone_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+		       (SELECT count(*) FROM import_run_rows w WHERE w.run_id = ir.id)::int
 		  FROM import_runs ir
 		  LEFT JOIN users u ON u.id = ir.imported_by
 		 WHERE ($1::text IS NULL OR ir.entity = $1)
@@ -739,8 +889,8 @@ func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
 		[]any{nullString(r.URL.Query().Get("entity"))},
 		func(rows pgx.Rows) (importRunRow, error) {
 			var v importRunRow
-			return v, rows.Scan(&v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
-				&v.Rejected, &v.By, &v.At)
+			return v, rows.Scan(&v.ID, &v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
+				&v.Rejected, &v.By, &v.At, &v.UndoneAt, &v.Created)
 		})
 	respond(w, r, items, err)
 }
@@ -817,3 +967,160 @@ func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
 	c.teachers[key] = id
 	return id, nil
 }
+
+// splitSubjects reads the "MATH; SCI" a school writes in one column. Semicolon,
+// comma or pipe, because a spreadsheet is written by a person and not a parser.
+func splitSubjects(v string) []string {
+	out := []string{}
+	for _, raw := range strings.FieldsFunc(v, func(r rune) bool {
+		return r == ';' || r == ',' || r == '|'
+	}) {
+		if t := strings.TrimSpace(raw); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// --- taking an import back out ---------------------------------------------
+
+// undoableTables maps the entity names recorded against an import run to the
+// tables they live in. A fixed list in code rather than trusting the column:
+// the entity is written by this package and read back into a DELETE, and a
+// table name interpolated from the database is the shape of a very bad day.
+var undoableTables = map[string]string{
+	"classes":   "classes",
+	"sections":  "sections",
+	"subjects":  "subjects",
+	"periods":   "periods",
+	"fee_heads": "fee_heads",
+}
+
+type undoResult struct {
+	Removed int      `json:"removed"`
+	Kept    int      `json:"kept"`
+	Reasons []string `json:"reasons"`
+}
+
+/*
+undoImport deletes the records one upload created.
+
+	Only the records it created. Every importer upserts, so a second upload of
+	a corrected sheet edits rows that were already there, and undoing it must
+	not remove a class the school typed in by hand in March.
+
+	Rows that something else now depends on are kept rather than cascaded. A
+	section with children enrolled in it is not an accident of the import any
+	more, and deleting it to satisfy an undo would take the enrolments with it.
+	The count of what was kept, and why, is returned rather than swallowed —
+	an undo that silently does half its job is worse than one that refuses.
+*/
+func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	runID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid import id")
+		return
+	}
+
+	var out undoResult
+	out.Reasons = []string{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var entity string
+		var undone *time.Time
+		if err := tx.QueryRow(r.Context(),
+			`SELECT entity, undone_at FROM import_runs WHERE id = $1`, runID).
+			Scan(&entity, &undone); err != nil {
+			return err
+		}
+		if undone != nil {
+			return errAlreadyUndone
+		}
+		if !id.Can(importSpecs[entity].Perm) {
+			return errNotYours
+		}
+
+		rows, err := tx.Query(r.Context(),
+			`SELECT entity, record_id FROM import_run_rows WHERE run_id = $1`, runID)
+		if err != nil {
+			return err
+		}
+		type target struct {
+			entity string
+			id     uuid.UUID
+		}
+		var targets []target
+		for rows.Next() {
+			var t target
+			if err := rows.Scan(&t.entity, &t.id); err != nil {
+				rows.Close()
+				return err
+			}
+			targets = append(targets, t)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		for _, t := range targets {
+			table, ok := undoableTables[t.entity]
+			if !ok {
+				out.Kept++
+				continue
+			}
+			// A savepoint per row, so one row held back by a foreign key does
+			// not abort the transaction and lose the rest of the undo.
+			if _, err := tx.Exec(r.Context(), "SAVEPOINT undo_row"); err != nil {
+				return err
+			}
+			_, derr := tx.Exec(r.Context(),
+				"DELETE FROM "+table+" WHERE id = $1", t.id)
+			if derr != nil {
+				if _, err := tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT undo_row"); err != nil {
+					return err
+				}
+				out.Kept++
+				if len(out.Reasons) < 5 {
+					out.Reasons = append(out.Reasons,
+						"one "+t.entity+" row is still in use and was left alone")
+				}
+				continue
+			}
+			if _, err := tx.Exec(r.Context(), "RELEASE SAVEPOINT undo_row"); err != nil {
+				return err
+			}
+			out.Removed++
+		}
+
+		// Marked rather than deleted: "loaded and then undone" is a different
+		// fact from "never loaded", and an empty history says the second.
+		_, err = tx.Exec(r.Context(),
+			`UPDATE import_runs SET undone_at = now(), undone_by = $2 WHERE id = $1`,
+			runID, id.UserID)
+		return err
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		httpx.NotFound(w, r)
+		return
+	case errors.Is(err, errAlreadyUndone):
+		httpx.BadRequest(w, r, "that upload has already been undone")
+		return
+	case errors.Is(err, errNotYours):
+		httpx.Forbidden(w, r, "undoing this kind of import")
+		return
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+var (
+	errAlreadyUndone = errStr("already undone")
+	errNotYours      = errStr("not permitted")
+)

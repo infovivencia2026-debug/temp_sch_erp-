@@ -257,6 +257,10 @@ func (s *Server) Routes() http.Handler {
 			// What has been uploaded before, by whom. Every importer used to
 			// report a count and forget it on the next refresh.
 			r.Get("/import/history", s.listImportRuns)
+			// Taking one upload back out. Gated inside the handler on the same
+			// permission the import itself needed, because one route serves
+			// every entity.
+			r.Post("/import/history/{id}/undo", s.undoImport)
 			r.Get("/import/{entity}/template", s.getBulkTemplate)
 			r.Post("/import/{entity}", s.bulkImport)
 		})
