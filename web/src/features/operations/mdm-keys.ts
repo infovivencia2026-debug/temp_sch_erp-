@@ -1,4 +1,3 @@
-import { lazy } from 'react'
 
 /**
  * The daily mid-day meal register.
@@ -20,5 +19,4 @@ import { lazy } from 'react'
  * inside a page the other opens twelve times a year.
  */
 export const mdmKeys = {
-  'institution_admin.mid_day_meal.mid_day_meal_register': lazy(() => import('./MDMRegister')),
 }

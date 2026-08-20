@@ -13,18 +13,6 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs `make
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const boardKeys = {
-  'institution_admin.examinations.ssc_board_registration': lazy(
-    () => import('./SSCRegistration'),
-  ),
-  'institution_admin.examinations.intermediate_board_registration': lazy(
-    () => import('./IntermediateRegistration'),
-  ),
-  'institution_admin.examinations.board_result_import': lazy(
-    () => import('./BoardResultImport'),
-  ),
-  'institution_admin.examinations.baseline_performance_analysis': lazy(
-    () => import('./BaselineAnalysis'),
-  ),
   'institution_admin.examinations.performance_overview': lazy(
     () => import('./PerformanceOverview'),
   ),

@@ -10,14 +10,6 @@ import { lazy } from 'react'
    same trolley, and an annual card and the camp that filled it in are the same
    piece of paper. */
 export const healthKeys = {
-  'institution_admin.infirmary.daily_nurse_visit_log': lazy(() => import('./InfirmaryClinic')),
-  'institution_admin.infirmary.medication_admin_register': lazy(() => import('./InfirmaryClinic')),
-  'institution_admin.infirmary.annual_health_checkup_records': lazy(
-    () => import('./InfirmaryScreening'),
-  ),
-  'institution_admin.infirmary.school_health_programme_camps': lazy(
-    () => import('./InfirmaryScreening'),
-  ),
   'institution_admin.hostel.night_study_room_attendance': lazy(() => import('./HostelNightStudy')),
   'institution_admin.hostel.room_inventory_checklists': lazy(() => import('./HostelRoomChecks')),
   'institution_admin.hostel.hostel_visitor_log': lazy(() => import('./HostelVisitors')),

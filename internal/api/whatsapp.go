@@ -580,17 +580,26 @@ type recipientGuard struct {
 	// allowed is the normalised set: E.164 digits for phones, lowercased
 	// addresses for email.
 	allowed map[string]bool
+	// unguarded names the channels the allowlist does not apply to. A school
+	// may want its SMS register running normally while a WhatsApp pilot on a
+	// borrowed Business number reaches exactly one phone.
+	unguarded map[string]bool
 }
 
 func (s *Server) loadRecipientGuard(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (recipientGuard, error) {
-	g := recipientGuard{Mode: "allowlist", allowed: map[string]bool{}}
+	g := recipientGuard{Mode: "allowlist", allowed: map[string]bool{}, unguarded: map[string]bool{}}
 
 	var mode string
+	var unguarded []string
 	err := tx.QueryRow(ctx,
-		`SELECT mode FROM messaging_recipient_policy WHERE institution_id = $1`, inst).Scan(&mode)
+		`SELECT mode, unguarded_channels FROM messaging_recipient_policy WHERE institution_id = $1`,
+		inst).Scan(&mode, &unguarded)
 	switch {
 	case err == nil:
 		g.Mode = mode
+		for _, ch := range unguarded {
+			g.unguarded[ch] = true
+		}
 	case errors.Is(err, pgx.ErrNoRows):
 		// No row is not "unconfigured, therefore allow". It is the default,
 		// and the default is the safe one.
@@ -638,6 +647,14 @@ func (g recipientGuard) permits(channel, recipient string) (bool, string) {
 		return true, ""
 	}
 	if g.Mode == "everyone" {
+		return true, ""
+	}
+	// A channel the school has explicitly exempted -- typically sms, whose
+	// messages leave through the school's own SIM to numbers the school means
+	// to reach, while a WhatsApp pilot on a borrowed Business number stays
+	// pinned to the allowlist. The exemption is per channel and deliberate;
+	// the default remains guarded.
+	if g.unguarded[channel] {
 		return true, ""
 	}
 	key := normaliseRecipient(recipient)

@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste } from 'lucide-react'
+import {
+  Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2, Minimize2,
+} from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
-import { Button, Table, Td } from '@/components/ui'
+import { Button, Input, Table, Td } from '@/components/ui'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -72,6 +74,7 @@ function parseCsv(text: string): string[][] {
 }
 
 interface ImportRun {
+  id: string
   entity: string
   filename?: string
   rows_read: number
@@ -79,6 +82,10 @@ interface ImportRun {
   rows_rejected: number
   imported_by?: string
   created_at: string
+  undone_at?: string
+  /** How many records this upload created, as opposed to edited. Only these
+   *  can be taken back out, so zero means there is nothing to undo. */
+  created_rows: number
 }
 
 interface Problem {
@@ -121,6 +128,11 @@ export default function BulkImport({
   const [result, setResult] = useState<Result | null>(null)
   const [grid, setGrid] = useState<string[][]>([])
   const [showAll, setShowAll] = useState(false)
+  /* Whatever is open in its own window: the file about to be uploaded, or
+     one opened out of the history. Held here rather than in each place so
+     only one can be open, and so the history's own panel does not have to
+     grow a table inside a table inside a step. */
+  const [expanded, setExpanded] = useState<{ title: string; rows: string[][] } | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -166,6 +178,20 @@ export default function BulkImport({
     } finally {
       setBusy(false)
     }
+  }
+
+  /* Putting the file down again.
+   *
+   * Nothing has been written at this point — the dry run reads and reports —
+   * so this only clears what is on screen. It exists because the preview
+   * invites a decision and one of the two answers had no button. */
+  const discard = () => {
+    setCsv('')
+    setName('')
+    setResult(null)
+    setGrid([])
+    setShowAll(false)
+    setError('')
   }
 
   const take = (text: string, label: string) => {
@@ -287,8 +313,25 @@ export default function BulkImport({
           </div>
         )}
 
+        {/* Present the moment a file is loaded, and in every state after
+            that.
+
+            It used to live inside the results block, so it existed only when
+            the file parsed cleanly — and disappeared exactly when it was most
+            wanted, on the screen saying the headers are wrong. Somebody who
+            has dropped the wrong file is then looking at a page with no way
+            off it but a reload. */}
         {name && !pasting && (
-          <p className="mt-2 text-[12.5px] text-muted-foreground">Reading: {name}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-muted-foreground">Reading: {name}</p>
+            <button
+              type="button"
+              onClick={discard}
+              className="text-[12.5px] underline underline-offset-2 text-muted-foreground hover:text-foreground"
+            >
+              cancel this file
+            </button>
+          </div>
         )}
 
         {/* The file itself, before anybody agrees to load it. Ten rows is
@@ -304,41 +347,30 @@ export default function BulkImport({
                   {grid[0].length} columns
                 </span>
               </p>
-              {grid.length > 11 && (
+              <span className="flex items-center gap-3">
+                {grid.length > 11 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll((v) => !v)}
+                    className="text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                  >
+                    {showAll ? 'Show first 10' : `Show all ${grid.length - 1}`}
+                  </button>
+                )}
+                {/* Eighteen columns in a panel this tall is a file you scroll
+                    rather than one you read. */}
                 <button
                   type="button"
-                  onClick={() => setShowAll((v) => !v)}
-                  className="text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                  onClick={() => setExpanded({ title: name || 'This file', rows: grid })}
+                  className="inline-flex items-center gap-1 text-[12.5px] underline underline-offset-2 text-muted-foreground"
                 >
-                  {showAll ? 'Show first 10' : `Show all ${grid.length - 1}`}
+                  <Maximize2 className="h-3 w-3" />
+                  expand
                 </button>
-              )}
+              </span>
             </div>
             <div className="max-h-80 overflow-auto rounded-md border">
-              <table className="w-full text-[12.5px]">
-                <thead className="sticky top-0 bg-muted">
-                  <tr>
-                    <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
-                    {grid[0].map((h, i) => (
-                      <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
-                        {h || <span className="text-destructive">(no name)</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(showAll ? grid.slice(1) : grid.slice(1, 11)).map((r, ri) => (
-                    <tr key={ri} className="border-t">
-                      <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
-                      {grid[0].map((_, ci) => (
-                        <td key={ci} className="whitespace-nowrap px-2 py-1">
-                          {r[ci] ?? ''}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <SheetTable rows={grid} limit={showAll ? undefined : 10} />
             </div>
             {!showAll && grid.length > 11 && (
               <p className="mt-1 text-[12px] text-muted-foreground">
@@ -349,10 +381,22 @@ export default function BulkImport({
         )}
 
         {error && (
-          <p className="mt-3 flex items-start gap-2 text-[13px] text-destructive">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
-            {error}
-          </p>
+          <div className="mt-3">
+            <p className="flex items-start gap-2 text-[13px] text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              {error}
+            </p>
+            {/* Naming the box, because the commonest cause of a missing column
+                is the right file in the wrong uploader — a page with four drop
+                zones on it invites exactly that, and "needs a column called
+                class" does not hint at which of the four you are in. */}
+            <p className="mt-1 text-[12.5px] text-muted-foreground">
+              This box takes the <b>{entity.replace(/_/g, ' ')}</b> sheet.
+            </p>
+            <Button size="sm" variant="ghost" className="mt-2" onClick={discard}>
+              Cancel
+            </Button>
+          </div>
         )}
 
         {result && (
@@ -369,10 +413,22 @@ export default function BulkImport({
                   {result.imported} added
                 </span>
               ) : clean ? (
-                <Button size="sm" className="ml-auto" disabled={busy} onClick={() => send(csv, true)}>
-                  {busy ? 'Uploading…' : `Upload these ${result.valid}`}
+                <span className="ml-auto flex flex-wrap items-center gap-2">
+                  {/* Looking at the file is the point of showing it, and
+                      deciding against it is a normal outcome. Without this the
+                      only way out of a preview was to reload the page. */}
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={discard}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => send(csv, true)}>
+                    {busy ? 'Uploading…' : `Upload these ${result.valid}`}
+                  </Button>
+                </span>
+              ) : (
+                <Button size="sm" variant="ghost" className="ml-auto" disabled={busy} onClick={discard}>
+                  Cancel
                 </Button>
-              ) : null}
+              )}
             </div>
 
             {result.rejected > 0 && (
@@ -404,8 +460,18 @@ export default function BulkImport({
             )}
           </div>
         )}
-        <History entity={entity} refresh={written ? 1 : 0} />
+        {written && <IssueLogins entity={entity} />}
+        <History entity={entity} refresh={written ? 1 : 0} onOpen={setExpanded} />
       </div>
+      {/* Its own window, over everything. The file is the thing being looked
+          at, so it gets the screen rather than a panel inside a panel. */}
+      {expanded && (
+        <SheetViewer
+          title={expanded.title}
+          rows={expanded.rows}
+          onClose={() => setExpanded(null)}
+        />
+      )}
     </div>
   )
 }
@@ -422,7 +488,81 @@ export default function BulkImport({
  * Not narrowed to the signed-in user: the whole point is to see somebody
  * else's upload.
  */
-function History({ entity, refresh }: { entity: string; refresh: number }) {
+function History({
+  entity,
+  refresh,
+  onOpen,
+}: {
+  entity: string
+  refresh: number
+  onOpen: (v: { title: string; rows: string[][] }) => void
+}) {
+  const qc = useQueryClient()
+  const [undoing, setUndoing] = useState('')
+  const [outcome, setOutcome] = useState('')
+
+  /* Taking one upload back out.
+   *
+   * Deletes only the records that upload created — every importer upserts, so
+   * a corrected re-upload edits rows that were already there and undoing it
+   * must not remove a class somebody typed in by hand. Rows something else now
+   * depends on are kept and counted rather than cascaded away. */
+  const undo = async (run: ImportRun) => {
+    if (!confirm(
+      `Remove the ${run.created_rows} ${run.created_rows === 1 ? 'record' : 'records'} ` +
+      `that ${run.filename ?? 'this upload'} created? ` +
+      'Anything it only updated, and anything now in use, is left alone.'
+    )) return
+    setUndoing(run.id)
+    setOutcome('')
+    try {
+      const res = await api.post<{ removed: number; kept: number; reasons: string[] }>(
+        `/api/v1/setup/import/history/${run.id}/undo`, {},
+      )
+      setOutcome(
+        `${res.removed} removed` +
+          (res.kept ? `, ${res.kept} kept because they are in use` : ''),
+      )
+      await qc.invalidateQueries()
+    } catch (e) {
+      setOutcome(e instanceof Error ? e.message : 'Could not undo that upload.')
+    } finally {
+      setUndoing('')
+    }
+  }
+
+  const [loadingRun, setLoadingRun] = useState('')
+  const [failedRun, setFailedRun] = useState('')
+
+  /* Reading one upload back, into a window of its own.
+
+     It used to unfold inside the history block: a table nested in a panel
+     nested in a step, eighteen columns wide in a space three hundred pixels
+     tall. The file is the thing being looked at, so it gets the screen. */
+  const openFile = async (run: ImportRun) => {
+    setLoadingRun(run.id)
+    setFailedRun('')
+    try {
+      const body = await api.get<{ content: string; omitted: boolean }>(
+        `/api/v1/setup/import/history/${run.id}/content`,
+      )
+      if (body.omitted) {
+        setFailedRun('That file was too large to keep a copy of, so only the counts were recorded.')
+        return
+      }
+      const rows = body.content ? parseCsv(body.content) : []
+      if (rows.length < 2) {
+        setFailedRun('No copy of this file was kept — it was uploaded before uploads began being stored.')
+        return
+      }
+      onOpen({ title: run.filename ?? 'This upload', rows })
+    } catch {
+      setFailedRun('Could not read that file back.')
+    } finally {
+      setLoadingRun('')
+    }
+  }
+
   const q = useQuery({
     queryKey: ['import-history', entity, refresh],
     queryFn: () =>
@@ -442,20 +582,33 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
           {runs.length === 1 ? '1 time' : `${runs.length} times`}
         </span>
       </p>
-      <div className="overflow-x-auto">
+      {/* Capped and scrolled. A step that has been re-uploaded a dozen times
+          was pushing the form off the screen with its own history. */}
+      <div className="max-h-56 overflow-auto rounded-md border">
         <table className="w-full text-[12.5px]">
-          <thead>
+          <thead className="sticky top-0 bg-muted">
             <tr className="text-left text-muted-foreground">
-              <th className="py-1 pr-3 font-medium">File</th>
+              <th className="px-2 py-1 pr-3 font-medium">File</th>
               <th className="py-1 pr-3 font-medium">When</th>
               <th className="py-1 pr-3 font-medium">By</th>
               <th className="py-1 pr-3 font-medium">Rows</th>
+              <th className="py-1 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {runs.map((r, i) => (
               <tr key={i} className="border-t">
-                <td className="py-1 pr-3">{r.filename ?? 'pasted cells'}</td>
+                <td className="py-1 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => openFile(r)}
+                    className="underline underline-offset-2 hover:text-primary"
+                    title="Open this file"
+                  >
+                    {r.filename ?? 'pasted cells'}
+                    {loadingRun === r.id && ' …'}
+                  </button>
+                </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
                   {r.created_at.replace('T', ' ').slice(0, 16)}
                 </td>
@@ -466,10 +619,352 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
                     <span className="text-destructive"> · {r.rows_rejected} rejected</span>
                   )}
                 </td>
+                <td className="py-1 text-right">
+                  {r.undone_at ? (
+                    <span className="text-muted-foreground">undone</span>
+                  ) : r.created_rows > 0 ? (
+                    <button
+                      type="button"
+                      disabled={undoing === r.id}
+                      onClick={() => undo(r)}
+                      className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                    >
+                      {undoing === r.id ? 'removing…' : `delete these ${r.created_rows}`}
+                    </button>
+                  ) : (
+                    <span
+                      className="text-muted-foreground"
+                      title="This upload only updated records that already existed, so there is nothing of its own to remove."
+                    >
+                      nothing to remove
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      {failedRun && <p className="mt-2 text-[12.5px] text-muted-foreground">{failedRun}</p>}
+      {outcome && <p className="mt-2 text-[12.5px] text-muted-foreground">{outcome}</p>}
+    </div>
+  )
+}
+
+interface BulkLoginRow {
+  name: string
+  sign_in_as: string
+  password?: string
+  existing: boolean
+  detail?: string
+}
+interface BulkLoginResult {
+  created: number
+  existing: number
+  skipped: number
+  rows: BulkLoginRow[]
+  note: string
+}
+
+/**
+ * Logins for everybody who was just imported.
+ *
+ * Sixty children arrive from one sheet and then need sixty accounts, and the
+ * only way to make them was to open sixty records and press a button on each.
+ * Nobody does that, so the parent portal goes unused in a school that paid
+ * for it.
+ *
+ * Anybody who already has a login keeps it, and is listed with their username
+ * and no password. That is the important half: the office issues the logins on
+ * Monday, a class teacher runs this on Tuesday, and Tuesday must not quietly
+ * replace what the families are already holding.
+ */
+function IssueLogins({ entity }: { entity: string }) {
+  const [result, setResult] = useState<BulkLoginResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState('')
+  // Finding one person in three hundred. A class teacher wants Aarav's
+  // password, not a scroll through the whole school.
+  const [find, setFind] = useState('')
+
+  // Which kinds of person this sheet produces. A student list produces both
+  // children and the guardians that came across on the same rows.
+  const kinds =
+    entity === 'students' ? ['students', 'guardians'] : entity === 'staff' ? ['staff'] : []
+  if (!kinds.length) return null
+
+  const run = async (kind: string, reset = false) => {
+    if (reset && !confirm(
+      'This replaces the password of everybody who already has one. ' +
+      'Any password already handed out will stop working. Continue?'
+    )) return
+    setBusy(true)
+    setFailed('')
+    try {
+      const body = await api.post<BulkLoginResult>('/api/v1/setup/logins/bulk', { kind, reset })
+      setResult(body)
+      setFind('')
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not issue the logins.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /* Downloading is not a convenience here.
+   *
+   * The passwords are shown once and nothing can read them back, so a page
+   * refresh with sixty unsaved passwords on it loses all sixty and the only
+   * way out is to reset every one. */
+  const download = () => {
+    if (!result) return
+    const csv = [
+      ['name', 'sign_in_as', 'password', 'status'],
+      ...result.rows.map((r) => [
+        r.name,
+        r.sign_in_as,
+        r.password ?? '',
+        r.existing ? 'already had a login' : r.detail ? r.detail : 'new',
+      ]),
+    ]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `logins-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="mb-1 text-[13px] font-medium">Give them logins</p>
+      <p className="mb-3 text-[12.5px] text-muted-foreground">
+        Anybody who already has one keeps it — nothing here changes a password
+        somebody is already using.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {kinds.map((k) => (
+          <Button key={k} size="sm" variant="secondary" disabled={busy} onClick={() => run(k)}>
+            {busy ? 'Working…' : `Issue ${k} logins`}
+          </Button>
+        ))}
+        {/* Separate button, separate confirm. A lost list of one-time
+            passwords has no other way back, and the cost of the wrong press
+            is every password in the school. */}
+        {kinds.map((k) => (
+          <Button
+            key={`reset-${k}`}
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            title="Only if the list was lost — this stops the passwords already handed out"
+            onClick={() => run(k, true)}
+          >
+            Reset all {k} passwords
+          </Button>
+        ))}
+      </div>
+
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+
+      {result && (
+        <div className="mt-3">
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+            <span className="text-success"><b className="tabular-nums">{result.created}</b> new</span>
+            <span className="text-muted-foreground">
+              <b className="tabular-nums">{result.existing}</b> already had one
+            </span>
+            {result.skipped > 0 && (
+              <span className="text-destructive">
+                <b className="tabular-nums">{result.skipped}</b> could not be given one
+              </span>
+            )}
+            <span className="ml-auto flex flex-wrap items-center gap-2">
+              <Input
+                value={find}
+                onChange={setFind}
+                placeholder="Find a name"
+                className="w-44"
+              />
+              {result.created > 0 && (
+                <Button size="sm" onClick={download}>
+                  <Download className="h-3.5 w-3.5" />
+                  Download the list
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
+                Close
+              </Button>
+            </span>
+          </div>
+          {result.created > 0 && (
+            <p className="mb-2 text-[12.5px] text-destructive">
+              Download before you leave this page. The passwords are shown once and
+              cannot be looked up again.
+            </p>
+          )}
+          <div className="max-h-72 overflow-auto rounded-md border">
+            <table className="w-full text-[12.5px]">
+              <thead className="sticky top-0 bg-muted">
+                <tr>
+                  <th className="px-2 py-1.5 text-left font-medium">Name</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Sign in as</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Password</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.rows
+                  .filter(
+                    (r) =>
+                      !find.trim() ||
+                      r.name.toLowerCase().includes(find.trim().toLowerCase()) ||
+                      r.sign_in_as.toLowerCase().includes(find.trim().toLowerCase()),
+                  )
+                  .map((r, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-2 py-1">{r.name}</td>
+                    <td className="px-2 py-1 font-mono">{r.sign_in_as || '—'}</td>
+                    <td className="px-2 py-1 font-mono">
+                      {r.password ? (
+                        r.password
+                      ) : (
+                        <span className="font-sans text-muted-foreground">
+                          {r.detail ?? 'already had a login'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A parsed sheet, drawn as a table.
+ *
+ * The same component inline and full screen, because a preview cramped into a
+ * panel and a preview that fills the window should not be two pieces of code
+ * that slowly stop agreeing about what the file said.
+ */
+function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
+  const body = limit ? rows.slice(1, limit + 1) : rows.slice(1)
+  return (
+    <table className="w-full text-[12.5px]">
+      <thead className="sticky top-0 bg-muted">
+        <tr>
+          {/* Fixed and unwrapped. The column was sized by its content, so a
+              two-digit row number broke across two lines and every row after
+              row nine was twice as tall as the ones above it. */}
+          <th className="w-10 whitespace-nowrap px-2 py-1.5 text-right font-medium text-muted-foreground">
+            #
+          </th>
+          {rows[0].map((h, i) => (
+            <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
+              {h || <span className="text-destructive">(no name)</span>}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {body.map((r, ri) => (
+          <tr key={ri} className="border-t">
+            <td className="w-10 whitespace-nowrap px-2 py-1 text-right tabular-nums text-muted-foreground">
+              {ri + 2}
+            </td>
+            {rows[0].map((_, ci) => (
+              <td key={ci} className="whitespace-nowrap px-2 py-1">{r[ci] ?? ''}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * The whole sheet, filling the window.
+ *
+ * Eighteen columns in a panel three hundred pixels tall is a file you scroll
+ * rather than a file you read. This is the same table with room to be looked
+ * at, and it is where somebody actually checks that a column landed where they
+ * meant it to.
+ *
+ * Escape closes it, the backdrop closes it, and the scroll position is its
+ * own — the page behind does not move while it is open.
+ */
+function SheetViewer({
+  title,
+  rows,
+  onClose,
+}: {
+  title: string
+  rows: string[][]
+  onClose: () => void
+}) {
+  /* Two sizes, because both are wanted.
+   *
+   * A sheet eighteen columns wide is read edge to edge; the same sheet checked
+   * against the form behind it is better with the page still visible around
+   * it. It opens large and goes to the full window on request. */
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    // Restored on close rather than assumed to have been empty: another
+    // overlay may have set it.
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className={
+        full
+          ? 'fixed inset-0 z-50 bg-background'
+          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+      }
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className={
+          full
+            ? 'flex h-full w-full flex-col border bg-background'
+            : 'flex max-h-[85vh] w-full max-w-[90vw] flex-col rounded-lg border bg-background shadow-lg'
+        }
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+          <p className="text-[14px] font-medium">{title}</p>
+          <span className="text-[12.5px] text-muted-foreground">
+            {rows.length - 1} rows · {rows[0]?.length ?? 0} columns
+          </span>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setFull((v) => !v)}>
+            {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {full ? 'Windowed' : 'Full screen'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <SheetTable rows={rows} />
+        </div>
       </div>
     </div>
   )

@@ -29,11 +29,10 @@ import { lazy } from 'react'
  * whole-table extracts.
  */
 export const rollupKeys = {
-  'institution_admin.home.today': lazy(() => import('./Today')),
-  'institution_admin.fees.fee_overview': lazy(() => import('./FeeOverview')),
+  'institution_admin.fees.fee_dashboard': lazy(() => import('./FeeOverview')),
   'institution_admin.department.department_academics': lazy(() => import('./DepartmentAcademics')),
   'institution_admin.analysis.department_reports': lazy(() => import('./DepartmentReports')),
   'institution_admin.analysis.performance_analytics': lazy(() => import('./PerformanceAnalytics')),
-  'institution_admin.standard.fee_collection_summaries': lazy(() => import('./CollectionSummaries')),
+  'institution_admin.standard.fee_collection': lazy(() => import('./CollectionSummaries')),
   'hr.reports.hr_reports': lazy(() => import('./HRReports')),
 }

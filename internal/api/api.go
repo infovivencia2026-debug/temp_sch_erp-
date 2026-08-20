@@ -212,7 +212,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Put("/class-subjects", s.setClassSubjects)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/class-teacher", s.setClassTeacher)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/assign-teacher", s.assignTeacher)
+			r.With(httpx.RequirePermission(rbac.ExamsRead)).Get("/grading-scales", s.listGradingScales)
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/grading-scales", s.createGradingScale)
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Delete("/grading-scales/{id}", s.deleteGradingScale)
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/exams", s.createExam)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads", s.listFeeHeads)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
@@ -237,6 +239,14 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/guardians/{id}/login", s.issueGuardianLogin)
 
+			/* Logins for everybody who has just been imported.
+
+			   Not gated on the route: one handler serves students, guardians
+			   and staff, and the loosest of the three rights would otherwise
+			   become the price of admission to all of them. It checks the
+			   matching permission per kind instead. */
+			r.Post("/logins/bulk", s.issueLoginsInBulk)
+
 			/* Setting a school up from the spreadsheets it already has.
 			   Classes, sections and staff all existed as forms that took one
 			   row at a time, which is eighty separate typings for a school of
@@ -249,6 +259,12 @@ func (s *Server) Routes() http.Handler {
 			// What has been uploaded before, by whom. Every importer used to
 			// report a count and forget it on the next refresh.
 			r.Get("/import/history", s.listImportRuns)
+			// Taking one upload back out. Gated inside the handler on the same
+			// permission the import itself needed, because one route serves
+			// every entity.
+			r.Post("/import/history/{id}/undo", s.undoImport)
+			// The file itself, so an upload can be opened and read back.
+			r.Get("/import/history/{id}/content", s.getImportContent)
 			r.Get("/import/{entity}/template", s.getBulkTemplate)
 			r.Post("/import/{entity}", s.bulkImport)
 		})
@@ -690,6 +706,17 @@ func (s *Server) Routes() http.Handler {
 		   Gated on nothing beyond a session: who may write about whom is a
 		   question about the relationship between two people, not a
 		   capability, and the handler works it out. */
+		/* One member of staff writing to another.
+
+		   Behind a session and nothing more: who may write to whom is a
+		   question about two people at the same school, which the handler
+		   answers, and not a capability anybody is granted. */
+		r.Route("/staff-messages", func(r chi.Router) {
+			r.Get("/", s.listStaffMessages)
+			r.Get("/threads", s.listStaffThreads)
+			r.Post("/", s.sendStaffMessage)
+		})
+
 		r.Route("/staff-remarks", func(r chi.Router) {
 			r.Get("/", s.listStaffRemarks)
 			r.Post("/", s.createStaffRemark)

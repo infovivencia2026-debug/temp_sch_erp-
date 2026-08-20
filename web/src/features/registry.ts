@@ -57,7 +57,7 @@ import { trackerKeys } from './super_admin/tracker-keys'
  * the client can actually render. Run `make catalog` after editing.
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
-  'institution_admin.students.student_directory_student_360': lazy(() => import('./shared/StudentProfile')),
+  'institution_admin.students.student_360': lazy(() => import('./shared/StudentProfile')),
   /* The principal's own way in to setting the school up.
      The wizard carried every form a new school needs -- academic year,
      classes, sections, subjects, the school day, staff, students, grading,
@@ -65,7 +65,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      person actually responsible for the school could not reach it. A school
      bought on the website therefore arrived at a dashboard of zeroes with no
      way to enter anything, which is the state a principal reported. */
-  'institution_admin.academics.academic_structure': lazy(() => import('./setup/Wizard')),
+  /* Setting the school up is the first thing a new principal does and it was
+     filed under Academics, three sections down, next to the syllabus tracker.
+     It has its own entry directly under the dashboard now; the Academics keys
+     still point at the same screen, because somebody returning to change one
+     step will look for it where they last saw it. */
+  'institution_admin.getting_started.school_setup': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.academic_year_defaults': lazy(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': lazy(() => import('./setup/ImportStudents')),
@@ -76,7 +81,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.access_security.login_session_audit': lazy(() => import('./super_admin/SessionAudit')),
   'super_admin.operations.system_health_integration_alerts': lazy(() => import('./shared/Jobs')),
   // Approvals — one queue for leave, corrections and concessions.
-  'institution_admin.approvals.approvals_center': lazy(() => import('./workflow/Approvals')),
   'institution_admin.approvals.approvals': lazy(() => import('./workflow/Approvals')),
 
   // Homework — the same screen from the teacher's and the child's side.
@@ -96,29 +100,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.subscription_ledger': lazy(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.seat_overage_renewals': lazy(() => import('./seller/Tenants')),
 
-  'institution_admin.home.executive_kpis': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.home.needs_attention': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.academics.attendance_monitoring': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.standard.comprehensive_attendance_report': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.directory_workload.staff_allocation_workload': lazy(() => import('./principal/StaffWorkload')),
-  'institution_admin.academics.timetable': lazy(() => import('./shared/Timetable')),
-  'institution_admin.home.department_kpis': lazy(() => import('./hod/Department')),
+  'institution_admin.home.dashboard': lazy(() => import('./principal/Dashboard')),
+  'institution_admin.academics.attendance_audit': lazy(() => import('./principal/AttendanceMonitoring')),
+  'institution_admin.standard.attendance_overview': lazy(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.directory_workload.faculty_directory': lazy(() => import('./hod/Department')),
-  'institution_admin.directory_workload.faculty_allocation_workload': lazy(() => import('./hod/Department')),
+  'institution_admin.directory_workload.teacher_workload_timetable_overview': lazy(() => import('./hod/Department')),
   'faculty.home.todays_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.home.my_work': lazy(() => import('./faculty/MyWork')),
 
   // The NEP holistic card. One screen for the teacher recording observations
   // and the family reading them — the same card from two sides, and building
   // two would guarantee they drift.
-  'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
 
   /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
      the plans that deliver them, and the percentage that follows; three
      screens would each show a third of an answer. */
-  'institution_admin.academics.subject_chapter_planner': lazy(() => import('./academics/Syllabus')),
-  'institution_admin.academics.lesson_plan_approval_queue': lazy(() => import('./academics/Syllabus')),
-  'institution_admin.academics.syllabus_coverage_tracking': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.curriculum_roadmap': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.lesson_plans': lazy(() => import('./academics/Syllabus')),
   'institution_admin.academics.syllabus_progress': lazy(() => import('./academics/Syllabus')),
   'faculty.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
 
@@ -156,14 +154,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.enrollment_handoff': lazy(() => import('./admissions/Pipeline')),
   'admissions.reports.admission_conversion_reports': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_right_to_education_quota_tracking': lazy(() => import('./admissions/Pipeline')),
-  'institution_admin.admissions.admissions_overview': lazy(() => import('./admissions/Pipeline')),
+  'institution_admin.admissions.admissions_pipeline': lazy(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
-  'institution_admin.examinations.exams_result_status': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.standard.exam_grade_analytics': lazy(() => import('./exams/ReportCards')),
+  'institution_admin.students.academic_performance': lazy(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': lazy(() => import('./portal/Results')),
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
-  'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
-  'institution_admin.communication.communication': lazy(() => import('./comms/Circulars')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
@@ -179,7 +174,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.enquiries.utm_tracking_digital_campaign_attribution': lazy(() => import('./admissions/Funnel')),
   'admissions.enquiries.admissions_open_day_scheduler': lazy(() => import('./admissions/Funnel')),
   'admissions.enquiries.prospectus_kit_sales_log': lazy(() => import('./admissions/Funnel')),
-  'institution_admin.admissions.rte_25_reservation_register': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.admission_waitlist_management': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.sibling_priority_auto_matching': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.alumni_child_quota_allocation': lazy(() => import('./admissions/Funnel')),
@@ -201,9 +195,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
 
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
-  'institution_admin.statutory_returns.udise_return_preparation': lazy(() => import('./compliance/UDISE')),
-  'institution_admin.statutory_returns.apaar_id_register': lazy(() => import('./compliance/UDISE')),
-  'institution_admin.statutory_returns.statutory_registers': lazy(() => import('./compliance/UDISE')),
+  'institution_admin.statutory_returns.govt_returns': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.udise_data_sync': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.apaar_id_provisioning': lazy(() => import('./compliance/UDISE')),
   'hr.payroll.payroll': lazy(() => import('./payroll/Payroll')),
@@ -222,19 +214,22 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      "not built yet" placeholder, exactly as it does for every other role. */
 
   // Vice Principal / Academic Coordinator — runs teaching and learning.
-  'institution_admin.home.academic_kpis': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.academics.classes_sections': lazy(() => import('./setup/Wizard')),
-  'institution_admin.academics.teacher_allocation': lazy(() => import('./principal/StaffWorkload')),
+  'institution_admin.academics.class_setup': lazy(() => import('./setup/Wizard')),
+  'institution_admin.academics.teacher_assignment': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
   /* The principal's report card is the class teacher's report card.
      It pointed at HolisticCard — the NEP progress card, a different document
      with different columns — so the school had two screens both called
      "report cards" showing different numbers for the same child, and no way
      to tell which one a parent had been sent. */
-  'institution_admin.examinations.report_cards': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
-  'institution_admin.directory_workload.faculty_directory_workload': lazy(() => import('./principal/StaffWorkload')),
-  'institution_admin.communication.circulars_announcements': lazy(() => import('./comms/Circulars')),
+  /* The four a principal opens weekly. Two existed under names describing
+     the system rather than the question; two had no entry on this menu at
+     all, so a principal could not see who was away or who was behind on fees
+     without borrowing HR's or the accountant's screen. */
+  'institution_admin.staff.leaves_subs': lazy(() => import('./workflow/Approvals')),
+  'institution_admin.fees.fee_default': lazy(() => import('./finance/Defaulters')),
+  'institution_admin.communication.messages': lazy(() => import('./comms/StaffMessages')),
+  'institution_admin.communication.circulars': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.
   'faculty.home.my_day': lazy(() => import('./faculty/MyWork')),
@@ -299,52 +294,50 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.stores.item_category_store_setup': lazy(() => import('./operations/Stores')),
   'institution_admin.stores.department_stock_issuance': lazy(() => import('./operations/Stores')),
 
-  'institution_admin.infirmary.student_health_master_file': lazy(() => import('./operations/Infirmary')),
-  'institution_admin.infirmary.emergency_health_alerts': lazy(() => import('./operations/Infirmary')),
 
   /* The transport office. Live GPS tracking, geofenced arrival alerts,
      speeding detection, fuel-tank telematics, in-bus CCTV and AIS-140/VAHAN
      registration are deliberately absent: each needs a certified device in the
      vehicle and a vendor feed, and drawing a bus on a map from no position
      data would be a lie told convincingly. */
-  'institution_admin.transport.driver_attendant_profiles': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.student_route_assignment': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.transport_attendance_scans': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.vehicle_fuel_maintenance_log': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.driver_sobriety_safety_checklist': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.bus_breakdown_emergency_dispatch': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.drivers_attendants': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.student_allocation': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.route_attendance': lazy(() => import('./operations/TransportOffice')),
-  'institution_admin.transport.delays_exceptions': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.driver_attendant_profiles': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.student_route_assignment': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.transport_attendance_scans': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.vehicle_fuel_maintenance_log': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.driver_sobriety_safety_checklist': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.bus_breakdown_emergency_dispatch': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.drivers_attendants': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.student_allocation': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.route_attendance': lazy(() => import('./operations/TransportOffice')),
+  'transport_manager.transport.delays_exceptions': lazy(() => import('./operations/TransportOffice')),
 
-  'institution_admin.transport.vehicles': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.routes_stops': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.route_pickup_stop_mapping': lazy(() => import('./operations/Transport')),
-  'institution_admin.transport.route_distance_fee_slabs': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.vehicles': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.vehicle_master_registry': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.routes_stops': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.route_pickup_stop_mapping': lazy(() => import('./operations/Transport')),
+  'transport_manager.transport.route_distance_fee_slabs': lazy(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --
      do we have it, who has it, what do they owe -- so the catalogue, the
      circulation list and the overdue list are tabs rather than three menu
      entries that would each open the same data. */
-  'institution_admin.library.books_copies': lazy(() => import('./operations/Library')),
-  'institution_admin.library.book_cataloging_accession_register': lazy(() => import('./operations/Library')),
-  'institution_admin.library.accession_register': lazy(() => import('./operations/Library')),
-  'institution_admin.library.issue_return': lazy(() => import('./operations/Library')),
-  'institution_admin.library.book_issue_return_terminal': lazy(() => import('./operations/Library')),
-  'institution_admin.library.overdue_fine_calculation': lazy(() => import('./operations/Library')),
-  'institution_admin.library.fines': lazy(() => import('./operations/Library')),
-  'institution_admin.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
+  'librarian.library.books_copies': lazy(() => import('./operations/Library')),
+  'librarian.library.book_cataloging_accession_register': lazy(() => import('./operations/Library')),
+  'librarian.library.accession_register': lazy(() => import('./operations/Library')),
+  'librarian.library.issue_return': lazy(() => import('./operations/Library')),
+  'librarian.library.book_issue_return_terminal': lazy(() => import('./operations/Library')),
+  'institution_admin.library.fine_penalty_summary': lazy(() => import('./operations/Library')),
+  'librarian.library.fines': lazy(() => import('./operations/Library')),
+  'librarian.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
 
   /* The rest of a librarian's year, kept off the issue counter: the hold
      queue, the annual stock audit, the textbook indent and the label sheet.
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
-  'institution_admin.library.reservations': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.book_reservation_queue': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.library_inventory_audit': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.ncert_textbook_indent': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.barcode_spine_label_printing': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.reservations': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.book_reservation_queue': lazy(() => import('./operations/LibraryDesk')),
+  'institution_admin.library.annual_book_stock_verification': lazy(() => import('./operations/LibraryDesk')),
+  'institution_admin.library.new_session_textbook_orders': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.barcode_spine_label_printing': lazy(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
      existed for this and only the list had a caller, so an application could
@@ -399,9 +392,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Each of these was a working handler the product could not reach: the
      corrections queue, the annual promotion, and the step that turns a fee
      structure into money owed. */
-  'institution_admin.academics.attendance_corrections': lazy(() => import('./workflow/Corrections')),
   'faculty.attendance.attendance_correction': lazy(() => import('./workflow/Corrections')),
-  'institution_admin.students.class_section_promotion': lazy(() => import('./lifecycle/Promotion')),
+  'institution_admin.students.class_promotion': lazy(() => import('./lifecycle/Promotion')),
   'finance.fee_structure.demand_invoice_generation': lazy(() => import('./finance/DemandGeneration')),
 
   // IT Administrator — the same screens super_admin uses, bounded to one

@@ -716,7 +716,7 @@ var builtinTemplates = map[string]builtinTemplate{
 	// Carries whatever the sender typed. The only built-in whose body is a
 	// single variable: a direct send has no school-authored wording to render.
 	"messaging.direct": {
-		Subject: "{{text}}",
+		Subject: "{{subject}}",
 		Body:    "{{text}}",
 	},
 	"messaging.test": {

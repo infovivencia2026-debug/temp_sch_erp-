@@ -37,6 +37,22 @@ type teacher struct {
 	FullName string `json:"full_name"`
 	Code     string `json:"employee_code"`
 	Periods  int    `json:"weekly_periods"`
+	// EmployeeID is what the login endpoint is addressed by.
+	EmployeeID string `json:"employee_id"`
+	// SignInAs is the username, email or phone they sign in with, and CanSignIn
+	// says whether that account has a password yet.
+	SignInAs  string `json:"sign_in_as"`
+	CanSignIn bool   `json:"can_sign_in"`
+	// Roles is what the system lets them do, as distinct from Subjects, which
+	// is what they teach, and the designation, which is what the school calls
+	// the post.
+	Roles string `json:"roles"`
+	// Subjects is the comma-joined list of what they teach, for a label that
+	// does not require the reader to already know the staff.
+	Subjects string `json:"subjects"`
+	// ClassTeacherOf names the section they already hold, so a picker can say
+	// so rather than silently offering a person who is not free.
+	ClassTeacherOf string `json:"class_teacher_of,omitempty"`
 }
 
 func (s *Server) listPeriods(w http.ResponseWriter, r *http.Request) {
@@ -114,15 +130,87 @@ func (s *Server) listTimetableEntries(w http.ResponseWriter, r *http.Request) {
 // can flag over-allocation without a second round trip per teacher.
 func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT u.id::text, u.full_name, e.employee_code,
-		       (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = u.id)
+		SELECT u.id::text, u.full_name, e.employee_code, e.id::text,
+		       /* What they sign in with, and whether they can.
+		
+		          The staff list showed names and nothing else, so the only way
+		          to find out whether somebody had a working login was to ask
+		          them to try. An account created with a staff record but never
+		          given a password is 'invited': it exists, and nobody can sign
+		          in as it, which is the state ten people were left in here. */
+		       COALESCE(u.username::text, u.email::text, u.phone, ''),
+		       (u.password_hash IS NOT NULL AND u.status <> 'invited'),
+		       /* What they are, not what they teach.
+		
+		          A list of names with no role beside them made the office check
+		          each person against the sheet they were imported from to find
+		          out who the HR manager was. Joined rather than derived from
+		          the designation, because the designation is what the school
+		          calls the post and the role is what the system lets them do. */
+		       COALESCE((SELECT string_agg(ro.key, ', ' ORDER BY ro.key)
+		                   FROM user_roles ur
+		                   JOIN roles ro ON ro.id = ur.role_id
+		                  WHERE ur.user_id = u.id), ''),
+		       (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = u.id),
+		       /* What they teach, joined for the label.
+
+		          A list of bare names asks the person filling it in to know
+		          the staff. "Anand Kulkarni · Mathematics, Science" does not,
+		          and it is the same query. */
+		       COALESCE((SELECT string_agg(sub.name, ', ' ORDER BY sub.name)
+		                   FROM teacher_subjects ts
+		                   JOIN subjects sub ON sub.id = ts.subject_id
+		                  WHERE ts.user_id = u.id), ''),
+		       /* The section they are already class teacher of, if any.
+
+		          One person cannot be class teacher of two sections at once,
+		          and the dropdown offered them for every one — so the mistake
+		          was one click away and nothing on screen warned of it. */
+		       COALESCE((SELECT c.name || '-' || sec.name
+		                   FROM sections sec
+		                   JOIN classes c ON c.id = sec.class_id
+		                  WHERE sec.class_teacher_id = u.id
+		                  LIMIT 1), '')
 		  FROM employees e
 		  JOIN users u ON u.id = e.user_id
 		 WHERE e.status = 'active'
-		 ORDER BY u.full_name`, nil,
+		   /* Narrowed to the people who teach the subject, when one is named.
+
+		      The subject-teacher dropdowns offered every member of staff for
+		      every subject, so the Telugu row listed the accountant and the
+		      person filling it in had to know the staff well enough to ignore
+		      most of the list. Every teacher of that subject is offered, and
+		      a teacher of three subjects appears under all three.
+
+		      A school that has not recorded who teaches what gets everybody
+		      rather than an empty dropdown: the fallback is the old behaviour,
+		      which is unhelpful, and an empty list is worse than unhelpful. */
+		   AND ($1::uuid IS NULL
+		        OR NOT EXISTS (SELECT 1 FROM teacher_subjects ts
+		                        WHERE ts.subject_id = $1)
+		        OR EXISTS (SELECT 1 FROM teacher_subjects ts
+		                    WHERE ts.subject_id = $1 AND ts.user_id = u.id))
+		   /* free_class_teacher=true drops anybody who already has a section.
+
+		      Only the class-teacher picker asks for it. The subject-teacher
+		      pickers must not: a class teacher of 6-A teaches subjects in
+		      other sections, and hiding them there would be the opposite
+		      mistake. */
+		   AND ($2::bool IS NOT TRUE
+		        OR NOT EXISTS (SELECT 1 FROM sections sec
+		                        WHERE sec.class_teacher_id = u.id
+		                          AND ($3::uuid IS NULL OR sec.id <> $3)))
+		 ORDER BY u.full_name`,
+		[]any{
+			nullString(r.URL.Query().Get("subject_id")),
+			r.URL.Query().Get("free_class_teacher") == "true",
+			nullString(r.URL.Query().Get("except_section")),
+		},
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
-			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.Periods)
+			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
+				&v.SignInAs, &v.CanSignIn, &v.Roles, &v.Periods, &v.Subjects,
+				&v.ClassTeacherOf)
 		})
 	respond(w, r, items, err)
 }

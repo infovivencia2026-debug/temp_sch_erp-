@@ -36,8 +36,11 @@ type staffLoginResponse struct {
 	EmployeeCode string `json:"employee_code"`
 	FullName     string `json:"full_name"`
 	SignInAs     string `json:"sign_in_as"`
-	Password     string `json:"password"`
-	Note         string `json:"note"`
+	// Empty when the account already had a working password and no reset was
+	// requested. Nothing can read a password back out of the database.
+	Password string `json:"password"`
+	Existing bool   `json:"existing"`
+	Note     string `json:"note"`
 }
 
 var errNoContact = errors.New(
@@ -60,6 +63,7 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "invalid employee id")
 		return
 	}
+	reset := r.URL.Query().Get("reset") == "true"
 
 	password, err := temporaryPassword()
 	if err != nil {
@@ -112,12 +116,31 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			}
 			userID = &newID
 		} else {
-			// The account exists and is invited, or active and locked out.
-			// Both are settled by the same write.
-			if _, err := tx.Exec(r.Context(), `
-				UPDATE users SET password_hash = $2, status = 'active'
-				 WHERE id = $1`, *userID, hash); err != nil {
+			/* The account exists. Shown, not replaced, unless a reset is asked
+			   for by name.
+
+			   This used to mint a new password on every call, which is right
+			   at one desk and wrong across several: HR hands a teacher their
+			   login, the principal opens the same record to check it, and the
+			   password the teacher is holding stops working with nothing on
+			   screen to say so. An invited account -- created with the staff
+			   record and never given a password -- is the one case where
+			   issuing without asking is still correct, because there is no
+			   working password to break. */
+			var invited bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT password_hash IS NULL OR status = 'invited' FROM users WHERE id = $1`,
+				*userID).Scan(&invited); err != nil {
 				return err
+			}
+			out.Existing = !invited
+			if invited || reset {
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE users SET password_hash = $2, status = 'active'
+					 WHERE id = $1`, *userID, hash); err != nil {
+					return err
+				}
+				out.Existing = false
 			}
 		}
 
@@ -142,10 +165,17 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if out.Existing {
+		out.Note = "This person already has a working login — the one whoever " +
+			"created it handed over. The password cannot be read back; reset it only " +
+			"if it has been lost, because that stops the one they are using."
+		httpx.JSON(w, http.StatusOK, out)
+		return
+	}
 	out.Password = password
 	out.Note = "Shown once and not stored. Hand it over in person or send it to them, " +
 		"and they are asked to change it when they first sign in. " +
-		"If it is lost, issue another rather than looking this one up."
+		"If it is lost, reset it rather than looking this one up."
 	httpx.JSON(w, http.StatusOK, out)
 }
 

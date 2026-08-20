@@ -22,6 +22,22 @@ import { cn } from '@/lib/utils'
    them in one at a time is data entry dressed up as configuration. The preset
    fills the form — it never saves behind the user's back. */
 
+/** A member of teaching staff as the picker needs them: who they are, what
+ *  they teach, and whether they already hold a section of their own. */
+interface Teacher {
+  user_id: string
+  full_name: string
+  employee_id: string
+  subjects: string
+  class_teacher_of?: string
+  /** What they type into the sign-in box, and whether that account has a
+   *  password yet. An employee imported with an email has an account and no
+   *  password: it exists and nobody can sign in as it. */
+  sign_in_as: string
+  can_sign_in: boolean
+  roles: string
+}
+
 export interface PanelProps {
   onDone: () => void
 }
@@ -977,7 +993,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
 function StaffPanel({ onDone }: PanelProps) {
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<{ user_id: string; full_name: string; employee_code: string }>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
   const [f, setF] = useState({
     employee_code: '',
@@ -1026,13 +1042,7 @@ function StaffPanel({ onDone }: PanelProps) {
         </Field>
       </FormGrid>
       <SaveRow pending={save.isPending} error={save.error} label="Add staff member" />
-      {(teachers?.items.length ?? 0) > 0 && (
-        <Existing label="Teaching staff">
-          {teachers!.items.map((t) => (
-            <Chip key={t.user_id}>{t.full_name}</Chip>
-          ))}
-        </Existing>
-      )}
+      {(teachers?.items.length ?? 0) > 0 && <StaffLogins staff={teachers!.items} />}
       <Assignments onDone={onDone} />
           <div className="mt-5 border-t pt-5">
         <BulkImport
@@ -1044,11 +1054,12 @@ function StaffPanel({ onDone }: PanelProps) {
       </div>
       <div className="mt-5 border-t pt-5">
         <BulkImport
-          entity="class_subjects"
-          title="Or assign every subject teacher from a sheet"
-          hint="Class, subject code, max marks and the teacher's email. The teacher is attached to that subject in every section of the class, which is what finishes this step for a whole school at once."
+          entity="allocations"
+          title="Or upload the class allocation sheet"
+          hint="Class, section, room, class teacher, and the subject teacher for each subject. Every column but the class and section is optional — a school with only class teachers fills three of them and leaves the rest blank."
           onDone={onDone}
         />
+
       </div>
 </form>
   )
@@ -1071,7 +1082,7 @@ function Assignments({ onDone }: PanelProps) {
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
     queryFn: () =>
-      api.get<List<{ user_id: string; full_name: string }>>('/api/v1/timetable/teachers'),
+      api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
   const [sectionID, setSectionID] = useState('')
   const section = sections?.items.find((s) => s.id === sectionID)
@@ -1080,17 +1091,51 @@ function Assignments({ onDone }: PanelProps) {
   const { data: subjects } = useQuery({
     queryKey: ['class-subjects', section?.class_id],
     queryFn: () =>
-      api.get<List<{ id: string; subject_name: string; a_teacher?: string }>>(
+      api.get<List<{ id: string; subject_id: string; subject_name: string; a_teacher?: string }>>(
         `/api/v1/setup/class-subjects?class_id=${section!.class_id}`,
       ),
     enabled: !!section,
   })
+  /* Only the teachers free to take a section.
+   *
+   * One person cannot be class teacher of two sections at once, and the list
+   * offered everybody for every section — so the mistake was one click away
+   * with nothing on screen warning of it. The section being edited is
+   * excluded from the exclusion, or whoever already holds it would vanish
+   * from their own row.
+   *
+   * Deliberately not applied to the subject pickers: the class teacher of 6-A
+   * teaches subjects in other sections, and hiding them there is the opposite
+   * mistake. */
+  const { data: freeTeachers } = useQuery({
+    queryKey: ['teachers', 'free', sectionID],
+    queryFn: () =>
+      api.get<List<Teacher>>(
+        `/api/v1/timetable/teachers?free_class_teacher=true${
+          sectionID ? `&except_section=${sectionID}` : ''
+        }`,
+      ),
+  })
+
   const [classTeacher, setClassTeacher] = useState('')
+  const [room, setRoom] = useState('')
   const [subjectTeachers, setSubjectTeachers] = useState<Record<string, string>>({})
 
   const qc = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
+      // The room rides on createSection, which upserts on
+      // (class, year, name) — so this edits the section rather than making a
+      // second one, and the capacity has to travel with it or the upsert
+      // would overwrite it with a default.
+      if (section && room !== (section.room ?? '')) {
+        await api.post('/api/v1/setup/sections', {
+          class_id: section.class_id,
+          name: section.name,
+          capacity: section.capacity,
+          room,
+        })
+      }
       if (classTeacher) {
         await api.post('/api/v1/setup/class-teacher', {
           section_id: sectionID,
@@ -1113,7 +1158,12 @@ function Assignments({ onDone }: PanelProps) {
     },
   })
 
-  const options = (teachers?.items ?? []).map((t) => ({ value: t.user_id, label: t.full_name }))
+  // Named with what they teach, so the list does not require the reader to
+  // already know the staff.
+  const options = (freeTeachers?.items ?? []).map((t) => ({
+    value: t.user_id,
+    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+  }))
 
   return (
     <div className="mt-6 border-t pt-5">
@@ -1150,6 +1200,7 @@ function Assignments({ onDone }: PanelProps) {
             setSectionID(x)
             setClassTeacher('')
             setSubjectTeachers({})
+            setRoom(sections?.items.find((v) => v.id === x)?.room ?? '')
           }}
           placeholder="Choose a section"
           options={(sections?.items ?? []).map((s) => ({
@@ -1161,10 +1212,18 @@ function Assignments({ onDone }: PanelProps) {
 
       {section && (
         <>
+          {/* The room is a fact about the section and was only settable from a
+              sheet: somebody in the office moving 6-B to another room had to
+              build a CSV to say so. */}
+          <div className="mt-4">
+            <Field label="Room" hint="Where this section sits.">
+              <Input value={room} onChange={setRoom} placeholder="6A" />
+            </Field>
+          </div>
           <div className="mt-4">
             <Field
               label="Class teacher"
-              hint="Marks the daily register and sees the whole section."
+              hint="Marks the daily register and sees the whole section. Only teachers without a section of their own are listed."
             >
               <Select
                 value={classTeacher}
@@ -1180,11 +1239,15 @@ function Assignments({ onDone }: PanelProps) {
             {(subjects?.items ?? []).map((cs) => (
               <div key={cs.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2">
                 <span className="text-[14px]">{cs.subject_name}</span>
-                <Select
+                {/* Only the people who teach this subject. The list used to
+                    be every member of staff, so the Telugu row offered the
+                    accountant. Where a school has recorded nothing, the
+                    server falls back to everybody rather than to nothing. */}
+                <SubjectTeacherSelect
+                  subjectID={cs.subject_id}
                   value={subjectTeachers[cs.id] ?? ''}
                   onChange={(x) => setSubjectTeachers({ ...subjectTeachers, [cs.id]: x })}
-                  placeholder={cs.a_teacher ?? 'Unassigned'}
-                  options={options}
+                  current={cs.a_teacher}
                 />
               </div>
             ))}
@@ -1249,6 +1312,26 @@ function GradingPanel({ onDone }: PanelProps) {
     onDone,
   )
 
+  /* What the bands do not cover, said before the server refuses them.
+
+     The server rejects overlapping bands and names the two that clash, which
+     is right but arrives after a save. A gap is the quieter fault: 0-34 and
+     36-100 saves happily and then produces a child with 35% and no grade at
+     all on their report card. */
+  const gap = (() => {
+    if (bands.length < 2) return ''
+    const sorted = [...bands].sort((a, b) => a.min_percent - b.min_percent)
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].min_percent > sorted[i - 1].max_percent + 1) {
+        return `nothing covers ${sorted[i - 1].max_percent + 1}–${sorted[i].min_percent - 1}%`
+      }
+    }
+    if (sorted[0].min_percent > 0) return `nothing covers 0–${sorted[0].min_percent - 1}%`
+    if (sorted[sorted.length - 1].max_percent < 100)
+      return `nothing covers ${sorted[sorted.length - 1].max_percent + 1}–100%`
+    return ''
+  })()
+
   // The SSC ten-point scale. Grade points matter: the CGPA on a Telangana
   // memo is their average, not an average of percentages.
   const cce = () => {
@@ -1281,7 +1364,7 @@ function GradingPanel({ onDone }: PanelProps) {
       {bands.length > 0 && (
         <div className="mt-4 space-y-2">
           {bands.map((b, i) => (
-            <div key={i} className="grid grid-cols-[4rem_5rem_5rem_5rem] items-center gap-2 text-[14px]">
+            <div key={i} className="grid grid-cols-[4rem_5rem_5rem_5rem_auto] items-center gap-2 text-[14px]">
               <Input value={b.grade} onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade: x } : v)))} />
               <Input
                 value={String(b.min_percent)}
@@ -1295,14 +1378,147 @@ function GradingPanel({ onDone }: PanelProps) {
                 value={String(b.grade_point)}
                 onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade_point: Number(x) } : v)))}
               />
+              <button
+                type="button"
+                onClick={() => setBands(bands.filter((_, j) => j !== i))}
+                className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+                aria-label={`Remove the ${b.grade || 'blank'} band`}
+              >
+                remove
+              </button>
             </div>
           ))}
           <p className="text-[13px] text-muted-foreground">Grade · from % · to % · grade point</p>
         </div>
       )}
+
+      {/* A preset is a starting point, not the scale.
+          The eight CCE bands were the only rows there were, so a school with
+          an A+ at the top or an F at the bottom — or one running a five-band
+          scale of its own — could edit the labels and never change how many
+          there were. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // A new band starts below the lowest one, because that is where a
+            // school adding an F puts it, and pre-filling the numbers saves
+            // working out what is still uncovered.
+            const lowest = bands.length ? Math.min(...bands.map((b) => b.min_percent)) : 101
+            setBands([
+              ...bands,
+              { grade: '', min_percent: 0, max_percent: Math.max(lowest - 1, 0), grade_point: 0 },
+            ])
+          }}
+        >
+          + Another band
+        </Button>
+        {bands.length > 0 && (
+          <span className="text-[13px] text-muted-foreground">
+            {bands.length} {bands.length === 1 ? 'band' : 'bands'}
+            {gap && <span className="text-destructive"> · {gap}</span>}
+          </span>
+        )}
+      </div>
+
       <SaveRow pending={save.isPending} error={save.error} label="Save grading scale" />
+
+      <ExistingScales />
     </form>
   )
+}
+
+/**
+ * The scales this school already has, with their bands.
+ *
+ * The step saved a scale and then showed nothing but "1 already added", so the
+ * only way to see the bands you had entered was to enter them again and watch
+ * what happened. Every other setup step lists what is there; this one could
+ * not, because nothing served it.
+ *
+ * A scale an exam has been graded against cannot be removed. It is not a label
+ * on that exam, it is what turned its marks into grades, and deleting it
+ * leaves marked papers whose grades cannot be explained.
+ */
+function ExistingScales() {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState('')
+  const [failed, setFailed] = useState('')
+
+  const { data } = useQuery({
+    queryKey: ['grading-scales'],
+    queryFn: () => api.get<List<GradingScale>>('/api/v1/setup/grading-scales'),
+  })
+
+  const remove = async (scale: GradingScale) => {
+    if (!confirm(`Remove "${scale.name}" and its ${scale.bands.length} bands?`)) return
+    setBusy(scale.id)
+    setFailed('')
+    try {
+      await api.del(`/api/v1/setup/grading-scales/${scale.id}`)
+      await qc.invalidateQueries()
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not remove that scale.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const scales = data?.items ?? []
+  if (!scales.length) return null
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="eyebrow mb-2">Scales you have set up</p>
+      <div className="space-y-3">
+        {scales.map((sc) => (
+          <div key={sc.id} className="rounded-md border px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[14px] font-medium">{sc.name}</span>
+              {sc.is_default && <Chip>default</Chip>}
+              <span className="text-[13px] text-muted-foreground">
+                {sc.bands.length} bands
+              </span>
+              <button
+                type="button"
+                disabled={busy === sc.id || sc.in_use}
+                onClick={() => remove(sc)}
+                title={
+                  sc.in_use
+                    ? 'An exam has been graded against this scale, so removing it would leave marked papers whose grades cannot be explained.'
+                    : 'Remove this scale'
+                }
+                className="ml-auto text-[13px] underline underline-offset-2 text-muted-foreground enabled:hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sc.in_use ? 'in use by an exam' : busy === sc.id ? 'removing…' : 'remove'}
+              </button>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {sc.bands.map((b, i) => (
+                <span
+                  key={i}
+                  className="rounded border px-1.5 py-0.5 text-[12px] tabular-nums text-muted-foreground"
+                >
+                  <b className="text-foreground">{b.grade}</b> {b.min_percent}–{b.max_percent}%
+                  {b.grade_point != null && ` · ${b.grade_point}`}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+    </div>
+  )
+}
+
+interface GradingScale {
+  id: string
+  name: string
+  is_default: boolean
+  in_use: boolean
+  bands: { grade: string; min_percent: number; max_percent: number; grade_point?: number }[]
 }
 
 // --- 12. fee heads ----------------------------------------------------------
@@ -1377,15 +1593,82 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
     queryKey: ['fee-heads'],
     queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/setup/fee-heads'),
   })
+  /* The structure is named after the year, because that is what it is.
+
+     The placeholder read "Class 6 — 2026-27" and the field started empty, so
+     every structure was named by hand and no two schools named them the same
+     way. A fee structure belongs to an academic year and applies to whichever
+     classes are ticked below; putting the class in its name was describing
+     the selection twice and getting it wrong as soon as two classes were
+     picked. */
+  const { data: years } = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
+  })
   const [name, setName] = useState('')
-  const [classID, setClassID] = useState('')
+  const currentYear = years?.items.find((y) => y.is_current) ?? years?.items[0]
+
+  useEffect(() => {
+    if (!name && currentYear?.name) setName(currentYear.name)
+  }, [currentYear, name])
+
+  /* Which classes it applies to.
+   *
+   * One dropdown offering a single class or "every class" could not express
+   * the ordinary case, which is that Grades 6 to 8 pay one thing and 9 to 10
+   * pay another. Ticking none means every class, which is what the blank
+   * dropdown used to mean, so the default has not changed. */
+  const [pickedClasses, setPickedClasses] = useState<Set<string>>(new Set())
   const [instalments, setInstalments] = useState('3')
   const [amounts, setAmounts] = useState<Record<string, string>>({})
+  /* Which heads this structure charges.
+   *
+   * Every fee head in the school was listed with a box beside it, and a head
+   * with a blank box is simply not charged — so it worked, and it read as if
+   * a school that does not charge for the library must still look at a
+   * Library Fee line on every structure it ever builds. Worse for a school
+   * with fifteen heads across three structures: the same twelve irrelevant
+   * lines, three times.
+   *
+   * Null until the heads have loaded, then seeded with all of them, which
+   * keeps the opening screen the same as it was. */
+  const [lines, setLines] = useState<string[] | null>(null)
+  const [adding, setAdding] = useState('')
+  const [newHead, setNewHead] = useState('')
+  const qcFees = useQueryClient()
+
+  useEffect(() => {
+    if (lines === null && heads?.items) setLines(heads.items.map((h) => h.id))
+  }, [heads, lines])
+
+  const shown = (heads?.items ?? []).filter((h) => (lines ?? []).includes(h.id))
+  const hidden = (heads?.items ?? []).filter((h) => !(lines ?? []).includes(h.id))
+
+  /* Adding a head the school has not created yet.
+   *
+   * A structure is where somebody discovers they need a Lab Fee, and sending
+   * them back two steps to create it — losing the amounts they have typed —
+   * is how a form makes people give up. */
+  const createHead = useSave(
+    async () => {
+      const made = await api.post<{ id: string }>('/api/v1/setup/fee-heads', {
+        name: newHead.trim(),
+        code: newHead.trim().slice(0, 4).toUpperCase(),
+      })
+      setLines([...(lines ?? []), made.id])
+      setNewHead('')
+      await qcFees.invalidateQueries({ queryKey: ['fee-heads'] })
+    },
+    () => {},
+  )
 
   const save = useSave(async () => {
     const n = Math.max(1, Number(instalments) || 1)
     const items: { fee_head_id: string; instalment_no: number; amount_paise: number; due_on?: string }[] = []
     for (const [headID, rupees] of Object.entries(amounts)) {
+      // A head taken off the structure is not charged even if an amount was
+      // typed against it before it was removed.
+      if (lines && !lines.includes(headID)) continue
       const total = rupeesToPaise(rupees)
       if (!total) continue
       // Split evenly, then push the rounding remainder onto the first
@@ -1395,7 +1678,16 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         items.push({ fee_head_id: headID, instalment_no: i, amount_paise: i === 1 ? total - each * (n - 1) : each })
       }
     }
-    await api.post('/api/v1/setup/fee-structures', { name, class_id: classID || undefined, items })
+    // One structure per class chosen, because that is what the server stores;
+    // ticking none writes the single every-class structure it wrote before.
+    const targets = pickedClasses.size ? [...pickedClasses] : [undefined]
+    for (const cid of targets) {
+      const label =
+        cid && classes?.items
+          ? `${classes.items.find((c) => c.id === cid)?.name ?? ''} — ${name}`.trim()
+          : name
+      await api.post('/api/v1/setup/fee-structures', { name: label, class_id: cid, items })
+    }
   }, onDone)
 
   const total = Object.values(amounts).reduce((a, r) => a + (parseFloat(r) || 0), 0)
@@ -1408,16 +1700,50 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
       }}
     >
       <FormGrid>
-        <Field label="Structure name" required>
-          <Input value={name} onChange={setName} placeholder="Class 6 — 2026-27" />
+        <Field label="Structure name" required hint="The academic year it belongs to.">
+          <Input value={name} onChange={setName} placeholder="2026-2027" />
         </Field>
-        <Field label="Class" hint="Leave blank to apply to every class.">
-          <Select
-            value={classID}
-            onChange={setClassID}
-            placeholder="Every class"
-            options={(classes?.items ?? []).map((c) => ({ value: c.id, label: c.name }))}
-          />
+        <Field
+          label="Applies to"
+          hint={
+            pickedClasses.size
+              ? `${pickedClasses.size} ${pickedClasses.size === 1 ? 'class' : 'classes'} — one structure is created for each.`
+              : 'Nothing ticked means every class.'
+          }
+        >
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPickedClasses(new Set())}
+              className={cn(
+                'rounded-md border px-2.5 py-1 text-[13px] transition-colors duration-150',
+                pickedClasses.size === 0
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'hover:bg-accent',
+              )}
+            >
+              Every class
+            </button>
+            {(classes?.items ?? []).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  const next = new Set(pickedClasses)
+                  next.has(c.id) ? next.delete(c.id) : next.add(c.id)
+                  setPickedClasses(next)
+                }}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 text-[13px] transition-colors duration-150',
+                  pickedClasses.has(c.id)
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'hover:bg-accent',
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
         </Field>
         <Field label="Instalments" hint="Annual amounts below are divided into this many terms.">
           <Input value={instalments} onChange={setInstalments} />
@@ -1426,16 +1752,63 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
 
       <p className="eyebrow mb-2 mt-4">Annual amount per head</p>
       <div className="space-y-2">
-        {(heads?.items ?? []).map((h) => (
-          <div key={h.id} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-2">
+        {shown.map((h) => (
+          <div key={h.id} className="grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-2">
             <span className="text-[14px]">{h.name}</span>
             <Input
               value={amounts[h.id] ?? ''}
               onChange={(x) => setAmounts({ ...amounts, [h.id]: x })}
               placeholder="₹ per year"
             />
+            <button
+              type="button"
+              onClick={() => {
+                setLines((shown.map((x) => x.id) ?? []).filter((id) => id !== h.id))
+                // The amount goes with the line. Leaving it behind means a head
+                // removed and re-added silently carries the old figure.
+                const { [h.id]: _dropped, ...rest } = amounts
+                setAmounts(rest)
+              }}
+              className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+              aria-label={`Do not charge ${h.name} in this structure`}
+            >
+              remove
+            </button>
           </div>
         ))}
+        {shown.length === 0 && (
+          <p className="text-[13px] text-muted-foreground">
+            No heads on this structure yet — add one below.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        {hidden.length > 0 && (
+          <Field label="Add a head">
+            <Select
+              value={adding}
+              onChange={(v) => {
+                if (!v) return
+                setLines([...(lines ?? []), v])
+                setAdding('')
+              }}
+              placeholder="Choose a fee head"
+              options={hidden.map((h) => ({ value: h.id, label: h.name }))}
+            />
+          </Field>
+        )}
+        <Field label="Or a new one" hint="Created as a fee head for the whole school.">
+          <Input value={newHead} onChange={setNewHead} placeholder="Lab Fee" />
+        </Field>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!newHead.trim() || createHead.isPending}
+          onClick={() => createHead.mutate(undefined as never)}
+        >
+          {createHead.isPending ? 'Adding…' : 'Add'}
+        </Button>
       </div>
       {total > 0 && (
         <p className="mt-3 text-[14px]">
@@ -1598,4 +1971,175 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   udise: UDISEPanel,
 }
 
+/**
+ * The teachers who teach one subject.
+ *
+ * Every subject dropdown on the assignment screen offered every member of
+ * staff, so the Telugu row listed the accountant and whoever was filling it in
+ * had to know the staff well enough to ignore most of the list.
+ *
+ * The narrowing is the server's, and it falls back to everybody where a school
+ * has recorded nothing about who teaches what — an unhelpful list is better
+ * than an empty one, which reads as a broken screen.
+ */
+function SubjectTeacherSelect({
+  subjectID,
+  value,
+  onChange,
+  current,
+}: {
+  subjectID: string
+  value: string
+  onChange: (v: string) => void
+  /** Who holds it now, shown as the placeholder so an untouched row still
+   *  says what it is rather than looking unassigned. */
+  current?: string
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['teachers', subjectID],
+    queryFn: () =>
+      api.get<List<Teacher>>(`/api/v1/timetable/teachers?subject_id=${subjectID}`),
+    enabled: !!subjectID,
+  })
+  const options = (data?.items ?? []).map((t) => ({
+    value: t.user_id,
+    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+  }))
+  return (
+    <Select
+      value={value}
+      onChange={onChange}
+      placeholder={
+        isLoading
+          ? 'Loading…'
+          : (current ?? (options.length ? 'Unassigned' : 'Nobody is recorded as teaching this'))
+      }
+      options={options}
+    />
+  )
+}
 
+/**
+ * The staff on the roll, and what each of them signs in with.
+ *
+ * This was a row of names and nothing else, so the only way to find out
+ * whether somebody could sign in was to ask them to try — and the only place a
+ * password was ever shown was the panel that appears after an import, which is
+ * gone the moment you leave the page.
+ *
+ * An account created alongside a staff record has no password until somebody
+ * issues one. That state is worth showing plainly: "no login yet" is a
+ * different problem from "has a login and has forgotten it", and they are
+ * fixed by the same button for different reasons.
+ */
+function StaffLogins({ staff }: { staff: Teacher[] }) {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState('')
+  const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
+  const [failed, setFailed] = useState('')
+
+  const issue = async (t: Teacher, reset: boolean) => {
+    if (reset && !confirm(
+      `Reset ${t.full_name}'s password? The one they are using now will stop working.`
+    )) return
+    setBusy(t.user_id)
+    setFailed('')
+    try {
+      const body = await api.post<{ sign_in_as: string; password: string }>(
+        `/api/v1/setup/employees/${t.employee_id}/login${reset ? '?reset=true' : ''}`, {},
+      )
+      if (body.password) {
+        setIssued((v) => ({ ...v, [t.user_id]: { user: body.sign_in_as, pass: body.password } }))
+      }
+      await qc.invalidateQueries({ queryKey: ['teachers'] })
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not issue that login.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="eyebrow mb-2">Staff and their logins</p>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-[13px]">
+          <thead className="bg-muted text-left text-muted-foreground">
+            <tr>
+              <th className="px-3 py-1.5 font-medium">Name</th>
+              <th className="px-3 py-1.5 font-medium">Role</th>
+              <th className="px-3 py-1.5 font-medium">Signs in as</th>
+              <th className="px-3 py-1.5 font-medium">Password</th>
+              <th className="px-3 py-1.5 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((t) => {
+              const fresh = issued[t.user_id]
+              return (
+                <tr key={t.user_id} className="border-t">
+                  <td className="px-3 py-1.5">
+                    <span className="font-medium">{t.full_name}</span>
+                    {t.subjects && (
+                      <span className="ml-1.5 text-muted-foreground">· {t.subjects}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    {t.roles ? (
+                      <Chip>{t.roles}</Chip>
+                    ) : (
+                      <span className="text-muted-foreground">no role</span>
+                    )}
+                    {t.class_teacher_of && (
+                      <span className="ml-1.5 text-[12.5px] text-muted-foreground">
+                        class teacher {t.class_teacher_of}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 font-mono">
+                    {fresh?.user ?? t.sign_in_as ?? '—'}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    {fresh ? (
+                      <span className="font-mono font-medium">{fresh.pass}</span>
+                    ) : t.can_sign_in ? (
+                      <span
+                        className="text-muted-foreground"
+                        title="Shown once when it was issued and not stored anywhere. Reset it to hand over a new one."
+                      >
+                        already set
+                      </span>
+                    ) : (
+                      <span className="text-destructive">no login yet</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-right">
+                    <button
+                      type="button"
+                      disabled={busy === t.user_id}
+                      onClick={() => issue(t, t.can_sign_in)}
+                      className="underline underline-offset-2 text-muted-foreground hover:text-primary"
+                    >
+                      {busy === t.user_id
+                        ? 'working…'
+                        : t.can_sign_in
+                          ? 'reset password'
+                          : 'give a login'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {Object.keys(issued).length > 0 && (
+        <p className="mt-2 text-[12.5px] text-destructive">
+          Copy these before you leave the page. A password is shown once and cannot be
+          looked up again — only replaced.
+        </p>
+      )}
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+    </div>
+  )
+}

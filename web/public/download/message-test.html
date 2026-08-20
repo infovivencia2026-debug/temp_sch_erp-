@@ -1,0 +1,108 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Send a message</title>
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--ink:#000;--mut:#5b6068;--line:#dfe3e8;--ok:#0a7c3f;--bad:#b3261e;--accent:#1f6feb}
+@media(prefers-color-scheme:dark){:root{--bg:#15171a;--card:#1e2125;--ink:#f2f4f6;--mut:#a2a8b0;--line:#31353b}}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--bg);color:var(--ink);font:15px/1.55 ui-sans-serif,system-ui,Inter,sans-serif}
+.w{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px;margin:0}
+.sub{margin:0;color:var(--mut);font-size:13.5px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font-size:12.5px;color:var(--mut);margin:12px 0 4px}
+label:first-child{margin-top:0}
+input,textarea,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:96px;resize:vertical}
+.tabs{display:flex;gap:6px;margin-bottom:4px}
+.tab{flex:1;padding:9px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);font:inherit;cursor:pointer;text-align:center}
+.tab[aria-selected=true]{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+button.send{margin-top:16px;width:100%;padding:11px;border:0;border-radius:7px;background:var(--accent);color:#fff;font:inherit;font-weight:500;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.o{margin-top:14px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.ok{color:var(--ok);border-color:var(--ok)}.bad{color:var(--bad);border-color:var(--bad)}
+.cnt{float:right;font-variant-numeric:tabular-nums;color:var(--mut)}
+.hide{display:none}
+</style>
+<div class="w">
+  <div>
+    <h1>Send a message</h1>
+    <p class="sub">SMS, WhatsApp or email, through whatever the school has configured. Sign in to the ERP in another tab first — this page uses your session.</p>
+  </div>
+
+  <div class="c">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-ch="sms"      aria-selected="true">SMS</button>
+      <button class="tab" role="tab" data-ch="whatsapp" aria-selected="false">WhatsApp</button>
+      <button class="tab" role="tab" data-ch="email"    aria-selected="false">Email</button>
+    </div>
+
+    <label id="toLabel" for="to">Phone number (with country code)</label>
+    <input id="to" placeholder="+919876543210" autocomplete="off">
+
+    <div id="subjWrap" class="hide">
+      <label for="subj">Subject</label>
+      <input id="subj" placeholder="Message from school">
+    </div>
+
+    <label for="text">Message <span class="cnt" id="cnt"></span></label>
+    <textarea id="text" placeholder="Type the message to send"></textarea>
+
+    <button class="send" id="send">Send</button>
+    <div id="out" class="o" hidden></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id)
+let channel = 'sms'
+const show = (el,t,good)=>{el.hidden=false;el.textContent=t;el.className='o '+(good?'ok':'bad')}
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  channel=t.dataset.ch
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected', x===t))
+  const email = channel==='email'
+  $('subjWrap').classList.toggle('hide', !email)
+  $('toLabel').textContent = email ? 'Email address'
+    : channel==='whatsapp' ? 'WhatsApp number (with country code)'
+    : 'Phone number (with country code)'
+  $('to').placeholder = email ? 'name@example.com' : '+919876543210'
+  updateCount()
+})
+
+function updateCount(){
+  const n=$('text').value.length
+  $('cnt').textContent = channel==='sms' ? n+'/480' : ''
+  $('cnt').style.color = (channel==='sms' && n>480) ? 'var(--bad)' : 'var(--mut)'
+}
+$('text').addEventListener('input', updateCount)
+
+async function call(url, body){
+  const r = await fetch(url,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+  let j=null; try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const m = j&&j.error ? (j.error.message||j.error.code) : 'HTTP '+r.status
+    throw new Error(r.status===401 ? 'Not signed in — sign in to the ERP in another tab, then retry.'
+      : r.status===403 ? 'Your role lacks comms.messages.send.'
+      : m)
+  }
+  return j
+}
+
+$('send').onclick = async ()=>{
+  const to=$('to').value.trim(), text=$('text').value.trim(), subject=$('subj').value.trim()
+  if(!to){ show($('out'),'Enter a recipient.',false); return }
+  if(!text){ show($('out'),'Type a message.',false); return }
+  $('send').disabled=true
+  try{
+    const d = await call('/api/v1/admin/messaging/send-direct',{channel,to,text,subject})
+    show($('out'), d && d.sent
+      ? 'Sent. '+(channel==='sms'?'The handset sends on its next poll.':'Delivered to the provider — check the destination.')
+      : 'Queued, but nothing went out yet'+(d&&d.dispatch_error?': '+d.dispatch_error:'. The provider may not be configured, or the recipient is not on the allowlist.'),
+      !!(d&&d.sent))
+  }catch(e){ show($('out'), e.message, false) }
+  finally{ $('send').disabled=false }
+}
+updateCount()
+</script>

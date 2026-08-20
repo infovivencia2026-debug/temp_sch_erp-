@@ -35,6 +35,6 @@ export const hodKeys = {
   'hod.academics.faculty_allocation': lazy(() => import('../academics/FacultyAllocation')),
   'hod.academics.language_subject_allocation': lazy(() => import('../faculty/LanguageAllocation')),
   'hod.staff.teacher_remarks': lazy(() => import('../shared/StaffRemarks')),
-  'hod.staff.leave_approvals': lazy(() => import('../hr/Leave')),
+  'hod.staff.leaves_subs': lazy(() => import('../hr/Leave')),
   'hod.my_profile.profile': lazy(() => import('../shared/Profile')),
 }

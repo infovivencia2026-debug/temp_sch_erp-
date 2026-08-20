@@ -9,7 +9,7 @@ import { lazy } from 'react'
    written; a key the catalogue does not carry renders the placeholder
    silently. */
 export const safetyKeys = {
-  'institution_admin.transport.bus_speeding_rash_driving_alerts': lazy(
+  'transport_manager.transport.bus_speeding_rash_driving_alerts': lazy(
     () => import('./SafetyAlerts'),
   ),
 }

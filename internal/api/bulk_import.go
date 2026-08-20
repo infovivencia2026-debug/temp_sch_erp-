@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -43,6 +44,20 @@ import (
    One transaction per import, so a file that fails halfway leaves nothing
    behind. Half a class list is worse than none: nobody can tell which half. */
 
+/* Every lookup below names the institution explicitly.
+
+   Relying on row level security alone was wrong in a way that only shows up
+   at the worst moment: RLS is bypassed for a platform administrator, and an
+   operator acting inside a school is exactly such a session. A lookup written
+   as "the class called Grade 6" then means "the first Grade 6 on the
+   installation", and an import run that way writes one school's rows against
+   another school's sections. Eighty-four rows on this installation were in
+   that state before this was fixed.
+
+   The tenant predicate is therefore in the SQL as well as in the policy. RLS
+   is the guarantee for ordinary sessions; this is the guarantee for the ones
+   that outrank it. */
+
 // importSpec is one entity's worth of importer.
 type importSpec struct {
 	// Perm is the permission the equivalent single-row form requires. Checked
@@ -64,9 +79,27 @@ type importSpec struct {
 	// already seen and passed. A dry run that misses errors is worse than no
 	// dry run, because it is trusted.
 	Check func(row map[string]string) error
+	/* Verify checks what only the database can answer, during the dry run.
+
+	   Check runs before any connection is open, so it can catch "level must
+	   be a number" and cannot catch "there is no subject called SCI". That
+	   second kind was reported at commit time, after the screen had already
+	   said the file was ready — which is the failure the comment on Check
+	   warns about, in the one place Check could not reach.
+
+	   Read-only by contract. It runs in the same transaction the commit would
+	   use, and on a dry run that transaction writes nothing. */
+	Verify func(ctx *importCtx, row map[string]string) error
 	// Write inserts one row. It is called inside the import transaction, with
 	// the header-keyed values of that row.
 	Write func(ctx *importCtx, row map[string]string) error
+}
+
+// createdRow is one record an import brought into existence, as opposed to one
+// it edited. Only these are removed when an import is undone.
+type createdRow struct {
+	entity string
+	id     uuid.UUID
 }
 
 type importCtx struct {
@@ -81,6 +114,17 @@ type importCtx struct {
 	// classes maps a lowercased class name to its id, so a sections file can
 	// say "Grade 6" where the database wants a uuid. Filled lazily.
 	classes map[string]uuid.UUID
+	// sections is keyed "class/section" and teachers by email, both
+	// lowercased. Three hundred rows should not mean three hundred lookups
+	// of values that cannot change during one import.
+	sections map[string]uuid.UUID
+	teachers map[string]uuid.UUID
+	/* What this import created.
+
+	   Every writer here upserts, so a second upload of a corrected sheet
+	   edits rows that existed before it — and undoing that upload must not
+	   delete a class the school created by hand in March. */
+	created []createdRow
 	server  *Server
 }
 
@@ -91,7 +135,8 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 	}
 	var id uuid.UUID
 	err := c.tx.QueryRow(c.r.Context(),
-		`SELECT id FROM classes WHERE lower(name) = $1`, key).Scan(&id)
+		`SELECT id FROM classes WHERE institution_id = $1 AND lower(name) = $2`,
+		c.inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("no class called %q — create the classes first", name)
 	}
@@ -100,6 +145,21 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 	}
 	c.classes[key] = id
 	return id, nil
+}
+
+/*
+noteCreated remembers a row so the import can be taken back out.
+
+	Called only where the insert actually inserted. Postgres answers that with
+	xmax = 0 on the returned row — zero means no transaction has updated it, so
+	the INSERT branch was taken — and, where the writer says DO NOTHING, by
+	returning no row at all on a conflict. Both are exact, where counting rows
+	before and after is not.
+*/
+func (c *importCtx) noteCreated(entity string, id uuid.UUID, inserted bool) {
+	if inserted {
+		c.created = append(c.created, createdRow{entity: entity, id: id})
+	}
 }
 
 var importSpecs = map[string]importSpec{
@@ -116,11 +176,21 @@ var importSpecs = map[string]importSpec{
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			level, _ := strconv.Atoi(strings.TrimSpace(row["level"]))
-			_, err := c.tx.Exec(c.r.Context(), `
+			/* RETURNING with DO NOTHING yields no row on a conflict, which is
+			   exactly the signal wanted: a row came back means this INSERT
+			   created the class, and ErrNoRows means it was already there. */
+			var id uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO classes (institution_id, campus_id, name, level, stream)
 				VALUES ($1,$2,$3,$4,NULLIF($5,''))
-				ON CONFLICT DO NOTHING`,
-				c.inst, c.campus, strings.TrimSpace(row["name"]), level, strings.TrimSpace(row["stream"]))
+				ON CONFLICT DO NOTHING
+				RETURNING id`,
+				c.inst, c.campus, strings.TrimSpace(row["name"]), level,
+				strings.TrimSpace(row["stream"])).Scan(&id)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			c.noteCreated("classes", id, err == nil)
 			return err
 		},
 	},
@@ -154,14 +224,18 @@ var importSpecs = map[string]importSpec{
 			// included. Writing a shorter INSERT here was how the importer
 			// came to omit campus_id, which the column forbids — an importer
 			// that diverges from the form it replaces will diverge again.
-			_, err = c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err = c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO sections (institution_id, campus_id, class_id, academic_year_id,
 				                      name, capacity, room)
 				VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''))
 				ON CONFLICT (class_id, academic_year_id, name)
-				DO UPDATE SET capacity = EXCLUDED.capacity, room = EXCLUDED.room`,
+				DO UPDATE SET capacity = EXCLUDED.capacity, room = EXCLUDED.room
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, classID, c.year, strings.TrimSpace(row["name"]), capacity,
-				strings.TrimSpace(row["room"]))
+				strings.TrimSpace(row["room"])).Scan(&id, &inserted)
+			c.noteCreated("sections", id, inserted)
 			return err
 		},
 	},
@@ -182,13 +256,17 @@ var importSpecs = map[string]importSpec{
 			// Blank means scholastic: most subjects are, and a school that
 			// leaves the column off should get the common case.
 			scholastic := !isNo(row["is_scholastic"])
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO subjects (institution_id, campus_id, name, code, is_scholastic)
 				VALUES ($1,$2,$3,upper($4),$5)
 				ON CONFLICT (institution_id, campus_id, code)
-				DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic`,
+				DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, strings.TrimSpace(row["name"]),
-				strings.TrimSpace(row["code"]), scholastic)
+				strings.TrimSpace(row["code"]), scholastic).Scan(&id, &inserted)
+			c.noteCreated("subjects", id, inserted)
 			return err
 		},
 	},
@@ -214,16 +292,20 @@ var importSpecs = map[string]importSpec{
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			seq, _ := strconv.Atoi(strings.TrimSpace(row["sequence"]))
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO periods (institution_id, campus_id, name, sequence,
 				                     starts_at, ends_at, is_break)
 				VALUES ($1,$2,$3,$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7)
 				ON CONFLICT (institution_id, campus_id, sequence)
 				DO UPDATE SET name = EXCLUDED.name, starts_at = EXCLUDED.starts_at,
-				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break`,
+				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break
+				RETURNING id, (xmax = 0)`,
 				c.inst, c.campus, strings.TrimSpace(row["name"]), seq,
 				strings.TrimSpace(row["starts_at"]), strings.TrimSpace(row["ends_at"]),
-				isYes(row["is_break"]))
+				isYes(row["is_break"])).Scan(&id, &inserted)
+			c.noteCreated("periods", id, inserted)
 			return err
 		},
 	},
@@ -236,14 +318,18 @@ var importSpecs = map[string]importSpec{
 		Sample:   []string{"Tuition", "TUI", "Y"},
 		Write: func(c *importCtx, row map[string]string) error {
 			recurring := !isNo(row["is_recurring"])
-			_, err := c.tx.Exec(c.r.Context(), `
+			var id uuid.UUID
+			var inserted bool
+			err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO fee_heads (institution_id, name, code, is_recurring,
 				                       is_taxable, gst_rate_bp)
 				VALUES ($1,$2,upper($3),$4,false,0)
 				ON CONFLICT (institution_id, code)
-				DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring`,
+				DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring
+				RETURNING id, (xmax = 0)`,
 				c.inst, strings.TrimSpace(row["name"]), strings.TrimSpace(row["code"]),
-				recurring)
+				recurring).Scan(&id, &inserted)
+			c.noteCreated("fee_heads", id, inserted)
 			return err
 		},
 	},
@@ -273,7 +359,8 @@ var importSpecs = map[string]importSpec{
 			code := strings.ToUpper(strings.TrimSpace(row["subject_code"]))
 			var subjectID uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM subjects WHERE upper(code) = $1`, code).Scan(&subjectID); err != nil {
+				`SELECT id FROM subjects WHERE institution_id = $1 AND upper(code) = $2`,
+				c.inst, code).Scan(&subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					return fmt.Errorf("no subject with code %q — add the subjects first", code)
 				}
@@ -302,7 +389,8 @@ var importSpecs = map[string]importSpec{
 			}
 			var teacher uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM users WHERE email = $1::citext`, email).Scan(&teacher); err != nil {
+				`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+				c.inst, email).Scan(&teacher); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					return fmt.Errorf("no member of staff with the email %q — import the staff first", email)
 				}
@@ -318,15 +406,125 @@ var importSpecs = map[string]importSpec{
 			return err
 		},
 	},
+	/* Who runs which room, and who teaches what in it.
+
+	   Two facts a school keeps on one sheet and the product made them enter
+	   in two places: the class teacher and the room for a section, and the
+	   teacher against each subject in that section. Both are here, and every
+	   column but the class and the section is optional — a school with only
+	   class teachers fills three columns and leaves the rest blank, and a
+	   school listing subject teachers repeats the class and section down the
+	   rows the way a spreadsheet does.
+
+	   Nothing is required to appear together. A row with a class teacher and
+	   no subject sets the class teacher. A row with a subject and no class
+	   teacher sets the subject teacher. A row with both does both.
+	*/
+	"allocations": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"class", "section", "room", "class_teacher_email", "subject_code", "teacher_email"},
+		Required: []string{"class", "section"},
+		Sample:   []string{"Grade 6", "A", "6A", "priya.rao@jsm.test", "MATH", "anand.k@jsm.test"},
+		Write: func(c *importCtx, row map[string]string) error {
+			sectionID, err := c.sectionIDFor(row["class"], row["section"])
+			if err != nil {
+				return err
+			}
+
+			if room := strings.TrimSpace(row["room"]); room != "" {
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE sections SET room = $2 WHERE id = $1`, sectionID, room); err != nil {
+					return err
+				}
+			}
+
+			if email := strings.TrimSpace(row["class_teacher_email"]); email != "" {
+				teacher, err := c.teacherByEmail(email)
+				if err != nil {
+					return err
+				}
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE sections SET class_teacher_id = $2 WHERE id = $1`,
+					sectionID, teacher); err != nil {
+					return err
+				}
+			}
+
+			code := strings.TrimSpace(row["subject_code"])
+			email := strings.TrimSpace(row["teacher_email"])
+			if code == "" || email == "" {
+				// A row that only names the class teacher is complete. Treating
+				// a blank subject as an error would mean two files for what a
+				// school keeps as one.
+				return nil
+			}
+			teacher, err := c.teacherByEmail(email)
+			if err != nil {
+				return err
+			}
+			var csID, subjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT cs.id, cs.subject_id
+				  FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				  JOIN sections sec ON sec.class_id = cs.class_id
+				 WHERE sec.id = $1 AND cs.institution_id = $3
+				   AND (upper(sub.code) = upper($2) OR lower(sub.name) = lower($2))`,
+				sectionID, code, c.inst).Scan(&csID, &subjectID); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("%s does not study %q — map the subject to the class first",
+						row["class"], code)
+				}
+				return err
+			}
+			if _, err := c.tx.Exec(c.r.Context(), `
+				INSERT INTO section_subject_teachers (institution_id, section_id,
+				                                      class_subject_id, teacher_user_id)
+				VALUES ($1,$2,$3,$4)
+				ON CONFLICT (section_id, class_subject_id)
+				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+				c.inst, sectionID, csID, teacher); err != nil {
+				return err
+			}
+			// Assigning somebody to teach a subject is also a statement that
+			// they teach it, which is what the dropdowns read.
+			_, err = c.tx.Exec(c.r.Context(), `
+				INSERT INTO teacher_subjects (institution_id, user_id, subject_id)
+				VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, c.inst, teacher, subjectID)
+			return err
+		},
+	},
 	"staff": {
-		Perm:     rbac.EmployeesWrite,
-		Columns:  []string{"employee_code", "first_name", "last_name", "email", "phone", "designation", "role", "joined_on"},
+		Perm: rbac.EmployeesWrite,
+		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
+			"designation", "role", "joined_on", "subjects"},
 		Required: []string{"employee_code", "first_name"},
-		Sample:   []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210", "Teacher", "faculty", "2026-06-01"},
+		Sample: []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210",
+			"Teacher", "faculty", "2026-06-01", "MATH; SCI"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["joined_on"]); v != "" {
 				if _, err := time.Parse(time.DateOnly, v); err != nil {
 					return errors.New("joined_on must be a date written as YYYY-MM-DD")
+				}
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			// Named before the upload rather than after it: a subject that
+			// does not exist is the commonest thing wrong with a staff sheet,
+			// because a school writes "Science" where the list says "General
+			// Science".
+			for _, want := range splitSubjects(row["subjects"]) {
+				var exists bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM subjects
+					                WHERE institution_id = $2
+					                  AND (upper(code) = upper($1) OR lower(name) = lower($1)))`,
+					want, c.inst).Scan(&exists); err != nil {
+					return err
+				}
+				if !exists {
+					return fmt.Errorf("no subject called %q — check the Subjects step for the exact name", want)
 				}
 			}
 			return nil
@@ -345,8 +543,57 @@ var importSpecs = map[string]importSpec{
 			// A teacher with no email is still a teacher; inventing a username
 			// for them creates an account nobody will ever sign in to.
 			req.CreateLogin = req.Email != "" && req.RoleKey != ""
-			_, _, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
-			return err
+			empID, userID, created, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
+			if err != nil {
+				return err
+			}
+			// Only staff this file brought onto the roll. The upsert matches on
+			// employee_code, so a corrected re-upload edits people who were
+			// already appointed and undoing it must not remove them.
+			if parsed, perr := uuid.Parse(empID); perr == nil {
+				c.noteCreated("staff", parsed, created)
+			}
+
+			/* What they teach, where the sheet says.
+
+			   A school knows who its maths teachers are and had nowhere to
+			   put that, so the subject-teacher dropdown offered every member
+			   of staff for every subject and the Telugu row listed the
+			   accountant.
+
+			   Separated by semicolons or commas, matched on the subject code
+			   or its name, because a school writes "MATH; SCI" in one column
+			   and should not have to learn which of the two we wanted. An
+			   unknown subject fails the row by name rather than being
+			   skipped: silently dropping half of "MATH; PHYSICS" leaves
+			   somebody believing a fact that is not recorded. */
+			// userID is empty for a member of staff imported without an email:
+			// they have a personnel record and no account, so there is no user
+			// to attach a subject to. Their subjects go in when they are given
+			// a login.
+			list := strings.TrimSpace(row["subjects"])
+			if list == "" || strings.TrimSpace(userID) == "" {
+				return nil
+			}
+			for _, want := range splitSubjects(list) {
+				var subjectID uuid.UUID
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT id FROM subjects
+					 WHERE upper(code) = upper($1) OR lower(name) = lower($1)
+					 LIMIT 1`, want).Scan(&subjectID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return fmt.Errorf("no subject called %q — add the subjects first", want)
+					}
+					return err
+				}
+				if _, err := c.tx.Exec(c.r.Context(), `
+					INSERT INTO teacher_subjects (institution_id, user_id, subject_id)
+					VALUES ($1,$2::uuid,$3) ON CONFLICT DO NOTHING`,
+					c.inst, userID, subjectID); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	},
 }
@@ -394,10 +641,16 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 
 	// 8 MB is a few thousand rows. Past that it is a data migration, which is
 	// somebody sitting down with the database rather than a drag and drop.
-	body := http.MaxBytesReader(w, r.Body, 8<<20)
-	defer body.Close()
+	// Read once and parse from memory, because the file is wanted twice: to
+	// import it, and to keep it against the history so somebody can open the
+	// upload later and see what was actually in it.
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20))
+	if err != nil {
+		httpx.BadRequest(w, r, "could not read the file — is it larger than 8 MB?")
+		return
+	}
 
-	reader := csv.NewReader(body)
+	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1 // ragged rows are reported per row, not fatal
 
@@ -472,6 +725,50 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, parsed{row: n, data: data})
 	}
 
+	/* The database-dependent checks, before the screen says "ready".
+
+	   Runs on a dry run and on a commit alike: on a commit it is the same
+	   answer a moment earlier, and the cost of asking twice is a few selects
+	   against rows already in cache. */
+	if spec.Verify != nil && len(rows) > 0 {
+		verr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			campus, err := ensureCampus(r, tx, id.InstitutionID)
+			if err != nil {
+				return err
+			}
+			ctx := &importCtx{r: r, tx: tx, inst: id.InstitutionID, campus: campus,
+				classes: map[string]uuid.UUID{}, server: s}
+			for _, p := range rows {
+				if err := spec.Verify(ctx, p.data); err != nil {
+					out.Valid--
+					out.Rejected++
+					out.Problems = append(out.Problems,
+						importRow{Row: p.row, Data: p.data, Problem: err.Error()})
+				}
+			}
+			return nil
+		})
+		if verr != nil {
+			httpx.Internal(w, r, verr)
+			return
+		}
+		if out.Rejected > 0 {
+			// Rebuilt so the rows that failed verification are not written on
+			// a commit that got this far.
+			kept := rows[:0]
+			bad := map[int]bool{}
+			for _, p := range out.Problems {
+				bad[p.Row] = true
+			}
+			for _, p := range rows {
+				if !bad[p.row] {
+					kept = append(kept, p)
+				}
+			}
+			rows = kept
+		}
+	}
+
 	if !commit || out.Rejected > 0 || len(rows) == 0 {
 		// Refusing to write a file with any bad row is deliberate: a partial
 		// import leaves the office reconciling what went in against what did
@@ -508,8 +805,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		   Outside it, a failed import could still leave a log entry claiming
 		   success -- which is worse than no log, because somebody would then
 		   not re-import a file that never landed. */
-		return recordImportRun(r, tx, id.InstitutionID, entity,
-			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected)
+		return recordImportRunFull(r, tx, id.InstitutionID, entity,
+			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
+			ctx.created, string(raw))
 	})
 	if err != nil {
 		out.Imported = 0
@@ -549,16 +847,59 @@ func allBlank(data map[string]string) bool {
 func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 	entity, filename string, read, imported, rejected int) error {
 
-	_, err := tx.Exec(r.Context(), `
+	return recordImportRunWith(r, tx, inst, entity, filename, read, imported, rejected, nil)
+}
+
+// recordImportRunWith also remembers which records the import created, which
+// is the whole of what makes undoing it possible.
+func recordImportRunWith(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int, created []createdRow) error {
+	return recordImportRunFull(r, tx, inst, entity, filename, read, imported, rejected, created, "")
+}
+
+// maxKeptImportBytes is how much of an uploaded file is kept for later
+// reading. A class list is a few hundred kilobytes; a data migration is not
+// something to hold a copy of in a text column, and half a file kept is worse
+// than none because it reads as the whole one.
+const maxKeptImportBytes = 1 << 20
+
+// recordImportRunFull also keeps the file, so somebody can open the history
+// later and see what was actually uploaded rather than only how many rows it
+// had.
+func recordImportRunFull(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int,
+	created []createdRow, content string) error {
+
+	kept := content
+	omitted := false
+	if len(kept) > maxKeptImportBytes {
+		kept, omitted = "", true
+	}
+
+	var runID uuid.UUID
+	if err := tx.QueryRow(r.Context(), `
 		INSERT INTO import_runs (institution_id, entity, filename,
-		                         rows_read, rows_imported, rows_rejected, imported_by)
-		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)`,
+		                         rows_read, rows_imported, rows_rejected, imported_by,
+		                         content, content_omitted)
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7,NULLIF($8,''),$9)
+		RETURNING id`,
 		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
-		httpx.IdentityFrom(r.Context()).UserID)
-	return err
+		httpx.IdentityFrom(r.Context()).UserID, kept, omitted).Scan(&runID); err != nil {
+		return err
+	}
+	for _, c := range created {
+		if _, err := tx.Exec(r.Context(), `
+			INSERT INTO import_run_rows (run_id, institution_id, entity, record_id)
+			VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+			runID, inst, c.entity, c.id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type importRunRow struct {
+	ID       string  `json:"id"`
 	Entity   string  `json:"entity"`
 	Filename *string `json:"filename,omitempty"`
 	RowsRead int     `json:"rows_read"`
@@ -566,6 +907,10 @@ type importRunRow struct {
 	Rejected int     `json:"rows_rejected"`
 	By       *string `json:"imported_by,omitempty"`
 	At       string  `json:"created_at"`
+	UndoneAt *string `json:"undone_at,omitempty"`
+	// Created counts what this upload brought into existence rather than
+	// edited, which is the only part an undo can remove.
+	Created int `json:"created_rows"`
 }
 
 /*
@@ -584,9 +929,11 @@ func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := collect(s, r, `
-		SELECT ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
+		SELECT ir.id::text, ir.entity, ir.filename, ir.rows_read, ir.rows_imported,
 		       ir.rows_rejected, u.full_name,
-		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+		       to_char(ir.created_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+		       to_char(ir.undone_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+		       (SELECT count(*) FROM import_run_rows w WHERE w.run_id = ir.id)::int
 		  FROM import_runs ir
 		  LEFT JOIN users u ON u.id = ir.imported_by
 		 WHERE ($1::text IS NULL OR ir.entity = $1)
@@ -595,8 +942,8 @@ func (s *Server) listImportRuns(w http.ResponseWriter, r *http.Request) {
 		[]any{nullString(r.URL.Query().Get("entity"))},
 		func(rows pgx.Rows) (importRunRow, error) {
 			var v importRunRow
-			return v, rows.Scan(&v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
-				&v.Rejected, &v.By, &v.At)
+			return v, rows.Scan(&v.ID, &v.Entity, &v.Filename, &v.RowsRead, &v.Imported,
+				&v.Rejected, &v.By, &v.At, &v.UndoneAt, &v.Created)
 		})
 	respond(w, r, items, err)
 }
@@ -619,4 +966,373 @@ func isNo(v string) bool {
 		return true
 	}
 	return false
+}
+
+// sectionIDFor resolves "Grade 6" + "A" to a section, the same idea as
+// classID and cached the same way.
+func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, error) {
+	classID, err := c.classID(className)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	key := strings.ToLower(strings.TrimSpace(className)) + "/" +
+		strings.ToLower(strings.TrimSpace(sectionName))
+	if c.sections == nil {
+		c.sections = map[string]uuid.UUID{}
+	}
+	if id, ok := c.sections[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err = c.tx.QueryRow(c.r.Context(),
+		`SELECT id FROM sections
+		  WHERE institution_id = $1 AND class_id = $2 AND lower(name) = $3
+		  LIMIT 1`,
+		c.inst, classID, strings.ToLower(strings.TrimSpace(sectionName))).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("%s has no section %q — create the sections first",
+			className, sectionName)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.sections[key] = id
+	return id, nil
+}
+
+// teacherByEmail turns the address a school writes in a spreadsheet into the
+// account behind it, and says which address failed rather than that one did.
+func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
+	if c.teachers == nil {
+		c.teachers = map[string]uuid.UUID{}
+	}
+	key := strings.ToLower(strings.TrimSpace(email))
+	if id, ok := c.teachers[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err := c.tx.QueryRow(c.r.Context(),
+		`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+		c.inst, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("no member of staff with the email %q — import the staff first", email)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.teachers[key] = id
+	return id, nil
+}
+
+// splitSubjects reads the "MATH; SCI" a school writes in one column. Semicolon,
+// comma or pipe, because a spreadsheet is written by a person and not a parser.
+func splitSubjects(v string) []string {
+	out := []string{}
+	for _, raw := range strings.FieldsFunc(v, func(r rune) bool {
+		return r == ';' || r == ',' || r == '|'
+	}) {
+		if t := strings.TrimSpace(raw); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// --- taking an import back out ---------------------------------------------
+
+// undoableTables maps the entity names recorded against an import run to the
+// tables they live in. A fixed list in code rather than trusting the column:
+// the entity is written by this package and read back into a DELETE, and a
+// table name interpolated from the database is the shape of a very bad day.
+var undoableTables = map[string]string{
+	"classes":   "classes",
+	"sections":  "sections",
+	"subjects":  "subjects",
+	"periods":   "periods",
+	"fee_heads": "fee_heads",
+	"students":  "students",
+	"staff":     "employees",
+}
+
+/*
+Deleting a student cascades.
+
+	Nearly forty tables reference students with ON DELETE CASCADE — marks,
+	attendance, invoices, report cards, discipline records. That is right for a
+	school removing a record deliberately and wrong for an undo, which would
+	take a term's work with it without saying so.
+
+	So a child is removed only while nothing has happened to them yet. The
+	enrolment and the guardian the import itself created are expected and do
+	not count; anything else means the school has begun using the record, and
+	the row is kept and reported instead.
+*/
+const studentIsUntouched = `
+	SELECT NOT EXISTS (SELECT 1 FROM student_attendance a WHERE a.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM marks m            WHERE m.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM invoices i         WHERE i.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM report_cards rc    WHERE rc.student_id = $1)
+	   AND NOT EXISTS (SELECT 1 FROM homework_submissions h WHERE h.student_id = $1)`
+
+/*
+permForImportEntity is the right an import of this kind needed.
+
+	importSpecs covers the entities the shared importer handles. Students go in
+	through their own endpoint and are not in that map, so looking their
+	permission up there returned the empty string — and Can("") is false for
+	everybody, including the principal who did the upload. Reading back or
+	undoing a student import was refused to the one person certain to be
+	allowed.
+
+	Falling back to a deny would repeat that mistake for the next importer
+	added outside the map, so an unknown entity resolves to the right that
+	governs the records it would touch, and an entity with no answer at all is
+	the only one refused.
+*/
+func permForImportEntity(entity string) string {
+	if spec, ok := importSpecs[entity]; ok {
+		return spec.Perm
+	}
+	switch entity {
+	case "students":
+		return rbac.StudentsWrite
+	}
+	return ""
+}
+
+type undoResult struct {
+	Removed int      `json:"removed"`
+	Kept    int      `json:"kept"`
+	Reasons []string `json:"reasons"`
+}
+
+/*
+undoImport deletes the records one upload created.
+
+	Only the records it created. Every importer upserts, so a second upload of
+	a corrected sheet edits rows that were already there, and undoing it must
+	not remove a class the school typed in by hand in March.
+
+	Rows that something else now depends on are kept rather than cascaded. A
+	section with children enrolled in it is not an accident of the import any
+	more, and deleting it to satisfy an undo would take the enrolments with it.
+	The count of what was kept, and why, is returned rather than swallowed —
+	an undo that silently does half its job is worse than one that refuses.
+*/
+func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	runID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid import id")
+		return
+	}
+
+	var out undoResult
+	out.Reasons = []string{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var entity string
+		var undone *time.Time
+		if err := tx.QueryRow(r.Context(),
+			`SELECT entity, undone_at FROM import_runs WHERE id = $1`, runID).
+			Scan(&entity, &undone); err != nil {
+			return err
+		}
+		if undone != nil {
+			return errAlreadyUndone
+		}
+		need := permForImportEntity(entity)
+		if need == "" || !id.Can(need) {
+			return errNotYours
+		}
+
+		rows, err := tx.Query(r.Context(),
+			`SELECT entity, record_id FROM import_run_rows WHERE run_id = $1`, runID)
+		if err != nil {
+			return err
+		}
+		type target struct {
+			entity string
+			id     uuid.UUID
+		}
+		var targets []target
+		for rows.Next() {
+			var t target
+			if err := rows.Scan(&t.entity, &t.id); err != nil {
+				rows.Close()
+				return err
+			}
+			targets = append(targets, t)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		for _, t := range targets {
+			table, ok := undoableTables[t.entity]
+			if !ok {
+				out.Kept++
+				continue
+			}
+			/* A member of staff who has started work is not just a row this
+			   file created either. Deleting an employee takes their leave,
+			   their payroll and their timetable with it, so anybody holding a
+			   class or a section is kept. */
+			if t.entity == "staff" {
+				var busy bool
+				if err := tx.QueryRow(r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM section_subject_teachers t
+					                JOIN employees e ON e.user_id = t.teacher_user_id
+					               WHERE e.id = $1)
+					    OR EXISTS (SELECT 1 FROM sections s
+					                JOIN employees e ON e.user_id = s.class_teacher_id
+					               WHERE e.id = $1)`, t.id).Scan(&busy); err != nil {
+					return err
+				}
+				if busy {
+					out.Kept++
+					if len(out.Reasons) < 5 {
+						out.Reasons = append(out.Reasons,
+							"a teacher is assigned to a class or subject and was left alone")
+					}
+					continue
+				}
+			}
+
+			// A child who has been marked present, examined or invoiced is no
+			// longer just a row this file created.
+			if t.entity == "students" {
+				var untouched bool
+				if err := tx.QueryRow(r.Context(), studentIsUntouched, t.id).Scan(&untouched); err != nil {
+					return err
+				}
+				if !untouched {
+					out.Kept++
+					if len(out.Reasons) < 5 {
+						out.Reasons = append(out.Reasons,
+							"a child already has attendance, marks or fees recorded and was left alone")
+					}
+					continue
+				}
+			}
+			// A savepoint per row, so one row held back by a foreign key does
+			// not abort the transaction and lose the rest of the undo.
+			if _, err := tx.Exec(r.Context(), "SAVEPOINT undo_row"); err != nil {
+				return err
+			}
+			_, derr := tx.Exec(r.Context(),
+				"DELETE FROM "+table+" WHERE id = $1", t.id)
+			if derr != nil {
+				if _, err := tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT undo_row"); err != nil {
+					return err
+				}
+				out.Kept++
+				if len(out.Reasons) < 5 {
+					out.Reasons = append(out.Reasons,
+						"one "+t.entity+" row is still in use and was left alone")
+				}
+				continue
+			}
+			if _, err := tx.Exec(r.Context(), "RELEASE SAVEPOINT undo_row"); err != nil {
+				return err
+			}
+			out.Removed++
+		}
+
+		// Marked rather than deleted: "loaded and then undone" is a different
+		// fact from "never loaded", and an empty history says the second.
+		_, err = tx.Exec(r.Context(),
+			`UPDATE import_runs SET undone_at = now(), undone_by = $2 WHERE id = $1`,
+			runID, id.UserID)
+		return err
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		httpx.NotFound(w, r)
+		return
+	case errors.Is(err, errAlreadyUndone):
+		httpx.BadRequest(w, r, "that upload has already been undone")
+		return
+	case errors.Is(err, errNotYours):
+		httpx.Forbidden(w, r, "undoing this kind of import")
+		return
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+var (
+	errAlreadyUndone = errStr("already undone")
+	errNotYours      = errStr("not permitted")
+)
+
+/*
+getImportContent hands back the file one upload was made from.
+
+	The history could say that 4-staff.csv added ten rows and never say which
+	ten. That is the question anybody actually has when they open it — usually
+	because something looks wrong and they want to compare the sheet against
+	what is now in the school.
+
+	Returned as the CSV it was, not as a rendering of it. The screen parses it
+	with the same code it uses for a file being dropped, so what is shown here
+	and what was shown then are the same table by construction rather than by
+	two pieces of code agreeing.
+*/
+func (s *Server) getImportContent(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	runID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid import id")
+		return
+	}
+
+	var (
+		entity   string
+		filename *string
+		content  *string
+		omitted  bool
+	)
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT entity, filename, content, content_omitted
+			  FROM import_runs WHERE id = $1`, runID).
+			Scan(&entity, &filename, &content, &omitted)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	// The same right the import needed. Reading back a staff sheet is reading
+	// staff records, whatever route it arrives by.
+	need := permForImportEntity(entity)
+	if need == "" || !id.Can(need) {
+		httpx.Forbidden(w, r, "reading this upload")
+		return
+	}
+
+	body := ""
+	if content != nil {
+		body = *content
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"entity":   entity,
+		"filename": filename,
+		"content":  body,
+		// Told apart on purpose: a file too large to keep is not an empty
+		// file, and an empty table would say the second.
+		"omitted": omitted,
+	})
 }

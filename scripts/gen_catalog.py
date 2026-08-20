@@ -25,10 +25,28 @@ CSV = ROOT / "docs" / "edu_features.csv"
 # Role keys match the `roles.key` column already seeded by internal/rbac, so a
 # catalog role and an RBAC role are the same row, not two parallel notions.
 ROLE_KEYS = {
+<<<<<<< HEAD
     "Management": "super_admin",
     "Principal": "institution_admin",
     "Teacher": "faculty",
     "HOD": "hod",
+=======
+    "Super Admin": "super_admin",
+    "Institution Admin / Principal": "institution_admin",
+    "Faculty / Teacher": "faculty",
+    # A head of department held capabilities and no navigation at all: the
+    # rbac role existed, the catalogue did not, so a HOD signed in to an
+    # empty menu. The department is the boundary, not the institution --
+    # internal/scope narrows the rows these features return.
+    "HOD / Department Head": "hod",
+    # The library desk. These features were on the principal's menu and the
+    # librarian borrowed them from there, so trimming the principal's copy
+    # would have taken the librarian's with it.
+    "Librarian": "librarian",
+    # The transport office. Same reason as the library: this role held no
+    # catalogue of its own and borrowed the principal's transport section.
+    "Transport Manager": "transport_manager",
+>>>>>>> origin/main
     "Student": "student",
     "Parent": "parent",
     "Fee Counter": "finance",
@@ -44,6 +62,7 @@ ROLE_KEYS = {
 ROLE_ORDER = [
     "seller_admin", "super_admin",
     "institution_admin", "hod", "faculty",
+    "librarian", "transport_manager",
     "finance", "admissions", "hr",
     "student", "parent",
 ]
