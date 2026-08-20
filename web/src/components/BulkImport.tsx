@@ -306,8 +306,25 @@ export default function BulkImport({
           </div>
         )}
 
+        {/* Present the moment a file is loaded, and in every state after
+            that.
+
+            It used to live inside the results block, so it existed only when
+            the file parsed cleanly — and disappeared exactly when it was most
+            wanted, on the screen saying the headers are wrong. Somebody who
+            has dropped the wrong file is then looking at a page with no way
+            off it but a reload. */}
         {name && !pasting && (
-          <p className="mt-2 text-[12.5px] text-muted-foreground">Reading: {name}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-muted-foreground">Reading: {name}</p>
+            <button
+              type="button"
+              onClick={discard}
+              className="text-[12.5px] underline underline-offset-2 text-muted-foreground hover:text-foreground"
+            >
+              cancel this file
+            </button>
+          </div>
         )}
 
         {/* The file itself, before anybody agrees to load it. Ten rows is
@@ -368,10 +385,22 @@ export default function BulkImport({
         )}
 
         {error && (
-          <p className="mt-3 flex items-start gap-2 text-[13px] text-destructive">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
-            {error}
-          </p>
+          <div className="mt-3">
+            <p className="flex items-start gap-2 text-[13px] text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              {error}
+            </p>
+            {/* Naming the box, because the commonest cause of a missing column
+                is the right file in the wrong uploader — a page with four drop
+                zones on it invites exactly that, and "needs a column called
+                class" does not hint at which of the four you are in. */}
+            <p className="mt-1 text-[12.5px] text-muted-foreground">
+              This box takes the <b>{entity.replace(/_/g, ' ')}</b> sheet.
+            </p>
+            <Button size="sm" variant="ghost" className="mt-2" onClick={discard}>
+              Cancel
+            </Button>
+          </div>
         )}
 
         {result && (
