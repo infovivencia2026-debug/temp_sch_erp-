@@ -106,6 +106,11 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			username string // the natural key: admission no, phone, or email
 			email    string
 			phone    string
+			// usable is false for an account that exists but has never been
+			// given a password -- which is exactly what importing staff with
+			// an email produces. Treating those as "already has a login" would
+			// report ten people as done who cannot sign in.
+			usable bool
 		}
 		var people []person
 
@@ -114,7 +119,9 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 		case "students":
 			sql = `
 				SELECT st.id, trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
-				       st.user_id, st.admission_no, '', ''
+				       st.user_id, st.admission_no, '', '',
+				       COALESCE((SELECT u.password_hash IS NOT NULL AND u.status <> 'invited'
+				                   FROM users u WHERE u.id = st.user_id), false)
 				  FROM students st
 				  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
 				 WHERE st.status = 'active'
@@ -125,7 +132,9 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			// and the loop below would otherwise try to create it three times.
 			sql = `
 				SELECT DISTINCT ON (g.id) g.id, g.full_name, g.user_id,
-				       COALESCE(g.phone,''), COALESCE(g.email::text,''), COALESCE(g.phone,'')
+				       COALESCE(g.phone,''), COALESCE(g.email::text,''), COALESCE(g.phone,''),
+				       COALESCE((SELECT u.password_hash IS NOT NULL AND u.status <> 'invited'
+				                   FROM users u WHERE u.id = g.user_id), false)
 				  FROM guardians g
 				  JOIN student_guardians sg ON sg.guardian_id = g.id
 				  JOIN students st ON st.id = sg.student_id AND st.status = 'active'
@@ -136,7 +145,9 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			sql = `
 				SELECT emp.id, trim(emp.first_name || ' ' || COALESCE(emp.last_name,'')),
 				       emp.user_id, COALESCE(emp.email::text,''),
-				       COALESCE(emp.email::text,''), COALESCE(emp.phone,'')
+				       COALESCE(emp.email::text,''), COALESCE(emp.phone,''),
+				       COALESCE((SELECT u.password_hash IS NOT NULL AND u.status <> 'invited'
+				                   FROM users u WHERE u.id = emp.user_id), false)
 				  FROM employees emp
 				 WHERE emp.status = 'active' AND $1::uuid IS NULL
 				 ORDER BY emp.employee_code`
@@ -150,7 +161,8 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 		}
 		for rows.Next() {
 			var p person
-			if err := rows.Scan(&p.id, &p.name, &p.userID, &p.username, &p.email, &p.phone); err != nil {
+			if err := rows.Scan(&p.id, &p.name, &p.userID, &p.username, &p.email,
+				&p.phone, &p.usable); err != nil {
 				rows.Close()
 				return err
 			}
@@ -162,6 +174,37 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, p := range people {
+			/* An account that exists and has a password is left alone.
+
+			   An account that exists with no password is not the same thing
+			   and must not be reported as one: importing staff with an email
+			   creates exactly that -- an "invited" row nobody can sign in as.
+			   Those get a password here, which is the whole point of running
+			   this after an import. */
+			if p.userID != nil && !p.usable {
+				password, err := temporaryPassword()
+				if err != nil {
+					return err
+				}
+				hash, err := s.Hasher.Hash(password)
+				if err != nil {
+					return err
+				}
+				var signIn string
+				if err := tx.QueryRow(r.Context(), `
+					UPDATE users SET password_hash = $2, status = 'active'
+					 WHERE id = $1
+					RETURNING COALESCE(username::text, email::text, phone, '')`,
+					*p.userID, hash).Scan(&signIn); err != nil {
+					return err
+				}
+				out.Created++
+				out.Rows = append(out.Rows, bulkLoginRow{
+					Name: p.name, SignInAs: signIn, Password: password,
+				})
+				continue
+			}
+
 			// Already has one. Named, with their username, and left alone.
 			if p.userID != nil {
 				var signIn string
