@@ -34,6 +34,6 @@ export const rollupKeys = {
   'institution_admin.department.department_academics': lazy(() => import('./DepartmentAcademics')),
   'institution_admin.analysis.department_reports': lazy(() => import('./DepartmentReports')),
   'institution_admin.analysis.performance_analytics': lazy(() => import('./PerformanceAnalytics')),
-  'institution_admin.standard.fee_collection_summaries': lazy(() => import('./CollectionSummaries')),
+  'institution_admin.standard.fee_collection_revenue_status': lazy(() => import('./CollectionSummaries')),
   'hr.reports.hr_reports': lazy(() => import('./HRReports')),
 }

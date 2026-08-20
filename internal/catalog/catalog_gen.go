@@ -447,9 +447,9 @@ var Roles = []Role{
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
-					{Key: "institution_admin.standard.comprehensive_attendance_report", Slug: "comprehensive_attendance_report", Name: "Comprehensive Attendance Report", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Export daily, monthly, and yearly student and staff attendance trend reports."},
-					{Key: "institution_admin.standard.exam_grade_analytics", Slug: "exam_grade_analytics", Name: "Exam & Grade Analytics", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Analyze grade distribution charts, subject pass percentages, toppers, and low performers."},
-					{Key: "institution_admin.standard.fee_collection_summaries", Slug: "fee_collection_summaries", Name: "Fee Collection Summaries", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View real-time fee collection breakdown by class, payment mode, and outstanding aging."},
+					{Key: "institution_admin.standard.student_staff_attendance_overview", Slug: "student_staff_attendance_overview", Name: "Student & Staff Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
+					{Key: "institution_admin.standard.academic_performance_result_trends", Slug: "academic_performance_result_trends", Name: "Academic Performance & Result Trends", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
+					{Key: "institution_admin.standard.fee_collection_revenue_status", Slug: "fee_collection_revenue_status", Name: "Fee Collection & Revenue Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
 				},
 			},
 			{
