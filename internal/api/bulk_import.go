@@ -361,6 +361,10 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 // normaliseHeader makes "Employee Code", "employee_code" and "EMPLOYEE CODE"
 // the same column, because the sheet came from somebody else's software.
 func normaliseHeader(h string) string {
+	// The byte order mark Excel writes is not whitespace, so TrimSpace
+	// leaves it on the first column and that column stops matching its
+	// own name.
+	h = strings.TrimPrefix(h, "\ufeff")
 	h = strings.ToLower(strings.TrimSpace(h))
 	h = strings.ReplaceAll(h, " ", "_")
 	h = strings.ReplaceAll(h, "-", "_")

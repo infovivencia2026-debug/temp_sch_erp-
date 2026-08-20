@@ -395,7 +395,13 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	}
 	col := map[string]int{}
 	for i, h := range header {
-		col[strings.ToLower(strings.TrimSpace(h))] = i
+		// TrimSpace does not remove a byte order mark, and every CSV that
+		// Excel saves begins with one. Without this the first column --
+		// whichever it happens to be -- is keyed with the mark still on it
+		// and stops matching its own name, so a class list imported from a
+		// spreadsheet quietly lost its admission numbers and every child
+		// was given a generated one instead.
+		col[strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, "\ufeff")))] = i
 	}
 	if _, ok := col["first_name"]; !ok {
 		httpx.BadRequest(w, r,
