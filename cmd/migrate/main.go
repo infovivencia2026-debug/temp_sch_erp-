@@ -176,7 +176,25 @@ func runGoose(ctx context.Context, dsn, cmd string) error {
 
 	switch cmd {
 	case "up":
-		return goose.UpContext(ctx, sqlDB, ".")
+		/* Out-of-order migrations are applied rather than refused.
+
+		   Two people work on this repository and both deploy to this box. One
+		   writes 00133 and 00134 and deploys; the other, who branched earlier,
+		   writes 00122 and merges afterwards. goose's default is to abort the
+		   whole run — "found 1 missing migration before current version 134" —
+		   and every subsequent deploy fails until somebody renumbers a file
+		   that has already been applied somewhere else.
+
+		   Renumbering is the worse fix: it changes the identity of a migration
+		   that other databases have already recorded, so those databases run it
+		   twice under its new number.
+
+		   What this costs is the guarantee that migrations ran in the order
+		   they are numbered, which was never true of a repository with two
+		   authors anyway. What it requires is that migrations be independent of
+		   each other's ordering — which the ones here are, being new tables and
+		   additive columns. */
+		return goose.UpContext(ctx, sqlDB, ".", goose.WithAllowMissing())
 	case "down":
 		return goose.DownContext(ctx, sqlDB, ".")
 	case "status":
