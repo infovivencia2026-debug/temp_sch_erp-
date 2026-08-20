@@ -35,6 +35,7 @@ interface Teacher {
    *  password: it exists and nobody can sign in as it. */
   sign_in_as: string
   can_sign_in: boolean
+  roles: string
 }
 
 export interface PanelProps {
@@ -2066,6 +2067,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
           <thead className="bg-muted text-left text-muted-foreground">
             <tr>
               <th className="px-3 py-1.5 font-medium">Name</th>
+              <th className="px-3 py-1.5 font-medium">Role</th>
               <th className="px-3 py-1.5 font-medium">Signs in as</th>
               <th className="px-3 py-1.5 font-medium">Password</th>
               <th className="px-3 py-1.5 font-medium"></th>
@@ -2080,6 +2082,18 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                     <span className="font-medium">{t.full_name}</span>
                     {t.subjects && (
                       <span className="ml-1.5 text-muted-foreground">· {t.subjects}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    {t.roles ? (
+                      <Chip>{t.roles}</Chip>
+                    ) : (
+                      <span className="text-muted-foreground">no role</span>
+                    )}
+                    {t.class_teacher_of && (
+                      <span className="ml-1.5 text-[12.5px] text-muted-foreground">
+                        class teacher {t.class_teacher_of}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-1.5 font-mono">

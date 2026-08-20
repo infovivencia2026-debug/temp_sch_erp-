@@ -43,6 +43,10 @@ type teacher struct {
 	// says whether that account has a password yet.
 	SignInAs  string `json:"sign_in_as"`
 	CanSignIn bool   `json:"can_sign_in"`
+	// Roles is what the system lets them do, as distinct from Subjects, which
+	// is what they teach, and the designation, which is what the school calls
+	// the post.
+	Roles string `json:"roles"`
 	// Subjects is the comma-joined list of what they teach, for a label that
 	// does not require the reader to already know the staff.
 	Subjects string `json:"subjects"`
@@ -136,6 +140,17 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		          in as it, which is the state ten people were left in here. */
 		       COALESCE(u.username::text, u.email::text, u.phone, ''),
 		       (u.password_hash IS NOT NULL AND u.status <> 'invited'),
+		       /* What they are, not what they teach.
+		
+		          A list of names with no role beside them made the office check
+		          each person against the sheet they were imported from to find
+		          out who the HR manager was. Joined rather than derived from
+		          the designation, because the designation is what the school
+		          calls the post and the role is what the system lets them do. */
+		       COALESCE((SELECT string_agg(ro.key, ', ' ORDER BY ro.key)
+		                   FROM user_roles ur
+		                   JOIN roles ro ON ro.id = ur.role_id
+		                  WHERE ur.user_id = u.id), ''),
 		       (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = u.id),
 		       /* What they teach, joined for the label.
 
@@ -194,7 +209,8 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
 			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
-				&v.SignInAs, &v.CanSignIn, &v.Periods, &v.Subjects, &v.ClassTeacherOf)
+				&v.SignInAs, &v.CanSignIn, &v.Roles, &v.Periods, &v.Subjects,
+				&v.ClassTeacherOf)
 		})
 	respond(w, r, items, err)
 }
