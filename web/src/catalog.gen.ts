@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 424 features. */
+/** 12 roles, 413 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -254,16 +254,9 @@ export const ROLES: Role[] = [
         name: 'Students',
         workspace: 'Students',
         features: [
-          { key: 'institution_admin.students.student_directory_student_360', slug: 'student_directory_student_360', name: 'Student directory & Student 360', scope: 'institution', tier: 'core', summary: 'Search students and view enrollment, guardian, attendance, academic, fee-summary, documents and status based on permission.' },
+          { key: 'institution_admin.students.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: attendance, marks, fees, conduct and who to ring, on one page. The screen a school opens when a parent is at the desk.' },
           { key: 'institution_admin.students.enrollment_lifecycle', slug: 'enrollment_lifecycle', name: 'Enrollment lifecycle', scope: 'institution', tier: 'core', summary: 'Enroll, promote/roll over, transfer, withdraw and graduate students.' },
-          { key: 'institution_admin.students.certificates_documents', slug: 'certificates_documents', name: 'Certificates & documents', scope: 'institution', tier: 'core', summary: 'Approve/issue bonafide, transfer/leaving and other configured certificates.' },
-          { key: 'institution_admin.students.certificates_document_templates', slug: 'certificates_document_templates', name: 'Certificates & Document Templates', scope: 'institution', tier: 'core', summary: 'Design and configure print templates for Transfer Certificates (TC), Bonafide, and Conduct cards.' },
-          { key: 'institution_admin.students.class_section_promotion', slug: 'class_section_promotion', name: 'Class & Section Promotion', scope: 'institution', tier: 'core', summary: 'Bulk promote students to higher academic years, manage retentions, and section shuffling.' },
-          { key: 'institution_admin.students.disciplinary_incident_log', slug: 'disciplinary_incident_log', name: 'Disciplinary Incident Log', scope: 'institution', tier: 'core', summary: 'Record student disciplinary actions, counseling notes, parent meeting logs, and suspensions.' },
-          { key: 'institution_admin.students.student_council_management', slug: 'student_council_management', name: 'Student Council Management', scope: 'institution', tier: 'optional', summary: 'Define student council positions, log elected candidates, and track student leadership duties.' },
-          { key: 'institution_admin.students.alumni_program_oversight', slug: 'alumni_program_oversight', name: 'Alumni Program Oversight', scope: 'institution', tier: 'core', summary: 'Track annual graduating batch directory, alumni events, and alumni contribution funds.' },
-          { key: 'institution_admin.students.department_students', slug: 'department_students', name: 'Department students', scope: 'department', tier: 'core', summary: 'Search students in the department; view attendance, results, CGPA/backlogs and advisor.' },
-          { key: 'institution_admin.students.student_directory', slug: 'student_directory', name: 'Student directory', scope: 'institution', tier: 'core', summary: 'Every student, their section, guardians and academic history.' },
+          { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
           { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
         ],
       },
@@ -272,8 +265,7 @@ export const ROLES: Role[] = [
         name: 'Admissions',
         workspace: 'Students',
         features: [
-          { key: 'institution_admin.admissions.new_admission_live_status', slug: 'new_admission_live_status', name: 'New Admission Live Status', scope: 'institution', tier: 'core', summary: 'Enquiries, applications and confirmed admissions for the coming session, with the conversion between them. What the school is growing by, and where it is losing people.' },
-          { key: 'institution_admin.admissions.rte_25_reservation_register', slug: 'rte_25_reservation_register', name: 'RTE 25% Reservation Register', scope: 'institution', tier: 'advanced', summary: 'Maintain the audit-ready RTE quota register with lottery results, verification and reimbursement claims.' },
+          { key: 'institution_admin.admissions.admissions_pipeline', slug: 'admissions_pipeline', name: 'Admissions Pipeline', scope: 'institution', tier: 'core', summary: 'Enquiries, applications and confirmed admissions for the coming session, and the conversion between them. Growth, and where it is being lost.' },
         ],
       },
       {
@@ -355,23 +347,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.statutory_returns.annual_government_return', slug: 'annual_government_return', name: 'Annual Government Return', scope: 'institution', tier: 'advanced', summary: 'The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it.' },
           { key: 'institution_admin.statutory_returns.working_days_teaching_hours', slug: 'working_days_teaching_hours', name: 'Working Days & Teaching Hours', scope: 'institution', tier: 'core', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
-        ],
-      },
-      {
-        slug: 'boards_accreditation',
-        name: 'Boards & Accreditation',
-        workspace: 'Administration',
-        features: [
-          { key: 'institution_admin.boards_accreditation.board_exam_registration', slug: 'board_exam_registration', name: 'Board Exam Registration', scope: 'institution', tier: 'core', summary: 'Candidates entered for the board exam, checked before the list closes. A name missing here is a child who cannot sit the paper.' },
-          { key: 'institution_admin.boards_accreditation.accreditation_status', slug: 'accreditation_status', name: 'Accreditation Status', scope: 'institution', tier: 'advanced', summary: 'Where the school stands against the accreditation framework, and which parts have nobody working on them.' },
-        ],
-      },
-      {
-        slug: 'mid_day_meal',
-        name: 'Mid-Day Meal',
-        workspace: 'Administration',
-        features: [
-          { key: 'institution_admin.mid_day_meal.mid_day_meal_utilisation', slug: 'mid_day_meal_utilisation', name: 'Mid-Day Meal Utilisation', scope: 'institution', tier: 'advanced', summary: 'Meals served against grain and money drawn. The reconciliation the principal is answerable for, not the daily register.' },
         ],
       },
       {

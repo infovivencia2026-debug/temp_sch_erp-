@@ -57,7 +57,7 @@ import { trackerKeys } from './super_admin/tracker-keys'
  * the client can actually render. Run `make catalog` after editing.
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
-  'institution_admin.students.student_directory_student_360': lazy(() => import('./shared/StudentProfile')),
+  'institution_admin.students.student_360': lazy(() => import('./shared/StudentProfile')),
   /* The principal's own way in to setting the school up.
      The wizard carried every form a new school needs -- academic year,
      classes, sections, subjects, the school day, staff, students, grading,
@@ -157,12 +157,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.enrollment_handoff': lazy(() => import('./admissions/Pipeline')),
   'admissions.reports.admission_conversion_reports': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_right_to_education_quota_tracking': lazy(() => import('./admissions/Pipeline')),
-  'institution_admin.admissions.new_admission_live_status': lazy(() => import('./admissions/Pipeline')),
+  'institution_admin.admissions.admissions_pipeline': lazy(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
   'institution_admin.students.academic_performance': lazy(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': lazy(() => import('./portal/Results')),
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
-  'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
@@ -178,7 +177,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.enquiries.utm_tracking_digital_campaign_attribution': lazy(() => import('./admissions/Funnel')),
   'admissions.enquiries.admissions_open_day_scheduler': lazy(() => import('./admissions/Funnel')),
   'admissions.enquiries.prospectus_kit_sales_log': lazy(() => import('./admissions/Funnel')),
-  'institution_admin.admissions.rte_25_reservation_register': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.admission_waitlist_management': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.sibling_priority_auto_matching': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.alumni_child_quota_allocation': lazy(() => import('./admissions/Funnel')),
@@ -228,7 +226,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      with different columns — so the school had two screens both called
      "report cards" showing different numbers for the same child, and no way
      to tell which one a parent had been sent. */
-  'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
   /* The four a principal opens weekly. Two existed under names describing
      the system rather than the question; two had no entry on this menu at
      all, so a principal could not see who was away or who was behind on fees
@@ -400,7 +397,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      corrections queue, the annual promotion, and the step that turns a fee
      structure into money owed. */
   'faculty.attendance.attendance_correction': lazy(() => import('./workflow/Corrections')),
-  'institution_admin.students.class_section_promotion': lazy(() => import('./lifecycle/Promotion')),
+  'institution_admin.students.class_promotion': lazy(() => import('./lifecycle/Promotion')),
   'finance.fee_structure.demand_invoice_generation': lazy(() => import('./finance/DemandGeneration')),
 
   // IT Administrator — the same screens super_admin uses, bounded to one

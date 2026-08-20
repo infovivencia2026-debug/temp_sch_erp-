@@ -20,7 +20,6 @@ import { lazy } from 'react'
  */
 export const adminOpsKeys = {
   'institution_admin.stores.purchase_order_workflow': lazy(() => import('./PurchaseOrders')),
-  'institution_admin.mid_day_meal.mid_day_meal_utilisation': lazy(() => import('./MDMUtilisation')),
   'institution_admin.evaluation.teacher_performance_review_360': lazy(
     () => import('./EvaluationOversight'),
   ),

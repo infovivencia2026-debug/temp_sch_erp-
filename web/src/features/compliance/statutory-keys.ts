@@ -21,12 +21,6 @@ import { lazy } from 'react'
  * overrides in whichever order the integrator happened to write.
  */
 export const statutoryKeys = {
-  'institution_admin.boards_accreditation.board_exam_registration': lazy(
-    () => import('./BoardLOC'),
-  ),
-  'institution_admin.boards_accreditation.accreditation_status': lazy(
-    () => import('./SQAACompliance'),
-  ),
   'institution_admin.statutory_returns.working_days_teaching_hours': lazy(
     () => import('./WorkingDays'),
   ),

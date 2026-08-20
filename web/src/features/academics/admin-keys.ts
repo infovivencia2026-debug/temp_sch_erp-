@@ -14,19 +14,4 @@ export const adminAcademicsKeys = {
     () => import('./SubstitutionBoard'),
   ),
 
-  'institution_admin.students.department_students': lazy(
-    () => import('../students/DepartmentStudents'),
-  ),
-  'institution_admin.students.disciplinary_incident_log': lazy(
-    () => import('../students/DisciplineLog'),
-  ),
-  'institution_admin.students.student_council_management': lazy(
-    () => import('../students/StudentCouncil'),
-  ),
-  'institution_admin.students.alumni_program_oversight': lazy(
-    () => import('../students/Alumni'),
-  ),
-  'institution_admin.students.certificates_document_templates': lazy(
-    () => import('../students/CertificateTemplates'),
-  ),
 }

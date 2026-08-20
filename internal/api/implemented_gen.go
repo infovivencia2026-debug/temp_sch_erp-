@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 390 of the catalog's features are implemented.
+// 379 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -181,15 +181,12 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.substitutions":                                      true,
 	"institution_admin.academics.syllabus_progress":                                  true,
 	"institution_admin.academics.teacher_assignment":                                 true,
-	"institution_admin.admissions.new_admission_live_status":                         true,
-	"institution_admin.admissions.rte_25_reservation_register":                       true,
+	"institution_admin.admissions.admissions_pipeline":                               true,
 	"institution_admin.analysis.custom_report_builder":                               true,
 	"institution_admin.analysis.department_reports":                                  true,
 	"institution_admin.analysis.performance_analytics":                               true,
 	"institution_admin.approvals.approvals":                                          true,
 	"institution_admin.approvals.approvals_center":                                   true,
-	"institution_admin.boards_accreditation.accreditation_status":                    true,
-	"institution_admin.boards_accreditation.board_exam_registration":                 true,
 	"institution_admin.communication.direct_messaging_chat_hub":                      true,
 	"institution_admin.communication.escalated_parent_grievances":                    true,
 	"institution_admin.communication.school_achievements_showcase":                   true,
@@ -229,7 +226,6 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.digital_library_usage":                                true,
 	"institution_admin.library.fine_penalty_summary":                                 true,
 	"institution_admin.library.new_session_textbook_orders":                          true,
-	"institution_admin.mid_day_meal.mid_day_meal_utilisation":                        true,
 	"institution_admin.staff.staff_leave_substitute_approval":                        true,
 	"institution_admin.standard.attendance_overview":                                 true,
 	"institution_admin.standard.fee_collection":                                      true,
@@ -240,16 +236,9 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.stores.item_category_store_setup":                             true,
 	"institution_admin.stores.purchase_order_workflow":                               true,
 	"institution_admin.students.academic_performance":                                true,
-	"institution_admin.students.alumni_program_oversight":                            true,
-	"institution_admin.students.certificates_document_templates":                     true,
-	"institution_admin.students.certificates_documents":                              true,
-	"institution_admin.students.class_section_promotion":                             true,
-	"institution_admin.students.department_students":                                 true,
-	"institution_admin.students.disciplinary_incident_log":                           true,
+	"institution_admin.students.class_promotion":                                     true,
 	"institution_admin.students.enrollment_lifecycle":                                true,
-	"institution_admin.students.student_council_management":                          true,
-	"institution_admin.students.student_directory":                                   true,
-	"institution_admin.students.student_directory_student_360":                       true,
+	"institution_admin.students.student_360":                                         true,
 	"institution_admin.transport.live_vehicle_tracking":                              true,
 	"librarian.library.accession_register":                                           true,
 	"librarian.library.barcode_spine_label_printing":                                 true,
