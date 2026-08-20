@@ -1038,7 +1038,15 @@ function StaffPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="staff"
           title="Or add all your staff from a sheet"
-          hint="Employee code and first name are required. Give an email and a role and they get a login too."
+          hint="Employee code and first name are required. Give an email and a role and they get a login too. Adding staff does not assign them — that is the section form above, or the sheet below."
+          onDone={onDone}
+        />
+      </div>
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="class_subjects"
+          title="Or assign every subject teacher from a sheet"
+          hint="Class, subject code, max marks and the teacher's email. The teacher is attached to that subject in every section of the class, which is what finishes this step for a whole school at once."
           onDone={onDone}
         />
       </div>
@@ -1067,6 +1075,8 @@ function Assignments({ onDone }: PanelProps) {
   })
   const [sectionID, setSectionID] = useState('')
   const section = sections?.items.find((s) => s.id === sectionID)
+  // What the step is actually measured on, shown where somebody can see it.
+  const assignedSections = (sections?.items ?? []).filter((x) => x.class_teacher).length
   const { data: subjects } = useQuery({
     queryKey: ['class-subjects', section?.class_id],
     queryFn: () =>
@@ -1108,10 +1118,30 @@ function Assignments({ onDone }: PanelProps) {
   return (
     <div className="mt-6 border-t pt-5">
       <p className="eyebrow mb-1">Assign them to a section</p>
-      <p className="mb-4 text-[14px] text-muted-foreground">
+      <p className="mb-3 text-[14px] text-muted-foreground">
         This is the step that grants access. Pick a section, name its class teacher, and put a
         teacher against each subject.
       </p>
+
+      {/* Why the step still says "not done yet" after a successful staff
+          import.
+
+          This step counts teachers who are *assigned*, not teachers who exist,
+          and the panel offered a staff importer whose success moved that
+          number not at all. Somebody uploads ten staff, sees "10 added", and
+          then reads "Not done yet" with nothing on the page connecting the
+          two. Saying it plainly costs one line. */}
+      <div className="mb-4 rounded-md border bg-muted/40 px-3 py-2.5 text-[13px]">
+        <b>{assignedSections} of {sections?.items.length ?? 0}</b> sections have a class
+        teacher.
+        {assignedSections === 0 && (teachers?.items.length ?? 0) > 0 && (
+          <>
+            {' '}You have <b>{teachers!.items.length}</b> staff on the roll and none of them
+            assigned yet — adding staff does not finish this step, assigning them does.
+          </>
+        )}
+        {(teachers?.items.length ?? 0) === 0 && ' Add your staff first, below.'}
+      </div>
 
       <Field label="Section">
         <Select

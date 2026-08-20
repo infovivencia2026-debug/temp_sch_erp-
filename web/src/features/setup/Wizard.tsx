@@ -221,7 +221,17 @@ export default function Wizard() {
                 </p>
               )}
             </div>
-            <div className="flex items-center justify-between border-t px-5 py-3">
+            {/* Skip on the left, Next on the right.
+                One button did both jobs and changed its label depending on
+                whether the step was finished, so the control that moves you
+                forward sat in a different place from one step to the next --
+                and on an unfinished step there was no way to go on at all
+                without pressing something that reads like giving up. They are
+                two buttons now, always in the same two places. */}
+            <div className="flex flex-wrap items-center gap-3 border-t px-5 py-3">
+              <Button variant="ghost" size="sm" onClick={advance}>
+                Skip for now
+              </Button>
               <span className="text-[13px] text-muted-foreground">
                 {current.done
                   ? current.count > 0
@@ -229,8 +239,13 @@ export default function Wizard() {
                     : 'Done'
                   : 'Not done yet'}
               </span>
-              <Button variant="secondary" size="sm" onClick={advance}>
-                {current.done ? 'Next step' : 'Skip for now'}
+              <Button
+                variant={current.done ? 'primary' : 'secondary'}
+                size="sm"
+                className="ml-auto"
+                onClick={advance}
+              >
+                Next step
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
