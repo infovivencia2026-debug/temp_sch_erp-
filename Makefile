@@ -129,7 +129,11 @@ deploy-server: ## Build and deploy ON the server from git (no local toolchain ne
 
 deploy-ui: ## Upload the SPA bundle
 	ssh $(HOST) 'mkdir -p $(WEBROOT)'
-	rsync -az --delete web/dist/ $(HOST):$(WEBROOT)/
+	@# --exclude, for the same reason build-on-server.sh carries one: /download
+	@# holds the signed Android APKs, which the web build does not produce and
+	@# --delete would therefore remove. Fixing only the other sync left this
+	@# one to keep deleting them, which is exactly what happened -- twice.
+	rsync -az --delete --exclude '/download/' web/dist/ $(HOST):$(WEBROOT)/
 
 logs: ## Tail remote logs
 	ssh $(HOST) 'journalctl -u $(SERVICE)-web -u $(SERVICE)-worker -f -n 50'
