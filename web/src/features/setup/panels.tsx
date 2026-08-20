@@ -1249,6 +1249,26 @@ function GradingPanel({ onDone }: PanelProps) {
     onDone,
   )
 
+  /* What the bands do not cover, said before the server refuses them.
+
+     The server rejects overlapping bands and names the two that clash, which
+     is right but arrives after a save. A gap is the quieter fault: 0-34 and
+     36-100 saves happily and then produces a child with 35% and no grade at
+     all on their report card. */
+  const gap = (() => {
+    if (bands.length < 2) return ''
+    const sorted = [...bands].sort((a, b) => a.min_percent - b.min_percent)
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].min_percent > sorted[i - 1].max_percent + 1) {
+        return `nothing covers ${sorted[i - 1].max_percent + 1}–${sorted[i].min_percent - 1}%`
+      }
+    }
+    if (sorted[0].min_percent > 0) return `nothing covers 0–${sorted[0].min_percent - 1}%`
+    if (sorted[sorted.length - 1].max_percent < 100)
+      return `nothing covers ${sorted[sorted.length - 1].max_percent + 1}–100%`
+    return ''
+  })()
+
   // The SSC ten-point scale. Grade points matter: the CGPA on a Telangana
   // memo is their average, not an average of percentages.
   const cce = () => {
@@ -1281,7 +1301,7 @@ function GradingPanel({ onDone }: PanelProps) {
       {bands.length > 0 && (
         <div className="mt-4 space-y-2">
           {bands.map((b, i) => (
-            <div key={i} className="grid grid-cols-[4rem_5rem_5rem_5rem] items-center gap-2 text-[14px]">
+            <div key={i} className="grid grid-cols-[4rem_5rem_5rem_5rem_auto] items-center gap-2 text-[14px]">
               <Input value={b.grade} onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade: x } : v)))} />
               <Input
                 value={String(b.min_percent)}
@@ -1295,11 +1315,50 @@ function GradingPanel({ onDone }: PanelProps) {
                 value={String(b.grade_point)}
                 onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade_point: Number(x) } : v)))}
               />
+              <button
+                type="button"
+                onClick={() => setBands(bands.filter((_, j) => j !== i))}
+                className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+                aria-label={`Remove the ${b.grade || 'blank'} band`}
+              >
+                remove
+              </button>
             </div>
           ))}
           <p className="text-[13px] text-muted-foreground">Grade · from % · to % · grade point</p>
         </div>
       )}
+
+      {/* A preset is a starting point, not the scale.
+          The eight CCE bands were the only rows there were, so a school with
+          an A+ at the top or an F at the bottom — or one running a five-band
+          scale of its own — could edit the labels and never change how many
+          there were. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // A new band starts below the lowest one, because that is where a
+            // school adding an F puts it, and pre-filling the numbers saves
+            // working out what is still uncovered.
+            const lowest = bands.length ? Math.min(...bands.map((b) => b.min_percent)) : 101
+            setBands([
+              ...bands,
+              { grade: '', min_percent: 0, max_percent: Math.max(lowest - 1, 0), grade_point: 0 },
+            ])
+          }}
+        >
+          + Another band
+        </Button>
+        {bands.length > 0 && (
+          <span className="text-[13px] text-muted-foreground">
+            {bands.length} {bands.length === 1 ? 'band' : 'bands'}
+            {gap && <span className="text-destructive"> · {gap}</span>}
+          </span>
+        )}
+      </div>
+
       <SaveRow pending={save.isPending} error={save.error} label="Save grading scale" />
     </form>
   )
