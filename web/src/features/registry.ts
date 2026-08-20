@@ -198,7 +198,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
 
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
-  'institution_admin.statutory_returns.annual_government_return': lazy(() => import('./compliance/UDISE')),
+  'institution_admin.statutory_returns.govt_returns': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.udise_data_sync': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.apaar_id_provisioning': lazy(() => import('./compliance/UDISE')),
   'hr.payroll.payroll': lazy(() => import('./payroll/Payroll')),
@@ -230,10 +230,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the system rather than the question; two had no entry on this menu at
      all, so a principal could not see who was away or who was behind on fees
      without borrowing HR's or the accountant's screen. */
-  'institution_admin.staff.staff_leave_substitute_approval': lazy(() => import('./workflow/Approvals')),
+  'institution_admin.staff.leaves_subs': lazy(() => import('./workflow/Approvals')),
   'institution_admin.fees.fee_default': lazy(() => import('./finance/Defaulters')),
-  'institution_admin.communication.direct_messaging_chat_hub': lazy(() => import('./comms/StaffMessages')),
-  'institution_admin.communication.school_wide_circulars_notices': lazy(() => import('./comms/Circulars')),
+  'institution_admin.communication.messages': lazy(() => import('./comms/StaffMessages')),
+  'institution_admin.communication.circulars': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.
   'faculty.home.my_day': lazy(() => import('./faculty/MyWork')),

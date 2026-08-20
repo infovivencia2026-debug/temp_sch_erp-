@@ -317,7 +317,7 @@ export const ROLES: Role[] = [
         name: 'Evaluation',
         workspace: 'Staff',
         features: [
-          { key: 'institution_admin.evaluation.teacher_performance_review_360', slug: 'teacher_performance_review_360', name: 'Teacher Performance Review (360°)', scope: 'institution', tier: 'core', summary: 'Peer reviews, student feedback and the principal\'s own assessment on one record, which is what an annual appraisal is written from.' },
+          { key: 'institution_admin.evaluation.appraisals', slug: 'appraisals', name: 'Appraisals', scope: 'institution', tier: 'core', summary: 'Peer reviews, student feedback and the principal\'s own assessment on one record, which is what an annual appraisal is written from.' },
         ],
       },
       {
@@ -334,10 +334,10 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'institution_admin.communication.escalated_parent_grievances', slug: 'escalated_parent_grievances', name: 'Escalated Parent Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
+          { key: 'institution_admin.communication.grievances', slug: 'grievances', name: 'Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
-          { key: 'institution_admin.communication.school_wide_circulars_notices', slug: 'school_wide_circulars_notices', name: 'School-Wide Circulars & Notices', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
-          { key: 'institution_admin.communication.direct_messaging_chat_hub', slug: 'direct_messaging_chat_hub', name: 'Direct Messaging & Chat Hub', scope: 'institution', tier: 'core', summary: 'A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
+          { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
+          { key: 'institution_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
         ],
       },
       {
@@ -345,8 +345,8 @@ export const ROLES: Role[] = [
         name: 'Statutory Returns',
         workspace: 'Administration',
         features: [
-          { key: 'institution_admin.statutory_returns.annual_government_return', slug: 'annual_government_return', name: 'Annual Government Return', scope: 'institution', tier: 'advanced', summary: 'The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it.' },
-          { key: 'institution_admin.statutory_returns.working_days_teaching_hours', slug: 'working_days_teaching_hours', name: 'Working Days & Teaching Hours', scope: 'institution', tier: 'core', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
+          { key: 'institution_admin.statutory_returns.govt_returns', slug: 'govt_returns', name: 'Govt Returns', scope: 'institution', tier: 'advanced', summary: 'The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it.' },
+          { key: 'institution_admin.statutory_returns.instruction_hours', slug: 'instruction_hours', name: 'Instruction Hours', scope: 'institution', tier: 'core', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
         ],
       },
       {
@@ -427,7 +427,7 @@ export const ROLES: Role[] = [
         name: 'Staff',
         workspace: 'Staff',
         features: [
-          { key: 'institution_admin.staff.staff_leave_substitute_approval', slug: 'staff_leave_substitute_approval', name: 'Staff Leave & Substitute Approval', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
+          { key: 'institution_admin.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
         ],
       },
     ],
@@ -462,7 +462,7 @@ export const ROLES: Role[] = [
         workspace: 'Staff',
         features: [
           { key: 'hod.staff.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'department', tier: 'core', summary: 'Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen.' },
-          { key: 'hod.staff.staff_leave_substitute_approval', slug: 'staff_leave_substitute_approval', name: 'Staff Leave & Substitute Approval', scope: 'department', tier: 'core', summary: 'Leave requested by your own department\'s staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it.' },
+          { key: 'hod.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'department', tier: 'core', summary: 'Leave requested by your own department\'s staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it.' },
         ],
       },
       {

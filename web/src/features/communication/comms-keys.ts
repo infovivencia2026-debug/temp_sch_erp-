@@ -21,7 +21,7 @@ import { lazy } from 'react'
  * whichever order the integrator happened to write.
  */
 export const commsKeys = {
-  'institution_admin.communication.escalated_parent_grievances': lazy(
+  'institution_admin.communication.grievances': lazy(
     () => import('./GrievanceHub'),
   ),
   'institution_admin.communication.school_achievements_showcase': lazy(

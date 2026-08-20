@@ -364,7 +364,7 @@ var Roles = []Role{
 				Name: "Evaluation",
 				Workspace: "Staff",
 				Features: []Feature{
-					{Key: "institution_admin.evaluation.teacher_performance_review_360", Slug: "teacher_performance_review_360", Name: "Teacher Performance Review (360°)", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Peer reviews, student feedback and the principal's own assessment on one record, which is what an annual appraisal is written from."},
+					{Key: "institution_admin.evaluation.appraisals", Slug: "appraisals", Name: "Appraisals", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Peer reviews, student feedback and the principal's own assessment on one record, which is what an annual appraisal is written from."},
 				},
 			},
 			{
@@ -381,10 +381,10 @@ var Roles = []Role{
 				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
-					{Key: "institution_admin.communication.escalated_parent_grievances", Slug: "escalated_parent_grievances", Name: "Escalated Parent Grievances", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them."},
+					{Key: "institution_admin.communication.grievances", Slug: "grievances", Name: "Grievances", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them."},
 					{Key: "institution_admin.communication.school_achievements_showcase", Slug: "school_achievements_showcase", Name: "School Achievements Showcase", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Log awards, sports victories, academic honors, and publish them to parent/student portals."},
-					{Key: "institution_admin.communication.school_wide_circulars_notices", Slug: "school_wide_circulars_notices", Name: "School-Wide Circulars & Notices", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
-					{Key: "institution_admin.communication.direct_messaging_chat_hub", Slug: "direct_messaging_chat_hub", Name: "Direct Messaging & Chat Hub", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before."},
+					{Key: "institution_admin.communication.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
+					{Key: "institution_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before."},
 				},
 			},
 			{
@@ -392,8 +392,8 @@ var Roles = []Role{
 				Name: "Statutory Returns",
 				Workspace: "Administration",
 				Features: []Feature{
-					{Key: "institution_admin.statutory_returns.annual_government_return", Slug: "annual_government_return", Name: "Annual Government Return", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it."},
-					{Key: "institution_admin.statutory_returns.working_days_teaching_hours", Slug: "working_days_teaching_hours", Name: "Working Days & Teaching Hours", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
+					{Key: "institution_admin.statutory_returns.govt_returns", Slug: "govt_returns", Name: "Govt Returns", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it."},
+					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
 				},
 			},
 			{
@@ -474,7 +474,7 @@ var Roles = []Role{
 				Name: "Staff",
 				Workspace: "Staff",
 				Features: []Feature{
-					{Key: "institution_admin.staff.staff_leave_substitute_approval", Slug: "staff_leave_substitute_approval", Name: "Staff Leave & Substitute Approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
+					{Key: "institution_admin.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
 				},
 			},
 		},
@@ -509,7 +509,7 @@ var Roles = []Role{
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
-					{Key: "hod.staff.staff_leave_substitute_approval", Slug: "staff_leave_substitute_approval", Name: "Staff Leave & Substitute Approval", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by your own department's staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it."},
+					{Key: "hod.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by your own department's staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it."},
 				},
 			},
 			{

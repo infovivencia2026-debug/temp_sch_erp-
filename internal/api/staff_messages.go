@@ -214,7 +214,7 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 		}
 		return notify(r, tx, id.InstitutionID, other, nil, "staff_message",
 			"Message from "+from, body,
-			"/institution_admin/communication/direct_messaging_chat_hub",
+			"/institution_admin/communication/messages",
 			"staff_message", &newID)
 	})
 	switch {
