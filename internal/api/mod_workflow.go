@@ -348,6 +348,10 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 	out := []approvalItem{}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if id.Can("hr.leave.approve") || id.Can("access.users.write") {
+			/* Whoever runs the school rather than one department: the
+			   principal, HR and the office. A HOD holds leave approval and
+			   not these, which is what separates the two lists. */
+			schoolWide := id.Can(rbac.EmployeesWrite) || id.Can(rbac.UsersWrite)
 			if err := scanInto(r.Context(), tx, `
 				SELECT lr.id::text,
 				       -- NULLIF matters: concat_ws returns '' (not NULL) when all
@@ -367,7 +371,32 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
 				  LEFT JOIN users u ON u.id = lr.applied_by
 				 WHERE lr.status = 'pending'
-				 ORDER BY lr.created_at`,
+				   /* A head of department sees their own department; anybody
+				      who runs the school sees all of it.
+
+				      Every approver saw every request, so a HOD of six people
+				      read the whole school's leave to find the two rows that
+				      were theirs — and the principal and the HOD were looking
+				      at the same undifferentiated list.
+
+				      Either may approve, and the first to do so decides it.
+				      A two-step gate would be tidier on a diagram and wrong
+				      in practice: plenty of schools have no HOD at all, and a
+				      request that must pass a desk nobody sits at never gets
+				      approved. Long leave is flagged for the principal rather
+				      than held for them.
+
+				      A staff member with no department, and every student
+				      request, stays visible to whoever can approve at all —
+				      the narrowing must not make a request invisible to
+				      everybody. */
+				   AND ($1::bool
+				        OR lr.subject_kind <> 'staff'
+				        OR e.department_id IS NULL
+				        OR EXISTS (SELECT 1 FROM departments d
+				                    WHERE d.id = e.department_id
+				                      AND d.head_user_id = $2))
+				 ORDER BY lr.days DESC, lr.created_at`,
 				func(rows pgx.Rows) error {
 					var lid, who, kind, span, reason, raised string
 					var by *string
@@ -382,7 +411,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 						DecideURL: "/api/v1/workflow/leave/" + lid + "/decide",
 					})
 					return nil
-				}); err != nil {
+				}, schoolWide, id.UserID); err != nil {
 				return err
 			}
 		}

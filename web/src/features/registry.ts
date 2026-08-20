@@ -105,12 +105,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.home.executive_kpis': lazy(() => import('./principal/Dashboard')),
   'institution_admin.home.needs_attention': lazy(() => import('./principal/Dashboard')),
   'institution_admin.academics.attendance_monitoring': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.standard.student_staff_attendance_overview': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.directory_workload.staff_allocation_workload': lazy(() => import('./principal/StaffWorkload')),
+  'institution_admin.standard.attendance_overview': lazy(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.academics.timetable': lazy(() => import('./shared/Timetable')),
   'institution_admin.home.department_kpis': lazy(() => import('./hod/Department')),
   'institution_admin.directory_workload.faculty_directory': lazy(() => import('./hod/Department')),
-  'institution_admin.directory_workload.faculty_allocation_workload': lazy(() => import('./hod/Department')),
+  'institution_admin.directory_workload.teacher_workload_timetable_overview': lazy(() => import('./hod/Department')),
   'faculty.home.todays_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.home.my_work': lazy(() => import('./faculty/MyWork')),
 
@@ -162,14 +161,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.enrollment_handoff': lazy(() => import('./admissions/Pipeline')),
   'admissions.reports.admission_conversion_reports': lazy(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_right_to_education_quota_tracking': lazy(() => import('./admissions/Pipeline')),
-  'institution_admin.admissions.admissions_overview': lazy(() => import('./admissions/Pipeline')),
+  'institution_admin.admissions.new_admission_live_status': lazy(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
   'institution_admin.examinations.exams_result_status': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.standard.academic_performance_result_trends': lazy(() => import('./exams/ReportCards')),
+  'institution_admin.standard.academic_performance': lazy(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': lazy(() => import('./portal/Results')),
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
   'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
-  'institution_admin.communication.communication': lazy(() => import('./comms/Circulars')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
@@ -239,8 +237,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      to tell which one a parent had been sent. */
   'institution_admin.examinations.report_cards': lazy(() => import('./exams/ReportCards')),
   'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
-  'institution_admin.directory_workload.faculty_directory_workload': lazy(() => import('./principal/StaffWorkload')),
-  'institution_admin.communication.circulars_announcements': lazy(() => import('./comms/Circulars')),
+  /* The four a principal opens weekly. Two existed under names describing
+     the system rather than the question; two had no entry on this menu at
+     all, so a principal could not see who was away or who was behind on fees
+     without borrowing HR's or the accountant's screen. */
+  'institution_admin.staff.staff_leave_substitute_approval': lazy(() => import('./workflow/Approvals')),
+  'institution_admin.fees.fee_default': lazy(() => import('./finance/Defaulters')),
+  'institution_admin.communication.school_wide_circulars_notices': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.
   'faculty.home.my_day': lazy(() => import('./faculty/MyWork')),

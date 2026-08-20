@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 444 features.
+// Roles is the catalog: 12 roles, 442 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -318,7 +318,7 @@ var Roles = []Role{
 				Name: "Admissions",
 				Workspace: "Students",
 				Features: []Feature{
-					{Key: "institution_admin.admissions.admissions_overview", Slug: "admissions_overview", Name: "Admissions overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monitor enquiries/applications, admitted students and enrollment conversion."},
+					{Key: "institution_admin.admissions.new_admission_live_status", Slug: "new_admission_live_status", Name: "New Admission Live Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries, applications and confirmed admissions for the coming session, with the conversion between them. What the school is growing by, and where it is losing people."},
 					{Key: "institution_admin.admissions.rte_25_reservation_register", Slug: "rte_25_reservation_register", Name: "RTE 25% Reservation Register", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Maintain the audit-ready RTE quota register with lottery results, verification and reimbursement claims."},
 				},
 			},
@@ -367,8 +367,8 @@ var Roles = []Role{
 				Name: "Fees",
 				Workspace: "Finance",
 				Features: []Feature{
-					{Key: "institution_admin.fees.fee_overview", Slug: "fee_overview", Name: "Fee overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collection, outstanding, defaulters, discounts/scholarships summary; detailed accounting stays with Finance."},
-					{Key: "institution_admin.fees.fee_regulatory_committee_filing", Slug: "fee_regulatory_committee_filing", Name: "Fee Regulatory Committee Filing", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Prepare the fee structure justification and supporting accounts required by the state fee regulator."},
+					{Key: "institution_admin.fees.fee_dashboard", Slug: "fee_dashboard", Name: "Fee Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting."},
+					{Key: "institution_admin.fees.fee_default", Slug: "fee_default", Name: "Fee Default", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is behind, by how much and for how long, grouped by class. The accountant works the counter; this is the list a principal takes into a parent meeting."},
 				},
 			},
 			{
@@ -376,10 +376,8 @@ var Roles = []Role{
 				Name: "Directory & Workload",
 				Workspace: "Staff",
 				Features: []Feature{
-					{Key: "institution_admin.directory_workload.staff_allocation_workload", Slug: "staff_allocation_workload", Name: "Staff Allocation & Workload", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View teacher period allocations, weekly teaching load, and balance faculty workloads."},
 					{Key: "institution_admin.directory_workload.faculty_directory", Slug: "faculty_directory", Name: "Faculty directory", Scope: Scope("department"), Tier: Tier("core"), Summary: "Department faculty with assigned subjects, timetable, attendance and workload."},
-					{Key: "institution_admin.directory_workload.faculty_allocation_workload", Slug: "faculty_allocation_workload", Name: "Faculty allocation & workload", Scope: Scope("department"), Tier: Tier("core"), Summary: "Allocate subjects/classes and balance teaching load; identify overload and gaps."},
-					{Key: "institution_admin.directory_workload.faculty_directory_workload", Slug: "faculty_directory_workload", Name: "Faculty directory & workload", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Teaching staff, their allocations and how loaded each one is."},
+					{Key: "institution_admin.directory_workload.teacher_workload_timetable_overview", Slug: "teacher_workload_timetable_overview", Name: "Teacher Workload & Timetable Overview", Scope: Scope("department"), Tier: Tier("core"), Summary: "Weekly periods per teacher across every class, so an overloaded teacher and an underused one are both visible before the timetable is set for a term."},
 				},
 			},
 			{
@@ -387,7 +385,7 @@ var Roles = []Role{
 				Name: "Evaluation",
 				Workspace: "Staff",
 				Features: []Feature{
-					{Key: "institution_admin.evaluation.360_evaluation_oversight", Slug: "360_evaluation_oversight", Name: "360 Evaluation Oversight", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monitor teacher peer reviews, principal observations, and parent feedback ratings."},
+					{Key: "institution_admin.evaluation.teacher_performance_review_360", Slug: "teacher_performance_review_360", Name: "Teacher Performance Review (360°)", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Peer reviews, student feedback and the principal's own assessment on one record, which is what an annual appraisal is written from."},
 				},
 			},
 			{
@@ -404,10 +402,9 @@ var Roles = []Role{
 				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
-					{Key: "institution_admin.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Publish announcements/circulars to targeted students, parents and staff."},
-					{Key: "institution_admin.communication.parent_feedback_grievance_hub", Slug: "parent_feedback_grievance_hub", Name: "Parent Feedback & Grievance Hub", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Review escalated parent complaints, assign resolution owners, and track resolution SLA."},
+					{Key: "institution_admin.communication.escalated_parent_grievances", Slug: "escalated_parent_grievances", Name: "Escalated Parent Grievances", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them."},
 					{Key: "institution_admin.communication.school_achievements_showcase", Slug: "school_achievements_showcase", Name: "School Achievements Showcase", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Log awards, sports victories, academic honors, and publish them to parent/student portals."},
-					{Key: "institution_admin.communication.circulars_announcements", Slug: "circulars_announcements", Name: "Circulars & announcements", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Notices to sections, parents or the whole school, with read acknowledgement."},
+					{Key: "institution_admin.communication.school_wide_circulars_notices", Slug: "school_wide_circulars_notices", Name: "School-Wide Circulars & Notices", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
 				},
 			},
 			{
@@ -447,9 +444,9 @@ var Roles = []Role{
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
-					{Key: "institution_admin.standard.student_staff_attendance_overview", Slug: "student_staff_attendance_overview", Name: "Student & Staff Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
-					{Key: "institution_admin.standard.academic_performance_result_trends", Slug: "academic_performance_result_trends", Name: "Academic Performance & Result Trends", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
-					{Key: "institution_admin.standard.fee_collection_revenue_status", Slug: "fee_collection_revenue_status", Name: "Fee Collection & Revenue Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
+					{Key: "institution_admin.standard.attendance_overview", Slug: "attendance_overview", Name: "Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
+					{Key: "institution_admin.standard.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
+					{Key: "institution_admin.standard.fee_collection", Slug: "fee_collection", Name: "Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
 				},
 			},
 			{
@@ -515,6 +512,14 @@ var Roles = []Role{
 					{Key: "institution_admin.stores.department_stock_issuance", Slug: "department_stock_issuance", Name: "Department Stock Issuance", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Issue stock items to specific teachers or departments and track active stock balances."},
 				},
 			},
+			{
+				Slug: "staff",
+				Name: "Staff",
+				Workspace: "Staff",
+				Features: []Feature{
+					{Key: "institution_admin.staff.staff_leave_substitute_approval", Slug: "staff_leave_substitute_approval", Name: "Staff Leave & Substitute Approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
+				},
+			},
 		},
 	},
 	{
@@ -547,7 +552,7 @@ var Roles = []Role{
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
-					{Key: "hod.staff.leave_approvals", Slug: "leave_approvals", Name: "Leave approvals", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by the department's staff, with the periods it would leave uncovered shown next to it."},
+					{Key: "hod.staff.staff_leave_substitute_approval", Slug: "staff_leave_substitute_approval", Name: "Staff Leave & Substitute Approval", Scope: Scope("department"), Tier: Tier("core"), Summary: "Leave requested by your own department's staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it."},
 				},
 			},
 			{

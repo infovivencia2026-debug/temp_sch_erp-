@@ -133,6 +133,14 @@ export default function ReportCards() {
         description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the family."
         actions={
           <>
+            {/* The search leads, because finding one child is what this screen
+                is opened for far more often than rebuilding thirty cards. */}
+            <Input
+              value={find}
+              onChange={setFind}
+              placeholder="Search roll no, name or admission no"
+              className="w-64"
+            />
             <Select value={sectionId} onChange={setSectionId} placeholder="Section"
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
@@ -145,7 +153,7 @@ export default function ReportCards() {
                 value: e.id, label: `${e.name} (${e.papers} papers)`,
               }))}
             />
-            <Button disabled={!sectionId || !examId || generate.isPending}
+            <Button variant="secondary" disabled={!sectionId || !examId || generate.isPending}
               onClick={() => generate.mutate(false)}>
               {generate.isPending ? 'Generating…' : 'Generate'}
             </Button>
@@ -225,14 +233,6 @@ export default function ReportCards() {
                 ? `${rows.length} matching "${find.trim()}". Open a row for the subject breakdown.`
                 : 'Roll order. Open a row for the subject breakdown.'
             }
-            action={
-              <Input
-                value={find}
-                onChange={setFind}
-                placeholder="Roll no, name or admission no"
-                className="w-60"
-              />
-            }
           />
           {cards.isLoading ? <Loading /> : cards.error ? <ErrorState error={cards.error} /> : (
             <Table
@@ -273,7 +273,7 @@ export default function ReportCards() {
                         variant="ghost"
                         onClick={() => setOpen(open === r.student_id ? null : r.student_id)}
                       >
-                        {open === r.student_id ? 'Close' : 'Subjects'}
+                        {open === r.student_id ? 'Close' : 'Open'}
                       </Button>
                     </Td>
                   </tr>
