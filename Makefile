@@ -125,15 +125,11 @@ deploy-server: ## Build and deploy ON the server from git (no local toolchain ne
 	@# restart. The only local requirement is ssh, which is the point --
 	@# cross-compiling meant whoever deployed also had to carry a Go toolchain
 	@# and whatever was in their working tree.
-	ssh $(HOST) 'BRANCH=$(or $(BRANCH),operational-erp) bash -s' < scripts/build-on-server.sh
+	ssh $(HOST) 'BRANCH=$(or $(BRANCH),main) bash -s' < scripts/build-on-server.sh
 
 deploy-ui: ## Upload the SPA bundle
 	ssh $(HOST) 'mkdir -p $(WEBROOT)'
-	@# --exclude, for the same reason build-on-server.sh carries one: /download
-	@# holds the signed Android APKs, which the web build does not produce and
-	@# --delete would therefore remove. Fixing only the other sync left this
-	@# one to keep deleting them, which is exactly what happened -- twice.
-	rsync -az --delete --exclude '/download/' web/dist/ $(HOST):$(WEBROOT)/
+	rsync -az --delete web/dist/ $(HOST):$(WEBROOT)/
 
 logs: ## Tail remote logs
 	ssh $(HOST) 'journalctl -u $(SERVICE)-web -u $(SERVICE)-worker -f -n 50'
