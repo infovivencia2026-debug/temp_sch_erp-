@@ -71,7 +71,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      still point at the same screen, because somebody returning to change one
      step will look for it where they last saw it. */
   'institution_admin.getting_started.school_setup': lazy(() => import('./setup/Wizard')),
-  'institution_admin.academics.academic_structure': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.academic_year_defaults': lazy(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': lazy(() => import('./setup/ImportStudents')),
@@ -104,9 +103,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'institution_admin.home.executive_kpis': lazy(() => import('./principal/Dashboard')),
   'institution_admin.home.needs_attention': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.academics.attendance_monitoring': lazy(() => import('./principal/AttendanceMonitoring')),
+  'institution_admin.academics.attendance_audit': lazy(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.standard.attendance_overview': lazy(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.academics.timetable': lazy(() => import('./shared/Timetable')),
   'institution_admin.home.department_kpis': lazy(() => import('./hod/Department')),
   'institution_admin.directory_workload.faculty_directory': lazy(() => import('./hod/Department')),
   'institution_admin.directory_workload.teacher_workload_timetable_overview': lazy(() => import('./hod/Department')),
@@ -121,9 +119,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
      the plans that deliver them, and the percentage that follows; three
      screens would each show a third of an answer. */
-  'institution_admin.academics.subject_chapter_planner': lazy(() => import('./academics/Syllabus')),
-  'institution_admin.academics.lesson_plan_approval_queue': lazy(() => import('./academics/Syllabus')),
-  'institution_admin.academics.syllabus_coverage_tracking': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.curriculum_roadmap': lazy(() => import('./academics/Syllabus')),
+  'institution_admin.academics.lesson_plans': lazy(() => import('./academics/Syllabus')),
   'institution_admin.academics.syllabus_progress': lazy(() => import('./academics/Syllabus')),
   'faculty.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
 
@@ -227,8 +224,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Vice Principal / Academic Coordinator — runs teaching and learning.
   'institution_admin.home.academic_kpis': lazy(() => import('./principal/Dashboard')),
-  'institution_admin.academics.classes_sections': lazy(() => import('./setup/Wizard')),
-  'institution_admin.academics.teacher_allocation': lazy(() => import('./principal/StaffWorkload')),
+  'institution_admin.academics.class_setup': lazy(() => import('./setup/Wizard')),
+  'institution_admin.academics.teacher_assignment': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
   /* The principal's report card is the class teacher's report card.
      It pointed at HolisticCard — the NEP progress card, a different document
@@ -406,7 +403,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Each of these was a working handler the product could not reach: the
      corrections queue, the annual promotion, and the step that turns a fee
      structure into money owed. */
-  'institution_admin.academics.attendance_corrections': lazy(() => import('./workflow/Corrections')),
   'faculty.attendance.attendance_correction': lazy(() => import('./workflow/Corrections')),
   'institution_admin.students.class_section_promotion': lazy(() => import('./lifecycle/Promotion')),
   'finance.fee_structure.demand_invoice_generation': lazy(() => import('./finance/DemandGeneration')),

@@ -9,16 +9,10 @@ import { lazy } from 'react'
    catalogue lacks renders the honest placeholder instead of the screen, which
    is a silent way to lose a feature that looks finished from the code. */
 export const adminAcademicsKeys = {
-  'institution_admin.academics.academic_calendar': lazy(() => import('./AcademicCalendar')),
-  'institution_admin.academics.exams_marks_monitoring': lazy(() => import('./ExamMonitoring')),
-  'institution_admin.academics.faculty_allocation': lazy(() => import('./FacultyAllocation')),
-  'institution_admin.academics.language_subject_allocation': lazy(
-    () => import('../faculty/LanguageAllocation'),
-  ),
-  'institution_admin.academics.faculty_substitution_engine': lazy(
+  'institution_admin.academics.school_calendar': lazy(() => import('./AcademicCalendar')),
+  'institution_admin.academics.substitutions': lazy(
     () => import('./SubstitutionBoard'),
   ),
-  'institution_admin.academics.obe_outcomes': lazy(() => import('./Outcomes')),
 
   'institution_admin.students.department_students': lazy(
     () => import('../students/DepartmentStudents'),

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 442 features.
+// Roles is the catalog: 12 roles, 434 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -327,23 +327,15 @@ var Roles = []Role{
 				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
-					{Key: "institution_admin.academics.academic_structure", Slug: "academic_structure", Name: "Academic structure", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Programs/classes, departments, subjects/courses, batches/sections, years/terms and rooms."},
-					{Key: "institution_admin.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Assign faculty to subject/class and review unassigned subjects."},
-					{Key: "institution_admin.academics.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View/manage class, faculty and room timetable; resolve conflicts and substitutions."},
-					{Key: "institution_admin.academics.master_timetable_generation", Slug: "master_timetable_generation", Name: "Master Timetable Generation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Auto-generate clash-free class/faculty timetables with room and subject constraints."},
-					{Key: "institution_admin.academics.faculty_substitution_engine", Slug: "faculty_substitution_engine", Name: "Faculty Substitution Engine", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View absent teachers and assign available proxy teachers based on free periods and expertise."},
-					{Key: "institution_admin.academics.academic_calendar", Slug: "academic_calendar", Name: "Academic calendar", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Manage holidays, teaching days, exams, PTMs and institutional events."},
-					{Key: "institution_admin.academics.subject_chapter_planner", Slug: "subject_chapter_planner", Name: "Subject & Chapter Planner", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Define master subject structures, chapters, learning outcomes, and target completion dates."},
-					{Key: "institution_admin.academics.lesson_plan_approval_queue", Slug: "lesson_plan_approval_queue", Name: "Lesson Plan Approval Queue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Review, comment, approve, or reject daily/weekly lesson plans submitted by faculty."},
-					{Key: "institution_admin.academics.syllabus_coverage_tracking", Slug: "syllabus_coverage_tracking", Name: "Syllabus Coverage Tracking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monitor real-time percentage completion of syllabus against academic calendar deadlines."},
-					{Key: "institution_admin.academics.attendance_monitoring", Slug: "attendance_monitoring", Name: "Attendance monitoring", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Institution/class/department attendance, absent list, shortage list and trends."},
-					{Key: "institution_admin.academics.attendance_corrections", Slug: "attendance_corrections", Name: "Attendance corrections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Review correction requests according to workflow."},
-					{Key: "institution_admin.academics.exams_marks_monitoring", Slug: "exams_marks_monitoring", Name: "Exams & marks monitoring", Scope: Scope("department"), Tier: Tier("core"), Summary: "Track marks-entry completion, review/approve internal marks where workflow requires, results and backlogs."},
-					{Key: "institution_admin.academics.obe_outcomes", Slug: "obe_outcomes", Name: "OBE / outcomes", Scope: Scope("department"), Tier: Tier("core"), Summary: "CO/PO mapping, attainment and gap analysis when enabled for higher education."},
-					{Key: "institution_admin.academics.classes_sections", Slug: "classes_sections", Name: "Classes & sections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The academic structure: classes, sections, subjects and which teacher takes what."},
-					{Key: "institution_admin.academics.teacher_allocation", Slug: "teacher_allocation", Name: "Teacher allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, and the workload that adds up to."},
-					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Chapter-level coverage per subject and section against the plan."},
-					{Key: "institution_admin.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, for one student or for a whole class at once. A teacher was choosing this; it decides how sections are grouped, so it belongs to whoever groups them."},
+					{Key: "institution_admin.academics.master_timetable", Slug: "master_timetable", Name: "Master Timetable", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The whole school's week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty."},
+					{Key: "institution_admin.academics.substitutions", Slug: "substitutions", Name: "Substitutions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is away today, which periods that leaves uncovered, and who has been put in front of each of them."},
+					{Key: "institution_admin.academics.school_calendar", Slug: "school_calendar", Name: "School Calendar", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Terms, holidays, exams, sports day and parent meetings. The year the school works to, which the principal signs off before it starts."},
+					{Key: "institution_admin.academics.curriculum_roadmap", Slug: "curriculum_roadmap", Name: "Curriculum Roadmap", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Approved once a year and taught from all of it."},
+					{Key: "institution_admin.academics.lesson_plans", Slug: "lesson_plans", Name: "Lesson Plans", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed."},
+					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus Progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam."},
+					{Key: "institution_admin.academics.attendance_audit", Slug: "attendance_audit", Name: "Attendance Audit", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact."},
+					{Key: "institution_admin.academics.class_setup", Slug: "class_setup", Name: "Class Setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it."},
+					{Key: "institution_admin.academics.teacher_assignment", Slug: "teacher_assignment", Name: "Teacher Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which teacher takes which subject in which class, reviewed and signed off before the timetable is built on top of it."},
 				},
 			},
 			{

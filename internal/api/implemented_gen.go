@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 408 of the catalog's features are implemented.
+// 400 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -172,23 +172,15 @@ var implementedFeatures = map[string]bool{
 	"hr.welfare.staff_birthday_anniversary_alerts":                                   true,
 	"hr.welfare.staff_grievance_cell":                                                true,
 	"hr.welfare.staff_recognition_wall":                                              true,
-	"institution_admin.academics.academic_calendar":                                  true,
-	"institution_admin.academics.academic_structure":                                 true,
-	"institution_admin.academics.attendance_corrections":                             true,
-	"institution_admin.academics.attendance_monitoring":                              true,
-	"institution_admin.academics.classes_sections":                                   true,
-	"institution_admin.academics.exams_marks_monitoring":                             true,
-	"institution_admin.academics.faculty_allocation":                                 true,
-	"institution_admin.academics.faculty_substitution_engine":                        true,
-	"institution_admin.academics.language_subject_allocation":                        true,
-	"institution_admin.academics.lesson_plan_approval_queue":                         true,
-	"institution_admin.academics.master_timetable_generation":                        true,
-	"institution_admin.academics.obe_outcomes":                                       true,
-	"institution_admin.academics.subject_chapter_planner":                            true,
-	"institution_admin.academics.syllabus_coverage_tracking":                         true,
+	"institution_admin.academics.attendance_audit":                                   true,
+	"institution_admin.academics.class_setup":                                        true,
+	"institution_admin.academics.curriculum_roadmap":                                 true,
+	"institution_admin.academics.lesson_plans":                                       true,
+	"institution_admin.academics.master_timetable":                                   true,
+	"institution_admin.academics.school_calendar":                                    true,
+	"institution_admin.academics.substitutions":                                      true,
 	"institution_admin.academics.syllabus_progress":                                  true,
-	"institution_admin.academics.teacher_allocation":                                 true,
-	"institution_admin.academics.timetable":                                          true,
+	"institution_admin.academics.teacher_assignment":                                 true,
 	"institution_admin.admissions.new_admission_live_status":                         true,
 	"institution_admin.admissions.rte_25_reservation_register":                       true,
 	"institution_admin.analysis.custom_report_builder":                               true,

@@ -19,7 +19,7 @@ import { lazy } from 'react'
  * publish endpoint, and neither reimplements any of it.
  */
 export const masterTimetableKeys = {
-  'institution_admin.academics.master_timetable_generation': lazy(
+  'institution_admin.academics.master_timetable': lazy(
     () => import('./MasterTimetable'),
   ),
 }
