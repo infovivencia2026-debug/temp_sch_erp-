@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2,
+  Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2, Minimize2,
 } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
@@ -859,7 +859,12 @@ function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
     <table className="w-full text-[12.5px]">
       <thead className="sticky top-0 bg-muted">
         <tr>
-          <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
+          {/* Fixed and unwrapped. The column was sized by its content, so a
+              two-digit row number broke across two lines and every row after
+              row nine was twice as tall as the ones above it. */}
+          <th className="w-10 whitespace-nowrap px-2 py-1.5 text-right font-medium text-muted-foreground">
+            #
+          </th>
           {rows[0].map((h, i) => (
             <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
               {h || <span className="text-destructive">(no name)</span>}
@@ -870,7 +875,9 @@ function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
       <tbody>
         {body.map((r, ri) => (
           <tr key={ri} className="border-t">
-            <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
+            <td className="w-10 whitespace-nowrap px-2 py-1 text-right tabular-nums text-muted-foreground">
+              {ri + 2}
+            </td>
             {rows[0].map((_, ci) => (
               <td key={ci} className="whitespace-nowrap px-2 py-1">{r[ci] ?? ''}</td>
             ))}
@@ -901,6 +908,12 @@ function SheetViewer({
   rows: string[][]
   onClose: () => void
 }) {
+  /* Two sizes, because both are wanted.
+   *
+   * A sheet eighteen columns wide is read edge to edge; the same sheet checked
+   * against the form behind it is better with the page still visible around
+   * it. It opens large and goes to the full window on request. */
+  const [full, setFull] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -918,14 +931,22 @@ function SheetViewer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className={
+        full
+          ? 'fixed inset-0 z-50 bg-background'
+          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+      }
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-[95vw] flex-col rounded-lg border bg-background shadow-lg"
+        className={
+          full
+            ? 'flex h-full w-full flex-col border bg-background'
+            : 'flex max-h-[85vh] w-full max-w-[90vw] flex-col rounded-lg border bg-background shadow-lg'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
@@ -933,7 +954,11 @@ function SheetViewer({
           <span className="text-[12.5px] text-muted-foreground">
             {rows.length - 1} rows · {rows[0]?.length ?? 0} columns
           </span>
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setFull((v) => !v)}>
+            {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {full ? 'Windowed' : 'Full screen'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>
             Close
           </Button>
         </div>
