@@ -838,7 +838,7 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		empID, userID, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
+		empID, userID, _, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
 		return err
 	})
 	if err != nil {
@@ -874,7 +874,7 @@ appointEmployee is the one way a person becomes a member of staff.
 	candidate joined in the same transaction, and neither half can land alone.
 */
 func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
-	req employeeRequest) (empID, userID string, err error) {
+	req employeeRequest) (empID, userID string, created bool, err error) {
 
 	if req.CreateLogin {
 		// Invited, not active, and with no password: the account exists but
@@ -888,7 +888,7 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 			RETURNING id::text`,
 			instID, req.Email, nullString(req.Phone),
 			strings.TrimSpace(req.FirstName+" "+req.LastName)).Scan(&userID); err != nil {
-			return "", "", err
+			return "", "", false, err
 		}
 		if req.RoleKey != "" {
 			if _, err = tx.Exec(ctx, `
@@ -896,7 +896,7 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 				SELECT $1, $2::uuid, r.id FROM roles r
 				 WHERE r.key = $3 AND (r.institution_id = $1 OR r.institution_id IS NULL)
 				ON CONFLICT DO NOTHING`, instID, userID, req.RoleKey); err != nil {
-				return "", "", err
+				return "", "", false, err
 			}
 		}
 	}
@@ -915,12 +915,12 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 		              designation_id = EXCLUDED.designation_id,
 		              employment_type = COALESCE(EXCLUDED.employment_type, employees.employment_type),
 		              user_id = COALESCE(EXCLUDED.user_id, employees.user_id)
-		RETURNING id::text`,
+		RETURNING id::text, (xmax = 0)`,
 		instID, campus, nullString(userID), req.EmployeeCode,
 		req.FirstName, nullString(req.LastName), nullString(req.Email),
 		nullString(req.Phone), nullString(req.Department), nullString(req.Designation),
-		nullString(req.JoinedOn), nullString(req.EmploymentType)).Scan(&empID)
-	return empID, userID, err
+		nullString(req.JoinedOn), nullString(req.EmploymentType)).Scan(&empID, &created)
+	return empID, userID, created, err
 }
 
 func nullOrString(s string) any {

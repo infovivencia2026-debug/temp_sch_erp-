@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste } from 'lucide-react'
+import {
+  Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2,
+} from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
 
@@ -126,6 +128,11 @@ export default function BulkImport({
   const [result, setResult] = useState<Result | null>(null)
   const [grid, setGrid] = useState<string[][]>([])
   const [showAll, setShowAll] = useState(false)
+  /* Whatever is open in its own window: the file about to be uploaded, or
+     one opened out of the history. Held here rather than in each place so
+     only one can be open, and so the history's own panel does not have to
+     grow a table inside a table inside a step. */
+  const [expanded, setExpanded] = useState<{ title: string; rows: string[][] } | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -340,41 +347,30 @@ export default function BulkImport({
                   {grid[0].length} columns
                 </span>
               </p>
-              {grid.length > 11 && (
+              <span className="flex items-center gap-3">
+                {grid.length > 11 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll((v) => !v)}
+                    className="text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                  >
+                    {showAll ? 'Show first 10' : `Show all ${grid.length - 1}`}
+                  </button>
+                )}
+                {/* Eighteen columns in a panel this tall is a file you scroll
+                    rather than one you read. */}
                 <button
                   type="button"
-                  onClick={() => setShowAll((v) => !v)}
-                  className="text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                  onClick={() => setExpanded({ title: name || 'This file', rows: grid })}
+                  className="inline-flex items-center gap-1 text-[12.5px] underline underline-offset-2 text-muted-foreground"
                 >
-                  {showAll ? 'Show first 10' : `Show all ${grid.length - 1}`}
+                  <Maximize2 className="h-3 w-3" />
+                  expand
                 </button>
-              )}
+              </span>
             </div>
             <div className="max-h-80 overflow-auto rounded-md border">
-              <table className="w-full text-[12.5px]">
-                <thead className="sticky top-0 bg-muted">
-                  <tr>
-                    <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
-                    {grid[0].map((h, i) => (
-                      <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
-                        {h || <span className="text-destructive">(no name)</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(showAll ? grid.slice(1) : grid.slice(1, 11)).map((r, ri) => (
-                    <tr key={ri} className="border-t">
-                      <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
-                      {grid[0].map((_, ci) => (
-                        <td key={ci} className="whitespace-nowrap px-2 py-1">
-                          {r[ci] ?? ''}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <SheetTable rows={grid} limit={showAll ? undefined : 10} />
             </div>
             {!showAll && grid.length > 11 && (
               <p className="mt-1 text-[12px] text-muted-foreground">
@@ -465,8 +461,17 @@ export default function BulkImport({
           </div>
         )}
         {written && <IssueLogins entity={entity} />}
-        <History entity={entity} refresh={written ? 1 : 0} />
+        <History entity={entity} refresh={written ? 1 : 0} onOpen={setExpanded} />
       </div>
+      {/* Its own window, over everything. The file is the thing being looked
+          at, so it gets the screen rather than a panel inside a panel. */}
+      {expanded && (
+        <SheetViewer
+          title={expanded.title}
+          rows={expanded.rows}
+          onClose={() => setExpanded(null)}
+        />
+      )}
     </div>
   )
 }
@@ -483,7 +488,15 @@ export default function BulkImport({
  * Not narrowed to the signed-in user: the whole point is to see somebody
  * else's upload.
  */
-function History({ entity, refresh }: { entity: string; refresh: number }) {
+function History({
+  entity,
+  refresh,
+  onOpen,
+}: {
+  entity: string
+  refresh: number
+  onOpen: (v: { title: string; rows: string[][] }) => void
+}) {
   const qc = useQueryClient()
   const [undoing, setUndoing] = useState('')
   const [outcome, setOutcome] = useState('')
@@ -518,38 +531,35 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
     }
   }
 
-  // Which upload is open, and the file it was made from.
-  const [openRun, setOpenRun] = useState('')
-  const [seen, setSeen] = useState<{ rows: string[][]; omitted: boolean } | null>(null)
-  const [loadingRun, setLoadingRun] = useState(false)
+  const [loadingRun, setLoadingRun] = useState('')
+  const [failedRun, setFailedRun] = useState('')
 
-  /* Reading one upload back.
-   *
-   * The history said 4-staff.csv added ten rows and never said which ten,
-   * which is the question anybody actually has when they open it — usually
-   * because something looks wrong and they want to compare the sheet against
-   * what is now in the school.
-   *
-   * Parsed with the same function a dropped file goes through, so what is
-   * shown here and what was shown then are the same table by construction. */
+  /* Reading one upload back, into a window of its own.
+
+     It used to unfold inside the history block: a table nested in a panel
+     nested in a step, eighteen columns wide in a space three hundred pixels
+     tall. The file is the thing being looked at, so it gets the screen. */
   const openFile = async (run: ImportRun) => {
-    if (openRun === run.id) {
-      setOpenRun('')
-      setSeen(null)
-      return
-    }
-    setOpenRun(run.id)
-    setSeen(null)
-    setLoadingRun(true)
+    setLoadingRun(run.id)
+    setFailedRun('')
     try {
       const body = await api.get<{ content: string; omitted: boolean }>(
         `/api/v1/setup/import/history/${run.id}/content`,
       )
-      setSeen({ rows: body.content ? parseCsv(body.content) : [], omitted: body.omitted })
+      if (body.omitted) {
+        setFailedRun('That file was too large to keep a copy of, so only the counts were recorded.')
+        return
+      }
+      const rows = body.content ? parseCsv(body.content) : []
+      if (rows.length < 2) {
+        setFailedRun('No copy of this file was kept — it was uploaded before uploads began being stored.')
+        return
+      }
+      onOpen({ title: run.filename ?? 'This upload', rows })
     } catch {
-      setSeen({ rows: [], omitted: false })
+      setFailedRun('Could not read that file back.')
     } finally {
-      setLoadingRun(false)
+      setLoadingRun('')
     }
   }
 
@@ -593,9 +603,10 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
                     type="button"
                     onClick={() => openFile(r)}
                     className="underline underline-offset-2 hover:text-primary"
-                    title="See what was in this file"
+                    title="Open this file"
                   >
                     {r.filename ?? 'pasted cells'}
+                    {loadingRun === r.id && ' …'}
                   </button>
                 </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
@@ -633,57 +644,8 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
             ))}
           </tbody>
         </table>
-        {openRun && (
-          <div className="mt-2 rounded-md border bg-muted/30 p-2">
-            {loadingRun ? (
-              <p className="text-[12.5px] text-muted-foreground">Reading the file…</p>
-            ) : seen?.omitted ? (
-              <p className="text-[12.5px] text-muted-foreground">
-                That file was too large to keep a copy of, so only the counts were
-                recorded.
-              </p>
-            ) : seen && seen.rows.length > 1 ? (
-              <>
-                <p className="mb-1.5 text-[12.5px] font-medium">
-                  What was in this file
-                  <span className="ml-1.5 font-normal text-muted-foreground">
-                    {seen.rows.length - 1} rows · {seen.rows[0].length} columns
-                  </span>
-                </p>
-                <div className="max-h-72 overflow-auto rounded border bg-background">
-                  <table className="w-full text-[12.5px]">
-                    <thead className="sticky top-0 bg-muted">
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
-                        {seen.rows[0].map((h, i) => (
-                          <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {seen.rows.slice(1).map((row, ri) => (
-                        <tr key={ri} className="border-t">
-                          <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
-                          {seen.rows[0].map((_, ci) => (
-                            <td key={ci} className="whitespace-nowrap px-2 py-1">{row[ci] ?? ''}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <p className="text-[12.5px] text-muted-foreground">
-                No copy of this file was kept — it was uploaded before uploads began
-                being stored.
-              </p>
-            )}
-          </div>
-        )}
       </div>
+      {failedRun && <p className="mt-2 text-[12.5px] text-muted-foreground">{failedRun}</p>}
       {outcome && <p className="mt-2 text-[12.5px] text-muted-foreground">{outcome}</p>}
     </div>
   )
@@ -880,6 +842,105 @@ function IssueLogins({ entity }: { entity: string }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * A parsed sheet, drawn as a table.
+ *
+ * The same component inline and full screen, because a preview cramped into a
+ * panel and a preview that fills the window should not be two pieces of code
+ * that slowly stop agreeing about what the file said.
+ */
+function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
+  const body = limit ? rows.slice(1, limit + 1) : rows.slice(1)
+  return (
+    <table className="w-full text-[12.5px]">
+      <thead className="sticky top-0 bg-muted">
+        <tr>
+          <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
+          {rows[0].map((h, i) => (
+            <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
+              {h || <span className="text-destructive">(no name)</span>}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {body.map((r, ri) => (
+          <tr key={ri} className="border-t">
+            <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
+            {rows[0].map((_, ci) => (
+              <td key={ci} className="whitespace-nowrap px-2 py-1">{r[ci] ?? ''}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * The whole sheet, filling the window.
+ *
+ * Eighteen columns in a panel three hundred pixels tall is a file you scroll
+ * rather than a file you read. This is the same table with room to be looked
+ * at, and it is where somebody actually checks that a column landed where they
+ * meant it to.
+ *
+ * Escape closes it, the backdrop closes it, and the scroll position is its
+ * own — the page behind does not move while it is open.
+ */
+function SheetViewer({
+  title,
+  rows,
+  onClose,
+}: {
+  title: string
+  rows: string[][]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    // Restored on close rather than assumed to have been empty: another
+    // overlay may have set it.
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-[95vw] flex-col rounded-lg border bg-background shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+          <p className="text-[14px] font-medium">{title}</p>
+          <span className="text-[12.5px] text-muted-foreground">
+            {rows.length - 1} rows · {rows[0]?.length ?? 0} columns
+          </span>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <SheetTable rows={rows} />
+        </div>
+      </div>
     </div>
   )
 }

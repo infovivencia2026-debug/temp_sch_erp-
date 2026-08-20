@@ -543,9 +543,15 @@ var importSpecs = map[string]importSpec{
 			// A teacher with no email is still a teacher; inventing a username
 			// for them creates an account nobody will ever sign in to.
 			req.CreateLogin = req.Email != "" && req.RoleKey != ""
-			_, userID, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
+			empID, userID, created, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
 			if err != nil {
 				return err
+			}
+			// Only staff this file brought onto the roll. The upsert matches on
+			// employee_code, so a corrected re-upload edits people who were
+			// already appointed and undoing it must not remove them.
+			if parsed, perr := uuid.Parse(empID); perr == nil {
+				c.noteCreated("staff", parsed, created)
 			}
 
 			/* What they teach, where the sheet says.
@@ -1045,6 +1051,7 @@ var undoableTables = map[string]string{
 	"periods":   "periods",
 	"fee_heads": "fee_heads",
 	"students":  "students",
+	"staff":     "employees",
 }
 
 /*
@@ -1170,6 +1177,31 @@ func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
 				out.Kept++
 				continue
 			}
+			/* A member of staff who has started work is not just a row this
+			   file created either. Deleting an employee takes their leave,
+			   their payroll and their timetable with it, so anybody holding a
+			   class or a section is kept. */
+			if t.entity == "staff" {
+				var busy bool
+				if err := tx.QueryRow(r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM section_subject_teachers t
+					                JOIN employees e ON e.user_id = t.teacher_user_id
+					               WHERE e.id = $1)
+					    OR EXISTS (SELECT 1 FROM sections s
+					                JOIN employees e ON e.user_id = s.class_teacher_id
+					               WHERE e.id = $1)`, t.id).Scan(&busy); err != nil {
+					return err
+				}
+				if busy {
+					out.Kept++
+					if len(out.Reasons) < 5 {
+						out.Reasons = append(out.Reasons,
+							"a teacher is assigned to a class or subject and was left alone")
+					}
+					continue
+				}
+			}
+
 			// A child who has been marked present, examined or invoiced is no
 			// longer just a row this file created.
 			if t.entity == "students" {

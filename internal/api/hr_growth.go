@@ -900,7 +900,7 @@ func (s *Server) hireCandidate(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if empID, userID, err = appointEmployee(r.Context(), tx,
+		if empID, userID, _, err = appointEmployee(r.Context(), tx,
 			id.InstitutionID, campus, appointment); err != nil {
 			return err
 		}
