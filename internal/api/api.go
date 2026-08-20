@@ -237,6 +237,14 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/guardians/{id}/login", s.issueGuardianLogin)
 
+			/* Logins for everybody who has just been imported.
+
+			   Not gated on the route: one handler serves students, guardians
+			   and staff, and the loosest of the three rights would otherwise
+			   become the price of admission to all of them. It checks the
+			   matching permission per kind instead. */
+			r.Post("/logins/bulk", s.issueLoginsInBulk)
+
 			/* Setting a school up from the spreadsheets it already has.
 			   Classes, sections and staff all existed as forms that took one
 			   row at a time, which is eighty separate typings for a school of

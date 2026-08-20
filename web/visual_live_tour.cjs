@@ -48,6 +48,7 @@ const BASE_URL = 'https://temperp.187-127-178-100.sslip.io';
 
   // --- TOUR 2: OPERATIONS WORKSPACE ---
   console.log('\n[2/2] Logging into Operations Manager Workspace...');
+  await context.clearCookies();
   await page.goto(`${BASE_URL}/login`);
   await page.fill('input[name="identifier"]', 'operations@vivencia.test');
   await page.fill('input[name="password"]', '9');

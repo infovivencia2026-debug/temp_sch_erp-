@@ -42,8 +42,15 @@ import (
 type familyLoginResponse struct {
 	SignInAs string `json:"sign_in_as"`
 	FullName string `json:"full_name"`
+	// Password is empty when the account already existed and no reset was
+	// asked for. There is no way to read a password back out of the database,
+	// so an empty value here means "this person already has one" and not
+	// "their password is blank".
 	Password string `json:"password"`
 	Relation string `json:"relation,omitempty"`
+	// Existing marks an account somebody else already created, which is the
+	// difference between "here is their login" and "here is their new login".
+	Existing bool   `json:"existing"`
 	Note     string `json:"note"`
 }
 
@@ -110,6 +117,9 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "invalid student id")
 		return
 	}
+	// Asked for by name, so nobody invalidates a working login by pressing a
+	// button to find out what it is.
+	reset := r.URL.Query().Get("reset") == "true"
 
 	password, err := temporaryPassword()
 	if err != nil {
@@ -144,9 +154,27 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		out.FullName = fullName
 
-		// A child with an account already has one reset rather than replaced,
-		// so their history and any linked rows survive.
+		/* An account that already exists is reported, not replaced.
+
+		   Issuing used to mint a new password every time it was called, on the
+		   reasoning that "I never got it" and "I have lost it" are the same
+		   request. True at one desk and dangerous across several: the office
+		   hands a family their login on Monday, a class teacher opens the same
+		   child on Tuesday and presses the same button out of curiosity, and
+		   the password the family is holding stops working with nothing on
+		   screen to say so.
+
+		   So the reset is now something you ask for by name. Without it this
+		   returns the username that exists and no password, which is the
+		   honest answer to "what is this child's login" -- nothing can read a
+		   password back, and a second one would be a different login. */
 		if userID != nil {
+			out.Existing = true
+			if !reset {
+				return tx.QueryRow(r.Context(),
+					`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
+					*userID).Scan(&out.SignInAs)
+			}
 			if _, err := tx.Exec(r.Context(), `
 				UPDATE users SET password_hash = $2, status = 'active' WHERE id = $1`,
 				*userID, hash); err != nil {
@@ -198,9 +226,16 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if out.Existing && !reset {
+		out.Note = "This child already has a login — the one whoever created it " +
+			"handed over. The password cannot be read back; if it has been lost, " +
+			"reset it, which replaces the old one."
+		httpx.JSON(w, http.StatusOK, out)
+		return
+	}
 	out.Password = password
 	out.Note = "Shown once and not stored. Hand it to the child or their family; " +
-		"if it is lost, issue another rather than looking this one up."
+		"if it is lost, reset it rather than looking this one up."
 	httpx.JSON(w, http.StatusOK, out)
 }
 
@@ -219,6 +254,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "invalid guardian id")
 		return
 	}
+	reset := r.URL.Query().Get("reset") == "true"
 
 	password, err := temporaryPassword()
 	if err != nil {
@@ -249,7 +285,15 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		out.FullName = fullName
 		out.Relation = relation
 
+		// Same rule as a child's: shown, not replaced, unless a reset was
+		// asked for. One guardian is often opened by several people.
 		if userID != nil {
+			out.Existing = true
+			if !reset {
+				return tx.QueryRow(r.Context(),
+					`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
+					*userID).Scan(&out.SignInAs)
+			}
 			if _, err := tx.Exec(r.Context(), `
 				UPDATE users SET password_hash = $2, status = 'active' WHERE id = $1`,
 				*userID, hash); err != nil {
@@ -313,6 +357,13 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if out.Existing && !reset {
+		out.Note = "This guardian already has a login. It reaches every child they " +
+			"are guardian of. The password cannot be read back; reset it only if it " +
+			"has been lost, because that stops the one they are holding."
+		httpx.JSON(w, http.StatusOK, out)
+		return
+	}
 	out.Password = password
 	out.Note = "Shown once and not stored. One login reaches every child this " +
 		"person is a guardian of, so a family with three children needs one, not three."

@@ -404,6 +404,7 @@ export default function BulkImport({
             )}
           </div>
         )}
+        {written && <IssueLogins entity={entity} />}
         <History entity={entity} refresh={written ? 1 : 0} />
       </div>
     </div>
@@ -471,6 +472,160 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+interface BulkLoginRow {
+  name: string
+  sign_in_as: string
+  password?: string
+  existing: boolean
+  detail?: string
+}
+interface BulkLoginResult {
+  created: number
+  existing: number
+  skipped: number
+  rows: BulkLoginRow[]
+  note: string
+}
+
+/**
+ * Logins for everybody who was just imported.
+ *
+ * Sixty children arrive from one sheet and then need sixty accounts, and the
+ * only way to make them was to open sixty records and press a button on each.
+ * Nobody does that, so the parent portal goes unused in a school that paid
+ * for it.
+ *
+ * Anybody who already has a login keeps it, and is listed with their username
+ * and no password. That is the important half: the office issues the logins on
+ * Monday, a class teacher runs this on Tuesday, and Tuesday must not quietly
+ * replace what the families are already holding.
+ */
+function IssueLogins({ entity }: { entity: string }) {
+  const [result, setResult] = useState<BulkLoginResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState('')
+
+  // Which kinds of person this sheet produces. A student list produces both
+  // children and the guardians that came across on the same rows.
+  const kinds =
+    entity === 'students' ? ['students', 'guardians'] : entity === 'staff' ? ['staff'] : []
+  if (!kinds.length) return null
+
+  const run = async (kind: string) => {
+    setBusy(true)
+    setFailed('')
+    try {
+      const body = await api.post<BulkLoginResult>('/api/v1/setup/logins/bulk', { kind })
+      setResult(body)
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not issue the logins.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /* Downloading is not a convenience here.
+   *
+   * The passwords are shown once and nothing can read them back, so a page
+   * refresh with sixty unsaved passwords on it loses all sixty and the only
+   * way out is to reset every one. */
+  const download = () => {
+    if (!result) return
+    const csv = [
+      ['name', 'sign_in_as', 'password', 'status'],
+      ...result.rows.map((r) => [
+        r.name,
+        r.sign_in_as,
+        r.password ?? '',
+        r.existing ? 'already had a login' : r.detail ? r.detail : 'new',
+      ]),
+    ]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `logins-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="mb-1 text-[13px] font-medium">Give them logins</p>
+      <p className="mb-3 text-[12.5px] text-muted-foreground">
+        Anybody who already has one keeps it — nothing here changes a password
+        somebody is already using.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {kinds.map((k) => (
+          <Button key={k} size="sm" variant="secondary" disabled={busy} onClick={() => run(k)}>
+            {busy ? 'Working…' : `Issue ${k} logins`}
+          </Button>
+        ))}
+      </div>
+
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+
+      {result && (
+        <div className="mt-3">
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+            <span className="text-success"><b className="tabular-nums">{result.created}</b> new</span>
+            <span className="text-muted-foreground">
+              <b className="tabular-nums">{result.existing}</b> already had one
+            </span>
+            {result.skipped > 0 && (
+              <span className="text-destructive">
+                <b className="tabular-nums">{result.skipped}</b> could not be given one
+              </span>
+            )}
+            {result.created > 0 && (
+              <Button size="sm" className="ml-auto" onClick={download}>
+                <Download className="h-3.5 w-3.5" />
+                Download the list
+              </Button>
+            )}
+          </div>
+          {result.created > 0 && (
+            <p className="mb-2 text-[12.5px] text-destructive">
+              Download before you leave this page. The passwords are shown once and
+              cannot be looked up again.
+            </p>
+          )}
+          <div className="max-h-72 overflow-auto rounded-md border">
+            <table className="w-full text-[12.5px]">
+              <thead className="sticky top-0 bg-muted">
+                <tr>
+                  <th className="px-2 py-1.5 text-left font-medium">Name</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Sign in as</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Password</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.rows.map((r, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-2 py-1">{r.name}</td>
+                    <td className="px-2 py-1 font-mono">{r.sign_in_as || '—'}</td>
+                    <td className="px-2 py-1 font-mono">
+                      {r.password ? (
+                        r.password
+                      ) : (
+                        <span className="font-sans text-muted-foreground">
+                          {r.detail ?? 'already had a login'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
