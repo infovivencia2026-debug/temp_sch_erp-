@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 434 features. */
+/** 12 roles, 424 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -264,6 +264,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.students.alumni_program_oversight', slug: 'alumni_program_oversight', name: 'Alumni Program Oversight', scope: 'institution', tier: 'core', summary: 'Track annual graduating batch directory, alumni events, and alumni contribution funds.' },
           { key: 'institution_admin.students.department_students', slug: 'department_students', name: 'Department students', scope: 'department', tier: 'core', summary: 'Search students in the department; view attendance, results, CGPA/backlogs and advisor.' },
           { key: 'institution_admin.students.student_directory', slug: 'student_directory', name: 'Student directory', scope: 'institution', tier: 'core', summary: 'Every student, their section, guardians and academic history.' },
+          { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
         ],
       },
       {
@@ -296,15 +297,9 @@ export const ROLES: Role[] = [
         name: 'Examinations',
         workspace: 'Academics',
         features: [
-          { key: 'institution_admin.examinations.exams_result_status', slug: 'exams_result_status', name: 'Exams & result status', scope: 'institution', tier: 'core', summary: 'Exam schedule, marks-entry completion, result publishing status and report cards.' },
           { key: 'institution_admin.examinations.performance_overview', slug: 'performance_overview', name: 'Performance overview', scope: 'institution', tier: 'core', summary: 'Pass rate, subject performance, at-risk students and backlog summary.' },
-          { key: 'institution_admin.examinations.baseline_performance_analysis', slug: 'baseline_performance_analysis', name: 'Baseline Performance Analysis', scope: 'institution', tier: 'core', summary: 'Analyze baseline student entry performance against end-of-term academic growth.' },
-          { key: 'institution_admin.examinations.ssc_board_registration', slug: 'ssc_board_registration', name: 'SSC Board Registration', scope: 'institution', tier: 'core', summary: 'Register Class 10 candidates with BSE Telangana, capture subject combinations and medium, and submit the nominal roll.' },
-          { key: 'institution_admin.examinations.intermediate_board_registration', slug: 'intermediate_board_registration', name: 'Intermediate Board Registration', scope: 'institution', tier: 'core', summary: 'Register Class 11 and 12 candidates with TSBIE including group and second language selection.' },
           { key: 'institution_admin.examinations.hall_ticket_issue', slug: 'hall_ticket_issue', name: 'Hall Ticket Issue', scope: 'institution', tier: 'core', summary: 'Issue and reprint board hall tickets against the accepted nominal roll.' },
-          { key: 'institution_admin.examinations.board_result_import', slug: 'board_result_import', name: 'Board Result Import', scope: 'institution', tier: 'core', summary: 'Import board results, map them to student records and publish to parents.' },
           { key: 'institution_admin.examinations.exams_results', slug: 'exams_results', name: 'Exams & results', scope: 'institution', tier: 'core', summary: 'Exam schedule, marks entry status and result publication readiness.' },
-          { key: 'institution_admin.examinations.report_cards', slug: 'report_cards', name: 'Report cards', scope: 'institution', tier: 'core', summary: 'Holistic progress cards and the scholastic report, ready to verify and issue.' },
         ],
       },
       {
@@ -350,6 +345,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.communication.escalated_parent_grievances', slug: 'escalated_parent_grievances', name: 'Escalated Parent Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
           { key: 'institution_admin.communication.school_wide_circulars_notices', slug: 'school_wide_circulars_notices', name: 'School-Wide Circulars & Notices', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
+          { key: 'institution_admin.communication.direct_messaging_chat_hub', slug: 'direct_messaging_chat_hub', name: 'Direct Messaging & Chat Hub', scope: 'institution', tier: 'core', summary: 'A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
         ],
       },
       {
@@ -357,11 +353,8 @@ export const ROLES: Role[] = [
         name: 'Statutory Returns',
         workspace: 'Administration',
         features: [
-          { key: 'institution_admin.statutory_returns.udise_return_preparation', slug: 'udise_return_preparation', name: 'UDISE+ Return Preparation', scope: 'institution', tier: 'advanced', summary: 'Review the annual UDISE+ return, resolve validation errors and lock the submitted snapshot.' },
-          { key: 'institution_admin.statutory_returns.apaar_id_register', slug: 'apaar_id_register', name: 'APAAR ID Register', scope: 'institution', tier: 'advanced', summary: 'Track APAAR ID issue status per student, pending Aadhaar consent and reconciliation exceptions.' },
-          { key: 'institution_admin.statutory_returns.statutory_registers', slug: 'statutory_registers', name: 'Statutory Registers', scope: 'institution', tier: 'advanced', summary: 'Maintain admission and withdrawal registers, EWS/DG register and attendance registers in inspection format.' },
-          { key: 'institution_admin.statutory_returns.child_info_reconciliation', slug: 'child_info_reconciliation', name: 'Child Info Reconciliation', scope: 'institution', tier: 'advanced', summary: 'Compare the school roll against the Telangana Child Info register and resolve mismatches before the state deadline.' },
-          { key: 'institution_admin.statutory_returns.working_days_instructional_hours', slug: 'working_days_instructional_hours', name: 'Working Days & Instructional Hours', scope: 'institution', tier: 'core', summary: 'Track sanctioned working days and instructional hours against the state academic calendar.' },
+          { key: 'institution_admin.statutory_returns.annual_government_return', slug: 'annual_government_return', name: 'Annual Government Return', scope: 'institution', tier: 'advanced', summary: 'The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it.' },
+          { key: 'institution_admin.statutory_returns.working_days_teaching_hours', slug: 'working_days_teaching_hours', name: 'Working Days & Teaching Hours', scope: 'institution', tier: 'core', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
         ],
       },
       {
@@ -369,9 +362,8 @@ export const ROLES: Role[] = [
         name: 'Boards & Accreditation',
         workspace: 'Administration',
         features: [
-          { key: 'institution_admin.boards_accreditation.board_exam_loc_submission', slug: 'board_exam_loc_submission', name: 'Board Exam LOC Submission', scope: 'institution', tier: 'core', summary: 'Prepare the Class X and XII List of Candidates, verify subject combinations and export in board format.' },
-          { key: 'institution_admin.boards_accreditation.parakh_nep_credit_framework', slug: 'parakh_nep_credit_framework', name: 'PARAKH & NEP Credit Framework', scope: 'institution', tier: 'advanced', summary: 'Configure NEP 2020 credit-based evaluation and PARAKH holistic assessment parameters.' },
-          { key: 'institution_admin.boards_accreditation.sqaa_compliance_tracking', slug: 'sqaa_compliance_tracking', name: 'SQAA Compliance Tracking', scope: 'institution', tier: 'advanced', summary: 'Track internal audit checklists, document evidence, and evaluate board compliance ratings.' },
+          { key: 'institution_admin.boards_accreditation.board_exam_registration', slug: 'board_exam_registration', name: 'Board Exam Registration', scope: 'institution', tier: 'core', summary: 'Candidates entered for the board exam, checked before the list closes. A name missing here is a child who cannot sit the paper.' },
+          { key: 'institution_admin.boards_accreditation.accreditation_status', slug: 'accreditation_status', name: 'Accreditation Status', scope: 'institution', tier: 'advanced', summary: 'Where the school stands against the accreditation framework, and which parts have nobody working on them.' },
         ],
       },
       {
@@ -379,8 +371,7 @@ export const ROLES: Role[] = [
         name: 'Mid-Day Meal',
         workspace: 'Administration',
         features: [
-          { key: 'institution_admin.mid_day_meal.mid_day_meal_register', slug: 'mid_day_meal_register', name: 'Mid-Day Meal Register', scope: 'institution', tier: 'advanced', summary: 'Record the daily cooked-meal headcount, rice consumption and menu for government and aided schools.' },
-          { key: 'institution_admin.mid_day_meal.mdm_utilisation_report', slug: 'mdm_utilisation_report', name: 'MDM Utilisation Report', scope: 'institution', tier: 'advanced', summary: 'Reconcile meals served against enrolment and attendance, and generate the monthly utilisation return.' },
+          { key: 'institution_admin.mid_day_meal.mid_day_meal_utilisation', slug: 'mid_day_meal_utilisation', name: 'Mid-Day Meal Utilisation', scope: 'institution', tier: 'advanced', summary: 'Meals served against grain and money drawn. The reconciliation the principal is answerable for, not the daily register.' },
         ],
       },
       {
@@ -390,7 +381,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.standard.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Core enrollment, attendance, academic, fee and staff reports.' },
           { key: 'institution_admin.standard.attendance_overview', slug: 'attendance_overview', name: 'Attendance Overview', scope: 'institution', tier: 'core', summary: 'School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.' },
-          { key: 'institution_admin.standard.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
           { key: 'institution_admin.standard.fee_collection', slug: 'fee_collection', name: 'Fee Collection', scope: 'institution', tier: 'core', summary: 'Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.' },
         ],
       },

@@ -114,7 +114,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // The NEP holistic card. One screen for the teacher recording observations
   // and the family reading them — the same card from two sides, and building
   // two would guarantee they drift.
-  'institution_admin.boards_accreditation.parakh_nep_credit_framework': lazy(() => import('./exams/HolisticCard')),
 
   /* Syllabus, lesson plans and coverage — one loop, one screen. The chapters,
      the plans that deliver them, and the percentage that follows; three
@@ -160,8 +159,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.rte_right_to_education_quota_tracking': lazy(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.new_admission_live_status': lazy(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
-  'institution_admin.examinations.exams_result_status': lazy(() => import('./exams/ReportCards')),
-  'institution_admin.standard.academic_performance': lazy(() => import('./exams/ReportCards')),
+  'institution_admin.students.academic_performance': lazy(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': lazy(() => import('./portal/Results')),
   'parent.academics.results_report_cards': lazy(() => import('./portal/Results')),
   'institution_admin.students.certificates_documents': lazy(() => import('./lifecycle/Certificates')),
@@ -202,9 +200,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
 
   'parent.messages.communication': lazy(() => import('./comms/Circulars')),
-  'institution_admin.statutory_returns.udise_return_preparation': lazy(() => import('./compliance/UDISE')),
-  'institution_admin.statutory_returns.apaar_id_register': lazy(() => import('./compliance/UDISE')),
-  'institution_admin.statutory_returns.statutory_registers': lazy(() => import('./compliance/UDISE')),
+  'institution_admin.statutory_returns.annual_government_return': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.udise_data_sync': lazy(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.apaar_id_provisioning': lazy(() => import('./compliance/UDISE')),
   'hr.payroll.payroll': lazy(() => import('./payroll/Payroll')),
@@ -232,7 +228,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      with different columns — so the school had two screens both called
      "report cards" showing different numbers for the same child, and no way
      to tell which one a parent had been sent. */
-  'institution_admin.examinations.report_cards': lazy(() => import('./exams/ReportCards')),
   'institution_admin.students.student_directory': lazy(() => import('./shared/StudentProfile')),
   /* The four a principal opens weekly. Two existed under names describing
      the system rather than the question; two had no entry on this menu at
@@ -240,6 +235,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      without borrowing HR's or the accountant's screen. */
   'institution_admin.staff.staff_leave_substitute_approval': lazy(() => import('./workflow/Approvals')),
   'institution_admin.fees.fee_default': lazy(() => import('./finance/Defaulters')),
+  'institution_admin.communication.direct_messaging_chat_hub': lazy(() => import('./comms/StaffMessages')),
   'institution_admin.communication.school_wide_circulars_notices': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.

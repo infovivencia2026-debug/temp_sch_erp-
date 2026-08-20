@@ -706,6 +706,17 @@ func (s *Server) Routes() http.Handler {
 		   Gated on nothing beyond a session: who may write about whom is a
 		   question about the relationship between two people, not a
 		   capability, and the handler works it out. */
+		/* One member of staff writing to another.
+
+		   Behind a session and nothing more: who may write to whom is a
+		   question about two people at the same school, which the handler
+		   answers, and not a capability anybody is granted. */
+		r.Route("/staff-messages", func(r chi.Router) {
+			r.Get("/", s.listStaffMessages)
+			r.Get("/threads", s.listStaffThreads)
+			r.Post("/", s.sendStaffMessage)
+		})
+
 		r.Route("/staff-remarks", func(r chi.Router) {
 			r.Get("/", s.listStaffRemarks)
 			r.Post("/", s.createStaffRemark)

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 434 features.
+// Roles is the catalog: 12 roles, 424 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -311,6 +311,7 @@ var Roles = []Role{
 					{Key: "institution_admin.students.alumni_program_oversight", Slug: "alumni_program_oversight", Name: "Alumni Program Oversight", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Track annual graduating batch directory, alumni events, and alumni contribution funds."},
 					{Key: "institution_admin.students.department_students", Slug: "department_students", Name: "Department students", Scope: Scope("department"), Tier: Tier("core"), Summary: "Search students in the department; view attendance, results, CGPA/backlogs and advisor."},
 					{Key: "institution_admin.students.student_directory", Slug: "student_directory", Name: "Student directory", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every student, their section, guardians and academic history."},
+					{Key: "institution_admin.students.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
 				},
 			},
 			{
@@ -343,15 +344,9 @@ var Roles = []Role{
 				Name: "Examinations",
 				Workspace: "Academics",
 				Features: []Feature{
-					{Key: "institution_admin.examinations.exams_result_status", Slug: "exams_result_status", Name: "Exams & result status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Exam schedule, marks-entry completion, result publishing status and report cards."},
 					{Key: "institution_admin.examinations.performance_overview", Slug: "performance_overview", Name: "Performance overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Pass rate, subject performance, at-risk students and backlog summary."},
-					{Key: "institution_admin.examinations.baseline_performance_analysis", Slug: "baseline_performance_analysis", Name: "Baseline Performance Analysis", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Analyze baseline student entry performance against end-of-term academic growth."},
-					{Key: "institution_admin.examinations.ssc_board_registration", Slug: "ssc_board_registration", Name: "SSC Board Registration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Register Class 10 candidates with BSE Telangana, capture subject combinations and medium, and submit the nominal roll."},
-					{Key: "institution_admin.examinations.intermediate_board_registration", Slug: "intermediate_board_registration", Name: "Intermediate Board Registration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Register Class 11 and 12 candidates with TSBIE including group and second language selection."},
 					{Key: "institution_admin.examinations.hall_ticket_issue", Slug: "hall_ticket_issue", Name: "Hall Ticket Issue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Issue and reprint board hall tickets against the accepted nominal roll."},
-					{Key: "institution_admin.examinations.board_result_import", Slug: "board_result_import", Name: "Board Result Import", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Import board results, map them to student records and publish to parents."},
 					{Key: "institution_admin.examinations.exams_results", Slug: "exams_results", Name: "Exams & results", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Exam schedule, marks entry status and result publication readiness."},
-					{Key: "institution_admin.examinations.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Holistic progress cards and the scholastic report, ready to verify and issue."},
 				},
 			},
 			{
@@ -397,6 +392,7 @@ var Roles = []Role{
 					{Key: "institution_admin.communication.escalated_parent_grievances", Slug: "escalated_parent_grievances", Name: "Escalated Parent Grievances", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them."},
 					{Key: "institution_admin.communication.school_achievements_showcase", Slug: "school_achievements_showcase", Name: "School Achievements Showcase", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Log awards, sports victories, academic honors, and publish them to parent/student portals."},
 					{Key: "institution_admin.communication.school_wide_circulars_notices", Slug: "school_wide_circulars_notices", Name: "School-Wide Circulars & Notices", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
+					{Key: "institution_admin.communication.direct_messaging_chat_hub", Slug: "direct_messaging_chat_hub", Name: "Direct Messaging & Chat Hub", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before."},
 				},
 			},
 			{
@@ -404,11 +400,8 @@ var Roles = []Role{
 				Name: "Statutory Returns",
 				Workspace: "Administration",
 				Features: []Feature{
-					{Key: "institution_admin.statutory_returns.udise_return_preparation", Slug: "udise_return_preparation", Name: "UDISE+ Return Preparation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Review the annual UDISE+ return, resolve validation errors and lock the submitted snapshot."},
-					{Key: "institution_admin.statutory_returns.apaar_id_register", Slug: "apaar_id_register", Name: "APAAR ID Register", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Track APAAR ID issue status per student, pending Aadhaar consent and reconciliation exceptions."},
-					{Key: "institution_admin.statutory_returns.statutory_registers", Slug: "statutory_registers", Name: "Statutory Registers", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Maintain admission and withdrawal registers, EWS/DG register and attendance registers in inspection format."},
-					{Key: "institution_admin.statutory_returns.child_info_reconciliation", Slug: "child_info_reconciliation", Name: "Child Info Reconciliation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Compare the school roll against the Telangana Child Info register and resolve mismatches before the state deadline."},
-					{Key: "institution_admin.statutory_returns.working_days_instructional_hours", Slug: "working_days_instructional_hours", Name: "Working Days & Instructional Hours", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Track sanctioned working days and instructional hours against the state academic calendar."},
+					{Key: "institution_admin.statutory_returns.annual_government_return", Slug: "annual_government_return", Name: "Annual Government Return", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it."},
+					{Key: "institution_admin.statutory_returns.working_days_teaching_hours", Slug: "working_days_teaching_hours", Name: "Working Days & Teaching Hours", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
 				},
 			},
 			{
@@ -416,9 +409,8 @@ var Roles = []Role{
 				Name: "Boards & Accreditation",
 				Workspace: "Administration",
 				Features: []Feature{
-					{Key: "institution_admin.boards_accreditation.board_exam_loc_submission", Slug: "board_exam_loc_submission", Name: "Board Exam LOC Submission", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Prepare the Class X and XII List of Candidates, verify subject combinations and export in board format."},
-					{Key: "institution_admin.boards_accreditation.parakh_nep_credit_framework", Slug: "parakh_nep_credit_framework", Name: "PARAKH & NEP Credit Framework", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Configure NEP 2020 credit-based evaluation and PARAKH holistic assessment parameters."},
-					{Key: "institution_admin.boards_accreditation.sqaa_compliance_tracking", Slug: "sqaa_compliance_tracking", Name: "SQAA Compliance Tracking", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Track internal audit checklists, document evidence, and evaluate board compliance ratings."},
+					{Key: "institution_admin.boards_accreditation.board_exam_registration", Slug: "board_exam_registration", Name: "Board Exam Registration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Candidates entered for the board exam, checked before the list closes. A name missing here is a child who cannot sit the paper."},
+					{Key: "institution_admin.boards_accreditation.accreditation_status", Slug: "accreditation_status", Name: "Accreditation Status", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Where the school stands against the accreditation framework, and which parts have nobody working on them."},
 				},
 			},
 			{
@@ -426,8 +418,7 @@ var Roles = []Role{
 				Name: "Mid-Day Meal",
 				Workspace: "Administration",
 				Features: []Feature{
-					{Key: "institution_admin.mid_day_meal.mid_day_meal_register", Slug: "mid_day_meal_register", Name: "Mid-Day Meal Register", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Record the daily cooked-meal headcount, rice consumption and menu for government and aided schools."},
-					{Key: "institution_admin.mid_day_meal.mdm_utilisation_report", Slug: "mdm_utilisation_report", Name: "MDM Utilisation Report", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Reconcile meals served against enrolment and attendance, and generate the monthly utilisation return."},
+					{Key: "institution_admin.mid_day_meal.mid_day_meal_utilisation", Slug: "mid_day_meal_utilisation", Name: "Mid-Day Meal Utilisation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Meals served against grain and money drawn. The reconciliation the principal is answerable for, not the daily register."},
 				},
 			},
 			{
@@ -437,7 +428,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
 					{Key: "institution_admin.standard.attendance_overview", Slug: "attendance_overview", Name: "Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
-					{Key: "institution_admin.standard.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
 					{Key: "institution_admin.standard.fee_collection", Slug: "fee_collection", Name: "Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
 				},
 			},
