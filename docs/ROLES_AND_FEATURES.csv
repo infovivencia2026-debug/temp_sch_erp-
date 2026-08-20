@@ -1,413 +1,363 @@
 Role,Section,Feature,Key,Status
-Institution Admin / Principal,Academics,Academic Calendar,institution_admin.academics.academic_calendar,built
-Institution Admin / Principal,Academics,Academic Structure,institution_admin.academics.academic_structure,built
-Institution Admin / Principal,Academics,Attendance Corrections,institution_admin.academics.attendance_corrections,built
-Institution Admin / Principal,Academics,Attendance Monitoring,institution_admin.academics.attendance_monitoring,built
-Institution Admin / Principal,Academics,Classes Sections,institution_admin.academics.classes_sections,built
-Institution Admin / Principal,Academics,Exams Marks Monitoring,institution_admin.academics.exams_marks_monitoring,built
-Institution Admin / Principal,Academics,Faculty Allocation,institution_admin.academics.faculty_allocation,built
-Institution Admin / Principal,Academics,Faculty Substitution Engine,institution_admin.academics.faculty_substitution_engine,built
-Institution Admin / Principal,Academics,Lesson Plan Approval Queue,institution_admin.academics.lesson_plan_approval_queue,built
-Institution Admin / Principal,Academics,Master Timetable Generation,institution_admin.academics.master_timetable_generation,built
-Institution Admin / Principal,Academics,Obe Outcomes,institution_admin.academics.obe_outcomes,built
-Institution Admin / Principal,Academics,Subject Chapter Planner,institution_admin.academics.subject_chapter_planner,built
-Institution Admin / Principal,Academics,Syllabus Coverage Tracking,institution_admin.academics.syllabus_coverage_tracking,built
-Institution Admin / Principal,Academics,Syllabus Progress,institution_admin.academics.syllabus_progress,built
-Institution Admin / Principal,Academics,Teacher Allocation,institution_admin.academics.teacher_allocation,built
-Institution Admin / Principal,Academics,Timetable,institution_admin.academics.timetable,built
-Institution Admin / Principal,Admissions,Admissions Overview,institution_admin.admissions.admissions_overview,built
-Institution Admin / Principal,Admissions,Rte 25 Reservation Register,institution_admin.admissions.rte_25_reservation_register,built
-Institution Admin / Principal,Analysis,Custom Report Builder,institution_admin.analysis.custom_report_builder,built
-Institution Admin / Principal,Analysis,Department Reports,institution_admin.analysis.department_reports,built
-Institution Admin / Principal,Analysis,Performance Analytics,institution_admin.analysis.performance_analytics,built
-Institution Admin / Principal,Approvals,Approvals,institution_admin.approvals.approvals,built
-Institution Admin / Principal,Approvals,Approvals Center,institution_admin.approvals.approvals_center,built
-Institution Admin / Principal,Boards Accreditation,Board Exam Loc Submission,institution_admin.boards_accreditation.board_exam_loc_submission,built
-Institution Admin / Principal,Boards Accreditation,Parakh Nep Credit Framework,institution_admin.boards_accreditation.parakh_nep_credit_framework,built
-Institution Admin / Principal,Boards Accreditation,Sqaa Compliance Tracking,institution_admin.boards_accreditation.sqaa_compliance_tracking,built
-Institution Admin / Principal,Communication,Circulars Announcements,institution_admin.communication.circulars_announcements,built
-Institution Admin / Principal,Communication,Communication,institution_admin.communication.communication,built
-Institution Admin / Principal,Communication,Parent Feedback Grievance Hub,institution_admin.communication.parent_feedback_grievance_hub,built
-Institution Admin / Principal,Communication,School Achievements Showcase,institution_admin.communication.school_achievements_showcase,built
-Institution Admin / Principal,Department,Department Academics,institution_admin.department.department_academics,built
-Institution Admin / Principal,Department,Department Timetable,institution_admin.department.department_timetable,built
-Institution Admin / Principal,Directory Workload,Faculty Allocation Workload,institution_admin.directory_workload.faculty_allocation_workload,built
-Institution Admin / Principal,Directory Workload,Faculty Directory,institution_admin.directory_workload.faculty_directory,built
-Institution Admin / Principal,Directory Workload,Faculty Directory Workload,institution_admin.directory_workload.faculty_directory_workload,built
-Institution Admin / Principal,Directory Workload,Staff Allocation Workload,institution_admin.directory_workload.staff_allocation_workload,built
-Institution Admin / Principal,Evaluation,360 Evaluation Oversight,institution_admin.evaluation.360_evaluation_oversight,built
-Institution Admin / Principal,Examinations,Baseline Performance Analysis,institution_admin.examinations.baseline_performance_analysis,built
-Institution Admin / Principal,Examinations,Board Result Import,institution_admin.examinations.board_result_import,built
-Institution Admin / Principal,Examinations,Exams Result Status,institution_admin.examinations.exams_result_status,built
-Institution Admin / Principal,Examinations,Exams Results,institution_admin.examinations.exams_results,built
-Institution Admin / Principal,Examinations,Hall Ticket Issue,institution_admin.examinations.hall_ticket_issue,built
-Institution Admin / Principal,Examinations,Intermediate Board Registration,institution_admin.examinations.intermediate_board_registration,built
-Institution Admin / Principal,Examinations,Performance Overview,institution_admin.examinations.performance_overview,built
-Institution Admin / Principal,Examinations,Report Cards,institution_admin.examinations.report_cards,built
-Institution Admin / Principal,Examinations,Ssc Board Registration,institution_admin.examinations.ssc_board_registration,built
-Institution Admin / Principal,Fees,Fee Overview,institution_admin.fees.fee_overview,built
-Institution Admin / Principal,Fees,Fee Regulatory Committee Filing,institution_admin.fees.fee_regulatory_committee_filing,built
-Institution Admin / Principal,Home,Academic Kpis,institution_admin.home.academic_kpis,built
-Institution Admin / Principal,Home,Department Kpis,institution_admin.home.department_kpis,built
-Institution Admin / Principal,Home,Executive Kpis,institution_admin.home.executive_kpis,built
-Institution Admin / Principal,Home,Needs Attention,institution_admin.home.needs_attention,built
-Institution Admin / Principal,Home,Today,institution_admin.home.today,built
-Institution Admin / Principal,Hostel,Boarder Laundry Tracking,institution_admin.hostel.boarder_laundry_tracking,built
-Institution Admin / Principal,Hostel,Buildings Rooms,institution_admin.hostel.buildings_rooms,built
-Institution Admin / Principal,Hostel,Complaints,institution_admin.hostel.complaints,built
-Institution Admin / Principal,Hostel,Digital Outpass Approval,institution_admin.hostel.digital_outpass_approval,built
-Institution Admin / Principal,Hostel,Hostel Building Room Setup,institution_admin.hostel.hostel_building_room_setup,built
-Institution Admin / Principal,Hostel,Hostel Complaint Ticketing,institution_admin.hostel.hostel_complaint_ticketing,built
-Institution Admin / Principal,Hostel,Hostel Roll Call Attendance,institution_admin.hostel.hostel_roll_call_attendance,built
-Institution Admin / Principal,Hostel,Hostel Visitor Log,institution_admin.hostel.hostel_visitor_log,built
-Institution Admin / Principal,Hostel,Mess Menu Meal Management,institution_admin.hostel.mess_menu_meal_management,built
-Institution Admin / Principal,Hostel,Night Study Room Attendance,institution_admin.hostel.night_study_room_attendance,built
-Institution Admin / Principal,Hostel,Outpass Leave,institution_admin.hostel.outpass_leave,built
-Institution Admin / Principal,Hostel,Roll Call,institution_admin.hostel.roll_call,built
-Institution Admin / Principal,Hostel,Room Allocation,institution_admin.hostel.room_allocation,built
-Institution Admin / Principal,Hostel,Room Allocation Engine,institution_admin.hostel.room_allocation_engine,built
-Institution Admin / Principal,Hostel,Room Inventory Checklists,institution_admin.hostel.room_inventory_checklists,built
-Institution Admin / Principal,Infirmary,Annual Health Checkup Records,institution_admin.infirmary.annual_health_checkup_records,built
-Institution Admin / Principal,Infirmary,Daily Nurse Visit Log,institution_admin.infirmary.daily_nurse_visit_log,built
-Institution Admin / Principal,Infirmary,Emergency Health Alerts,institution_admin.infirmary.emergency_health_alerts,built
-Institution Admin / Principal,Infirmary,Medication Admin Register,institution_admin.infirmary.medication_admin_register,built
-Institution Admin / Principal,Infirmary,School Health Programme Camps,institution_admin.infirmary.school_health_programme_camps,built
-Institution Admin / Principal,Infirmary,Student Health Master File,institution_admin.infirmary.student_health_master_file,built
-Institution Admin / Principal,Library,Accession Register,institution_admin.library.accession_register,built
-Institution Admin / Principal,Library,Barcode Spine Label Printing,institution_admin.library.barcode_spine_label_printing,built
-Institution Admin / Principal,Library,Book Cataloging Accession Register,institution_admin.library.book_cataloging_accession_register,built
-Institution Admin / Principal,Library,Book Issue Return Terminal,institution_admin.library.book_issue_return_terminal,built
-Institution Admin / Principal,Library,Book Reservation Queue,institution_admin.library.book_reservation_queue,built
-Institution Admin / Principal,Library,Books Copies,institution_admin.library.books_copies,built
-Institution Admin / Principal,Library,Digital E Book Journal Integration,institution_admin.library.digital_e_book_journal_integration,built
-Institution Admin / Principal,Library,Fines,institution_admin.library.fines,built
-Institution Admin / Principal,Library,Issue Return,institution_admin.library.issue_return,built
-Institution Admin / Principal,Library,Library Inventory Audit,institution_admin.library.library_inventory_audit,built
-Institution Admin / Principal,Library,Ncert Textbook Indent,institution_admin.library.ncert_textbook_indent,built
-Institution Admin / Principal,Library,Opac Digital Book Search,institution_admin.library.opac_digital_book_search,built
-Institution Admin / Principal,Library,Overdue Fine Calculation,institution_admin.library.overdue_fine_calculation,built
-Institution Admin / Principal,Library,Reservations,institution_admin.library.reservations,built
-Institution Admin / Principal,Mid Day Meal,Mdm Utilisation Report,institution_admin.mid_day_meal.mdm_utilisation_report,built
-Institution Admin / Principal,Mid Day Meal,Mid Day Meal Register,institution_admin.mid_day_meal.mid_day_meal_register,built
-Institution Admin / Principal,Standard,Comprehensive Attendance Report,institution_admin.standard.comprehensive_attendance_report,built
-Institution Admin / Principal,Standard,Exam Grade Analytics,institution_admin.standard.exam_grade_analytics,built
-Institution Admin / Principal,Standard,Fee Collection Summaries,institution_admin.standard.fee_collection_summaries,built
-Institution Admin / Principal,Standard,Reports,institution_admin.standard.reports,built
-Institution Admin / Principal,Statutory Returns,Apaar Id Register,institution_admin.statutory_returns.apaar_id_register,built
-Institution Admin / Principal,Statutory Returns,Child Info Reconciliation,institution_admin.statutory_returns.child_info_reconciliation,built
-Institution Admin / Principal,Statutory Returns,Statutory Registers,institution_admin.statutory_returns.statutory_registers,built
-Institution Admin / Principal,Statutory Returns,Udise Return Preparation,institution_admin.statutory_returns.udise_return_preparation,built
-Institution Admin / Principal,Statutory Returns,Working Days Instructional Hours,institution_admin.statutory_returns.working_days_instructional_hours,built
-Institution Admin / Principal,Stores,Department Stock Issuance,institution_admin.stores.department_stock_issuance,built
-Institution Admin / Principal,Stores,Item Category Store Setup,institution_admin.stores.item_category_store_setup,built
-Institution Admin / Principal,Stores,Purchase Order Workflow,institution_admin.stores.purchase_order_workflow,built
-Institution Admin / Principal,Students,Alumni Program Oversight,institution_admin.students.alumni_program_oversight,built
-Institution Admin / Principal,Students,Certificates Document Templates,institution_admin.students.certificates_document_templates,built
-Institution Admin / Principal,Students,Certificates Documents,institution_admin.students.certificates_documents,built
-Institution Admin / Principal,Students,Class Section Promotion,institution_admin.students.class_section_promotion,built
-Institution Admin / Principal,Students,Department Students,institution_admin.students.department_students,built
-Institution Admin / Principal,Students,Disciplinary Incident Log,institution_admin.students.disciplinary_incident_log,built
-Institution Admin / Principal,Students,Enrollment Lifecycle,institution_admin.students.enrollment_lifecycle,built
-Institution Admin / Principal,Students,Student Council Management,institution_admin.students.student_council_management,built
-Institution Admin / Principal,Students,Student Directory,institution_admin.students.student_directory,built
-Institution Admin / Principal,Students,Student Directory Student 360,institution_admin.students.student_directory_student_360,built
-Institution Admin / Principal,Transport,Ais 140 Telematics Vahan Compliance,institution_admin.transport.ais_140_telematics_vahan_compliance,deferred
-Institution Admin / Principal,Transport,Bus Breakdown Emergency Dispatch,institution_admin.transport.bus_breakdown_emergency_dispatch,built
-Institution Admin / Principal,Transport,Bus Speeding Rash Driving Alerts,institution_admin.transport.bus_speeding_rash_driving_alerts,deferred
-Institution Admin / Principal,Transport,Delays Exceptions,institution_admin.transport.delays_exceptions,built
-Institution Admin / Principal,Transport,Driver Attendant Profiles,institution_admin.transport.driver_attendant_profiles,built
-Institution Admin / Principal,Transport,Driver Sobriety Safety Checklist,institution_admin.transport.driver_sobriety_safety_checklist,built
-Institution Admin / Principal,Transport,Drivers Attendants,institution_admin.transport.drivers_attendants,built
-Institution Admin / Principal,Transport,Fuel Sensor Mileage Telematics,institution_admin.transport.fuel_sensor_mileage_telematics,deferred
-Institution Admin / Principal,Transport,Geo Fenced Bus Stop Alerts,institution_admin.transport.geo_fenced_bus_stop_alerts,deferred
-Institution Admin / Principal,Transport,Live Vehicle Tracking,institution_admin.transport.live_vehicle_tracking,deferred
-Institution Admin / Principal,Transport,Real Time Vehicle Tracking Vts,institution_admin.transport.real_time_vehicle_tracking_vts,deferred
-Institution Admin / Principal,Transport,Route Attendance,institution_admin.transport.route_attendance,built
-Institution Admin / Principal,Transport,Route Distance Fee Slabs,institution_admin.transport.route_distance_fee_slabs,built
-Institution Admin / Principal,Transport,Route Pickup Stop Mapping,institution_admin.transport.route_pickup_stop_mapping,built
-Institution Admin / Principal,Transport,Routes Stops,institution_admin.transport.routes_stops,built
-Institution Admin / Principal,Transport,Seatbelt Cctv Video Streaming,institution_admin.transport.seatbelt_cctv_video_streaming,deferred
-Institution Admin / Principal,Transport,Student Allocation,institution_admin.transport.student_allocation,built
-Institution Admin / Principal,Transport,Student Route Assignment,institution_admin.transport.student_route_assignment,built
-Institution Admin / Principal,Transport,Transport Attendance Scans,institution_admin.transport.transport_attendance_scans,built
-Institution Admin / Principal,Transport,Vehicle Fuel Maintenance Log,institution_admin.transport.vehicle_fuel_maintenance_log,built
-Institution Admin / Principal,Transport,Vehicle Master Registry,institution_admin.transport.vehicle_master_registry,built
-Institution Admin / Principal,Transport,Vehicles,institution_admin.transport.vehicles,built
-Super Admin (platform),Access Security,Login Session Audit,super_admin.access_security.login_session_audit,built
-Super Admin (platform),Access Security,Roles Permissions,super_admin.access_security.roles_permissions,built
-Super Admin (platform),Access Security,Sso Mfa,super_admin.access_security.sso_mfa,built
-Super Admin (platform),Access Security,User Directory,super_admin.access_security.user_directory,built
-Super Admin (platform),Access Security,Users,super_admin.access_security.users,built
-Super Admin (platform),Ai Automation,Ai Sentiment Analysis On Feedback,super_admin.ai_automation.ai_sentiment_analysis_on_feedback,deferred
-Super Admin (platform),Ai Automation,Automated Exam Question Translation,super_admin.ai_automation.automated_exam_question_translation,deferred
-Super Admin (platform),Ai Automation,Automated Timetable Optimizer,super_admin.ai_automation.automated_timetable_optimizer,built
-Super Admin (platform),Ai Automation,Predictive Dropout Risk Engine,super_admin.ai_automation.predictive_dropout_risk_engine,deferred
-Super Admin (platform),Ai Automation,Smart Fee Cash Flow Predictor,super_admin.ai_automation.smart_fee_cash_flow_predictor,deferred
-Super Admin (platform),Campuses Academic Year,Academic Calendar Model,super_admin.campuses_academic_year.academic_calendar_model,built
-Super Admin (platform),Campuses Academic Year,Franchise Management,super_admin.campuses_academic_year.franchise_management,built
-Super Admin (platform),Campuses Academic Year,White Label Branding,super_admin.campuses_academic_year.white_label_branding,built
-Super Admin (platform),Dashboard,Alerts,super_admin.dashboard.alerts,built
-Super Admin (platform),Dashboard,All Campuses Summary,super_admin.dashboard.all_campuses_summary,built
-Super Admin (platform),Dashboard,Campus Cards,super_admin.dashboard.campus_cards,built
-Super Admin (platform),Dashboard,Central Admission Funnel Kpi,super_admin.dashboard.central_admission_funnel_kpi,built
-Super Admin (platform),Dashboard,Executive System Alerts,super_admin.dashboard.executive_system_alerts,built
-Super Admin (platform),Dashboard,Global Attendance Heatmap,super_admin.dashboard.global_attendance_heatmap,built
-Super Admin (platform),Dashboard,Multi Branch Revenue Analytics,super_admin.dashboard.multi_branch_revenue_analytics,built
-Super Admin (platform),Dashboard,System Health,super_admin.dashboard.system_health,built
-Super Admin (platform),Institution Setup,Academic Year Defaults,super_admin.institution_setup.academic_year_defaults,built
-Super Admin (platform),Institution Setup,Branding,super_admin.institution_setup.branding,built
-Super Admin (platform),Institution Setup,Institutions Campuses,super_admin.institution_setup.institutions_campuses,built
-Super Admin (platform),Institution Setup,School Settings,super_admin.institution_setup.school_settings,built
-Super Admin (platform),Messaging,Automated Trigger Rules,super_admin.messaging.automated_trigger_rules,built
-Super Admin (platform),Messaging,Email Server Smtp Integration,super_admin.messaging.email_server_smtp_integration,built
-Super Admin (platform),Messaging,Sms Gateway Integration,super_admin.messaging.sms_gateway_integration,built
-Super Admin (platform),Messaging,Whatsapp Api Integration,super_admin.messaging.whatsapp_api_integration,built
-Super Admin (platform),Operations,Data Backup Restore,super_admin.operations.data_backup_restore,built
-Super Admin (platform),Operations,System Health Integration Alerts,super_admin.operations.system_health_integration_alerts,built
-Super Admin (platform),Payments Devices,Biometric Device Integration,super_admin.payments_devices.biometric_device_integration,deferred
-Super Admin (platform),Payments Devices,Gps Hardware Integration,super_admin.payments_devices.gps_hardware_integration,deferred
-Super Admin (platform),Payments Devices,Meritto Leadsquared Sync,super_admin.payments_devices.meritto_leadsquared_sync,built
-Super Admin (platform),Payments Devices,Payment Gateway Connectors,super_admin.payments_devices.payment_gateway_connectors,deferred
-Super Admin (platform),Payments Devices,Tally Erp Prime Connector,super_admin.payments_devices.tally_erp_prime_connector,built
-Super Admin (platform),Payments Devices,Virtual Classroom Integration,super_admin.payments_devices.virtual_classroom_integration,built
-Super Admin (platform),Platform Configuration,Audit Log,super_admin.platform_configuration.audit_log,built
-Super Admin (platform),Platform Configuration,Data Operations,super_admin.platform_configuration.data_operations,built
-Super Admin (platform),Platform Configuration,Import Export,super_admin.platform_configuration.import_export,built
-Super Admin (platform),Platform Configuration,Integrations,super_admin.platform_configuration.integrations,built
-Super Admin (platform),Platform Configuration,Module Configuration,super_admin.platform_configuration.module_configuration,built
-Super Admin (platform),Platform Configuration,Numbering Templates,super_admin.platform_configuration.numbering_templates,built
-Super Admin (platform),Statutory Boards,Apaar Id Provisioning,super_admin.statutory_boards.apaar_id_provisioning,built
-Super Admin (platform),Statutory Boards,Board Affiliation Disclosure,super_admin.statutory_boards.board_affiliation_disclosure,built
-Super Admin (platform),Statutory Boards,Child Info Portal Sync,super_admin.statutory_boards.child_info_portal_sync,built
-Super Admin (platform),Statutory Boards,Digilocker Issuer Integration,super_admin.statutory_boards.digilocker_issuer_integration,deferred
-Super Admin (platform),Statutory Boards,District Mandal Master,super_admin.statutory_boards.district_mandal_master,built
-Super Admin (platform),Statutory Boards,School Management Type,super_admin.statutory_boards.school_management_type,built
-Super Admin (platform),Statutory Boards,Sqaa Framework Management,super_admin.statutory_boards.sqaa_framework_management,built
-Super Admin (platform),Statutory Boards,State Board Configuration,super_admin.statutory_boards.state_board_configuration,built
-Super Admin (platform),Statutory Boards,Udise Data Sync,super_admin.statutory_boards.udise_data_sync,built
-Faculty / Teacher,Assessment Schemes,Cce Formative Assessment Entry,faculty.assessment_schemes.cce_formative_assessment_entry,built
-Faculty / Teacher,Assessment Schemes,Cce Summative Assessment Entry,faculty.assessment_schemes.cce_summative_assessment_entry,built
-Faculty / Teacher,Attendance,Absence Alert To Guardian,faculty.attendance.absence_alert_to_guardian,built
-Faculty / Teacher,Attendance,Attendance Correction,faculty.attendance.attendance_correction,built
-Faculty / Teacher,Attendance,Offline Attendance Diary Capture,faculty.attendance.offline_attendance_diary_capture,built
-Faculty / Teacher,Attendance,Take Attendance,faculty.attendance.take_attendance,built
-Faculty / Teacher,Communication,Anecdotal Records,faculty.communication.anecdotal_records,built
-Faculty / Teacher,Communication,Announcements,faculty.communication.announcements,built
-Faculty / Teacher,Communication,Class Teacher Remarks,faculty.communication.class_teacher_remarks,built
-Faculty / Teacher,Communication,Classroom Communication Broadcasting,faculty.communication.classroom_communication_broadcasting,built
-Faculty / Teacher,Communication,Communication,faculty.communication.communication,built
-Faculty / Teacher,Communication,Ptm Notes Action Items,faculty.communication.ptm_notes_action_items,built
-Faculty / Teacher,Communication,Remarks,faculty.communication.remarks,built
-Faculty / Teacher,Home,My Day,faculty.home.my_day,built
-Faculty / Teacher,Home,My Work,faculty.home.my_work,built
-Faculty / Teacher,Home,Todays Classes,faculty.home.todays_classes,built
-Faculty / Teacher,Marks Report Cards,Holistic Progress Card,faculty.marks_report_cards.holistic_progress_card,built
-Faculty / Teacher,Marks Report Cards,Marks Entry,faculty.marks_report_cards.marks_entry,built
-Faculty / Teacher,Marks Report Cards,Nep Holistic Progress Card Hpc,faculty.marks_report_cards.nep_holistic_progress_card_hpc,built
-Faculty / Teacher,Marks Report Cards,Report Cards,faculty.marks_report_cards.report_cards,built
-Faculty / Teacher,My Classes,Cwsn Support Plan,faculty.my_classes.cwsn_support_plan,built
-Faculty / Teacher,My Classes,Discipline Notes,faculty.my_classes.discipline_notes,built
-Faculty / Teacher,My Classes,Language Subject Allocation,faculty.my_classes.language_subject_allocation,built
-Faculty / Teacher,My Classes,Montessori Early Years Tracking,faculty.my_classes.montessori_early_years_tracking,built
-Faculty / Teacher,My Classes,My Classes,faculty.my_classes.my_classes,built
-Faculty / Teacher,My Classes,My Students,faculty.my_classes.my_students,built
-Faculty / Teacher,My Classes,Student At Risk Identification,faculty.my_classes.student_at_risk_identification,built
-Faculty / Teacher,My Classes,Student Behavior Demerits,faculty.my_classes.student_behavior_demerits,built
-Faculty / Teacher,My Classes,Student Details,faculty.my_classes.student_details,built
-Faculty / Teacher,My Classes,Student Portfolio Builder,faculty.my_classes.student_portfolio_builder,built
-Faculty / Teacher,My Classes,Student Progress,faculty.my_classes.student_progress,built
-Faculty / Teacher,My Profile,Leave Self Service,faculty.my_profile.leave_self_service,built
-Faculty / Teacher,My Profile,Profile,faculty.my_profile.profile,built
-Faculty / Teacher,Question Papers Online Tests,Ai Examcell Paper Generator,faculty.question_papers_online_tests.ai_examcell_paper_generator,deferred
-Faculty / Teacher,Question Papers Online Tests,No Omr Exam Grading,faculty.question_papers_online_tests.no_omr_exam_grading,built
-Faculty / Teacher,Question Papers Online Tests,Objective Online Test Creation,faculty.question_papers_online_tests.objective_online_test_creation,built
-Faculty / Teacher,Question Papers Online Tests,Question Bank Management,faculty.question_papers_online_tests.question_bank_management,built
-Faculty / Teacher,Question Papers Online Tests,Ved Ai Assessment Assistant,faculty.question_papers_online_tests.ved_ai_assessment_assistant,deferred
-Faculty / Teacher,Teaching,Assignments Submissions,faculty.teaching.assignments_submissions,built
-Faculty / Teacher,Teaching,Homework Classwork,faculty.teaching.homework_classwork,built
-Faculty / Teacher,Teaching,Lesson Plans Content,faculty.teaching.lesson_plans_content,built
-Faculty / Teacher,Teaching,Live Virtual Class Launcher,faculty.teaching.live_virtual_class_launcher,built
-Faculty / Teacher,Teaching,Lms Study Material Upload,faculty.teaching.lms_study_material_upload,built
-Faculty / Teacher,Teaching,Study Materials,faculty.teaching.study_materials,built
-Faculty / Teacher,Teaching,Syllabus Progress,faculty.teaching.syllabus_progress,built
-Faculty / Teacher,Teaching,Syllabus Progress Tracker,faculty.teaching.syllabus_progress_tracker,built
-Faculty / Teacher,Teaching,Teacher Digital Diary,faculty.teaching.teacher_digital_diary,built
-Faculty / Teacher,Timetable,My Timetable,faculty.timetable.my_timetable,built
-Faculty / Teacher,Timetable,Substitution Request Submission,faculty.timetable.substitution_request_submission,built
-Admissions & Front Office,Admissions,Aadhaar Apaar Capture At Admission,admissions.admissions.aadhaar_apaar_capture_at_admission,built
-Admissions & Front Office,Admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,built
-Admissions & Front Office,Admissions,Admission Waitlist Management,admissions.admissions.admission_waitlist_management,built
-Admissions & Front Office,Admissions,Alumni Child Quota Allocation,admissions.admissions.alumni_child_quota_allocation,built
-Admissions & Front Office,Admissions,Child Info Id Capture,admissions.admissions.child_info_id_capture,built
-Admissions & Front Office,Admissions,Enrollment Handoff,admissions.admissions.enrollment_handoff,built
-Admissions & Front Office,Admissions,Medium Of Instruction Selection,admissions.admissions.medium_of_instruction_selection,built
-Admissions & Front Office,Admissions,Merit List Generation,admissions.admissions.merit_list_generation,built
-Admissions & Front Office,Admissions,Offers Admission Decisions,admissions.admissions.offers_admission_decisions,built
-Admissions & Front Office,Admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,built
-Admissions & Front Office,Admissions,Rte Online Lottery Import,admissions.admissions.rte_online_lottery_import,built
-Admissions & Front Office,Admissions,Rte Right To Education Quota Tracking,admissions.admissions.rte_right_to_education_quota_tracking,built
-Admissions & Front Office,Admissions,Seat Allocation Management,admissions.admissions.seat_allocation_management,built
-Admissions & Front Office,Admissions,Sibling Priority Auto Matching,admissions.admissions.sibling_priority_auto_matching,built
-Admissions & Front Office,Admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,built
-Admissions & Front Office,Applications,Applicant Documents,admissions.applications.applicant_documents,built
-Admissions & Front Office,Applications,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,built
-Admissions & Front Office,Applications,Applications,admissions.applications.applications,built
-Admissions & Front Office,Applications,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,built
-Admissions & Front Office,Applications,Foreign Nri Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,built
-Admissions & Front Office,Applications,Interview Interaction Scheduler,admissions.applications.interview_interaction_scheduler,built
-Admissions & Front Office,Applications,Online Application Form Builder,admissions.applications.online_application_form_builder,built
-Admissions & Front Office,Communication,Applicant Communication,admissions.communication.applicant_communication,built
-Admissions & Front Office,Enquiries,24 7 Admission Chatbot,admissions.enquiries.24_7_admission_chatbot,deferred
-Admissions & Front Office,Enquiries,Admissions Open Day Scheduler,admissions.enquiries.admissions_open_day_scheduler,built
-Admissions & Front Office,Enquiries,Ai Voice Agent Integration,admissions.enquiries.ai_voice_agent_integration,deferred
-Admissions & Front Office,Enquiries,Counselor Activity Follow Ups,admissions.enquiries.counselor_activity_follow_ups,built
-Admissions & Front Office,Enquiries,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,built
-Admissions & Front Office,Enquiries,Enquiries Leads,admissions.enquiries.enquiries_leads,built
-Admissions & Front Office,Enquiries,Lead Source Tracking,admissions.enquiries.lead_source_tracking,built
-Admissions & Front Office,Enquiries,Multi Touch Campaign Sequences,admissions.enquiries.multi_touch_campaign_sequences,built
-Admissions & Front Office,Enquiries,Prospectus Kit Sales Log,admissions.enquiries.prospectus_kit_sales_log,built
-Admissions & Front Office,Enquiries,Utm Tracking Digital Campaign Attribution,admissions.enquiries.utm_tracking_digital_campaign_attribution,built
-Admissions & Front Office,Gate Security,Emergency Gate Lockout,admissions.gate_security.emergency_gate_lockout,built
-Admissions & Front Office,Gate Security,Gate Rfid Entry Management,admissions.gate_security.gate_rfid_entry_management,deferred
-Admissions & Front Office,Home,Admissions Kpis,admissions.home.admissions_kpis,built
-Admissions & Front Office,Home,Follow Ups,admissions.home.follow_ups,built
-Admissions & Front Office,Office Log,Front Office Calls Register,admissions.office_log.front_office_calls_register,built
-Admissions & Front Office,Office Log,Postal Courier Log,admissions.office_log.postal_courier_log,built
-Admissions & Front Office,Reports,Admission Conversion Reports,admissions.reports.admission_conversion_reports,built
-Admissions & Front Office,Reports,Lost Lead Reason Analysis,admissions.reports.lost_lead_reason_analysis,built
-Admissions & Front Office,Visitors,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,built
-Admissions & Front Office,Visitors,Visitor Checkout Tracking,admissions.visitors.visitor_checkout_tracking,built
-Admissions & Front Office,Visitors,Visitor Gate Pass Generation,admissions.visitors.visitor_gate_pass_generation,built
-Accounts & Finance,Assets Budget,Budgeting Variance Analysis,finance.assets_budget.budgeting_variance_analysis,built
-Accounts & Finance,Assets Budget,Fixed Asset Register Depreciation,finance.assets_budget.fixed_asset_register_depreciation,built
-Accounts & Finance,Collections,Cashless Campus Wallet,finance.collections.cashless_campus_wallet,deferred
-Accounts & Finance,Collections,Collect Payment,finance.collections.collect_payment,built
-Accounts & Finance,Collections,Gst Compliant Receipt Numbering,finance.collections.gst_compliant_receipt_numbering,built
-Accounts & Finance,Collections,Online Payments,finance.collections.online_payments,built
-Accounts & Finance,Collections,Partial Advance Payments,finance.collections.partial_advance_payments,built
-Accounts & Finance,Collections,Pos Canteen Terminal Integration,finance.collections.pos_canteen_terminal_integration,built
-Accounts & Finance,Collections,Receipts,finance.collections.receipts,built
-Accounts & Finance,Collections,School Store Merchandise Sales,finance.collections.school_store_merchandise_sales,built
-Accounts & Finance,Concessions Refunds,Discounts Scholarships,finance.concessions_refunds.discounts_scholarships,built
-Accounts & Finance,Concessions Refunds,Government Reimbursement Claims,finance.concessions_refunds.government_reimbursement_claims,built
-Accounts & Finance,Concessions Refunds,Grant In Aid Accounting,finance.concessions_refunds.grant_in_aid_accounting,built
-Accounts & Finance,Concessions Refunds,Multi Level Concession Approvals,finance.concessions_refunds.multi_level_concession_approvals,built
-Accounts & Finance,Concessions Refunds,Nsp Scholarship Reconciliation,finance.concessions_refunds.nsp_scholarship_reconciliation,built
-Accounts & Finance,Concessions Refunds,Refunds,finance.concessions_refunds.refunds,built
-Accounts & Finance,Concessions Refunds,Student Loan Assistance Portal,finance.concessions_refunds.student_loan_assistance_portal,built
-Accounts & Finance,Export,Tally Prime Xml Export,finance.export.tally_prime_xml_export,built
-Accounts & Finance,Fee Structure,Class Wise Fee Structure Configuration,finance.fee_structure.class_wise_fee_structure_configuration,built
-Accounts & Finance,Fee Structure,Demand Invoice Generation,finance.fee_structure.demand_invoice_generation,built
-Accounts & Finance,Fee Structure,Fee Head Group Setup,finance.fee_structure.fee_head_group_setup,built
-Accounts & Finance,Fee Structure,Fee Structure Versioning,finance.fee_structure.fee_structure_versioning,built
-Accounts & Finance,Home,Finance Kpis,finance.home.finance_kpis,built
-Accounts & Finance,Home,Needs Attention,finance.home.needs_attention,built
-Accounts & Finance,Ledgers,Chart Of Accounts Setup,finance.ledgers.chart_of_accounts_setup,built
-Accounts & Finance,Ledgers,Expenses Accounting,finance.ledgers.expenses_accounting,built
-Accounts & Finance,Ledgers,Financial Year Closing,finance.ledgers.financial_year_closing,built
-Accounts & Finance,Ledgers,General Ledger Trial Balance,finance.ledgers.general_ledger_trial_balance,built
-Accounts & Finance,Payables,Petty Cash Voucher Management,finance.payables.petty_cash_voucher_management,built
-Accounts & Finance,Payables,Vendor Management Accounts Payable,finance.payables.vendor_management_accounts_payable,built
-Accounts & Finance,Reconciliation,Bank Reconciliation Statement Brs,finance.reconciliation.bank_reconciliation_statement_brs,built
-Accounts & Finance,Reconciliation,Connected Banking Payouts,finance.reconciliation.connected_banking_payouts,built
-Accounts & Finance,Reconciliation,Payment Gateway Reconciliation,finance.reconciliation.payment_gateway_reconciliation,built
-Accounts & Finance,Reconciliation,Reconciliation,finance.reconciliation.reconciliation,built
-Accounts & Finance,Reconciliation,Student Bank Account Register,finance.reconciliation.student_bank_account_register,built
-Accounts & Finance,Reports,Daybook Cashbook Reports,finance.reports.daybook_cashbook_reports,built
-Accounts & Finance,Reports,Finance Reports,finance.reports.finance_reports,built
-Accounts & Finance,Reports,Taxation Audit Reports,finance.reports.taxation_audit_reports,built
-Accounts & Finance,Student Dues,Automated Fee Reminders,finance.student_dues.automated_fee_reminders,built
-Accounts & Finance,Student Dues,Cheque Bounce Fine Engine,finance.student_dues.cheque_bounce_fine_engine,built
-Accounts & Finance,Student Dues,Defaulters Reminders,finance.student_dues.defaulters_reminders,built
-Accounts & Finance,Student Dues,Late Fine Rules Engine,finance.student_dues.late_fine_rules_engine,built
-Accounts & Finance,Student Dues,Post Dated Cheques Pdc Registry,finance.student_dues.post_dated_cheques_pdc_registry,built
-Accounts & Finance,Student Dues,Student Ledger,finance.student_dues.student_ledger,built
-HR & Payroll,Attendance,Biometric Machine Attendance Sync,hr.attendance.biometric_machine_attendance_sync,deferred
-HR & Payroll,Attendance,Biometric Punch In Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,deferred
-HR & Payroll,Attendance,Staff Attendance,hr.attendance.staff_attendance,built
-HR & Payroll,Attendance,Staff Shift Rostering,hr.attendance.staff_shift_rostering,built
-HR & Payroll,Hiring Growth,Annual Performance Appraisal Kpi,hr.hiring_growth.annual_performance_appraisal_kpi,built
-HR & Payroll,Hiring Growth,Recruitment,hr.hiring_growth.recruitment,built
-HR & Payroll,Hiring Growth,Staff Training Workshop Logs,hr.hiring_growth.staff_training_workshop_logs,built
-HR & Payroll,Home,Hr Kpis,hr.home.hr_kpis,built
-HR & Payroll,Leave,Half Day Leave Deduction Calculation,hr.leave.half_day_leave_deduction_calculation,built
-HR & Payroll,Leave,Late Arrival Loss Of Pay Lop,hr.leave.late_arrival_loss_of_pay_lop,built
-HR & Payroll,Leave,Leave,hr.leave.leave,built
-HR & Payroll,Leave,Leave Policy Configuration,hr.leave.leave_policy_configuration,built
-HR & Payroll,Onboarding Exit,Staff Exit Interview Management,hr.onboarding_exit.staff_exit_interview_management,built
-HR & Payroll,Onboarding Exit,Staff Experience Relieving Cards,hr.onboarding_exit.staff_experience_relieving_cards,built
-HR & Payroll,Onboarding Exit,Staff Onboarding Kyc Verification,hr.onboarding_exit.staff_onboarding_kyc_verification,built
-HR & Payroll,Onboarding Exit,Teacher Relieving No Deduction Clearance,hr.onboarding_exit.teacher_relieving_no_deduction_clearance,built
-HR & Payroll,Onboarding Exit,Teacher Transfer Deputation,hr.onboarding_exit.teacher_transfer_deputation,built
-HR & Payroll,Payroll,Direct Bank Payroll Transfer File,hr.payroll.direct_bank_payroll_transfer_file,built
-HR & Payroll,Payroll,Employee Ctc Breakup Calculator,hr.payroll.employee_ctc_breakup_calculator,built
-HR & Payroll,Payroll,Overtime Ot Rate Setup,hr.payroll.overtime_ot_rate_setup,built
-HR & Payroll,Payroll,Payroll,hr.payroll.payroll,built
-HR & Payroll,Payroll,Payslip Generation Email Dispatch,hr.payroll.payslip_generation_email_dispatch,built
-HR & Payroll,Payroll,Pf Encashment Loan Deduction,hr.payroll.pf_encashment_loan_deduction,built
-HR & Payroll,Payroll,Salary Structure Builder,hr.payroll.salary_structure_builder,built
-HR & Payroll,Payroll,Staff Loan Advance Management,hr.payroll.staff_loan_advance_management,built
-HR & Payroll,Payroll,Substitute Workload Allowance,hr.payroll.substitute_workload_allowance,built
-HR & Payroll,Records,Employee Document Expiry Alerts,hr.records.employee_document_expiry_alerts,built
-HR & Payroll,Records,Employee Documents,hr.records.employee_documents,built
-HR & Payroll,Records,Employee Master,hr.records.employee_master,built
-HR & Payroll,Records,Staff Id Card Printing,hr.records.staff_id_card_printing,built
-HR & Payroll,Records,Staff Service Book Digitalization,hr.records.staff_service_book_digitalization,built
-HR & Payroll,Records,Teacher Qualification Register,hr.records.teacher_qualification_register,built
-HR & Payroll,Reports,Hr Reports,hr.reports.hr_reports,built
-HR & Payroll,Statutory,Contractor Security Staff Bill Verification,hr.statutory.contractor_security_staff_bill_verification,built
-HR & Payroll,Statutory,Form 12Bb Investment Declarations,hr.statutory.form_12bb_investment_declarations,built
-HR & Payroll,Statutory,Income Tax Form 16 Generator,hr.statutory.income_tax_form_16_generator,built
-HR & Payroll,Statutory,Pf Esi Statutory Compliance,hr.statutory.pf_esi_statutory_compliance,built
-HR & Payroll,Statutory,Professional Tax Pt Slab Configuration,hr.statutory.professional_tax_pt_slab_configuration,built
-HR & Payroll,Statutory,Staff Gratuity Liability Estimator,hr.statutory.staff_gratuity_liability_estimator,built
-HR & Payroll,Verification,Medical Fitness Certificate Registry,hr.verification.medical_fitness_certificate_registry,built
-HR & Payroll,Verification,Staff Criminal Background Verification,hr.verification.staff_criminal_background_verification,built
-HR & Payroll,Welfare,Staff Birthday Anniversary Alerts,hr.welfare.staff_birthday_anniversary_alerts,built
-HR & Payroll,Welfare,Staff Grievance Cell,hr.welfare.staff_grievance_cell,built
-HR & Payroll,Welfare,Staff Recognition Wall,hr.welfare.staff_recognition_wall,built
-Parent / Guardian,Academics,Ai Child Performance Summary Audio,parent.academics.ai_child_performance_summary_audio,deferred
-Parent / Guardian,Academics,Homework Academics,parent.academics.homework_academics,built
-Parent / Guardian,Academics,Iep Progress Goal Tracker,parent.academics.iep_progress_goal_tracker,built
-Parent / Guardian,Academics,Results Report Cards,parent.academics.results_report_cards,built
-Parent / Guardian,Alerts Preferences,Parent App Live Bus Tracking Refresh Rate Customizer,parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer,deferred
-Parent / Guardian,Alerts Preferences,Parent Bus Proximity Radius Customizer,parent.alerts_preferences.parent_bus_proximity_radius_customizer,deferred
-Parent / Guardian,Alerts Preferences,Real Time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,deferred
-Parent / Guardian,Attendance,Attendance,parent.attendance.attendance,built
-Parent / Guardian,Attendance,Child Absence Reporting Button,parent.attendance.child_absence_reporting_button,built
-Parent / Guardian,Consent,Consent Acknowledgement,parent.consent.consent_acknowledgement,built
-Parent / Guardian,Consent,Digital Parent Consent Slips,parent.consent.digital_parent_consent_slips,built
-Parent / Guardian,Consent,Parent Delegation For Emergency Pickup,parent.consent.parent_delegation_for_emergency_pickup,built
-Parent / Guardian,Documents,Digilocker Document Pull,parent.documents.digilocker_document_pull,deferred
-Parent / Guardian,Fees,Child Daily Cafeteria Purchase Timeline,parent.fees.child_daily_cafeteria_purchase_timeline,built
-Parent / Guardian,Fees,Digital Fee Receipt Pdf Download,parent.fees.digital_fee_receipt_pdf_download,built
-Parent / Guardian,Fees,Fees Payments,parent.fees.fees_payments,built
-Parent / Guardian,Home,Child Summary,parent.home.child_summary,built
-Parent / Guardian,Home,Child Switcher,parent.home.child_switcher,built
-Parent / Guardian,Home,Needs Attention,parent.home.needs_attention,built
-Parent / Guardian,Home,Real Time Push Notifications,parent.home.real_time_push_notifications,built
-Parent / Guardian,Leave Absence,Apply Student Leave,parent.leave_absence.apply_student_leave,built
-Parent / Guardian,Leave Absence,Requests,parent.leave_absence.requests,built
-Parent / Guardian,Messages,Ai Voice Search For School Notices,parent.messages.ai_voice_search_for_school_notices,deferred
-Parent / Guardian,Messages,Communication,parent.messages.communication,built
-Parent / Guardian,Messages,Concerns Grievance Ticketing,parent.messages.concerns_grievance_ticketing,built
-Parent / Guardian,Messages,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,built
-Parent / Guardian,Messages,Parent Community Discussion Forum,parent.messages.parent_community_discussion_forum,built
-Parent / Guardian,Messages,Private Counselor Chat Channel,parent.messages.private_counselor_chat_channel,built
-Parent / Guardian,My Childs Bus,Live Bus Tracking Map,parent.my_childs_bus.live_bus_tracking_map,deferred
-Parent / Guardian,My Childs Bus,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,deferred
-Parent / Guardian,My Childs Bus,Transport Snapshot,parent.my_childs_bus.transport_snapshot,deferred
-Parent / Guardian,Profile,Digital Parent Id Card For Campus Entry,parent.profile.digital_parent_id_card_for_campus_entry,built
-Parent / Guardian,Profile,Digital Student Id Card View,parent.profile.digital_student_id_card_view,built
-Parent / Guardian,Profile,Multi Language App Interface Toggle,parent.profile.multi_language_app_interface_toggle,built
-Parent / Guardian,Profile,Parent App Biometric Lock Face Id Fingerprint,parent.profile.parent_app_biometric_lock_face_id_fingerprint,deferred
-Parent / Guardian,Profile,Parent App Dark Mode High Contrast Accessibility,parent.profile.parent_app_dark_mode_high_contrast_accessibility,built
-Parent / Guardian,Profile,Telugu Language Interface,parent.profile.telugu_language_interface,built
-Parent / Guardian,School Life,Calendar Ptm,parent.school_life.calendar_ptm,built
-Parent / Guardian,School Life,Live Event Seating Pass,parent.school_life.live_event_seating_pass,built
-Parent / Guardian,School Life,Parent Teacher Meeting Booking,parent.school_life.parent_teacher_meeting_booking,built
-Parent / Guardian,School Life,Ptm Appointment Reminder Alert,parent.school_life.ptm_appointment_reminder_alert,built
-Parent / Guardian,School Life,School Photo Video Gallery,parent.school_life.school_photo_video_gallery,built
+Admissions,Admissions,Aadhaar Apaar Capture At Admission,admissions.admissions.aadhaar_apaar_capture_at_admission,built
+Admissions,Admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,built
+Admissions,Admissions,Admission Waitlist Management,admissions.admissions.admission_waitlist_management,built
+Admissions,Admissions,Alumni Child Quota Allocation,admissions.admissions.alumni_child_quota_allocation,built
+Admissions,Admissions,Child Info Id Capture,admissions.admissions.child_info_id_capture,built
+Admissions,Admissions,Enrollment Handoff,admissions.admissions.enrollment_handoff,built
+Admissions,Admissions,Medium Of Instruction Selection,admissions.admissions.medium_of_instruction_selection,built
+Admissions,Admissions,Merit List Generation,admissions.admissions.merit_list_generation,built
+Admissions,Admissions,Offers Admission Decisions,admissions.admissions.offers_admission_decisions,built
+Admissions,Admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,built
+Admissions,Admissions,Rte Online Lottery Import,admissions.admissions.rte_online_lottery_import,built
+Admissions,Admissions,Rte Right To Education Quota Tracking,admissions.admissions.rte_right_to_education_quota_tracking,built
+Admissions,Admissions,Seat Allocation Management,admissions.admissions.seat_allocation_management,built
+Admissions,Admissions,Sibling Priority Auto Matching,admissions.admissions.sibling_priority_auto_matching,built
+Admissions,Admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,built
+Admissions,Applications,Applicant Documents,admissions.applications.applicant_documents,built
+Admissions,Applications,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,built
+Admissions,Applications,Applications,admissions.applications.applications,built
+Admissions,Applications,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,built
+Admissions,Applications,Foreign Nri Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,built
+Admissions,Applications,Interview Interaction Scheduler,admissions.applications.interview_interaction_scheduler,built
+Admissions,Applications,Online Application Form Builder,admissions.applications.online_application_form_builder,built
+Admissions,Communication,Applicant Communication,admissions.communication.applicant_communication,built
+Admissions,Enquiries,24 7 Admission Chatbot,admissions.enquiries.24_7_admission_chatbot,deferred
+Admissions,Enquiries,Admissions Open Day Scheduler,admissions.enquiries.admissions_open_day_scheduler,built
+Admissions,Enquiries,Ai Voice Agent Integration,admissions.enquiries.ai_voice_agent_integration,deferred
+Admissions,Enquiries,Counselor Activity Follow Ups,admissions.enquiries.counselor_activity_follow_ups,built
+Admissions,Enquiries,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,built
+Admissions,Enquiries,Enquiries Leads,admissions.enquiries.enquiries_leads,built
+Admissions,Enquiries,Lead Source Tracking,admissions.enquiries.lead_source_tracking,built
+Admissions,Enquiries,Multi Touch Campaign Sequences,admissions.enquiries.multi_touch_campaign_sequences,built
+Admissions,Enquiries,Prospectus Kit Sales Log,admissions.enquiries.prospectus_kit_sales_log,built
+Admissions,Enquiries,Utm Tracking Digital Campaign Attribution,admissions.enquiries.utm_tracking_digital_campaign_attribution,built
+Admissions,Gate Security,Emergency Gate Lockout,admissions.gate_security.emergency_gate_lockout,built
+Admissions,Gate Security,Gate Rfid Entry Management,admissions.gate_security.gate_rfid_entry_management,deferred
+Admissions,Home,Admissions Kpis,admissions.home.admissions_kpis,built
+Admissions,Home,Follow Ups,admissions.home.follow_ups,built
+Admissions,Office Log,Front Office Calls Register,admissions.office_log.front_office_calls_register,built
+Admissions,Office Log,Postal Courier Log,admissions.office_log.postal_courier_log,built
+Admissions,Reports,Admission Conversion Reports,admissions.reports.admission_conversion_reports,built
+Admissions,Reports,Lost Lead Reason Analysis,admissions.reports.lost_lead_reason_analysis,built
+Admissions,Visitors,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,built
+Admissions,Visitors,Visitor Checkout Tracking,admissions.visitors.visitor_checkout_tracking,built
+Admissions,Visitors,Visitor Gate Pass Generation,admissions.visitors.visitor_gate_pass_generation,built
+Faculty,Assessment Schemes,Cce Formative Assessment Entry,faculty.assessment_schemes.cce_formative_assessment_entry,built
+Faculty,Assessment Schemes,Cce Summative Assessment Entry,faculty.assessment_schemes.cce_summative_assessment_entry,built
+Faculty,Attendance,Attendance Correction,faculty.attendance.attendance_correction,built
+Faculty,Attendance,Offline Attendance Diary Capture,faculty.attendance.offline_attendance_diary_capture,built
+Faculty,Attendance,Take Attendance,faculty.attendance.take_attendance,built
+Faculty,Communication,Communication,faculty.communication.communication,built
+Faculty,Communication,Remarks,faculty.communication.remarks,built
+Faculty,Home,My Day,faculty.home.my_day,built
+Faculty,Home,My Work,faculty.home.my_work,built
+Faculty,Home,Todays Classes,faculty.home.todays_classes,built
+Faculty,Marks Report Cards,Marks Entry,faculty.marks_report_cards.marks_entry,built
+Faculty,Marks Report Cards,Report Cards,faculty.marks_report_cards.report_cards,built
+Faculty,My Classes,My Classes,faculty.my_classes.my_classes,built
+Faculty,My Classes,My Students,faculty.my_classes.my_students,built
+Faculty,My Classes,Student Behavior Demerits,faculty.my_classes.student_behavior_demerits,built
+Faculty,My Classes,Student Details,faculty.my_classes.student_details,built
+Faculty,My Classes,Student Progress,faculty.my_classes.student_progress,built
+Faculty,My Profile,Leave Self Service,faculty.my_profile.leave_self_service,built
+Faculty,My Profile,Profile,faculty.my_profile.profile,built
+Faculty,My Profile,Remarks About Me,faculty.my_profile.remarks_about_me,built
+Faculty,My Profile,Student Leave Requests,faculty.my_profile.student_leave_requests,built
+Faculty,Question Papers Online Tests,Ai Examcell Paper Generator,faculty.question_papers_online_tests.ai_examcell_paper_generator,deferred
+Faculty,Question Papers Online Tests,Objective Online Test Creation,faculty.question_papers_online_tests.objective_online_test_creation,built
+Faculty,Question Papers Online Tests,Question Bank Management,faculty.question_papers_online_tests.question_bank_management,built
+Faculty,Question Papers Online Tests,Ved Ai Assessment Assistant,faculty.question_papers_online_tests.ved_ai_assessment_assistant,deferred
+Faculty,Teaching,Assignments Submissions,faculty.teaching.assignments_submissions,built
+Faculty,Teaching,Homework Classwork,faculty.teaching.homework_classwork,built
+Faculty,Teaching,Lesson Plans Content,faculty.teaching.lesson_plans_content,built
+Faculty,Teaching,Lms Study Material Upload,faculty.teaching.lms_study_material_upload,built
+Faculty,Timetable,My Timetable,faculty.timetable.my_timetable,built
+Faculty,Timetable,Substitution Request Submission,faculty.timetable.substitution_request_submission,built
+Finance,Assets Budget,Budgeting Variance Analysis,finance.assets_budget.budgeting_variance_analysis,built
+Finance,Assets Budget,Fixed Asset Register Depreciation,finance.assets_budget.fixed_asset_register_depreciation,built
+Finance,Collections,Cashless Campus Wallet,finance.collections.cashless_campus_wallet,deferred
+Finance,Collections,Collect Payment,finance.collections.collect_payment,built
+Finance,Collections,Gst Compliant Receipt Numbering,finance.collections.gst_compliant_receipt_numbering,built
+Finance,Collections,Online Payments,finance.collections.online_payments,built
+Finance,Collections,Partial Advance Payments,finance.collections.partial_advance_payments,built
+Finance,Collections,Pos Canteen Terminal Integration,finance.collections.pos_canteen_terminal_integration,built
+Finance,Collections,Receipts,finance.collections.receipts,built
+Finance,Collections,School Store Merchandise Sales,finance.collections.school_store_merchandise_sales,built
+Finance,Concessions Refunds,Discounts Scholarships,finance.concessions_refunds.discounts_scholarships,built
+Finance,Concessions Refunds,Government Reimbursement Claims,finance.concessions_refunds.government_reimbursement_claims,built
+Finance,Concessions Refunds,Grant In Aid Accounting,finance.concessions_refunds.grant_in_aid_accounting,built
+Finance,Concessions Refunds,Multi Level Concession Approvals,finance.concessions_refunds.multi_level_concession_approvals,built
+Finance,Concessions Refunds,Nsp Scholarship Reconciliation,finance.concessions_refunds.nsp_scholarship_reconciliation,built
+Finance,Concessions Refunds,Refunds,finance.concessions_refunds.refunds,built
+Finance,Concessions Refunds,Student Loan Assistance Portal,finance.concessions_refunds.student_loan_assistance_portal,built
+Finance,Export,Tally Prime Xml Export,finance.export.tally_prime_xml_export,built
+Finance,Fee Structure,Class Wise Fee Structure Configuration,finance.fee_structure.class_wise_fee_structure_configuration,built
+Finance,Fee Structure,Demand Invoice Generation,finance.fee_structure.demand_invoice_generation,built
+Finance,Fee Structure,Fee Head Group Setup,finance.fee_structure.fee_head_group_setup,built
+Finance,Fee Structure,Fee Structure Versioning,finance.fee_structure.fee_structure_versioning,built
+Finance,Home,Finance Kpis,finance.home.finance_kpis,built
+Finance,Home,Needs Attention,finance.home.needs_attention,built
+Finance,Ledgers,Chart Of Accounts Setup,finance.ledgers.chart_of_accounts_setup,built
+Finance,Ledgers,Expenses Accounting,finance.ledgers.expenses_accounting,built
+Finance,Ledgers,Financial Year Closing,finance.ledgers.financial_year_closing,built
+Finance,Ledgers,General Ledger Trial Balance,finance.ledgers.general_ledger_trial_balance,built
+Finance,Payables,Petty Cash Voucher Management,finance.payables.petty_cash_voucher_management,built
+Finance,Payables,Vendor Management Accounts Payable,finance.payables.vendor_management_accounts_payable,built
+Finance,Reconciliation,Bank Reconciliation Statement Brs,finance.reconciliation.bank_reconciliation_statement_brs,built
+Finance,Reconciliation,Connected Banking Payouts,finance.reconciliation.connected_banking_payouts,built
+Finance,Reconciliation,Payment Gateway Reconciliation,finance.reconciliation.payment_gateway_reconciliation,built
+Finance,Reconciliation,Reconciliation,finance.reconciliation.reconciliation,built
+Finance,Reconciliation,Student Bank Account Register,finance.reconciliation.student_bank_account_register,built
+Finance,Reports,Daybook Cashbook Reports,finance.reports.daybook_cashbook_reports,built
+Finance,Reports,Finance Reports,finance.reports.finance_reports,built
+Finance,Reports,Taxation Audit Reports,finance.reports.taxation_audit_reports,built
+Finance,Student Dues,Automated Fee Reminders,finance.student_dues.automated_fee_reminders,built
+Finance,Student Dues,Cheque Bounce Fine Engine,finance.student_dues.cheque_bounce_fine_engine,built
+Finance,Student Dues,Defaulters Reminders,finance.student_dues.defaulters_reminders,built
+Finance,Student Dues,Late Fine Rules Engine,finance.student_dues.late_fine_rules_engine,built
+Finance,Student Dues,Post Dated Cheques Pdc Registry,finance.student_dues.post_dated_cheques_pdc_registry,built
+Finance,Student Dues,Student Ledger,finance.student_dues.student_ledger,built
+hod,Academics,Faculty Allocation,hod.academics.faculty_allocation,built
+hod,Academics,Language Subject Allocation,hod.academics.language_subject_allocation,built
+hod,My Profile,Profile,hod.my_profile.profile,built
+hod,Staff,Leave Approvals,hod.staff.leave_approvals,built
+hod,Staff,Teacher Remarks,hod.staff.teacher_remarks,built
+hod,Timetable,Class Timetable,hod.timetable.class_timetable,built
+hod,Timetable,Department Timetable,hod.timetable.department_timetable,built
+hod,Timetable,Staff Timetable,hod.timetable.staff_timetable,built
+hod,Timetable,Substitution Requests,hod.timetable.substitution_requests,built
+HR,Attendance,Biometric Machine Attendance Sync,hr.attendance.biometric_machine_attendance_sync,deferred
+HR,Attendance,Biometric Punch In Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,deferred
+HR,Attendance,Staff Attendance,hr.attendance.staff_attendance,built
+HR,Attendance,Staff Shift Rostering,hr.attendance.staff_shift_rostering,built
+HR,Hiring Growth,Annual Performance Appraisal Kpi,hr.hiring_growth.annual_performance_appraisal_kpi,built
+HR,Hiring Growth,Recruitment,hr.hiring_growth.recruitment,built
+HR,Hiring Growth,Staff Training Workshop Logs,hr.hiring_growth.staff_training_workshop_logs,built
+HR,Home,Hr Kpis,hr.home.hr_kpis,built
+HR,Leave,Half Day Leave Deduction Calculation,hr.leave.half_day_leave_deduction_calculation,built
+HR,Leave,Late Arrival Loss Of Pay Lop,hr.leave.late_arrival_loss_of_pay_lop,built
+HR,Leave,Leave,hr.leave.leave,built
+HR,Leave,Leave Policy Configuration,hr.leave.leave_policy_configuration,built
+HR,Onboarding Exit,Staff Exit Interview Management,hr.onboarding_exit.staff_exit_interview_management,built
+HR,Onboarding Exit,Staff Experience Relieving Cards,hr.onboarding_exit.staff_experience_relieving_cards,built
+HR,Onboarding Exit,Staff Onboarding Kyc Verification,hr.onboarding_exit.staff_onboarding_kyc_verification,built
+HR,Onboarding Exit,Teacher Relieving No Deduction Clearance,hr.onboarding_exit.teacher_relieving_no_deduction_clearance,built
+HR,Onboarding Exit,Teacher Transfer Deputation,hr.onboarding_exit.teacher_transfer_deputation,built
+HR,Payroll,Direct Bank Payroll Transfer File,hr.payroll.direct_bank_payroll_transfer_file,built
+HR,Payroll,Employee Ctc Breakup Calculator,hr.payroll.employee_ctc_breakup_calculator,built
+HR,Payroll,Overtime Ot Rate Setup,hr.payroll.overtime_ot_rate_setup,built
+HR,Payroll,Payroll,hr.payroll.payroll,built
+HR,Payroll,Payslip Generation Email Dispatch,hr.payroll.payslip_generation_email_dispatch,built
+HR,Payroll,Pf Encashment Loan Deduction,hr.payroll.pf_encashment_loan_deduction,built
+HR,Payroll,Salary Structure Builder,hr.payroll.salary_structure_builder,built
+HR,Payroll,Staff Loan Advance Management,hr.payroll.staff_loan_advance_management,built
+HR,Payroll,Substitute Workload Allowance,hr.payroll.substitute_workload_allowance,built
+HR,Records,Employee Document Expiry Alerts,hr.records.employee_document_expiry_alerts,built
+HR,Records,Employee Documents,hr.records.employee_documents,built
+HR,Records,Employee Master,hr.records.employee_master,built
+HR,Records,Staff Id Card Printing,hr.records.staff_id_card_printing,built
+HR,Records,Staff Service Book Digitalization,hr.records.staff_service_book_digitalization,built
+HR,Records,Teacher Qualification Register,hr.records.teacher_qualification_register,built
+HR,Reports,Hr Reports,hr.reports.hr_reports,built
+HR,Statutory,Contractor Security Staff Bill Verification,hr.statutory.contractor_security_staff_bill_verification,built
+HR,Statutory,Form 12Bb Investment Declarations,hr.statutory.form_12bb_investment_declarations,built
+HR,Statutory,Income Tax Form 16 Generator,hr.statutory.income_tax_form_16_generator,built
+HR,Statutory,Pf Esi Statutory Compliance,hr.statutory.pf_esi_statutory_compliance,built
+HR,Statutory,Professional Tax Pt Slab Configuration,hr.statutory.professional_tax_pt_slab_configuration,built
+HR,Statutory,Staff Gratuity Liability Estimator,hr.statutory.staff_gratuity_liability_estimator,built
+HR,Verification,Medical Fitness Certificate Registry,hr.verification.medical_fitness_certificate_registry,built
+HR,Verification,Staff Criminal Background Verification,hr.verification.staff_criminal_background_verification,built
+HR,Welfare,Staff Birthday Anniversary Alerts,hr.welfare.staff_birthday_anniversary_alerts,built
+HR,Welfare,Staff Grievance Cell,hr.welfare.staff_grievance_cell,built
+HR,Welfare,Staff Recognition Wall,hr.welfare.staff_recognition_wall,built
+Institution Admin,Academics,Academic Calendar,institution_admin.academics.academic_calendar,built
+Institution Admin,Academics,Academic Structure,institution_admin.academics.academic_structure,built
+Institution Admin,Academics,Attendance Corrections,institution_admin.academics.attendance_corrections,built
+Institution Admin,Academics,Attendance Monitoring,institution_admin.academics.attendance_monitoring,built
+Institution Admin,Academics,Classes Sections,institution_admin.academics.classes_sections,built
+Institution Admin,Academics,Exams Marks Monitoring,institution_admin.academics.exams_marks_monitoring,built
+Institution Admin,Academics,Faculty Allocation,institution_admin.academics.faculty_allocation,built
+Institution Admin,Academics,Faculty Substitution Engine,institution_admin.academics.faculty_substitution_engine,built
+Institution Admin,Academics,Language Subject Allocation,institution_admin.academics.language_subject_allocation,built
+Institution Admin,Academics,Lesson Plan Approval Queue,institution_admin.academics.lesson_plan_approval_queue,built
+Institution Admin,Academics,Master Timetable Generation,institution_admin.academics.master_timetable_generation,built
+Institution Admin,Academics,Obe Outcomes,institution_admin.academics.obe_outcomes,built
+Institution Admin,Academics,Subject Chapter Planner,institution_admin.academics.subject_chapter_planner,built
+Institution Admin,Academics,Syllabus Coverage Tracking,institution_admin.academics.syllabus_coverage_tracking,built
+Institution Admin,Academics,Syllabus Progress,institution_admin.academics.syllabus_progress,built
+Institution Admin,Academics,Teacher Allocation,institution_admin.academics.teacher_allocation,built
+Institution Admin,Academics,Timetable,institution_admin.academics.timetable,built
+Institution Admin,Admissions,Admissions Overview,institution_admin.admissions.admissions_overview,built
+Institution Admin,Admissions,Rte 25 Reservation Register,institution_admin.admissions.rte_25_reservation_register,built
+Institution Admin,Analysis,Custom Report Builder,institution_admin.analysis.custom_report_builder,built
+Institution Admin,Analysis,Department Reports,institution_admin.analysis.department_reports,built
+Institution Admin,Analysis,Performance Analytics,institution_admin.analysis.performance_analytics,built
+Institution Admin,Approvals,Approvals,institution_admin.approvals.approvals,built
+Institution Admin,Approvals,Approvals Center,institution_admin.approvals.approvals_center,built
+Institution Admin,Boards Accreditation,Board Exam Loc Submission,institution_admin.boards_accreditation.board_exam_loc_submission,built
+Institution Admin,Boards Accreditation,Parakh Nep Credit Framework,institution_admin.boards_accreditation.parakh_nep_credit_framework,built
+Institution Admin,Boards Accreditation,Sqaa Compliance Tracking,institution_admin.boards_accreditation.sqaa_compliance_tracking,built
+Institution Admin,Communication,Circulars Announcements,institution_admin.communication.circulars_announcements,built
+Institution Admin,Communication,Communication,institution_admin.communication.communication,built
+Institution Admin,Communication,Parent Feedback Grievance Hub,institution_admin.communication.parent_feedback_grievance_hub,built
+Institution Admin,Communication,School Achievements Showcase,institution_admin.communication.school_achievements_showcase,built
+Institution Admin,Department,Department Academics,institution_admin.department.department_academics,built
+Institution Admin,Department,Department Timetable,institution_admin.department.department_timetable,built
+Institution Admin,Directory Workload,Faculty Allocation Workload,institution_admin.directory_workload.faculty_allocation_workload,built
+Institution Admin,Directory Workload,Faculty Directory,institution_admin.directory_workload.faculty_directory,built
+Institution Admin,Directory Workload,Faculty Directory Workload,institution_admin.directory_workload.faculty_directory_workload,built
+Institution Admin,Directory Workload,Staff Allocation Workload,institution_admin.directory_workload.staff_allocation_workload,built
+Institution Admin,Evaluation,360 Evaluation Oversight,institution_admin.evaluation.360_evaluation_oversight,built
+Institution Admin,Examinations,Baseline Performance Analysis,institution_admin.examinations.baseline_performance_analysis,built
+Institution Admin,Examinations,Board Result Import,institution_admin.examinations.board_result_import,built
+Institution Admin,Examinations,Exams Result Status,institution_admin.examinations.exams_result_status,built
+Institution Admin,Examinations,Exams Results,institution_admin.examinations.exams_results,built
+Institution Admin,Examinations,Hall Ticket Issue,institution_admin.examinations.hall_ticket_issue,built
+Institution Admin,Examinations,Intermediate Board Registration,institution_admin.examinations.intermediate_board_registration,built
+Institution Admin,Examinations,Performance Overview,institution_admin.examinations.performance_overview,built
+Institution Admin,Examinations,Report Cards,institution_admin.examinations.report_cards,built
+Institution Admin,Examinations,Ssc Board Registration,institution_admin.examinations.ssc_board_registration,built
+Institution Admin,Fees,Fee Overview,institution_admin.fees.fee_overview,built
+Institution Admin,Fees,Fee Regulatory Committee Filing,institution_admin.fees.fee_regulatory_committee_filing,built
+Institution Admin,Home,Academic Kpis,institution_admin.home.academic_kpis,built
+Institution Admin,Home,Department Kpis,institution_admin.home.department_kpis,built
+Institution Admin,Home,Executive Kpis,institution_admin.home.executive_kpis,built
+Institution Admin,Home,Needs Attention,institution_admin.home.needs_attention,built
+Institution Admin,Home,Today,institution_admin.home.today,built
+Institution Admin,Hostel,Boarder Laundry Tracking,institution_admin.hostel.boarder_laundry_tracking,built
+Institution Admin,Hostel,Buildings Rooms,institution_admin.hostel.buildings_rooms,built
+Institution Admin,Hostel,Complaints,institution_admin.hostel.complaints,built
+Institution Admin,Hostel,Digital Outpass Approval,institution_admin.hostel.digital_outpass_approval,built
+Institution Admin,Hostel,Hostel Building Room Setup,institution_admin.hostel.hostel_building_room_setup,built
+Institution Admin,Hostel,Hostel Complaint Ticketing,institution_admin.hostel.hostel_complaint_ticketing,built
+Institution Admin,Hostel,Hostel Roll Call Attendance,institution_admin.hostel.hostel_roll_call_attendance,built
+Institution Admin,Hostel,Hostel Visitor Log,institution_admin.hostel.hostel_visitor_log,built
+Institution Admin,Hostel,Mess Menu Meal Management,institution_admin.hostel.mess_menu_meal_management,built
+Institution Admin,Hostel,Night Study Room Attendance,institution_admin.hostel.night_study_room_attendance,built
+Institution Admin,Hostel,Outpass Leave,institution_admin.hostel.outpass_leave,built
+Institution Admin,Hostel,Roll Call,institution_admin.hostel.roll_call,built
+Institution Admin,Hostel,Room Allocation,institution_admin.hostel.room_allocation,built
+Institution Admin,Hostel,Room Allocation Engine,institution_admin.hostel.room_allocation_engine,built
+Institution Admin,Hostel,Room Inventory Checklists,institution_admin.hostel.room_inventory_checklists,built
+Institution Admin,Infirmary,Annual Health Checkup Records,institution_admin.infirmary.annual_health_checkup_records,built
+Institution Admin,Infirmary,Daily Nurse Visit Log,institution_admin.infirmary.daily_nurse_visit_log,built
+Institution Admin,Infirmary,Emergency Health Alerts,institution_admin.infirmary.emergency_health_alerts,built
+Institution Admin,Infirmary,Medication Admin Register,institution_admin.infirmary.medication_admin_register,built
+Institution Admin,Infirmary,School Health Programme Camps,institution_admin.infirmary.school_health_programme_camps,built
+Institution Admin,Infirmary,Student Health Master File,institution_admin.infirmary.student_health_master_file,built
+Institution Admin,Library,Accession Register,institution_admin.library.accession_register,built
+Institution Admin,Library,Barcode Spine Label Printing,institution_admin.library.barcode_spine_label_printing,built
+Institution Admin,Library,Book Cataloging Accession Register,institution_admin.library.book_cataloging_accession_register,built
+Institution Admin,Library,Book Issue Return Terminal,institution_admin.library.book_issue_return_terminal,built
+Institution Admin,Library,Book Reservation Queue,institution_admin.library.book_reservation_queue,built
+Institution Admin,Library,Books Copies,institution_admin.library.books_copies,built
+Institution Admin,Library,Digital E Book Journal Integration,institution_admin.library.digital_e_book_journal_integration,built
+Institution Admin,Library,Fines,institution_admin.library.fines,built
+Institution Admin,Library,Issue Return,institution_admin.library.issue_return,built
+Institution Admin,Library,Library Inventory Audit,institution_admin.library.library_inventory_audit,built
+Institution Admin,Library,Ncert Textbook Indent,institution_admin.library.ncert_textbook_indent,built
+Institution Admin,Library,Opac Digital Book Search,institution_admin.library.opac_digital_book_search,built
+Institution Admin,Library,Overdue Fine Calculation,institution_admin.library.overdue_fine_calculation,built
+Institution Admin,Library,Reservations,institution_admin.library.reservations,built
+Institution Admin,Mid Day Meal,Mdm Utilisation Report,institution_admin.mid_day_meal.mdm_utilisation_report,built
+Institution Admin,Mid Day Meal,Mid Day Meal Register,institution_admin.mid_day_meal.mid_day_meal_register,built
+Institution Admin,Standard,Comprehensive Attendance Report,institution_admin.standard.comprehensive_attendance_report,built
+Institution Admin,Standard,Exam Grade Analytics,institution_admin.standard.exam_grade_analytics,built
+Institution Admin,Standard,Fee Collection Summaries,institution_admin.standard.fee_collection_summaries,built
+Institution Admin,Standard,Reports,institution_admin.standard.reports,built
+Institution Admin,Statutory Returns,Apaar Id Register,institution_admin.statutory_returns.apaar_id_register,built
+Institution Admin,Statutory Returns,Child Info Reconciliation,institution_admin.statutory_returns.child_info_reconciliation,built
+Institution Admin,Statutory Returns,Statutory Registers,institution_admin.statutory_returns.statutory_registers,built
+Institution Admin,Statutory Returns,Udise Return Preparation,institution_admin.statutory_returns.udise_return_preparation,built
+Institution Admin,Statutory Returns,Working Days Instructional Hours,institution_admin.statutory_returns.working_days_instructional_hours,built
+Institution Admin,Stores,Department Stock Issuance,institution_admin.stores.department_stock_issuance,built
+Institution Admin,Stores,Item Category Store Setup,institution_admin.stores.item_category_store_setup,built
+Institution Admin,Stores,Purchase Order Workflow,institution_admin.stores.purchase_order_workflow,built
+Institution Admin,Students,Alumni Program Oversight,institution_admin.students.alumni_program_oversight,built
+Institution Admin,Students,Certificates Document Templates,institution_admin.students.certificates_document_templates,built
+Institution Admin,Students,Certificates Documents,institution_admin.students.certificates_documents,built
+Institution Admin,Students,Class Section Promotion,institution_admin.students.class_section_promotion,built
+Institution Admin,Students,Department Students,institution_admin.students.department_students,built
+Institution Admin,Students,Disciplinary Incident Log,institution_admin.students.disciplinary_incident_log,built
+Institution Admin,Students,Enrollment Lifecycle,institution_admin.students.enrollment_lifecycle,built
+Institution Admin,Students,Student Council Management,institution_admin.students.student_council_management,built
+Institution Admin,Students,Student Directory,institution_admin.students.student_directory,built
+Institution Admin,Students,Student Directory Student 360,institution_admin.students.student_directory_student_360,built
+Institution Admin,Transport,Ais 140 Telematics Vahan Compliance,institution_admin.transport.ais_140_telematics_vahan_compliance,deferred
+Institution Admin,Transport,Bus Breakdown Emergency Dispatch,institution_admin.transport.bus_breakdown_emergency_dispatch,built
+Institution Admin,Transport,Bus Speeding Rash Driving Alerts,institution_admin.transport.bus_speeding_rash_driving_alerts,built
+Institution Admin,Transport,Delays Exceptions,institution_admin.transport.delays_exceptions,built
+Institution Admin,Transport,Driver Attendant Profiles,institution_admin.transport.driver_attendant_profiles,built
+Institution Admin,Transport,Driver Sobriety Safety Checklist,institution_admin.transport.driver_sobriety_safety_checklist,built
+Institution Admin,Transport,Drivers Attendants,institution_admin.transport.drivers_attendants,built
+Institution Admin,Transport,Fuel Sensor Mileage Telematics,institution_admin.transport.fuel_sensor_mileage_telematics,deferred
+Institution Admin,Transport,Geo Fenced Bus Stop Alerts,institution_admin.transport.geo_fenced_bus_stop_alerts,built
+Institution Admin,Transport,Live Vehicle Tracking,institution_admin.transport.live_vehicle_tracking,built
+Institution Admin,Transport,Real Time Vehicle Tracking Vts,institution_admin.transport.real_time_vehicle_tracking_vts,built
+Institution Admin,Transport,Route Attendance,institution_admin.transport.route_attendance,built
+Institution Admin,Transport,Route Distance Fee Slabs,institution_admin.transport.route_distance_fee_slabs,built
+Institution Admin,Transport,Route Pickup Stop Mapping,institution_admin.transport.route_pickup_stop_mapping,built
+Institution Admin,Transport,Routes Stops,institution_admin.transport.routes_stops,built
+Institution Admin,Transport,Seatbelt Cctv Video Streaming,institution_admin.transport.seatbelt_cctv_video_streaming,deferred
+Institution Admin,Transport,Student Allocation,institution_admin.transport.student_allocation,built
+Institution Admin,Transport,Student Route Assignment,institution_admin.transport.student_route_assignment,built
+Institution Admin,Transport,Transport Attendance Scans,institution_admin.transport.transport_attendance_scans,built
+Institution Admin,Transport,Vehicle Fuel Maintenance Log,institution_admin.transport.vehicle_fuel_maintenance_log,built
+Institution Admin,Transport,Vehicle Master Registry,institution_admin.transport.vehicle_master_registry,built
+Institution Admin,Transport,Vehicles,institution_admin.transport.vehicles,built
+Parent,Academics,Ai Child Performance Summary Audio,parent.academics.ai_child_performance_summary_audio,deferred
+Parent,Academics,Child Remarks,parent.academics.child_remarks,built
+Parent,Academics,Homework Academics,parent.academics.homework_academics,built
+Parent,Academics,Iep Progress Goal Tracker,parent.academics.iep_progress_goal_tracker,built
+Parent,Academics,Results Report Cards,parent.academics.results_report_cards,built
+Parent,Alerts Preferences,Parent App Live Bus Tracking Refresh Rate Customizer,parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer,built
+Parent,Alerts Preferences,Parent Bus Proximity Radius Customizer,parent.alerts_preferences.parent_bus_proximity_radius_customizer,built
+Parent,Alerts Preferences,Real Time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,deferred
+Parent,Attendance,Attendance,parent.attendance.attendance,built
+Parent,Attendance,Child Absence Reporting Button,parent.attendance.child_absence_reporting_button,built
+Parent,Consent,Consent Acknowledgement,parent.consent.consent_acknowledgement,built
+Parent,Consent,Digital Parent Consent Slips,parent.consent.digital_parent_consent_slips,built
+Parent,Consent,Parent Delegation For Emergency Pickup,parent.consent.parent_delegation_for_emergency_pickup,built
+Parent,Documents,Digilocker Document Pull,parent.documents.digilocker_document_pull,deferred
+Parent,Fees,Child Daily Cafeteria Purchase Timeline,parent.fees.child_daily_cafeteria_purchase_timeline,built
+Parent,Fees,Digital Fee Receipt Pdf Download,parent.fees.digital_fee_receipt_pdf_download,built
+Parent,Fees,Fees Payments,parent.fees.fees_payments,built
+Parent,Home,Child Summary,parent.home.child_summary,built
+Parent,Home,Child Switcher,parent.home.child_switcher,built
+Parent,Home,Needs Attention,parent.home.needs_attention,built
+Parent,Home,Real Time Push Notifications,parent.home.real_time_push_notifications,built
+Parent,Leave Absence,Apply Student Leave,parent.leave_absence.apply_student_leave,built
+Parent,Leave Absence,Requests,parent.leave_absence.requests,built
+Parent,Messages,Communication,parent.messages.communication,built
+Parent,Messages,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,built
+Parent,Messages,Teacher Remarks,parent.messages.teacher_remarks,built
+Parent,My Childs Bus,Live Bus Tracking Map,parent.my_childs_bus.live_bus_tracking_map,built
+Parent,My Childs Bus,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,built
+Parent,My Childs Bus,Transport Snapshot,parent.my_childs_bus.transport_snapshot,built
+Parent,Profile,Digital Parent Id Card For Campus Entry,parent.profile.digital_parent_id_card_for_campus_entry,built
+Parent,Profile,Digital Student Id Card View,parent.profile.digital_student_id_card_view,built
+Parent,Profile,Multi Language App Interface Toggle,parent.profile.multi_language_app_interface_toggle,built
+Parent,Profile,Parent App Biometric Lock Face Id Fingerprint,parent.profile.parent_app_biometric_lock_face_id_fingerprint,deferred
+Parent,Profile,Parent App Dark Mode High Contrast Accessibility,parent.profile.parent_app_dark_mode_high_contrast_accessibility,built
+Parent,Profile,Telugu Language Interface,parent.profile.telugu_language_interface,built
+Parent,School Life,Calendar Ptm,parent.school_life.calendar_ptm,built
+Parent,School Life,Live Event Seating Pass,parent.school_life.live_event_seating_pass,built
+Parent,School Life,Parent Teacher Meeting Booking,parent.school_life.parent_teacher_meeting_booking,built
+Parent,School Life,Ptm Appointment Reminder Alert,parent.school_life.ptm_appointment_reminder_alert,built
+Parent,School Life,School Photo Video Gallery,parent.school_life.school_photo_video_gallery,built
+Seller Admin,Customers,Onboarding Progress,seller_admin.customers.onboarding_progress,built
+Seller Admin,Customers,Provision New School,seller_admin.customers.provision_new_school,built
+Seller Admin,Customers,Suspend Reactivate,seller_admin.customers.suspend_reactivate,built
+Seller Admin,Customers,Tenant Directory,seller_admin.customers.tenant_directory,built
+Seller Admin,Entitlements,Module Entitlement Matrix,seller_admin.entitlements.module_entitlement_matrix,built
+Seller Admin,Subscriptions Billing,Plans Pricing,seller_admin.subscriptions_billing.plans_pricing,built
+Seller Admin,Subscriptions Billing,Seat Overage Renewals,seller_admin.subscriptions_billing.seat_overage_renewals,built
+Seller Admin,Subscriptions Billing,Subscription Ledger,seller_admin.subscriptions_billing.subscription_ledger,built
+Seller Admin,Support,Impersonation Audit,seller_admin.support.impersonation_audit,built
+Seller Admin,Support,Support Tickets,seller_admin.support.support_tickets,built
+Seller Admin,Usage Health,Adoption Metrics,seller_admin.usage_health.adoption_metrics,built
+Seller Admin,Usage Health,Instance Health,seller_admin.usage_health.instance_health,built
 Student,Alumni,Alumni Job Internship Board,student.alumni.alumni_job_internship_board,built
 Student,Alumni,Alumni Network Registration,student.alumni.alumni_network_registration,built
 Student,Attendance,Attendance,student.attendance.attendance,built
@@ -439,15 +389,55 @@ Student,Notices Calendar,Library Book Hold Request,student.notices_calendar.libr
 Student,Profile,Digital Student Id Card Nfc Tap Pass,student.profile.digital_student_id_card_nfc_tap_pass,deferred
 Student,Requests,Requests,student.requests.requests,built
 Student,Timetable,Timetable,student.timetable.timetable,built
-Seller Admin,Customers,Onboarding Progress,seller_admin.customers.onboarding_progress,built
-Seller Admin,Customers,Provision New School,seller_admin.customers.provision_new_school,built
-Seller Admin,Customers,Suspend Reactivate,seller_admin.customers.suspend_reactivate,built
-Seller Admin,Customers,Tenant Directory,seller_admin.customers.tenant_directory,built
-Seller Admin,Entitlements,Module Entitlement Matrix,seller_admin.entitlements.module_entitlement_matrix,built
-Seller Admin,Subscriptions Billing,Plans Pricing,seller_admin.subscriptions_billing.plans_pricing,built
-Seller Admin,Subscriptions Billing,Seat Overage Renewals,seller_admin.subscriptions_billing.seat_overage_renewals,built
-Seller Admin,Subscriptions Billing,Subscription Ledger,seller_admin.subscriptions_billing.subscription_ledger,built
-Seller Admin,Support,Impersonation Audit,seller_admin.support.impersonation_audit,built
-Seller Admin,Support,Support Tickets,seller_admin.support.support_tickets,built
-Seller Admin,Usage Health,Adoption Metrics,seller_admin.usage_health.adoption_metrics,built
-Seller Admin,Usage Health,Instance Health,seller_admin.usage_health.instance_health,built
+Super Admin,Access Security,Login Session Audit,super_admin.access_security.login_session_audit,built
+Super Admin,Access Security,Roles Permissions,super_admin.access_security.roles_permissions,built
+Super Admin,Access Security,Sso Mfa,super_admin.access_security.sso_mfa,built
+Super Admin,Access Security,User Directory,super_admin.access_security.user_directory,built
+Super Admin,Access Security,Users,super_admin.access_security.users,built
+Super Admin,Ai Automation,Ai Sentiment Analysis On Feedback,super_admin.ai_automation.ai_sentiment_analysis_on_feedback,deferred
+Super Admin,Ai Automation,Automated Exam Question Translation,super_admin.ai_automation.automated_exam_question_translation,deferred
+Super Admin,Ai Automation,Automated Timetable Optimizer,super_admin.ai_automation.automated_timetable_optimizer,built
+Super Admin,Ai Automation,Predictive Dropout Risk Engine,super_admin.ai_automation.predictive_dropout_risk_engine,deferred
+Super Admin,Ai Automation,Smart Fee Cash Flow Predictor,super_admin.ai_automation.smart_fee_cash_flow_predictor,deferred
+Super Admin,Campuses Academic Year,Academic Calendar Model,super_admin.campuses_academic_year.academic_calendar_model,built
+Super Admin,Campuses Academic Year,Franchise Management,super_admin.campuses_academic_year.franchise_management,built
+Super Admin,Campuses Academic Year,White Label Branding,super_admin.campuses_academic_year.white_label_branding,built
+Super Admin,Dashboard,Alerts,super_admin.dashboard.alerts,built
+Super Admin,Dashboard,All Campuses Summary,super_admin.dashboard.all_campuses_summary,built
+Super Admin,Dashboard,Campus Cards,super_admin.dashboard.campus_cards,built
+Super Admin,Dashboard,Central Admission Funnel Kpi,super_admin.dashboard.central_admission_funnel_kpi,built
+Super Admin,Dashboard,Executive System Alerts,super_admin.dashboard.executive_system_alerts,built
+Super Admin,Dashboard,Global Attendance Heatmap,super_admin.dashboard.global_attendance_heatmap,built
+Super Admin,Dashboard,Multi Branch Revenue Analytics,super_admin.dashboard.multi_branch_revenue_analytics,built
+Super Admin,Dashboard,System Health,super_admin.dashboard.system_health,built
+Super Admin,Institution Setup,Academic Year Defaults,super_admin.institution_setup.academic_year_defaults,built
+Super Admin,Institution Setup,Branding,super_admin.institution_setup.branding,built
+Super Admin,Institution Setup,Institutions Campuses,super_admin.institution_setup.institutions_campuses,built
+Super Admin,Institution Setup,School Settings,super_admin.institution_setup.school_settings,built
+Super Admin,Messaging,Automated Trigger Rules,super_admin.messaging.automated_trigger_rules,built
+Super Admin,Messaging,Email Server Smtp Integration,super_admin.messaging.email_server_smtp_integration,built
+Super Admin,Messaging,Sms Gateway Integration,super_admin.messaging.sms_gateway_integration,built
+Super Admin,Messaging,Whatsapp Api Integration,super_admin.messaging.whatsapp_api_integration,built
+Super Admin,Operations,Data Backup Restore,super_admin.operations.data_backup_restore,built
+Super Admin,Operations,System Health Integration Alerts,super_admin.operations.system_health_integration_alerts,built
+Super Admin,Payments Devices,Biometric Device Integration,super_admin.payments_devices.biometric_device_integration,deferred
+Super Admin,Payments Devices,Gps Hardware Integration,super_admin.payments_devices.gps_hardware_integration,built
+Super Admin,Payments Devices,Meritto Leadsquared Sync,super_admin.payments_devices.meritto_leadsquared_sync,built
+Super Admin,Payments Devices,Payment Gateway Connectors,super_admin.payments_devices.payment_gateway_connectors,deferred
+Super Admin,Payments Devices,Tally Erp Prime Connector,super_admin.payments_devices.tally_erp_prime_connector,built
+Super Admin,Payments Devices,Virtual Classroom Integration,super_admin.payments_devices.virtual_classroom_integration,built
+Super Admin,Platform Configuration,Audit Log,super_admin.platform_configuration.audit_log,built
+Super Admin,Platform Configuration,Data Operations,super_admin.platform_configuration.data_operations,built
+Super Admin,Platform Configuration,Import Export,super_admin.platform_configuration.import_export,built
+Super Admin,Platform Configuration,Integrations,super_admin.platform_configuration.integrations,built
+Super Admin,Platform Configuration,Module Configuration,super_admin.platform_configuration.module_configuration,built
+Super Admin,Platform Configuration,Numbering Templates,super_admin.platform_configuration.numbering_templates,built
+Super Admin,Statutory Boards,Apaar Id Provisioning,super_admin.statutory_boards.apaar_id_provisioning,built
+Super Admin,Statutory Boards,Board Affiliation Disclosure,super_admin.statutory_boards.board_affiliation_disclosure,built
+Super Admin,Statutory Boards,Child Info Portal Sync,super_admin.statutory_boards.child_info_portal_sync,built
+Super Admin,Statutory Boards,Digilocker Issuer Integration,super_admin.statutory_boards.digilocker_issuer_integration,deferred
+Super Admin,Statutory Boards,District Mandal Master,super_admin.statutory_boards.district_mandal_master,built
+Super Admin,Statutory Boards,School Management Type,super_admin.statutory_boards.school_management_type,built
+Super Admin,Statutory Boards,Sqaa Framework Management,super_admin.statutory_boards.sqaa_framework_management,built
+Super Admin,Statutory Boards,State Board Configuration,super_admin.statutory_boards.state_board_configuration,built
+Super Admin,Statutory Boards,Udise Data Sync,super_admin.statutory_boards.udise_data_sync,built
