@@ -518,6 +518,41 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
     }
   }
 
+  // Which upload is open, and the file it was made from.
+  const [openRun, setOpenRun] = useState('')
+  const [seen, setSeen] = useState<{ rows: string[][]; omitted: boolean } | null>(null)
+  const [loadingRun, setLoadingRun] = useState(false)
+
+  /* Reading one upload back.
+   *
+   * The history said 4-staff.csv added ten rows and never said which ten,
+   * which is the question anybody actually has when they open it — usually
+   * because something looks wrong and they want to compare the sheet against
+   * what is now in the school.
+   *
+   * Parsed with the same function a dropped file goes through, so what is
+   * shown here and what was shown then are the same table by construction. */
+  const openFile = async (run: ImportRun) => {
+    if (openRun === run.id) {
+      setOpenRun('')
+      setSeen(null)
+      return
+    }
+    setOpenRun(run.id)
+    setSeen(null)
+    setLoadingRun(true)
+    try {
+      const body = await api.get<{ content: string; omitted: boolean }>(
+        `/api/v1/setup/import/history/${run.id}/content`,
+      )
+      setSeen({ rows: body.content ? parseCsv(body.content) : [], omitted: body.omitted })
+    } catch {
+      setSeen({ rows: [], omitted: false })
+    } finally {
+      setLoadingRun(false)
+    }
+  }
+
   const q = useQuery({
     queryKey: ['import-history', entity, refresh],
     queryFn: () =>
@@ -551,7 +586,16 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
           <tbody>
             {runs.map((r, i) => (
               <tr key={i} className="border-t">
-                <td className="py-1 pr-3">{r.filename ?? 'pasted cells'}</td>
+                <td className="py-1 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => openFile(r)}
+                    className="underline underline-offset-2 hover:text-primary"
+                    title="See what was in this file"
+                  >
+                    {r.filename ?? 'pasted cells'}
+                  </button>
+                </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
                   {r.created_at.replace('T', ' ').slice(0, 16)}
                 </td>
@@ -587,6 +631,56 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
             ))}
           </tbody>
         </table>
+        {openRun && (
+          <div className="mt-2 rounded-md border bg-muted/30 p-2">
+            {loadingRun ? (
+              <p className="text-[12.5px] text-muted-foreground">Reading the file…</p>
+            ) : seen?.omitted ? (
+              <p className="text-[12.5px] text-muted-foreground">
+                That file was too large to keep a copy of, so only the counts were
+                recorded.
+              </p>
+            ) : seen && seen.rows.length > 1 ? (
+              <>
+                <p className="mb-1.5 text-[12.5px] font-medium">
+                  What was in this file
+                  <span className="ml-1.5 font-normal text-muted-foreground">
+                    {seen.rows.length - 1} rows · {seen.rows[0].length} columns
+                  </span>
+                </p>
+                <div className="max-h-72 overflow-auto rounded border bg-background">
+                  <table className="w-full text-[12.5px]">
+                    <thead className="sticky top-0 bg-muted">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
+                        {seen.rows[0].map((h, i) => (
+                          <th key={i} className="whitespace-nowrap px-2 py-1.5 text-left font-medium">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {seen.rows.slice(1).map((row, ri) => (
+                        <tr key={ri} className="border-t">
+                          <td className="px-2 py-1 tabular-nums text-muted-foreground">{ri + 2}</td>
+                          {seen.rows[0].map((_, ci) => (
+                            <td key={ci} className="whitespace-nowrap px-2 py-1">{row[ci] ?? ''}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="text-[12.5px] text-muted-foreground">
+                No copy of this file was kept — it was uploaded before uploads began
+                being stored.
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {outcome && <p className="mt-2 text-[12.5px] text-muted-foreground">{outcome}</p>}
     </div>

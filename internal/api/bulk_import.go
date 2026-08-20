@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -634,10 +635,16 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 
 	// 8 MB is a few thousand rows. Past that it is a data migration, which is
 	// somebody sitting down with the database rather than a drag and drop.
-	body := http.MaxBytesReader(w, r.Body, 8<<20)
-	defer body.Close()
+	// Read once and parse from memory, because the file is wanted twice: to
+	// import it, and to keep it against the history so somebody can open the
+	// upload later and see what was actually in it.
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20))
+	if err != nil {
+		httpx.BadRequest(w, r, "could not read the file — is it larger than 8 MB?")
+		return
+	}
 
-	reader := csv.NewReader(body)
+	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1 // ragged rows are reported per row, not fatal
 
@@ -792,9 +799,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		   Outside it, a failed import could still leave a log entry claiming
 		   success -- which is worse than no log, because somebody would then
 		   not re-import a file that never landed. */
-		return recordImportRunWith(r, tx, id.InstitutionID, entity,
+		return recordImportRunFull(r, tx, id.InstitutionID, entity,
 			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
-			ctx.created)
+			ctx.created, string(raw))
 	})
 	if err != nil {
 		out.Imported = 0
@@ -841,15 +848,37 @@ func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 // is the whole of what makes undoing it possible.
 func recordImportRunWith(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 	entity, filename string, read, imported, rejected int, created []createdRow) error {
+	return recordImportRunFull(r, tx, inst, entity, filename, read, imported, rejected, created, "")
+}
+
+// maxKeptImportBytes is how much of an uploaded file is kept for later
+// reading. A class list is a few hundred kilobytes; a data migration is not
+// something to hold a copy of in a text column, and half a file kept is worse
+// than none because it reads as the whole one.
+const maxKeptImportBytes = 1 << 20
+
+// recordImportRunFull also keeps the file, so somebody can open the history
+// later and see what was actually uploaded rather than only how many rows it
+// had.
+func recordImportRunFull(r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	entity, filename string, read, imported, rejected int,
+	created []createdRow, content string) error {
+
+	kept := content
+	omitted := false
+	if len(kept) > maxKeptImportBytes {
+		kept, omitted = "", true
+	}
 
 	var runID uuid.UUID
 	if err := tx.QueryRow(r.Context(), `
 		INSERT INTO import_runs (institution_id, entity, filename,
-		                         rows_read, rows_imported, rows_rejected, imported_by)
-		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7)
+		                         rows_read, rows_imported, rows_rejected, imported_by,
+		                         content, content_omitted)
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7,NULLIF($8,''),$9)
 		RETURNING id`,
 		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
-		httpx.IdentityFrom(r.Context()).UserID).Scan(&runID); err != nil {
+		httpx.IdentityFrom(r.Context()).UserID, kept, omitted).Scan(&runID); err != nil {
 		return err
 	}
 	for _, c := range created {
@@ -1145,3 +1174,68 @@ var (
 	errAlreadyUndone = errStr("already undone")
 	errNotYours      = errStr("not permitted")
 )
+
+/*
+getImportContent hands back the file one upload was made from.
+
+	The history could say that 4-staff.csv added ten rows and never say which
+	ten. That is the question anybody actually has when they open it — usually
+	because something looks wrong and they want to compare the sheet against
+	what is now in the school.
+
+	Returned as the CSV it was, not as a rendering of it. The screen parses it
+	with the same code it uses for a file being dropped, so what is shown here
+	and what was shown then are the same table by construction rather than by
+	two pieces of code agreeing.
+*/
+func (s *Server) getImportContent(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	runID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid import id")
+		return
+	}
+
+	var (
+		entity   string
+		filename *string
+		content  *string
+		omitted  bool
+	)
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT entity, filename, content, content_omitted
+			  FROM import_runs WHERE id = $1`, runID).
+			Scan(&entity, &filename, &content, &omitted)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	// The same right the import needed. Reading back a staff sheet is reading
+	// staff records, whatever route it arrives by.
+	if !id.Can(importSpecs[entity].Perm) {
+		httpx.Forbidden(w, r, "reading this upload")
+		return
+	}
+
+	body := ""
+	if content != nil {
+		body = *content
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"entity":   entity,
+		"filename": filename,
+		"content":  body,
+		// Told apart on purpose: a file too large to keep is not an empty
+		// file, and an empty table would say the second.
+		"omitted": omitted,
+	})
+}

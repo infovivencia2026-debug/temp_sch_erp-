@@ -261,6 +261,8 @@ func (s *Server) Routes() http.Handler {
 			// permission the import itself needed, because one route serves
 			// every entity.
 			r.Post("/import/history/{id}/undo", s.undoImport)
+			// The file itself, so an upload can be opened and read back.
+			r.Get("/import/history/{id}/content", s.getImportContent)
 			r.Get("/import/{entity}/template", s.getBulkTemplate)
 			r.Post("/import/{entity}", s.bulkImport)
 		})
