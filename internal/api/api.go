@@ -115,6 +115,13 @@ func (s *Server) Routes() http.Handler {
 		s.mountComms(r)
 		s.mountSMSGateway(r)
 		s.mountBusTrackerAdmin(r)
+		/* The office's side of tracking: the live map, the stop-arrival
+		   ledger and the safety events. Written, tested, and until now
+		   reachable only from their own tests -- every one of these routes
+		   404'd in production while the catalogue counted them shipped. */
+		s.mountBusTracking(r)
+		s.mountBusTrackerManage(r)
+		s.mountTransportLiveMap(r)
 
 		r.Route("/academics", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.AcademicsRead))
@@ -314,6 +321,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)
 			r.With(httpx.RequirePermission(rbac.InvoicesWrite)).Post("/invoices/generate", s.generateInvoices)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/concessions", s.listConcessions)
+			// The writer the discount book never had. Raise on fees.write,
+			// approve on refunds.write — the split concessions.go already
+			// asserts for its own module.
+			s.mountConcessionGrant(r)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/refunds", s.listRefunds)
 		})
 

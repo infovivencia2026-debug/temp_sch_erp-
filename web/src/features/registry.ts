@@ -36,6 +36,12 @@ import { integrationsKeys } from './super_admin/integrations-keys'
 import { messageRulesKeys } from './communication/message-rules-keys'
 import { reportBuilderKeys } from './analytics/report-builder-keys'
 import { digitalLibraryKeys } from './operations/digital-library-keys'
+import { liveTrackingKeys } from './operations/live-tracking-keys'
+import { geofenceKeys } from './operations/geofence-keys'
+import { safetyKeys } from './operations/safety-keys'
+import { childBusKeys } from './portal/child-bus-keys'
+import { transportPrefsKeys } from './portal/transport-prefs-keys'
+import { trackerKeys } from './super_admin/tracker-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -416,6 +422,17 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Domains built in parallel hand over their own key map rather than editing
      this file, so several screens can land at once without several agents
      rewriting one object. */
+  /* Vehicle tracking, all six maps. The office map, the geofenced stop
+     ledger and the safety events; the parent's view of their own child's
+     bus and the alert preferences behind it; and the pairing screen that
+     turns a driver's phone into the tracker. */
+  ...liveTrackingKeys,
+  ...geofenceKeys,
+  ...safetyKeys,
+  ...childBusKeys,
+  ...transportPrefsKeys,
+  ...trackerKeys,
+
   ...facultyCommsKeys,
   ...healthKeys,
   ...hrLifecycleKeys,

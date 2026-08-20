@@ -21,6 +21,12 @@ import (
 	"github.com/school-erp/erp/internal/rbac"
 )
 
+// errNoSuchRoute is returned inside the platform-scoped trip transaction when
+// the route named by a handset is not the device's school's. It travels back
+// out of the closure so the caller can answer 404 rather than 500 — a wrong
+// route id is the caller's mistake, not the server's.
+var errNoSuchRoute = errors.New("route does not belong to this institution")
+
 /* The driver's phone as the vehicle's GPS unit.
 
    Eight catalogued transport features were deferred on one sentence — "GPS
@@ -553,6 +559,28 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	stops := []tripStop{}
 	var conflict bool
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		/* The route has to belong to the device's own school.
+
+		   Everything in this closure runs as platform, so RLS is not standing
+		   behind it: route_id arrives from the handset and was until now only
+		   parsed as a uuid. A paired device could name another school's route
+		   and the stop sequence read below would come back from that school's
+		   route_stops -- a cross-tenant read of somewhere else's addresses and
+		   timings. Checked first, before any row is written. */
+		var ownsRoute bool
+		if err := tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			    SELECT 1 FROM routes
+			     WHERE id = $1 AND institution_id = $2)`,
+			route, dev.Institution).Scan(&ownsRoute); err != nil {
+			return err
+		}
+		if !ownsRoute {
+			// Deliberately the same answer as a route that does not exist: a
+			// device must not be able to probe for another school's route ids.
+			return errNoSuchRoute
+		}
+
 		policy, err := trackingPolicyFor(r.Context(), tx, dev.Institution)
 		if err != nil {
 			return err
@@ -627,6 +655,11 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		}
 		return rows.Err()
 	})
+	if errors.Is(err, errNoSuchRoute) {
+		httpx.Error(w, r, http.StatusNotFound, "no_such_route",
+			"that route does not belong to this school")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

@@ -1195,12 +1195,50 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				return e
 			}
 			sent++
-			_, e := tx.Exec(ctx, `
+			if _, e := tx.Exec(ctx, `
 				UPDATE message_log
 				   SET status = 'sent', sent_at = now(), attempts = attempts + 1,
 				       provider = $3, provider_msg_id = NULLIF($2,''), error = NULL
-				 WHERE id = $1`, id, truncate(msgID, 200), p.Name())
-			return e
+				 WHERE id = $1`, id, truncate(msgID, 200), p.Name()); e != nil {
+				return e
+			}
+
+			/* An in-app message has to land somewhere a person looks.
+
+			   inAppProvider.Send is a no-op and stays one: it is handed an
+			   OutboundMessage with no user id, so it could not write this row
+			   if it wanted to. The dispatcher is the layer that knows who the
+			   message is for, so the delivery happens here.
+
+			   Without it the channel was a quiet hole. The parent feed is
+			   materialised from facts by deliverFamilyAlerts -- fee due,
+			   absence, and so on -- which is why the gap never showed in
+			   testing: those alerts arrive, so the inbox looks alive. What
+			   never arrived was anything a human *authored*: a reminder plan,
+			   a circular, a counsellor's note. Those wrote a message_log row
+			   marked 'sent' and were never seen by anybody.
+
+			   Keyed on the message id so a re-dispatch cannot duplicate it,
+			   and skipped when the row names no user -- an in-app message to
+			   a bare address has nobody to show it to. */
+			if channel == "in_app" {
+				if _, e := tx.Exec(ctx, `
+					INSERT INTO notifications (institution_id, user_id, student_id,
+					        kind, title, body, source_kind, source_id)
+					SELECT m.institution_id, m.user_id, m.student_id,
+					       COALESCE(m.template_code, 'message'),
+					       COALESCE(NULLIF(m.subject,''), 'Message from school'),
+					       m.body, 'message', m.id
+					  FROM message_log m
+					 WHERE m.id = $1 AND m.user_id IS NOT NULL
+					   AND NOT EXISTS (
+					       SELECT 1 FROM notifications n
+					        WHERE n.source_kind = 'message' AND n.source_id = m.id)`,
+					id); e != nil {
+					return e
+				}
+			}
+			return nil
 		})
 		if err != nil || done {
 			return sent, failed, err
