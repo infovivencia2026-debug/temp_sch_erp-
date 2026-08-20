@@ -1,0 +1,111 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Send an SMS</title>
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--ink:#000;--mut:#5b6068;--line:#dfe3e8;--ok:#0a7c3f;--bad:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#15171a;--card:#1e2125;--ink:#f2f4f6;--mut:#a2a8b0;--line:#31353b}}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--bg);color:var(--ink);font:15px/1.55 ui-sans-serif,system-ui,Inter,sans-serif}
+.w{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px;margin:0}
+.sub{margin:0;color:var(--mut);font-size:13.5px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+.c h2{font-size:15px;margin:0 0 4px}
+.c p{margin:0 0 12px;color:var(--mut);font-size:13px}
+label{display:block;font-size:12.5px;color:var(--mut);margin:10px 0 4px}
+input,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:88px;resize:vertical}
+button{margin-top:14px;padding:9px 16px;border:0;border-radius:7px;background:#1f6feb;color:#fff;font:inherit;font-weight:500;cursor:pointer}
+button.sec{background:transparent;border:1px solid var(--line);color:var(--ink);margin-left:8px}
+button:disabled{opacity:.5;cursor:default}
+.o{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.ok{color:var(--ok);border-color:var(--ok)}.bad{color:var(--bad);border-color:var(--bad)}
+.cnt{float:right;font-variant-numeric:tabular-nums}
+</style>
+<div class="w">
+  <div>
+    <h1>Send an SMS</h1>
+    <p class="sub">Goes out through the paired handset's SIM. Sign in to the ERP in another tab first — this page uses your session.</p>
+  </div>
+
+  <div class="c">
+    <h2>Setup</h2>
+    <p>Run once: points the SMS channel at the phone instead of a vendor URL.</p>
+    <button id="setup">Use paired phone</button>
+    <button class="sec" id="status">Check handset</button>
+    <div id="o1" class="o" hidden></div>
+  </div>
+
+  <div class="c">
+    <h2>Message</h2>
+    <p>Any number — the recipient allowlist does not apply to a direct send.</p>
+    <label for="to">Phone number (with country code)</label>
+    <input id="to" placeholder="+919876543210" autocomplete="tel" inputmode="tel">
+    <label for="text">Message <span class="cnt" id="cnt">0/480</span></label>
+    <textarea id="text" placeholder="Type the message that should arrive on the phone"></textarea>
+    <button id="send">Send SMS</button>
+    <div id="o2" class="o" hidden></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id)
+const show = (el, t, good) => { el.hidden = false; el.textContent = t; el.className = 'o ' + (good ? 'ok' : 'bad') }
+
+$('text').addEventListener('input', () => {
+  const n = $('text').value.length
+  $('cnt').textContent = n + '/480'
+  $('cnt').style.color = n > 480 ? 'var(--bad)' : 'var(--mut)'
+})
+
+async function call(method, url, body) {
+  const r = await fetch(url, {
+    method, credentials: 'same-origin',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  let j = null; try { j = await r.json() } catch (e) {}
+  if (!r.ok) {
+    const m = j && j.error ? (j.error.message || j.error.code) : 'HTTP ' + r.status
+    throw new Error(
+      r.status === 401 ? 'Not signed in — sign in to the ERP in another tab, then retry.' :
+      r.status === 403 ? 'Your role lacks the permission for this (integrations.write to set up, messages.send to send).' :
+      m)
+  }
+  return j
+}
+
+$('setup').onclick = async () => {
+  $('setup').disabled = true
+  try {
+    await call('PUT', '/api/v1/admin/messaging/providers/sms', { enabled: true, settings: { kind: 'phone' } })
+    show($('o1'), 'Done — the SMS channel now routes to the paired handset.', true)
+  } catch (e) { show($('o1'), e.message, false) } finally { $('setup').disabled = false }
+}
+
+$('status').onclick = async () => {
+  try {
+    const d = await call('GET', '/api/v1/sms-gateway')
+    const ds = (d && d.devices) || []
+    show($('o1'), ds.length
+      ? ds.map(x => (x.name || 'device') + ' — ' + (x.paused ? 'paused' : 'active') +
+          (x.last_seen_at ? ', last seen ' + x.last_seen_at : ', never polled')).join('\n')
+      : 'No handset paired yet. Pair one in the app first.', ds.length > 0)
+  } catch (e) { show($('o1'), e.message, false) }
+}
+
+$('send').onclick = async () => {
+  const to = $('to').value.trim(), text = $('text').value.trim()
+  if (!to)   { show($('o2'), 'Enter a phone number.', false); return }
+  if (!text) { show($('o2'), 'Type a message.', false); return }
+  $('send').disabled = true
+  try {
+    const d = await call('POST', '/api/v1/admin/messaging/send-direct', { to, text })
+    show($('o2'), d && d.sent
+      ? 'Queued and handed to the handset. It sends on its next poll — allow a few seconds.'
+      : 'Queued, but the dispatcher sent nothing yet' +
+        (d && d.dispatch_error ? ': ' + d.dispatch_error : '. Check that a handset is paired and polling.'),
+      !!(d && d.sent))
+  } catch (e) { show($('o2'), e.message, false) } finally { $('send').disabled = false }
+}
+</script>
