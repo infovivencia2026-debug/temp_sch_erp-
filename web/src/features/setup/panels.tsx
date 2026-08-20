@@ -22,6 +22,15 @@ import { cn } from '@/lib/utils'
    them in one at a time is data entry dressed up as configuration. The preset
    fills the form — it never saves behind the user's back. */
 
+/** A member of teaching staff as the picker needs them: who they are, what
+ *  they teach, and whether they already hold a section of their own. */
+interface Teacher {
+  user_id: string
+  full_name: string
+  subjects: string
+  class_teacher_of?: string
+}
+
 export interface PanelProps {
   onDone: () => void
 }
@@ -1049,14 +1058,7 @@ function StaffPanel({ onDone }: PanelProps) {
           hint="Class, section, room, class teacher, and the subject teacher for each subject. Every column but the class and section is optional — a school with only class teachers fills three of them and leaves the rest blank."
           onDone={onDone}
         />
-      </div>
-      <div className="mt-5 border-t pt-5">
-        <BulkImport
-          entity="class_subjects"
-          title="Or assign every subject teacher from a sheet"
-          hint="Class, subject code, max marks and the teacher's email. The teacher is attached to that subject in every section of the class, which is what finishes this step for a whole school at once."
-          onDone={onDone}
-        />
+
       </div>
 </form>
   )
@@ -1079,7 +1081,7 @@ function Assignments({ onDone }: PanelProps) {
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
     queryFn: () =>
-      api.get<List<{ user_id: string; full_name: string }>>('/api/v1/timetable/teachers'),
+      api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
   const [sectionID, setSectionID] = useState('')
   const section = sections?.items.find((s) => s.id === sectionID)
@@ -1093,12 +1095,46 @@ function Assignments({ onDone }: PanelProps) {
       ),
     enabled: !!section,
   })
+  /* Only the teachers free to take a section.
+   *
+   * One person cannot be class teacher of two sections at once, and the list
+   * offered everybody for every section — so the mistake was one click away
+   * with nothing on screen warning of it. The section being edited is
+   * excluded from the exclusion, or whoever already holds it would vanish
+   * from their own row.
+   *
+   * Deliberately not applied to the subject pickers: the class teacher of 6-A
+   * teaches subjects in other sections, and hiding them there is the opposite
+   * mistake. */
+  const { data: freeTeachers } = useQuery({
+    queryKey: ['teachers', 'free', sectionID],
+    queryFn: () =>
+      api.get<List<Teacher>>(
+        `/api/v1/timetable/teachers?free_class_teacher=true${
+          sectionID ? `&except_section=${sectionID}` : ''
+        }`,
+      ),
+  })
+
   const [classTeacher, setClassTeacher] = useState('')
+  const [room, setRoom] = useState('')
   const [subjectTeachers, setSubjectTeachers] = useState<Record<string, string>>({})
 
   const qc = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
+      // The room rides on createSection, which upserts on
+      // (class, year, name) — so this edits the section rather than making a
+      // second one, and the capacity has to travel with it or the upsert
+      // would overwrite it with a default.
+      if (section && room !== (section.room ?? '')) {
+        await api.post('/api/v1/setup/sections', {
+          class_id: section.class_id,
+          name: section.name,
+          capacity: section.capacity,
+          room,
+        })
+      }
       if (classTeacher) {
         await api.post('/api/v1/setup/class-teacher', {
           section_id: sectionID,
@@ -1121,7 +1157,12 @@ function Assignments({ onDone }: PanelProps) {
     },
   })
 
-  const options = (teachers?.items ?? []).map((t) => ({ value: t.user_id, label: t.full_name }))
+  // Named with what they teach, so the list does not require the reader to
+  // already know the staff.
+  const options = (freeTeachers?.items ?? []).map((t) => ({
+    value: t.user_id,
+    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+  }))
 
   return (
     <div className="mt-6 border-t pt-5">
@@ -1158,6 +1199,7 @@ function Assignments({ onDone }: PanelProps) {
             setSectionID(x)
             setClassTeacher('')
             setSubjectTeachers({})
+            setRoom(sections?.items.find((v) => v.id === x)?.room ?? '')
           }}
           placeholder="Choose a section"
           options={(sections?.items ?? []).map((s) => ({
@@ -1169,10 +1211,18 @@ function Assignments({ onDone }: PanelProps) {
 
       {section && (
         <>
+          {/* The room is a fact about the section and was only settable from a
+              sheet: somebody in the office moving 6-B to another room had to
+              build a CSV to say so. */}
+          <div className="mt-4">
+            <Field label="Room" hint="Where this section sits.">
+              <Input value={room} onChange={setRoom} placeholder="6A" />
+            </Field>
+          </div>
           <div className="mt-4">
             <Field
               label="Class teacher"
-              hint="Marks the daily register and sees the whole section."
+              hint="Marks the daily register and sees the whole section. Only teachers without a section of their own are listed."
             >
               <Select
                 value={classTeacher}
@@ -1853,12 +1903,13 @@ function SubjectTeacherSelect({
   const { data, isLoading } = useQuery({
     queryKey: ['teachers', subjectID],
     queryFn: () =>
-      api.get<List<{ user_id: string; full_name: string }>>(
-        `/api/v1/timetable/teachers?subject_id=${subjectID}`,
-      ),
+      api.get<List<Teacher>>(`/api/v1/timetable/teachers?subject_id=${subjectID}`),
     enabled: !!subjectID,
   })
-  const options = (data?.items ?? []).map((t) => ({ value: t.user_id, label: t.full_name }))
+  const options = (data?.items ?? []).map((t) => ({
+    value: t.user_id,
+    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+  }))
   return (
     <Select
       value={value}
