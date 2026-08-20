@@ -145,12 +145,6 @@ export default function ReportCards() {
                 value: e.id, label: `${e.name} (${e.papers} papers)`,
               }))}
             />
-            <Input
-              value={find}
-              onChange={setFind}
-              placeholder="Roll no, name or admission no"
-              className="w-56"
-            />
             <Button disabled={!sectionId || !examId || generate.isPending}
               onClick={() => generate.mutate(false)}>
               {generate.isPending ? 'Generating…' : 'Generate'}
@@ -220,12 +214,24 @@ export default function ReportCards() {
         )}
 
         <Card>
+          {/* The search belongs to the table it filters.
+              It sat in the page's action row between Generate and Print, where
+              a box that changes what you are looking at reads like a box that
+              does something. */}
           <CardHeader
             title="Results"
             description={
               needle
                 ? `${rows.length} matching "${find.trim()}". Open a row for the subject breakdown.`
                 : 'Roll order. Open a row for the subject breakdown.'
+            }
+            action={
+              <Input
+                value={find}
+                onChange={setFind}
+                placeholder="Roll no, name or admission no"
+                className="w-60"
+              />
             }
           />
           {cards.isLoading ? <Loading /> : cards.error ? <ErrorState error={cards.error} /> : (
