@@ -33,6 +33,10 @@ ROLE_KEYS = {
     # empty menu. The department is the boundary, not the institution --
     # internal/scope narrows the rows these features return.
     "HOD / Department Head": "hod",
+    # The library desk. These features were on the principal's menu and the
+    # librarian borrowed them from there, so trimming the principal's copy
+    # would have taken the librarian's with it.
+    "Librarian": "librarian",
     "Student": "student",
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
@@ -50,6 +54,7 @@ ROLE_KEYS = {
 ROLE_ORDER = [
     "seller_admin", "super_admin",
     "institution_admin", "hod", "faculty",
+    "librarian",
     "finance", "admissions", "hr",
     "student", "parent",
 ]

@@ -332,23 +332,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      do we have it, who has it, what do they owe -- so the catalogue, the
      circulation list and the overdue list are tabs rather than three menu
      entries that would each open the same data. */
-  'institution_admin.library.books_copies': lazy(() => import('./operations/Library')),
-  'institution_admin.library.book_cataloging_accession_register': lazy(() => import('./operations/Library')),
-  'institution_admin.library.accession_register': lazy(() => import('./operations/Library')),
-  'institution_admin.library.issue_return': lazy(() => import('./operations/Library')),
-  'institution_admin.library.book_issue_return_terminal': lazy(() => import('./operations/Library')),
+  'librarian.library.books_copies': lazy(() => import('./operations/Library')),
+  'librarian.library.book_cataloging_accession_register': lazy(() => import('./operations/Library')),
+  'librarian.library.accession_register': lazy(() => import('./operations/Library')),
+  'librarian.library.issue_return': lazy(() => import('./operations/Library')),
+  'librarian.library.book_issue_return_terminal': lazy(() => import('./operations/Library')),
   'institution_admin.library.overdue_fine_calculation': lazy(() => import('./operations/Library')),
-  'institution_admin.library.fines': lazy(() => import('./operations/Library')),
-  'institution_admin.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
+  'librarian.library.fines': lazy(() => import('./operations/Library')),
+  'librarian.library.opac_digital_book_search': lazy(() => import('./operations/Library')),
 
   /* The rest of a librarian's year, kept off the issue counter: the hold
      queue, the annual stock audit, the textbook indent and the label sheet.
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
-  'institution_admin.library.reservations': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.book_reservation_queue': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.reservations': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.book_reservation_queue': lazy(() => import('./operations/LibraryDesk')),
   'institution_admin.library.library_inventory_audit': lazy(() => import('./operations/LibraryDesk')),
   'institution_admin.library.ncert_textbook_indent': lazy(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.barcode_spine_label_printing': lazy(() => import('./operations/LibraryDesk')),
+  'librarian.library.barcode_spine_label_printing': lazy(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
      existed for this and only the list had a caller, so an application could

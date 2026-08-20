@@ -163,20 +163,24 @@ Institution Admin / Principal,Operations,Hostel,Room allocation,"Which boarder i
 Institution Admin / Principal,Operations,Hostel,Roll call,"Morning and night attendance for the hostel, separate from the school register.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Hostel,Outpass & leave,"Gate passes requested, approved and outstanding, with expected return.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Hostel,Complaints,"Maintenance and welfare complaints raised by boarders, and their status.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Book Cataloging & Accession Register,"Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Library,Book Issue & Return Terminal,Scan student ID and book barcode to issue or return books in <5 seconds.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Book Reservation Queue,Auto-notify students when a reserved book is returned and available for collection.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Book Cataloging & Accession Register,"Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",Assigned campus,Must-Have,core
+Librarian,Library,Library,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have,core
+Librarian,Library,Library,Book Issue & Return Terminal,Scan student ID and book barcode to issue or return books in <5 seconds.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Book Reservation Queue,Auto-notify students when a reserved book is returned and available for collection.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Overdue Fine Calculation,Auto-calculate daily overdue fines for late book returns and post fine to student ledger.,Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Library,Overdue Fine Calculation,Auto-calculate daily overdue fines for late book returns and post fine to student ledger.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,OPAC Digital Book Search,Online Public Access Catalog for students to search book availability and reserve books.,Assigned campus,Must-Have,core
+Librarian,Library,Library,OPAC Digital Book Search,Online Public Access Catalog for students to search book availability and reserve books.,Assigned campus,Must-Have,core
+Librarian,Library,Library,Digital E-Book & Journal Integration,"Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Library,Digital E-Book & Journal Integration,"Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books.",Assigned campus,Must-Have,core
+Librarian,Library,Library,Library Inventory Audit,Scan shelves with handheld barcode reader to perform annual physical inventory audits.,Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Library,Library Inventory Audit,Scan shelves with handheld barcode reader to perform annual physical inventory audits.,Assigned campus,Must-Have,core
+Librarian,Library,Library,NCERT Textbook Indent,"Raise the annual NCERT textbook indent per class, track receipt and issue to students.",Assigned campus,Must-Have,advanced
 Institution Admin / Principal,Operations,Library,NCERT Textbook Indent,"Raise the annual NCERT textbook indent per class, track receipt and issue to students.",Assigned campus,Must-Have,advanced
-Institution Admin / Principal,Operations,Library,Books & copies,"Titles, editions and the individual copies held against each.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Accession register,"The statutory accession register, with barcode and spine label printing.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Reservations,"Holds placed by students and staff, and who is next in the queue.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
+Librarian,Library,Library,Books & copies,"Titles, editions and the individual copies held against each.",Only assigned operational module/campus,Must-Have,core
+Librarian,Library,Library,Accession register,"The statutory accession register, with barcode and spine label printing.",Only assigned operational module/campus,Must-Have,core
+Librarian,Library,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core
+Librarian,Library,Library,Reservations,"Holds placed by students and staff, and who is next in the queue.",Only assigned operational module/campus,Must-Have,core
+Librarian,Library,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Stores,Item Category & Store Setup,"Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.",Assigned campus,Should-Have,core
 Institution Admin / Principal,Operations,Stores,Purchase Order Workflow,"Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.",Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Stores,Department Stock Issuance,Issue stock items to specific teachers or departments and track active stock balances.,Assigned campus,Should-Have,core

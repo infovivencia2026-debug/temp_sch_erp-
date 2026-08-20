@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 10 roles, 437 features.
+// Roles is the catalog: 11 roles, 441 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -518,20 +518,10 @@ var Roles = []Role{
 				Name: "Library",
 				Workspace: "Operations",
 				Features: []Feature{
-					{Key: "institution_admin.library.book_cataloging_accession_register", Slug: "book_cataloging_accession_register", Name: "Book Cataloging & Accession Register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location."},
-					{Key: "institution_admin.library.barcode_spine_label_printing", Slug: "barcode_spine_label_printing", Name: "Barcode & Spine Label Printing", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Generate and print custom barcode labels and spine call tags for library books."},
-					{Key: "institution_admin.library.book_issue_return_terminal", Slug: "book_issue_return_terminal", Name: "Book Issue & Return Terminal", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Scan student ID and book barcode to issue or return books in <5 seconds."},
-					{Key: "institution_admin.library.book_reservation_queue", Slug: "book_reservation_queue", Name: "Book Reservation Queue", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Auto-notify students when a reserved book is returned and available for collection."},
 					{Key: "institution_admin.library.overdue_fine_calculation", Slug: "overdue_fine_calculation", Name: "Overdue Fine Calculation", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Auto-calculate daily overdue fines for late book returns and post fine to student ledger."},
-					{Key: "institution_admin.library.opac_digital_book_search", Slug: "opac_digital_book_search", Name: "OPAC Digital Book Search", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Online Public Access Catalog for students to search book availability and reserve books."},
 					{Key: "institution_admin.library.digital_e_book_journal_integration", Slug: "digital_e_book_journal_integration", Name: "Digital E-Book & Journal Integration", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books."},
 					{Key: "institution_admin.library.library_inventory_audit", Slug: "library_inventory_audit", Name: "Library Inventory Audit", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Scan shelves with handheld barcode reader to perform annual physical inventory audits."},
 					{Key: "institution_admin.library.ncert_textbook_indent", Slug: "ncert_textbook_indent", Name: "NCERT Textbook Indent", Scope: Scope("campus"), Tier: Tier("advanced"), Summary: "Raise the annual NCERT textbook indent per class, track receipt and issue to students."},
-					{Key: "institution_admin.library.books_copies", Slug: "books_copies", Name: "Books & copies", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Titles, editions and the individual copies held against each."},
-					{Key: "institution_admin.library.accession_register", Slug: "accession_register", Name: "Accession register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The statutory accession register, with barcode and spine label printing."},
-					{Key: "institution_admin.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
-					{Key: "institution_admin.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
-					{Key: "institution_admin.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, waived and collected."},
 				},
 			},
 			{
@@ -692,6 +682,33 @@ var Roles = []Role{
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
 					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
 					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "librarian",
+		Name: "Librarian",
+		Sections: []Section{
+			{
+				Slug: "library",
+				Name: "Library",
+				Workspace: "Library",
+				Features: []Feature{
+					{Key: "librarian.library.book_cataloging_accession_register", Slug: "book_cataloging_accession_register", Name: "Book Cataloging & Accession Register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location."},
+					{Key: "librarian.library.barcode_spine_label_printing", Slug: "barcode_spine_label_printing", Name: "Barcode & Spine Label Printing", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Generate and print custom barcode labels and spine call tags for library books."},
+					{Key: "librarian.library.book_issue_return_terminal", Slug: "book_issue_return_terminal", Name: "Book Issue & Return Terminal", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Scan student ID and book barcode to issue or return books in <5 seconds."},
+					{Key: "librarian.library.book_reservation_queue", Slug: "book_reservation_queue", Name: "Book Reservation Queue", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Auto-notify students when a reserved book is returned and available for collection."},
+					{Key: "librarian.library.overdue_fine_calculation", Slug: "overdue_fine_calculation", Name: "Overdue Fine Calculation", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Auto-calculate daily overdue fines for late book returns and post fine to student ledger."},
+					{Key: "librarian.library.opac_digital_book_search", Slug: "opac_digital_book_search", Name: "OPAC Digital Book Search", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Online Public Access Catalog for students to search book availability and reserve books."},
+					{Key: "librarian.library.digital_e_book_journal_integration", Slug: "digital_e_book_journal_integration", Name: "Digital E-Book & Journal Integration", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Provide single-sign-on access to digital libraries like EBSCO, JSTOR, and e-books."},
+					{Key: "librarian.library.library_inventory_audit", Slug: "library_inventory_audit", Name: "Library Inventory Audit", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Scan shelves with handheld barcode reader to perform annual physical inventory audits."},
+					{Key: "librarian.library.ncert_textbook_indent", Slug: "ncert_textbook_indent", Name: "NCERT Textbook Indent", Scope: Scope("campus"), Tier: Tier("advanced"), Summary: "Raise the annual NCERT textbook indent per class, track receipt and issue to students."},
+					{Key: "librarian.library.books_copies", Slug: "books_copies", Name: "Books & copies", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Titles, editions and the individual copies held against each."},
+					{Key: "librarian.library.accession_register", Slug: "accession_register", Name: "Accession register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The statutory accession register, with barcode and spine label printing."},
+					{Key: "librarian.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
+					{Key: "librarian.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
+					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, waived and collected."},
 				},
 			},
 		},
