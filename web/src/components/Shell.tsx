@@ -244,6 +244,8 @@ export function Shell({ children }: { children: ReactNode }) {
     localStorage.setItem('erp.theme', JSON.stringify(next ? 'dark' : 'light'))
   }
 
+  const isBentoRole = role?.key === 'faculty' || role?.key === 'parent'
+
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
@@ -265,6 +267,7 @@ export function Shell({ children }: { children: ReactNode }) {
           'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[280px]',
           'max-lg:border-r max-lg:transition-transform',
           navOpen ? 'flex max-lg:translate-x-0' : 'hidden lg:flex max-lg:-translate-x-full',
+          isBentoRole ? '!hidden' : ''
         )}
       >
         {/* --- workspace header: where am I, and whose -------------------- */}
@@ -485,13 +488,15 @@ export function Shell({ children }: { children: ReactNode }) {
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
         <header className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
-          <button
-            aria-label="Open navigation"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
-            onClick={() => setNavOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          {!isBentoRole && (
+            <button
+              aria-label="Open navigation"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              onClick={() => setNavOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
 
           {/* Institution, campus, academic year. A school user has to know
               which of each they are looking at before any number on the page
