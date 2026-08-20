@@ -1440,11 +1440,54 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
   const [classID, setClassID] = useState('')
   const [instalments, setInstalments] = useState('3')
   const [amounts, setAmounts] = useState<Record<string, string>>({})
+  /* Which heads this structure charges.
+   *
+   * Every fee head in the school was listed with a box beside it, and a head
+   * with a blank box is simply not charged — so it worked, and it read as if
+   * a school that does not charge for the library must still look at a
+   * Library Fee line on every structure it ever builds. Worse for a school
+   * with fifteen heads across three structures: the same twelve irrelevant
+   * lines, three times.
+   *
+   * Null until the heads have loaded, then seeded with all of them, which
+   * keeps the opening screen the same as it was. */
+  const [lines, setLines] = useState<string[] | null>(null)
+  const [adding, setAdding] = useState('')
+  const [newHead, setNewHead] = useState('')
+  const qcFees = useQueryClient()
+
+  useEffect(() => {
+    if (lines === null && heads?.items) setLines(heads.items.map((h) => h.id))
+  }, [heads, lines])
+
+  const shown = (heads?.items ?? []).filter((h) => (lines ?? []).includes(h.id))
+  const hidden = (heads?.items ?? []).filter((h) => !(lines ?? []).includes(h.id))
+
+  /* Adding a head the school has not created yet.
+   *
+   * A structure is where somebody discovers they need a Lab Fee, and sending
+   * them back two steps to create it — losing the amounts they have typed —
+   * is how a form makes people give up. */
+  const createHead = useSave(
+    async () => {
+      const made = await api.post<{ id: string }>('/api/v1/setup/fee-heads', {
+        name: newHead.trim(),
+        code: newHead.trim().slice(0, 4).toUpperCase(),
+      })
+      setLines([...(lines ?? []), made.id])
+      setNewHead('')
+      await qcFees.invalidateQueries({ queryKey: ['fee-heads'] })
+    },
+    () => {},
+  )
 
   const save = useSave(async () => {
     const n = Math.max(1, Number(instalments) || 1)
     const items: { fee_head_id: string; instalment_no: number; amount_paise: number; due_on?: string }[] = []
     for (const [headID, rupees] of Object.entries(amounts)) {
+      // A head taken off the structure is not charged even if an amount was
+      // typed against it before it was removed.
+      if (lines && !lines.includes(headID)) continue
       const total = rupeesToPaise(rupees)
       if (!total) continue
       // Split evenly, then push the rounding remainder onto the first
@@ -1485,16 +1528,63 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
 
       <p className="eyebrow mb-2 mt-4">Annual amount per head</p>
       <div className="space-y-2">
-        {(heads?.items ?? []).map((h) => (
-          <div key={h.id} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-2">
+        {shown.map((h) => (
+          <div key={h.id} className="grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-2">
             <span className="text-[14px]">{h.name}</span>
             <Input
               value={amounts[h.id] ?? ''}
               onChange={(x) => setAmounts({ ...amounts, [h.id]: x })}
               placeholder="₹ per year"
             />
+            <button
+              type="button"
+              onClick={() => {
+                setLines((shown.map((x) => x.id) ?? []).filter((id) => id !== h.id))
+                // The amount goes with the line. Leaving it behind means a head
+                // removed and re-added silently carries the old figure.
+                const { [h.id]: _dropped, ...rest } = amounts
+                setAmounts(rest)
+              }}
+              className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+              aria-label={`Do not charge ${h.name} in this structure`}
+            >
+              remove
+            </button>
           </div>
         ))}
+        {shown.length === 0 && (
+          <p className="text-[13px] text-muted-foreground">
+            No heads on this structure yet — add one below.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        {hidden.length > 0 && (
+          <Field label="Add a head">
+            <Select
+              value={adding}
+              onChange={(v) => {
+                if (!v) return
+                setLines([...(lines ?? []), v])
+                setAdding('')
+              }}
+              placeholder="Choose a fee head"
+              options={hidden.map((h) => ({ value: h.id, label: h.name }))}
+            />
+          </Field>
+        )}
+        <Field label="Or a new one" hint="Created as a fee head for the whole school.">
+          <Input value={newHead} onChange={setNewHead} placeholder="Lab Fee" />
+        </Field>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!newHead.trim() || createHead.isPending}
+          onClick={() => createHead.mutate(undefined as never)}
+        >
+          {createHead.isPending ? 'Adding…' : 'Add'}
+        </Button>
       </div>
       {total > 0 && (
         <p className="mt-3 text-[14px]">
