@@ -48,12 +48,31 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 			}
 		}
 
+		/* Namespaced when a school is named, bare when one is not.
+
+		   Usernames are unique within a school and not across them, and
+		   signing in insists on exactly one match — so seeding a second
+		   school's demo users produced a "faculty" in each and neither could
+		   sign in. Every demo account on the installation broke the moment a
+		   second set existed, with a 401 that looks like a wrong password.
+
+		   The bare names are kept for the default run so an installation that
+		   already has demo accounts keeps them: the upsert is keyed on the
+		   email, and changing the pattern unconditionally would orphan every
+		   existing demo account and create a parallel set beside it. */
+		prefix := ""
+		domain := "vivencia.test"
+		if strings.TrimSpace(institution) != "" {
+			prefix = "demo."
+			domain = "demo.test"
+		}
+
 		for _, role := range catalog.Roles {
-			email := role.Key + "@vivencia.test"
+			email := role.Key + "@" + domain
 			// The role key doubles as the username, so the demo signs in as
 			// "student" rather than "student@vivencia.test". Nobody
 			// demonstrating this software should have to type a domain.
-			username := role.Key
+			username := prefix + role.Key
 
 			// Platform roles carry institution_id NULL, which is what makes
 			// app_is_platform_admin apply to them. Taken from rbac rather than
