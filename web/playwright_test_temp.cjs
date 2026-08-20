@@ -2,12 +2,12 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const screenshotDir = path.join('C:', 'Users', 'sony', '.gemini', 'antigravity-ide', 'brain', '628779e7-3818-41a8-9bfe-0a8e1da23683', 'browser_screenshots');
+const screenshotDir = '/home/qb/.gemini/antigravity/brain/ddea119d-db6e-48c5-bc83-d23668e5daa4/artifacts/browser_screenshots';
 if (!fs.existsSync(screenshotDir)) {
   fs.mkdirSync(screenshotDir, { recursive: true });
 }
 
-const BASE_URL = 'https://temperp.187-127-178-100.sslip.io';
+const BASE_URL = 'http://localhost:5173';
 const rolesToTest = [
   { role: 'hod', email: 'hod@vivencia.test', pwd: '9' },
   { role: 'operations', email: 'operations@vivencia.test', pwd: '9' },

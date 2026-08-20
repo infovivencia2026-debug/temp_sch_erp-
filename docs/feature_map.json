@@ -278,13 +278,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -425,6 +418,20 @@
     "path": "/api/v1/setup/subjects",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -485,13 +492,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -632,6 +632,20 @@
     "path": "/api/v1/setup/subjects",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -705,13 +719,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -852,6 +859,20 @@
     "path": "/api/v1/setup/subjects",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -2400,6 +2421,20 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/setup/guardians/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/students/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/students",
     "methods": [
      "GET"
@@ -2713,6 +2748,20 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/setup/guardians/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/students/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/students",
     "methods": [
      "GET"
@@ -2947,13 +2996,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -3098,6 +3140,20 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/timetable/periods",
     "methods": [
      "GET"
@@ -3141,6 +3197,20 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/timetable/teachers",
     "methods": [
      "GET"
@@ -3176,7 +3246,7 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/timetable/entries",
+    "path": "/api/v1/timetable/entries:param",
     "methods": [
      "GET"
     ],
@@ -3287,6 +3357,13 @@
      "POST"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -3332,6 +3409,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/session",
     "methods": [
      "GET"
@@ -3355,7 +3439,8 @@
    {
     "path": "/api/v1/syllabus/lesson-plans",
     "methods": [
-     "GET"
+     "GET",
+     "POST"
     ],
     "conditional": true
    },
@@ -3389,6 +3474,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/session",
     "methods": [
      "GET"
@@ -3412,7 +3504,8 @@
    {
     "path": "/api/v1/syllabus/lesson-plans",
     "methods": [
-     "GET"
+     "GET",
+     "POST"
     ],
     "conditional": true
    },
@@ -3446,6 +3539,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/session",
     "methods": [
      "GET"
@@ -3469,7 +3569,8 @@
    {
     "path": "/api/v1/syllabus/lesson-plans",
     "methods": [
-     "GET"
+     "GET",
+     "POST"
     ],
     "conditional": true
    },
@@ -3671,13 +3772,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -3822,6 +3916,20 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/timetable/periods",
     "methods": [
      "GET"
@@ -3871,6 +3979,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/session",
     "methods": [
      "GET"
@@ -3894,7 +4009,8 @@
    {
     "path": "/api/v1/syllabus/lesson-plans",
     "methods": [
-     "GET"
+     "GET",
+     "POST"
     ],
     "conditional": true
    },
@@ -3954,6 +4070,13 @@
      "POST"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/report-cards/readiness",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -4328,6 +4451,13 @@
      "POST"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/report-cards/readiness",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -4340,39 +4470,39 @@
   "description": "Holistic progress cards and the scholastic report, ready to verify and issue.",
   "scope": "Assigned institution/campus",
   "scope_key": "institution",
-  "component": "exams/HolisticCard",
+  "component": "exams/ReportCards",
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/hpc/card",
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/list",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/report-cards",
     "methods": [
      "GET"
     ],
     "conditional": true
    },
    {
-    "path": "/api/v1/hpc/observations",
+    "path": "/api/v1/exams/report-cards/generate",
     "methods": [
      "POST"
     ],
     "conditional": false
    },
    {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students",
+    "path": "/api/v1/exams/report-cards/readiness",
     "methods": [
      "GET"
     ],
@@ -5389,6 +5519,13 @@
      "POST"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/report-cards/readiness",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -8835,99 +8972,6 @@
   ]
  },
  {
-  "key": "faculty.my_classes.student_at_risk_identification",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "Student At-Risk Identification",
-  "description": "View AI alerts for students suffering academic drop, attendance risk, or fee delinquency.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/MyClasses",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/date-ranges",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/notes",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/support-plans",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/progress",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.my_classes.student_portfolio_builder",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "Student Portfolio Builder",
-  "description": "Upload student artwork, project photos, certificates, and audio files into digital portfolios.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/PortfolioBuilder",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/classroom/portfolio/:param",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/classroom/portfolio/curations",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/progress",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
   "key": "faculty.my_classes.student_behavior_demerits",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -8979,157 +9023,6 @@
   ]
  },
  {
-  "key": "faculty.my_classes.montessori_early_years_tracking",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "Montessori & Early Years Tracking",
-  "description": "Log developmental milestones, sensory skills, motor skills, and social behavior observations.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/MontessoriTracking",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/classroom/montessori/child/:param",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/classroom/montessori/materials",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/classroom/montessori/progress",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/classroom/montessori/section",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.my_classes.cwsn_support_plan",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "CWSN Support Plan",
-  "description": "Record children with special needs, disability type and the classroom accommodations agreed.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/MyClasses",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/date-ranges",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/notes",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/support-plans",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/progress",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.my_classes.language_subject_allocation",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "Language Subject Allocation",
-  "description": "Assign first, second and third language per student where the school offers Telugu, English, Urdu and Hindi.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/LanguageAllocation",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/classroom/languages/allocation",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/classroom/languages/elections",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/classroom/languages/options",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
   "key": "faculty.my_classes.my_students",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -9145,6 +9038,20 @@
     "path": "/api/v1/academics/sections",
     "methods": [
      "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/guardians/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/students/:param/login",
+    "methods": [
+     "POST"
     ],
     "conditional": false
    },
@@ -9185,6 +9092,20 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/setup/guardians/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/students/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/students",
     "methods": [
      "GET"
@@ -9201,57 +9122,6 @@
    },
    {
     "path": "/api/v1/students/:param/profile",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.my_classes.discipline_notes",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "My Classes",
-  "feature": "Discipline notes",
-  "description": "Conduct incidents recorded against a child, visible to the school's leadership.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/MyClasses",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/date-ranges",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/notes",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students/support-plans",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/progress",
     "methods": [
      "GET"
     ],
@@ -9322,19 +9192,6 @@
     "conditional": false
    }
   ]
- },
- {
-  "key": "faculty.attendance.absence_alert_to_guardian",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Attendance",
-  "feature": "Absence Alert to Guardian",
-  "description": "Trigger an SMS or WhatsApp alert to guardians when a student is marked absent, within the configured window.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "communication/AbsenceAlerts",
-  "built": true,
-  "endpoints": []
  },
  {
   "key": "faculty.attendance.offline_attendance_diary_capture",
@@ -9427,6 +9284,13 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/homework/:param/submissions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/homework/:param/submit",
     "methods": [
      "POST"
@@ -9511,146 +9375,10 @@
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/setup/class-subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/coverage",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/units",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.teaching.syllabus_progress_tracker",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Teaching",
-  "feature": "Syllabus Progress Tracker",
-  "description": "Update chapter completion status, syllabus coverage percentage, and lab practical completion.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "academics/Syllabus",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/setup/class-subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/coverage",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/units",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.teaching.teacher_digital_diary",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Teaching",
-  "feature": "Teacher Digital Diary",
-  "description": "Log daily topics taught, class behavior, homework assigned, and personal teaching notes.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "workflow/Homework",
-  "built": true,
-  "endpoints": [
-   {
     "path": "/api/v1/academics/sections",
     "methods": [
      "GET"
     ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/academics/subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/homework",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/homework/:param/submit",
-    "methods": [
-     "POST"
-    ],
     "conditional": false
    },
    {
@@ -9659,6 +9387,43 @@
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/coverage",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/syllabus/units",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -9675,13 +9440,6 @@
   "built": true,
   "endpoints": [
    {
-    "path": "/api/v1/files/presign",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/teaching/classes",
     "methods": [
      "GET"
@@ -9702,162 +9460,6 @@
      "GET"
     ],
     "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.teaching.live_virtual_class_launcher",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Teaching",
-  "feature": "Live Virtual Class Launcher",
-  "description": "Schedule and launch Zoom/Google Meet virtual classes directly from the teacher portal.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/VirtualClasses",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/virtual-classes",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/virtual-classes/:param",
-    "methods": [
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/virtual-classes/:param/launch",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/virtual-classes/providers",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.teaching.study_materials",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Teaching",
-  "feature": "Study materials",
-  "description": "Notes, worksheets and reference material shared with the class.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/StudyMaterials",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/materials",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/materials/:param",
-    "methods": [
-     "PUT"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.teaching.syllabus_progress",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Teaching",
-  "feature": "Syllabus progress",
-  "description": "Chapters covered against the plan for each subject taken.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "academics/Syllabus",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/setup/class-subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/coverage",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/syllabus/lesson-plans/:param/decide",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/syllabus/units",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": true
    }
   ]
  },
@@ -9888,7 +9490,7 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/timetable/entries",
+    "path": "/api/v1/timetable/entries:param",
     "methods": [
      "GET"
     ],
@@ -9996,104 +9598,6 @@
   ]
  },
  {
-  "key": "faculty.marks_report_cards.nep_holistic_progress_card_hpc",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Marks & Report Cards",
-  "feature": "NEP Holistic Progress Card (HPC)",
-  "description": "Evaluate student cognitive, affective, psychomotor domains, self-assessment, and peer reviews.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "exams/HolisticCard",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/hpc/card",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/hpc/observations",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
-  "key": "faculty.marks_report_cards.holistic_progress_card",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Marks & Report Cards",
-  "feature": "Holistic progress card",
-  "description": "NEP holistic assessment across scholastic and co-scholastic domains.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "exams/HolisticCard",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/hpc/card",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/hpc/observations",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   }
-  ]
- },
- {
   "key": "faculty.marks_report_cards.report_cards",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -10132,6 +9636,13 @@
      "POST"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/exams/report-cards/readiness",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
    }
   ]
  },
@@ -10265,6 +9776,32 @@
   ]
  },
  {
+  "key": "faculty.question_papers_online_tests.ai_examcell_paper_generator",
+  "role": "faculty",
+  "role_label": "Faculty / Teacher",
+  "section": "Question Papers & Online Tests",
+  "feature": "AI Examcell Paper Generator",
+  "description": "Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",
+  "scope": "Assigned classes/subjects",
+  "scope_key": "assigned_classes",
+  "component": "",
+  "built": false,
+  "endpoints": []
+ },
+ {
+  "key": "faculty.question_papers_online_tests.ved_ai_assessment_assistant",
+  "role": "faculty",
+  "role_label": "Faculty / Teacher",
+  "section": "Question Papers & Online Tests",
+  "feature": "Ved AI Assessment Assistant",
+  "description": "Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",
+  "scope": "Assigned classes/subjects",
+  "scope_key": "assigned_classes",
+  "component": "",
+  "built": false,
+  "endpoints": []
+ },
+ {
   "key": "faculty.question_papers_online_tests.objective_online_test_creation",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -10315,62 +9852,6 @@
    },
    {
     "path": "/api/v1/teaching/subjects",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.question_papers_online_tests.no_omr_exam_grading",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Question Papers & Online Tests",
-  "feature": "No-OMR Exam Grading",
-  "description": "Input digital answer keys or scan sheets directly in browser without specialized OMR hardware.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/ExamGrading",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/classroom/grading/tests",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/classroom/grading/tests/:param/attempts",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/classroom/grading/tests/:param/item-analysis",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/classroom/grading/tests/:param/key",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/classroom/grading/tests/:param/regrade",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/classes",
     "methods": [
      "GET"
     ],
@@ -10435,49 +9916,6 @@
   ]
  },
  {
-  "key": "faculty.communication.classroom_communication_broadcasting",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Communication",
-  "feature": "Classroom Communication Broadcasting",
-  "description": "Send class-wide or student-specific notices directly to parents via app messenger.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/Broadcasts",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/teaching/broadcasts",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/terms",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
   "key": "faculty.communication.remarks",
   "role": "faculty",
   "role_label": "Faculty / Teacher",
@@ -10519,163 +9957,6 @@
    },
    {
     "path": "/api/v1/teaching/terms",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.communication.class_teacher_remarks",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Communication",
-  "feature": "Class Teacher Remarks",
-  "description": "Enter term-end qualitative report card remarks and principal summary comments.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/ClassTeacherRemarks",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/session",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/report-remarks",
-    "methods": [
-     "GET",
-     "PUT"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/teaching/terms",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.communication.anecdotal_records",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Communication",
-  "feature": "Anecdotal Records",
-  "description": "Maintain private qualitative observation notes regarding individual student behavioral growth.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/Anecdotal",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/teaching/remarks",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/remarks:param",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.communication.ptm_notes_action_items",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Communication",
-  "feature": "PTM Notes & Action Items",
-  "description": "Record Parent-Teacher Meeting attendance, parent concerns, and agreed action plans.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "faculty/PTMNotes",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/teaching/classes",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/ptm-notes",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/teaching/terms",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "faculty.communication.announcements",
-  "role": "faculty",
-  "role_label": "Faculty / Teacher",
-  "section": "Communication",
-  "feature": "Announcements",
-  "description": "Notices to this class's parents, with read acknowledgement.",
-  "scope": "Assigned classes/subjects",
-  "scope_key": "assigned_classes",
-  "component": "comms/Circulars",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/academics/sections",
-    "methods": [
-     "GET"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/communication/circulars",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/session",
     "methods": [
      "GET"
     ],
@@ -10752,6 +10033,13 @@
   "component": "portal/Portal",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/attention",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/portal/attendance",
     "methods": [
@@ -10860,7 +10148,7 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/timetable/entries",
+    "path": "/api/v1/timetable/entries:param",
     "methods": [
      "GET"
     ],
@@ -10894,6 +10182,13 @@
   "component": "portal/Portal",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/attention",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/portal/attendance",
     "methods": [
@@ -10948,6 +10243,13 @@
     "methods": [
      "GET",
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/homework/:param/submissions",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -11736,6 +11038,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/attention",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/portal/attendance",
     "methods": [
      "GET"
@@ -11770,6 +11079,13 @@
   "component": "portal/Portal",
   "built": true,
   "endpoints": [
+   {
+    "path": "/api/v1/attention",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
    {
     "path": "/api/v1/portal/attendance",
     "methods": [
@@ -11869,6 +11185,13 @@
   "built": true,
   "endpoints": [
    {
+    "path": "/api/v1/attention",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/portal/attendance",
     "methods": [
      "GET"
@@ -11961,6 +11284,13 @@
     "conditional": false
    },
    {
+    "path": "/api/v1/homework/:param/submissions",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
     "path": "/api/v1/homework/:param/submit",
     "methods": [
      "POST"
@@ -12003,6 +11333,19 @@
     "conditional": false
    }
   ]
+ },
+ {
+  "key": "parent.academics.ai_child_performance_summary_audio",
+  "role": "parent",
+  "role_label": "Parent / Guardian",
+  "section": "Academics",
+  "feature": "AI Child Performance Summary Audio",
+  "description": "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.",
+  "scope": "Specific student",
+  "scope_key": "unknown",
+  "component": "",
+  "built": false,
+  "endpoints": []
  },
  {
   "key": "parent.academics.iep_progress_goal_tracker",
@@ -12324,144 +11667,6 @@
      "GET"
     ],
     "conditional": false
-   }
-  ]
- },
- {
-  "key": "parent.messages.concerns_grievance_ticketing",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Messages",
-  "feature": "Concerns & Grievance Ticketing",
-  "description": "Raise academic or transport concerns and track resolution comments by school admin.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "portal/Concerns",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/portal/concerns",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "parent.messages.parent_community_discussion_forum",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Messages",
-  "feature": "Parent Community Discussion Forum",
-  "description": "Participate in moderated class-level parent forums for event coordination.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "portal/Forum",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/portal/parent-forum/boards",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/parent-forum/threads",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/portal/parent-forum/threads/:param",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/parent-forum/threads/:param/posts",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/parent-forum/threads/:param/report",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/portal/students",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   }
-  ]
- },
- {
-  "key": "parent.messages.private_counselor_chat_channel",
-  "role": "parent",
-  "role_label": "Parent / Guardian",
-  "section": "Messages",
-  "feature": "Private Counselor Chat Channel",
-  "description": "Encrypted communication link with school counselor for sensitive family/child updates.",
-  "scope": "Specific student",
-  "scope_key": "unknown",
-  "component": "communication/CounselorChannel",
-  "built": true,
-  "endpoints": [
-   {
-    "path": "/api/v1/comms/counselor/contacts",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/comms/counselor/threads",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/comms/counselor/threads/:param/close",
-    "methods": [
-     "POST"
-    ],
-    "conditional": false
-   },
-   {
-    "path": "/api/v1/comms/counselor/threads/:param/messages",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": true
-   },
-   {
-    "path": "/api/v1/comms/counselor/threads/:param/participants",
-    "methods": [
-     "GET",
-     "POST"
-    ],
-    "conditional": true
    }
   ]
  },
@@ -12853,6 +12058,19 @@
     "conditional": false
    }
   ]
+ },
+ {
+  "key": "parent.documents.digilocker_document_pull",
+  "role": "parent",
+  "role_label": "Parent / Guardian",
+  "section": "Documents",
+  "feature": "DigiLocker Document Pull",
+  "description": "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker.",
+  "scope": "Specific student",
+  "scope_key": "unknown",
+  "component": "",
+  "built": false,
+  "endpoints": []
  },
  {
   "key": "parent.profile.digital_student_id_card_view",
@@ -13867,13 +13085,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -14014,6 +13225,20 @@
     "path": "/api/v1/setup/subjects",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -14074,13 +13299,6 @@
     "conditional": false
    },
    {
-    "path": "/api/v1/admin/assignable-roles",
-    "methods": [
-     "GET"
-    ],
-    "conditional": false
-   },
-   {
     "path": "/api/v1/admin/institutions",
     "methods": [
      "GET"
@@ -14221,6 +13439,20 @@
     "path": "/api/v1/setup/subjects",
     "methods": [
      "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/students/import/template",
+    "methods": [
+     "GET"
     ],
     "conditional": false
    },
@@ -19087,6 +18319,20 @@
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -19113,6 +18359,20 @@
     "path": "/api/v1/hr/employees",
     "methods": [
      "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees/:param/login",
+    "methods": [
+     "POST"
     ],
     "conditional": false
    }
@@ -19143,6 +18403,20 @@
      "GET"
     ],
     "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees/:param/login",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
    }
   ]
  },
@@ -19169,6 +18443,20 @@
     "path": "/api/v1/hr/employees",
     "methods": [
      "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/employees/:param/login",
+    "methods": [
+     "POST"
     ],
     "conditional": false
    }
@@ -22000,6 +21288,492 @@
    },
    {
     "path": "/api/v1/admin/platform/impersonation/:param/activity",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
+ },
+ {
+  "key": "hod.timetable.class_timetable",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Timetable",
+  "feature": "Class timetable",
+  "description": "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "academics/MasterTimetable",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/master-timetable/drafts/:param/entries/:param",
+    "methods": [
+     "DELETE",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/master-timetable/drafts/:param/publish-preview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/master-timetable/overview",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/discard",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-optimizer/drafts/:param/publish",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.timetable.staff_timetable",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Timetable",
+  "feature": "Staff timetable",
+  "description": "Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "hod/DepartmentTimetable",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/department-timetable",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.timetable.department_timetable",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Timetable",
+  "feature": "Department timetable",
+  "description": "The department's grid by class, by faculty and by room, read together so a gap in one is explained by the other two.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "hod/DepartmentTimetable",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/department-timetable",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.timetable.substitution_requests",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Timetable",
+  "feature": "Substitution requests",
+  "description": "Cover requests from the department's teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "academics/SubstitutionBoard",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/substitution-board",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable-admin/substitutions",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.academics.language_subject_allocation",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Academics",
+  "feature": "Language subject allocation",
+  "description": "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "faculty/LanguageAllocation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/languages/allocation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/languages/elections",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/languages/options",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.academics.faculty_allocation",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Academics",
+  "feature": "Faculty allocation",
+  "description": "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "academics/FacultyAllocation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/academics/admin/faculty-allocation",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/academics/sections",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/setup/class-teacher",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/timetable/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.staff.teacher_remarks",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Staff",
+  "feature": "Teacher remarks",
+  "description": "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "shared/StaffRemarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/staff-remarks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/staff-remarks/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
+ },
+ {
+  "key": "hod.staff.leave_approvals",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "Staff",
+  "feature": "Leave approvals",
+  "description": "Leave requested by the department's staff, with the periods it would leave uncovered shown next to it.",
+  "scope": "Assigned department only",
+  "scope_key": "department",
+  "component": "hr/Leave",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/hr/leave",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/workflow/leave/:param/decide",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "hod.my_profile.profile",
+  "role": "hod",
+  "role_label": "HOD / Department Head",
+  "section": "My Profile",
+  "feature": "Profile",
+  "description": "Own details and password.",
+  "scope": "Self only",
+  "scope_key": "self",
+  "component": "shared/Profile",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/profile",
+    "methods": [
+     "GET",
+     "PUT"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/profile/password",
+    "methods": [
+     "POST"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "institution_admin.academics.language_subject_allocation",
+  "role": "institution_admin",
+  "role_label": "Institution Admin / Principal",
+  "section": "Academics",
+  "feature": "Language subject allocation",
+  "description": "Which language each student takes as L1 and as L2, for one student or for a whole class at once. A teacher was choosing this; it decides how sections are grouped, so it belongs to whoever groups them.",
+  "scope": "Assigned institution/campus",
+  "scope_key": "institution",
+  "component": "faculty/LanguageAllocation",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/classroom/languages/allocation",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   },
+   {
+    "path": "/api/v1/classroom/languages/elections",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/classroom/languages/options",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/classes",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/teaching/subjects",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "parent.academics.child_remarks",
+  "role": "parent",
+  "role_label": "Parent / Guardian",
+  "section": "Academics",
+  "feature": "Child remarks",
+  "description": "Everything your child's teachers have written about them \u2014 commendations and concerns alike \u2014 newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening.",
+  "scope": "Linked child/children only",
+  "scope_key": "children",
+  "component": "portal/ChildRemarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/portal/remarks",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/portal/students",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "faculty.my_profile.student_leave_requests",
+  "role": "faculty",
+  "role_label": "Faculty / Teacher",
+  "section": "My Profile",
+  "feature": "Student leave requests",
+  "description": "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.",
+  "scope": "Assigned classes/subjects",
+  "scope_key": "assigned_classes",
+  "component": "workflow/Approvals",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/workflow/approvals",
+    "methods": [
+     "GET"
+    ],
+    "conditional": false
+   }
+  ]
+ },
+ {
+  "key": "faculty.my_profile.remarks_about_me",
+  "role": "faculty",
+  "role_label": "Faculty / Teacher",
+  "section": "My Profile",
+  "feature": "Remarks about me",
+  "description": "What your head of department, the principal or a parent has written about you. You are told when one is added.",
+  "scope": "Self only",
+  "scope_key": "self",
+  "component": "shared/MyRemarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/staff-remarks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/staff-remarks/teachers",
+    "methods": [
+     "GET"
+    ],
+    "conditional": true
+   }
+  ]
+ },
+ {
+  "key": "parent.messages.teacher_remarks",
+  "role": "parent",
+  "role_label": "Parent / Guardian",
+  "section": "Messages",
+  "feature": "Teacher remarks",
+  "description": "Write a remark about one of your child's teachers. It reaches the head of department and the teacher.",
+  "scope": "Linked child/children only",
+  "scope_key": "children",
+  "component": "shared/StaffRemarks",
+  "built": true,
+  "endpoints": [
+   {
+    "path": "/api/v1/staff-remarks",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "conditional": false
+   },
+   {
+    "path": "/api/v1/staff-remarks/teachers",
     "methods": [
      "GET"
     ],

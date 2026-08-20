@@ -25,22 +25,16 @@ CSV = ROOT / "docs" / "edu_features.csv"
 # Role keys match the `roles.key` column already seeded by internal/rbac, so a
 # catalog role and an RBAC role are the same row, not two parallel notions.
 ROLE_KEYS = {
-    "Super Admin": "super_admin",
-    "Institution Admin / Principal": "institution_admin",
-    "Faculty / Teacher": "faculty",
-    # A head of department held capabilities and no navigation at all: the
-    # rbac role existed, the catalogue did not, so a HOD signed in to an
-    # empty menu. The department is the boundary, not the institution --
-    # internal/scope narrows the rows these features return.
-    "HOD / Department Head": "hod",
+    "Management": "super_admin",
+    "Principal": "institution_admin",
+    "Teacher": "faculty",
+    "HOD": "hod",
     "Student": "student",
-    "Parent / Guardian": "parent",
-    "Accounts & Finance": "finance",
-    "Admissions & Front Office": "admissions",
-    "HR & Payroll": "hr",
-    # The vendor's own back office. Not a school role: it provisions tenants,
-    # prices plans and reproduces faults, none of which a school user sees.
-    "Seller Admin": "seller_admin",
+    "Parent": "parent",
+    "Fee Counter": "finance",
+    "Front Office": "admissions",
+    "Office Clerk": "hr",
+    "Software Vendor": "seller_admin",
 }
 
 # Display order in the role switcher and docs: platform-wide first, then
@@ -58,14 +52,14 @@ ROLE_ORDER = [
 # The CSV writes scope as prose with several near-synonyms. These collapse to
 # the canonical scopes the backend can actually enforce.
 SCOPE_MAP = {
-    "All institutions / all campuses": "platform",
+    "All schools / all branches": "platform",
     "All users": "platform",
-    "Assigned institution/campus": "institution",
-    "Assigned institution/campus finance scope": "institution",
-    "Assigned institution/campus admissions scope": "institution",
-    "Assigned institution/campus employees": "institution",
-    "Assigned campus": "campus",
-    "Only assigned operational module/campus": "campus",
+    "Assigned school/branch": "institution",
+    "Assigned school/branch finance scope": "institution",
+    "Assigned school/branch admissions scope": "institution",
+    "Assigned school/branch employees": "institution",
+    "Assigned branch": "campus",
+    "Only assigned operational module/branch": "campus",
     "Assigned department only": "department",
     "Assigned classes/subjects": "assigned_classes",
     "Self + assigned classes/subjects": "assigned_classes",

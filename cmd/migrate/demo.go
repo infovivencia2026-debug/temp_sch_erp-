@@ -116,6 +116,17 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 				   AND COALESCE(institution_id,'00000000-0000-0000-0000-000000000000'::uuid)
 				     = COALESCE($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid)`,
 				role.Key, owner).Scan(&roleID); err != nil {
+				// An optional role is one a school opts into, so seed does not
+				// create it and a demo tenant will not have it. Refusing the
+				// whole run over one absent optional role rolled back every
+				// account that had already been written, which is why
+				// demo-users could never finish on a fresh school: it created
+				// four users, hit librarian, and undid them.
+				if errors.Is(err, pgx.ErrNoRows) && !rbac.IsDefault(role.Key) {
+					slog.Warn("skipping demo user for an optional role the school has not enabled",
+						"role", role.Key)
+					continue
+				}
 				return fmt.Errorf("role %s missing — run seed first: %w", role.Key, err)
 			}
 			if _, err := tx.Exec(ctx, `
