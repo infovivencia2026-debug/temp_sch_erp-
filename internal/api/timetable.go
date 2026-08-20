@@ -119,7 +119,23 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		  FROM employees e
 		  JOIN users u ON u.id = e.user_id
 		 WHERE e.status = 'active'
-		 ORDER BY u.full_name`, nil,
+		   /* Narrowed to the people who teach the subject, when one is named.
+
+		      The subject-teacher dropdowns offered every member of staff for
+		      every subject, so the Telugu row listed the accountant and the
+		      person filling it in had to know the staff well enough to ignore
+		      most of the list.
+
+		      A school that has not recorded who teaches what gets everybody
+		      rather than an empty dropdown: the fallback is the old behaviour,
+		      which is unhelpful, and an empty list is worse than unhelpful. */
+		   AND ($1::uuid IS NULL
+		        OR NOT EXISTS (SELECT 1 FROM teacher_subjects ts
+		                        WHERE ts.subject_id = $1)
+		        OR EXISTS (SELECT 1 FROM teacher_subjects ts
+		                    WHERE ts.subject_id = $1 AND ts.user_id = u.id))
+		 ORDER BY u.full_name`,
+		[]any{nullString(r.URL.Query().Get("subject_id"))},
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
 			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.Periods)

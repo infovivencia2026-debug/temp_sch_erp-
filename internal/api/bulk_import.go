@@ -81,7 +81,12 @@ type importCtx struct {
 	// classes maps a lowercased class name to its id, so a sections file can
 	// say "Grade 6" where the database wants a uuid. Filled lazily.
 	classes map[string]uuid.UUID
-	server  *Server
+	// sections is keyed "class/section" and teachers by email, both
+	// lowercased. Three hundred rows should not mean three hundred lookups
+	// of values that cannot change during one import.
+	sections map[string]uuid.UUID
+	teachers map[string]uuid.UUID
+	server   *Server
 }
 
 func (c *importCtx) classID(name string) (uuid.UUID, error) {
@@ -318,11 +323,101 @@ var importSpecs = map[string]importSpec{
 			return err
 		},
 	},
+	/* Who runs which room, and who teaches what in it.
+
+	   Two facts a school keeps on one sheet and the product made them enter
+	   in two places: the class teacher and the room for a section, and the
+	   teacher against each subject in that section. Both are here, and every
+	   column but the class and the section is optional — a school with only
+	   class teachers fills three columns and leaves the rest blank, and a
+	   school listing subject teachers repeats the class and section down the
+	   rows the way a spreadsheet does.
+
+	   Nothing is required to appear together. A row with a class teacher and
+	   no subject sets the class teacher. A row with a subject and no class
+	   teacher sets the subject teacher. A row with both does both.
+	*/
+	"allocations": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"class", "section", "room", "class_teacher_email", "subject_code", "teacher_email"},
+		Required: []string{"class", "section"},
+		Sample:   []string{"Grade 6", "A", "6A", "priya.rao@jsm.test", "MATH", "anand.k@jsm.test"},
+		Write: func(c *importCtx, row map[string]string) error {
+			sectionID, err := c.sectionIDFor(row["class"], row["section"])
+			if err != nil {
+				return err
+			}
+
+			if room := strings.TrimSpace(row["room"]); room != "" {
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE sections SET room = $2 WHERE id = $1`, sectionID, room); err != nil {
+					return err
+				}
+			}
+
+			if email := strings.TrimSpace(row["class_teacher_email"]); email != "" {
+				teacher, err := c.teacherByEmail(email)
+				if err != nil {
+					return err
+				}
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE sections SET class_teacher_id = $2 WHERE id = $1`,
+					sectionID, teacher); err != nil {
+					return err
+				}
+			}
+
+			code := strings.TrimSpace(row["subject_code"])
+			email := strings.TrimSpace(row["teacher_email"])
+			if code == "" || email == "" {
+				// A row that only names the class teacher is complete. Treating
+				// a blank subject as an error would mean two files for what a
+				// school keeps as one.
+				return nil
+			}
+			teacher, err := c.teacherByEmail(email)
+			if err != nil {
+				return err
+			}
+			var csID, subjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT cs.id, cs.subject_id
+				  FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				  JOIN sections sec ON sec.class_id = cs.class_id
+				 WHERE sec.id = $1
+				   AND (upper(sub.code) = upper($2) OR lower(sub.name) = lower($2))`,
+				sectionID, code).Scan(&csID, &subjectID); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("%s does not study %q — map the subject to the class first",
+						row["class"], code)
+				}
+				return err
+			}
+			if _, err := c.tx.Exec(c.r.Context(), `
+				INSERT INTO section_subject_teachers (institution_id, section_id,
+				                                      class_subject_id, teacher_user_id)
+				VALUES ($1,$2,$3,$4)
+				ON CONFLICT (section_id, class_subject_id)
+				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+				c.inst, sectionID, csID, teacher); err != nil {
+				return err
+			}
+			// Assigning somebody to teach a subject is also a statement that
+			// they teach it, which is what the dropdowns read.
+			_, err = c.tx.Exec(c.r.Context(), `
+				INSERT INTO teacher_subjects (institution_id, user_id, subject_id)
+				VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, c.inst, teacher, subjectID)
+			return err
+		},
+	},
 	"staff": {
-		Perm:     rbac.EmployeesWrite,
-		Columns:  []string{"employee_code", "first_name", "last_name", "email", "phone", "designation", "role", "joined_on"},
+		Perm: rbac.EmployeesWrite,
+		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
+			"designation", "role", "joined_on", "subjects"},
 		Required: []string{"employee_code", "first_name"},
-		Sample:   []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210", "Teacher", "faculty", "2026-06-01"},
+		Sample: []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210",
+			"Teacher", "faculty", "2026-06-01", "MATH; SCI"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["joined_on"]); v != "" {
 				if _, err := time.Parse(time.DateOnly, v); err != nil {
@@ -345,8 +440,57 @@ var importSpecs = map[string]importSpec{
 			// A teacher with no email is still a teacher; inventing a username
 			// for them creates an account nobody will ever sign in to.
 			req.CreateLogin = req.Email != "" && req.RoleKey != ""
-			_, _, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
-			return err
+			_, userID, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
+			if err != nil {
+				return err
+			}
+
+			/* What they teach, where the sheet says.
+
+			   A school knows who its maths teachers are and had nowhere to
+			   put that, so the subject-teacher dropdown offered every member
+			   of staff for every subject and the Telugu row listed the
+			   accountant.
+
+			   Separated by semicolons or commas, matched on the subject code
+			   or its name, because a school writes "MATH; SCI" in one column
+			   and should not have to learn which of the two we wanted. An
+			   unknown subject fails the row by name rather than being
+			   skipped: silently dropping half of "MATH; PHYSICS" leaves
+			   somebody believing a fact that is not recorded. */
+			// userID is empty for a member of staff imported without an email:
+			// they have a personnel record and no account, so there is no user
+			// to attach a subject to. Their subjects go in when they are given
+			// a login.
+			list := strings.TrimSpace(row["subjects"])
+			if list == "" || strings.TrimSpace(userID) == "" {
+				return nil
+			}
+			for _, raw := range strings.FieldsFunc(list, func(r rune) bool {
+				return r == ';' || r == ',' || r == '|'
+			}) {
+				want := strings.TrimSpace(raw)
+				if want == "" {
+					continue
+				}
+				var subjectID uuid.UUID
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT id FROM subjects
+					 WHERE upper(code) = upper($1) OR lower(name) = lower($1)
+					 LIMIT 1`, want).Scan(&subjectID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return fmt.Errorf("no subject called %q — add the subjects first", want)
+					}
+					return err
+				}
+				if _, err := c.tx.Exec(c.r.Context(), `
+					INSERT INTO teacher_subjects (institution_id, user_id, subject_id)
+					VALUES ($1,$2::uuid,$3) ON CONFLICT DO NOTHING`,
+					c.inst, userID, subjectID); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	},
 }
@@ -619,4 +763,57 @@ func isNo(v string) bool {
 		return true
 	}
 	return false
+}
+
+// sectionIDFor resolves "Grade 6" + "A" to a section, the same idea as
+// classID and cached the same way.
+func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, error) {
+	classID, err := c.classID(className)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	key := strings.ToLower(strings.TrimSpace(className)) + "/" +
+		strings.ToLower(strings.TrimSpace(sectionName))
+	if c.sections == nil {
+		c.sections = map[string]uuid.UUID{}
+	}
+	if id, ok := c.sections[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err = c.tx.QueryRow(c.r.Context(),
+		`SELECT id FROM sections WHERE class_id = $1 AND lower(name) = $2 LIMIT 1`,
+		classID, strings.ToLower(strings.TrimSpace(sectionName))).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("%s has no section %q — create the sections first",
+			className, sectionName)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.sections[key] = id
+	return id, nil
+}
+
+// teacherByEmail turns the address a school writes in a spreadsheet into the
+// account behind it, and says which address failed rather than that one did.
+func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
+	if c.teachers == nil {
+		c.teachers = map[string]uuid.UUID{}
+	}
+	key := strings.ToLower(strings.TrimSpace(email))
+	if id, ok := c.teachers[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err := c.tx.QueryRow(c.r.Context(),
+		`SELECT id FROM users WHERE email = $1::citext`, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("no member of staff with the email %q — import the staff first", email)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.teachers[key] = id
+	return id, nil
 }

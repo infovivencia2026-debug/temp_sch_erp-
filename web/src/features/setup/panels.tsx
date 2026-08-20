@@ -1044,6 +1044,14 @@ function StaffPanel({ onDone }: PanelProps) {
       </div>
       <div className="mt-5 border-t pt-5">
         <BulkImport
+          entity="allocations"
+          title="Or upload the class allocation sheet"
+          hint="Class, section, room, class teacher, and the subject teacher for each subject. Every column but the class and section is optional — a school with only class teachers fills three of them and leaves the rest blank."
+          onDone={onDone}
+        />
+      </div>
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
           entity="class_subjects"
           title="Or assign every subject teacher from a sheet"
           hint="Class, subject code, max marks and the teacher's email. The teacher is attached to that subject in every section of the class, which is what finishes this step for a whole school at once."
@@ -1080,7 +1088,7 @@ function Assignments({ onDone }: PanelProps) {
   const { data: subjects } = useQuery({
     queryKey: ['class-subjects', section?.class_id],
     queryFn: () =>
-      api.get<List<{ id: string; subject_name: string; a_teacher?: string }>>(
+      api.get<List<{ id: string; subject_id: string; subject_name: string; a_teacher?: string }>>(
         `/api/v1/setup/class-subjects?class_id=${section!.class_id}`,
       ),
     enabled: !!section,
@@ -1180,11 +1188,15 @@ function Assignments({ onDone }: PanelProps) {
             {(subjects?.items ?? []).map((cs) => (
               <div key={cs.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2">
                 <span className="text-[14px]">{cs.subject_name}</span>
-                <Select
+                {/* Only the people who teach this subject. The list used to
+                    be every member of staff, so the Telugu row offered the
+                    accountant. Where a school has recorded nothing, the
+                    server falls back to everybody rather than to nothing. */}
+                <SubjectTeacherSelect
+                  subjectID={cs.subject_id}
                   value={subjectTeachers[cs.id] ?? ''}
                   onChange={(x) => setSubjectTeachers({ ...subjectTeachers, [cs.id]: x })}
-                  placeholder={cs.a_teacher ?? 'Unassigned'}
-                  options={options}
+                  current={cs.a_teacher}
                 />
               </div>
             ))}
@@ -1436,8 +1448,32 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
     queryKey: ['fee-heads'],
     queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/setup/fee-heads'),
   })
+  /* The structure is named after the year, because that is what it is.
+
+     The placeholder read "Class 6 — 2026-27" and the field started empty, so
+     every structure was named by hand and no two schools named them the same
+     way. A fee structure belongs to an academic year and applies to whichever
+     classes are ticked below; putting the class in its name was describing
+     the selection twice and getting it wrong as soon as two classes were
+     picked. */
+  const { data: years } = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
+  })
   const [name, setName] = useState('')
-  const [classID, setClassID] = useState('')
+  const currentYear = years?.items.find((y) => y.is_current) ?? years?.items[0]
+
+  useEffect(() => {
+    if (!name && currentYear?.name) setName(currentYear.name)
+  }, [currentYear, name])
+
+  /* Which classes it applies to.
+   *
+   * One dropdown offering a single class or "every class" could not express
+   * the ordinary case, which is that Grades 6 to 8 pay one thing and 9 to 10
+   * pay another. Ticking none means every class, which is what the blank
+   * dropdown used to mean, so the default has not changed. */
+  const [pickedClasses, setPickedClasses] = useState<Set<string>>(new Set())
   const [instalments, setInstalments] = useState('3')
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   /* Which heads this structure charges.
@@ -1497,7 +1533,16 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         items.push({ fee_head_id: headID, instalment_no: i, amount_paise: i === 1 ? total - each * (n - 1) : each })
       }
     }
-    await api.post('/api/v1/setup/fee-structures', { name, class_id: classID || undefined, items })
+    // One structure per class chosen, because that is what the server stores;
+    // ticking none writes the single every-class structure it wrote before.
+    const targets = pickedClasses.size ? [...pickedClasses] : [undefined]
+    for (const cid of targets) {
+      const label =
+        cid && classes?.items
+          ? `${classes.items.find((c) => c.id === cid)?.name ?? ''} — ${name}`.trim()
+          : name
+      await api.post('/api/v1/setup/fee-structures', { name: label, class_id: cid, items })
+    }
   }, onDone)
 
   const total = Object.values(amounts).reduce((a, r) => a + (parseFloat(r) || 0), 0)
@@ -1510,16 +1555,50 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
       }}
     >
       <FormGrid>
-        <Field label="Structure name" required>
-          <Input value={name} onChange={setName} placeholder="Class 6 — 2026-27" />
+        <Field label="Structure name" required hint="The academic year it belongs to.">
+          <Input value={name} onChange={setName} placeholder="2026-2027" />
         </Field>
-        <Field label="Class" hint="Leave blank to apply to every class.">
-          <Select
-            value={classID}
-            onChange={setClassID}
-            placeholder="Every class"
-            options={(classes?.items ?? []).map((c) => ({ value: c.id, label: c.name }))}
-          />
+        <Field
+          label="Applies to"
+          hint={
+            pickedClasses.size
+              ? `${pickedClasses.size} ${pickedClasses.size === 1 ? 'class' : 'classes'} — one structure is created for each.`
+              : 'Nothing ticked means every class.'
+          }
+        >
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPickedClasses(new Set())}
+              className={cn(
+                'rounded-md border px-2.5 py-1 text-[13px] transition-colors duration-150',
+                pickedClasses.size === 0
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'hover:bg-accent',
+              )}
+            >
+              Every class
+            </button>
+            {(classes?.items ?? []).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  const next = new Set(pickedClasses)
+                  next.has(c.id) ? next.delete(c.id) : next.add(c.id)
+                  setPickedClasses(next)
+                }}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 text-[13px] transition-colors duration-150',
+                  pickedClasses.has(c.id)
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'hover:bg-accent',
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
         </Field>
         <Field label="Instalments" hint="Annual amounts below are divided into this many terms.">
           <Input value={instalments} onChange={setInstalments} />
@@ -1747,4 +1826,49 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   udise: UDISEPanel,
 }
 
-
+/**
+ * The teachers who teach one subject.
+ *
+ * Every subject dropdown on the assignment screen offered every member of
+ * staff, so the Telugu row listed the accountant and whoever was filling it in
+ * had to know the staff well enough to ignore most of the list.
+ *
+ * The narrowing is the server's, and it falls back to everybody where a school
+ * has recorded nothing about who teaches what — an unhelpful list is better
+ * than an empty one, which reads as a broken screen.
+ */
+function SubjectTeacherSelect({
+  subjectID,
+  value,
+  onChange,
+  current,
+}: {
+  subjectID: string
+  value: string
+  onChange: (v: string) => void
+  /** Who holds it now, shown as the placeholder so an untouched row still
+   *  says what it is rather than looking unassigned. */
+  current?: string
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['teachers', subjectID],
+    queryFn: () =>
+      api.get<List<{ user_id: string; full_name: string }>>(
+        `/api/v1/timetable/teachers?subject_id=${subjectID}`,
+      ),
+    enabled: !!subjectID,
+  })
+  const options = (data?.items ?? []).map((t) => ({ value: t.user_id, label: t.full_name }))
+  return (
+    <Select
+      value={value}
+      onChange={onChange}
+      placeholder={
+        isLoading
+          ? 'Loading…'
+          : (current ?? (options.length ? 'Unassigned' : 'Nobody is recorded as teaching this'))
+      }
+      options={options}
+    />
+  )
+}
