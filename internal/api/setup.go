@@ -1045,3 +1045,110 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		"ready":              blocking == 0,
 	})
 }
+
+// --- grading scales, read and removed ---------------------------------------
+
+type gradingScaleRow struct {
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	IsDefault bool             `json:"is_default"`
+	InUse     bool             `json:"in_use"`
+	Bands     []gradingBandRow `json:"bands"`
+}
+
+type gradingBandRow struct {
+	Grade      string   `json:"grade"`
+	MinPercent float64  `json:"min_percent"`
+	MaxPercent float64  `json:"max_percent"`
+	GradePoint *float64 `json:"grade_point,omitempty"`
+}
+
+/*
+listGradingScales shows what the school has already set up.
+
+	The step saved a scale and then showed nothing but "1 already added", so
+	the only way to see the bands you had entered was to enter them again and
+	watch what happened. Every other setup step lists what is there; this one
+	could not, because nothing served it.
+
+	in_use is the reason a scale cannot always be removed: an exam that has
+	been graded against a scale keeps meaning what it meant, and deleting the
+	bands underneath it turns a marked paper into a mark with no grade.
+*/
+func (s *Server) listGradingScales(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT g.id::text, g.name, g.is_default,
+		       EXISTS (SELECT 1 FROM exams e WHERE e.grading_scale_id = g.id),
+		       COALESCE((SELECT json_agg(json_build_object(
+		                          'grade', b.grade,
+		                          'min_percent', b.min_percent,
+		                          'max_percent', b.max_percent,
+		                          'grade_point', b.grade_point)
+		                        ORDER BY b.min_percent DESC)
+		                   FROM grade_bands b WHERE b.grading_scale_id = g.id), '[]'::json)
+		  FROM grading_scales g
+		 ORDER BY g.is_default DESC, g.name`, nil,
+		func(rows pgx.Rows) (gradingScaleRow, error) {
+			var v gradingScaleRow
+			return v, rows.Scan(&v.ID, &v.Name, &v.IsDefault, &v.InUse, &v.Bands)
+		})
+	respond(w, r, items, err)
+}
+
+// deleteGradingScale removes a scale and its bands.
+//
+// Refused where an exam has been graded against it. A scale is not a label on
+// an exam, it is what turned that exam's marks into grades, and removing it
+// leaves marked papers whose grades cannot be explained.
+func (s *Server) deleteGradingScale(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	scaleID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid grading scale id")
+		return
+	}
+
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var used bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT EXISTS (SELECT 1 FROM exams WHERE grading_scale_id = $1)`,
+			scaleID).Scan(&used); err != nil {
+			return err
+		}
+		if used {
+			return errScaleInUse
+		}
+		if _, err := tx.Exec(r.Context(),
+			`DELETE FROM grade_bands WHERE grading_scale_id = $1`, scaleID); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(r.Context(),
+			`DELETE FROM grading_scales WHERE id = $1`, scaleID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return pgx.ErrNoRows
+		}
+		return nil
+	})
+	switch {
+	case errors.Is(err, errScaleInUse):
+		httpx.BadRequest(w, r,
+			"an exam has been graded against this scale — removing it would leave "+
+				"marked papers whose grades cannot be explained. Edit the bands instead.")
+		return
+	case errors.Is(err, pgx.ErrNoRows):
+		httpx.NotFound(w, r)
+		return
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+var errScaleInUse = errStr("grading scale is in use")

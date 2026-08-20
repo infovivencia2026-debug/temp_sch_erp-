@@ -1422,8 +1422,102 @@ function GradingPanel({ onDone }: PanelProps) {
       </div>
 
       <SaveRow pending={save.isPending} error={save.error} label="Save grading scale" />
+
+      <ExistingScales />
     </form>
   )
+}
+
+/**
+ * The scales this school already has, with their bands.
+ *
+ * The step saved a scale and then showed nothing but "1 already added", so the
+ * only way to see the bands you had entered was to enter them again and watch
+ * what happened. Every other setup step lists what is there; this one could
+ * not, because nothing served it.
+ *
+ * A scale an exam has been graded against cannot be removed. It is not a label
+ * on that exam, it is what turned its marks into grades, and deleting it
+ * leaves marked papers whose grades cannot be explained.
+ */
+function ExistingScales() {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState('')
+  const [failed, setFailed] = useState('')
+
+  const { data } = useQuery({
+    queryKey: ['grading-scales'],
+    queryFn: () => api.get<List<GradingScale>>('/api/v1/setup/grading-scales'),
+  })
+
+  const remove = async (scale: GradingScale) => {
+    if (!confirm(`Remove "${scale.name}" and its ${scale.bands.length} bands?`)) return
+    setBusy(scale.id)
+    setFailed('')
+    try {
+      await api.del(`/api/v1/setup/grading-scales/${scale.id}`)
+      await qc.invalidateQueries()
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not remove that scale.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const scales = data?.items ?? []
+  if (!scales.length) return null
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="eyebrow mb-2">Scales you have set up</p>
+      <div className="space-y-3">
+        {scales.map((sc) => (
+          <div key={sc.id} className="rounded-md border px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[14px] font-medium">{sc.name}</span>
+              {sc.is_default && <Chip>default</Chip>}
+              <span className="text-[13px] text-muted-foreground">
+                {sc.bands.length} bands
+              </span>
+              <button
+                type="button"
+                disabled={busy === sc.id || sc.in_use}
+                onClick={() => remove(sc)}
+                title={
+                  sc.in_use
+                    ? 'An exam has been graded against this scale, so removing it would leave marked papers whose grades cannot be explained.'
+                    : 'Remove this scale'
+                }
+                className="ml-auto text-[13px] underline underline-offset-2 text-muted-foreground enabled:hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sc.in_use ? 'in use by an exam' : busy === sc.id ? 'removing…' : 'remove'}
+              </button>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {sc.bands.map((b, i) => (
+                <span
+                  key={i}
+                  className="rounded border px-1.5 py-0.5 text-[12px] tabular-nums text-muted-foreground"
+                >
+                  <b className="text-foreground">{b.grade}</b> {b.min_percent}–{b.max_percent}%
+                  {b.grade_point != null && ` · ${b.grade_point}`}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+    </div>
+  )
+}
+
+interface GradingScale {
+  id: string
+  name: string
+  is_default: boolean
+  in_use: boolean
+  bands: { grade: string; min_percent: number; max_percent: number; grade_point?: number }[]
 }
 
 // --- 12. fee heads ----------------------------------------------------------

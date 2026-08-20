@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 10 roles, 442 features. */
+/** 10 roles, 437 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -230,6 +230,14 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.home.today', slug: 'today', name: 'Today', scope: 'institution', tier: 'core', summary: 'Today\'s classes/exams/events and important announcements.' },
           { key: 'institution_admin.home.department_kpis', slug: 'department_kpis', name: 'Department KPIs', scope: 'department', tier: 'core', summary: 'Department students, faculty, today\'s classes, student attendance, faculty attendance and pending approvals.' },
           { key: 'institution_admin.home.academic_kpis', slug: 'academic_kpis', name: 'Academic KPIs', scope: 'institution', tier: 'core', summary: 'Attendance, syllabus coverage and exam readiness across the school, with what needs attention today.' },
+        ],
+      },
+      {
+        slug: 'getting_started',
+        name: 'Getting Started',
+        workspace: 'Home',
+        features: [
+          { key: 'institution_admin.getting_started.school_setup', slug: 'school_setup', name: 'School setup', scope: 'institution', tier: 'core', summary: 'Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks.' },
         ],
       },
       {
@@ -477,19 +485,6 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
           { key: 'institution_admin.library.reservations', slug: 'reservations', name: 'Reservations', scope: 'campus', tier: 'core', summary: 'Holds placed by students and staff, and who is next in the queue.' },
           { key: 'institution_admin.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, waived and collected.' },
-        ],
-      },
-      {
-        slug: 'infirmary',
-        name: 'Infirmary',
-        workspace: 'Operations',
-        features: [
-          { key: 'institution_admin.infirmary.student_health_master_file', slug: 'student_health_master_file', name: 'Student Health Master File', scope: 'campus', tier: 'core', summary: 'Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts.' },
-          { key: 'institution_admin.infirmary.daily_nurse_visit_log', slug: 'daily_nurse_visit_log', name: 'Daily Nurse Visit Log', scope: 'campus', tier: 'core', summary: 'Record infirmary visits, symptom observations, temperature, treatments, and resting duration.' },
-          { key: 'institution_admin.infirmary.medication_admin_register', slug: 'medication_admin_register', name: 'Medication Admin Register', scope: 'campus', tier: 'core', summary: 'Log doctor-prescribed medication administered to boarders/day students during school hours.' },
-          { key: 'institution_admin.infirmary.emergency_health_alerts', slug: 'emergency_health_alerts', name: 'Emergency Health Alerts', scope: 'campus', tier: 'core', summary: 'Send immediate SMS/Call alerts to parents and principal during medical emergencies.' },
-          { key: 'institution_admin.infirmary.annual_health_checkup_records', slug: 'annual_health_checkup_records', name: 'Annual Health Checkup Records', scope: 'campus', tier: 'core', summary: 'Record height, weight, BMI, vision test, and dental health scores from annual doctor camps.' },
-          { key: 'institution_admin.infirmary.school_health_programme_camps', slug: 'school_health_programme_camps', name: 'School Health Programme Camps', scope: 'campus', tier: 'core', summary: 'Record state school-health screening camps, referrals and follow-up treatment.' },
         ],
       },
       {

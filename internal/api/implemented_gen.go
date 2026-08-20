@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 415 of the catalog's features are implemented.
+// 410 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":            true,
 	"admissions.admissions.admission_fee_collection":                      true,
@@ -221,6 +221,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.examinations.ssc_board_registration":                          true,
 	"institution_admin.fees.fee_overview":                                            true,
 	"institution_admin.fees.fee_regulatory_committee_filing":                         true,
+	"institution_admin.getting_started.school_setup":                                 true,
 	"institution_admin.home.academic_kpis":                                           true,
 	"institution_admin.home.department_kpis":                                         true,
 	"institution_admin.home.executive_kpis":                                          true,
@@ -241,12 +242,6 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.hostel.room_allocation":                                       true,
 	"institution_admin.hostel.room_allocation_engine":                                true,
 	"institution_admin.hostel.room_inventory_checklists":                             true,
-	"institution_admin.infirmary.annual_health_checkup_records":                      true,
-	"institution_admin.infirmary.daily_nurse_visit_log":                              true,
-	"institution_admin.infirmary.emergency_health_alerts":                            true,
-	"institution_admin.infirmary.medication_admin_register":                          true,
-	"institution_admin.infirmary.school_health_programme_camps":                      true,
-	"institution_admin.infirmary.student_health_master_file":                         true,
 	"institution_admin.library.accession_register":                                   true,
 	"institution_admin.library.barcode_spine_label_printing":                         true,
 	"institution_admin.library.book_cataloging_accession_register":                   true,

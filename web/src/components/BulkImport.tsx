@@ -572,11 +572,13 @@ function History({ entity, refresh }: { entity: string; refresh: number }) {
           {runs.length === 1 ? '1 time' : `${runs.length} times`}
         </span>
       </p>
-      <div className="overflow-x-auto">
+      {/* Capped and scrolled. A step that has been re-uploaded a dozen times
+          was pushing the form off the screen with its own history. */}
+      <div className="max-h-56 overflow-auto rounded-md border">
         <table className="w-full text-[12.5px]">
-          <thead>
+          <thead className="sticky top-0 bg-muted">
             <tr className="text-left text-muted-foreground">
-              <th className="py-1 pr-3 font-medium">File</th>
+              <th className="px-2 py-1 pr-3 font-medium">File</th>
               <th className="py-1 pr-3 font-medium">When</th>
               <th className="py-1 pr-3 font-medium">By</th>
               <th className="py-1 pr-3 font-medium">Rows</th>

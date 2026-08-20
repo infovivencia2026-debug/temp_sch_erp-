@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 10 roles, 442 features.
+// Roles is the catalog: 10 roles, 437 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -277,6 +277,14 @@ var Roles = []Role{
 					{Key: "institution_admin.home.today", Slug: "today", Name: "Today", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Today's classes/exams/events and important announcements."},
 					{Key: "institution_admin.home.department_kpis", Slug: "department_kpis", Name: "Department KPIs", Scope: Scope("department"), Tier: Tier("core"), Summary: "Department students, faculty, today's classes, student attendance, faculty attendance and pending approvals."},
 					{Key: "institution_admin.home.academic_kpis", Slug: "academic_kpis", Name: "Academic KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Attendance, syllabus coverage and exam readiness across the school, with what needs attention today."},
+				},
+			},
+			{
+				Slug: "getting_started",
+				Name: "Getting Started",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "institution_admin.getting_started.school_setup", Slug: "school_setup", Name: "School setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks."},
 				},
 			},
 			{
@@ -524,19 +532,6 @@ var Roles = []Role{
 					{Key: "institution_admin.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 					{Key: "institution_admin.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
 					{Key: "institution_admin.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, waived and collected."},
-				},
-			},
-			{
-				Slug: "infirmary",
-				Name: "Infirmary",
-				Workspace: "Operations",
-				Features: []Feature{
-					{Key: "institution_admin.infirmary.student_health_master_file", Slug: "student_health_master_file", Name: "Student Health Master File", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts."},
-					{Key: "institution_admin.infirmary.daily_nurse_visit_log", Slug: "daily_nurse_visit_log", Name: "Daily Nurse Visit Log", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Record infirmary visits, symptom observations, temperature, treatments, and resting duration."},
-					{Key: "institution_admin.infirmary.medication_admin_register", Slug: "medication_admin_register", Name: "Medication Admin Register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Log doctor-prescribed medication administered to boarders/day students during school hours."},
-					{Key: "institution_admin.infirmary.emergency_health_alerts", Slug: "emergency_health_alerts", Name: "Emergency Health Alerts", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Send immediate SMS/Call alerts to parents and principal during medical emergencies."},
-					{Key: "institution_admin.infirmary.annual_health_checkup_records", Slug: "annual_health_checkup_records", Name: "Annual Health Checkup Records", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Record height, weight, BMI, vision test, and dental health scores from annual doctor camps."},
-					{Key: "institution_admin.infirmary.school_health_programme_camps", Slug: "school_health_programme_camps", Name: "School Health Programme Camps", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Record state school-health screening camps, referrals and follow-up treatment."},
 				},
 			},
 			{

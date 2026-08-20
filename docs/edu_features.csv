@@ -56,6 +56,7 @@ Institution Admin / Principal,Home,Home,Needs attention,"Pending approvals, atte
 Institution Admin / Principal,Home,Home,Today,Today's classes/exams/events and important announcements.,Assigned institution/campus,Must-Have,core
 Institution Admin / Principal,Home,Home,Department KPIs,"Department students, faculty, today's classes, student attendance, faculty attendance and pending approvals.",Assigned department only,Must-Have,core
 Institution Admin / Principal,Home,Home,Academic KPIs,"Attendance, syllabus coverage and exam readiness across the school, with what needs attention today.",Assigned institution/campus,Must-Have,core
+Institution Admin / Principal,Home,Getting Started,School setup,"Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks.",Assigned institution/campus,Must-Have,core
 Institution Admin / Principal,Home,Approvals,Approvals center,"Approve leave, academic requests, marks/result workflows, certificates and configured operational requests.",Assigned institution/campus,Must-Have,core
 Institution Admin / Principal,Home,Approvals,Approvals,"Faculty leave, attendance corrections, marks submissions, add/drop and department requests.",Assigned department only,Must-Have,core
 Institution Admin / Principal,Students,Students,Student directory & Student 360,"Search students and view enrollment, guardian, attendance, academic, fee-summary, documents and status based on permission.",Assigned institution/campus,Must-Have,core
@@ -176,12 +177,6 @@ Institution Admin / Principal,Operations,Library,Accession register,"The statuto
 Institution Admin / Principal,Operations,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Library,Reservations,"Holds placed by students and staff, and who is next in the queue.",Only assigned operational module/campus,Must-Have,core
 Institution Admin / Principal,Operations,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Infirmary,Student Health Master File,"Record baseline health data, blood group, allergies, chronic conditions, and emergency contacts.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Infirmary,Daily Nurse Visit Log,"Record infirmary visits, symptom observations, temperature, treatments, and resting duration.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Infirmary,Medication Admin Register,Log doctor-prescribed medication administered to boarders/day students during school hours.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Infirmary,Emergency Health Alerts,Send immediate SMS/Call alerts to parents and principal during medical emergencies.,Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Infirmary,Annual Health Checkup Records,"Record height, weight, BMI, vision test, and dental health scores from annual doctor camps.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Infirmary,School Health Programme Camps,"Record state school-health screening camps, referrals and follow-up treatment.",Assigned campus,Should-Have,core
 Institution Admin / Principal,Operations,Stores,Item Category & Store Setup,"Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.",Assigned campus,Should-Have,core
 Institution Admin / Principal,Operations,Stores,Purchase Order Workflow,"Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.",Assigned campus,Must-Have,core
 Institution Admin / Principal,Operations,Stores,Department Stock Issuance,Issue stock items to specific teachers or departments and track active stock balances.,Assigned campus,Should-Have,core

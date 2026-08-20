@@ -65,6 +65,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      person actually responsible for the school could not reach it. A school
      bought on the website therefore arrived at a dashboard of zeroes with no
      way to enter anything, which is the state a principal reported. */
+  /* Setting the school up is the first thing a new principal does and it was
+     filed under Academics, three sections down, next to the syllabus tracker.
+     It has its own entry directly under the dashboard now; the Academics keys
+     still point at the same screen, because somebody returning to change one
+     step will look for it where they last saw it. */
+  'institution_admin.getting_started.school_setup': lazy(() => import('./setup/Wizard')),
   'institution_admin.academics.academic_structure': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.academic_year_defaults': lazy(() => import('./setup/Wizard')),
@@ -299,8 +305,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.stores.item_category_store_setup': lazy(() => import('./operations/Stores')),
   'institution_admin.stores.department_stock_issuance': lazy(() => import('./operations/Stores')),
 
-  'institution_admin.infirmary.student_health_master_file': lazy(() => import('./operations/Infirmary')),
-  'institution_admin.infirmary.emergency_health_alerts': lazy(() => import('./operations/Infirmary')),
 
   /* The transport office. Live GPS tracking, geofenced arrival alerts,
      speeding detection, fuel-tank telematics, in-bus CCTV and AIS-140/VAHAN
