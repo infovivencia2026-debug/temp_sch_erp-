@@ -107,10 +107,10 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               <h3 className="mb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 {g.name}
               </h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {secs.map(({ s, feats }) => (
-                  <div key={s.slug} className="rounded-xl border bg-popover/80 p-4">
-                    <p className="mb-2 text-[12.5px] font-medium text-secondary-foreground">{s.name}</p>
+                  <div key={s.slug} className="rounded-xl border bg-popover/80 p-4 [--tile-row:34px]">
+                    <p className="mb-1 flex h-[var(--tile-row)] items-center px-2 text-[12.5px] font-medium text-secondary-foreground">{s.name}</p>
                     <ul className="space-y-0.5">
                       {feats.map((f) => {
                         const href = featurePath(role.key, s.slug, f.slug)
@@ -121,7 +121,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                               onClick={() => go(s.slug, f.slug)}
                               aria-current={pathname === href ? 'page' : undefined}
                               className={
-                                'block w-full rounded px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-accent ' +
+                                'flex h-[var(--tile-row)] w-full items-center rounded px-2 text-left text-[13px] transition-colors hover:bg-accent ' +
                                 (pathname === href ? 'bg-accent font-medium' : '')
                               }
                             >
