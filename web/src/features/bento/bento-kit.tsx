@@ -5,6 +5,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { useLayout } from '@/lib/layout'
 
 /* THE BENTO KIT.
 
@@ -540,6 +541,7 @@ export function BentoPage({
   children: ReactNode
 }) {
   const still = useReduceMotion()
+  const bentoLayout = useLayout().layout === 'bento'
   // A one-shot opacity transition rather than a keyframe class: `.reveal` in
   // index.css was deliberately made a no-op, and adding a keyframe would mean
   // editing index.css, which this experiment may not do. When motion is
@@ -559,15 +561,27 @@ export function BentoPage({
     <div
       className={cn(
         'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7',
+        // The dock is fixed at top-4 and about 40px tall. It used to overlap
+        // the heading harmlessly; with the heading gone it would sit on the
+        // first row of cards.
+        bentoLayout ? 'pt-[72px] sm:pt-[72px]' : '',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--bento-muted)]">
-        {eyebrow}
-      </p>
-      <h1 className="mt-1.5 text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
-      <div className="mt-6 grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2 lg:grid-cols-4">
+      {/* The heading is read, not seen.
+
+          "Bento / Executive overview" told a principal two things they already
+          knew: the layout's internal codename, which is our word and not
+          theirs, and that a screen of school figures is an overview. The dock
+          says where you are and the cards say what they are, so the block was
+          a label for something self-evident, sitting in the most valuable
+          space on the page.
+
+          Kept for assistive technology, because a document with no h1 is a
+          document a screen reader cannot outline. */}
+      <h1 className="sr-only">{`${eyebrow} — ${title}`}</h1>
+      <div className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2 lg:grid-cols-4">
         {children}
       </div>
     </div>
