@@ -49,11 +49,12 @@ type PasswordReset struct {
 	// BaseURL is what goes into the email. A relative path is fine on the page
 	// that produced it and useless in a mail client.
 	BaseURL string
-	// EmailReady reports whether this installation can actually carry the
-	// link. Where it can, the page stops printing the link on screen — showing
-	// it there would hand a reset to whoever is at the keyboard rather than to
-	// the account's owner.
-	EmailReady func(r *http.Request) bool
+	// EmailReady reports whether the account's own school can actually carry
+	// the link. Where it can, the page stops printing the link on screen —
+	// showing it there would hand a reset to whoever is at the keyboard
+	// rather than to the account's owner. Where it cannot, the link is the
+	// only way back in and the page says so.
+	EmailReady func(r *http.Request, inst uuid.UUID) bool
 }
 
 type resetView struct {
@@ -112,6 +113,9 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 
 	var link string
 	var queued bool
+	// Which school the account belongs to, kept for the readiness check below:
+	// it is only known once the user has been found.
+	var owner uuid.UUID
 	// Absolute: the link is opened from a mail client, not from the page that
 	// produced it.
 	base := strings.TrimSuffix(p.BaseURL, "/")
@@ -182,6 +186,7 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			queued = true
+			owner = *instID
 		}
 		return nil
 	})
@@ -193,7 +198,7 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view := resetView{Notice: sameAnswer}
-	if !queued || p.EmailReady == nil || !p.EmailReady(r) {
+	if !queued || p.EmailReady == nil || !p.EmailReady(r, owner) {
 		view.Link = link
 	}
 	p.render(w, r, "forgot.gohtml", http.StatusOK, view)

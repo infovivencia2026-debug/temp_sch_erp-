@@ -225,6 +225,9 @@ func (s *Server) Routes() http.Handler {
 			// them in. Deliberately not access.users.write — that right would
 			// also let HR reset the principal's password.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/login", s.issueStaffLogin)
+			// Reading a downloaded password list back in. Same right as
+			// issuing one by hand, because it is the same act done in bulk.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/logins/import", s.importStaffLogins)
 
 			/* The family's way in.
 

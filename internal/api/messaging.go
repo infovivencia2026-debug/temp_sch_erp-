@@ -3123,21 +3123,29 @@ func (s *Server) listMessageLog(w http.ResponseWriter, r *http.Request) {
 // is yes they are told to check their inbox, and where it is no they are shown
 // the link and told plainly that nothing was delivered. Guessing either way is
 // how somebody sits waiting for a message no configured provider could send.
-func (s *Server) EmailProviderReady(r *http.Request) bool {
+func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID) bool {
 	id := httpx.IdentityFrom(r.Context())
 	var ready bool
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		// Any institution with a working email provider is enough: this is
-		// asked before anybody has signed in, so there is no tenant to ask
-		// about, and a school that has configured SMTP is the one whose
-		// message queue the worker will drain.
+		/* The school that owns the account, and only that one.
+
+		   This used to accept any institution on the installation with SMTP
+		   configured, on the reasoning that nobody has signed in yet so there
+		   is no tenant to ask about. By the time this is called there is one:
+		   the reset handler has already found the user. The old answer was
+		   wrong in the way that strands somebody — a school with no provider
+		   queues a message nothing will ever send, while the page, satisfied
+		   that the installation could send, hides the link. The person is
+		   told a link is on its way and no link exists anywhere they can
+		   reach it. */
 		var cfg []byte
 		var secret string
 		err := tx.QueryRow(r.Context(), `
 			SELECT config, COALESCE(credentials,'')
 			  FROM integrations
-			 WHERE kind = 'messaging' AND provider = 'email' AND enabled
-			 LIMIT 1`).Scan(&cfg, &secret)
+			 WHERE institution_id = $1
+			   AND kind = 'messaging' AND provider = 'email' AND enabled
+			 LIMIT 1`, inst).Scan(&cfg, &secret)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}

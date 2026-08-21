@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Wand2 } from 'lucide-react'
-import BulkImport from '@/components/BulkImport'
+import { Download, Maximize2, Plus, Upload, Wand2 } from 'lucide-react'
+import BulkImport, { parseCsv, SheetViewer } from '@/components/BulkImport'
 import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
@@ -2037,6 +2037,83 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   const [busy, setBusy] = useState('')
   const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
   const [failed, setFailed] = useState('')
+  const [expanded, setExpanded] = useState(false)
+  const [loaded, setLoaded] = useState<{ set: number; skipped: Skip[] } | null>(null)
+
+  /* The table as a sheet, so the same viewer that shows an uploaded file can
+   * show this one. Built here rather than inside the viewer because only this
+   * panel knows that a password nobody has issued yet is a different thing
+   * from one that exists and cannot be looked up. */
+  const sheet: string[][] = [
+    ['Name', 'Subjects', 'Role', 'Class teacher of', 'Signs in as', 'Password'],
+    ...staff.map((t) => [
+      t.full_name,
+      t.subjects ?? '',
+      t.roles ?? '',
+      t.class_teacher_of ?? '',
+      issued[t.user_id]?.user ?? t.sign_in_as ?? '',
+      issued[t.user_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
+    ]),
+  ]
+
+  /* Downloaded so it can be read back in. The columns are the ones the import
+   * matches on, which is why the round trip needs no editing: a file that has
+   * to be rearranged before it will load is a file that gets rearranged
+   * wrongly. */
+  const download = () => {
+    const csv = sheet
+      .map((row) => row.map((c) => '"' + c.replace(/"/g, '""') + '"').join(','))
+      .join('\r\n')
+    const url = URL.createObjectURL(
+      new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }),
+    )
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'staff-logins.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  /* Reading a list back in. Headings are matched by name rather than by
+   * position, because the file has been through a spreadsheet by the time it
+   * comes back and a column will have been moved. */
+  const upload = async (file: File) => {
+    setFailed('')
+    setLoaded(null)
+    const rows = parseCsv(await file.text())
+    if (rows.length < 2) {
+      setFailed('That file has a heading row and nothing under it.')
+      return
+    }
+    const head = rows[0].map((h) => h.trim().toLowerCase())
+    const find = (...names: string[]) => head.findIndex((h) => names.includes(h))
+    const iWho = find('signs in as', 'sign_in_as', 'username', 'email', 'user')
+    const iPw = find('password', 'pass')
+    if (iWho < 0 || iPw < 0) {
+      setFailed(
+        'That file needs a "Signs in as" column and a "Password" column. ' +
+          'The list you download from here already has both.',
+      )
+      return
+    }
+    const body = rows.slice(1).map((r) => ({
+      sign_in_as: (r[iWho] ?? '').trim(),
+      password: (r[iPw] ?? '').trim(),
+    }))
+    setBusy('import')
+    try {
+      const res = await api.post<{ set: number; skipped: Skip[] }>(
+        '/api/v1/setup/logins/import',
+        { rows: body },
+      )
+      setLoaded(res)
+      await qc.invalidateQueries({ queryKey: ['teachers'] })
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not read that file.')
+    } finally {
+      setBusy('')
+    }
+  }
 
   const issue = async (t: Teacher, reset: boolean) => {
     if (reset && !confirm(
@@ -2061,7 +2138,36 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
 
   return (
     <div className="mt-5 border-t pt-4">
-      <p className="eyebrow mb-2">Staff and their logins</p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="eyebrow">Staff and their logins</p>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setExpanded(true)}>
+            <Maximize2 className="h-3.5 w-3.5" />
+            Expand
+          </Button>
+          <Button size="sm" variant="ghost" onClick={download}>
+            <Download className="h-3.5 w-3.5" />
+            Download the list
+          </Button>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Upload className="h-3.5 w-3.5" />
+            {busy === 'import' ? 'Reading…' : 'Import a list'}
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              disabled={busy === 'import'}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                // Cleared so the same file can be chosen twice running, which
+                // is what happens after correcting one row of it.
+                e.target.value = ''
+                if (f) void upload(f)
+              }}
+            />
+          </label>
+        </div>
+      </div>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-[13px]">
           <thead className="bg-muted text-left text-muted-foreground">
@@ -2139,7 +2245,38 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
           looked up again — only replaced.
         </p>
       )}
+      {loaded && (
+        <div className="mt-2 rounded-md border bg-muted/40 px-3 py-2 text-[13px]">
+          <p>
+            <b>{loaded.set}</b>{' '}
+            {loaded.set === 1 ? 'password is' : 'passwords are'} now the ones in that file.
+            {loaded.set > 0 && ' Anybody whose password changed has been signed out elsewhere.'}
+          </p>
+          {loaded.skipped.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
+              {loaded.skipped.map((sk) => (
+                <li key={sk.sign_in_as}>
+                  <span className="font-mono">{sk.sign_in_as}</span> — {sk.why}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+      {expanded && (
+        <SheetViewer
+          title="Staff and their logins"
+          rows={sheet}
+          onClose={() => setExpanded(false)}
+        />
+      )}
     </div>
   )
+}
+
+/** One row of an imported list that could not be applied, and why not. */
+interface Skip {
+  sign_in_as: string
+  why: string
 }

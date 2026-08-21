@@ -40,7 +40,7 @@ import { Button, Input, Table, Td } from '@/components/ui'
  * all handled, because a school's address column contains commas and a
  * half-parsed preview is more alarming than no preview.
  */
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = []
   let row: string[] = []
   let field = ''
@@ -899,7 +899,7 @@ function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
  * Escape closes it, the backdrop closes it, and the scroll position is its
  * own — the page behind does not move while it is open.
  */
-function SheetViewer({
+export function SheetViewer({
   title,
   rows,
   onClose,
