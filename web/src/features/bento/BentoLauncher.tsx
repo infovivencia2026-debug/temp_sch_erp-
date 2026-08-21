@@ -245,7 +245,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open || !role) return null
 
-  const Tile = ({ r, i }: { r: Row; i?: number }) => {
+  const Tile = ({ r, i, onTint }: { r: Row; i?: number; onTint?: boolean }) => {
     const href = featurePath(role.key, r.sectionSlug, r.slug)
     const here = pathname === href
     const onCursor = i !== undefined && i === cursor
@@ -260,7 +260,16 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         className={cn(
           `flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
-          onCursor ? 'bg-accent' : 'hover:bg-accent/60',
+          /* On a tinted panel the hover has to be the panel's own colour
+             deepened, not the app's grey accent — a neutral wash over a blue
+             field reads as a rendering fault rather than a hover. */
+          onTint
+            ? onCursor
+              ? 'bg-foreground/[0.09]'
+              : 'hover:bg-foreground/[0.05]'
+            : onCursor
+              ? 'bg-accent'
+              : 'hover:bg-accent/60',
           here && 'font-medium',
         )}
       >
@@ -358,12 +367,25 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               )}
               {groups.map((g) => {
                 const Mark = markFor(g.name)
+                const hue = hueFor(g.name)
                 return (
-                  <section key={g.name} className="mb-9">
-                    <Heading icon={Mark} label={g.name} hue={hueFor(g.name)} />
+                  /* The whole category sits on its colour, not just its glyph.
+
+                     A tinted panel does the grouping that a heading alone only
+                     asserts: the eye finds the block before it reads the word,
+                     and a feature's category is legible from the far side of
+                     the screen. The tint is the same soft the chip uses, so a
+                     workspace is one colour in two weights rather than two
+                     colours that have to be learned separately. */
+                  <section
+                    key={g.name}
+                    className="mb-5 rounded-[16px] p-4 sm:p-5"
+                    style={{ background: `var(--cat-${hue}-soft)` }}
+                  >
+                    <Heading icon={Mark} label={g.name} hue={hue} onTint />
                     <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
                       {g.sections.flatMap((s) => s.rows).map((r) => (
-                        <Tile key={r.key} r={r} />
+                        <Tile key={r.key} r={r} onTint />
                       ))}
                     </div>
                   </section>
@@ -389,24 +411,32 @@ function Heading({
   icon: Icon,
   label,
   hue = 'slate',
+  onTint,
 }: {
   icon: typeof Home
   label: string
   hue?: string
+  /** True when the heading sits on its category's tint, where a chip of the
+      same soft would be invisible. There the glyph goes bare and the label
+      takes the ink, so the heading still reads as the strongest thing in the
+      panel without inventing a third weight of the colour. */
+  onTint?: boolean
 }) {
   return (
-    <h3 className="mb-2.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]
-                   text-muted-foreground">
+    <h3
+      className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]"
+      style={onTint ? { color: `var(--cat-${hue})` } : undefined}
+    >
       <span
         className="flex size-6 items-center justify-center rounded-[7px]"
         style={{
-          background: `var(--cat-${hue}-soft)`,
+          background: onTint ? 'transparent' : `var(--cat-${hue}-soft)`,
           color: `var(--cat-${hue})`,
         }}
       >
         <Icon className="size-3.5" aria-hidden="true" />
       </span>
-      {label}
+      <span className={onTint ? 'font-semibold' : 'text-muted-foreground'}>{label}</span>
     </h3>
   )
 }

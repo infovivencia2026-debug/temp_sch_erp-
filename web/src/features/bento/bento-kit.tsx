@@ -185,17 +185,15 @@ export function Cell({
         /* min-h-0 for the same reason as the track: a flex/grid child will not
            shrink past its content without it.
 
-           Scrolls rather than hides. overflow-hidden kept a long card inside
-           its row, which is right, but it did it by cutting the content off at
-           the edge — text ran under the border and the rest was simply gone,
-           unreachable, with nothing to say it was there. A card that is one
-           line too tall should give that line back on a scroll, not eat it.
-
-           Padding tightens on the wide screens where the fit-to-viewport rule
-           applies, because that is exactly where the height is being rationed:
-           16px of vertical padding back is most of a line of text. */
-        `flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain
-         rounded-[var(--bento-radius)] border p-6 lg:p-5`,
+           No scrollbar, and nothing cut off: the contents are sized to the
+           row instead. A scrollbar inside a dashboard card is an admission
+           that the card does not fit, and eight of them is a worse answer
+           than one page scroll would have been. So the figures scale with the
+           viewport (see StatCell) and the padding tightens where the fit rule
+           rations height — 16px of vertical padding back is most of a line of
+           text, in exactly the place it was being taken from. */
+        `flex min-h-0 min-w-0 flex-col overflow-hidden
+         rounded-[var(--bento-radius)] border p-6 lg:p-4`,
         SPAN[span],
         TONE[t],
         className,
@@ -319,15 +317,29 @@ export function StatCell({
 }) {
   return (
     <Cell span={span}>
-      <p className="text-[12.5px] text-[var(--bento-muted)]">{label}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2.5">
-        <p className="text-[32px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+      <p className="text-[12.5px] leading-tight text-[var(--bento-muted)]">{label}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2.5">
+        {/* Sized against the viewport, not fixed.
+
+            32px is right on a desktop monitor and two pixels too many on a
+            13-inch laptop, where four rows of cards are dividing 690px between
+            them and the figure is the tallest thing in each. clamp lets the
+            number be as large as the glass can afford: it settles at 32 on
+            anything tall, shrinks toward 24 on a short window, and never
+            reaches the point where the card has to choose between clipping and
+            a scrollbar. */}
+        <p
+          className="font-semibold leading-none tracking-[-0.02em] tabular-nums
+                     text-[clamp(24px,3.1vh,32px)]"
+        >
           {value}
         </p>
         {badge && accent && <Badge accent={accent}>{badge}</Badge>}
       </div>
-      {shape && <div className="mt-4">{shape}</div>}
-      {note && <p className="mt-2.5 text-[12px] text-[var(--bento-muted)]">{note}</p>}
+      {shape && <div className="mt-3">{shape}</div>}
+      {note && (
+        <p className="mt-2 text-[11.5px] leading-tight text-[var(--bento-muted)]">{note}</p>
+      )}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>
   )
