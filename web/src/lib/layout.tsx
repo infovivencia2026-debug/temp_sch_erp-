@@ -75,6 +75,7 @@ function serverSnapshot(): Layout {
     below and for anything that learns the account's layout from a payload it
     already had — writing what the server just told us must not PUT it back. */
 export function applyLayout(next: Layout) {
+  document.documentElement.setAttribute('data-layout', next)
   if (current === next) return
   current = next
   try {
@@ -135,4 +136,11 @@ export function useLayout(): LayoutValue {
     GET /preferences/display returned; it never writes back to the server. */
 export function reconcileLayout(value: unknown) {
   if (isLayout(value)) applyLayout(value)
+}
+
+// stamp on load: currentLayout() reads localStorage synchronously, so the
+// attribute is on the element before React's first paint and a reload into
+// Bento never flashes the classic palette.
+if (typeof document !== 'undefined') {
+  document.documentElement.setAttribute('data-layout', currentLayout())
 }

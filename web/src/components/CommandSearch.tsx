@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { shortcutLabel } from '@/lib/platform'
 import { useNavigate } from 'react-router-dom'
 import { Search, CornerDownLeft } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
@@ -99,7 +100,7 @@ export function CommandSearch() {
       >
         <Search className="h-3.5 w-3.5" />
         <span>Search</span>
-        <kbd className="rounded border px-1 font-mono text-[10px]">⌘K</kbd>
+        <kbd className="rounded border px-1 font-mono text-[10px]">{shortcutLabel('K')}</kbd>
       </button>
     )
   }

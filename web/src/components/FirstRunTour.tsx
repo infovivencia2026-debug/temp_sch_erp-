@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { shortcutLabel } from '@/lib/platform'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight, CheckCircle2, ClipboardList, GraduationCap, IndianRupee,
@@ -103,7 +104,7 @@ function stepsFor(t: Tour): Step[] {
     },
     {
       icon: Users,
-      title: 'Press ⌘K to find anything',
+      title: `Press ${shortcutLabel('K')} to find anything`,
       body:
         'Search jumps to any screen or student without navigating. It is faster than the ' +
         'menu once you know the name of what you want.',

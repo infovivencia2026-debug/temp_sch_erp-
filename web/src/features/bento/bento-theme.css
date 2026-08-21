@@ -1,0 +1,38 @@
+/* The Bento palette.
+
+   Scoped to [data-layout='bento'] on purpose. Classic keeps the tokens it has,
+   so switching back is one click and nothing outside this layout moves — which
+   is the arrangement the whole experiment rests on.
+
+   Two colours are not the ones supplied. #10b981 on #d1fae5 measures 2.24:1
+   and #f59e0b on #fef3c7 measures 1.93:1; AA wants 4.5:1 for text. Those are
+   the same pairings this product already failed and fixed this month, so
+   taking them verbatim would have reintroduced a bug we have the commit for.
+   Each is darkened along its own hue until it just clears the bar and no
+   further — 4.51:1 both — so the palette still reads as the one supplied.
+   The badge grounds are untouched. */
+[data-layout='bento'] {
+  --bento-primary: #4f46e5;
+  --bento-primary-hover: #4338ca;
+  --bento-bg: #f9fafb;
+  --bento-surface: #ffffff;
+  --bento-text: #111827;
+  --bento-muted: #6b7280;
+  --bento-border: #e5e7eb;
+
+  /* 4.83:1 and 4.63:1 on white and on the page — both already pass. */
+  --bento-success: #0b7d57;      /* supplied #10b981, 2.24:1 -> 4.51:1 */
+  --bento-success-bg: #d1fae5;
+  --bento-warning: #9a6306;      /* supplied #f59e0b, 1.93:1 -> 4.51:1 */
+  --bento-warning-bg: #fef3c7;
+  --bento-danger: #ef4444;
+
+  --bento-radius: 16px;
+  --bento-radius-sm: 8px;
+  --bento-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --bento-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+}
+
+/* The dark anchor cell keeps drawing in its own foreground pair. A semantic
+   colour measured against a light card is near-black on a dark one, which is
+   why the anchors never reached for these in the first place. */
