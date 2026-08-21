@@ -66,9 +66,45 @@
      dashboards subtract it from the viewport to size themselves. When they
      disagreed, the dock sat on the cards. */
   --bento-dock: 60px;
+
+  /* Category hues for the launcher.
+
+     Eight, for thirty-nine workspaces across the roles. Not a hue each: past
+     about eight a reader stops decoding colour and starts ignoring it, and a
+     library where every heading is a different shade has no categories at all,
+     only confetti. Any one role shows six to twelve workspaces, so eight is
+     enough for its groups to differ from each other on screen, which is the
+     job.
+
+     Ink is for the glyph, soft is the chip behind it. Both are needed: a
+     coloured icon alone on this ground is too small a mark to register, and a
+     coloured chip alone loses the shape that says which workspace it is. */
+  --cat-blue: #1d4ed8;   --cat-blue-soft: #e6edfc;
+  --cat-violet: #6d28d9; --cat-violet-soft: #f0e9fd;
+  --cat-teal: #0f766e;   --cat-teal-soft: #e0f2f0;
+  --cat-green: #15803d;  --cat-green-soft: #e6f4ea;
+  --cat-amber: #b45309;  --cat-amber-soft: #fbefe0;
+  --cat-rose: #be123c;   --cat-rose-soft: #fce8ed;
+  --cat-cyan: #0e7490;   --cat-cyan-soft: #e1f0f6;
+  --cat-slate: #475569;  --cat-slate-soft: #eceef2;
 }
 
 html.dark[data-layout='bento'] {
+
+  /* The same eight against the dark ground.
+
+     Inverted in role rather than merely lightened: the ink lifts so a small
+     glyph still reads, and the chip becomes a tint of the ground rather than a
+     tint of white — a pale chip on near-black reads as grey mud and loses the
+     hue entirely, which is the whole point of it. */
+  --cat-blue: #9db9ff;   --cat-blue-soft: #16203a;
+  --cat-violet: #c4a8ff; --cat-violet-soft: #221a3a;
+  --cat-teal: #62d3c6;   --cat-teal-soft: #10262a;
+  --cat-green: #7cd193;  --cat-green-soft: #12251a;
+  --cat-amber: #e0ab5f;  --cat-amber-soft: #2a1f10;
+  --cat-rose: #f39bad;   --cat-rose-soft: #2c1620;
+  --cat-cyan: #6cc6de;   --cat-cyan-soft: #10242c;
+  --cat-slate: #a2b0c2;  --cat-slate-soft: #1a1f27;
   color-scheme: dark;
 
   --bento-bg: #0d0f14;

@@ -62,6 +62,45 @@ function markFor(workspace: string) {
   return WORKSPACE_ICON[workspace] ?? LayoutGrid
 }
 
+/* Colour per category, from a set of eight.
+
+   Not a hue each. There are thirty-nine workspaces across the roles, and past
+   about eight a reader stops decoding colour and starts ignoring it — a
+   library where every heading is its own shade has no categories, only
+   confetti. Any one role shows six to twelve, so eight is enough for its
+   groups to differ on the screen somebody is actually looking at.
+
+   Named where the meaning is obvious, because a learnable colour beats an
+   arbitrary one: money is green wherever it appears, transport amber, people
+   rose. The long tail is hashed rather than left unassigned — a workspace
+   nobody thought about must still get a colour, and it must get the same one
+   every time, so the hash is over the name and not the position. Position
+   would be stable until the catalogue was reordered and then silently repaint
+   half the library. */
+const WORKSPACE_HUE: Record<string, string> = {
+  Students: 'blue', Admissions: 'blue', 'My Child': 'blue', People: 'blue',
+  Academics: 'violet', Assessments: 'violet', Teaching: 'violet',
+  'My Classes': 'violet', Examinations: 'violet', Timetable: 'violet',
+  Finance: 'green', Fees: 'green', Accounting: 'green', Payroll: 'green',
+  'Subscriptions & Billing': 'green',
+  Transport: 'amber', Operations: 'amber', Library: 'amber',
+  Staff: 'rose', Employees: 'rose', 'Attendance & Leave': 'rose',
+  Communication: 'cyan', 'Front Desk': 'cyan', Requests: 'cyan', Support: 'cyan',
+  Reports: 'teal', 'Usage & Health': 'teal', Dashboard: 'teal',
+  Home: 'slate', 'My Work': 'slate', Administration: 'slate',
+  Profile: 'slate', 'Access & Security': 'slate',
+}
+
+const HUES = ['blue', 'violet', 'teal', 'green', 'amber', 'rose', 'cyan', 'slate']
+
+function hueFor(workspace: string): string {
+  const named = WORKSPACE_HUE[workspace]
+  if (named) return named
+  let h = 0
+  for (let i = 0; i < workspace.length; i++) h = (h * 31 + workspace.charCodeAt(i)) >>> 0
+  return HUES[h % HUES.length]
+}
+
 interface Row {
   key: string
   name: string
@@ -225,7 +264,15 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
           here && 'font-medium',
         )}
       >
-        <Mark className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {/* The row's glyph carries its group's colour, which is what ties a
+            tile to the heading it sits under once the eye has left it. Within
+            a group every glyph is the same, so it reads as grouping rather
+            than as sixty-five separate decisions. */}
+        <Mark
+          className="size-4 shrink-0"
+          style={{ color: `var(--cat-${hueFor(r.workspace)})` }}
+          aria-hidden="true"
+        />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px]">{r.name}</span>
           <span className="block truncate text-[11.5px] text-muted-foreground">{r.section}</span>
@@ -313,7 +360,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 const Mark = markFor(g.name)
                 return (
                   <section key={g.name} className="mb-9">
-                    <Heading icon={Mark} label={g.name} />
+                    <Heading icon={Mark} label={g.name} hue={hueFor(g.name)} />
                     <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
                       {g.sections.flatMap((s) => s.rows).map((r) => (
                         <Tile key={r.key} r={r} />
@@ -331,12 +378,34 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 /** One heading treatment for every band, so recents, results and workspaces
-    read as the same kind of thing rather than three inventions. */
-function Heading({ icon: Icon, label }: { icon: typeof Home; label: string }) {
+    read as the same kind of thing rather than three inventions.
+
+    The glyph sits in a filled chip of its category's colour. Both halves earn
+    their place: a coloured icon alone is too small a mark to register on this
+    ground, and a coloured chip alone loses the shape that says which
+    workspace it is. The label stays muted — colouring the words as well would
+    make eight headings shout at each other, and the chip has already said it. */
+function Heading({
+  icon: Icon,
+  label,
+  hue = 'slate',
+}: {
+  icon: typeof Home
+  label: string
+  hue?: string
+}) {
   return (
     <h3 className="mb-2.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]
                    text-muted-foreground">
-      <Icon className="size-3.5" aria-hidden="true" />
+      <span
+        className="flex size-6 items-center justify-center rounded-[7px]"
+        style={{
+          background: `var(--cat-${hue}-soft)`,
+          color: `var(--cat-${hue})`,
+        }}
+      >
+        <Icon className="size-3.5" aria-hidden="true" />
+      </span>
       {label}
     </h3>
   )
