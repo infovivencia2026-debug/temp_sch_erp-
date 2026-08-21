@@ -24,7 +24,7 @@ export type Skin = 'premium' | 'brutalist'
 
 export const SKINS: readonly Skin[] = ['premium', 'brutalist'] as const
 
-export const DEFAULT_SKIN: Skin = 'premium'
+export const DEFAULT_SKIN: Skin = 'brutalist'
 
 const KEY = 'erp.skin'
 

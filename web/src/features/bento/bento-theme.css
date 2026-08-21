@@ -338,7 +338,7 @@ html[data-skin='brutalist'] .bento-dock {
 }
 
 html[data-skin='brutalist'] .bento-cell {
-  background: color-mix(in srgb, var(--bento-card) 58%, transparent);
+  background-color: color-mix(in srgb, var(--bento-card) 58%, transparent);
 }
 html[data-skin='brutalist'] .launcher-app {
   /* Composed from --tile-tint, not from the card token, so a frosted tile is
@@ -356,7 +356,7 @@ html[data-skin='brutalist'] .bento-dock {
   html[data-skin='brutalist'] .launcher-app,
   html[data-skin='brutalist'] .launcher-tile,
   html[data-skin='brutalist'] .bento-dock {
-    background: var(--bento-card);
+    background-color: var(--bento-card);
   }
 }
 
