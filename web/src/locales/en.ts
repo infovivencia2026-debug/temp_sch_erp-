@@ -1158,6 +1158,7 @@ export const en = {
   'bento.faculty_today.lessons_cue': 'My timetable',
   'bento.faculty_today.lessons_none': 'Nothing timetabled.',
   'bento.faculty_today.lessons_note': '{first} to {last}',
+  'bento.escape.back': 'Leave Bento',
 } as const
 
 /** Every key the product has extracted. A locale file is a `Partial` of this,

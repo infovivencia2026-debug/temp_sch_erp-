@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils'
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
+import { BentoEscape } from '@/features/bento/BentoEscape'
+import { useLayout } from '@/lib/layout'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -252,6 +254,16 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const isBentoRole = role?.key === 'faculty' || role?.key === 'parent'
 
+  /* Bento is a full-bleed canvas: no sidebar, no header. A grid laid out to be
+     read edge to edge with a 256px rail beside it and a 56px strip above it is
+     neither one layout nor the other.
+
+     Everything the header carried — the switch, sign-out, notifications — goes
+     with it, which is why BentoEscape exists and why it renders before this is
+     allowed to hide anything. */
+  const { layout } = useLayout()
+  const chromeless = layout === 'bento'
+
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
@@ -273,7 +285,7 @@ export function Shell({ children }: { children: ReactNode }) {
           'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[280px]',
           'max-lg:border-r max-lg:transition-transform',
           navOpen ? 'flex max-lg:translate-x-0' : 'hidden lg:flex max-lg:-translate-x-full',
-          isBentoRole ? '!hidden' : ''
+          isBentoRole || chromeless ? '!hidden' : ''
         )}
       >
         {/* --- workspace header: where am I, and whose -------------------- */}
@@ -493,6 +505,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
+        {!chromeless && (
         <header className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {!isBentoRole && (
             <button
@@ -562,9 +575,11 @@ export function Shell({ children }: { children: ReactNode }) {
             </a>
           </div>
         </header>
+        )}
 
         <main className="min-w-0 flex-1 overflow-y-auto">
           <BentoOutlet>{children}</BentoOutlet>
+          <BentoEscape />
         </main>
       </div>
     </div>
