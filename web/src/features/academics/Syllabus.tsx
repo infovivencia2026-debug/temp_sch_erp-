@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CheckCircle2, ClipboardCheck, TrendingDown } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -72,6 +73,19 @@ const STATUS: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {
 }
 
 export default function Syllabus() {
+  /* Two menu entries, two screens.
+   *
+   * "Lesson Plans" and "Syllabus Progress" both opened this, whole, so the
+   * school had two names for one page and no reason to click the second. They
+   * are different questions asked by different people: a head of department
+   * signs plans this week, and a principal asks in February whether Class 8
+   * has finished the syllabus.
+   *
+   * One component still, because the coverage numbers are computed from the
+   * plans and splitting the file would mean fetching the same rows twice and
+   * letting the two drift. What splits is what is shown. */
+  const { featureSlug } = useParams()
+  const view = featureSlug === 'syllabus_progress' ? 'coverage' : 'plans'
   const qc = useQueryClient()
   const session = useQuery({
     queryKey: ['session'],
@@ -119,8 +133,12 @@ export default function Syllabus() {
     <>
       <PageHead
         eyebrow="Academics"
-        title="Syllabus and lesson plans"
-        description="What each class is meant to cover, what has actually been taught, and the plans waiting on a signature."
+        title={view === 'coverage' ? 'Syllabus progress' : 'Lesson plans'}
+        description={
+          view === 'coverage'
+            ? 'How much of each subject has actually been taught, against how much was planned. The question asked in the month before an exam.'
+            : 'Plans teachers have written, and the ones waiting on a signature.'
+        }
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -139,7 +157,7 @@ export default function Syllabus() {
           <Stat label="Subjects tracked" value={rows.length} />
         </CellGrid>
 
-        {canReview && waiting > 0 && (
+        {view === 'plans' && canReview && waiting > 0 && (
           <Card>
             <CardHeader
               title="Waiting on you"
@@ -154,6 +172,7 @@ export default function Syllabus() {
           </Card>
         )}
 
+        {view === 'coverage' && (
         <Card>
           <CardHeader
             title="Coverage"
@@ -207,10 +226,15 @@ export default function Syllabus() {
             </Table>
           )}
         </Card>
+        )}
 
-        <MyPlans plans={mine.data?.items ?? []} canReview={canReview} />
-        <NewLessonPlan />
-        {canReview && <ChapterPlanner />}
+        {view === 'plans' && (
+          <>
+            <MyPlans plans={mine.data?.items ?? []} canReview={canReview} />
+            <NewLessonPlan />
+          </>
+        )}
+        {view === 'coverage' && canReview && <ChapterPlanner />}
       </PageBody>
     </>
   )
