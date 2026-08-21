@@ -295,9 +295,6 @@ export function Shell({ children }: { children: ReactNode }) {
     ) ??
     railWorkspaces[0]
 
-  const activeSection: ApiSection | undefined =
-    role?.sections.find((s) => s.slug === sectionSlug) ?? role?.sections[0]
-
   /* Through the shared store, not straight at the DOM.
 
      This used to toggle the class and write localStorage itself, which made

@@ -618,3 +618,38 @@
 }
 
 .print-only { display: none; }
+
+
+/* The rail's tooltips, on the same terms as the dock's: 120ms, drawn from a
+   data attribute because the native title waits about a second, and the rail is
+   nothing but unlabelled marks. Opening to the right, since the rail is 58px
+   and anything centred under it would be cut off by the panel beside it. */
+.rail-item { position: relative; }
+.rail-item::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-3px);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--lift-float);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 60;
+  transition: opacity 90ms ease 0ms, transform 90ms ease 0ms;
+}
+.rail-item:hover::after,
+.rail-item:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 120ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-item::after { transition: none; }
+}

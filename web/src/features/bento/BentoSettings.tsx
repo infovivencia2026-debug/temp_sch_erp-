@@ -41,7 +41,7 @@ const ICON: Record<Theme, typeof Sun> = {
    and the foot of the classic sidebar. Rather than two components that drift,
    one takes a placement — which decides the trigger's shape and which corner
    the panel opens from, and nothing else. */
-export type SettingsPlacement = 'dock' | 'sidebar'
+export type SettingsPlacement = 'dock' | 'sidebar' | 'rail'
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
   const { theme, resolved, setTheme } = useTheme()
@@ -141,13 +141,16 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             ? `grid size-10 place-items-center rounded-full border bg-popover/80
                text-muted-foreground shadow-sm backdrop-blur-md hover:bg-accent
                hover:text-foreground`
-            : `flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left
-               text-[12.5px] text-muted-foreground hover:bg-surface-hover
-               hover:text-foreground`,
+            : placement === 'rail'
+              ? `grid size-10 place-items-center rounded-[10px] text-muted-foreground
+                 hover:bg-surface-hover hover:text-foreground`
+              : `flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left
+                 text-[12.5px] text-muted-foreground hover:bg-surface-hover
+                 hover:text-foreground`,
         )}
       >
         <Settings
-          className={placement === 'dock' ? 'size-[18px]' : 'size-4 shrink-0'}
+          className={placement === 'sidebar' ? 'size-4 shrink-0' : 'size-[18px]'}
           aria-hidden="true"
         />
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
@@ -165,7 +168,12 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                scroll to be read is a menu that cannot be used from there. */
             placement === 'dock'
               ? 'right-0 top-[calc(100%+8px)]'
-              : 'bottom-[calc(100%+8px)] left-0',
+              /* From the rail it opens to the right and upward: the rail is
+                 58px wide, so a menu anchored to its left edge would hang off
+                 the window. */
+              : placement === 'rail'
+                ? 'bottom-0 left-[calc(100%+8px)]'
+                : 'bottom-[calc(100%+8px)] left-0',
           )}
         >
           <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
