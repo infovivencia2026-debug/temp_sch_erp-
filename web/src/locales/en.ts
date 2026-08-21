@@ -1174,6 +1174,7 @@ export const en = {
   'bento.launcher.title': 'All features',
   'bento.launcher.close': 'Close',
   'bento.launcher.recent': 'Recently opened',
+  'bento.launcher.show_all': 'Show all',
   'bento.launcher.results': '{count} matches',
   'bento.launcher.empty': 'Nothing matches “{q}”',
   'bento.launcher.hint': 'Up and down to move, Enter to open, Esc to close',

@@ -182,6 +182,14 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
   const recentKeys = useRecents()
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
+  /* Which categories are switched OFF, not which are on.
+
+     Everything is visible by default, so the empty set is the ordinary state
+     and the filter starts by showing the whole board rather than nothing. The
+     inverse — a set of selected categories, empty meaning none — would put a
+     blank panel in front of somebody who has just opened a launcher to look
+     around, and make "show me everything" a thing they had to ask for. */
+  const [off, setOff] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -207,11 +215,12 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
   const results = useMemo(() => {
     if (!needle) return []
     return rows
+      .filter((r) => !off.has(r.workspace))
       .map((r) => ({ r, s: score(r, needle) }))
       .filter((x) => x.s >= 0)
       .sort((a, b) => b.s - a.s || a.r.name.localeCompare(b.r.name))
       .map((x) => x.r)
-  }, [rows, needle])
+  }, [rows, needle, off])
 
   const recents = useMemo(() => {
     const byKey = new Map(rows.map((r) => [r.key, r]))
@@ -219,6 +228,21 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
     // access to simply disappears from the list rather than 404ing on click.
     return recentKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r)
   }, [recentKeys, rows])
+
+  /* Every category this role has, in board order, with its colour. */
+  const chips = useMemo(() => {
+    const seen: string[] = []
+    for (const r of rows) if (!seen.includes(r.workspace)) seen.push(r.workspace)
+    return seen
+  }, [rows])
+
+  const toggle = (name: string) =>
+    setOff((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
 
   const groups = useMemo(() => {
     const out: { name: string; sections: { name: string; rows: Row[] }[] }[] = []
@@ -443,6 +467,68 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
           />
         </div>
 
+        {/* The categories, as switches rather than as a picker.
+
+            All are on when the panel opens, and pressing one turns it off.
+            That is the direction round that matches what somebody is doing
+            here: they arrive wanting the whole board and narrow it by removing
+            the parts they are not looking in — the opposite arrangement makes
+            "show me everything" a thing they have to ask for first.
+
+            Each carries its domain colour when on and goes flat when off, so
+            the row of chips reads as the same colour system as the board it is
+            filtering rather than as a separate control panel. */}
+        <div className="mb-6 flex flex-wrap items-center gap-1.5">
+          {chips.map((name) => {
+            const Mark = markFor(name)
+            const hue = hueFor(name)
+            const on = !off.has(name)
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggle(name)}
+                aria-pressed={on}
+                className={cn(
+                  `flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px]
+                   transition-colors focus-visible:outline-none focus-visible:ring-2
+                   focus-visible:ring-ring`,
+                  on ? 'font-medium' : 'text-muted-foreground',
+                )}
+                style={
+                  on
+                    ? {
+                        background: `color-mix(in srgb, var(--dom-${hue}) 13%, var(--bento-card))`,
+                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 34%, transparent)`,
+                      }
+                    : { borderColor: 'hsl(var(--border))', opacity: 0.55 }
+                }
+              >
+                <Mark
+                  className="size-3.5 shrink-0"
+                  style={{ color: on ? `var(--dom-${hue})` : 'currentColor' }}
+                  aria-hidden="true"
+                />
+                {name}
+              </button>
+            )
+          })}
+
+          {/* Only offered when it would do something. A reset that is always
+              there is a control people learn to ignore. */}
+          {off.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setOff(new Set())}
+              className="ml-1 rounded-full px-2.5 py-1 text-[12px] text-muted-foreground
+                         underline-offset-4 transition-colors hover:text-foreground hover:underline
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t('bento.launcher.show_all')}
+            </button>
+          )}
+        </div>
+
         <div ref={listRef}>
           {needle ? (
             results.length ? (
@@ -473,7 +559,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               )}
               <div className="grid grid-flow-dense auto-rows-min grid-cols-1 gap-3 sm:grid-cols-2
                               lg:grid-cols-4">
-              {groups.map((g) => {
+              {groups.filter((g) => !off.has(g.name)).map((g) => {
                 const Mark = markFor(g.name)
                 const hue = hueFor(g.name)
                 const count = g.sections.reduce((n, x) => n + x.rows.length, 0)
