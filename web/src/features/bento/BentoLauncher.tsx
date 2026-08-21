@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
-  CornerDownLeft, LayoutGrid,
+  CornerDownLeft, LayoutGrid, House,
 } from 'lucide-react'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
@@ -236,6 +236,15 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
   // sixty-five item grid with arrow keys is worse than pointing at it.
   const walkable = needle ? results : []
 
+  /* The way home, from the panel that lists everywhere else.
+
+     Somebody who opens All features to look around needs a way back that is
+     not "guess which of these sixty-five is the dashboard". It resolves to the
+     role's first opening feature, exactly as the dock's Home does — the same
+     rule in both places, because two different answers to "where is home"
+     would be worse than none. */
+  const homeRow = rows[0]
+
   const go = useCallback(
     (r: Row) => {
       if (!role) return
@@ -352,7 +361,20 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       onClick={onClose}
     >
       <div
-        className="mx-auto max-w-5xl px-6 pb-16 pt-10 sm:px-10"
+        /* Wider than a reading column, because this is not one.
+
+           max-w-5xl is the width prose wants — about 1024px — and it was
+           strangling a four-column board of boxes: "Academic Performan…"
+           truncated at 1024 with a thousand pixels of empty screen either side
+           of it. A launcher is scanned across, not read down, so it should take
+           the glass it is given.
+
+           Capped rather than full-bleed. On an ultrawide, panels stretched to
+           2500px would put Home and Operations so far apart that finding one
+           means moving your head, and the tiles inside would grow into empty
+           rectangles. 1600 is about as wide as a four-column board stays
+           readable. */
+        className="mx-auto max-w-[1600px] px-6 pb-16 pt-10 sm:px-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-baseline justify-between gap-4">
@@ -362,15 +384,30 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             </p>
             <h2 className="text-[22px] font-semibold">{t('bento.launcher.title')}</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[10px] px-3 py-1.5 text-[12.5px] text-muted-foreground transition-colors
-                       hover:bg-accent hover:text-foreground focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('bento.launcher.close')}
-          </button>
+          <div className="flex items-center gap-1.5">
+            {homeRow && (
+              <button
+                type="button"
+                onClick={() => go(homeRow)}
+                className="flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px]
+                           text-muted-foreground transition-colors hover:bg-accent
+                           hover:text-foreground focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-ring"
+              >
+                <House className="size-3.5" aria-hidden="true" />
+                {t('bento.dock.home')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-[10px] px-3 py-1.5 text-[12.5px] text-muted-foreground transition-colors
+                         hover:bg-accent hover:text-foreground focus-visible:outline-none
+                         focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t('bento.launcher.close')}
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-8">

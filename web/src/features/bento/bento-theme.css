@@ -87,8 +87,15 @@
      layer draws the contact edge, the wide one is the ambient fall; together
      they make an object sitting on a surface rather than a rectangle with a
      grey smudge under it. */
-  --bento-depth-sm: 0 1px 2px rgb(15 23 42 / 0.05), 0 2px 6px -2px rgb(15 23 42 / 0.06);
-  --bento-depth: 0 2px 4px rgb(15 23 42 / 0.06), 0 12px 28px -10px rgb(15 23 42 / 0.16);
+  --bento-depth-sm: 0 1px 2px rgb(15 23 42 / 0.06), 0 3px 8px -2px rgb(15 23 42 / 0.08);
+  --bento-depth: 0 2px 4px rgb(15 23 42 / 0.07), 0 10px 24px -8px rgb(15 23 42 / 0.14);
+  /* A third step for the things that genuinely sit above the page — the
+     category panels, which hold objects of their own, and anything that floats.
+     Three steps rather than two because with only two, a box inside a panel
+     and the panel around it were reaching for the same shadow, and a container
+     at the same elevation as its contents reads as flat however deep the
+     shadow is. Depth is relative or it is nothing. */
+  --bento-depth-lg: 0 4px 8px rgb(15 23 42 / 0.06), 0 20px 44px -14px rgb(15 23 42 / 0.20);
 
   --bento-shadow: var(--bento-depth);
   --bento-shadow-sm: var(--bento-depth-sm);
@@ -167,6 +174,7 @@ html.dark[data-layout='bento'] {
      actually behaves, plus a deeper shadow underneath to seat it. */
   --bento-depth-sm: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 1px 3px rgb(0 0 0 / 0.5);
   --bento-depth: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 10px 26px -8px rgb(0 0 0 / 0.7);
+  --bento-depth-lg: 0 1px 0 rgb(255 255 255 / 0.09) inset, 0 20px 44px -12px rgb(0 0 0 / 0.85);
 
   /* The domains against the dark ground. Inverted in role rather than
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
@@ -326,6 +334,7 @@ html[data-skin='brutalist'] [data-layout='bento'] {
      token name would just be disobeying it in a place nobody would look. */
   --bento-depth: none;
   --bento-depth-sm: none;
+  --bento-depth-lg: none;
 }
 
 /* On the dark ground the frame inverts: a black border on near-black is a card
@@ -367,6 +376,7 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
    the cursor is in before you read a row inside it. No transform, for the
    reason the cards do not use one: these are packed against each other. */
 [data-layout='bento'] .launcher-tile {
+  box-shadow: var(--bento-depth-lg);
   transition: box-shadow 140ms ease, filter 140ms ease;
 }
 [data-layout='bento'] .launcher-tile:hover {

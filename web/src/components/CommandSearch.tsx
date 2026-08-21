@@ -196,10 +196,6 @@ export function CommandSearch() {
 
           <div className="flex items-center gap-3 border-t px-4 py-2 text-[12px] text-muted-foreground">
             <span>↑↓ to move</span><span>↵ to open</span><span>esc to close</span>
-            <span className="ml-auto inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> built
-              <span className="ml-2 h-1.5 w-1.5 rounded-full bg-border" /> planned
-            </span>
           </div>
         </div>
       </div>
