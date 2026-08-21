@@ -151,7 +151,24 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
      there.
 
      One wrapper, so the allowance is made once for whatever renders. */
-  return <div style={{ paddingTop: 'var(--bento-dock)' }}>{inner}</div>
+  return (
+    <div
+      /* The ground is painted here, not only by the screens.
+
+         This wrapper holds the dock's clearance, and with no background of its
+         own that clearance showed sixty pixels of the app's default ground
+         above whatever the screen painted — a pale band across the top of
+         every Bento page, exactly where the eye starts. The strip was the
+         padding, made visible.
+
+         min-h-dvh so a short screen is one colour to the bottom of the window
+         rather than to the bottom of its content. */
+      className="min-h-dvh bg-[var(--bento-bg)]"
+      style={{ paddingTop: 'var(--bento-dock)' }}
+    >
+      {inner}
+    </div>
+  )
 }
 
 export default BentoOutlet
