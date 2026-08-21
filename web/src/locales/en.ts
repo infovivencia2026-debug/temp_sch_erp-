@@ -1175,6 +1175,11 @@ export const en = {
   'bento.launcher.close': 'Close',
   'bento.launcher.filter': 'Filter {count} features…',
   'bento.dock.all': 'All features',
+  'bento.settings.label': 'Settings',
+  'bento.settings.appearance': 'Appearance',
+  'bento.settings.theme.system': 'Match system',
+  'bento.settings.theme.light': 'Light',
+  'bento.settings.theme.dark': 'Dark',
 } as const
 
 /** Every key the product has extracted. A locale file is a `Partial` of this,

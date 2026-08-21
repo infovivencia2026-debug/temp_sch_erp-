@@ -15,6 +15,7 @@ import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
+import { useTheme } from '@/lib/theme'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -148,6 +149,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const scopeLine = useScopeLine()
+  const { resolved, setTheme } = useTheme()
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
   // Most catalogued features have no screen yet. Hiding them by default keeps
   // a role's navigation to what actually works, with one line to reveal the
@@ -245,11 +247,18 @@ export function Shell({ children }: { children: ReactNode }) {
   const activeSection: ApiSection | undefined =
     role?.sections.find((s) => s.slug === sectionSlug) ?? role?.sections[0]
 
+  /* Through the shared store, not straight at the DOM.
+
+     This used to toggle the class and write localStorage itself, which made
+     it a second writer beside the appearance screen — and a lossy one, since
+     it could only ever say light or dark and so quietly destroyed a "system"
+     choice, without ever telling the account row. It now goes through
+     lib/theme, so the header, the appearance screen and the Bento dock are
+     the same preference seen from three places. */
   const toggleTheme = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('erp.theme', JSON.stringify(next ? 'dark' : 'light'))
+    const next = resolved === 'dark' ? 'light' : 'dark'
+    setDark(next === 'dark')
+    setTheme(next)
   }
 
   const isBentoRole = role?.key === 'faculty' || role?.key === 'parent'

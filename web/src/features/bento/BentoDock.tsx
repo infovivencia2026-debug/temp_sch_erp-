@@ -3,6 +3,7 @@ import { useT } from '@/lib/i18n'
 import { useState } from 'react'
 import { CommandSearch } from '@/components/CommandSearch'
 import { BentoLauncher } from './BentoLauncher'
+import { BentoSettings } from './BentoSettings'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -41,6 +42,8 @@ export function BentoDock() {
       >
         {t('bento.dock.all')}
       </button>
+      {/* Before the way out, so the last thing in the pill stays the way out. */}
+      <BentoSettings />
       <button
         type="button"
         onClick={() => setLayout('classic')}
