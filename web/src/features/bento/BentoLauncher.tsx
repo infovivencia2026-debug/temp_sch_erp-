@@ -62,43 +62,85 @@ function markFor(workspace: string) {
   return WORKSPACE_ICON[workspace] ?? LayoutGrid
 }
 
-/* Colour per category, from a set of eight.
+/* Colour by ERP domain, not by launcher category.
 
-   Not a hue each. There are thirty-nine workspaces across the roles, and past
-   about eight a reader stops decoding colour and starts ignoring it — a
-   library where every heading is its own shade has no categories, only
-   confetti. Any one role shows six to twelve, so eight is enough for its
-   groups to differ on the screen somebody is actually looking at.
+   These were the launcher's own eight hues. They are now the product's domain
+   palette — attendance is cyan in this list, on its chart, on its chip and in
+   a mixed queue — so the launcher stops being the one place colour means
+   something and becomes one of the places it is read.
 
-   Named where the meaning is obvious, because a learnable colour beats an
-   arbitrary one: money is green wherever it appears, transport amber, people
-   rose. The long tail is hashed rather than left unassigned — a workspace
-   nobody thought about must still get a colour, and it must get the same one
-   every time, so the hash is over the name and not the position. Position
-   would be stable until the catalogue was reordered and then silently repaint
-   half the library. */
-const WORKSPACE_HUE: Record<string, string> = {
-  Students: 'blue', Admissions: 'blue', 'My Child': 'blue', People: 'blue',
-  Academics: 'violet', Assessments: 'violet', Teaching: 'violet',
-  'My Classes': 'violet', Examinations: 'violet', Timetable: 'violet',
-  Finance: 'green', Fees: 'green', Accounting: 'green', Payroll: 'green',
-  'Subscriptions & Billing': 'green',
-  Transport: 'amber', Operations: 'amber', Library: 'amber',
-  Staff: 'rose', Employees: 'rose', 'Attendance & Leave': 'rose',
-  Communication: 'cyan', 'Front Desk': 'cyan', Requests: 'cyan', Support: 'cyan',
-  Reports: 'teal', 'Usage & Health': 'teal', Dashboard: 'teal',
-  Home: 'slate', 'My Work': 'slate', Administration: 'slate',
-  Profile: 'slate', 'Access & Security': 'slate',
+   Nine domains for thirty-nine workspace labels, because the labels are how
+   the catalogue files things and the domains are how a school thinks about
+   them: Fees, Accounting, Payroll and Subscriptions are four sections of one
+   subject, and a reader who has learnt that money is teal should not have to
+   learn it four times.
+
+   The tail is hashed over the name rather than left unassigned — a workspace
+   nobody thought about still gets a colour and gets the same one every time.
+   Over the name and not the position: position is stable right up until the
+   catalogue is reordered, and then silently repaints half the library. */
+const WORKSPACE_DOMAIN: Record<string, string> = {
+  Students: 'students', 'My Child': 'students', School: 'students',
+  Admissions: 'admissions',
+  Academics: 'academics', Assessments: 'academics', Teaching: 'academics',
+  'My Classes': 'academics', Examinations: 'academics', Timetable: 'academics',
+  'Attendance & Leave': 'attendance',
+  Finance: 'finance', Fees: 'finance', Accounting: 'finance', Payroll: 'finance',
+  'Subscriptions & Billing': 'finance',
+  Staff: 'staff', Employees: 'staff', People: 'staff', Entitlements: 'staff',
+  Communication: 'communication', 'Front Desk': 'communication',
+  Requests: 'communication', Support: 'communication',
+  Reports: 'reports', 'Usage & Health': 'reports', Dashboard: 'reports',
+  Operations: 'operations', Transport: 'operations', Library: 'operations',
+  Home: 'operations', 'My Work': 'operations', Administration: 'operations',
+  Profile: 'operations', 'Access & Security': 'operations',
+  'Institution Setup': 'operations', 'Platform Setup': 'operations',
+  'Platform Configuration': 'operations', Customers: 'operations',
+  'AI & Automation': 'operations',
 }
 
-const HUES = ['blue', 'violet', 'teal', 'green', 'amber', 'rose', 'cyan', 'slate']
+const DOMAINS = [
+  'students', 'academics', 'attendance', 'finance', 'staff',
+  'admissions', 'communication', 'operations', 'reports',
+]
 
 function hueFor(workspace: string): string {
-  const named = WORKSPACE_HUE[workspace]
+  const named = WORKSPACE_DOMAIN[workspace]
   if (named) return named
   let h = 0
   for (let i = 0; i < workspace.length; i++) h = (h * 31 + workspace.charCodeAt(i)) >>> 0
-  return HUES[h % HUES.length]
+  return DOMAINS[h % DOMAINS.length]
+}
+
+/* How much of the board a category takes.
+
+   The list was the honest first version and the wrong shape: every workspace
+   got a full-width band whether it held two features or twenty-one, so
+   Administration — one feature — occupied as much of the screen as Operations,
+   which holds twenty-one. Reading it meant scrolling past the small ones to
+   find the large ones.
+
+   Size by content, and let them pack. Tailwind needs whole class names at
+   build time, so these are four fixed strings rather than a computed span; a
+   template literal here would compile to nothing and every tile would be one
+   column wide.
+
+   grid-flow-dense is what makes it a mosaic rather than a ragged column: a
+   one-wide tile will back-fill a hole an earlier three-wide tile left beside
+   it, so the board closes up instead of leaving steps down the right edge. */
+function tileSpan(count: number): string {
+  if (count >= 12) return 'sm:col-span-2 lg:col-span-4'
+  if (count >= 7) return 'sm:col-span-2 lg:col-span-2 lg:row-span-2'
+  if (count >= 4) return 'sm:col-span-2 lg:col-span-2'
+  return 'sm:col-span-1 lg:col-span-1'
+}
+
+/* A wide tile gets its features in columns. A narrow one must not: two columns
+   inside a single grid column is two four-character-wide columns. */
+function tileColumns(count: number): string {
+  if (count >= 12) return 'sm:grid-cols-2 lg:grid-cols-4'
+  if (count >= 4) return 'lg:grid-cols-2'
+  return ''
 }
 
 interface Row {
@@ -258,7 +300,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         data-cursor={onCursor ? 'true' : undefined}
         aria-current={here ? 'page' : undefined}
         className={cn(
-          `flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors
+          `flex w-full items-center gap-3 px-3 py-2 text-left transition-colors
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
           /* On a tinted panel the hover has to be the panel's own colour
              deepened, not the app's grey accent — a neutral wash over a blue
@@ -279,7 +321,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             than as sixty-five separate decisions. */}
         <Mark
           className="size-4 shrink-0"
-          style={{ color: `var(--cat-${hueFor(r.workspace)})` }}
+          style={{ color: `var(--dom-${hueFor(r.workspace)})` }}
           aria-hidden="true"
         />
         <span className="min-w-0 flex-1">
@@ -365,9 +407,12 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   </div>
                 </section>
               )}
+              <div className="grid grid-flow-dense auto-rows-min grid-cols-1 gap-3 sm:grid-cols-2
+                              lg:grid-cols-4">
               {groups.map((g) => {
                 const Mark = markFor(g.name)
                 const hue = hueFor(g.name)
+                const count = g.sections.reduce((n, x) => n + x.rows.length, 0)
                 return (
                   /* The whole category sits on its colour, not just its glyph.
 
@@ -379,11 +424,14 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                      colours that have to be learned separately. */
                   <section
                     key={g.name}
-                    className="mb-5 rounded-[16px] p-4 sm:p-5"
-                    style={{ background: `var(--cat-${hue}-soft)` }}
+                    className={cn(
+                      'rounded-[var(--bento-radius)] p-3.5',
+                      tileSpan(count),
+                    )}
+                    style={{ background: `var(--dom-${hue}-soft)` }}
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
-                    <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={cn('grid gap-0.5', tileColumns(count))}>
                       {g.sections.flatMap((s) => s.rows).map((r) => (
                         <Tile key={r.key} r={r} onTint />
                       ))}
@@ -391,6 +439,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   </section>
                 )
               })}
+              </div>
             </>
           )}
         </div>
@@ -410,7 +459,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 function Heading({
   icon: Icon,
   label,
-  hue = 'slate',
+  hue = 'operations',
   onTint,
 }: {
   icon: typeof Home
@@ -425,13 +474,13 @@ function Heading({
   return (
     <h3
       className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]"
-      style={onTint ? { color: `var(--cat-${hue})` } : undefined}
+      style={onTint ? { color: `var(--dom-${hue})` } : undefined}
     >
       <span
-        className="flex size-6 items-center justify-center rounded-[7px]"
+        className="flex size-6 items-center justify-center"
         style={{
-          background: onTint ? 'transparent' : `var(--cat-${hue}-soft)`,
-          color: `var(--cat-${hue})`,
+          background: onTint ? 'transparent' : `var(--dom-${hue}-soft)`,
+          color: `var(--dom-${hue})`,
         }}
       >
         <Icon className="size-3.5" aria-hidden="true" />

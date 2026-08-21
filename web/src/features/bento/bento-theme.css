@@ -20,12 +20,12 @@
      measured 1.09:1 and the cards floated on almost the same white, so the grid
      read as one pale sheet rather than as separate objects. #dfe3ea gives 1.29:1
      — visible separation — while muted text still clears 4.94:1 on it. */
-  --bento-bg: #dfe3ea;
+  --bento-bg: #f5f6f8;
   --bento-card: #ffffff;
   --bento-card-2: #eef0f4;
-  --bento-ink: #111827;
-  --bento-muted: #5c5f6b;          /* 5.74:1 on the card */
-  --bento-line: #e5e7eb;
+  --bento-ink: #16181d;
+  --bento-muted: #68707d;           /* 4.90:1 on white */
+  --bento-line: #e3e6ea;
 
   --bento-mint: #237d13;           /* supplied #a8f09b, relit for a light ground */
   --bento-mint-tint: #daf6d5;
@@ -67,6 +67,17 @@
      disagreed, the dock sat on the cards. */
   --bento-dock: 60px;
 
+  /* Border and shadow, chosen so only one of them is doing the work.
+
+     A visible border and a soft drop shadow are two answers to the same
+     question, and a card wearing both reads as a component library rather than
+     a surface. The border is a hairline that separates; the shadow is almost
+     nothing, present only so a card does not sit flush against the ground. The
+     dock gets the stronger one, because it genuinely floats. */
+  --bento-border-w: 1px;
+  --bento-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 8px 24px -18px rgb(0 0 0 / 0.28);
+  --bento-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.02);
+
   /* Category hues for the launcher.
 
      Eight, for thirty-nine workspaces across the roles. Not a hue each: past
@@ -79,14 +90,38 @@
      Ink is for the glyph, soft is the chip behind it. Both are needed: a
      coloured icon alone on this ground is too small a mark to register, and a
      coloured chip alone loses the shape that says which workspace it is. */
-  --cat-blue: #1d4ed8;   --cat-blue-soft: #e6edfc;
-  --cat-violet: #6d28d9; --cat-violet-soft: #f0e9fd;
-  --cat-teal: #0f766e;   --cat-teal-soft: #e0f2f0;
-  --cat-green: #15803d;  --cat-green-soft: #e6f4ea;
-  --cat-amber: #b45309;  --cat-amber-soft: #fbefe0;
-  --cat-rose: #be123c;   --cat-rose-soft: #fce8ed;
-  --cat-cyan: #0e7490;   --cat-cyan-soft: #e1f0f6;
-  --cat-slate: #475569;  --cat-slate-soft: #eceef2;
+  /* One colour per ERP domain, used everywhere that domain appears.
+
+     The point is not decoration, it is that a person stops reading labels. If
+     attendance is cyan then its icon, its chip, its chart stroke and its row in
+     a mixed list are all cyan, and the eye sorts a screen before the reader
+     gets to the words.
+
+     Kept apart from status, deliberately, because they answer different
+     questions: the domain says what area this belongs to and the status says
+     how urgent it is. Collapsing them is what made "needs attention" a column
+     of identical orange rows -- six items from four different parts of the
+     school, all looking like the same problem. A late fee is finance AND
+     critical; it should read as both.
+
+     Ink for glyphs, strokes and text; soft for tints and chips. Never for a
+     whole card: an ERP where every surface is a pastel is a children's
+     dashboard, and the rule this palette exists to serve is that about ninety
+     per cent of the product stays neutral. */
+  --dom-students: #2563eb;      --dom-students-soft: #eff6ff;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #f5f3ff;
+  --dom-attendance: #0891b2;    --dom-attendance-soft: #ecfeff;
+  --dom-finance: #0f766e;       --dom-finance-soft: #f0fdfa;
+  --dom-staff: #4f46e5;         --dom-staff-soft: #eef2ff;
+  --dom-admissions: #c2410c;    --dom-admissions-soft: #fff7ed;
+  --dom-communication: #db2777; --dom-communication-soft: #fdf2f8;
+  --dom-operations: #475569;    --dom-operations-soft: #f1f5f9;
+  --dom-reports: #6366f1;       --dom-reports-soft: #eef2ff;
+
+  /* Status. Three, and they mean urgency only. */
+  --dom-critical: #dc2626;      --dom-critical-soft: #fef2f2;
+  --dom-warning: #d97706;       --dom-warning-soft: #fffbeb;
+  --dom-success: #15803d;       --dom-success-soft: #f0fdf4;
 }
 
 /* The card actions, as buttons rather than blue words with an arrow.
@@ -112,20 +147,23 @@
 
 html.dark[data-layout='bento'] {
 
-  /* The same eight against the dark ground.
+  /* The domains against the dark ground. Inverted in role rather than
+     lightened: the ink lifts so a small glyph still reads, and the soft becomes
+     a tint of the ground, because a pale chip on near-black is grey mud and
+     loses the hue that was the whole point. */
+  --dom-students: #7ea9ff;      --dom-students-soft: #131d33;
+  --dom-academics: #b794ff;     --dom-academics-soft: #1e1733;
+  --dom-attendance: #4fc4e0;    --dom-attendance-soft: #0d2229;
+  --dom-finance: #4fc4b0;       --dom-finance-soft: #0c2320;
+  --dom-staff: #9aa0ff;         --dom-staff-soft: #17182f;
+  --dom-admissions: #f09461;    --dom-admissions-soft: #2a1a10;
+  --dom-communication: #f785b6; --dom-communication-soft: #2c1420;
+  --dom-operations: #9aa8ba;    --dom-operations-soft: #191d24;
+  --dom-reports: #949aff;       --dom-reports-soft: #191a30;
 
-     Inverted in role rather than merely lightened: the ink lifts so a small
-     glyph still reads, and the chip becomes a tint of the ground rather than a
-     tint of white — a pale chip on near-black reads as grey mud and loses the
-     hue entirely, which is the whole point of it. */
-  --cat-blue: #9db9ff;   --cat-blue-soft: #16203a;
-  --cat-violet: #c4a8ff; --cat-violet-soft: #221a3a;
-  --cat-teal: #62d3c6;   --cat-teal-soft: #10262a;
-  --cat-green: #7cd193;  --cat-green-soft: #12251a;
-  --cat-amber: #e0ab5f;  --cat-amber-soft: #2a1f10;
-  --cat-rose: #f39bad;   --cat-rose-soft: #2c1620;
-  --cat-cyan: #6cc6de;   --cat-cyan-soft: #10242c;
-  --cat-slate: #a2b0c2;  --cat-slate-soft: #1a1f27;
+  --dom-critical: #f4736b;      --dom-critical-soft: #2b1414;
+  --dom-warning: #e0a350;     --dom-warning-soft: #2a1f0f;
+  --dom-success: #6cc98a;       --dom-success-soft: #10240f;
   color-scheme: dark;
 
   --bento-bg: #0d0f14;
@@ -143,4 +181,85 @@ html.dark[data-layout='bento'] {
   --bento-pink-tint: #331f25;
   --bento-orange: #ffb37b;
   --bento-orange-tint: #33261b;
+}
+
+
+/* ---- the frame, in two skins ----------------------------------------- */
+
+/* Premium is the default and does almost nothing: a hairline that separates
+   and a shadow you would not notice if it were removed, which is the point.
+   Applied by class rather than utility so the skin below has one thing to
+   override instead of three. */
+[data-layout='bento'] .bento-cell {
+  border-width: var(--bento-border-w);
+  border-color: var(--bento-line);
+  box-shadow: var(--bento-shadow-sm);
+}
+
+[data-layout='bento'] .bento-dock {
+  border-width: var(--bento-border-w);
+  border-color: var(--bento-line);
+  box-shadow: var(--bento-shadow);
+}
+
+[data-layout='bento'] .bento-cue {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 9px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+[data-layout='bento'] .bento-cue:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+/* ---- brutalist ------------------------------------------------------- */
+
+/* A skin, not a theme: it changes the frame and leaves the colour system
+   alone, so the domain hues mean the same thing in both. Hard edges, a border
+   visible across the room, and a shadow that is an offset rectangle rather
+   than a blur.
+
+   Two things it deliberately is not. Not raw-HTML brutalism — a school office
+   cannot run on unstyled documents, and refusing to style a fee screen is a
+   position rather than a design. And not high-contrast mode: the ink is black
+   because that is the aesthetic, and the separate contrast override still
+   exists for the people who need it.
+
+   Here the border does the work the radius and the soft shadow shared, which
+   is why both go: a 2px edge plus a blur plus a 16px corner is three different
+   claims about where the card ends. */
+html[data-skin='brutalist'][data-layout='bento'],
+html[data-skin='brutalist'] [data-layout='bento'] {
+  --bento-bg: #eceae1;
+  --bento-ink: #000000;
+  --bento-line: #000000;
+  --bento-muted: #3d3d3d;
+  --bento-radius: 0px;
+  --bento-radius-sm: 0px;
+  --bento-border-w: 2px;
+  --bento-shadow: 4px 4px 0 var(--bento-line);
+  --bento-shadow-sm: 2px 2px 0 var(--bento-line);
+}
+
+/* On the dark ground the frame inverts: a black border on near-black is a card
+   with no edge at all, which is the one thing this skin cannot lose. */
+html.dark[data-skin='brutalist'][data-layout='bento'],
+html.dark[data-skin='brutalist'] [data-layout='bento'] {
+  --bento-bg: #17171b;
+  --bento-ink: #ffffff;
+  --bento-line: #f2f2ec;
+  --bento-muted: #b9b9b2;
+}
+
+html[data-skin='brutalist'] [data-layout='bento'] .bento-cue,
+html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
+  border: var(--bento-border-w) solid currentColor;
+  border-radius: 0;
+}
+
+/* The press is the whole interaction in this skin: the control moves into its
+   own shadow rather than lighting up. Suppressed under reduce-motion, where a
+   two-pixel jump is precisely the movement somebody turned it off to avoid. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-skin='brutalist'] .bento-cue:active { transform: translate(2px, 2px); }
 }

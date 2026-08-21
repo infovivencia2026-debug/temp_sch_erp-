@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sun, Moon, Monitor, Check, LogOut, Rows3 } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, LogOut, Rows3, Square, Frame } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
+import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useT } from '@/lib/i18n'
 import { useLayout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
@@ -29,6 +30,7 @@ const ICON: Record<Theme, typeof Sun> = {
 export function BentoSettings() {
   const { theme, resolved, setTheme } = useTheme()
   const { setLayout } = useLayout()
+  const { skin, setSkin } = useSkin()
   const session = useSession()
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -110,6 +112,39 @@ export function BentoSettings() {
               >
                 <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
+                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+              </button>
+            )
+          })}
+
+          <div className="my-1 h-px bg-border" role="separator" />
+
+          {/* The frame, beside the palette rather than under a heading of its
+              own. They are the same kind of decision — what this surface looks
+              like — and a person changing one is usually looking at the other. */}
+          <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
+                        text-muted-foreground">
+            {t('bento.settings.frame')}
+          </p>
+          {SKINS.map((option) => {
+            const Icon = option === 'brutalist' ? Square : Frame
+            const active = skin === option
+            return (
+              <button
+                key={option}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                onClick={() => setSkin(option as Skin)}
+                className={cn(
+                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                   transition-colors hover:bg-accent focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-ring`,
+                  active && 'font-medium',
+                )}
+              >
+                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="flex-1">{t(`bento.settings.skin.${option}`)}</span>
                 {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
               </button>
             )

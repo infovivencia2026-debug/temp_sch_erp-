@@ -67,8 +67,8 @@ export function BentoDock() {
   return (
     <>
       <div
-        className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-full
-                   border bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md"
+        className="bento-dock fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5
+                   rounded-full border bg-popover/90 p-1.5 pl-2.5 backdrop-blur-md"
       >
         {/* Brings its own ⌘K listener, so the shortcut works again as soon as
             this mounts — mouse and keyboard reach the same thing. */}

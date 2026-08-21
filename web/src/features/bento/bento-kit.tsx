@@ -192,7 +192,7 @@ export function Cell({
            viewport (see StatCell) and the padding tightens where the fit rule
            rations height — 16px of vertical padding back is most of a line of
            text, in exactly the place it was being taken from. */
-        `flex min-h-0 min-w-0 flex-col overflow-hidden
+        `bento-cell flex min-h-0 min-w-0 flex-col overflow-hidden
          rounded-[var(--bento-radius)] border p-6 lg:p-4`,
         SPAN[span],
         TONE[t],
@@ -317,7 +317,7 @@ export function StatCell({
 }) {
   return (
     <Cell span={span}>
-      <p className="text-[12.5px] leading-tight text-[var(--bento-muted)]">{label}</p>
+      <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.06em] text-[var(--bento-muted)]">{label}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2.5">
         {/* Sized against the viewport, not fixed.
 
@@ -329,7 +329,7 @@ export function StatCell({
             reaches the point where the card has to choose between clipping and
             a scrollbar. */}
         <p
-          className="font-semibold leading-none tracking-[-0.02em] tabular-nums
+          className="font-extrabold leading-none tracking-[-0.03em] tabular-nums
                      text-[clamp(24px,3.1vh,32px)]"
         >
           {value}
