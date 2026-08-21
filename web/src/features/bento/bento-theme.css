@@ -44,7 +44,11 @@
 
   --bento-radius: 24px;
   --bento-radius-sm: 16px;
-  --bento-gap: 24px;
+  /* Tighter than the reference's 24px. With ten cells on a 1440px grid the
+     wider gutter pushed the outer columns apart enough that the dashboard read
+     as separate lists rather than one board -- and the ground is now dark
+     enough that less of it is needed to separate a card. */
+  --bento-gap: 14px;
 }
 
 html.dark[data-layout='bento'] {
