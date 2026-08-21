@@ -19,24 +19,58 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 export type Density = 'compact' | 'comfortable' | 'relaxed'
 export type Corners = 'sharp' | 'default' | 'round'
-export type TextSize = 'default' | 'large' | 'larger'
+export type TextSize = 'small' | 'default' | 'large' | 'larger'
+export type Typeface = 'inter' | 'system' | 'grotesk' | 'serif'
+export type Borders = 'none' | 'hairline' | 'strong'
+export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
+export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
+export type Contrast = 'normal' | 'high'
+export type Accent = 'blue' | 'mint' | 'violet' | 'amber' | 'rose'
 
 export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
-export const TEXT_SIZES: readonly TextSize[] = ['default', 'large', 'larger'] as const
+export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'larger'] as const
+export const TYPEFACES: readonly Typeface[] = ['inter', 'system', 'grotesk', 'serif'] as const
+export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as const
+export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
+export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
+export const CONTRASTS: readonly Contrast[] = ['normal', 'high'] as const
+export const ACCENTS: readonly Accent[] = ['blue', 'mint', 'violet', 'amber', 'rose'] as const
 
 export interface Appearance {
   density: Density
   corners: Corners
   text: TextSize
+  typeface: Typeface
+  borders: Borders
+  shadow: Shadow
+  pattern: Pattern
+  contrast: Contrast
+  accent: Accent
 }
 
-const DEFAULTS: Appearance = { density: 'comfortable', corners: 'default', text: 'default' }
+const DEFAULTS: Appearance = {
+  density: 'comfortable',
+  corners: 'default',
+  text: 'default',
+  typeface: 'inter',
+  borders: 'hairline',
+  shadow: 'default',
+  pattern: 'none',
+  contrast: 'normal',
+  accent: 'blue',
+}
 
 const KEYS = {
   density: 'erp.density',
   corners: 'erp.corners',
   text: 'erp.text',
+  typeface: 'erp.typeface',
+  borders: 'erp.borders',
+  shadow: 'erp.shadow',
+  pattern: 'erp.pattern',
+  contrast: 'erp.contrast',
+  accent: 'erp.accent',
 } as const
 
 function one<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
@@ -58,6 +92,12 @@ function read(): Appearance {
     density: one(KEYS.density, DENSITIES, DEFAULTS.density),
     corners: one(KEYS.corners, CORNERS, DEFAULTS.corners),
     text: one(KEYS.text, TEXT_SIZES, DEFAULTS.text),
+    typeface: one(KEYS.typeface, TYPEFACES, DEFAULTS.typeface),
+    borders: one(KEYS.borders, BORDERS, DEFAULTS.borders),
+    shadow: one(KEYS.shadow, SHADOWS, DEFAULTS.shadow),
+    pattern: one(KEYS.pattern, PATTERNS, DEFAULTS.pattern),
+    contrast: one(KEYS.contrast, CONTRASTS, DEFAULTS.contrast),
+    accent: one(KEYS.accent, ACCENTS, DEFAULTS.accent),
   }
 }
 
@@ -85,17 +125,32 @@ function serverSnapshot(): Appearance {
 export function applyAppearance(next: Appearance) {
   const root = document.documentElement
   root.dataset.density = next.density
-  if (next.corners === 'default') root.removeAttribute('data-corners')
-  else root.setAttribute('data-corners', next.corners)
-  if (next.text === 'default') root.removeAttribute('data-text')
-  else root.setAttribute('data-text', next.text)
+
+  /* Every axis stamps its attribute, and every default removes it. A
+     stylesheet asking html[data-shadow] should never be asking about the
+     ordinary case: it keeps the DOM honest about what has actually been
+     changed, and it keeps the selectors from having to name a default. */
+  const stamp = (attr: string, value: string, dflt: string) => {
+    if (value === dflt) root.removeAttribute(attr)
+    else root.setAttribute(attr, value)
+  }
+  stamp('data-corners', next.corners, 'default')
+  stamp('data-text', next.text, 'default')
+  stamp('data-typeface', next.typeface, 'inter')
+  stamp('data-borders', next.borders, 'hairline')
+  stamp('data-shadow', next.shadow, 'default')
+  stamp('data-pattern', next.pattern, 'none')
+  stamp('data-contrast', next.contrast, 'normal')
+  stamp('data-accent', next.accent, 'blue')
 
   try {
     // Density keeps its JSON spelling: index.html parses it before any of this
     // runs, and changing the format here would blank it for one paint.
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
-    localStorage.setItem(KEYS.corners, next.corners)
-    localStorage.setItem(KEYS.text, next.text)
+    for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
+                     'contrast', 'accent'] as const) {
+      localStorage.setItem(KEYS[k], next[k])
+    }
   } catch {
     /* private browsing: the choice lasts the session */
   }
@@ -119,3 +174,13 @@ export function reconcileAppearance(density: unknown) {
 }
 
 if (typeof document !== 'undefined') applyAppearance(current)
+
+
+/** Back to the shipped design, in one call. Nine axes is enough that somebody
+    will end up somewhere they cannot retrace, and a settings panel with no way
+    out of itself is a trap. */
+export function resetAppearance() {
+  applyAppearance(DEFAULTS)
+}
+
+export const APPEARANCE_DEFAULTS = DEFAULTS

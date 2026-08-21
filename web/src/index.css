@@ -175,6 +175,7 @@
      Sizes written in px do not, which is deliberate: the px values here are
      optical constants — hairlines, icon boxes — that should not grow with body
      text. */
+  html[data-text='small'] { --font-scale: 0.94; }
   html[data-text='large'] { --font-scale: 1.08; }
   html[data-text='larger'] { --font-scale: 1.16; }
   html { font-size: calc(16px * var(--font-scale)); }
@@ -652,4 +653,110 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rail-item::after { transition: none; }
+}
+
+
+@layer base {
+  /* ---- typeface ------------------------------------------------------
+
+     Inter is bundled and is the default. The others are system stacks, and
+     that is a deliberate limit rather than an oversight: shipping a second
+     webfont costs every visitor the download whether they pick it or not, and
+     a preference nobody has chosen yet should not be paid for in advance. The
+     names below describe what the reader gets, not a font we are pretending to
+     have. */
+  html[data-typeface='system'] {
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  html[data-typeface='grotesk'] {
+    font-family: 'Helvetica Neue', Helvetica, Arial, ui-sans-serif, sans-serif;
+  }
+  html[data-typeface='serif'] {
+    font-family: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  }
+
+  /* ---- borders -------------------------------------------------------
+
+     None does not mean invisible. Removing every border from a UI that
+     separates by hairline leaves cards floating with nothing to say where one
+     ends, so 'none' drops the border to the ground colour and lets the shadow
+     and the surface do the work. A literal 0 would collapse the layout by a
+     pixel per edge as well. */
+  html[data-borders='none'] { --border: var(--background); --border-strong: var(--background); }
+  html[data-borders='strong'] { --border: 220 14% 74%; --border-strong: 220 14% 60%; }
+  .dark[data-borders='strong'], html[data-borders='strong'] .dark {
+    --border: 220 10% 38%; --border-strong: 220 10% 50%;
+  }
+
+  /* ---- shadow --------------------------------------------------------
+
+     Four steps over the two lift tokens the product already uses, so every
+     card, menu and dialog moves together. Flat is genuinely none: a dashboard
+     read all day is a legitimate place to want no depth at all. */
+  html[data-shadow='flat'] { --lift-panel: none; --lift-float: none; }
+  html[data-shadow='lifted'] {
+    --lift-panel: 0 2px 4px hsl(220 20% 20% / 0.06), 0 8px 20px -6px hsl(220 20% 20% / 0.10);
+    --lift-float: 0 8px 24px -4px hsl(220 20% 20% / 0.16), 0 4px 8px -4px hsl(220 20% 20% / 0.10);
+  }
+  html[data-shadow='deep'] {
+    --lift-panel: 0 4px 8px hsl(220 20% 20% / 0.08), 0 16px 36px -8px hsl(220 20% 20% / 0.16);
+    --lift-float: 0 16px 48px -8px hsl(220 20% 20% / 0.26), 0 6px 12px -6px hsl(220 20% 20% / 0.14);
+  }
+
+  /* ---- background pattern --------------------------------------------
+
+     Drawn on body rather than an overlay element, so nothing sits above the
+     content and nothing has to be excluded from hit-testing. All four are
+     gradients rather than images: no request, no cache, and they take the
+     ground colour with them into dark mode instead of being a grey PNG that
+     turns into a smudge. */
+  body { background-image: var(--pattern, none); background-attachment: fixed; }
+  html[data-pattern='dots'] {
+    --pattern: radial-gradient(currentColor 0.6px, transparent 0.6px);
+    background-size: 16px 16px;
+  }
+  html[data-pattern='grid'] {
+    --pattern:
+      linear-gradient(to right, hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  html[data-pattern='lines'] {
+    --pattern: repeating-linear-gradient(
+      135deg, hsl(var(--border) / 0.4) 0 1px, transparent 1px 9px);
+  }
+  html[data-pattern='noise'] {
+    /* A tiny SVG turbulence, inlined. The only one of the four that cannot be
+       done with gradients, and at 0.035 opacity it is texture rather than
+       dirt. */
+    --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+  html[data-pattern='dots'] body { color: hsl(var(--border)); }
+
+  /* ---- accent --------------------------------------------------------
+
+     One hue moves four tokens together — the fill, its hover, its tint and the
+     focus ring — because a product where the button is mint and the focus ring
+     is still blue looks broken rather than themed. */
+  html[data-accent='mint'] {
+    --primary: 163 70% 32%; --primary-hover: 163 72% 26%;
+    --primary-soft: 163 55% 95%; --ring: 163 70% 32%;
+  }
+  html[data-accent='violet'] {
+    --primary: 262 72% 52%; --primary-hover: 262 74% 44%;
+    --primary-soft: 262 90% 97%; --ring: 262 72% 52%;
+  }
+  html[data-accent='amber'] {
+    --primary: 32 88% 40%; --primary-hover: 32 90% 33%;
+    --primary-soft: 40 90% 95%; --ring: 32 88% 40%;
+  }
+  html[data-accent='rose'] {
+    --primary: 344 76% 46%; --primary-hover: 344 78% 39%;
+    --primary-soft: 344 80% 96%; --ring: 344 76% 46%;
+  }
+  /* Lifted for the dark ground, where a 32% lightness fill is a hole. */
+  .dark[data-accent='mint'] { --primary: 163 62% 46%; --primary-hover: 163 62% 54%; }
+  .dark[data-accent='violet'] { --primary: 262 80% 68%; --primary-hover: 262 80% 74%; }
+  .dark[data-accent='amber'] { --primary: 36 88% 56%; --primary-hover: 36 88% 62%; }
+  .dark[data-accent='rose'] { --primary: 344 80% 62%; --primary-hover: 344 80% 68%; }
 }

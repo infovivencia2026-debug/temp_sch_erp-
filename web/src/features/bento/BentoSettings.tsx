@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
-  Maximize2, Rows2, Rows3, Rows4, Squircle, Type,
+  Maximize2, Rows2, Rows3, Rows4, Squircle, Type, Minimize2,
+  Layers, Grid3x3, Contrast as ContrastIcon, RotateCcw, CircleDot,
 } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import {
-  useAppearance, DENSITIES, CORNERS, TEXT_SIZES,
-  type Density, type Corners, type TextSize,
+  useAppearance, resetAppearance,
+  DENSITIES, CORNERS, TEXT_SIZES, TYPEFACES, BORDERS, SHADOWS, PATTERNS,
+  CONTRASTS, ACCENTS,
+  type Density, type Corners, type TextSize, type Typeface, type Borders,
+  type Shadow, type Pattern, type Contrast, type Accent,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
@@ -48,6 +52,27 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
   const { appearance, set: setAppearance } = useAppearance()
+
+  /* Full screen, tracked rather than assumed.
+
+     The button has to say which way it goes, and the state can change without
+     it — Escape and F11 both leave full screen without touching this menu — so
+     it listens rather than remembering what it last asked for. */
+  const [full, setFull] = useState(() =>
+    typeof document !== 'undefined' && !!document.fullscreenElement,
+  )
+  useEffect(() => {
+    const onChange = () => setFull(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const toggleFull = () => {
+    /* Both calls reject rather than throw — a browser may refuse full screen
+       when the gesture is not trusted — so the rejection is swallowed and the
+       listener above keeps the label truthful either way. */
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    else void document.documentElement.requestFullscreen().catch(() => {})
+  }
   const session = useSession()
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -218,6 +243,24 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             icon={(v) => (v === 'compact' ? Rows4 : v === 'relaxed' ? Rows2 : Rows3)}
           />
 
+          <Group>{t('bento.settings.typeface')}</Group>
+          <Choice<Typeface>
+            value={appearance.typeface}
+            options={TYPEFACES}
+            onPick={(v) => setAppearance('typeface', v)}
+            label={(v) => t(`bento.settings.typeface.${v}`)}
+            icon={() => Type}
+          />
+
+          <Group>{t('bento.settings.accent')}</Group>
+          <Choice<Accent>
+            value={appearance.accent}
+            options={ACCENTS}
+            onPick={(v) => setAppearance('accent', v)}
+            label={(v) => t(`bento.settings.accent.${v}`)}
+            icon={() => CircleDot}
+          />
+
           <Group>{t('bento.settings.corners')}</Group>
           <Choice<Corners>
             value={appearance.corners}
@@ -234,6 +277,42 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             onPick={(v) => setAppearance('text', v)}
             label={(v) => t(`bento.settings.text.${v}`)}
             icon={() => Type}
+          />
+
+          <Group>{t('bento.settings.borders')}</Group>
+          <Choice<Borders>
+            value={appearance.borders}
+            options={BORDERS}
+            onPick={(v) => setAppearance('borders', v)}
+            label={(v) => t(`bento.settings.borders.${v}`)}
+            icon={() => Square}
+          />
+
+          <Group>{t('bento.settings.shadow')}</Group>
+          <Choice<Shadow>
+            value={appearance.shadow}
+            options={SHADOWS}
+            onPick={(v) => setAppearance('shadow', v)}
+            label={(v) => t(`bento.settings.shadow.${v}`)}
+            icon={() => Layers}
+          />
+
+          <Group>{t('bento.settings.pattern')}</Group>
+          <Choice<Pattern>
+            value={appearance.pattern}
+            options={PATTERNS}
+            onPick={(v) => setAppearance('pattern', v)}
+            label={(v) => t(`bento.settings.pattern.${v}`)}
+            icon={() => Grid3x3}
+          />
+
+          <Group>{t('bento.settings.contrast')}</Group>
+          <Choice<Contrast>
+            value={appearance.contrast}
+            options={CONTRASTS}
+            onPick={(v) => setAppearance('contrast', v)}
+            label={(v) => t(`bento.settings.contrast.${v}`)}
+            icon={() => ContrastIcon}
           />
 
           <div className="my-1 h-px bg-border" role="separator" />
@@ -317,6 +396,37 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           })}
 
           <div className="my-1 h-px bg-border" role="separator" />
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={toggleFull}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {full
+              ? <Minimize2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              : <Maximize2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+            <span className="flex-1">
+              {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
+            </span>
+          </button>
+
+          {/* A way back. Nine axes is enough that somebody ends up somewhere
+              they cannot retrace, and a settings panel with no exit from itself
+              is a trap. */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => resetAppearance()}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <RotateCcw className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.reset')}</span>
+          </button>
 
           <a
             href="/logout"
