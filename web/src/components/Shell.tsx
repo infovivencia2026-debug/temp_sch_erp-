@@ -20,6 +20,7 @@ import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
+import { markFor, hueFor } from '@/features/bento/BentoLauncher'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -241,6 +242,13 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   const [opened, setOpened] = useState<Set<string>>(new Set())
+  /* Which workspace the rail has selected.
+
+     Undefined means "follow the page", which is the resting state: open a fee
+     screen from the palette and the rail moves to Finance without being told.
+     It only holds a value once somebody clicks the rail, so browsing the rail
+     and navigating by other means do not fight each other. */
+  const [railPick, setRailPick] = useState<string | undefined>(undefined)
   /* Row height, for people who live in the tables.
 
      index.css has carried a --row-py dial keyed off data-density since the
@@ -272,6 +280,20 @@ export function Shell({ children }: { children: ReactNode }) {
       next.has(slug) ? next.delete(slug) : next.add(slug)
       return next
     })
+
+  /* The rail's workspaces, and the one on screen.
+
+     Selection follows the page unless the rail has been clicked, so opening a
+     fee screen from the command palette moves the rail to Finance by itself.
+     A rail that only ever followed clicks would sit on Home while somebody
+     worked in Operations all afternoon. */
+  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced)
+  const activeWs =
+    railWorkspaces.find((w) => w.slug === railPick) ??
+    railWorkspaces.find((w) =>
+      w.sections.some((sec) => sec.slug === sectionSlug),
+    ) ??
+    railWorkspaces[0]
 
   const activeSection: ApiSection | undefined =
     role?.sections.find((s) => s.slug === sectionSlug) ?? role?.sections[0]
@@ -319,8 +341,8 @@ export function Shell({ children }: { children: ReactNode }) {
           grey line is three rectangles and a border to read first. */}
       <aside
         className={cn(
-          'w-[256px] shrink-0 flex-col bg-sidebar',
-          'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[280px]',
+          'w-[282px] shrink-0 flex-row bg-sidebar',
+          'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[300px]',
           'max-lg:border-r max-lg:transition-transform',
           navOpen ? 'flex max-lg:translate-x-0' : 'hidden lg:flex max-lg:-translate-x-full',
           /* Only on lg. Below it the rail is a drawer that is already closed
@@ -330,6 +352,54 @@ export function Shell({ children }: { children: ReactNode }) {
           isBentoRole || chromeless ? '!hidden' : ''
         )}
       >
+        {/* --- the rail: one mark per workspace ---------------------------
+
+            Taken from ui-8 in the reference set. Two panes rather than one
+            column: the rail says which part of the school you are in, and the
+            panel beside it shows only that part's screens.
+
+            What it replaces is an accordion of nine workspaces, where reaching
+            Operations meant scrolling past eight collapsed headings, and
+            opening one pushed everything below it down. Here the second pane
+            changes and nothing moves.
+
+            Marks carry their domain colour, so the rail, the dock, the board
+            and the cards are one colour system rather than four. */}
+        <div className="flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3">
+          {railWorkspaces.map((ws) => {
+            const Mark = markFor(ws.name)
+            const on = ws.slug === activeWs?.slug
+            return (
+              <button
+                key={ws.slug}
+                type="button"
+                onClick={() => setRailPick(ws.slug)}
+                aria-label={ws.name}
+                aria-current={on ? 'true' : undefined}
+                data-tip={ws.name}
+                className={cn(
+                  'rail-item grid size-10 shrink-0 place-items-center rounded-[10px]',
+                  'transition-colors duration-100 focus-visible:outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-ring',
+                  on ? 'bg-surface-hover' : 'hover:bg-surface-hover',
+                )}
+              >
+                <Mark
+                  className="size-[18px]"
+                  style={{ color: on ? `var(--dom-${hueFor(ws.name)})` : undefined }}
+                  aria-hidden="true"
+                />
+              </button>
+            )
+          })}
+
+          <div className="mt-auto" />
+          <BentoSettings placement="rail" />
+        </div>
+
+        {/* --- the panel: the selected workspace, and nothing else --------- */}
+        <div className="flex min-w-0 flex-1 flex-col">
+
         {/* --- workspace header: where am I, and whose -------------------- */}
         <div className="relative shrink-0 px-3 pb-2 pt-3">
           {/* Icon only, and only where there is a rail to put away. It sits
@@ -434,9 +504,21 @@ export function Shell({ children }: { children: ReactNode }) {
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
         <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 pb-3">
-          {workspacesFor(role, showPlanned, showAdvanced).map((ws) => {
-            const open =
-              ws.sections.some((sec) => sec.slug === activeSection?.slug) || opened.has(ws.slug)
+          {/* The workspace's name, once, at the top of its own pane. The
+              accordion used to carry it on every heading because nine of them
+              shared the column; here there is only ever one. */}
+          {activeWs && (
+            <p className="mb-1 px-2.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.1em]
+                          text-muted-foreground">
+              {activeWs.name}
+            </p>
+          )}
+
+          {(activeWs ? [activeWs] : []).map((ws) => {
+            /* Always open. There is one workspace in this pane, so a drawer
+               around it would be a drawer you open every time you arrive. */
+            const open = true
+            void opened
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,
               0,
@@ -560,6 +642,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <BentoSettings placement="sidebar" />
           </div>
         </nav>
+        </div>
       </aside>
 
       {navOpen && (
