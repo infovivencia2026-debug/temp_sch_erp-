@@ -269,7 +269,21 @@ func (r *Resolved) HasScope(s catalog.Scope) bool {
 		return len(r.DepartmentIDs) > 0
 	case catalog.ScopeAssignedClasses:
 		return len(r.SectionIDs) > 0
-	case catalog.ScopeSelf, catalog.ScopeChildren:
+	case catalog.ScopeSelf:
+		/* "Self" means the person signed in, and everybody has one.
+
+		   It was answered with "do they have student records", which is what
+		   ScopeChildren asks — so a self-service feature belonging to a member
+		   of staff was out of scope for every member of staff. The principal's
+		   own leave screen was built, registered and reported live, and the
+		   menu still drew nothing, because the catalogue had decided a
+		   principal has no self.
+
+		   The teacher's version of the same screen escaped only because its
+		   row in the sheet says "Self + assigned classes/subjects", which
+		   resolves elsewhere. */
+		return true
+	case catalog.ScopeChildren:
 		return len(r.StudentIDs) > 0
 	default:
 		return false
