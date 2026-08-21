@@ -25,12 +25,6 @@ CSV = ROOT / "docs" / "edu_features.csv"
 # Role keys match the `roles.key` column already seeded by internal/rbac, so a
 # catalog role and an RBAC role are the same row, not two parallel notions.
 ROLE_KEYS = {
-<<<<<<< HEAD
-    "Management": "super_admin",
-    "Principal": "institution_admin",
-    "Teacher": "faculty",
-    "HOD": "hod",
-=======
     "Super Admin": "super_admin",
     "Institution Admin / Principal": "institution_admin",
     "Faculty / Teacher": "faculty",
@@ -46,13 +40,19 @@ ROLE_KEYS = {
     # The transport office. Same reason as the library: this role held no
     # catalogue of its own and borrowed the principal's transport section.
     "Transport Manager": "transport_manager",
->>>>>>> origin/main
     "Student": "student",
-    "Parent": "parent",
-    "Fee Counter": "finance",
-    "Front Office": "admissions",
-    "Office Clerk": "hr",
-    "Software Vendor": "seller_admin",
+    # The names the sheet actually uses.
+    #
+    # These five were written as job titles -- "Fee Counter", "Office Clerk" --
+    # while the sheet says "Accounts & Finance" and "HR & Payroll". The
+    # generated files were committed before the sheet was reworded, so nothing
+    # was visibly wrong until somebody next ran this and found five workspaces
+    # skipped with a warning.
+    "Parent / Guardian": "parent",
+    "Accounts & Finance": "finance",
+    "Admissions & Front Office": "admissions",
+    "HR & Payroll": "hr",
+    "Seller Admin": "seller_admin",
 }
 
 # Display order in the role switcher and docs: platform-wide first, then
@@ -72,11 +72,25 @@ ROLE_ORDER = [
 # the canonical scopes the backend can actually enforce.
 SCOPE_MAP = {
     "All schools / all branches": "platform",
+    "All institutions / all campuses": "platform",
     "All users": "platform",
     "Assigned school/branch": "institution",
+    # The wording used by the rows added since this map was written. The
+    # school, with the campus picker narrowing it — which is what
+    # "institution" has always meant here.
+    "Assigned institution/campus": "institution",
     "Assigned school/branch finance scope": "institution",
     "Assigned school/branch admissions scope": "institution",
     "Assigned school/branch employees": "institution",
+    # The same scopes under the wording the sheet uses now: "branch" became
+    # "campus" and "school" became "institution" when it was rewritten. Both
+    # spellings are kept, because a sheet edited by hand carries whichever the
+    # last person typed.
+    "Assigned institution/campus finance scope": "institution",
+    "Assigned institution/campus admissions scope": "institution",
+    "Assigned institution/campus employees": "institution",
+    "Assigned campus": "campus",
+    "Only assigned operational module/campus": "campus",
     "Assigned branch": "campus",
     "Only assigned operational module/branch": "campus",
     "Assigned department only": "department",

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 408 features. */
+/** 12 roles, 409 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -562,6 +562,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Announcements/messages to assigned classes, students or parents based on policy.' },
           { key: 'faculty.communication.remarks', slug: 'remarks', name: 'Remarks', scope: 'assigned_classes', tier: 'core', summary: 'Add permitted academic/class remarks and observations.' },
+          { key: 'faculty.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them.' },
         ],
       },
       {

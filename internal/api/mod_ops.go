@@ -31,6 +31,14 @@ type circularRequest struct {
 	// offered, on a deployment with no SMS gateway either — so a circular
 	// reached whoever happened to open the portal and nobody else.
 	SendEmail bool `json:"send_email"`
+	/* And WhatsApp, where the school has it.
+
+	   Two channels were offered and the third is the one most Indian
+	   schools actually use: a parent who ignores an SMS reads a
+	   WhatsApp. It is a tick like the others rather than the default,
+	   because WhatsApp charges per conversation and refuses anything
+	   outside an approved template. */
+	SendWhatsApp bool `json:"send_whatsapp"`
 }
 
 /*
@@ -47,6 +55,19 @@ Who a circular is addressed to, as one query used three times.
 	sixth-former with their own account and a parent on the same address should
 	receive one notice each and not two on one screen.
 */
+/* Who a circular reaches.
+
+   Five audiences, not three. The list offered parents, students, or both, and
+   a principal wanting to tell the staff something had no way to do it from
+   here at all -- which is how a school ends up with a WhatsApp group nobody
+   can audit.
+
+   The section filter narrows families only. A member of staff does not belong
+   to a section the way a child does: a subject teacher stands in five of them
+   and the office in none, so applying the filter would silently drop the
+   people the notice is for. Choosing sections and 'staff' is read as "the
+   staff", and the screen says so.
+*/
 const circularRecipients = `
 	SELECT g.user_id
 	  FROM students st
@@ -54,15 +75,21 @@ const circularRecipients = `
 	  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
 	  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
 	 WHERE st.status = 'active'
-	   AND $2::text IN ('all','parents')
+	   AND $2::text IN ('all','parents','everyone')
 	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))
 	UNION
 	SELECT st.user_id
 	  FROM students st
 	  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
 	 WHERE st.status = 'active' AND st.user_id IS NOT NULL
-	   AND $2::text IN ('all','students')
-	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))`
+	   AND $2::text IN ('all','students','everyone')
+	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))
+	UNION
+	SELECT u.id
+	  FROM employees emp
+	  JOIN users u ON u.id = emp.user_id
+	 WHERE emp.status = 'active'
+	   AND $2::text IN ('staff','everyone')`
 
 // publishCircular posts an announcement and optionally pushes it as SMS.
 //
@@ -84,6 +111,18 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.AudienceRole == "" {
 		req.AudienceRole = "all"
+	}
+	/* Checked here rather than left to the column.
+	
+	   A value outside the list fails a CHECK constraint deep in the insert,
+	   which surfaces as a 500 and a database error nobody can act on. This
+	   says which audiences exist, which is what the caller needs. */
+	switch req.AudienceRole {
+	case "all", "parents", "students", "staff", "everyone":
+	default:
+		httpx.BadRequest(w, r,
+			"send to one of: all (parents and students), parents, students, staff, everyone")
+		return
 	}
 
 	var annID uuid.UUID
@@ -122,15 +161,18 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 
 	// One task per recipient per channel: a rejection for one number or one
 	// address must not lose the rest of the circular.
-	channels := make([]string, 0, 2)
+	channels := make([]string, 0, 3)
 	if req.SendSMS {
 		channels = append(channels, "sms")
 	}
 	if req.SendEmail {
 		channels = append(channels, "email")
 	}
+	if req.SendWhatsApp {
+		channels = append(channels, "whatsapp")
+	}
 
-	queued := map[string]int{"sms": 0, "email": 0}
+	queued := map[string]int{"sms": 0, "email": 0, "whatsapp": 0}
 	if len(channels) > 0 {
 		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 			rows, err := tx.Query(r.Context(), circularRecipients,
@@ -185,6 +227,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": annID.String(), "recipients": recipients,
 		"sms_queued": queued["sms"], "email_queued": queued["email"],
+		"whatsapp_queued": queued["whatsapp"],
 	})
 }
 

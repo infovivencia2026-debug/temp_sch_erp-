@@ -709,6 +709,29 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "Parent-teacher meeting on {{on_date}}",
 		Body:    "Dear parent,\n\nYour meeting about {{student_name}} is on {{on_date}} at {{starts_at}}.\n\n{{school_name}}",
 	},
+	/* The three things a family is told about that never left the building.
+
+	   Homework, a remark and a published report card each wrote a notification
+	   row and stopped there, so a parent learned about them on the day they
+	   happened to open the app. A school that has just configured email
+	   expects the opposite, and says so.
+
+	   Email only, deliberately. An absence is worth a text because somebody
+	   needs to know within the hour; homework set on a Tuesday is not, and a
+	   school that texts every family every evening is a school whose parents
+	   stop reading the texts. */
+	"homework.set": {
+		Subject: "New work for {{student_name}} - {{subject}}",
+		Body:    "Dear parent,\n\n{{title}}\n\nSubject: {{subject}}\nDue: {{due_on}}\n\n{{school_name}}",
+	},
+	"student.remark": {
+		Subject: "{{title}}",
+		Body:    "Dear parent,\n\n{{summary}}\n\nWritten by {{teacher}} on {{on_date}}.\n\n{{school_name}}",
+	},
+	"reportcard.published": {
+		Subject: "{{student_name}} - report card ready",
+		Body:    "Dear parent,\n\nThe {{exam_name}} report card for {{student_name}} has been published. Sign in to see the marks, the grade and the attendance.\n\n{{school_name}}",
+	},
 	"announcement.published": {
 		Subject: "{{title}}",
 		Body:    "{{title}}\n\n{{body}}\n\n{{school_name}}",

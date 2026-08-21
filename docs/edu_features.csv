@@ -176,6 +176,7 @@ Faculty / Teacher,Assessments,Question Papers & Online Tests,Ved AI Assessment A
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Objective Online Test Creation,"Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Communication,Communication,Communication,"Announcements/messages to assigned classes, students or parents based on policy.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Communication,Communication,Remarks,Add permitted academic/class remarks and observations.,Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Communication,Communication,Messages,"One colleague at a time. The staff address book, and the thread you have with each of them.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Profile,"Own profile, password and leave.",Assigned classes/subjects,Must-Have,core
 Student,Home,Home,My day,"Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",Self only,Must-Have,core

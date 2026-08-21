@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 408 features.
+// Roles is the catalog: 12 roles, 409 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -609,6 +609,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Announcements/messages to assigned classes, students or parents based on policy."},
 					{Key: "faculty.communication.remarks", Slug: "remarks", Name: "Remarks", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Add permitted academic/class remarks and observations."},
+					{Key: "faculty.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them."},
 				},
 			},
 			{

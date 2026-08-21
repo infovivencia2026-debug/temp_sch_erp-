@@ -28,6 +28,7 @@ export default function Circulars() {
   const [sendEmail, setSendEmail] = useState(false)
   const [requiresAck, setRequiresAck] = useState(true)
   const [sendSMS, setSendSMS] = useState(false)
+  const [sendWhatsApp, setSendWhatsApp] = useState(false)
 
   // A student and a parent read circulars but cannot send one. The section
   // list behind the composer is staff-only, so asking for it as a family
@@ -55,7 +56,7 @@ export default function Circulars() {
         {
           title, body, section_ids: [...sectionIds],
           audience_role: audience,
-          requires_ack: requiresAck, send_sms: sendSMS, send_email: sendEmail,
+          requires_ack: requiresAck, send_sms: sendSMS, send_email: sendEmail, send_whatsapp: sendWhatsApp,
         },
       ),
     onSuccess: () => {
@@ -105,12 +106,21 @@ export default function Circulars() {
                   { value: 'all', label: 'Parents and students' },
                   { value: 'parents', label: 'Parents only' },
                   { value: 'students', label: 'Students only' },
+                  { value: 'staff', label: 'Staff only' },
+                  { value: 'everyone', label: 'Everyone — families and staff' },
                 ]}
               />
             </div>
             <div>
+              {/* A member of staff does not belong to a section the way a
+                  child does: a subject teacher stands in five of them and the
+                  office in none. Applying the filter to staff would quietly
+                  drop the people the notice is for, so it narrows families
+                  only — said here rather than discovered afterwards. */}
               <p className="mb-1.5 text-[13px] text-muted-foreground">
                 Sections — leave empty to reach the whole school
+                {(audience === 'staff' || audience === 'everyone') &&
+                  ' · staff are included whichever sections you pick'}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {(sections.data?.items ?? []).map((s) => (
@@ -137,6 +147,10 @@ export default function Circulars() {
               <label className="inline-flex items-center gap-2">
                 <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
                 Also send email
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={sendWhatsApp} onChange={(e) => setSendWhatsApp(e.target.checked)} />
+                Also send WhatsApp
               </label>
             </div>
             {publish.isError && (

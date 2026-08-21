@@ -237,6 +237,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.staff.leaves_subs': lazy(() => import('./workflow/Approvals')),
   'institution_admin.fees.fee_default': lazy(() => import('./finance/Defaulters')),
   'institution_admin.communication.messages': lazy(() => import('./comms/StaffMessages')),
+  /* The other end of the same conversation.
+   *
+   * A principal could write to a teacher and the teacher had nowhere to read
+   * it: the notification appeared, and clicking it went to the principal's own
+   * URL, which a teacher cannot open. One screen, both directions — the thread
+   * is a pair of people, not a thing one of them owns. */
+  'faculty.communication.messages': lazy(() => import('./comms/StaffMessages')),
   'institution_admin.communication.circulars': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.

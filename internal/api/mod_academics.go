@@ -530,6 +530,7 @@ func (s *Server) notifyReportCardPublished(r *http.Request, tx pgx.Tx,
 		return err
 	}
 
+	id := httpx.IdentityFrom(r.Context())
 	for _, t := range targets {
 		student := t.student
 		if err := notify(r, tx, inst, t.user, &student, "report_card",
@@ -537,6 +538,38 @@ func (s *Server) notifyReportCardPublished(r *http.Request, tx pgx.Tx,
 			"The school has published it. Open it to see the marks, the grade and the attendance.",
 			"/portal/report-cards", "report_card", &student); err != nil {
 			return err
+		}
+
+		/* And out of the building.
+
+		   The notification alone meant a family learned their child's results
+		   on the day they next happened to open the app. A published report
+		   card is the one thing in a term a parent is actually waiting for.
+
+		   Email rather than SMS: results are read, not glanced at, and a
+		   school that texts sixty families every time a card is published
+		   pays for sixty texts to say "sign in".
+
+		   Enqueued, not sent here: the queue owns retries, and a mail server
+		   that is briefly down must not fail the publish. A failure to hand it
+		   over is logged and swallowed for the same reason — the card is
+		   published either way. */
+		if s.Queue != nil {
+			if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+				queue.MessageSendPayload{
+					Envelope: queue.Envelope{
+						InstitutionID: inst, ActorUserID: id.UserID,
+						RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+					},
+					Channel: "email", TemplateKey: "reportcard.published",
+					ToUserID: t.user,
+					Vars: map[string]any{
+						"student_name": t.name,
+						"exam_name":    "the latest",
+					},
+				}, queue.HeavyOptions()...); err != nil {
+				httpx.LogError(r, err)
+			}
 		}
 	}
 	return nil

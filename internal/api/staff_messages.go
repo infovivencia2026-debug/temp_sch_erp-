@@ -212,9 +212,35 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 		if len(body) > 240 {
 			body = body[:237] + "…"
 		}
+		/* The link has to open in the reader's own workspace.
+
+		   It was hard-coded to the principal's URL, so a teacher who was sent a
+		   message got a notification leading to a page their role cannot open —
+		   the one action the notification exists for. The route is
+		   /{role}/communication/messages for everybody who has the screen, so
+		   the only variable is which role the reader holds. */
+		var role string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT r.key
+			  FROM user_roles ur
+			  JOIN roles r ON r.id = ur.role_id
+			 WHERE ur.user_id = $1
+			 ORDER BY CASE r.key
+			            WHEN 'institution_admin' THEN 0
+			            WHEN 'hod' THEN 1
+			            WHEN 'faculty' THEN 2
+			            ELSE 3 END
+			 LIMIT 1`, other).Scan(&role); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			role = "institution_admin"
+		}
+
+
 		return notify(r, tx, id.InstitutionID, other, nil, "staff_message",
 			"Message from "+from, body,
-			"/institution_admin/communication/messages",
+			"/"+role+"/communication/messages",
 			"staff_message", &newID)
 	})
 	switch {
