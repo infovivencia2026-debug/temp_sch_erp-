@@ -1156,6 +1156,19 @@ export function RangePicker({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* An empty select is a box that does nothing.
+       *
+       * The presets are fetched, so for the first moment of every page this
+       * had no options at all — and a select with no options renders as a
+       * small empty box with an arrow on it that opens nothing when clicked.
+       * It reads as broken rather than as loading, and clicking it harder does
+       * not help. Disabled and labelled while the list is empty: same size,
+       * same place, and it says what it is waiting for. */}
+      {options.length === 0 ? (
+        <select disabled className="field w-auto cursor-default pr-8" aria-label="Date range">
+          <option>Loading date ranges…</option>
+        </select>
+      ) : (
       <select
         value={value.period}
         onChange={(e) => {
@@ -1179,6 +1192,7 @@ export function RangePicker({
           </optgroup>
         ))}
       </select>
+      )}
 
       {custom && (
         <>
