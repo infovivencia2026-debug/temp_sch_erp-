@@ -136,7 +136,17 @@ const PRESETS: { id: 'blue' | 'mint' | 'violet' | 'amber' | 'rose'; hsl: Hsl }[]
    It was a second dialog beside Appearance, which meant two doors in the menu
    to two halves of one question — how should this look. It is a section now,
    and ColourDialog is gone rather than kept as a wrapper nobody opens. */
-export function ColourPanel() {
+export function ColourPanel({
+  onPickingChange,
+}: {
+  /* Told upward, because the panel cannot get out of its own way.
+
+     It lives inside a modal whose backdrop covers the page, so while the
+     crosshair is armed every click lands on that backdrop and closes the
+     dialog. The panel can fade itself and still be unreachable; only the
+     dialog can stop intercepting. */
+  onPickingChange?: (picking: boolean) => void
+} = {}) {
   const { paint, set } = usePaint()
   const palettes = usePalettes()
   const t = useT()
@@ -153,9 +163,24 @@ export function ColourPanel() {
      Capture phase, so the click is claimed before the thing underneath acts on
      it — otherwise aiming at a card in the work area would open the card. */
   useEffect(() => {
+    onPickingChange?.(picking)
+  }, [picking, onPickingChange])
+
+  useEffect(() => {
     if (!picking) return
     const onClick = (e: MouseEvent) => {
-      const el = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-paint]')
+      const target = e.target as HTMLElement | null
+      /* A click inside the dialog is somebody changing their mind or reaching
+         for another control, not a pick. Cancelling on it — rather than
+         treating it as "no region" — is what lets the crosshair be abandoned
+         without also being disarmed by every stray click on the panel. */
+      if (target?.closest('[data-appearance-dialog]')) {
+        e.preventDefault()
+        e.stopPropagation()
+        setPicking(false)
+        return
+      }
+      const el = target?.closest<HTMLElement>('[data-paint]')
       e.preventDefault()
       e.stopPropagation()
       setPicking(false)

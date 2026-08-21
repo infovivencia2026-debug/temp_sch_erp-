@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Palette, Type, X } from 'lucide-react'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
@@ -73,6 +73,8 @@ function Axis<T extends string>({
 
 export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { appearance, set } = useAppearance()
+  const [picking, setPicking] = useState(false)
+  const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
 
   /* Every face is fetched when the picker opens, not when the app loads.
@@ -87,26 +89,38 @@ export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      // The crosshair swallows the first Escape; the dialog takes the second.
+      if (e.key === 'Escape' && !picking) onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, picking])
 
   if (!open) return null
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] grid place-items-start justify-items-center overflow-y-auto
-                 bg-black/40 p-4 pt-[6vh]"
-      onClick={onClose}
+      /* While the crosshair is armed the whole dialog stops intercepting, so a
+         click reaches the region underneath instead of the backdrop. Fading
+         rather than closing: closing would lose the channel and colour already
+         chosen, and the point of aiming is to come back and keep working. */
+      className={cn(
+        'fixed inset-0 z-[70] grid place-items-start justify-items-center overflow-y-auto p-4 pt-[6vh]',
+        picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
+      )}
+      onClick={picking ? undefined : onClose}
       role="dialog"
       aria-modal="true"
       aria-label={t('bento.appearance.title')}
     >
       <div
-        className="pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border bg-popover
-                   shadow-[var(--lift-float)]"
+        data-appearance-dialog=""
+        className={cn(
+          `pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border bg-popover
+           shadow-[var(--lift-float)]`,
+          // Still clickable while aiming, so the dialog can be used to cancel.
+          picking && 'pointer-events-auto opacity-25',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-4 border-b px-7 py-5">
@@ -238,7 +252,7 @@ export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: ()
               <Palette className="size-4 text-muted-foreground" aria-hidden="true" />
               {t('bento.colour.title')}
             </h3>
-            <ColourPanel />
+            <ColourPanel onPickingChange={onPickingChange} />
           </section>
         </div>
       </div>

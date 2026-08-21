@@ -27,7 +27,7 @@ export type Typeface = string
 export type Borders = 'none' | 'hairline' | 'strong'
 export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
 export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
-export type Contrast = 'normal' | 'high'
+export type Contrast = 'normal' | 'medium' | 'high'
 
 export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -36,7 +36,7 @@ export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'la
 export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as const
 export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
 export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
-export const CONTRASTS: readonly Contrast[] = ['normal', 'high'] as const
+export const CONTRASTS: readonly Contrast[] = ['normal', 'medium', 'high'] as const
 
 export interface Appearance {
   density: Density

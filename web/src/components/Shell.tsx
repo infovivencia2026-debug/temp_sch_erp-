@@ -168,23 +168,15 @@ export function Shell({ children }: { children: ReactNode }) {
 
      The roadmap is still one click away for anyone evaluating the product
      rather than working in it, and the choice is remembered. */
-  const [showPlanned, setShowPlanned] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('erp.showPlanned') ?? 'false') as boolean
-    } catch {
-      return false
-    }
-  })
-  const togglePlanned = () => {
-    setShowPlanned((v) => {
-      try {
-        localStorage.setItem('erp.showPlanned', JSON.stringify(!v))
-      } catch {
-        /* private browsing; the default returns next time */
-      }
-      return !v
-    })
-  }
+  /* Unbuilt features are never listed.
+
+     There used to be a "Coming later" switch at the foot of the rail that
+     revealed catalogued-but-unwritten screens. It answered a question the team
+     has and a school does not: a principal does not want to be shown the
+     things they cannot use, and every one of them opens onto a placeholder.
+     The catalogue still records them and DEFERRED.md still explains them —
+     that is where the answer belongs. */
+  const showPlanned = false
 
   /* Advanced tools are off by default and remembered once revealed.
 
@@ -624,12 +616,6 @@ export function Shell({ children }: { children: ReactNode }) {
               className="w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
               {showAdvanced ? 'Hide advanced tools' : 'Advanced tools'}
-            </button>
-            <button
-              onClick={togglePlanned}
-              className="w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
-            >
-              {showPlanned ? 'Hide coming later' : 'Coming later'}
             </button>
 
             {/* The same preferences the chrome-less layout keeps behind its

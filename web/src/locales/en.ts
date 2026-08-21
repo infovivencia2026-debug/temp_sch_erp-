@@ -1245,6 +1245,7 @@ export const en = {
   'bento.settings.pattern.noise': 'Noise',
   'bento.settings.contrast': 'Contrast',
   'bento.settings.contrast.normal': 'Normal',
+  'bento.settings.contrast.medium': 'Medium',
   'bento.settings.contrast.high': 'High',
   'bento.settings.accent': 'Accent',
   'bento.settings.accent.blue': 'Blue',

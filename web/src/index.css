@@ -263,6 +263,45 @@
      value: somebody wants high contrast *and* dark, and folding it into the
      theme enum would make them choose. So both blocks exist and the dark one
      wins by being later and more specific. */
+  /* Medium sits between the shipped palette and High, and exists because the
+     jump was too big to be the only offer.
+
+     High is built for somebody who needs it: near-black text, 45% borders, a
+     darkened primary. That is a lot to take on when all you wanted was for the
+     muted labels to stop disappearing on a bright screen. Every value here is
+     roughly the midpoint, so the step up from Normal is about the same size as
+     the step from here to High. */
+  :root[data-contrast='medium'] {
+    --secondary-foreground: 0 0% 20%;
+    --muted-foreground: 0 0% 33%;
+    --border: 220 11% 72%;
+    --border-strong: 220 12% 56%;
+    --input: 220 11% 66%;
+    --ring: 217 91% 50%;
+    --primary: 217 91% 49%;
+    --primary-hover: 217 91% 41%;
+    --success: 142 74% 27%;
+    --warning: 32 96% 31%;
+    --destructive: 0 76% 42%;
+    --info: 192 92% 29%;
+  }
+
+  .dark:root[data-contrast='medium'],
+  :root[data-contrast='medium'] .dark {
+    --secondary-foreground: 0 0% 86%;
+    --muted-foreground: 0 0% 70%;
+    --border: 0 0% 34%;
+    --border-strong: 0 0% 52%;
+    --input: 0 0% 40%;
+    --ring: 217 91% 66%;
+    --primary: 217 93% 68%;
+    --primary-hover: 217 93% 76%;
+    --success: 142 66% 56%;
+    --warning: 35 92% 60%;
+    --destructive: 0 82% 64%;
+    --info: 192 82% 56%;
+  }
+
   :root[data-contrast='high'] {
     --foreground: 0 0% 0%;
     --secondary-foreground: 0 0% 12%;
