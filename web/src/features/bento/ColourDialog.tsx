@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Check, Crosshair, Pipette, Plus, RotateCcw, X } from 'lucide-react'
+import { Crosshair, Plus, RotateCcw, X } from 'lucide-react'
 import {
   usePaint, usePalettes, savePalette, deletePalette, applyPalette, resetPaint,
   REGIONS, CHANNELS, type Region, type Channel, type Hsl,
@@ -123,7 +122,21 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 
 const DEFAULT_PICK: Hsl = { h: 262, s: 70, l: 24 }
 
-export function ColourDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** The named accents, kept as data so the swatch and the wheel agree. */
+const PRESETS: { id: 'blue' | 'mint' | 'violet' | 'amber' | 'rose'; hsl: Hsl }[] = [
+  { id: 'blue', hsl: { h: 217, s: 91, l: 60 } },
+  { id: 'mint', hsl: { h: 163, s: 70, l: 32 } },
+  { id: 'violet', hsl: { h: 262, s: 72, l: 52 } },
+  { id: 'amber', hsl: { h: 32, s: 88, l: 40 } },
+  { id: 'rose', hsl: { h: 344, s: 76, l: 46 } },
+]
+
+/* The colour engine, without a window of its own.
+
+   It was a second dialog beside Appearance, which meant two doors in the menu
+   to two halves of one question — how should this look. It is a section now,
+   and ColourDialog is gone rather than kept as a wrapper nobody opens. */
+export function ColourPanel() {
   const { paint, set } = usePaint()
   const palettes = usePalettes()
   const t = useT()
@@ -162,55 +175,14 @@ export function ColourDialog({ open, onClose }: { open: boolean; onClose: () => 
     }
   }, [picking])
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !picking) onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, picking])
 
   const painted = useMemo(() => Object.keys(paint).length, [paint])
 
-  if (!open) return null
 
   const update = (next: Partial<Hsl>) => set(region, channel, { ...current, ...next })
 
-  return createPortal(
-    <div
-      className={cn(
-        'fixed inset-0 z-[70] overflow-y-auto p-4',
-        // While aiming, the dialog gets out of the way rather than closing:
-        // closing would lose the channel and colour already chosen.
-        picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
-      )}
-      onClick={picking ? undefined : onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('bento.colour.title')}
-        onClick={(e) => e.stopPropagation()}
-        className={cn(
-          `pop-down mx-auto w-full max-w-[560px] overflow-hidden rounded-[16px] border
-           bg-popover shadow-[var(--lift-float)]`,
-          picking && 'pointer-events-auto opacity-25',
-        )}
-      >
-        <header className="flex items-center gap-3 border-b px-5 py-4">
-          <Pipette className="size-4 shrink-0 text-primary" aria-hidden="true" />
-          <h2 className="flex-1 text-center text-[15px] font-semibold">{t('bento.colour.title')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('bento.launcher.close')}
-            className="grid size-8 shrink-0 place-items-center rounded-[8px] text-muted-foreground
-                       transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-        </header>
+  return (
+    <div className={cn(picking && 'opacity-25')}>
 
         <div className="px-5 py-4">
           {/* Channel */}
@@ -231,7 +203,37 @@ export function ColourDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
 
           {channel === 'accent' && (
-            <p className="mb-3 text-[12.5px] text-muted-foreground">{t('bento.colour.accent_note')}</p>
+            <>
+              <p className="mb-3 text-[12.5px] text-muted-foreground">
+                {t('bento.colour.accent_note')}
+              </p>
+              {/* The five named accents, as a shortcut to the wheel rather than
+                  a second mechanism beside it.
+
+                  They used to be their own preference writing a data-accent
+                  attribute, which meant two systems could each claim to own the
+                  product's accent and the last one touched won. They set the
+                  same token the wheel does now, so picking Mint and then
+                  dragging the wheel is one continuous act instead of a fight. */}
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => set('workarea', 'accent', p.hsl)}
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1
+                               text-[12.5px] transition-colors hover:bg-accent"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="size-3 rounded-full"
+                      style={{ background: `hsl(${p.hsl.h} ${p.hsl.s}% ${p.hsl.l}%)` }}
+                    />
+                    {t(`bento.settings.accent.${p.id}`)}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           <WheelCanvas value={current} onPick={(h, s) => update({ h, s })} />
@@ -431,18 +433,7 @@ export function ColourDialog({ open, onClose }: { open: boolean; onClose: () => 
               ? t('bento.colour.channel.accent')
               : `${t(`bento.colour.region.${region}`)} · ${t(`bento.colour.channel.${channel}`)}`}
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex items-center gap-1.5 rounded-[10px] bg-primary px-4 py-1.5 text-[13px]
-                       font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
-          >
-            <Check className="size-3.5" aria-hidden="true" />
-            {t('bento.colour.done')}
-          </button>
         </footer>
-      </div>
-    </div>,
-    document.body,
+    </div>
   )
 }

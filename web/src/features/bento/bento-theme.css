@@ -16,134 +16,52 @@
 [data-layout='bento'] {
   color-scheme: light;
 
-  /* The ground is deliberately a real step below the card. At #f4f5f7 the two
-     measured 1.09:1 and the cards floated on almost the same white, so the grid
-     read as one pale sheet rather than as separate objects. #dfe3ea gives 1.29:1
-     — visible separation — while muted text still clears 4.94:1 on it. */
   --bento-bg: #f5f6f8;
   --bento-card: #ffffff;
   --bento-card-2: #eef0f4;
   --bento-ink: #16181d;
-  --bento-muted: #68707d;           /* 4.90:1 on white */
+  --bento-muted: #68707d;
   --bento-line: #e3e6ea;
 
-  --bento-mint: #237d13;           /* supplied #a8f09b, relit for a light ground */
-  --bento-mint-tint: #daf6d5;
-  --bento-purple: #6130f5;
-  --bento-purple-tint: #dcd2f9;
-  --bento-pink: #c40023;
-  --bento-pink-tint: #fbd0d8;
-  --bento-orange: #ad4900;
-  --bento-orange-tint: #fbe2d0;
+  --bento-mint: #39FF14;
+  --bento-mint-tint: #ecffeb;
+  --bento-purple: #9D00FF;
+  --bento-purple-tint: #f5e6ff;
+  --bento-pink: #FF007F;
+  --bento-pink-tint: #ffe6f2;
+  --bento-orange: #FF5F1F;
+  --bento-orange-tint: #ffefe6;
 
-  /* The anchor keeps the gradient it was drawn with. Dark ink on mint measures
-     14.24:1, which is the one place the original values work in both modes. */
-  --bento-anchor-from: #a8f09b;
-  --bento-anchor-to: #d4f7aa;
+  --bento-anchor-from: #39FF14;
+  --bento-anchor-to: #00FFFF;
   --bento-anchor-ink: #0d0f14;
 
-  /* Cards at 16, the small parts at 10.
-
-     24px was a capsule, not a card. On a 200px-tall stat cell the corner ate
-     an eighth of the height on each side and the figure inside floated in a
-     lozenge; at that radius a rectangle stops reading as a surface and starts
-     reading as a button. 16 keeps the softness and gives the corner back to
-     the content, and it is the ceiling of the range this product was specced
-     at — cards 14-16, buttons 8-10, badges the only thing left fully round. */
-  --bento-radius: 16px;
-  --bento-radius-sm: 10px;
-  /* Tighter than the reference's 24px. With ten cells on a 1440px grid the
-     wider gutter pushed the outer columns apart enough that the dashboard read
-     as separate lists rather than one board -- and the ground is now dark
-     enough that less of it is needed to separate a card. */
+  --bento-radius: 32px;
+  --bento-radius-sm: 16px;
   --bento-gap: 14px;
-
-  /* How much room the floating dock needs, as one number.
-
-     The dock is fixed at top-4 and about forty pixels tall, so 60px clears it
-     with a hairline to spare. It lives here because two different things have
-     to agree about it: every Bento screen pads its top by this, and the
-     dashboards subtract it from the viewport to size themselves. When they
-     disagreed, the dock sat on the cards. */
   --bento-dock: 60px;
-
-  /* Border and shadow, chosen so only one of them is doing the work.
-
-     A visible border and a soft drop shadow are two answers to the same
-     question, and a card wearing both reads as a component library rather than
-     a surface. The border is a hairline that separates; the shadow is almost
-     nothing, present only so a card does not sit flush against the ground. The
-     dock gets the stronger one, because it genuinely floats. */
   --bento-border-w: 1px;
 
-  /* Depth, in two steps and on purpose.
-
-     The shadows here were almost nothing — deliberately, to keep the surfaces
-     quiet — and the cost was a page of shapes lying flat in one plane with
-     only a hairline telling them apart. Depth is what says which things are
-     objects and which are ground.
-
-     Two layers per step, because one is a blur and reads as fog. The tight
-     layer draws the contact edge, the wide one is the ambient fall; together
-     they make an object sitting on a surface rather than a rectangle with a
-     grey smudge under it. */
-  --bento-depth-sm: 0 1px 2px rgb(15 23 42 / 0.06), 0 3px 8px -2px rgb(15 23 42 / 0.08);
-  --bento-depth: 0 2px 4px rgb(15 23 42 / 0.07), 0 10px 24px -8px rgb(15 23 42 / 0.14);
-  /* A third step for the things that genuinely sit above the page — the
-     category panels, which hold objects of their own, and anything that floats.
-     Three steps rather than two because with only two, a box inside a panel
-     and the panel around it were reaching for the same shadow, and a container
-     at the same elevation as its contents reads as flat however deep the
-     shadow is. Depth is relative or it is nothing. */
-  --bento-depth-lg: 0 4px 8px rgb(15 23 42 / 0.06), 0 20px 44px -14px rgb(15 23 42 / 0.20);
+  --bento-depth-sm: 0 2px 10px rgba(0,0,0,0.03);
+  --bento-depth: 0 4px 20px rgba(0,0,0,0.04);
+  --bento-depth-lg: 0 8px 30px rgba(0,0,0,0.06);
 
   --bento-shadow: var(--bento-depth);
   --bento-shadow-sm: var(--bento-depth-sm);
 
-  /* Category hues for the launcher.
+  --dom-students: #00FFFF;      --dom-students-soft: #e5ffff;
+  --dom-academics: #9D00FF;     --dom-academics-soft: #f5e5ff;
+  --dom-attendance: #00FFFF;    --dom-attendance-soft: #e5ffff;
+  --dom-finance: #39FF14;       --dom-finance-soft: #ebffe5;
+  --dom-staff: #9D00FF;         --dom-staff-soft: #f5e5ff;
+  --dom-admissions: #FF5F1F;    --dom-admissions-soft: #ffece5;
+  --dom-communication: #FF007F; --dom-communication-soft: #ffe5f2;
+  --dom-operations: #FF5F1F;    --dom-operations-soft: #ffece5;
+  --dom-reports: #00FFFF;       --dom-reports-soft: #e5ffff;
 
-     Eight, for thirty-nine workspaces across the roles. Not a hue each: past
-     about eight a reader stops decoding colour and starts ignoring it, and a
-     library where every heading is a different shade has no categories at all,
-     only confetti. Any one role shows six to twelve workspaces, so eight is
-     enough for its groups to differ from each other on screen, which is the
-     job.
-
-     Ink is for the glyph, soft is the chip behind it. Both are needed: a
-     coloured icon alone on this ground is too small a mark to register, and a
-     coloured chip alone loses the shape that says which workspace it is. */
-  /* One colour per ERP domain, used everywhere that domain appears.
-
-     The point is not decoration, it is that a person stops reading labels. If
-     attendance is cyan then its icon, its chip, its chart stroke and its row in
-     a mixed list are all cyan, and the eye sorts a screen before the reader
-     gets to the words.
-
-     Kept apart from status, deliberately, because they answer different
-     questions: the domain says what area this belongs to and the status says
-     how urgent it is. Collapsing them is what made "needs attention" a column
-     of identical orange rows -- six items from four different parts of the
-     school, all looking like the same problem. A late fee is finance AND
-     critical; it should read as both.
-
-     Ink for glyphs, strokes and text; soft for tints and chips. Never for a
-     whole card: an ERP where every surface is a pastel is a children's
-     dashboard, and the rule this palette exists to serve is that about ninety
-     per cent of the product stays neutral. */
-  --dom-students: #2563eb;      --dom-students-soft: #eff6ff;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #f5f3ff;
-  --dom-attendance: #0891b2;    --dom-attendance-soft: #ecfeff;
-  --dom-finance: #0f766e;       --dom-finance-soft: #f0fdfa;
-  --dom-staff: #4f46e5;         --dom-staff-soft: #eef2ff;
-  --dom-admissions: #c2410c;    --dom-admissions-soft: #fff7ed;
-  --dom-communication: #db2777; --dom-communication-soft: #fdf2f8;
-  --dom-operations: #475569;    --dom-operations-soft: #f1f5f9;
-  --dom-reports: #6366f1;       --dom-reports-soft: #eef2ff;
-
-  /* Status. Three, and they mean urgency only. */
-  --dom-critical: #dc2626;      --dom-critical-soft: #fef2f2;
-  --dom-warning: #d97706;       --dom-warning-soft: #fffbeb;
-  --dom-success: #15803d;       --dom-success-soft: #f0fdf4;
+  --dom-critical: #FF5F1F;      --dom-critical-soft: #ffece5;
+  --dom-warning: #FF5F1F;       --dom-warning-soft: #ffece5;
+  --dom-success: #39FF14;       --dom-success-soft: #ebffe5;
 }
 
 /* The card actions, as buttons rather than blue words with an arrow.
@@ -274,7 +192,7 @@ html.dark[data-layout='bento'] {
   border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
-/* ---- brutalist ------------------------------------------------------- */
+/* ---- neominimalist ------------------------------------------------------- */
 
 /* A skin, not a theme: it changes the frame and leaves the colour system
    alone, so the domain hues mean the same thing in both. Hard edges, a border
@@ -290,89 +208,65 @@ html.dark[data-layout='bento'] {
    Here the border does the work the radius and the soft shadow shared, which
    is why both go: a 2px edge plus a blur plus a 16px corner is three different
    claims about where the card ends. */
-html[data-skin='brutalist'][data-layout='bento'],
-html[data-skin='brutalist'] [data-layout='bento'] {
-  --bento-bg: #eceae1;
-  --bento-ink: #000000;
-  --bento-muted: #3d3d3d;
-  --bento-radius: 10px;
-  --bento-radius-sm: 6px;
-  --bento-border-w: 0.25px;
-  --bento-line: #1c1c1c;
-  --bento-shadow: none;
-  --bento-shadow-sm: none;
-  --bento-depth: none;
-  --bento-depth-sm: none;
-  --bento-depth-lg: none;
+html[data-skin='neominimalist'][data-layout='bento'],
+html[data-skin='neominimalist'] [data-layout='bento'] {
+  --bento-bg: #F2F2F7;
+  --bento-card: #FFFFFF;
+  --bento-ink: #18181B;
+  --bento-muted: #8E8E93;
+  --bento-radius: 32px;
+  --bento-radius-sm: 16px;
+  --bento-border-w: 0;
+  --bento-line: transparent;
 }
 
-html[data-skin='brutalist'] [data-layout='bento']::before,
-html[data-skin='brutalist'][data-layout='bento']::before {
-  content: '';
-  position: fixed;
-  inset: -20vmax;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(38vmax 38vmax at 12% 8%, color-mix(in srgb, var(--dom-students) 40%, transparent), transparent 70%),
-    radial-gradient(34vmax 34vmax at 88% 18%, color-mix(in srgb, var(--dom-academics) 34%, transparent), transparent 70%),
-    radial-gradient(42vmax 42vmax at 60% 92%, color-mix(in srgb, var(--dom-finance) 30%, transparent), transparent 70%);
-  filter: saturate(1.1);
+html[data-skin='neominimalist'] [data-layout='bento']::before,
+html[data-skin='neominimalist'][data-layout='bento']::before {
+  display: none;
 }
 
-html.dark[data-skin='brutalist'][data-layout='bento'],
-html.dark[data-skin='brutalist'] [data-layout='bento'] {
-  --bento-bg: #17171b;
-  --bento-ink: #ffffff;
-  --bento-line: #f2f2ec;
-  --bento-muted: #b9b9b2;
+html.dark[data-skin='neominimalist'][data-layout='bento'],
+html.dark[data-skin='neominimalist'] [data-layout='bento'] {
+  --bento-bg: #000000;
+  --bento-card: #18181B;
+  --bento-ink: #FFFFFF;
+  --bento-line: transparent;
+  --bento-muted: #98989E;
 }
 
-html[data-skin='brutalist'] .bento-cell,
-html[data-skin='brutalist'] .launcher-tile,
-html[data-skin='brutalist'] .launcher-app,
-html[data-skin='brutalist'] .bento-dock {
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
-  backdrop-filter: blur(22px) saturate(180%);
-  border-color: var(--bento-line);
+html[data-skin='neominimalist'] .bento-cell,
+html[data-skin='neominimalist'] .launcher-tile,
+html[data-skin='neominimalist'] .launcher-app,
+html[data-skin='neominimalist'] .bento-dock {
+  background-color: var(--bento-card);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04), var(--bento-shadow);
 }
 
-html[data-skin='brutalist'] .bento-cell {
-  background-color: color-mix(in srgb, var(--bento-card) 58%, transparent);
-}
-html[data-skin='brutalist'] .launcher-app {
-  /* Composed from --tile-tint, not from the card token, so a frosted tile is
-     still tinted by its own category. Reading the card directly here would
-     make every pane the same neutral frost and quietly discard the family
-     colouring the moment somebody switched skins. */
-  background: color-mix(in srgb, var(--tile-tint, var(--bento-card)) 62%, transparent);
-}
-html[data-skin='brutalist'] .bento-dock {
-  background: color-mix(in srgb, var(--bento-card) 55%, transparent);
+html.dark[data-skin='neominimalist'] .bento-cell,
+html.dark[data-skin='neominimalist'] .launcher-tile,
+html.dark[data-skin='neominimalist'] .launcher-app,
+html.dark[data-skin='neominimalist'] .bento-dock {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), var(--bento-shadow);
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  html[data-skin='brutalist'] .bento-cell,
-  html[data-skin='brutalist'] .launcher-app,
-  html[data-skin='brutalist'] .launcher-tile,
-  html[data-skin='brutalist'] .bento-dock {
-    background-color: var(--bento-card);
-  }
+html[data-skin='neominimalist'] .bento-cell:has(.bento-cue):hover {
+  background-color: var(--bento-bg);
 }
 
-html[data-skin='brutalist'] .bento-cell:has(.bento-cue):hover {
-  background-color: var(--bento-card-2);
-  box-shadow: none;
-}
-
-html[data-skin='brutalist'] [data-layout='bento'] .bento-cue,
-html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
-  border: var(--bento-border-w) solid currentColor;
+html[data-skin='neominimalist'] [data-layout='bento'] .bento-cue,
+html[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
+  background-color: rgba(0,0,0,0.04);
+  border: none;
   border-radius: var(--bento-radius-sm);
 }
 
+html.dark[data-skin='neominimalist'] [data-layout='bento'] .bento-cue,
+html.dark[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
+  background-color: rgba(255,255,255,0.08);
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  html[data-skin='brutalist'] .bento-cue:active { transform: translate(2px, 2px); }
+  html[data-skin='neominimalist'] .bento-cue:active { transform: scale(0.96); }
 }
 
 

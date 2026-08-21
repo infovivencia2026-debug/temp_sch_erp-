@@ -739,32 +739,10 @@
   }
   html[data-pattern='dots'] body { color: hsl(var(--border)); }
 
-  /* ---- accent --------------------------------------------------------
-
-     One hue moves four tokens together — the fill, its hover, its tint and the
-     focus ring — because a product where the button is mint and the focus ring
-     is still blue looks broken rather than themed. */
-  html[data-accent='mint'] {
-    --primary: 163 70% 32%; --primary-hover: 163 72% 26%;
-    --primary-soft: 163 55% 95%; --ring: 163 70% 32%;
-  }
-  html[data-accent='violet'] {
-    --primary: 262 72% 52%; --primary-hover: 262 74% 44%;
-    --primary-soft: 262 90% 97%; --ring: 262 72% 52%;
-  }
-  html[data-accent='amber'] {
-    --primary: 32 88% 40%; --primary-hover: 32 90% 33%;
-    --primary-soft: 40 90% 95%; --ring: 32 88% 40%;
-  }
-  html[data-accent='rose'] {
-    --primary: 344 76% 46%; --primary-hover: 344 78% 39%;
-    --primary-soft: 344 80% 96%; --ring: 344 76% 46%;
-  }
-  /* Lifted for the dark ground, where a 32% lightness fill is a hole. */
-  .dark[data-accent='mint'] { --primary: 163 62% 46%; --primary-hover: 163 62% 54%; }
-  .dark[data-accent='violet'] { --primary: 262 80% 68%; --primary-hover: 262 80% 74%; }
-  .dark[data-accent='amber'] { --primary: 36 88% 56%; --primary-hover: 36 88% 62%; }
-  .dark[data-accent='rose'] { --primary: 344 80% 62%; --primary-hover: 344 80% 68%; }
+  /* The accent block that used to live here is gone with its attribute. One
+     colour for buttons, links and rings is now --paint-workarea-accent, set
+     from the colour dialog's Accent channel, so there is a single owner
+     instead of an attribute and a token each claiming it. */
 }
 
 

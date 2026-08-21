@@ -20,11 +20,11 @@ import { useCallback, useSyncExternalStore } from 'react'
    third preference that behaves differently from the first two is a third
    thing to learn for no reason. */
 
-export type Skin = 'premium' | 'brutalist'
+export type Skin = 'premium' | 'neominimalist'
 
-export const SKINS: readonly Skin[] = ['premium', 'brutalist'] as const
+export const SKINS: readonly Skin[] = ['premium', 'neominimalist'] as const
 
-export const DEFAULT_SKIN: Skin = 'brutalist'
+export const DEFAULT_SKIN: Skin = 'neominimalist'
 
 const KEY = 'erp.skin'
 

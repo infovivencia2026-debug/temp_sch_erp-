@@ -1262,7 +1262,7 @@ export const en = {
   'bento.settings.layout.bento': 'Focus',
   'bento.dock.home': 'Home',
   'bento.settings.skin.premium': 'Soft',
-  'bento.settings.skin.brutalist': 'Hard edges',
+  'bento.settings.skin.neominimalist': 'Neo-minimalist',
   'bento.settings.theme.system': 'Match system',
   'bento.settings.theme.light': 'Light',
   'bento.settings.theme.dark': 'Dark',

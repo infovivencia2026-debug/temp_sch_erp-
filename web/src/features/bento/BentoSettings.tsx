@@ -1,21 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
-  Maximize2, Rows2, Rows3, Rows4, Squircle, Type, Minimize2, Paintbrush,
-  Layers, Grid3x3, Contrast as ContrastIcon, RotateCcw, CircleDot,
-} from 'lucide-react'
+  Maximize2, Type, Minimize2,
+  Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
-import {
-  useAppearance, resetAppearance,
-  DENSITIES, CORNERS, TEXT_SIZES, BORDERS, SHADOWS, PATTERNS,
-  CONTRASTS, ACCENTS,
-  type Density, type Corners, type TextSize, type Borders,
-  type Shadow, type Pattern, type Contrast, type Accent,
-} from '@/lib/appearance'
+import { resetAppearance } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
-import { ColourDialog } from './ColourDialog'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -53,7 +45,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const { theme, resolved, setTheme } = useTheme()
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
-  const { appearance, set: setAppearance } = useAppearance()
 
   /* Full screen, tracked rather than assumed.
 
@@ -79,7 +70,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const t = useT()
   const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
-  const [showColour, setShowColour] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
   /* Escape and click-outside both close it. A popover dismissable only by the
@@ -109,51 +99,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   void resolved
   void session
 
-  /* One row renderer for every axis. Four near-identical map() blocks was how
-     the theme and skin lists started, and a fifth would have made the drift
-     between them a certainty. */
-  const Choice = <T extends string>({
-    value, options, onPick, label, icon: Icon,
-  }: {
-    value: T
-    options: readonly T[]
-    onPick: (v: T) => void
-    label: (v: T) => string
-    icon: (v: T) => typeof Sun
-  }) => (
-    <>
-      {options.map((option) => {
-        const Glyph = Icon(option)
-        const active = value === option
-        return (
-          <button
-            key={option}
-            type="button"
-            role="menuitemradio"
-            aria-checked={active}
-            onClick={() => onPick(option)}
-            className={cn(
-              `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-               transition-colors hover:bg-accent focus-visible:outline-none
-               focus-visible:ring-2 focus-visible:ring-ring`,
-              active && 'font-medium',
-            )}
-          >
-            <Glyph className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1">{label(option)}</span>
-            {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-          </button>
-        )
-      })}
-    </>
-  )
-
-  const Group = ({ children }: { children: string }) => (
-    <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
-                  text-muted-foreground">
-      {children}
-    </p>
-  )
 
   return (
     <div className="relative" ref={box}>
@@ -189,7 +134,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         <div
           role="menu"
           className={cn(
-            `absolute z-50 max-h-[70vh] w-52 overflow-y-auto overscroll-contain rounded-xl
+            `absolute z-50 max-h-[70vh] w-64 overflow-y-auto overscroll-contain rounded-xl
              border bg-popover p-1 shadow-lg`,
             placement === 'dock' ? 'pop-down' : 'pop-up',
             /* From the sidebar's foot it opens upward: there is nothing below
@@ -238,14 +183,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
 
           <div className="my-1 h-px bg-border" role="separator" />
 
-          <Group>{t('bento.settings.density')}</Group>
-          <Choice<Density>
-            value={appearance.density}
-            options={DENSITIES}
-            onPick={(v) => setAppearance('density', v)}
-            label={(v) => t(`bento.settings.density.${v}`)}
-            icon={(v) => (v === 'compact' ? Rows4 : v === 'relaxed' ? Rows2 : Rows3)}
-          />
 
           {/* The two dialogs. Rows rather than nested menus: a colour wheel
               inside a 208px popover is a colour wheel nobody can aim at. */}
@@ -258,84 +195,17 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                        focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Type className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1">{t('bento.settings.appearance_dialog')}</span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => { setShowColour(true); setOpen(false) }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Paintbrush className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1">{t('bento.settings.colour_dialog')}</span>
+            <span className="flex-1">{t('bento.appearance.title')}</span>
           </button>
 
           <div className="my-1 h-px bg-border" role="separator" />
 
-          <Group>{t('bento.settings.accent')}</Group>
-          <Choice<Accent>
-            value={appearance.accent}
-            options={ACCENTS}
-            onPick={(v) => setAppearance('accent', v)}
-            label={(v) => t(`bento.settings.accent.${v}`)}
-            icon={() => CircleDot}
-          />
 
-          <Group>{t('bento.settings.corners')}</Group>
-          <Choice<Corners>
-            value={appearance.corners}
-            options={CORNERS}
-            onPick={(v) => setAppearance('corners', v)}
-            label={(v) => t(`bento.settings.corners.${v}`)}
-            icon={(v) => (v === 'sharp' ? Square : v === 'round' ? Squircle : Frame)}
-          />
 
-          <Group>{t('bento.settings.text')}</Group>
-          <Choice<TextSize>
-            value={appearance.text}
-            options={TEXT_SIZES}
-            onPick={(v) => setAppearance('text', v)}
-            label={(v) => t(`bento.settings.text.${v}`)}
-            icon={() => Type}
-          />
 
-          <Group>{t('bento.settings.borders')}</Group>
-          <Choice<Borders>
-            value={appearance.borders}
-            options={BORDERS}
-            onPick={(v) => setAppearance('borders', v)}
-            label={(v) => t(`bento.settings.borders.${v}`)}
-            icon={() => Square}
-          />
 
-          <Group>{t('bento.settings.shadow')}</Group>
-          <Choice<Shadow>
-            value={appearance.shadow}
-            options={SHADOWS}
-            onPick={(v) => setAppearance('shadow', v)}
-            label={(v) => t(`bento.settings.shadow.${v}`)}
-            icon={() => Layers}
-          />
 
-          <Group>{t('bento.settings.pattern')}</Group>
-          <Choice<Pattern>
-            value={appearance.pattern}
-            options={PATTERNS}
-            onPick={(v) => setAppearance('pattern', v)}
-            label={(v) => t(`bento.settings.pattern.${v}`)}
-            icon={() => Grid3x3}
-          />
 
-          <Group>{t('bento.settings.contrast')}</Group>
-          <Choice<Contrast>
-            value={appearance.contrast}
-            options={CONTRASTS}
-            onPick={(v) => setAppearance('contrast', v)}
-            label={(v) => t(`bento.settings.contrast.${v}`)}
-            icon={() => ContrastIcon}
-          />
 
           <div className="my-1 h-px bg-border" role="separator" />
 
@@ -347,7 +217,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             {t('bento.settings.frame')}
           </p>
           {SKINS.map((option) => {
-            const Icon = option === 'brutalist' ? Square : Frame
+            const Icon = option === 'neominimalist' ? Square : Frame
             const active = skin === option
             return (
               <button
@@ -466,7 +336,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
       {/* Mounted outside the popover, which closes when either opens: a dialog
           rendered inside it would unmount with it. */}
       <AppearanceDialog open={showAppearance} onClose={() => setShowAppearance(false)} />
-      <ColourDialog open={showColour} onClose={() => setShowColour(false)} />
     </div>
   )
 }

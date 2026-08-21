@@ -28,7 +28,6 @@ export type Borders = 'none' | 'hairline' | 'strong'
 export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
 export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
 export type Contrast = 'normal' | 'high'
-export type Accent = 'blue' | 'mint' | 'violet' | 'amber' | 'rose'
 
 export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -38,7 +37,6 @@ export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as con
 export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
 export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
 export const CONTRASTS: readonly Contrast[] = ['normal', 'high'] as const
-export const ACCENTS: readonly Accent[] = ['blue', 'mint', 'violet', 'amber', 'rose'] as const
 
 export interface Appearance {
   density: Density
@@ -49,7 +47,6 @@ export interface Appearance {
   shadow: Shadow
   pattern: Pattern
   contrast: Contrast
-  accent: Accent
 }
 
 const DEFAULTS: Appearance = {
@@ -61,7 +58,6 @@ const DEFAULTS: Appearance = {
   shadow: 'default',
   pattern: 'none',
   contrast: 'normal',
-  accent: 'blue',
 }
 
 const KEYS = {
@@ -73,7 +69,6 @@ const KEYS = {
   shadow: 'erp.shadow',
   pattern: 'erp.pattern',
   contrast: 'erp.contrast',
-  accent: 'erp.accent',
 } as const
 
 function readRaw(key: string): string | undefined {
@@ -116,7 +111,6 @@ function read(): Appearance {
     shadow: one(KEYS.shadow, SHADOWS, DEFAULTS.shadow),
     pattern: one(KEYS.pattern, PATTERNS, DEFAULTS.pattern),
     contrast: one(KEYS.contrast, CONTRASTS, DEFAULTS.contrast),
-    accent: one(KEYS.accent, ACCENTS, DEFAULTS.accent),
   }
 }
 
@@ -165,14 +159,13 @@ export function applyAppearance(next: Appearance) {
   stamp('data-shadow', next.shadow, 'default')
   stamp('data-pattern', next.pattern, 'none')
   stamp('data-contrast', next.contrast, 'normal')
-  stamp('data-accent', next.accent, 'blue')
 
   try {
     // Density keeps its JSON spelling: index.html parses it before any of this
     // runs, and changing the format here would blank it for one paint.
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
-                     'contrast', 'accent'] as const) {
+                     'contrast'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
   } catch {
