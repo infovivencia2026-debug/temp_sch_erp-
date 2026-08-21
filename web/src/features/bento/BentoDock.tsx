@@ -13,9 +13,9 @@ import { BentoLauncher } from './BentoLauncher'
    rather than to rebuild a menu: one component, one source of truth for what
    a person may open, already scoped to their role.
 
-   A dock, not a bar. The instruction was no side or top bars, and the reading
-   path of a grid starts top-left — so this sits bottom-right, where nothing is
-   competing with it, and stays out of the way until wanted.
+   A dock, not a bar: it floats over the canvas rather than reserving a strip,
+   so the grid still runs edge to edge underneath it. Centred at the top, which
+   is where a person looks for a command bar.
 
    This is the one place the contract permits blur: a transient floating
    element, over a canvas rather than over text, with a hairline border to
@@ -27,8 +27,8 @@ export function BentoDock() {
   if (layout !== 'bento') return null
   return (
     <>
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border
-                    bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md">
+    <div className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-full
+                    border bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md">
       {/* Brings its own ⌘K listener, so the shortcut works again as soon as
           this mounts — mouse and keyboard reach the same thing. */}
       <CommandSearch />
