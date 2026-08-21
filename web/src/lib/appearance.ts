@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import { TYPEFACES as FACES, typefaceById, ensureFont } from './typefaces'
 
 /* The look preferences that are not the palette.
 
@@ -20,7 +21,9 @@ import { useCallback, useSyncExternalStore } from 'react'
 export type Density = 'compact' | 'comfortable' | 'relaxed'
 export type Corners = 'sharp' | 'default' | 'round'
 export type TextSize = 'small' | 'default' | 'large' | 'larger'
-export type Typeface = 'inter' | 'system' | 'grotesk' | 'serif'
+/** A typeface id from lib/typefaces. A string rather than a union because
+    the list is data — adding a face should not be a type change. */
+export type Typeface = string
 export type Borders = 'none' | 'hairline' | 'strong'
 export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
 export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
@@ -30,7 +33,7 @@ export type Accent = 'blue' | 'mint' | 'violet' | 'amber' | 'rose'
 export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
 export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'larger'] as const
-export const TYPEFACES: readonly Typeface[] = ['inter', 'system', 'grotesk', 'serif'] as const
+
 export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as const
 export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
 export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
@@ -73,6 +76,20 @@ const KEYS = {
   accent: 'erp.accent',
 } as const
 
+function readRaw(key: string): string | undefined {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return undefined
+    return raw.startsWith('"') ? (JSON.parse(raw) as string) : raw
+  } catch {
+    return undefined
+  }
+}
+
+function typefaceIds(): string[] {
+  return FACES.map((f) => f.id)
+}
+
 function one<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
@@ -92,7 +109,9 @@ function read(): Appearance {
     density: one(KEYS.density, DENSITIES, DEFAULTS.density),
     corners: one(KEYS.corners, CORNERS, DEFAULTS.corners),
     text: one(KEYS.text, TEXT_SIZES, DEFAULTS.text),
-    typeface: one(KEYS.typeface, TYPEFACES, DEFAULTS.typeface),
+    typeface: typefaceIds().includes(readRaw(KEYS.typeface) ?? '')
+      ? (readRaw(KEYS.typeface) as Typeface)
+      : DEFAULTS.typeface,
     borders: one(KEYS.borders, BORDERS, DEFAULTS.borders),
     shadow: one(KEYS.shadow, SHADOWS, DEFAULTS.shadow),
     pattern: one(KEYS.pattern, PATTERNS, DEFAULTS.pattern),
@@ -136,7 +155,12 @@ export function applyAppearance(next: Appearance) {
   }
   stamp('data-corners', next.corners, 'default')
   stamp('data-text', next.text, 'default')
-  stamp('data-typeface', next.typeface, 'inter')
+  /* The face is applied as a stack rather than an attribute, because the list
+     lives in data and a stylesheet cannot carry a rule per family. ensureFont
+     is called on every apply, including the one at load, so a choice restored
+     from storage fetches its file before the first paint that needs it. */
+  ensureFont(next.typeface)
+  root.style.setProperty('--font-ui', typefaceById(next.typeface).stack)
   stamp('data-borders', next.borders, 'hairline')
   stamp('data-shadow', next.shadow, 'default')
   stamp('data-pattern', next.pattern, 'none')

@@ -657,7 +657,13 @@
 
 
 @layer base {
-  /* ---- typeface ------------------------------------------------------
+  /* The chosen face, or the bundled one. Set on html rather than body so it
+     reaches portalled dialogs and the command palette, which render outside
+     the app's own tree. */
+  html { font-family: var(--font-ui, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif); }
+
+  /* ---- typeface (legacy attribute forms, kept for anything still stamping
+     them; the id-driven --font-ui above is what the picker uses) ------------
 
      Inter is bundled and is the default. The others are system stacks, and
      that is a deliberate limit rather than an oversight: shipping a second
@@ -759,4 +765,44 @@
   .dark[data-accent='violet'] { --primary: 262 80% 68%; --primary-hover: 262 80% 74%; }
   .dark[data-accent='amber'] { --primary: 36 88% 56%; --primary-hover: 36 88% 62%; }
   .dark[data-accent='rose'] { --primary: 344 80% 62%; --primary-hover: 344 80% 68%; }
+}
+
+
+@layer base {
+  /* ---- painted regions -------------------------------------------------
+
+     Every rule reads a --paint-* property with the shipped token as its
+     fallback, so an unpainted region is not "painted with the default" — it is
+     not painted, and it keeps following the theme, the skin and the accent
+     when those change underneath it.
+
+     That is the difference between a customisation layer and a snapshot. If
+     these resolved to concrete colours at the moment somebody used the picker,
+     switching to dark afterwards would leave every surface on the light colour
+     they had chosen, and the only way out would be a reset. */
+  [data-paint='workarea'] {
+    background-color: hsl(var(--paint-workarea-bg, var(--background)));
+    color: hsl(var(--paint-workarea-text, var(--foreground)));
+  }
+  [data-paint='topbar'] {
+    background-color: hsl(var(--paint-topbar-bg, var(--chrome, var(--card))));
+    color: hsl(var(--paint-topbar-text, var(--foreground)));
+  }
+  [data-paint='sidebar'] {
+    background-color: hsl(var(--paint-sidebar-bg, var(--sidebar)));
+    color: hsl(var(--paint-sidebar-text, var(--foreground)));
+  }
+  [data-paint='bottombar'] {
+    background-color: hsl(var(--paint-bottombar-bg, var(--card)));
+    color: hsl(var(--paint-bottombar-text, var(--foreground)));
+  }
+  /* Cards are the one region that is many elements rather than one, so it is
+     applied through the card token itself: everything already built on
+     bg-card follows without being tagged individually. */
+  :root:has([data-paint]) { --card: var(--paint-cards-bg, var(--card-default, var(--card))); }
+
+  /* Accent is global by definition — buttons, links and focus rings are the
+     same colour wherever they appear — so it overrides the primary tokens
+     rather than belonging to a region. */
+  :root { --primary: var(--paint-workarea-accent, var(--primary-base, 217 91% 60%)); }
 }

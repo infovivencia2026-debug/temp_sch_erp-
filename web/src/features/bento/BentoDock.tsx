@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
@@ -36,6 +36,7 @@ export function BentoDock() {
   const { layout } = useLayout()
   const t = useT()
   const navigate = useNavigate()
+  const location = useLocation()
   const role = useActiveRole()
   const [all, setAll] = useState(false)
 
@@ -153,7 +154,13 @@ export function BentoDock() {
         {homeHref && (
           <button
             type="button"
-            onClick={() => navigate(homeHref)}
+            onClick={() => {
+              if (location.pathname === homeHref) {
+                window.location.reload()
+              } else {
+                navigate(homeHref)
+              }
+            }}
             className={item}
             data-tip={t('bento.dock.home')}
             aria-label={t('bento.dock.home')}

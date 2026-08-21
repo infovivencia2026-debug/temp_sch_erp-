@@ -168,6 +168,7 @@ export function Cell({
   span = 'one',
   tone,
   dark = false,
+  accent,
   className,
   children,
 }: {
@@ -175,10 +176,12 @@ export function Cell({
   tone?: CellTone
   /** The older boolean, still honoured because four dashboards pass it. */
   dark?: boolean
+  accent?: Accent
   className?: string
   children: ReactNode
 }) {
   const t = tone ?? (dark ? 'dark' : 'plain')
+  const style = accent && t === 'plain' ? { '--bento-card': `var(--bento-${accent}-tint)` } as React.CSSProperties : undefined
   return (
     <div
       className={cn(
@@ -198,6 +201,7 @@ export function Cell({
         TONE[t],
         className,
       )}
+      style={style}
     >
       {children}
     </div>
@@ -334,7 +338,7 @@ export function StatCell({
   cue?: string
 }) {
   return (
-    <Cell span={span}>
+    <Cell span={span} accent={accent}>
       <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.06em] text-[var(--bento-muted)]">{label}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2.5">
         {/* Sized against the viewport, not fixed.

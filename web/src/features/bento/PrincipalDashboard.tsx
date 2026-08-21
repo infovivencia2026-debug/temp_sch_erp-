@@ -244,7 +244,7 @@ export default function BentoPrincipalDashboard() {
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Cell span="wide">
+      <Cell span="wide" accent="purple">
         <p className="text-[12.5px] text-[var(--bento-muted)]">{t('bento.principal.bars_label')}</p>
         {trend.error ? (
           <div className="mt-4">
@@ -277,6 +277,7 @@ export default function BentoPrincipalDashboard() {
         span="wide"
         label={t('bento.principal.students')}
         value={k.students}
+        accent="mint"
         note={t('bento.principal.sections', { count: k.sections })}
         to={studentsHref}
         cue={t('bento.principal.cue_students')}
@@ -285,6 +286,7 @@ export default function BentoPrincipalDashboard() {
       <StatCell
         label={t('bento.principal.staff')}
         value={k.staff}
+        accent="purple"
         note={t('bento.principal.as_of_today')}
         to={staffHref}
         cue={t('bento.principal.cue_staff')}
@@ -293,6 +295,7 @@ export default function BentoPrincipalDashboard() {
       <StatCell
         label={t('bento.principal.approvals')}
         value={k.pending_leave}
+        accent="pink"
         note={t('bento.principal.approvals_note')}
         to={approvalsHref}
         cue={t('bento.principal.cue_approvals')}
@@ -307,6 +310,7 @@ export default function BentoPrincipalDashboard() {
         span="wide"
         label={t('bento.principal.applications')}
         value={k.open_applications}
+        accent="mint"
         note={t('bento.principal.applications_note')}
         to={applicationsHref}
         cue={t('bento.principal.cue_applications')}

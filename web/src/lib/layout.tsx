@@ -26,7 +26,7 @@ export type Layout = 'classic' | 'bento'
     migrations/00136_bento_layout.sql. */
 export const LAYOUTS: readonly Layout[] = ['classic', 'bento'] as const
 
-export const DEFAULT_LAYOUT: Layout = 'classic'
+export const DEFAULT_LAYOUT: Layout = 'bento'
 
 const STORAGE_KEY = 'erp.layout'
 

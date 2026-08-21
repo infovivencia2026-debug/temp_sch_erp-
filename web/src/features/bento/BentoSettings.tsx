@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
-  Maximize2, Rows2, Rows3, Rows4, Squircle, Type, Minimize2,
+  Maximize2, Rows2, Rows3, Rows4, Squircle, Type, Minimize2, Paintbrush,
   Layers, Grid3x3, Contrast as ContrastIcon, RotateCcw, CircleDot,
 } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import {
   useAppearance, resetAppearance,
-  DENSITIES, CORNERS, TEXT_SIZES, TYPEFACES, BORDERS, SHADOWS, PATTERNS,
+  DENSITIES, CORNERS, TEXT_SIZES, BORDERS, SHADOWS, PATTERNS,
   CONTRASTS, ACCENTS,
-  type Density, type Corners, type TextSize, type Typeface, type Borders,
+  type Density, type Corners, type TextSize, type Borders,
   type Shadow, type Pattern, type Contrast, type Accent,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
+import { AppearanceDialog } from './AppearanceDialog'
+import { ColourDialog } from './ColourDialog'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -76,6 +78,8 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const session = useSession()
   const t = useT()
   const [open, setOpen] = useState(false)
+  const [showAppearance, setShowAppearance] = useState(false)
+  const [showColour, setShowColour] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
   /* Escape and click-outside both close it. A popover dismissable only by the
@@ -243,14 +247,32 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             icon={(v) => (v === 'compact' ? Rows4 : v === 'relaxed' ? Rows2 : Rows3)}
           />
 
-          <Group>{t('bento.settings.typeface')}</Group>
-          <Choice<Typeface>
-            value={appearance.typeface}
-            options={TYPEFACES}
-            onPick={(v) => setAppearance('typeface', v)}
-            label={(v) => t(`bento.settings.typeface.${v}`)}
-            icon={() => Type}
-          />
+          {/* The two dialogs. Rows rather than nested menus: a colour wheel
+              inside a 208px popover is a colour wheel nobody can aim at. */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setShowAppearance(true); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Type className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.appearance_dialog')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setShowColour(true); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Paintbrush className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.colour_dialog')}</span>
+          </button>
+
+          <div className="my-1 h-px bg-border" role="separator" />
 
           <Group>{t('bento.settings.accent')}</Group>
           <Choice<Accent>
@@ -440,6 +462,11 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           </a>
         </div>
       )}
+
+      {/* Mounted outside the popover, which closes when either opens: a dialog
+          rendered inside it would unmount with it. */}
+      <AppearanceDialog open={showAppearance} onClose={() => setShowAppearance(false)} />
+      <ColourDialog open={showColour} onClose={() => setShowColour(false)} />
     </div>
   )
 }

@@ -337,6 +337,7 @@ export function Shell({ children }: { children: ReactNode }) {
           separates by tone. A white sidebar beside a white page divided by a
           grey line is three rectangles and a border to read first. */}
       <aside
+        data-paint="sidebar"
         className={cn(
           'w-[282px] shrink-0 flex-row bg-sidebar',
           'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[300px]',
@@ -656,7 +657,7 @@ export function Shell({ children }: { children: ReactNode }) {
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
         {!chromeless && (
-        <header className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
+        <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {!isBentoRole && (
             <button
               aria-label="Open navigation"
@@ -746,7 +747,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
         )}
 
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main data-paint="workarea" className="min-w-0 flex-1 overflow-y-auto">
           <BentoOutlet>{children}</BentoOutlet>
           <BentoDock />
         </main>
