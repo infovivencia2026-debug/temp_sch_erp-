@@ -89,6 +89,27 @@
   --cat-slate: #475569;  --cat-slate-soft: #eceef2;
 }
 
+/* The card actions, as buttons rather than blue words with an arrow.
+
+   A link inside a card reads as prose the eye skips; a bordered control reads
+   as something you press, which is what these are. Both the border and the
+   hover are mixed from currentColor, so a cue on the white card, on the
+   gradient anchor and on the near-black cell all take their own ink without a
+   branch per tone or three near-identical classes.
+
+   9px, not a capsule. The dock is a capsule because it floats; a control
+   sitting inside a card is not floating, and when everything is a capsule the
+   capsule stops meaning anything. */
+[data-layout='bento'] .bento-cue {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 9px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+[data-layout='bento'] .bento-cue:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
 html.dark[data-layout='bento'] {
 
   /* The same eight against the dark ground.

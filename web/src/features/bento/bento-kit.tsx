@@ -370,17 +370,20 @@ export function Cue({
     <Link
       to={to}
       className={cn(
-        'mt-auto inline-flex w-fit items-center gap-1.5 rounded-full pt-4 text-[12.5px] font-semibold',
+        /* mt-auto keeps it on the bottom edge; the padding that used to sit
+           above it is now the button's own, so the control has a body instead
+           of being text with space over it. */
+        'bento-cue mt-auto inline-flex w-fit items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold',
         still ? '' : 'transition-opacity duration-150',
         t === 'plain'
-          ? 'text-[var(--bento-ink)] opacity-70 hover:opacity-100'
+          ? 'text-[var(--bento-ink)] opacity-80 hover:opacity-100'
           : t === 'anchor'
-            ? 'text-[var(--bento-anchor-ink)] opacity-75 hover:opacity-100'
-            : 'text-[var(--bento-bg)] opacity-80 hover:opacity-100',
+            ? 'text-[var(--bento-anchor-ink)] opacity-85 hover:opacity-100'
+            : 'text-[var(--bento-bg)] opacity-85 hover:opacity-100',
       )}
     >
       {label}
-      <ArrowUpRight className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />
+      <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden="true" />
     </Link>
   )
 }
@@ -395,7 +398,10 @@ export function AnchorAction({ to, label }: { to: string; label: string }) {
     <Link
       to={to}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full bg-[var(--bento-anchor-ink)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--bento-anchor-from)]',
+        /* 10px. A filled CTA is the one place a capsule is tempting and the
+           one place it costs most: it is the largest control on the page, so
+           it sets the reader's expectation for what a button looks like. */
+        'inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--bento-anchor-ink)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--bento-anchor-from)]',
         still ? '' : 'transition-opacity duration-150',
         'opacity-95 hover:opacity-100',
       )}

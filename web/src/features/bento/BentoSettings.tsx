@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Settings, Sun, Moon, Monitor, Check } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, LogOut, Rows3 } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useT } from '@/lib/i18n'
+import { useLayout } from '@/lib/layout'
+import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 /* Settings, from inside a layout that has no header to put them in.
@@ -26,6 +28,8 @@ const ICON: Record<Theme, typeof Sun> = {
 
 export function BentoSettings() {
   const { theme, resolved, setTheme } = useTheme()
+  const { setLayout } = useLayout()
+  const session = useSession()
   const t = useT()
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
@@ -48,9 +52,15 @@ export function BentoSettings() {
     }
   }, [open])
 
-  // The trigger shows what is on screen now, not what was chosen: on 'system'
-  // a monitor icon says nothing about which palette you are looking at.
-  const Trigger = resolved === 'dark' ? Moon : Sun
+  /* The trigger is the institution's mark, not a cog.
+
+     Everything behind it is about this account and this school -- the palette,
+     the layout, signing out -- and a cog says "product settings", which is the
+     one thing it does not open. Placed at the far right of the screen rather
+     than in the centre dock, because the dock should hold what a person does
+     several times an hour and this is not that. */
+  const initial = session.institution?.short_name?.[0] ?? 'E'
+  void resolved
 
   return (
     <div className="relative" ref={box}>
@@ -61,11 +71,11 @@ export function BentoSettings() {
         aria-expanded={open}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
-        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] transition-colors
-                   hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid size-9 place-items-center rounded-full border bg-popover/80 text-[12.5px]
+                   font-semibold shadow-sm backdrop-blur-md transition-colors hover:bg-accent
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Settings className="size-3.5" aria-hidden="true" />
-        <Trigger className="size-3.5" aria-hidden="true" />
+        {initial}
       </button>
 
       {open && (
@@ -104,6 +114,42 @@ export function BentoSettings() {
               </button>
             )
           })}
+
+          <div className="my-1 h-px bg-border" role="separator" />
+
+          {/* The way out of Bento lives here now, not in the dock.
+
+              Nobody should have to know they are "inside Bento" to use the
+              product, so the centre bar stops saying so. But the exit cannot
+              simply go: this layout hides the header, and the header is where
+              the classic product keeps sign-out, notifications and the role
+              switch. A chrome-less layout with no door is the bug this
+              codebase already fixed once. */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setLayout('classic')
+              setOpen(false)
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Rows3 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{t('bento.escape.back')}</span>
+          </button>
+
+          <a
+            href="/logout"
+            role="menuitem"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <LogOut className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.signout')}</span>
+          </a>
         </div>
       )}
     </div>

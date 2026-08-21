@@ -1,6 +1,8 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
-import { useState } from 'react'
+import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import { BentoLauncher } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
@@ -18,45 +20,84 @@ import { BentoSettings } from './BentoSettings'
    so the grid still runs edge to edge underneath it. Centred at the top, which
    is where a person looks for a command bar.
 
-   This is the one place the contract permits blur: a transient floating
-   element, over a canvas rather than over text, with a hairline border to
-   carry the edge. */
+   WHAT IS IN IT, AND WHAT IS NOT. The centre holds what somebody does several
+   times an hour: find something, open their queue, open the library. It used
+   to also hold Settings and "Leave Bento", which are neither — one is a
+   preference you set once and the other is a statement about the product's
+   internals that a user should never have to understand. Both moved to the
+   account mark at the right of the screen, where the classic layout keeps the
+   same things.
+
+   The exit moved; it did not go. This layout hides the header, and the header
+   is where sign-out and the role switch live, so a Bento with no door is the
+   bug that was already fixed once. */
 export function BentoDock() {
-  const { layout, setLayout } = useLayout()
+  const { layout } = useLayout()
   const t = useT()
+  const navigate = useNavigate()
+  const role = useActiveRole()
   const [all, setAll] = useState(false)
+
+  /* Where "Work" goes, per role.
+
+     There is no single queue key across the catalogue: faculty has
+     home.my_work, an institution admin has approvals.approvals, and several
+     roles have neither. So it is resolved against what this account can
+     actually open, and the button is simply not drawn when there is nothing
+     for it to open. A dock item that navigates nowhere is worse than one
+     fewer dock item. */
+  const workHref = useMemo(() => {
+    if (!role) return undefined
+    const wanted = ['my_work', 'approvals', 'needs_attention', 'follow_ups', 'today']
+    for (const want of wanted) {
+      for (const s of role.sections) {
+        const f = s.features.find((x) => usable(x) && x.slug === want)
+        if (f) return featurePath(role.key, s.slug, f.slug)
+      }
+    }
+    return undefined
+  }, [role])
+
   if (layout !== 'bento') return null
+
+  const item =
+    `rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-accent ` +
+    `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+
   return (
     <>
-    <div className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-full
-                    border bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md">
-      {/* Brings its own ⌘K listener, so the shortcut works again as soon as
-          this mounts — mouse and keyboard reach the same thing. */}
-      <CommandSearch />
-      {/* Pointing, for the person who does not know what to type. */}
-      <button
-        type="button"
-        onClick={() => setAll(true)}
-        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-accent
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <div
+        className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-full
+                   border bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md"
       >
-        {t('bento.dock.all')}
-      </button>
-      {/* Before the way out, so the last thing in the pill stays the way out. */}
-      <BentoSettings />
-      <button
-        type="button"
-        onClick={() => setLayout('classic')}
-        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-accent
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {t('bento.escape.back')}
-      </button>
-    </div>
-    {/* Outside the pill on purpose. backdrop-filter establishes a containing
-        block, so a fixed-position child anchors to the blurred element instead
-        of the viewport and the overlay opens inside the dock. */}
-    <BentoLauncher open={all} onClose={() => setAll(false)} />
+        {/* Brings its own ⌘K listener, so the shortcut works again as soon as
+            this mounts — mouse and keyboard reach the same thing. */}
+        <CommandSearch />
+
+        {workHref && (
+          <button type="button" onClick={() => navigate(workHref)} className={item}>
+            {t('bento.dock.work')}
+          </button>
+        )}
+
+        {/* Pointing, for the person who does not know what to type. */}
+        <button type="button" onClick={() => setAll(true)} className={item}>
+          {t('bento.dock.apps')}
+        </button>
+      </div>
+
+      {/* The account, at the edge of the screen rather than in the middle of
+          the bar. Its own fixed element, not a third region of the dock: the
+          dock is a place you point at deliberately and this is a place you go
+          when you already know what you want. */}
+      <div className="fixed right-4 top-4 z-50">
+        <BentoSettings />
+      </div>
+
+      {/* Outside the pill on purpose. backdrop-filter establishes a containing
+          block, so a fixed-position child anchors to the blurred element instead
+          of the viewport and the overlay opens inside the dock. */}
+      <BentoLauncher open={all} onClose={() => setAll(false)} />
     </>
   )
 }
