@@ -1442,11 +1442,31 @@ function StudentsPanel({ onDone }: PanelProps) {
 }
 
 function GradingPanel({ onDone }: PanelProps) {
-  type Band = { grade: string; min_percent: number; max_percent: number; grade_point: number }
+  /* The numbers are held as text while they are being typed.
+
+     They used to be numbers, converted on every keystroke with Number(x).
+     That makes the box impossible to clear — Number('') is 0, so backspacing
+     the last digit puts a 0 back — and any half-typed value that is not yet a
+     number becomes NaN, which renders as the word NaN and cannot be deleted
+     either, because deleting it produces NaN again.
+
+     A field is a string until somebody has finished with it. These are parsed
+     once, on save. */
+  type Band = { grade: string; min_percent: string; max_percent: string; grade_point: string }
+  type SavedBand = { grade: string; min_percent: number; max_percent: number; grade_point: number }
   const [name, setName] = useState('')
   const [bands, setBands] = useState<Band[]>([])
+
+  // Blank and rubbish both read as zero rather than NaN, so a band somebody
+  // left half-finished is saved as something the server can judge.
+  const num = (v: string) => {
+    const n = parseInt(v, 10)
+    return Number.isFinite(n) ? n : 0
+  }
+
   const save = useSave(
-    (body: { name: string; is_default: boolean; bands: Band[] }) => api.post('/api/v1/setup/grading-scales', body),
+    (body: { name: string; is_default: boolean; bands: SavedBand[] }) =>
+      api.post('/api/v1/setup/grading-scales', body),
     onDone,
   )
 
@@ -1458,15 +1478,17 @@ function GradingPanel({ onDone }: PanelProps) {
      all on their report card. */
   const gap = (() => {
     if (bands.length < 2) return ''
-    const sorted = [...bands].sort((a, b) => a.min_percent - b.min_percent)
+    const sorted = bands
+      .map((b) => ({ min: num(b.min_percent), max: num(b.max_percent) }))
+      .sort((a, b) => a.min - b.min)
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].min_percent > sorted[i - 1].max_percent + 1) {
-        return `nothing covers ${sorted[i - 1].max_percent + 1}–${sorted[i].min_percent - 1}%`
+      if (sorted[i].min > sorted[i - 1].max + 1) {
+        return `nothing covers ${sorted[i - 1].max + 1}–${sorted[i].min - 1}%`
       }
     }
-    if (sorted[0].min_percent > 0) return `nothing covers 0–${sorted[0].min_percent - 1}%`
-    if (sorted[sorted.length - 1].max_percent < 100)
-      return `nothing covers ${sorted[sorted.length - 1].max_percent + 1}–100%`
+    if (sorted[0].min > 0) return `nothing covers 0–${sorted[0].min - 1}%`
+    if (sorted[sorted.length - 1].max < 100)
+      return `nothing covers ${sorted[sorted.length - 1].max + 1}–100%`
     return ''
   })()
 
@@ -1475,14 +1497,14 @@ function GradingPanel({ onDone }: PanelProps) {
   const cce = () => {
     setName('CCE 10-point (BSE Telangana)')
     setBands([
-      { grade: 'A1', min_percent: 91, max_percent: 100, grade_point: 10 },
-      { grade: 'A2', min_percent: 81, max_percent: 90, grade_point: 9 },
-      { grade: 'B1', min_percent: 71, max_percent: 80, grade_point: 8 },
-      { grade: 'B2', min_percent: 61, max_percent: 70, grade_point: 7 },
-      { grade: 'C1', min_percent: 51, max_percent: 60, grade_point: 6 },
-      { grade: 'C2', min_percent: 41, max_percent: 50, grade_point: 5 },
-      { grade: 'D1', min_percent: 35, max_percent: 40, grade_point: 4 },
-      { grade: 'D2', min_percent: 0, max_percent: 34, grade_point: 3 },
+      { grade: 'A1', min_percent: '91', max_percent: '100', grade_point: '10' },
+      { grade: 'A2', min_percent: '81', max_percent: '90', grade_point: '9' },
+      { grade: 'B1', min_percent: '71', max_percent: '80', grade_point: '8' },
+      { grade: 'B2', min_percent: '61', max_percent: '70', grade_point: '7' },
+      { grade: 'C1', min_percent: '51', max_percent: '60', grade_point: '6' },
+      { grade: 'C2', min_percent: '41', max_percent: '50', grade_point: '5' },
+      { grade: 'D1', min_percent: '35', max_percent: '40', grade_point: '4' },
+      { grade: 'D2', min_percent: '0', max_percent: '34', grade_point: '3' },
     ])
   }
 
@@ -1490,7 +1512,16 @@ function GradingPanel({ onDone }: PanelProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        save.mutate({ name, is_default: true, bands })
+        save.mutate({
+          name,
+          is_default: true,
+          bands: bands.map((b) => ({
+            grade: b.grade.trim(),
+            min_percent: num(b.min_percent),
+            max_percent: num(b.max_percent),
+            grade_point: num(b.grade_point),
+          })),
+        })
       }}
     >
       <div className="mb-4">
@@ -1505,16 +1536,16 @@ function GradingPanel({ onDone }: PanelProps) {
             <div key={i} className="grid grid-cols-[4rem_5rem_5rem_5rem_auto] items-center gap-2 text-[14px]">
               <Input value={b.grade} onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade: x } : v)))} />
               <Input
-                value={String(b.min_percent)}
-                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, min_percent: Number(x) } : v)))}
+                value={b.min_percent}
+                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, min_percent: x } : v)))}
               />
               <Input
-                value={String(b.max_percent)}
-                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, max_percent: Number(x) } : v)))}
+                value={b.max_percent}
+                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, max_percent: x } : v)))}
               />
               <Input
-                value={String(b.grade_point)}
-                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade_point: Number(x) } : v)))}
+                value={b.grade_point}
+                onChange={(x) => setBands(bands.map((v, j) => (i === j ? { ...v, grade_point: x } : v)))}
               />
               <button
                 type="button"
@@ -1543,10 +1574,17 @@ function GradingPanel({ onDone }: PanelProps) {
             // A new band starts below the lowest one, because that is where a
             // school adding an F puts it, and pre-filling the numbers saves
             // working out what is still uncovered.
-            const lowest = bands.length ? Math.min(...bands.map((b) => b.min_percent)) : 101
+            const lowest = bands.length
+              ? Math.min(...bands.map((b) => num(b.min_percent)))
+              : 101
             setBands([
               ...bands,
-              { grade: '', min_percent: 0, max_percent: Math.max(lowest - 1, 0), grade_point: 0 },
+              {
+                grade: '',
+                min_percent: '0',
+                max_percent: String(Math.max(lowest - 1, 0)),
+                grade_point: '',
+              },
             ])
           }}
         >
