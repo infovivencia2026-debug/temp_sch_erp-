@@ -99,8 +99,9 @@ export default function SetupProgress() {
         title="Finish setting up your school"
         description={
           `${data.blocking_remaining} required ${data.blocking_remaining === 1 ? 'step' : 'steps'} left. ` +
-          'The figures below stay at zero until these are done — nothing is broken, ' +
-          'there is simply nothing to count yet.'
+          'The rest of the menu appears once these are done — attendance with nobody ' +
+          'to mark and report cards with no exam would each be correct and, together, ' +
+          'would read as a product that does not work.'
         }
         action={
           <Button size="sm" onClick={() => navigate(WIZARD)}>

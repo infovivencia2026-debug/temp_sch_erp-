@@ -4,13 +4,20 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
 	"github.com/school-erp/erp/internal/catalog"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/scope"
 )
 
 type catalogResponse struct {
-	ActiveRole  string        `json:"active_role"`
+	/* True while the school still owes a required setup step, and the reason
+	   most of its sections are missing from this response. The SPA says so on
+	   screen rather than leaving somebody to wonder where the product went. */
+	SetupRequired bool          `json:"setup_required"`
+	ActiveRole    string        `json:"active_role"`
 	Roles       []catalogRole `json:"roles"`
 	Scope       resolvedScope `json:"scope"`
 	Implemented []string      `json:"implemented"`
@@ -61,6 +68,81 @@ type resolvedScope struct {
 	Students      int  `json:"students"`
 }
 
+/* What a school must finish before the rest of the product appears.
+
+   A school that has just bought this sees eighty screens, and every one of
+   them is empty. Attendance with nobody to mark, report cards with no exam,
+   a fee counter with no fee heads: each of them correct, and together they
+   read as a product that does not work. The checklist was there from the
+   start and sat on the dashboard beside the eighty doors, which is a signpost
+   in a field of open gates.
+
+   So until the required steps are done, the menu is the setup and nothing
+   else. Not disabled — absent. A greyed-out control that never becomes
+   enabled is an advert wearing the clothes of a feature, and the school's own
+   staff cannot tell it from something broken.
+
+   Three things stay reachable throughout, because locking them would strand
+   somebody rather than guide them:
+
+     the setup itself, obviously;
+     Home, so there is a page to land on that says what is left;
+     My Profile, because a person must always be able to change their own
+     password and take leave, whatever state the school is in.
+
+   Only the required steps count. A school can run without a grading scale
+   until the first exam, and holding the product shut over a fee head nobody
+   has typed yet would be the gate doing harm.
+
+   Platform staff are exempt: a super admin looking into a half-built school is
+   the person who has to see everything, and gating them would hide the tools
+   they are there to use.
+*/
+func (s *Server) setupIncomplete(r *http.Request) bool {
+	id := httpx.IdentityFrom(r.Context())
+	if id.PlatformAdmin || id.InstitutionID == uuid.Nil {
+		return false
+	}
+
+	// The same three counts the checklist marks as blocking, asked as one
+	// question. Cheaper than the checklist's fourteen, and this runs on every
+	// catalogue read.
+	var classes, sections, subjects, classSubjects, staff, students int
+	var profileDone bool
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT (SELECT count(*) FROM classes)::int,
+			       (SELECT count(*) FROM sections)::int,
+			       (SELECT count(*) FROM subjects)::int,
+			       (SELECT count(*) FROM class_subjects)::int,
+			       (SELECT count(*) FROM employees WHERE status = 'active')::int,
+			       (SELECT count(*) FROM students WHERE status = 'active')::int,
+			       COALESCE((SELECT district IS NOT NULL AND state IS NOT NULL
+			                        AND affiliation_board IS NOT NULL
+			                   FROM institutions WHERE id = $1), false)`,
+			id.InstitutionID).
+			Scan(&classes, &sections, &subjects, &classSubjects, &staff, &students,
+				&profileDone)
+	})
+	if err != nil {
+		// A failed count is not a reason to lock a school out of its own
+		// product. Fail open: the checklist on the dashboard still says what
+		// is missing.
+		httpx.LogError(r, err)
+		return false
+	}
+
+	return !profileDone || classes == 0 || sections == 0 || subjects == 0 ||
+		classSubjects == 0 || staff == 0 || students == 0
+}
+
+// setupSections are the only sections a school sees before it has finished.
+var setupSections = map[string]bool{
+	"getting_started": true,
+	"home":            true,
+	"my_profile":      true,
+}
+
 // getCatalog returns the signed-in user's workspace: the roles they hold, the
 // sections and features within each, and whether each is reachable.
 //
@@ -85,8 +167,12 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Asked once for the whole response, not per section.
+	locked := s.setupIncomplete(r)
+
 	resp := catalogResponse{
-		Roles: []catalogRole{},
+		SetupRequired: locked,
+		Roles:         []catalogRole{},
 		Scope: resolvedScope{
 			PlatformAdmin: sc.PlatformAdmin,
 			AllCampuses:   sc.AllCampuses,
@@ -114,6 +200,10 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 			// wearing the clothes of a feature, and the school's own staff
 			// cannot tell it from something broken.
 			if !ent.Allows(sec.Slug) {
+				continue
+			}
+			// Until the required setup is done, only the setup.
+			if locked && !setupSections[sec.Slug] {
 				continue
 			}
 			cs := catalogSection{

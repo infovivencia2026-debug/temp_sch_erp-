@@ -34,6 +34,10 @@ export interface ApiRole {
 }
 
 export interface CatalogResponse {
+  /* True while a required setup step is outstanding, and the reason most of
+     the sections are missing from this response. Said on screen rather than
+     leaving somebody to wonder where the product went. */
+  setup_required?: boolean
   active_role: string
   roles: ApiRole[]
   scope: {
