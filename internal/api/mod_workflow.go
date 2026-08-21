@@ -97,14 +97,94 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 		if studentID != nil {
 			kind = "student"
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO leave_requests (institution_id, leave_type_id, subject_kind,
 			                            employee_id, student_id, from_date, to_date,
 			                            is_half_day, days, reason, status, applied_by)
 			VALUES ($1,$2::uuid,$3,$4,$5,$6::date,$7::date,$8,$9,$10,'pending',$11)
 			RETURNING id::text`,
 			id.InstitutionID, nullString(req.LeaveTypeID), kind, employeeID, studentID,
-			req.FromDate, req.ToDate, req.IsHalfDay, days, req.Reason, id.UserID).Scan(&newID)
+			req.FromDate, req.ToDate, req.IsHalfDay, days, req.Reason, id.UserID).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* Tell the people who can answer it.
+
+		   The request landed in a queue and waited for somebody to open that
+		   queue. A member of staff who applies on Friday afternoon has no way
+		   to know whether anybody has looked, and the approver has no way to
+		   know there is anything to look at — which is how a one-day leave sits
+		   pending for a week and gets taken anyway.
+
+		   Everyone who can approve, not one nominated person: a school with no
+		   head of department still has a principal, and a request that waits
+		   for a desk nobody sits at is never answered. Whoever gets there first
+		   decides it, and the others' notification becomes stale rather than
+		   wrong — the queue itself is the record. */
+		if kind == "staff" {
+			var who string
+			if err := tx.QueryRow(r.Context(),
+				`SELECT full_name FROM users WHERE id = $1`, id.UserID).Scan(&who); err != nil {
+				return err
+			}
+			// The role comes back with the person, because the link has to
+			// open in their own workspace: a head of department sent to the
+			// principal's URL gets a page they cannot open.
+			rows, err := tx.Query(r.Context(), `
+				SELECT DISTINCT ON (u.id) u.id, r.key
+				  FROM users u
+				  JOIN user_roles ur ON ur.user_id = u.id
+				  JOIN roles r ON r.id = ur.role_id
+				  JOIN role_permissions rp ON rp.role_id = r.id
+				 WHERE u.institution_id = $1
+				   AND u.status = 'active'
+				   AND u.id <> $2
+				   AND rp.permission_key = 'hr.leave.approve'
+				 ORDER BY u.id, CASE r.key
+				                  WHEN 'institution_admin' THEN 0
+				                  WHEN 'hod' THEN 1
+				                  ELSE 2 END`,
+				id.InstitutionID, id.UserID)
+			if err != nil {
+				return err
+			}
+			type approver struct {
+				id   uuid.UUID
+				role string
+			}
+			var approvers []approver
+			for rows.Next() {
+				var a approver
+				if err := rows.Scan(&a.id, &a.role); err != nil {
+					rows.Close()
+					return err
+				}
+				approvers = append(approvers, a)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+
+			leaveID, perr := uuid.Parse(newID)
+			if perr != nil {
+				return perr
+			}
+			span := req.FromDate
+			if req.ToDate != req.FromDate {
+				span += " to " + req.ToDate
+			}
+			for _, to := range approvers {
+				if err := notify(r, tx, id.InstitutionID, to.id, nil, "leave_request",
+					who+" has applied for leave",
+					span+" — "+req.Reason+". Approve or reject it from Approvals.",
+					"/"+to.role+"/approvals/approvals",
+					"leave_request", &leaveID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, errNotYourChild) {
 		httpx.NotFound(w, r)
@@ -156,6 +236,7 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 		var employeeID *uuid.UUID
 		var leaveTypeID *uuid.UUID
 		var days float64
+		var appliedBy *uuid.UUID
 		// Who may answer this one. HR answers anything; a class teacher
 		// answers their own students and nothing else. The predicate is part
 		// of the UPDATE rather than a check before it, so a request that is
@@ -176,12 +257,55 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 			   SET status = $2, decided_by = $3, decided_at = now(),
 			       decision_note = COALESCE($4, decision_note)
 			 WHERE id = $1 AND status = 'pending'`+guard+`
-			 RETURNING employee_id, leave_type_id, days`,
+			 RETURNING employee_id, leave_type_id, days, applied_by`,
 			lid, req.Decision, id.UserID, nullString(req.Note),
 			id.Can(rbac.LeaveApprove), id.UserID).
-			Scan(&employeeID, &leaveTypeID, &days); err != nil {
+			Scan(&employeeID, &leaveTypeID, &days, &appliedBy); err != nil {
 			return err
 		}
+
+		/* Tell the person who asked.
+
+		   A decision that nobody is told about is a decision the applicant
+		   discovers by opening the screen again on the off-chance — and the
+		   whole point of applying in a system rather than in the corridor is
+		   not having to. Approved or rejected: a refusal matters more, because
+		   somebody may otherwise not come in.
+
+		   The link goes to their own workspace's leave screen, not the
+		   approver's queue, which they cannot open. */
+		if appliedBy != nil {
+			var role string
+			if err := tx.QueryRow(r.Context(), `
+				SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+				 WHERE ur.user_id = $1
+				 ORDER BY CASE r.key
+				            WHEN 'institution_admin' THEN 0
+				            WHEN 'hod' THEN 1
+				            WHEN 'faculty' THEN 2
+				            ELSE 3 END
+				 LIMIT 1`, *appliedBy).Scan(&role); err != nil {
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				role = "faculty"
+			}
+			title := "Your leave was approved"
+			body := "Approved by " + id.FullName + "."
+			if req.Decision != "approved" {
+				title = "Your leave was not approved"
+				body = "Rejected by " + id.FullName + "."
+			}
+			if strings.TrimSpace(req.Note) != "" {
+				body += " " + strings.TrimSpace(req.Note)
+			}
+			if err := notify(r, tx, id.InstitutionID, *appliedBy, nil, "leave_decided",
+				title, body, "/"+role+"/my_profile/leave_self_service",
+				"leave_request", &lid); err != nil {
+				return err
+			}
+		}
+
 		if req.Decision != "approved" || employeeID == nil || leaveTypeID == nil {
 			return nil
 		}

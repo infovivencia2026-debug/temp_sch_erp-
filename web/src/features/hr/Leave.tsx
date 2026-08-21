@@ -37,7 +37,15 @@ interface LeaveRow {
 export default function Leave() {
   const qc = useQueryClient()
   const can = useCan()
-  const [status, setStatus] = useState('pending')
+  /* What you open on depends on why you are here.
+   *
+   * "Pending" is the right default for somebody who decides leave — the queue
+   * is the job. It is the wrong default for everybody else: your own request
+   * disappears from this screen the moment it is answered, which is exactly
+   * when you came to look at it. An applicant opens on all statuses and sees
+   * their own history, decided or not. */
+  const canDecide = can('hr.leave.approve')
+  const [status, setStatus] = useState(canDecide ? 'pending' : '')
   const [done, setDone] = useState('')
 
   const q = useQuery({
@@ -82,7 +90,7 @@ export default function Leave() {
   const items = q.data?.items ?? []
   const pending = items.filter((l) => l.status === 'pending')
   const staff = items.filter((l) => l.subject_kind === 'employee').length
-  const mayDecide = can('hr.leave.approve')
+  const mayDecide = canDecide
 
   return (
     <>

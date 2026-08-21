@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -42,7 +43,20 @@ interface Message {
 
 export default function StaffMessages() {
   const qc = useQueryClient()
-  const [openWith, setOpenWith] = useState('')
+  /* Opened on somebody, when the link says so.
+   *
+   * A notification about a message led here and stopped, leaving the reader
+   * to pick the sender out of a list of colleagues — the one thing the
+   * notification already knew. ?with= names them, and the URL then describes
+   * the conversation, so it is linkable and the back button works. */
+  const [params, setParams] = useSearchParams()
+  const openWith = params.get('with') ?? ''
+  const setOpenWith = (id: string) => {
+    const next = new URLSearchParams(params)
+    if (id) next.set('with', id)
+    else next.delete('with')
+    setParams(next, { replace: !id })
+  }
   const [find, setFind] = useState('')
   const [draft, setDraft] = useState('')
 

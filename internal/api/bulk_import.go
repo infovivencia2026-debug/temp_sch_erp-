@@ -976,7 +976,6 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				// Anything the failed row claimed to have created went back
 				// with it, so the undo record must not still name those rows.
 				ctx.created = ctx.created[:madeSoFar]
-				out.Imported = out.Imported
 				out.Rejected++
 				out.Problems = append(out.Problems,
 					importRow{Row: p.row, Data: p.data, Problem: werr.Error()})

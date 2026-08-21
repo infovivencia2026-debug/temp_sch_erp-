@@ -45,6 +45,8 @@ interface State {
   stale: boolean
   /** The error itself, shown for a genuine fault — see render(). */
   detail: string
+  /** The first frames of the component stack: which screen, which part. */
+  where?: string
 }
 
 export default class ChunkBoundary extends Component<Props, State> {
@@ -56,6 +58,20 @@ export default class ChunkBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
+    /* The component stack, on screen as well as in the console.
+     *
+     * The message alone says what went wrong and not where — "cannot read
+     * properties of undefined" is the same sentence in every file in the
+     * product. The first few frames of the stack name the component, which is
+     * the difference between a bug report and a hunt. */
+    const frames = (info.componentStack ?? '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 4)
+      .join('  ←  ')
+    if (frames) this.setState((st) => ({ ...st, where: frames }))
+
     // Logged either way: a chunk failure is worth knowing about even when the
     // reload hides it from the person who hit it.
     console.error('screen failed to render', error, info.componentStack)
@@ -95,6 +111,12 @@ export default class ChunkBoundary extends Component<Props, State> {
         {!this.state.stale && this.state.detail && (
           <p className="mt-2 break-words rounded border bg-muted/40 px-3 py-2 text-left font-mono text-[12px] text-muted-foreground">
             {this.state.detail}
+            {this.state.where && (
+              <>
+                <br />
+                <span className="opacity-70">in {this.state.where}</span>
+              </>
+            )}
           </p>
         )}
         <Button

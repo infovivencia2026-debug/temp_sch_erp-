@@ -223,7 +223,17 @@ function FilterChip({
  * to whoever is holding up a teacher's leave is the elapsed one.
  */
 function waited(iso: string) {
-  const mins = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000)
+  /* Postgres wrote the offset as "+00" — an hour with no minutes, which is
+     valid ISO 8601 and which JavaScript refuses to parse. Every date on this
+     screen therefore came out Invalid, and the arithmetic below printed
+     "NaNd waiting" against a request somebody was actually waiting on.
+  
+     The server emits "+00:00" now. This still repairs the short form, because
+     a page held open across the deploy is reading the old shape, and a stored
+     row somewhere may yet carry it. */
+  const at = new Date(/[+-]\d{2}$/.test(iso) ? iso + ':00' : iso)
+  if (Number.isNaN(at.getTime())) return ''
+  const mins = Math.max(0, (Date.now() - at.getTime()) / 60000)
   if (mins < 60) return 'just now'
   const hours = mins / 60
   if (hours < 24) return `${Math.round(hours)}h waiting`

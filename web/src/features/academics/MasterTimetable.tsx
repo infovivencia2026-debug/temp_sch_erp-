@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Input, Table, Td, Loading, ErrorState, EmptyState, FormNotice,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, Select,
+  Input, Table, Td, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { WEEKDAYS, cn } from '@/lib/utils'
@@ -163,67 +163,116 @@ export default function MasterTimetable() {
 
   const d = overview.data
   const s = d?.summary
+  const sections = d?.sections ?? []
+  const drafts = d?.open_drafts ?? []
+
+  /* One question, answered at the top: what happens next.
+   *
+   * The page opened with four counters, two tables and a draft panel, and on
+   * a school that has not started they are four zeroes and two empty boxes.
+   * Everything on it was true and none of it said what to do — so the screen
+   * that exists to get a timetable built was the screen you could not begin
+   * on.
+   *
+   * The order below is the order the work actually happens in, and exactly
+   * one of them is ever the answer.
+   */
+  const needsRequirements = (s?.required_periods ?? 0) === 0
+  const hasDraft = drafts.length > 0
+  const allLive = !needsRequirements && (s?.sections_without_timetable ?? 0) === 0
+
+  const stage = needsRequirements
+    ? {
+        tone: 'warn' as const,
+        title: 'Say how many periods each subject needs',
+        body:
+          'The solver places periods against what the subjects ask for, and nothing asks ' +
+          'for any yet. Set periods per week under Academics → Class Setup, or upload the ' +
+          'class-subjects sheet with a periods_per_week column. Nothing here can run until ' +
+          'it knows what to place.',
+      }
+    : hasDraft
+      ? {
+          tone: 'go' as const,
+          title:
+            drafts.length === 1
+              ? 'A draft is waiting to be read'
+              : drafts.length + ' drafts are waiting to be read',
+          body:
+            'Review it to see what it placed, correct anything the solver could not know, ' +
+            'and publish when it is right.',
+        }
+      : allLive
+        ? {
+            tone: 'done' as const,
+            title: 'Every section has a timetable',
+            body: 'Generate a new draft only when the year, the staff or the subjects change.',
+          }
+        : {
+            tone: 'go' as const,
+            title: 'Generate a draft',
+            body:
+              'A draft is a candidate worked out by the solver. It never touches the live ' +
+              'timetable — you read what it could and could not place, and publish it only ' +
+              'if you want it.',
+          }
 
   return (
     <>
       <PageHead
         eyebrow="Academics"
         title="Master timetable"
-        description="The whole school's week: what each section needs, what it currently runs, and the draft waiting to replace it. Generating never touches the live timetable — publishing does, once, deliberately."
+        description="The whole school's week. Generating writes a draft; publishing is what changes the live timetable."
       />
       <PageBody>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[13px] text-muted-foreground">
-            Academic year {d?.academic_year}
-          </span>
-          {mayWrite && (
-            <Button size="sm" disabled={generate.isPending} onClick={() => generate.mutate()}>
-              {generate.isPending ? 'Generating…' : 'Generate a draft for the whole school'}
-            </Button>
+        {/* The single instruction, and the single button that acts on it. */}
+        <Card
+          className={cn(
+            'border-l-4',
+            stage.tone === 'warn' && 'border-l-warning',
+            stage.tone === 'go' && 'border-l-primary',
+            stage.tone === 'done' && 'border-l-success',
           )}
-        </div>
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+            <div className="min-w-0 max-w-2xl">
+              <p className="text-[15px] font-medium">{stage.title}</p>
+              <p className="mt-1 text-[13.5px] text-muted-foreground">{stage.body}</p>
+              <p className="mt-2 text-[12.5px] text-muted-foreground">
+                {d?.academic_year} · {s?.sections ?? 0} sections ·{' '}
+                <span className="tabular-nums">
+                  {s?.live_periods ?? 0} of {s?.required_periods ?? 0}
+                </span>{' '}
+                periods live
+                {(s?.live_unstaffed ?? 0) > 0 && ` · ${s?.live_unstaffed} with no teacher`}
+              </p>
+            </div>
+            {mayWrite && !needsRequirements && (
+              <Button disabled={generate.isPending} onClick={() => generate.mutate()}>
+                {generate.isPending
+                  ? 'Generating…'
+                  : hasDraft
+                    ? 'Generate another'
+                    : 'Generate a draft'}
+              </Button>
+            )}
+          </div>
+        </Card>
 
         <FormNotice error={generate.error} ok={note} />
 
-        <CellGrid cols={4}>
-          <Stat
-            label="Sections"
-            value={s?.sections ?? 0}
-            hint={s?.sections_without_timetable
-              ? `${s.sections_without_timetable} with no timetable at all`
-              : 'every section has a timetable'}
-          />
-          <Stat
-            label="Periods live"
-            value={`${s?.live_periods ?? 0} of ${s?.required_periods ?? 0}`}
-            hint="against what the subjects ask for"
-          />
-          <Stat
-            label="Unstaffed periods"
-            value={s?.live_unstaffed ?? 0}
-            hint="placed, with nobody to teach them"
-          />
-          <Stat label="Open drafts" value={s?.open_drafts ?? 0} />
-        </CellGrid>
-
-        <Card>
-          <CardHeader
-            title="Drafts waiting"
-            description="A draft is a candidate. It becomes the school's timetable only when somebody publishes it."
-          />
-          {(d?.open_drafts.length ?? 0) === 0 ? (
-            <div className="p-5">
-              <EmptyState
-                title="No draft open"
-                body="Generate one to see what the solver can place and, more usefully, what it cannot."
-              />
-            </div>
-          ) : (
-            <Table head={['Draft', 'Sections', 'Placed', 'Unmet', 'Generated', '']}>
-              {(d?.open_drafts ?? []).map((x) => (
+        {/* Shown only when there is one. An empty "Drafts waiting" card was a
+            box explaining something that did not exist. */}
+        {hasDraft && (
+          <Card>
+            <CardHeader
+              title="Drafts"
+              description="A draft becomes the timetable only when somebody publishes it."
+            />
+            <Table head={['Draft', 'Placed', 'Unmet', 'Generated', '']}>
+              {drafts.map((x) => (
                 <tr key={x.id}>
                   <Td className="font-medium">{x.name}</Td>
-                  <Td className="tabular-nums">{x.sections}</Td>
                   <Td className="tabular-nums">
                     {x.periods_placed} of {x.periods_required}
                   </Td>
@@ -231,7 +280,7 @@ export default function MasterTimetable() {
                     {x.blocking_issues > 0 ? (
                       <Badge tone="danger">{x.blocking_issues} unmet</Badge>
                     ) : (
-                      <Badge tone="success">everything placed</Badge>
+                      <Badge tone="success">all placed</Badge>
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
@@ -239,16 +288,19 @@ export default function MasterTimetable() {
                     {x.generated_by ? ` · ${x.generated_by}` : ''}
                   </Td>
                   <Td>
-                    <Button size="sm" variant="secondary"
-                      onClick={() => setOpenDraft(openDraft === x.id ? '' : x.id)}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setOpenDraft(openDraft === x.id ? '' : x.id)}
+                    >
                       {openDraft === x.id ? 'Close' : 'Review'}
                     </Button>
                   </Td>
                 </tr>
               ))}
             </Table>
-          )}
-        </Card>
+          </Card>
+        )}
 
         {openDraft && (
           <DraftReview
@@ -263,31 +315,43 @@ export default function MasterTimetable() {
           />
         )}
 
+        {/* Three columns, not seven, and the draft column only while a draft
+            exists — a column of dashes is a column you have to read to
+            discover it says nothing. */}
         <Card>
           <CardHeader
             title="Every section"
-            description="What each one needs, what it runs today, and what the draft would give it. A school at 96% of its periods can still have one Class 9 with no Chemistry, which is why this is per section and not a percentage."
+            description="A school at 96% of its periods can still have one class with no science, which is why this is per section rather than a percentage."
           />
           <Table
-            head={['Class', 'Section', 'Needs', 'Live now', 'Unstaffed', 'In draft', 'Draft']}
-            empty={!(d?.sections.length ?? 0)}
+            head={
+              hasDraft
+                ? ['Section', 'Needs', 'Live now', 'In draft']
+                : ['Section', 'Needs', 'Live now']
+            }
+            empty={sections.length === 0}
             emptyLabel="No sections in this academic year yet."
           >
-            {(d?.sections ?? []).map((x) => (
+            {sections.map((x) => (
               <tr key={x.section_id}>
-                <Td>{x.class_name}</Td>
-                <Td className="font-medium">{x.section_name}</Td>
-                <Td className="tabular-nums">{x.required_periods}</Td>
-                <Td className={cn('tabular-nums',
-                  x.live_periods === 0 && 'font-medium text-destructive')}>
+                <Td className="font-medium">
+                  {x.class_name}-{x.section_name}
+                </Td>
+                <Td className="tabular-nums">{x.required_periods || '—'}</Td>
+                <Td
+                  className={cn(
+                    'tabular-nums',
+                    x.live_periods === 0 && 'font-medium text-destructive',
+                  )}
+                >
                   {x.live_periods === 0 ? 'none' : x.live_periods}
+                  {x.live_unstaffed > 0 && (
+                    <span className="ml-1.5 text-[12px] text-warning">
+                      {x.live_unstaffed} unstaffed
+                    </span>
+                  )}
                 </Td>
-                <Td className={cn('tabular-nums',
-                  x.live_unstaffed > 0 && 'text-warning')}>
-                  {x.live_unstaffed || '—'}
-                </Td>
-                <Td className="tabular-nums">{x.draft_periods || '—'}</Td>
-                <Td className="text-muted-foreground">{x.draft_name ?? '—'}</Td>
+                {hasDraft && <Td className="tabular-nums">{x.draft_periods || '—'}</Td>}
               </tr>
             ))}
           </Table>

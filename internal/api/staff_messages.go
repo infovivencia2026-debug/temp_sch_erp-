@@ -248,7 +248,13 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 
 		return notify(r, tx, id.InstitutionID, other, nil, "staff_message",
 			"Message from "+from, body,
-			"/"+role+"/communication/messages",
+			/* With the sender on the end of it.
+			
+			   The link opened the Messages screen and left the reader to find
+			   the name in a list of eleven colleagues — which is the same
+			   search the notification had just done for them. It carries who
+			   wrote, and the screen opens that conversation. */
+			"/"+role+"/communication/messages?with="+id.UserID.String(),
 			"staff_message", &newID)
 	})
 	switch {
