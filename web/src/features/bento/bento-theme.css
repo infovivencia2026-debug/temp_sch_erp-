@@ -16,9 +16,13 @@
 [data-layout='bento'] {
   color-scheme: light;
 
-  --bento-bg: #f4f5f7;
+  /* The ground is deliberately a real step below the card. At #f4f5f7 the two
+     measured 1.09:1 and the cards floated on almost the same white, so the grid
+     read as one pale sheet rather than as separate objects. #dfe3ea gives 1.29:1
+     — visible separation — while muted text still clears 4.94:1 on it. */
+  --bento-bg: #dfe3ea;
   --bento-card: #ffffff;
-  --bento-card-2: #f0f1f4;
+  --bento-card-2: #eef0f4;
   --bento-ink: #111827;
   --bento-muted: #5c5f6b;          /* 5.74:1 on the card */
   --bento-line: #e5e7eb;

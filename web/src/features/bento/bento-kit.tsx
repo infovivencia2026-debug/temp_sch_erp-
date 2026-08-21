@@ -153,7 +153,7 @@ const TONE: Record<CellTone, string> = {
   // and the eye wants an edge; nothing in dark, where the card is separated by
   // tone alone. That is the reference's flat card, and a border there would
   // read as a box drawn around it.
-  plain: 'border-[var(--bento-line)] dark:border-transparent bg-[var(--bento-card)] text-[var(--bento-ink)]',
+  plain: 'border-[var(--bento-line)] shadow-sm dark:border-transparent dark:shadow-none bg-[var(--bento-card)] text-[var(--bento-ink)]',
   // In dark the mint gradient stands 14.24:1 off the ground and needs no edge.
   // In light it sits at 1.23:1 against a near-white page — the card would
   // dissolve into it — so it takes the same hairline every other light cell
@@ -354,7 +354,7 @@ export function Cue({
       )}
     >
       {label}
-      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+      <ArrowUpRight className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />
     </Link>
   )
 }
@@ -375,7 +375,7 @@ export function AnchorAction({ to, label }: { to: string; label: string }) {
       )}
     >
       {label}
-      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+      <ArrowUpRight className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />
     </Link>
   )
 }
@@ -454,7 +454,7 @@ export function Sparkline({
         d={d}
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
