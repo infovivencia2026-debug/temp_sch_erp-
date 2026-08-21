@@ -1068,7 +1068,7 @@ func (s *Server) listReminderPlans(w http.ResponseWriter, r *http.Request) {
 				v.Gate = why
 			}
 			if err := tx.QueryRow(r.Context(), `
-				SELECT to_char(last_run_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), last_queued, last_error
+				SELECT to_char(last_run_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', last_queued, last_error
 				  FROM message_trigger_rules WHERE id = $1`, p.ID).
 				Scan(&v.LastRunAt, &v.LastQueued, &v.LastError); err != nil {
 				return err

@@ -245,11 +245,11 @@ func (s *Server) listParentFeedback(w http.ResponseWriter, r *http.Request) {
 			       t.category, t.subject, t.priority, t.status,
 			       t.owner_department, au.full_name,
 			       t.subject_employee_id IS NOT NULL,
-			       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.respond_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolve_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.acknowledged_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolved_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.respond_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolve_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.acknowledged_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       t.escalated_at IS NOT NULL,
 			       CASE WHEN t.resolve_due_at IS NULL THEN NULL
 			            ELSE (EXTRACT(epoch FROM
@@ -325,11 +325,11 @@ func (s *Server) getParentFeedback(w http.ResponseWriter, r *http.Request) {
 			       t.category, t.subject, t.priority, t.status,
 			       t.owner_department, au.full_name,
 			       t.subject_employee_id IS NOT NULL,
-			       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.respond_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolve_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.acknowledged_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolved_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.respond_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolve_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.acknowledged_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       t.escalated_at IS NOT NULL,
 			       CASE WHEN t.resolve_due_at IS NULL THEN NULL
 			            ELSE (EXTRACT(epoch FROM
@@ -391,7 +391,7 @@ func (s *Server) listFeedbackUpdates(w http.ResponseWriter, r *http.Request) {
 		}
 		rows, err := tx.Query(r.Context(), `
 			SELECT g.id::text, g.kind, g.body, g.new_status, g.visible_to_parent,
-			       u.full_name, to_char(g.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       u.full_name, to_char(g.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM grievance_updates g
 			  JOIN support_tickets t ON t.id = g.ticket_id
 			  LEFT JOIN users u ON u.id = g.author_id
@@ -1138,10 +1138,10 @@ func (s *Server) getPortalFeedback(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT t.id::text, t.category, t.subject, t.body, t.status,
 			       t.owner_department,
-			       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.respond_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolve_due_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.resolved_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.respond_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolve_due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.resolved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       t.resolution, t.satisfaction
 			  FROM support_tickets t
 			 WHERE t.id = $1 AND t.raised_by = $2 AND t.audience = 'school'`,
@@ -1153,7 +1153,7 @@ func (s *Server) getPortalFeedback(w http.ResponseWriter, r *http.Request) {
 		}
 		rows, err := tx.Query(r.Context(), `
 			SELECT g.id::text, g.kind, g.body, g.new_status, g.visible_to_parent,
-			       u.full_name, to_char(g.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       u.full_name, to_char(g.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM grievance_updates g
 			  JOIN support_tickets t ON t.id = g.ticket_id
 			  LEFT JOIN users u ON u.id = g.author_id
@@ -1279,10 +1279,10 @@ const showcaseSelect = `
 	       a.kind, a.title, a.description, a.showcase_note, a.level, a."position",
 	       to_char(a.awarded_on,'YYYY-MM-DD'),
 	       a.is_published,
-	       to_char(a.published_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(a.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       pu.full_name,
 	       a.consent_basis, cu.full_name,
-	       to_char(a.consent_confirmed_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(a.consent_confirmed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       (SELECT count(*) FROM achievement_media m
 	         WHERE m.achievement_id = a.id)::int
 	  FROM student_achievements a
@@ -2082,8 +2082,8 @@ func (s *Server) listCounselorThreads(w http.ResponseWriter, r *http.Request) {
 		       concat_ws(' ', st.first_name, st.last_name),
 		       t.subject, t.status, t.urgency, p.role_in_thread,
 		       COALESCE(ou.full_name, 'Unknown'),
-		       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(t.last_message_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(t.last_message_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       (SELECT count(*) FROM counselor_messages m
 		         WHERE m.thread_id = t.id
 		           AND (p.last_read_at IS NULL OR m.created_at > p.last_read_at)
@@ -2350,8 +2350,8 @@ func (s *Server) getCounselorThread(w http.ResponseWriter, r *http.Request) {
 			       concat_ws(' ', st.first_name, st.last_name),
 			       t.subject, t.status, t.urgency,
 			       COALESCE(ou.full_name, 'Unknown'),
-			       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.last_message_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.last_message_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (SELECT count(*) FROM counselor_thread_participants p2
 			         WHERE p2.thread_id = t.id AND p2.removed_at IS NULL)::int
 			  FROM counselor_threads t
@@ -2408,7 +2408,7 @@ func (s *Server) listCounselorMessages(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT m.id::text, COALESCE(u.full_name,'Unknown'), m.sender_id::text,
 			       m.sender_id = $2, m.body,
-			       to_char(m.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM counselor_messages m
 			  LEFT JOIN users u ON u.id = m.sender_id
 			 WHERE m.thread_id = $1
@@ -2529,8 +2529,8 @@ func (s *Server) listCounselorParticipants(w http.ResponseWriter, r *http.Reques
 		rows, err := tx.Query(r.Context(), `
 			SELECT p.user_id::text, COALESCE(u.full_name,'Unknown'), p.role_in_thread,
 			       au.full_name, p.added_reason,
-			       to_char(p.added_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(p.removed_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(p.added_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(p.removed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM counselor_thread_participants p
 			  LEFT JOIN users u ON u.id = p.user_id
 			  LEFT JOIN users au ON au.id = p.added_by

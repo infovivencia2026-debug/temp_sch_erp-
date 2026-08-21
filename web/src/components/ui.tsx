@@ -182,13 +182,35 @@ export function UnavailableState({
  * The signature pulse grid: cells separated by the background showing through
  * a 1px gap, rather than each cell drawing its own border.
  */
+/* A row of stat cells, as wide as it has cells to fill.
+
+   `cols` is a ceiling, not a promise. The grid draws its own hairlines by
+   giving the container a background and letting the gaps show through, which
+   is elegant while every track is occupied and leaves a grey rectangle at the
+   end of the row the moment one is not — three stats in a four-column grid
+   showed a fourth, empty, lit cell that looked like a card that had failed to
+   load.
+
+   So the count of real children decides the width. Three stats make three
+   columns and the row ends where the content ends; four still make four. The
+   ceiling is kept because a row of six should wrap rather than shrink to six
+   unreadable columns.
+
+   Children are counted with Children.count rather than by asking the caller,
+   because callers pass conditionals — {money && <Stat/>} — and the honest
+   number is the one after those have resolved. toArray drops the nulls and
+   booleans those produce, which count() alone would include. */
 export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: ReactNode }) {
+  const filled = Children.toArray(children).length
+  const wide = Math.min(cols, Math.max(1, filled))
   return (
     <div
       className={cn(
         'cell-grid reveal grid-cols-1 sm:grid-cols-2',
-        cols === 3 && 'md:grid-cols-3',
-        cols === 4 && 'md:grid-cols-3 xl:grid-cols-4',
+        wide === 1 && 'sm:grid-cols-1',
+        wide === 2 && 'md:grid-cols-2',
+        wide === 3 && 'md:grid-cols-3',
+        wide >= 4 && 'md:grid-cols-3 xl:grid-cols-4',
       )}
     >
       {children}

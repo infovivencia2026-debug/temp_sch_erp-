@@ -322,7 +322,7 @@ type posTerminalRequest struct {
 func (s *Server) listPosTerminals(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT t.id::text, t.code, t.name, t.kind, t.location, t.is_active,
-		       to_char(o.opened_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name
+		       to_char(o.opened_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name
 		  FROM pos_terminals t
 		  LEFT JOIN LATERAL (
 		      SELECT ts.opened_at, ts.opened_by
@@ -434,10 +434,10 @@ tillSessionSQL is the one query every session view is built from.
 const tillSessionSQL = `
 	SELECT ts.id::text, ts.terminal_id::text, t.name, t.kind,
 	       COALESCE(uo.full_name, '—'),
-	       to_char(ts.opened_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(ts.opened_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       ts.opening_float_paise, ts.status,
 	       uc.full_name,
-	       to_char(ts.closed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(ts.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       ts.counted_cash_paise, ts.expected_cash_paise, ts.paid_out_paise,
 	       ts.variance_paise, ts.variance_reason,
 	       COALESCE(a.cash_sales, 0), COALESCE(a.cash_returns, 0),
@@ -784,7 +784,7 @@ func (s *Server) getTillVariance(w http.ResponseWriter, r *http.Request) {
 		// and bigint there, which Postgres reports as 42P08.
 		rows, e := tx.Query(r.Context(), `
 			SELECT ts.id::text, t.name, t.kind, COALESCE(u.full_name, '—'),
-			       to_char(ts.closed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(ts.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       ts.expected_cash_paise, ts.counted_cash_paise, ts.variance_paise,
 			       ts.variance_reason
 			  FROM pos_till_sessions ts
@@ -1176,7 +1176,7 @@ const posSaleSQL = `
 	       s.original_sale_id::text, s.student_id::text,
 	       btrim(st.first_name || ' ' || COALESCE(st.last_name, '')),
 	       s.buyer_name,
-	       to_char(s.sold_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(s.sold_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       to_char(s.sold_on, 'YYYY-MM-DD'),
 	       s.payment_mode, s.subtotal_paise, s.discount_paise, s.tax_paise,
 	       s.total_paise, s.receipt_no, s.invoice_id::text, iv.invoice_no,

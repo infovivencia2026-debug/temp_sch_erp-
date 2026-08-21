@@ -329,10 +329,10 @@ func (s *Server) listLOCSubmissions(w http.ResponseWriter, r *http.Request) {
 		SELECT l.id::text, l.academic_year_id::text, l.board, l.exam_name, l.stage,
 		       l.title, l.fee_per_candidate_paise, l.status, l.candidate_count,
 		       l.blocker_count, l.warning_count,
-		       to_char(l.validated_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(l.filed_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(l.validated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(l.filed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       u.full_name, l.board_ack_no, l.notes,
-		       to_char(l.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(l.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM loc_submissions l
 		  LEFT JOIN users u ON u.id = l.filed_by
 		 ORDER BY l.created_at DESC`, nil,
@@ -831,10 +831,10 @@ func locLoad(r *http.Request, tx pgx.Tx, subID uuid.UUID) (locSubmissionRow, err
 		SELECT l.id::text, l.academic_year_id::text, l.board, l.exam_name, l.stage,
 		       l.title, l.fee_per_candidate_paise, l.status, l.candidate_count,
 		       l.blocker_count, l.warning_count,
-		       to_char(l.validated_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(l.filed_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(l.validated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(l.filed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       u.full_name, l.board_ack_no, l.notes,
-		       to_char(l.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(l.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM loc_submissions l
 		  LEFT JOIN users u ON u.id = l.filed_by
 		 WHERE l.id = $1`, subID).
@@ -1445,7 +1445,7 @@ func (s *Server) listSQAAAssessments(w http.ResponseWriter, r *http.Request) {
 		       a.framework_name, a.framework_version, a.title, a.status,
 		       to_char(a.started_on,'YYYY-MM-DD'), to_char(a.due_on,'YYYY-MM-DD'),
 		       a.score_bp, a.max_score_bp,
-		       to_char(a.submitted_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name, a.notes,
+		       to_char(a.submitted_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name, a.notes,
 		       (SELECT count(*) FROM sqaa_assessment_entries e
 		         WHERE e.assessment_id = a.id AND e.rating <> 'not_assessed')::int,
 		       (SELECT count(*) FROM sqaa_assessment_entries e
@@ -1666,7 +1666,7 @@ func (s *Server) getSQAAAssessment(w http.ResponseWriter, r *http.Request) {
 			       a.framework_name, a.framework_version, a.title, a.status,
 			       to_char(a.started_on,'YYYY-MM-DD'), to_char(a.due_on,'YYYY-MM-DD'),
 			       a.score_bp, a.max_score_bp,
-			       to_char(a.submitted_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name, a.notes,
+			       to_char(a.submitted_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name, a.notes,
 			       (SELECT count(*) FROM sqaa_assessment_entries e
 			         WHERE e.assessment_id = a.id AND e.rating <> 'not_assessed')::int,
 			       (SELECT count(*) FROM sqaa_assessment_entries e
@@ -1693,7 +1693,7 @@ func (s *Server) getSQAAAssessment(w http.ResponseWriter, r *http.Request) {
 			SELECT e.id::text, e.standard_id::text, e.standard_code, e.standard_name,
 			       e.domain_code, e.domain_name, e.rating, e.score_bp, e.weight_bp,
 			       e.evidence_required, e.remarks, u.full_name,
-			       to_char(e.assessed_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(e.assessed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM sqaa_assessment_entries e
 			  LEFT JOIN users u ON u.id = e.assessed_by
 			 WHERE e.assessment_id = $1
@@ -1722,7 +1722,7 @@ func (s *Server) getSQAAAssessment(w http.ResponseWriter, r *http.Request) {
 		erows, err := tx.Query(r.Context(), `
 			SELECT ev.entry_id::text, ev.id::text, ev.file_id::text, f.original_name,
 			       ev.external_url, ev.caption, u.full_name,
-			       to_char(ev.added_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(ev.added_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM sqaa_evidence ev
 			  JOIN sqaa_assessment_entries e ON e.id = ev.entry_id
 			  LEFT JOIN files f ON f.id = ev.file_id AND f.deleted_at IS NULL
@@ -2139,7 +2139,7 @@ func sqaaActions(r *http.Request, tx pgx.Tx, aid *uuid.UUID) ([]sqaaActionRow, e
 		       i.title, i.detail, i.owner_employee_id::text,
 		       COALESCE(i.owner_name, e.first_name || ' ' || COALESCE(e.last_name,'')),
 		       to_char(i.due_on,'YYYY-MM-DD'), i.priority, i.status, i.progress_note,
-		       to_char(i.closed_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(i.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       (i.due_on IS NOT NULL AND i.due_on < CURRENT_DATE
 		        AND i.status IN ('open','in_progress')),
 		       a.title
@@ -2351,7 +2351,7 @@ func (s *Server) listChildInfoImports(w http.ResponseWriter, r *http.Request) {
 		       i.suppressed_count,
 		       (SELECT count(*) FROM child_info_differences d
 		         WHERE d.import_id = i.id AND d.status = 'open')::int,
-		       u.full_name, to_char(i.imported_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), i.note
+		       u.full_name, to_char(i.imported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', i.note
 		  FROM child_info_imports i
 		  LEFT JOIN users u ON u.id = i.imported_by
 		 ORDER BY i.imported_at DESC`, nil,
@@ -3134,7 +3134,7 @@ func (s *Server) listChildInfoResolutions(w http.ResponseWriter, r *http.Request
 	items, err := collect(s, r, `
 		SELECT res.id::text, res.kind, res.match_key, res.field, res.portal_value,
 		       res.school_value, res.action, res.note, u.full_name,
-		       to_char(res.resolved_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(res.resolved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM child_info_resolutions res
 		  LEFT JOIN users u ON u.id = res.resolved_by
 		 ORDER BY res.resolved_at DESC`, nil,
@@ -3762,7 +3762,7 @@ func (s *Server) listWorkingDayAdjustments(w http.ResponseWriter, r *http.Reques
 			SELECT a.id::text, a.class_id::text, c.name,
 			       to_char(a.on_date,'YYYY-MM-DD'), a.days_delta::float8,
 			       a.minutes_delta, a.reason, u.full_name,
-			       to_char(a.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(a.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM working_days_adjustments a
 			  LEFT JOIN classes c ON c.id = a.class_id
 			  LEFT JOIN users u ON u.id = a.created_by
@@ -3909,8 +3909,8 @@ func (s *Server) listWorkingDaysReturns(w http.ResponseWriter, r *http.Request) 
 			SELECT t.id::text, t.academic_year_id::text, t.title,
 			       to_char(t.period_from,'YYYY-MM-DD'), to_char(t.period_to,'YYYY-MM-DD'),
 			       t.status, t.working_days::float8, t.classes_short,
-			       to_char(t.filed_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name, t.notes,
-			       to_char(t.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(t.filed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name, t.notes,
+			       to_char(t.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM working_days_returns t
 			  LEFT JOIN users u ON u.id = t.filed_by
 			 ORDER BY t.created_at DESC`)
@@ -4191,11 +4191,11 @@ func (s *Server) listChildInfoConnectors(w http.ResponseWriter, r *http.Request)
 			SELECT c.id::text, c.state_code, c.name, c.provider, c.endpoint_url,
 			       c.username, (c.credentials IS NOT NULL AND length(c.credentials) > 0),
 			       c.schedule, c.is_enabled,
-			       to_char(c.last_sync_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(c.last_sync_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       c.last_status, c.last_error,
 			       (SELECT count(*) FROM child_info_sync_runs g
 			         WHERE g.connector_id = c.id)::int,
-			       to_char(c.updated_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(c.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM child_info_portal_connectors c
 			 ORDER BY c.state_code, c.name`)
 		if err != nil {
@@ -4381,8 +4381,8 @@ func (s *Server) listChildInfoRuns(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT g.id::text, g.connector_id::text, c.name, c.state_code,
 			       COALESCE(g.institution_name, i.name), g.direction, g.status,
-			       to_char(g.started_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(g.finished_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(g.started_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(g.finished_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       g.row_count, g.message, u.full_name
 			  FROM child_info_sync_runs g
 			  JOIN child_info_portal_connectors c ON c.id = g.connector_id

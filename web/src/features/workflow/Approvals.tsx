@@ -112,7 +112,21 @@ export default function Approvals() {
               body="Nothing of this kind is pending. New requests appear here as they are raised."
             />
           ) : (
-            <ul className="divide-y">
+            /* Five rows, then it scrolls inside itself.
+
+               The queue is the bottom of a page that also carries four stat
+               cells and a header, so a principal with twenty requests was
+               scrolling the whole document to reach the twentieth and losing
+               the counts off the top on the way. Bounding the list keeps the
+               summary and the work in one view, which is the only arrangement
+               where the counts are any use while you are clearing them.
+
+               Sized in rem rather than by counting rows: a row is two or three
+               lines depending on how long the reason is, so a fixed row height
+               would clip some and pad others. 34rem is about five typical
+               rows, and the last one sits half-visible at the fold, which is
+               what tells the eye there is more without needing a shadow. */
+            <ul className="max-h-[34rem] divide-y overflow-y-auto overscroll-contain rounded-b-[10px]">
               {items.map((it) => {
                 const K = KINDS[it.kind] ?? { label: it.kind, icon: Inbox }
                 const Icon = K.icon

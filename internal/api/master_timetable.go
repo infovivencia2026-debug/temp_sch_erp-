@@ -168,8 +168,8 @@ func (s *Server) getMasterTimetableOverview(w http.ResponseWriter, r *http.Reque
 			SELECT d.id::text, d.name, d.status, d.seed,
 			       d.academic_year_id::text, ay.name,
 			       d.periods_required, d.periods_placed, d.blocking_issues, d.warning_issues,
-			       gu.full_name, to_char(d.generated_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
-			       pu.full_name, to_char(d.published_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+			       gu.full_name, to_char(d.generated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       pu.full_name, to_char(d.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (SELECT count(DISTINCT de.section_id)::int FROM timetable_draft_entries de
 			         WHERE de.draft_id = d.id)
 			  FROM timetable_drafts d

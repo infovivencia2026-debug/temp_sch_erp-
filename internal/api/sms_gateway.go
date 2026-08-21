@@ -1608,8 +1608,8 @@ func (s *Server) getSMSGatewayOverview(w http.ResponseWriter, r *http.Request) {
 
 		rows, err := tx.Query(r.Context(), `
 			SELECT d.id, d.name, d.android_version, d.sim_operator, d.app_version,
-			       to_char(d.paired_at,    'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(d.last_seen_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(d.paired_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(d.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       EXTRACT(EPOCH FROM (now() - d.last_seen_at)),
 			       d.battery_pct, d.charging, d.signal_dbm, d.sim_ready,
 			       d.paused, d.poll_seconds, d.per_minute_cap,
@@ -1697,7 +1697,7 @@ func (s *Server) getSMSGatewayOverview(w http.ResponseWriter, r *http.Request) {
 		// copies bodies out of message_log for anybody who can open it.
 		fails, err := tx.Query(r.Context(), `
 			SELECT g.message_id, d.name,
-			       to_char(g.completed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(g.completed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       COALESCE(g.error, 'no reason reported'), g.state
 			  FROM sms_gateway_dispatch g
 			  LEFT JOIN sms_gateway_devices d ON d.id = g.device_id

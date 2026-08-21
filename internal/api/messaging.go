@@ -2200,7 +2200,7 @@ func (s *Server) listMessagingProviders(w http.ResponseWriter, r *http.Request) 
 		stored := map[string]providerView{}
 		rows, err := tx.Query(r.Context(), `
 			SELECT provider, config, enabled, octet_length(COALESCE(credentials,''::bytea)) > 0,
-			       to_char(last_ok_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), last_error
+			       to_char(last_ok_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', last_error
 			  FROM integrations
 			 WHERE institution_id = $1 AND kind = 'messaging'`, id.InstitutionID)
 		if err != nil {
@@ -2629,7 +2629,7 @@ func (s *Server) listTriggerRules(w http.ResponseWriter, r *http.Request) {
 			SELECT id, name, event, condition, audience, channel, template_code,
 			       lead_minutes, COALESCE(quiet_from::text,''), COALESCE(quiet_to::text,''),
 			       is_active,
-			       to_char(last_run_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), last_queued, last_error
+			       to_char(last_run_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', last_queued, last_error
 			  FROM message_trigger_rules
 			 WHERE institution_id = $1 AND plan_kind IS NULL
 			 ORDER BY event, name`, id.InstitutionID)
@@ -3106,9 +3106,9 @@ func (s *Server) listMessageLog(w http.ResponseWriter, r *http.Request) {
 			SELECT m.id, m.channel, m.recipient, m.subject, m.status, m.provider,
 			       m.template_code, m.source_kind, tr.name, m.occurrence_key, m.error,
 			       m.attempts,
-			       to_char(m.queued_at,  'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(m.sent_at,    'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(m.send_after, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(m.queued_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(m.send_after AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM message_log m
 			  LEFT JOIN message_trigger_rules tr
 			         ON tr.id = m.source_id AND m.source_kind = 'trigger_rule'

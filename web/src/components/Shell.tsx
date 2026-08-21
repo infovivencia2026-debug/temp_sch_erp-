@@ -340,13 +340,13 @@ export function Shell({ children }: { children: ReactNode }) {
             onClick={() => toggleRail(true)}
             aria-label="Hide navigation"
             title="Hide navigation"
-            className="absolute right-3 top-3 z-10 hidden h-8 w-8 place-items-center rounded-[7px]
-                       text-muted-foreground transition-colors duration-100
+            className="absolute right-2.5 top-2.5 z-10 hidden h-10 w-10 place-items-center
+                       rounded-full text-muted-foreground transition-colors duration-100
                        hover:bg-surface-hover hover:text-foreground
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                        lg:grid"
           >
-            <PanelLeftClose className="h-4 w-4" />
+            <PanelLeftClose className="h-5 w-5" />
           </button>
           <button
             onClick={() => setSwitcherOpen((v) => !v)}
@@ -354,7 +354,11 @@ export function Shell({ children }: { children: ReactNode }) {
             aria-haspopup="menu"
             disabled={catalog.roles.length < 2}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-[7px] px-2 py-2 text-left',
+              /* pr-12 keeps the role name clear of the hide control sitting over
+                 this button's right edge. Without it the label truncates at the
+                 button's far side and the last characters render underneath it,
+                 which reads as a rendering fault rather than a truncation. */
+              'flex w-full items-center gap-2.5 rounded-[7px] py-2 pl-2 pr-12 text-left',
               'transition-colors duration-100',
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}

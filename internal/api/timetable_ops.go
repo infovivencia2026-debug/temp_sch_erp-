@@ -769,8 +769,8 @@ func (s *Server) listTimetableDrafts(w http.ResponseWriter, r *http.Request) {
 		SELECT d.id::text, d.name, d.status, d.seed,
 		       d.academic_year_id::text, ay.name,
 		       d.periods_required, d.periods_placed, d.blocking_issues, d.warning_issues,
-		       gu.full_name, to_char(d.generated_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
-		       pu.full_name, to_char(d.published_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+		       gu.full_name, to_char(d.generated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       pu.full_name, to_char(d.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       (SELECT count(DISTINCT de.section_id)::int FROM timetable_draft_entries de
 		         WHERE de.draft_id = d.id)
 		  FROM timetable_drafts d
@@ -811,8 +811,8 @@ func (s *Server) getTimetableDraft(w http.ResponseWriter, r *http.Request) {
 			SELECT d.id::text, d.name, d.status, d.seed,
 			       d.academic_year_id::text, ay.name,
 			       d.periods_required, d.periods_placed, d.blocking_issues, d.warning_issues,
-			       gu.full_name, to_char(d.generated_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
-			       pu.full_name, to_char(d.published_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+			       gu.full_name, to_char(d.generated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       pu.full_name, to_char(d.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (SELECT count(DISTINCT de.section_id)::int FROM timetable_draft_entries de
 			         WHERE de.draft_id = d.id)
 			  FROM timetable_drafts d
@@ -1938,7 +1938,7 @@ func (s *Server) listCoverRequests(w http.ResponseWriter, r *http.Request) {
 		       to_char(sr.from_date,'YYYY-MM-DD'), to_char(sr.to_date,'YYYY-MM-DD'),
 		       sr.reason, sr.status, su.full_name, sr.suggested_user_id::text,
 		       sr.leave_request_id::text, du.full_name, sr.decision_note,
-		       to_char(sr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+		       to_char(sr.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       (SELECT count(*)::int FROM substitution_request_periods p
 		         WHERE p.request_id = sr.id),
 		       (SELECT count(*)::int FROM substitution_request_periods p
@@ -2031,7 +2031,7 @@ func (s *Server) getCoverRequest(w http.ResponseWriter, r *http.Request) {
 			       to_char(sr.from_date,'YYYY-MM-DD'), to_char(sr.to_date,'YYYY-MM-DD'),
 			       sr.reason, sr.status, su.full_name, sr.suggested_user_id::text,
 			       sr.leave_request_id::text, du.full_name, sr.decision_note,
-			       to_char(sr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+			       to_char(sr.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (sr.requested_by = $2)
 			  FROM substitution_requests sr
 			  JOIN users u ON u.id = sr.requested_by

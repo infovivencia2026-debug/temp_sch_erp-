@@ -881,7 +881,7 @@ func (s *Server) readWhatsAppSettings(ctx context.Context, tx pgx.Tx, inst uuid.
 	)
 	err := tx.QueryRow(ctx, `
 		SELECT config, enabled, octet_length(COALESCE(credentials,''::bytea)) > 0,
-		       to_char(last_ok_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), last_error
+		       to_char(last_ok_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', last_error
 		  FROM integrations
 		 WHERE institution_id = $1 AND provider = 'whatsapp' AND kind = 'messaging'`,
 		inst).Scan(&cfg, &enabled, &v.HasToken, &v.LastOKAt, &v.LastError)
@@ -1391,8 +1391,8 @@ func (s *Server) listWhatsAppLog(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT id, recipient, subject, status, provider, template_code, error, attempts,
-			       to_char(queued_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(sent_at,   'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(queued_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM message_log
 			 WHERE institution_id = $1 AND channel = 'whatsapp'
 			 ORDER BY queued_at DESC
@@ -1461,7 +1461,7 @@ func (s *Server) readRecipientPolicy(ctx context.Context, tx pgx.Tx, inst uuid.U
 
 	var note *string
 	err := tx.QueryRow(ctx, `
-		SELECT mode, note, to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+		SELECT mode, note, to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM messaging_recipient_policy WHERE institution_id = $1`, inst).
 		Scan(&v.Mode, &note, &v.UpdatedAt)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -1471,7 +1471,7 @@ func (s *Server) readRecipientPolicy(ctx context.Context, tx pgx.Tx, inst uuid.U
 
 	rows, err := tx.Query(ctx, `
 		SELECT id, kind, raw, normalised, COALESCE(label,''),
-		       to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM messaging_allowed_recipients
 		 WHERE institution_id = $1
 		 ORDER BY kind, normalised`, inst)

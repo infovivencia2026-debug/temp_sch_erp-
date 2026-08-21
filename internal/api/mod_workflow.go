@@ -364,7 +364,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				       to_char(lr.from_date,'DD Mon') || ' to ' || to_char(lr.to_date,'DD Mon')
 				         || ' (' || lr.days || ' day' || CASE WHEN lr.days = 1 THEN '' ELSE 's' END || ')',
 				       lr.reason, u.full_name,
-				       to_char(lr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				       to_char(lr.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM leave_requests lr
 				  LEFT JOIN employees e ON e.id = lr.employee_id
 				  LEFT JOIN students st ON st.id = lr.student_id
@@ -437,7 +437,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				       to_char(lr.from_date,'DD Mon') || ' to ' || to_char(lr.to_date,'DD Mon')
 				         || ' (' || lr.days || ' day' || CASE WHEN lr.days = 1 THEN '' ELSE 's' END || ')',
 				       lr.reason, u.full_name,
-				       to_char(lr.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				       to_char(lr.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM leave_requests lr
 				  JOIN students st ON st.id = lr.student_id
 				  JOIN LATERAL (
@@ -474,7 +474,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				       concat_ws(' ', st.first_name, st.last_name),
 				       to_char(sa.on_date,'DD Mon'), ac.from_status, ac.to_status,
 				       ac.reason, u.full_name,
-				       to_char(ac.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				       to_char(ac.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM attendance_corrections ac
 				  JOIN student_attendance sa ON sa.id = ac.attendance_id
 				  JOIN students st ON st.id = sa.student_id
@@ -507,7 +507,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				SELECT fc.id::text,
 				       concat_ws(' ', st.first_name, st.last_name),
 				       fc.kind, COALESCE(fc.reason,''), fc.amount_paise,
-				       to_char(fc.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+				       to_char(fc.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM fee_concessions fc
 				  JOIN students st ON st.id = fc.student_id
 				 WHERE fc.approved_at IS NULL

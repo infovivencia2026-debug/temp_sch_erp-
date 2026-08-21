@@ -237,8 +237,13 @@ html[data-skin='brutalist'] [data-layout='bento'] {
   --bento-radius: 0px;
   --bento-radius-sm: 0px;
   --bento-border-w: 2px;
-  --bento-shadow: 4px 4px 0 var(--bento-line);
-  --bento-shadow-sm: 2px 2px 0 var(--bento-line);
+  /* No shadow at all. The offset rectangle was the fashionable half of this
+     style and the wrong half: a hard shadow is still a claim that the card is
+     floating, and the whole point of the heavy border is that it is not — it
+     is a drawn edge on a flat plane. With both, every card read as a sticker
+     lying on the page. The border does all of it now. */
+  --bento-shadow: none;
+  --bento-shadow-sm: none;
 }
 
 /* On the dark ground the frame inverts: a black border on near-black is a card

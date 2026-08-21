@@ -431,7 +431,7 @@ func (s *Server) getTour(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			SELECT u.tour_completed_at IS NOT NULL,
-			       to_char(u.tour_completed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(u.tour_completed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       COALESCE((SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id
 			                  WHERE ur.user_id = u.id ORDER BY r.key LIMIT 1), ''),
 			       COALESCE(i.name, ''),

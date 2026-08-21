@@ -252,7 +252,7 @@ func (s *Server) listAudit(w http.ResponseWriter, r *http.Request) {
 	limit := clampInt(q.Get("limit"), 100, 1, 500)
 
 	items, err := collect(s, r, `
-		SELECT a.id, to_char(a.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		SELECT a.id, to_char(a.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       u.full_name, a.action, a.entity_type, host(a.ip), a.before, a.after
 		  FROM audit_log a
 		  LEFT JOIN users u ON u.id = a.actor_user_id
@@ -280,7 +280,7 @@ func (s *Server) getAuditSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := collect(s, r, `
 		SELECT entity_type, count(*)::int,
-		       to_char(max(created_at),'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(max(created_at) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM audit_log
 		 WHERE created_at >= now() - interval '90 days'
 		 GROUP BY entity_type ORDER BY 2 DESC`, nil,

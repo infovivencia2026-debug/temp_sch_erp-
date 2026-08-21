@@ -58,7 +58,7 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT u.id::text, u.full_name, u.email::text, u.phone, u.status,
-			       to_char(u.last_login_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(u.last_login_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (SELECT count(DISTINCT rp.permission_key)
 			          FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
 			         WHERE ur.user_id = u.id)::int,

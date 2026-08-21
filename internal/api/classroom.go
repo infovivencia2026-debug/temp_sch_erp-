@@ -886,7 +886,7 @@ func (s *Server) getPortfolioForCuration(w http.ResponseWriter, r *http.Request)
 			       to_char(a.achieved_on, 'YYYY-MM-DD'), NULL::text, false,
 			       c.id::text, COALESCE(c.status, 'uncurated'), c.comment,
 			       COALESCE(c.include_in_report, false), COALESCE(c.is_featured, false),
-			       u.full_name, to_char(c.curated_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       u.full_name, to_char(c.curated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM student_achievements a
 			  LEFT JOIN student_portfolio_curations c ON c.achievement_id = a.id
 			  LEFT JOIN users u ON u.id = c.curated_by
@@ -896,7 +896,7 @@ func (s *Server) getPortfolioForCuration(w http.ResponseWriter, r *http.Request)
 			       to_char(p.happened_on, 'YYYY-MM-DD'), p.evidence_url, p.is_shared,
 			       c.id::text, COALESCE(c.status, 'uncurated'), c.comment,
 			       COALESCE(c.include_in_report, false), COALESCE(c.is_featured, false),
-			       u.full_name, to_char(c.curated_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       u.full_name, to_char(c.curated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM student_portfolio_items p
 			  LEFT JOIN student_portfolio_curations c ON c.portfolio_item_id = p.id
 			  LEFT JOIN users u ON u.id = c.curated_by
@@ -1598,7 +1598,7 @@ func (s *Server) syncCapturedRegister(w http.ResponseWriter, r *http.Request) {
 			       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 			       to_char(c.on_date, 'YYYY-MM-DD'),
 			       c.offline_status, c.server_status, u.full_name,
-			       to_char(c.server_marked_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(c.server_marked_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       c.resolution
 			  FROM attendance_capture_conflicts c
 			  JOIN students st ON st.id = c.student_id
@@ -1740,8 +1740,8 @@ func (s *Server) listCaptureBatches(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT b.id::text, b.section_id::text, COALESCE(sec.name, '—'),
 			       to_char(b.on_date, 'YYYY-MM-DD'),
-			       to_char(b.captured_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(b.synced_at,   'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(b.captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(b.synced_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       b.device_note, b.rows_accepted, b.rows_conflicted
 			  FROM attendance_capture_batches b
 			  LEFT JOIN sections sec ON sec.id = b.section_id
@@ -1789,7 +1789,7 @@ func (s *Server) listCaptureConflicts(w http.ResponseWriter, r *http.Request) {
 			       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 			       to_char(c.on_date, 'YYYY-MM-DD'),
 			       c.offline_status, c.server_status, u.full_name,
-			       to_char(c.server_marked_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(c.server_marked_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       c.resolution
 			  FROM attendance_capture_conflicts c
 			  JOIN attendance_capture_batches b ON b.id = c.batch_id

@@ -1554,7 +1554,7 @@ func (s *Server) listScholarshipAwards(w http.ResponseWriter, r *http.Request) {
 		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 		       cl.name, st.status, a.academic_year_id::text, ay.name,
 		       a.application_ref, a.stage,
-		       to_char(a.verified_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), vu.full_name,
+		       to_char(a.verified_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', vu.full_name,
 		       a.rejected_reason, a.expected_paise, a.sanctioned_paise,
 		       a.credited_paise, to_char(a.credited_on,'YYYY-MM-DD'),
 		       -- Masked in the database. The register in internal/api/banking.go
@@ -1899,7 +1899,7 @@ func (s *Server) listScholarshipImports(w http.ResponseWriter, r *http.Request) 
 	items, err := collect(s, r, `
 		SELECT i.id::text, i.scheme_id::text, sc.name, ay.name, i.filename, i.source,
 		       i.row_count, i.matched_count, i.unmatched_count, i.rejected_count,
-		       i.credited_paise, to_char(i.imported_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       i.credited_paise, to_char(i.imported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       u.full_name
 		  FROM scholarship_disbursement_imports i
 		  JOIN government_aid_schemes sc ON sc.id = i.scheme_id
@@ -2321,7 +2321,7 @@ func (s *Server) getScholarshipImport(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT i.id::text, i.scheme_id::text, sc.name, ay.name, i.filename, i.source,
 			       i.row_count, i.matched_count, i.unmatched_count, i.rejected_count,
-			       i.credited_paise, to_char(i.imported_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       i.credited_paise, to_char(i.imported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       u.full_name, i.rejects
 			  FROM scholarship_disbursement_imports i
 			  JOIN government_aid_schemes sc ON sc.id = i.scheme_id
@@ -2852,7 +2852,7 @@ func (s *Server) getLoanApplication(w http.ResponseWriter, r *http.Request) {
 		}
 
 		erows, err := tx.Query(r.Context(), `
-			SELECT to_char(ev.happened_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), ev.from_status,
+			SELECT to_char(ev.happened_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', ev.from_status,
 			       ev.to_status, ev.note, u.full_name
 			  FROM education_loan_events ev
 			  LEFT JOIN users u ON u.id = ev.actor_user_id

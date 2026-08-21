@@ -193,7 +193,7 @@ func (s *Server) listStructureVersions(w http.ResponseWriter, r *http.Request) {
 			       to_char(v.effective_from, 'YYYY-MM-DD'),
 			       to_char(v.effective_to, 'YYYY-MM-DD'),
 			       v.revision_note,
-			       to_char(v.activated_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(v.activated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       u.full_name,
 			       COALESCE((SELECT sum(amount_paise) FROM fee_structure_version_items
 			                  WHERE version_id = v.id), 0),
@@ -1301,7 +1301,7 @@ func (s *Server) listFineCharges(w http.ResponseWriter, r *http.Request) {
 		            ELSE COALESCE(fs.name,'') || ' v' || v.version_no END,
 		       to_char(fc.as_of,'YYYY-MM-DD'), fc.days_overdue, fc.basis_paise,
 		       fc.amount_paise, fc.was_capped, fc.status, fc.waived_reason,
-		       to_char(fc.applied_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name
+		       to_char(fc.applied_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name
 		  FROM fee_fine_charges fc
 		  JOIN invoices i  ON i.id  = fc.invoice_id
 		  JOIN students st ON st.id = i.student_id
@@ -1413,7 +1413,7 @@ func (s *Server) getReceiptSeries(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT kind, prefix, suffix, padding, next_value, reset_yearly,
 			       current_fy, format, last_number,
-			       to_char(last_issued_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(last_issued_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM numbering_schemes
 			 WHERE campus_id IS NULL
 			 ORDER BY kind`)

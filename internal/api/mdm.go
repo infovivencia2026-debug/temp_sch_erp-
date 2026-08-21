@@ -235,7 +235,7 @@ const mdmRegisterSelect = `
 	SELECT m.id::text, to_char(m.on_date,'YYYY-MM-DD'), m.campus_id::text, cp.name,
 	       m.enrolled, m.present, m.meals_served, m.rice_kg, m.cost_paise, m.menu,
 	       m.cook_name, m.not_served_reason, m.status,
-	       to_char(m.closed_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'), cu.full_name, ru.full_name,
+	       to_char(m.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', cu.full_name, ru.full_name,
 	       (SELECT count(*)::int FROM mdm_register_lines l WHERE l.register_id = m.id),
 	       (SELECT count(*)::int FROM mdm_register_amendments a WHERE a.register_id = m.id)
 	  FROM mdm_registers m
@@ -380,7 +380,7 @@ func (s *Server) getMDMRegisterDay(w http.ResponseWriter, r *http.Request) {
 
 		arows, err := tx.Query(r.Context(), `
 			SELECT a.action, a.reason, u.full_name,
-			       to_char(a.amended_at,'YYYY-MM-DD"T"HH24:MI:SSOF:00'),
+			       to_char(a.amended_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       a.before::text, a.after::text
 			  FROM mdm_register_amendments a
 			  LEFT JOIN users u ON u.id = a.amended_by

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sun, Moon, Monitor, Check, LogOut, Rows3, Square, Frame } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, LogOut, Rows3, Square, Frame, Settings } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useT } from '@/lib/i18n'
@@ -54,15 +54,14 @@ export function BentoSettings() {
     }
   }, [open])
 
-  /* The trigger is the institution's mark, not a cog.
+  /* A cog, at the far right of the screen.
 
-     Everything behind it is about this account and this school -- the palette,
-     the layout, signing out -- and a cog says "product settings", which is the
-     one thing it does not open. Placed at the far right of the screen rather
-     than in the centre dock, because the dock should hold what a person does
-     several times an hour and this is not that. */
-  const initial = session.institution?.short_name?.[0] ?? 'E'
+     It was the institution's initial for a while, on the argument that
+     everything behind it is about this account and this school. Overruled, and
+     the cog is the more recognisable target — people look for a cog when they
+     want to change something, and the menu's first job is the palette. */
   void resolved
+  void session
 
   return (
     <div className="relative" ref={box}>
@@ -73,11 +72,12 @@ export function BentoSettings() {
         aria-expanded={open}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
-        className="grid size-9 place-items-center rounded-full border bg-popover/80 text-[12.5px]
-                   font-semibold shadow-sm backdrop-blur-md transition-colors hover:bg-accent
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid size-10 place-items-center rounded-full border bg-popover/80
+                   text-muted-foreground shadow-sm backdrop-blur-md transition-colors
+                   hover:bg-accent hover:text-foreground focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {initial}
+        <Settings className="size-[18px]" aria-hidden="true" />
       </button>
 
       {open && (

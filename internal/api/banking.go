@@ -468,7 +468,7 @@ func (s *Server) listBankAccounts(w http.ResponseWriter, r *http.Request) {
 		SELECT b.id::text, b.label, b.bank_name, b.branch, b.account_number, b.ifsc,
 		       b.account_type, b.allows_payouts, b.is_active,
 		       CASE WHEN la.id IS NULL THEN NULL ELSE la.code || ' ' || la.name END,
-		       to_char(mx.last_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(mx.last_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       COALESCE(op.n, 0)::int
 		  FROM bank_accounts b
 		  LEFT JOIN ledger_accounts la ON la.id = b.ledger_account_id
@@ -628,7 +628,7 @@ func (s *Server) listBankReconciliations(w http.ResponseWriter, r *http.Request)
 		       to_char(rc.period_start,'YYYY-MM-DD'), to_char(rc.period_end,'YYYY-MM-DD'),
 		       rc.opening_balance_paise, rc.closing_balance_paise, rc.status,
 		       COALESCE(c.total,0)::int, COALESCE(c.matched,0)::int, COALESCE(c.unmatched,0)::int,
-		       to_char(rc.finalised_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name,
+		       to_char(rc.finalised_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name,
 		       rc.difference_paise, rc.notes
 		  FROM bank_reconciliations rc
 		  JOIN bank_accounts b ON b.id = rc.bank_account_id
@@ -920,7 +920,7 @@ func (s *Server) getBankReconciliation(w http.ResponseWriter, r *http.Request) {
 			SELECT rc.id::text, rc.bank_account_id, b.label,
 			       to_char(rc.period_start,'YYYY-MM-DD'), to_char(rc.period_end,'YYYY-MM-DD'),
 			       rc.opening_balance_paise, rc.closing_balance_paise, rc.status,
-			       to_char(rc.finalised_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name, rc.notes
+			       to_char(rc.finalised_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name, rc.notes
 			  FROM bank_reconciliations rc
 			  JOIN bank_accounts b ON b.id = rc.bank_account_id
 			  LEFT JOIN users u ON u.id = rc.finalised_by
@@ -977,7 +977,7 @@ func (s *Server) getBankReconciliation(w http.ResponseWriter, r *http.Request) {
 
 		imps, err := tx.Query(r.Context(), `
 			SELECT i.id::text, i.filename,
-			       to_char(i.imported_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), u.full_name,
+			       to_char(i.imported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name,
 			       i.rows_read, i.rows_inserted, i.rows_duplicate, i.rows_rejected, i.rejects
 			  FROM bank_statement_imports i
 			  LEFT JOIN users u ON u.id = i.imported_by
@@ -2104,9 +2104,9 @@ func (s *Server) listPayoutBatches(w http.ResponseWriter, r *http.Request) {
 		       pb.status, pb.provider, b.label, pb.bank_account_id::text,
 		       COALESCE(t.n,0)::int, COALESCE(t.total,0)::bigint,
 		       cu.full_name, pb.created_by::text,
-		       to_char(pb.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(pb.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       au.full_name, ru.full_name, pb.decision_reason,
-		       to_char(pb.exported_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(pb.exported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM payout_batches pb
 		  JOIN bank_accounts b ON b.id = pb.bank_account_id
 		  JOIN users cu ON cu.id = pb.created_by
@@ -2198,9 +2198,9 @@ func (s *Server) getPayoutBatch(w http.ResponseWriter, r *http.Request) {
 			SELECT pb.id::text, pb.batch_no, pb.purpose, to_char(pb.value_date,'YYYY-MM-DD'),
 			       pb.status, pb.provider, b.label, pb.bank_account_id::text,
 			       cu.full_name, pb.created_by::text,
-			       to_char(pb.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(pb.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       au.full_name, ru.full_name, pb.decision_reason,
-			       to_char(pb.exported_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+			       to_char(pb.exported_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM payout_batches pb
 			  JOIN bank_accounts b ON b.id = pb.bank_account_id
 			  JOIN users cu ON cu.id = pb.created_by
@@ -3013,7 +3013,7 @@ func (s *Server) listStudentBankAccounts(w http.ResponseWriter, r *http.Request)
 		           right(b.account_number, 4),
 		       b.ifsc, b.account_type, b.is_aadhaar_seeded,
 		       to_char(b.dbt_consent_on,'YYYY-MM-DD'), b.is_primary, b.is_active,
-		       to_char(b.verified_at,'YYYY-MM-DD"T"HH24:MI:SSOF'), vu.full_name, b.notes
+		       to_char(b.verified_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', vu.full_name, b.notes
 		  FROM student_bank_accounts b
 		  JOIN students st ON st.id = b.student_id
 		  LEFT JOIN guardians g ON g.id = b.guardian_id

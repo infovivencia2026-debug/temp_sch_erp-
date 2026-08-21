@@ -44,7 +44,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT u.id::text, u.full_name, u.email::text, u.phone, u.status,
 		       u.mfa_secret IS NOT NULL,
-		       to_char(u.last_login_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(u.last_login_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       COALESCE(array_agg(DISTINCT ro.name)
 		                FILTER (WHERE ro.name IS NOT NULL), '{}'),
 		       /* Keys as well as names.
@@ -265,9 +265,9 @@ func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 	onlyActive := r.URL.Query().Get("active") == "true"
 	items, err := collect(s, r, `
 		SELECT se.id::text, se.user_id::text, u.full_name, host(se.ip), se.user_agent,
-		       to_char(se.created_at,   'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(se.last_seen_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(se.expires_at,   'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(se.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(se.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(se.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       se.revoked_at IS NOT NULL OR se.expires_at <= now()
 		  FROM sessions se
 		  JOIN users u ON u.id = se.user_id

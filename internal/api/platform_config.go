@@ -2558,10 +2558,10 @@ func (s *Server) getBackupPosture(w http.ResponseWriter, r *http.Request) {
 
 		rows, err := tx.Query(r.Context(), `
 			SELECT id::text, kind,
-			       to_char(started_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(finished_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(started_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(finished_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       status, size_bytes, object_key,
-			       to_char(restore_point,'YYYY-MM-DD"T"HH24:MI:SSOF'), error
+			       to_char(restore_point AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', error
 			  FROM backup_runs
 			 ORDER BY started_at DESC LIMIT 50`)
 		if err != nil {
@@ -2745,7 +2745,7 @@ func (s *Server) getBackupFleet(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT i.id::text, i.name,
 			       COALESCE(p.enabled, true), COALESCE(p.frequency, 'daily'),
-			       to_char(g.last_good,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(g.last_good AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       CASE WHEN g.last_good IS NULL THEN NULL
 			            ELSE extract(epoch FROM now() - g.last_good)::int / 3600 END,
 			       COALESCE(g.failed30, 0)::int,
@@ -3042,9 +3042,9 @@ platGrantSelect reads the register.
 const platGrantSelect = `
 	SELECT g.id::text, g.institution_id::text, i.name, g.operator_name, g.reason,
 	       g.ticket_id::text,
-	       to_char(g.started_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-	       to_char(g.expires_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-	       to_char(g.ended_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+	       to_char(g.started_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+	       to_char(g.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+	       to_char(g.ended_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       g.ended_by_name, g.ended_reason,
 	       (g.ended_at IS NULL AND g.expires_at > now()),
 	       (SELECT count(*) FROM audit_log a
@@ -3351,7 +3351,7 @@ func (s *Server) getImpersonationActivity(w http.ResponseWriter, r *http.Request
 		// entirely: inside the school's tenant the operator's users row is
 		// invisible, and an audit line with a blank actor is not an audit line.
 		arows, err := tx.Query(r.Context(), `
-			SELECT a.id, to_char(a.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			SELECT a.id, to_char(a.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       COALESCE(u.full_name, g.operator_name),
 			       a.action, a.entity_type, host(a.ip), a.before, a.after
 			  FROM audit_log a

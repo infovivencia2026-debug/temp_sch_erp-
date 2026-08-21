@@ -39,7 +39,7 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			SELECT id::text, full_name, email::text, phone, avatar_key, status,
-			       to_char(last_login_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(last_login_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       mfa_secret IS NOT NULL
 			  FROM users WHERE id = $1`, id.UserID).
 			Scan(&p.ID, &p.FullName, &p.Email, &p.Phone, &p.AvatarKey,

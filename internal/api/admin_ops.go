@@ -3962,7 +3962,7 @@ func (s *Server) submitFeeFiling(w http.ResponseWriter, r *http.Request) {
 			   SET status = 'submitted', submitted_on = $2,
 			       acknowledgement_no = NULLIF($3,''),
 			       filed_snapshot = jsonb_build_object(
-			           'filed_at',       to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			           'filed_at',       to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			           'filing_no',      f.filing_no,
 			           'committee',      f.committee_name,
 			           'committee_level',f.committee_level,

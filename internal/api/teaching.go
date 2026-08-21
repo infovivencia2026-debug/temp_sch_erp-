@@ -356,10 +356,10 @@ func (s *Server) listAssignmentSubmissions(w http.ResponseWriter, r *http.Reques
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.last_name), e.roll_no,
 		       hs.id::text, COALESCE(hs.status,'pending'),
-		       to_char(hs.submitted_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(hs.submitted_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       hs.text_answer, hs.file_id::text, hs.marks, hs.feedback,
 		       u.full_name,
-		       to_char(hs.graded_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(hs.graded_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       COALESCE(hs.status = 'late', false)
 		  FROM enrollments e
 		  JOIN students st ON st.id = e.student_id
@@ -564,7 +564,7 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 		       sm.title, sm.description, sm.kind,
 		       sm.file_id::text, f.original_name, f.size_bytes,
 		       sm.external_url, sm.is_published, u.full_name,
-		       to_char(sm.created_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(sm.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM study_materials sm
 		  LEFT JOIN class_subjects cs ON cs.id = sm.class_subject_id
 		  LEFT JOIN classes         c ON c.id = cs.class_id
@@ -844,9 +844,9 @@ func (s *Server) listVirtualClasses(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT v.id::text, v.section_id::text, sec.name, c.name, sub.name,
 		       p.provider, p.display_name, v.topic, v.agenda,
-		       to_char(v.scheduled_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(v.scheduled_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       v.duration_minutes, v.join_url, v.status,
-		       to_char(v.started_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(v.started_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       u.full_name, (v.join_url IS NOT NULL)
 		  FROM virtual_class_sessions v
 		  JOIN sections sec ON sec.id = v.section_id
@@ -1758,8 +1758,8 @@ func (s *Server) listOnlineTests(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT t.id::text, t.section_id::text, sec.name, c.name,
 		       t.class_subject_id::text, sub.name, t.title, t.instructions,
-		       to_char(t.opens_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-		       to_char(t.closes_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+		       to_char(t.opens_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       to_char(t.closes_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       t.duration_minutes, t.max_attempts, t.shuffle_questions, t.status,
 		       (SELECT count(*) FROM online_test_questions tq WHERE tq.test_id = t.id)::int,
 		       -- Summed on read: a stored total is wrong the moment a question
@@ -1822,8 +1822,8 @@ func (s *Server) getOnlineTest(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT t.id::text, t.section_id, sec.name, c.name, t.class_subject_id::text,
 			       sub.name, t.title, t.instructions,
-			       to_char(t.opens_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
-			       to_char(t.closes_at,'YYYY-MM-DD"T"HH24:MI:SSOF'),
+			       to_char(t.opens_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+			       to_char(t.closes_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       t.duration_minutes, t.max_attempts, t.shuffle_questions, t.status
 			  FROM online_tests t
 			  JOIN sections sec ON sec.id = t.section_id
@@ -2291,7 +2291,7 @@ func (s *Server) listFormativeEntries(w http.ResponseWriter, r *http.Request) {
 		       f.id::text, f.written_work, f.project_work, f.slip_test,
 		       f.participation, COALESCE(f.component_max, 5),
 		       f.observation, f.indicator, u.full_name,
-		       to_char(f.recorded_at,'YYYY-MM-DD"T"HH24:MI:SSOF')
+		       to_char(f.recorded_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 		  FROM enrollments e
 		  JOIN students st ON st.id = e.student_id
 		  LEFT JOIN cce_formative_entries f
