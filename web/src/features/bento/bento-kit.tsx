@@ -182,7 +182,11 @@ export function Cell({
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col rounded-[var(--bento-radius)] border p-6',
+        /* min-h-0 for the same reason as the track: a flex/grid child will
+           not shrink past its content without it. overflow-hidden keeps a
+           long list inside its own card rather than letting it lengthen the
+           row and put the bottom row off the screen. */
+        'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[var(--bento-radius)] border p-6',
         SPAN[span],
         TONE[t],
         className,
@@ -560,11 +564,23 @@ export function BentoPage({
   return (
     <div
       className={cn(
-        'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7',
+        'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7 lg:p-5',
         // The dock is fixed at top-4 and about 40px tall. It used to overlap
         // the heading harmlessly; with the heading gone it would sit on the
         // first row of cards.
-        bentoLayout ? 'pt-[72px] sm:pt-[72px]' : '',
+        bentoLayout ? 'pt-[64px] sm:pt-[64px]' : '',
+        /* One screen, no page scroll — but only where that is honest.
+
+           A dashboard you have to scroll is not a dashboard; the whole claim
+           of the form is that the state of the school is visible at a glance,
+           and a figure below the fold is a figure nobody glanced at. So on a
+           wide screen the page is exactly the viewport and the grid divides
+           what is left after the dock.
+
+           Not below lg. Squeezing three rows of cards into a phone would not
+           produce a dashboard, it would produce four unreadable boxes, and
+           there the honest answer is that the page scrolls. */
+        'lg:flex lg:h-[100dvh] lg:flex-col lg:overflow-auto',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}
@@ -581,7 +597,33 @@ export function BentoPage({
           Kept for assistive technology, because a document with no h1 is a
           document a screen reader cannot outline. */}
       <h1 className="sr-only">{`${eyebrow} — ${title}`}</h1>
-      <div className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2 lg:grid-cols-4">
+      {/* auto-rows-fr divides the remaining height evenly, so the row count
+          decides the row height rather than the tallest card deciding it and
+          pushing the rest off the bottom. min-h-0 is what lets a grid child
+          shrink below its content at all — without it the track floors at the
+          content height and the overflow-hidden above simply clips. */}
+      {/* Bounded on both sides, because both failures are real.
+
+          The principal's grid is nine cards filling sixteen slots — four rows
+          of four, packed exactly. Divide the viewport by four and a 1080p
+          laptop gives rows of about 200px, which is a comfortable stat card.
+
+          The floor stops the other direction: on a short window four rows of
+          fr would each become 130px and the figures would collide with their
+          own labels. Below the floor the page scrolls, which is worse than
+          fitting and much better than clipping a number off the bottom of a
+          card nobody can then scroll inside.
+
+          The ceiling is the one people forget. On a 1440p or 4K panel four
+          rows of fr are 300–500px each, and a card holding one number and a
+          meter stretched to half a metre of glass does not read as generous,
+          it reads as broken. Past the ceiling the whitespace goes below the
+          grid, where whitespace belongs. */}
+      <div
+        className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
+                   lg:min-h-[600px] lg:max-h-[1000px] lg:flex-1 lg:auto-rows-fr
+                   lg:grid-cols-4"
+      >
         {children}
       </div>
     </div>
