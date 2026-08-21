@@ -117,6 +117,27 @@ export default function StudentProfile() {
      the record must not hard-code either. Resolving against the caller's own
      catalogue means the same action works from every role that has it, and
      silently does nothing from the ones that do not. */
+  /* Issued, shown once, never stored. The response is held in component state
+     rather than refetched, because the server does not keep the password and a
+     second request would issue a different one.
+
+     These three sat below the early returns — after "no student selected" and
+     after "still loading". React counts hooks by call order, so the render
+     that showed the search box ran twelve of them and the render after
+     clicking Open ran fifteen, which is error #310 and a blank screen. A hook
+     cannot live behind a condition; the early returns stay, and every hook
+     now runs before them. */
+  const [issued, setIssued] = useState<IssuedLogin | null>(null)
+  const studentLogin = useMutation({
+    mutationFn: () => api.post<IssuedLogin>(`/api/v1/setup/students/${selected}/login`, {}),
+    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+  })
+  const guardianLogin = useMutation({
+    mutationFn: (g: Profile['guardians'][number]) =>
+      api.post<IssuedLogin>(`/api/v1/setup/guardians/${g.id}/login`, {}),
+    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+  })
+
   const role = useActiveRole()
   const navigate = useNavigate()
   const session = useSession()
@@ -219,21 +240,7 @@ export default function StudentProfile() {
      than hidden. A disabled control that explains itself tells you the product
      knows what it is missing; an absent one just looks like you cannot get
      there from here. */
-  /* Issued, shown once, never stored. The response is held in component state
-     rather than refetched, because the server does not keep the password and a
-     second request would issue a different one. */
-  const [issued, setIssued] = useState<IssuedLogin | null>(null)
-  const studentLogin = useMutation({
-    mutationFn: () => api.post<IssuedLogin>(`/api/v1/setup/students/${p.id}/login`, {}),
-    onSuccess: (v) => setIssued({ ...v, who: p.full_name }),
-  })
-
   const mayIssue = can('students.write')
-  const guardianLogin = useMutation({
-    mutationFn: (g: Profile['guardians'][number]) =>
-      api.post<IssuedLogin>(`/api/v1/setup/guardians/${g.id}/login`, {}),
-    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
-  })
   const issueGuardian = (g: Profile['guardians'][number]) => guardianLogin.mutate(g)
 
   const actions: RecordAction[] = [
