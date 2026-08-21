@@ -220,6 +220,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
+			// Fees are re-set every year; a price list you cannot remove is
+			// one the office works around with a second, similar name.
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).
+				Delete("/fee-structures/{id}", s.deleteFeeStructure)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
 			// Completing an appointment: whoever may appoint somebody may let
 			// them in. Deliberately not access.users.write — that right would

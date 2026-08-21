@@ -1997,7 +1997,101 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         </p>
       )}
       <SaveRow pending={save.isPending} error={save.error} label="Create structure" />
+
+      {/* What is already priced, and a way to take it off.
+       *
+       * Fees are re-set every year and nothing here could be removed: a
+       * structure typed with the wrong amounts, or last year's, stayed on the
+       * list for good, and the only way past it was a second structure with a
+       * similar name. Two price lists for one class is worse than none,
+       * because the office then has to know which one is live. */}
+      <FeeStructureList />
+
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="fee_structures"
+          title="Or price every class from a sheet"
+          hint="One row per class per fee head: structure, class, fee head, the annual amount and how many instalments to split it into. Leave the class blank for a fee the whole school pays. Re-uploading a corrected sheet overwrites the amounts rather than adding a second structure."
+          onDone={onDone}
+        />
+      </div>
     </form>
+  )
+}
+
+/** The structures that exist, with the year they belong to and a way to remove one. */
+function FeeStructureList() {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState('')
+  const [failed, setFailed] = useState('')
+  const { data } = useQuery({
+    queryKey: ['fee-structures'],
+    queryFn: () =>
+      api.get<List<{
+        id: string
+        name: string
+        class_name?: string
+        lines: number
+        total_paise: number
+      }>>('/api/v1/setup/fee-structures'),
+  })
+  const rows = data?.items ?? []
+  if (rows.length === 0) return null
+
+  const remove = async (id: string, label: string) => {
+    if (!confirm(`Remove ${label}? Invoices already raised are unaffected — this is the price list, not the bills.`)) return
+    setBusy(id)
+    setFailed('')
+    try {
+      await api.del(`/api/v1/setup/fee-structures/${id}`)
+      await qc.invalidateQueries({ queryKey: ['fee-structures'] })
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Could not remove that structure.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t pt-4">
+      <p className="eyebrow mb-2">Structures already priced</p>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-[13px]">
+          <thead className="bg-muted text-left text-muted-foreground">
+            <tr>
+              <th className="px-3 py-1.5 font-medium">Structure</th>
+              <th className="px-3 py-1.5 font-medium">Applies to</th>
+              <th className="px-3 py-1.5 font-medium">Lines</th>
+              <th className="px-3 py-1.5 font-medium">A year</th>
+              <th className="px-3 py-1.5 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((f) => (
+              <tr key={f.id} className="border-t">
+                <td className="px-3 py-1.5 font-medium">{f.name}</td>
+                <td className="px-3 py-1.5">{f.class_name ?? 'Every class'}</td>
+                <td className="px-3 py-1.5 tabular-nums">{f.lines}</td>
+                <td className="px-3 py-1.5 tabular-nums">
+                  ₹{(f.total_paise / 100).toLocaleString('en-IN')}
+                </td>
+                <td className="px-3 py-1.5 text-right">
+                  <button
+                    type="button"
+                    disabled={busy === f.id}
+                    onClick={() => void remove(f.id, `${f.name} for ${f.class_name ?? 'every class'}`)}
+                    className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                  >
+                    {busy === f.id ? 'removing…' : 'remove'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
+    </div>
   )
 }
 
@@ -2208,6 +2302,44 @@ function SubjectTeacherSelect({
  * different problem from "has a login and has forgotten it", and they are
  * fixed by the same button for different reasons.
  */
+
+/* The file, written once and used by both buttons.
+
+   Excel reads a CSV as the system codepage unless it finds a byte order mark,
+   which turns every name that is not ASCII into rubbish. */
+function downloadRows(body: string[][]) {
+  const rows = [
+    ['Name', 'Subjects', 'Role', 'Class teacher of', 'Signs in as', 'Password'],
+    ...body,
+  ]
+  const csv = rows
+    .map((row) => row.map((c) => '"' + c.replace(/"/g, '""') + '"').join(','))
+    .join('\r\n')
+  const url = URL.createObjectURL(
+    new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'staff-logins.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/* A refusal in the words of the person reading it.
+
+   The server names the permission it wanted — "missing permission:
+   hr.employees.write" — which is exactly right in a log and no use at all on
+   screen, where the reader is a head teacher who has never heard of it and
+   whose real problem is that they are signed in as somebody else in this tab. */
+function explain(e: unknown): string {
+  const raw = e instanceof Error ? e.message : ''
+  if (raw.includes('hr.employees.write')) {
+    return 'Only HR or the principal can issue or reset a staff password. ' +
+      'Check which account this tab is signed in as.'
+  }
+  return raw || 'Could not do that.'
+}
+
 function StaffLogins({ staff }: { staff: Teacher[] }) {
   const qc = useQueryClient()
   const [busy, setBusy] = useState('')
@@ -2222,32 +2354,64 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
    * Passwords are shown once and hashed on the way in, so this is the only
    * moment the plain ones exist anywhere. A page that shows them and offers
    * no way to keep them is a page whose whole point is lost to a refresh. */
-  const download = () => {
-    const rows: string[][] = [
-      ['Name', 'Subjects', 'Role', 'Class teacher of', 'Signs in as', 'Password'],
-      ...staff.map((t) => [
-        t.full_name,
-        t.subjects ?? '',
-        t.roles ?? '',
-        t.class_teacher_of ?? '',
-        issued[t.user_id]?.user ?? t.sign_in_as ?? '',
-        // What is true of each one, rather than a blank that reads as broken.
-        issued[t.user_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
-      ]),
-    ]
-    const csv = rows
-      .map((row) => row.map((c) => '"' + c.replace(/"/g, '""') + '"').join(','))
-      .join('\r\n')
-    // The byte order mark is for Excel, which otherwise reads the file as the
-    // system codepage and mangles every name that is not ASCII.
-    const url = URL.createObjectURL(
-      new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }),
-    )
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'staff-logins.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+  const download = () => downloadRows(
+    staff.map((t) => [
+      t.full_name,
+      t.subjects ?? '',
+      t.roles ?? '',
+      t.class_teacher_of ?? '',
+      issued[t.user_id]?.user ?? t.sign_in_as ?? '',
+      issued[t.user_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
+    ]),
+  )
+
+  /* Reset everybody, and hand over the file.
+   *
+   * "Show me the passwords" cannot be answered: they are hashed on the way in
+   * and the plain text is never stored, which is the whole point — an
+   * administrator who can read a teacher's password can sign in as them, and
+   * the audit trail then says the teacher did it. "already set" is the true
+   * state, not a missing feature.
+   *
+   * What a school actually needs is a full list that works, and this is the
+   * only honest way to produce one: give everybody a new password and write
+   * them all down in the same breath. The download happens in the same click,
+   * because the passwords exist for exactly as long as this page holds them. */
+  const resetAllAndExport = async () => {
+    if (!confirm(
+      'Give every member of staff a new password?\n\n' +
+      'The passwords they are using now will stop working, and the new ones ' +
+      'download as a file. This is the only way to get a complete list — the ' +
+      'ones already set cannot be looked up.'
+    )) return
+    setBusy('all')
+    setFailed('')
+    try {
+      const res = await api.post<{ rows: { name: string; sign_in_as: string; password: string }[] }>(
+        '/api/v1/setup/logins/bulk', { kind: 'staff', reset: true },
+      )
+      const fresh: Record<string, { user: string; pass: string }> = {}
+      const byName = new Map(res.rows.map((r) => [r.name, r]))
+      for (const t of staff) {
+        const r = byName.get(t.full_name)
+        if (r) fresh[t.user_id] = { user: r.sign_in_as, pass: r.password }
+      }
+      setIssued((v) => ({ ...v, ...fresh }))
+      await qc.invalidateQueries({ queryKey: ['teachers'] })
+      // Straight to the file, from the response rather than from state, which
+      // has not re-rendered yet.
+      downloadRows(staff.map((t) => {
+        const r = byName.get(t.full_name)
+        return [
+          t.full_name, t.subjects ?? '', t.roles ?? '', t.class_teacher_of ?? '',
+          r?.sign_in_as ?? t.sign_in_as ?? '', r?.password ?? '',
+        ]
+      }))
+    } catch (e) {
+      setFailed(explain(e))
+    } finally {
+      setBusy('')
+    }
   }
 
   const issue = async (t: Teacher, reset: boolean) => {
@@ -2265,7 +2429,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
       }
       await qc.invalidateQueries({ queryKey: ['teachers'] })
     } catch (e) {
-      setFailed(e instanceof Error ? e.message : 'Could not issue that login.')
+      setFailed(explain(e))
     } finally {
       setBusy('')
     }
@@ -2328,6 +2492,15 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy === 'all'}
+            onClick={() => void resetAllAndExport()}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            {busy === 'all' ? 'Resetting…' : 'Reset all & export'}
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setFull((v) => !v)}>
             {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             {full ? 'Windowed' : 'Expand'}
@@ -2381,7 +2554,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                     ) : t.can_sign_in ? (
                       <span
                         className="text-muted-foreground"
-                        title="Shown once when it was issued and not stored anywhere. Reset it to hand over a new one."
+                        title="Not stored anywhere — only a hash of it is, so nobody can look it up, including us. Reset this one, or use Reset all &amp; export for the whole list."
                       >
                         already set
                       </span>

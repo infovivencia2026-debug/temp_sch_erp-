@@ -651,6 +651,48 @@ func (s *Server) createFeeStructure(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+/*
+deleteFeeStructure removes a structure and everything priced under it.
+
+	Fees are re-set every year, and until now nothing could be taken away: a
+	structure typed with the wrong amounts, or last year's, stayed on the list
+	for good and the only way past it was a second structure with a similar
+	name. Two structures for one class is worse than none, because the office
+	then has to know which is live.
+
+	Safe to cascade. fee_structure_items, fee_fine_rules and
+	fee_structure_versions hang off it and mean nothing without it; invoices do
+	not reference it at all, so money already billed is untouched — a structure
+	is the price list, not the receipt.
+*/
+func (s *Server) deleteFeeStructure(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	target, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid fee structure id")
+		return
+	}
+
+	var name string
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			DELETE FROM fee_structures WHERE id = $1 RETURNING name`,
+			target).Scan(&name)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"deleted": name,
+		"note":    "Invoices already raised are unaffected — this was the price list, not the bills.",
+	})
+}
+
 type feeStructureRow struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`

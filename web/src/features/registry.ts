@@ -214,7 +214,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      "not built yet" placeholder, exactly as it does for every other role. */
 
   // Vice Principal / Academic Coordinator — runs teaching and learning.
-  'institution_admin.academics.class_setup': lazy(() => import('./setup/Wizard')),
+  /* Class Setup is the reference table, not the wizard.
+   *
+   * It opened the setup wizard, which resumes at whatever step is unfinished
+   * — so clicking "Class Setup" on a nearly-configured school landed on
+   * "Schedule an exam". Two entries opening the same wizard is exactly the
+   * duplication the menu trim was meant to remove, and the wizard already has
+   * its own door under Getting Started. This one shows the grades, their
+   * sections and the rooms, which is what the entry says it does. */
+  'institution_admin.academics.class_setup': lazy(() => import('./shared/Academics')),
   'institution_admin.academics.teacher_assignment': lazy(() => import('./principal/StaffWorkload')),
   'institution_admin.examinations.exams_results': lazy(() => import('./exams/ReportCards')),
   /* The principal's report card is the class teacher's report card.

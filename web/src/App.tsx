@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
@@ -7,6 +7,7 @@ import {
   CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
+import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
 import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
@@ -125,15 +126,29 @@ function FeatureRoute() {
     return <CataloguedStub sectionName={section.name} feature={feature} />
   }
 
+  /* The boundary sits outside Suspense on purpose.
+   *
+   * A lazy import that rejects — the usual cause being a deploy that replaced
+   * the hashed chunk this tab still remembers — leaves Suspense showing its
+   * fallback for ever. Inside the boundary the spinner is what renders, so the
+   * error never reaches anything that could act on it; outside, it does. */
+  // Cleared once something has rendered: the guard is meant to stop a loop
+  // within one failure, not to spend the whole session used up by the first.
+  useEffect(() => {
+    clearChunkReloadGuard()
+  }, [])
+
   return (
-    <Suspense fallback={<Loading />}>
-      {isHome && (
-        <PageBody>
-          <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
-        </PageBody>
-      )}
-      <Component />
-    </Suspense>
+    <ChunkBoundary>
+      <Suspense fallback={<Loading />}>
+        {isHome && (
+          <PageBody>
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
+          </PageBody>
+        )}
+        <Component />
+      </Suspense>
+    </ChunkBoundary>
   )
 }
 

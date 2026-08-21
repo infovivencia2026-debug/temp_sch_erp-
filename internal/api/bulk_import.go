@@ -333,6 +333,123 @@ var importSpecs = map[string]importSpec{
 			return err
 		},
 	},
+	/* What each class pays, a year at a time.
+
+	   Fees are re-set every year and the form takes one class at a time, so a
+	   school of ten grades and six heads types sixty amounts to change a
+	   number that moved with inflation. The sheet is the thing the office
+	   already has: a grid of classes down the side and heads across the top,
+	   flattened to one row per class per head.
+
+	   The instalment count divides the annual amount rather than being typed
+	   per term, because a school says "45,000 a year, three terms", not
+	   "15,000, 15,000, 15,000" -- and the remainder of a division that does
+	   not come out evenly goes on the first instalment, where a parent
+	   expects the odd rupee.
+	*/
+	"fee_structures": {
+		Perm:     rbac.FeesWrite,
+		Columns:  []string{"structure", "class", "fee_head", "annual_amount", "instalments"},
+		Required: []string{"structure", "fee_head", "annual_amount"},
+		Sample:   []string{"2026-2027", "Grade 6", "Tuition Fee", "45000", "3"},
+		Check: func(row map[string]string) error {
+			if _, err := strconv.ParseFloat(strings.TrimSpace(row["annual_amount"]), 64); err != nil {
+				return errors.New("annual_amount must be a number, in rupees")
+			}
+			if v := strings.TrimSpace(row["instalments"]); v != "" {
+				if n, err := strconv.Atoi(v); err != nil || n < 1 || n > 12 {
+					return errors.New("instalments must be a whole number between 1 and 12")
+				}
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			name := strings.TrimSpace(row["structure"])
+
+			// A blank class is the structure every class pays, which is how a
+			// school with one fee for the whole school writes it.
+			var classID *uuid.UUID
+			if v := strings.TrimSpace(row["class"]); v != "" {
+				id, err := c.classID(v)
+				if err != nil {
+					return err
+				}
+				classID = &id
+			}
+
+			// The head by code or by name. The office writes "Tuition Fee".
+			want := strings.TrimSpace(row["fee_head"])
+			var headID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT id FROM fee_heads
+				 WHERE institution_id = $1
+				   AND (upper(code) = upper($2) OR lower(name) = lower($2))`,
+				c.inst, want).Scan(&headID); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("no fee head called %q -- add the fee heads first", want)
+				}
+				return err
+			}
+
+			if c.year == nil {
+				return errors.New("create an academic year before loading fee structures")
+			}
+
+			/* One structure per name and class, reused across the rows of the
+			   sheet. Without this every row would make its own structure and a
+			   class would end up with six of them, one per head. */
+			var structID uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				WITH found AS (
+				    SELECT id FROM fee_structures
+				     WHERE institution_id = $1 AND name = $3
+				       AND class_id IS NOT DISTINCT FROM $4::uuid
+				), made AS (
+				    INSERT INTO fee_structures (institution_id, campus_id, academic_year_id,
+				                                class_id, name, applies_to, is_active)
+				    SELECT $1, $2, $5, $4::uuid, $3, 'all', true
+				     WHERE NOT EXISTS (SELECT 1 FROM found)
+				    RETURNING id
+				)
+				SELECT id, true FROM made
+				UNION ALL SELECT id, false FROM found
+				LIMIT 1`,
+				c.inst, c.campus, name, classID, *c.year).Scan(&structID, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("fee_structures", structID, inserted)
+
+			rupees, _ := strconv.ParseFloat(strings.TrimSpace(row["annual_amount"]), 64)
+			total := int64(rupees*100 + 0.5)
+			terms := 1
+			if v := strings.TrimSpace(row["instalments"]); v != "" {
+				terms, _ = strconv.Atoi(v)
+			}
+			if terms < 1 {
+				terms = 1
+			}
+			each := total / int64(terms)
+			first := each + total - each*int64(terms) // the odd rupee, up front
+
+			for n := 1; n <= terms; n++ {
+				amount := each
+				if n == 1 {
+					amount = first
+				}
+				if _, err := c.tx.Exec(c.r.Context(), `
+					INSERT INTO fee_structure_items (institution_id, fee_structure_id,
+					                                 fee_head_id, instalment_no, amount_paise)
+					VALUES ($1,$2,$3,$4,$5)
+					ON CONFLICT (fee_structure_id, fee_head_id, instalment_no)
+					DO UPDATE SET amount_paise = EXCLUDED.amount_paise`,
+					c.inst, structID, headID, n, amount); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
 	/* Which subjects a class studies, and -- in the same row -- who teaches
 	   them. The two were separate steps, so a school listed the subject on
 	   step seven and came back on step nine to say who takes it, reading the
@@ -340,13 +457,18 @@ var importSpecs = map[string]importSpec{
 	   next to each other. */
 	"class_subjects": {
 		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"class", "subject_code", "max_marks", "teacher_email"},
+		Columns:  []string{"class", "subject_code", "max_marks", "periods_per_week", "teacher_email"},
 		Required: []string{"class", "subject_code"},
-		Sample:   []string{"Grade 6", "MATH", "100", "priya.rao@jsm.test"},
+		Sample:   []string{"Grade 6", "MATH", "100", "6", "priya.rao@jsm.test"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
 					return errors.New("max_marks must be a whole number above zero")
+				}
+			}
+			if v := strings.TrimSpace(row["periods_per_week"]); v != "" {
+				if n, err := strconv.Atoi(v); err != nil || n < 0 || n > 40 {
+					return errors.New("periods_per_week must be a whole number, 0 to 40")
 				}
 			}
 			return nil
@@ -379,13 +501,33 @@ var importSpecs = map[string]importSpec{
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				maxMarks, _ = strconv.Atoi(v)
 			}
+
+			/* How many periods a week the subject wants.
+			
+			   The timetable solver reads this and nothing else wrote it, so
+			   every school reached "Generate a draft" and was told no subject
+			   has a weekly requirement yet — with no screen that could set
+			   one. The sheet a school keeps has this column; it just had
+			   nowhere to go. Left alone when the column is absent, so a file
+			   without it still loads and the value already stored survives a
+			   re-upload. */
+			var perWeek *int
+			if v := strings.TrimSpace(row["periods_per_week"]); v != "" {
+				if n, err := strconv.Atoi(v); err == nil && n > 0 {
+					perWeek = &n
+				}
+			}
+
 			var csID uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(), `
-				INSERT INTO class_subjects (institution_id, class_id, subject_id, max_marks)
-				VALUES ($1,$2,$3,$4)
+				INSERT INTO class_subjects (institution_id, class_id, subject_id,
+				                            max_marks, periods_per_week)
+				VALUES ($1,$2,$3,$4,COALESCE($5, 0))
 				ON CONFLICT (class_id, subject_id)
-				DO UPDATE SET max_marks = EXCLUDED.max_marks
-				RETURNING id`, c.inst, classID, subjectID, maxMarks).Scan(&csID); err != nil {
+				DO UPDATE SET max_marks = EXCLUDED.max_marks,
+				              periods_per_week = COALESCE($5, class_subjects.periods_per_week)
+				RETURNING id`,
+				c.inst, classID, subjectID, maxMarks, perWeek).Scan(&csID); err != nil {
 				return err
 			}
 
@@ -1099,6 +1241,10 @@ var undoableTables = map[string]string{
 	"fee_heads": "fee_heads",
 	"students":  "students",
 	"staff":     "employees",
+	// Undoing a fee structure upload removes the structures it created; the
+	// priced lines under them go with the cascade, which is what a school
+	// means by "take last year's fees off".
+	"fee_structures": "fee_structures",
 }
 
 /*

@@ -9,6 +9,9 @@ import { formatDate, cn } from '@/lib/utils'
    local state seeded from the feature slug rather than a route segment. */
 const TAB_FOR: Record<string, string> = {
   academic_structure: 'sections',
+  // The principal's "Class Setup" — grades first, because that is the level
+  // the entry is named after and sections hang beneath it.
+  class_setup: 'classes',
   sections: 'sections',
   classes: 'classes',
   subjects: 'subjects',
