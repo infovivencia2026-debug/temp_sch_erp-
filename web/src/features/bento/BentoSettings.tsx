@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
-  Maximize2, Type, Minimize2,
+  Maximize2, Type, Minimize2, LayoutGrid, Sliders,
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
@@ -39,7 +39,7 @@ const ICON: Record<Theme, typeof Sun> = {
    and the foot of the classic sidebar. Rather than two components that drift,
    one takes a placement — which decides the trigger's shape and which corner
    the panel opens from, and nothing else. */
-export type SettingsPlacement = 'dock' | 'sidebar' | 'rail'
+export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
   const { theme, resolved, setTheme } = useTheme()
@@ -70,6 +70,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const t = useT()
   const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
+  const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
   const box = useRef<HTMLDivElement>(null)
 
   /* Escape and click-outside both close it. A popover dismissable only by the
@@ -115,7 +116,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             ? `grid size-10 place-items-center rounded-full border bg-popover/80
                text-muted-foreground shadow-sm backdrop-blur-md hover:bg-accent
                hover:text-foreground`
-            : placement === 'rail'
+            : (placement === 'rail' || placement === 'menubar')
               ? `grid size-10 place-items-center rounded-[10px] text-muted-foreground
                  hover:bg-surface-hover hover:text-foreground`
               : `flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left
@@ -136,15 +137,11 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           className={cn(
             `absolute z-50 max-h-[70vh] w-64 overflow-y-auto overscroll-contain rounded-xl
              border bg-popover p-1 shadow-lg`,
-            placement === 'dock' ? 'pop-down' : 'pop-up',
-            /* From the sidebar's foot it opens upward: there is nothing below
-               it but the window edge, and a menu that would need the page to
-               scroll to be read is a menu that cannot be used from there. */
-            placement === 'dock'
+            (placement === 'menubar') ? 'pop-down' : 'pop-up',
+            (placement === 'menubar')
               ? 'right-0 top-[calc(100%+8px)]'
-              /* From the rail it opens to the right and upward: the rail is
-                 58px wide, so a menu anchored to its left edge would hang off
-                 the window. */
+              : placement === 'dock'
+                ? 'right-0 bottom-[calc(100%+16px)]'
               : placement === 'rail'
                 ? 'bottom-0 left-[calc(100%+8px)]'
                 : 'bottom-[calc(100%+8px)] left-0',
@@ -184,12 +181,11 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           <div className="my-1 h-px bg-border" role="separator" />
 
 
-          {/* The two dialogs. Rows rather than nested menus: a colour wheel
-              inside a 208px popover is a colour wheel nobody can aim at. */}
+          {/* Appearance, Dock, Dashboard — three distinct settings destinations */}
           <button
             type="button"
             role="menuitem"
-            onClick={() => { setShowAppearance(true); setOpen(false) }}
+            onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
                        transition-colors hover:bg-accent focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-ring"
@@ -198,14 +194,29 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             <span className="flex-1">{t('bento.appearance.title')}</span>
           </button>
 
-          <div className="my-1 h-px bg-border" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setAppearanceTab('dock'); setShowAppearance(true); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <LayoutGrid className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">Dock Settings</span>
+          </button>
 
-
-
-
-
-
-
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setAppearanceTab('dashboard'); setShowAppearance(true); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors hover:bg-accent focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Sliders className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">Dashboard Widgets</span>
+          </button>
 
           <div className="my-1 h-px bg-border" role="separator" />
 
@@ -335,7 +346,11 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
 
       {/* Mounted outside the popover, which closes when either opens: a dialog
           rendered inside it would unmount with it. */}
-      <AppearanceDialog open={showAppearance} onClose={() => setShowAppearance(false)} />
+      <AppearanceDialog
+        open={showAppearance}
+        onClose={() => setShowAppearance(false)}
+        initialTab={appearanceTab}
+      />
     </div>
   )
 }

@@ -169,6 +169,7 @@ export function Cell({
   tone,
   dark = false,
   accent,
+  domain,
   className,
   children,
 }: {
@@ -177,31 +178,24 @@ export function Cell({
   /** The older boolean, still honoured because four dashboards pass it. */
   dark?: boolean
   accent?: Accent
+  domain?: string
   className?: string
   children: ReactNode
 }) {
   const t = tone ?? (dark ? 'dark' : 'plain')
-  const style = accent && t === 'plain' ? { '--bento-card': `var(--bento-${accent}-tint)` } as React.CSSProperties : undefined
+  const baseStyle = accent && t === 'plain' ? { '--bento-card': `var(--bento-${accent}-tint)` } as React.CSSProperties : {}
+  const style = domain ? { ...baseStyle, backgroundColor: `var(--dom-${domain})`, color: `var(--dom-${domain}-text, var(--bento-ink))`, borderColor: 'transparent' } : baseStyle
+  
   return (
     <div
       className={cn(
-        /* min-h-0 for the same reason as the track: a flex/grid child will not
-           shrink past its content without it.
-
-           No scrollbar, and nothing cut off: the contents are sized to the
-           row instead. A scrollbar inside a dashboard card is an admission
-           that the card does not fit, and eight of them is a worse answer
-           than one page scroll would have been. So the figures scale with the
-           viewport (see StatCell) and the padding tightens where the fit rule
-           rations height — 16px of vertical padding back is most of a line of
-           text, in exactly the place it was being taken from. */
         `bento-cell flex min-h-0 min-w-0 flex-col overflow-hidden
          rounded-[var(--bento-radius)] border p-6 lg:p-4`,
         SPAN[span],
         TONE[t],
         className,
       )}
-      style={style}
+      style={Object.keys(style).length > 0 ? style : undefined}
     >
       {children}
     </div>
@@ -285,7 +279,7 @@ export function Bars({
           <div className="flex h-16 w-full items-end" title={item.title}>
             <div
               className={cn(
-                'w-full rounded-[6px]',
+                'w-full rounded-[var(--bento-radius-sm)]',
                 i === activeIndex ? ACCENT_FILL[accent] : '',
                 still ? '' : 'transition-[height] duration-300',
               )}
@@ -319,6 +313,7 @@ export function StatCell({
   shape,
   badge,
   accent,
+  domain,
   span,
   to,
   cue,
@@ -331,6 +326,7 @@ export function StatCell({
       what the figure means — not for variety. */
   badge?: string
   accent?: Accent
+  domain?: string
   span?: CellSpan
   /** Where the detail already lives. Omitted — or refused by the catalogue —
       and the cell simply carries no cue. */
@@ -338,7 +334,7 @@ export function StatCell({
   cue?: string
 }) {
   return (
-    <Cell span={span} accent={accent}>
+    <Cell span={span} accent={accent} domain={domain}>
       <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.06em] text-[var(--bento-muted)]">{label}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2.5">
         {/* Sized against the viewport, not fixed.
@@ -613,25 +609,7 @@ export function BentoPage({
   return (
     <div
       className={cn(
-        'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7 lg:p-5',
-        // The clearance itself is made once, by BentoOutlet, for every screen
-        // rather than only the converted ones. What is left here is the
-        // consequence: the viewport this page may fill is shorter by it.
-
-        /* One screen, no page scroll — but only where that is honest.
-
-           A dashboard you have to scroll is not a dashboard; the whole claim
-           of the form is that the state of the school is visible at a glance,
-           and a figure below the fold is a figure nobody glanced at. So on a
-           wide screen the page is exactly the viewport and the grid divides
-           what is left after the dock.
-
-           Not below lg. Squeezing three rows of cards into a phone would not
-           produce a dashboard, it would produce four unreadable boxes, and
-           there the honest answer is that the page scrolls. */
-        bentoLayout
-          ? 'lg:flex lg:h-[calc(100dvh-var(--bento-dock))] lg:flex-col lg:overflow-auto'
-          : 'lg:flex lg:h-[100dvh] lg:flex-col lg:overflow-auto',
+        'h-full w-full text-[var(--bento-ink)] flex flex-col pb-[calc(var(--bento-dock)+2rem)]',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}

@@ -163,10 +163,11 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
 
          min-h-dvh so a short screen is one colour to the bottom of the window
          rather than to the bottom of its content. */
-      className="bento-ground min-h-dvh bg-[var(--bento-bg)]"
-      style={{ paddingTop: 'var(--bento-dock)' }}
+      className="bento-ground h-dvh flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed overflow-hidden"
     >
-      {inner}
+      <div className="flex-1 w-full pt-[12px] pb-[72px] px-4 sm:px-8 flex flex-col">
+        {inner}
+      </div>
     </div>
   )
 }

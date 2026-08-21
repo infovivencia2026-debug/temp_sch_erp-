@@ -32,9 +32,9 @@
   --bento-orange: #FF5F1F;
   --bento-orange-tint: #ffefe6;
 
-  --bento-anchor-from: #39FF14;
-  --bento-anchor-to: #00FFFF;
-  --bento-anchor-ink: #0d0f14;
+  --bento-anchor-from: #A8B6B5;
+  --bento-anchor-to: #D3D9D9;
+  --bento-anchor-ink: #1A1A1A;
 
   /* The global axes reach in here rather than stopping at the layout.
 
@@ -43,10 +43,10 @@
      were still there, still remembered, and applied to a layout they were not
      looking at. Every one is a multiple of the shipped value now, so the
      layout keeps its own proportions and still answers the preference. */
-  --bento-radius: calc(32px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(16px * var(--radius-scale, 1));
-  --bento-gap: 14px;
-  --bento-dock: 60px;
+  --bento-radius: 8px;
+  --bento-radius-sm: 4px;
+  --bento-gap: 6px;
+  --bento-dock: 72px;
   --bento-border-w: calc(1px * var(--border-scale, 1));
 
   --bento-depth-sm: 0 2px 10px rgba(0,0,0,0.03);
@@ -56,15 +56,15 @@
   --bento-shadow: var(--bento-depth);
   --bento-shadow-sm: var(--bento-depth-sm);
 
-  --dom-students: #00FFFF;      --dom-students-soft: #e5ffff;
-  --dom-academics: #9D00FF;     --dom-academics-soft: #f5e5ff;
-  --dom-attendance: #00FFFF;    --dom-attendance-soft: #e5ffff;
-  --dom-finance: #39FF14;       --dom-finance-soft: #ebffe5;
-  --dom-staff: #9D00FF;         --dom-staff-soft: #f5e5ff;
-  --dom-admissions: #FF5F1F;    --dom-admissions-soft: #ffece5;
-  --dom-communication: #FF007F; --dom-communication-soft: #ffe5f2;
-  --dom-operations: #FF5F1F;    --dom-operations-soft: #ffece5;
-  --dom-reports: #00FFFF;       --dom-reports-soft: #e5ffff;
+  --dom-students: #768289;      --dom-students-soft: #c8cdd0;  /* B-003 Slate Grey */
+  --dom-academics: #EAEAEA;     --dom-academics-soft: #f5f5f5;  /* C-001 Platinum */
+  --dom-attendance: #768289;    --dom-attendance-soft: #c8cdd0;
+  --dom-finance: #D3D9D9;       --dom-finance-soft: #e8ecec;   /* A-004 Light Grey */
+  --dom-staff: #95A6A5;         --dom-staff-soft: #d0d9d9;     /* A-001 Silver Tree */
+  --dom-admissions: #BAC0C4;    --dom-admissions-soft: #dde0e2; /* B-004 Silver Sand */
+  --dom-communication: #BBC6C5; --dom-communication-soft: #dde3e3; /* A-003 Ash Grey */
+  --dom-operations: #A8B6B5;    --dom-operations-soft: #d5dcdb; /* A-002 Morning Blue */
+  --dom-reports: #D3D9D9;       --dom-reports-soft: #e8ecec;
 
   --dom-critical: #FF5F1F;      --dom-critical-soft: #ffece5;
   --dom-warning: #FF5F1F;       --dom-warning-soft: #ffece5;
@@ -83,13 +83,15 @@
    sitting inside a card is not floating, and when everything is a capsule the
    capsule stops meaning anything. */
 [data-layout='bento'] .bento-cue {
-  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent);
   border-radius: 9px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-weight: 600;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 [data-layout='bento'] .bento-cue:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  border-color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
 html.dark[data-layout='bento'] {
@@ -105,15 +107,15 @@ html.dark[data-layout='bento'] {
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
      a tint of the ground, because a pale chip on near-black is grey mud and
      loses the hue that was the whole point. */
-  --dom-students: #7ea9ff;      --dom-students-soft: #131d33;
-  --dom-academics: #b794ff;     --dom-academics-soft: #1e1733;
-  --dom-attendance: #4fc4e0;    --dom-attendance-soft: #0d2229;
-  --dom-finance: #4fc4b0;       --dom-finance-soft: #0c2320;
-  --dom-staff: #9aa0ff;         --dom-staff-soft: #17182f;
-  --dom-admissions: #f09461;    --dom-admissions-soft: #2a1a10;
-  --dom-communication: #f785b6; --dom-communication-soft: #2c1420;
-  --dom-operations: #9aa8ba;    --dom-operations-soft: #191d24;
-  --dom-reports: #949aff;       --dom-reports-soft: #191a30;
+  --dom-students: #768289;      --dom-students-soft: #2a2d30;
+  --dom-academics: #c8c8c8;     --dom-academics-soft: #2a2a2a;
+  --dom-attendance: #768289;    --dom-attendance-soft: #2a2d30;
+  --dom-finance: #a8aeae;       --dom-finance-soft: #252828;
+  --dom-staff: #7a9190;         --dom-staff-soft: #202828;
+  --dom-admissions: #8f9699;    --dom-admissions-soft: #222628;
+  --dom-communication: #909b9a; --dom-communication-soft: #222727;
+  --dom-operations: #7f8e8d;    --dom-operations-soft: #202626;
+  --dom-reports: #a8aeae;       --dom-reports-soft: #252828;
 
   --dom-critical: #f4736b;      --dom-critical-soft: #2b1414;
   --dom-warning: #e0a350;     --dom-warning-soft: #2a1f0f;
@@ -146,7 +148,8 @@ html.dark[data-layout='bento'] {
    override instead of three. */
 [data-layout='bento'] .bento-cell {
   border-width: var(--bento-border-w);
-  border-color: var(--bento-line);
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.14);
   box-shadow: var(--bento-shadow-sm);
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
@@ -199,7 +202,7 @@ html.dark[data-layout='bento'] {
   border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
-/* ---- neominimalist ------------------------------------------------------- */
+/* ---- frostedglass ------------------------------------------------------- */
 
 /* A skin, not a theme: it changes the frame and leaves the colour system
    alone, so the domain hues mean the same thing in both. Hard edges, a border
@@ -215,65 +218,120 @@ html.dark[data-layout='bento'] {
    Here the border does the work the radius and the soft shadow shared, which
    is why both go: a 2px edge plus a blur plus a 16px corner is three different
    claims about where the card ends. */
-html[data-skin='neominimalist'][data-layout='bento'],
-html[data-skin='neominimalist'] [data-layout='bento'] {
-  --bento-bg: #F2F2F7;
+html[data-skin='focus'][data-layout='bento'],
+html[data-skin='focus'] [data-layout='bento'] {
+  --bento-bg: #F7F8FA;
   --bento-card: #FFFFFF;
-  --bento-ink: #18181B;
-  --bento-muted: #8E8E93;
-  --bento-radius: 32px;
-  --bento-radius-sm: 16px;
-  --bento-border-w: 0;
-  --bento-line: transparent;
+  --bento-ink: #111827;
+  --bento-muted: #6B7280;
+  --bento-radius: 8px;
+  --bento-radius-sm: 4px;
+  --bento-gap: 6px;
+  --bento-border-w: 1px;
+  --bento-line: rgba(0, 0, 0, 0.18);
+  --bento-shadow: 0 4px 16px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.08);
+  
+  --dom-students: #768289;      /* B-003 Slate Grey   — Anchor */
+  --dom-students-text: #F4F4F4;
+  --dom-academics: #EAEAEA;      /* C-001 Platinum     — Bar Chart */
+  --dom-academics-text: #1A1A1A;
+  --dom-attendance: #768289;
+  --dom-attendance-text: #F4F4F4;
+  --dom-finance: #D3D9D9;        /* A-004 Light Grey   — Outstanding */
+  --dom-finance-text: #1A1A1A;
+  --dom-staff: #95A6A5;          /* A-001 Silver Tree  — Defaulters/Approvals */
+  --dom-staff-text: #1A1A1A;
+  --dom-admissions: #BAC0C4;     /* B-004 Silver Sand  — Open Applications */
+  --dom-admissions-text: #1A1A1A;
+  --dom-communication: #BBC6C5;  /* A-003 Ash Grey     — Unassigned Subjects */
+  --dom-communication-text: #1A1A1A;
+  --dom-operations: #A8B6B5;     /* A-002 Morning Blue — Students */
+  --dom-operations-text: #1A1A1A;
+  --dom-reports: #D3D9D9;        /* A-004 Light Grey   — Staff */
+  --dom-reports-text: #1A1A1A;
+  
+  --dom-critical: #A64E46;
+  --dom-warning: #B79455;
+  --dom-success: #54705A;
 }
 
-html[data-skin='neominimalist'] [data-layout='bento']::before,
-html[data-skin='neominimalist'][data-layout='bento']::before {
+html[data-skin='focus'] [data-layout='bento']::before,
+html[data-skin='focus'][data-layout='bento']::before {
   display: none;
 }
 
-html.dark[data-skin='neominimalist'][data-layout='bento'],
-html.dark[data-skin='neominimalist'] [data-layout='bento'] {
-  --bento-bg: #000000;
-  --bento-card: #18181B;
-  --bento-ink: #FFFFFF;
-  --bento-line: transparent;
-  --bento-muted: #98989E;
+html.dark[data-skin='focus'][data-layout='bento'],
+html.dark[data-skin='focus'] [data-layout='bento'] {
+  --bento-bg: #111827;
+  --bento-card: #1F2937;
+  --bento-ink: #F9FAFB;
+  --bento-muted: #9CA3AF;
+  --bento-line: #374151;
+  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  
+  --dom-students: #768289;
+  --dom-students-text: #F4F4F4;
+  --dom-academics: #EAEAEA;
+  --dom-academics-text: #1A1A1A;
+  --dom-attendance: #768289;
+  --dom-attendance-text: #F4F4F4;
+  --dom-finance: #D3D9D9;
+  --dom-finance-text: #1A1A1A;
+  --dom-staff: #95A6A5;
+  --dom-staff-text: #1A1A1A;
+  --dom-admissions: #BAC0C4;
+  --dom-admissions-text: #1A1A1A;
+  --dom-communication: #BBC6C5;
+  --dom-communication-text: #1A1A1A;
+  --dom-operations: #A8B6B5;
+  --dom-operations-text: #1A1A1A;
+  --dom-reports: #D3D9D9;
+  --dom-reports-text: #1A1A1A;
+  
+  --dom-critical: #D4766D;
+  --dom-warning: #C8A96B;
+  --dom-success: #7D9A80;
 }
 
-html[data-skin='neominimalist'] .bento-cell,
-html[data-skin='neominimalist'] .launcher-tile,
-html[data-skin='neominimalist'] .launcher-app,
-html[data-skin='neominimalist'] .bento-dock {
+html[data-skin='focus'] .bento-cell,
+html[data-skin='focus'] .launcher-tile,
+html[data-skin='focus'] .launcher-app,
+html[data-skin='focus'] .bento-dock {
   background-color: var(--bento-card);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04), var(--bento-shadow);
+  box-shadow: var(--bento-shadow);
+  border-color: rgba(0, 0, 0, 0.28);
 }
 
-html.dark[data-skin='neominimalist'] .bento-cell,
-html.dark[data-skin='neominimalist'] .launcher-tile,
-html.dark[data-skin='neominimalist'] .launcher-app,
-html.dark[data-skin='neominimalist'] .bento-dock {
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), var(--bento-shadow);
+html.dark[data-skin='focus'] .bento-cell,
+html.dark[data-skin='focus'] .launcher-tile,
+html.dark[data-skin='focus'] .launcher-app,
+html.dark[data-skin='focus'] .bento-dock {
+  box-shadow: var(--bento-shadow);
 }
 
-html[data-skin='neominimalist'] .bento-cell:has(.bento-cue):hover {
-  background-color: var(--bento-bg);
+html[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
+  filter: brightness(0.95);
+}
+html.dark[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
+  filter: brightness(1.1);
 }
 
-html[data-skin='neominimalist'] [data-layout='bento'] .bento-cue,
-html[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
-  background-color: rgba(0,0,0,0.04);
+html[data-skin='focus'] [data-layout='bento'] .bento-cue,
+html[data-skin='focus'][data-layout='bento'] .bento-cue {
+  background-color: #111111;
+  color: #FFFFFF;
   border: none;
   border-radius: var(--bento-radius-sm);
 }
 
-html.dark[data-skin='neominimalist'] [data-layout='bento'] .bento-cue,
-html.dark[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
-  background-color: rgba(255,255,255,0.08);
+html.dark[data-skin='frostedglass'] [data-layout='bento'] .bento-cue,
+html.dark[data-skin='frostedglass'][data-layout='bento'] .bento-cue {
+  background-color: #FFFFFF;
+  color: #111111;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-skin='neominimalist'] .bento-cue:active { transform: scale(0.96); }
+  html[data-skin='frostedglass'] .bento-cue:active { transform: scale(0.96); }
 }
 
 
@@ -358,7 +416,7 @@ html.dark[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
 [data-layout='bento'] .bento-dock [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;

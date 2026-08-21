@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Palette, Type, X } from 'lucide-react'
+import { Check, LayoutGrid, Palette, Sliders, Type, X } from 'lucide-react'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
   DENSITIES, CORNERS, TEXT_SIZES, BORDERS, SHADOWS, PATTERNS, CONTRASTS,
+  DOCK_SIZES, ICON_SIZES,
   type Density, type Corners, type TextSize, type Borders, type Shadow,
-  type Pattern, type Contrast,
+  type Pattern, type Contrast, type DockSize, type IconSize,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { ColourPanel } from './ColourDialog'
 import { cn } from '@/lib/utils'
+import { useActiveRole } from '@/lib/catalog'
 
 /* Choosing a typeface by looking at it.
 
@@ -71,11 +73,74 @@ function Axis<T extends string>({
   )
 }
 
-export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** Toggle panel: lets the user hide individual dock category icons. */
+function DockItemsToggle() {
+  const role = useActiveRole()
+  const { appearance, set } = useAppearance()
+
+  // Collect unique workspace names this role has access to
+  const workspaces: string[] = []
+  for (const s of role?.sections ?? []) {
+    if (!workspaces.includes(s.workspace || 'Other')) {
+      workspaces.push(s.workspace || 'Other')
+    }
+  }
+  if (!workspaces.length) return null
+
+  const hidden = new Set(
+    (appearance.hiddenDockItems ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  )
+
+  const toggle = (name: string) => {
+    const next = new Set(hidden)
+    if (next.has(name)) next.delete(name)
+    else next.add(name)
+    set('hiddenDockItems', [...next].join(','))
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-[12px] text-muted-foreground">Visible categories in dock</p>
+      <div className="flex flex-wrap gap-2">
+        {workspaces.map(name => {
+          const visible = !hidden.has(name)
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => toggle(name)}
+              className={cn(
+                `rounded-full border px-3 py-1 text-[12px] transition-colors
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
+                visible
+                  ? 'border-primary bg-primary-soft font-medium text-primary'
+                  : 'border-dashed text-muted-foreground hover:bg-accent',
+              )}
+            >
+              {visible ? '✓ ' : ''}{name}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function AppearanceDialog({
+  open,
+  onClose,
+  initialTab = 'appearance',
+}: {
+  open: boolean
+  onClose: () => void
+  initialTab?: 'appearance' | 'dock' | 'dashboard'
+}) {
   const { appearance, set } = useAppearance()
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
+  const dockRef = useRef<HTMLElement>(null)
+  const dashRef = useRef<HTMLElement>(null)
 
   /* Every face is fetched when the picker opens, not when the app loads.
 
@@ -85,6 +150,13 @@ export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (open) ensureAllFonts()
   }, [open])
+
+  /* Scroll to the requested section when the dialog opens */
+  useEffect(() => {
+    if (!open) return
+    const el = initialTab === 'dock' ? dockRef.current : initialTab === 'dashboard' ? dashRef.current : null
+    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+  }, [open, initialTab])
 
   useEffect(() => {
     if (!open) return
@@ -253,6 +325,45 @@ export function AppearanceDialog({ open, onClose }: { open: boolean; onClose: ()
               {t('bento.colour.title')}
             </h3>
             <ColourPanel onPickingChange={onPickingChange} />
+          </section>
+
+          {/* Dock settings — size and per-category visibility */}
+          <section ref={dockRef} className="mt-8 border-t pt-6">
+            <h3 className="mb-4 flex items-center gap-2 text-[13px] font-semibold">
+              <LayoutGrid className="size-4 text-muted-foreground" aria-hidden="true" />
+              Dock
+            </h3>
+            <div className="divide-y border-t">
+              <Axis<DockSize>
+                label="Bar size"
+                value={appearance.dockSize}
+                options={DOCK_SIZES}
+                onPick={(v) => set('dockSize', v)}
+                name={(v) => ({ compact: 'Compact', default: 'Default', large: 'Large' }[v])}
+              />
+              <Axis<IconSize>
+                label="Icon size"
+                value={appearance.iconSize}
+                options={ICON_SIZES}
+                onPick={(v) => set('iconSize', v)}
+                name={(v) => ({ small: 'Small', default: 'Default', large: 'Large' }[v])}
+              />
+            </div>
+            <DockItemsToggle />
+          </section>
+
+          {/* Dashboard widget shortcuts — focus mode cells */}
+          <section ref={dashRef} className="mt-8 border-t pt-6">
+            <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
+              <Sliders className="size-4 text-muted-foreground" aria-hidden="true" />
+              Dashboard Widgets
+            </h3>
+            <p className="mb-4 text-[12px] text-muted-foreground">
+              Configure quick-access shortcuts shown inside focus mode dashboard cells.
+            </p>
+            <div className="rounded-[10px] border border-dashed p-4 text-[12.5px] text-muted-foreground">
+              Cell shortcut configuration — coming soon. Each cell will let you pin up to 3 feature links directly on the dashboard.
+            </div>
           </section>
         </div>
       </div>

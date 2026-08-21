@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import { BentoDock } from '@/features/bento/BentoDock'
+import { BentoMenuBar } from '@/features/bento/BentoMenuBar'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
@@ -611,13 +612,6 @@ export function Shell({ children }: { children: ReactNode }) {
               exist yet: two different questions, so two switches. Both live at
               the foot, out of the way of the work. */}
           <div className="mt-3 space-y-0.5 border-t pt-3">
-            <button
-              onClick={toggleAdvanced}
-              className="w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
-            >
-              {showAdvanced ? 'Hide advanced tools' : 'Advanced tools'}
-            </button>
-
             {/* The same preferences the chrome-less layout keeps behind its
                 cog. They were only reachable from there, so a person who had
                 never tried Focus could not change the density or the text size

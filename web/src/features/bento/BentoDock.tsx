@@ -7,6 +7,7 @@ import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
+import { useAppearance } from '@/lib/appearance'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -38,6 +39,11 @@ export function BentoDock() {
   const navigate = useNavigate()
   const location = useLocation()
   const role = useActiveRole()
+  const { appearance } = useAppearance()
+  const hidden = useMemo(
+    () => new Set((appearance.hiddenDockItems ?? '').split(',').map(s => s.trim()).filter(Boolean)),
+    [appearance.hiddenDockItems],
+  )
   const [all, setAll] = useState(false)
 
   /* Where "Work" goes, per role.
@@ -141,15 +147,17 @@ export function BentoDock() {
      reader, so nothing is lost that was not visual. A bar of unlabelled glyphs
      with no way to find out what they are would be a puzzle, not a dock. */
   const item =
-    `grid size-9 shrink-0 place-items-center rounded-full transition-colors ` +
+    `grid shrink-0 place-items-center rounded-full transition-colors ` +
     `hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+  const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }
 
   return (
     <>
       <div
-        className="bento-dock fixed left-1/2 top-4 z-50 flex max-w-[calc(100vw-6rem)]
-                   -translate-x-1/2 items-center gap-1.5 rounded-full border bg-popover/90
-                   p-1.5 pl-2.5 backdrop-blur-md"
+        className="bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
+                   -translate-x-1/2 items-center gap-2 rounded-[14px] border-none bg-[var(--bento-card)]
+                   shadow-2xl"
+        style={{ padding: 'var(--dock-pad, 8px)', paddingLeft: 'calc(var(--dock-pad, 8px) + 4px)' }}
       >
         {homeHref && (
           <button
@@ -206,7 +214,7 @@ export function BentoDock() {
             the bar fits on any screen wide enough to be running the desktop
             layout at all. */}
         <span className="flex items-center gap-0.5">
-          {categories.map((c) => {
+          {categories.filter(c => !hidden.has(c.name)).map((c) => {
             const Mark = markFor(c.name)
             return (
               <button
@@ -216,10 +224,15 @@ export function BentoDock() {
                 data-tip={c.name}
                 aria-label={c.name}
                 className={item}
+                style={btnStyle}
               >
                 <Mark
-                  className="size-[17px]"
-                  style={{ color: `var(--dom-${hueFor(c.name)})` }}
+                  style={{
+                    width: 'var(--dock-icon, 17px)',
+                    height: 'var(--dock-icon, 17px)',
+                    opacity: 0.6,
+                    color: `var(--dom-${hueFor(c.name)})`,
+                  }}
                   aria-hidden="true"
                 />
               </button>
@@ -247,15 +260,15 @@ export function BentoDock() {
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
           {t('bento.launcher.title')}
         </button>
+
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        <BentoSettings placement="dock" />
       </div>
 
       {/* The account, at the edge of the screen rather than in the middle of
           the bar. Its own fixed element, not a third region of the dock: the
           dock is a place you point at deliberately and this is a place you go
           when you already know what you want. */}
-      <div className="fixed right-4 top-4 z-50">
-        <BentoSettings />
-      </div>
 
       {/* Outside the pill on purpose. backdrop-filter establishes a containing
           block, so a fixed-position child anchors to the blurred element instead

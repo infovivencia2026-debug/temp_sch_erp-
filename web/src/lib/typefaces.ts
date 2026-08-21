@@ -67,9 +67,9 @@ export const TYPEFACES: readonly Typeface[] = [
   { id: 'jetbrains', name: 'JetBrains Mono', google: 'JetBrains+Mono:wght@400;500',
     stack: "'JetBrains Mono', ui-monospace, Menlo, monospace",
     note: 'Fixed width. Every figure lines up.' },
-  { id: 'bebas', name: 'Bebas Neue', google: 'Bebas+Neue',
-    stack: "'Bebas Neue', Impact, ui-sans-serif, sans-serif",
-    note: 'Tall condensed caps. Headlines only.' },
+  { id: 'ibmplexmono', name: 'IBM Plex Mono', google: 'IBM+Plex+Mono:wght@400;500;600',
+    stack: "'IBM Plex Mono', ui-monospace, Menlo, monospace",
+    note: 'Monospaced. IDs, codes, and technical values.' },
   { id: 'cinzel', name: 'Cinzel', google: 'Cinzel:wght@400;600',
     stack: "Cinzel, ui-serif, Georgia, serif", note: 'Roman capitals, engraved.' },
 ] as const

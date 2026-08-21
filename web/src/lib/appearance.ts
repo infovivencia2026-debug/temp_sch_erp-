@@ -28,6 +28,8 @@ export type Borders = 'none' | 'hairline' | 'strong'
 export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
 export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
 export type Contrast = 'normal' | 'medium' | 'high'
+export type DockSize = 'compact' | 'default' | 'large'
+export type IconSize = 'small' | 'default' | 'large'
 
 export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -37,6 +39,8 @@ export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as con
 export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
 export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
 export const CONTRASTS: readonly Contrast[] = ['normal', 'medium', 'high'] as const
+export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
+export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
 
 export interface Appearance {
   density: Density
@@ -47,6 +51,10 @@ export interface Appearance {
   shadow: Shadow
   pattern: Pattern
   contrast: Contrast
+  dockSize: DockSize
+  iconSize: IconSize
+  /** Comma-separated list of workspace names hidden from the dock */
+  hiddenDockItems: string
 }
 
 const DEFAULTS: Appearance = {
@@ -58,6 +66,9 @@ const DEFAULTS: Appearance = {
   shadow: 'default',
   pattern: 'none',
   contrast: 'normal',
+  dockSize: 'default',
+  iconSize: 'default',
+  hiddenDockItems: '',
 }
 
 const KEYS = {
@@ -69,6 +80,9 @@ const KEYS = {
   shadow: 'erp.shadow',
   pattern: 'erp.pattern',
   contrast: 'erp.contrast',
+  dockSize: 'erp.dockSize',
+  iconSize: 'erp.iconSize',
+  hiddenDockItems: 'erp.hiddenDockItems',
 } as const
 
 function readRaw(key: string): string | undefined {
@@ -111,6 +125,9 @@ function read(): Appearance {
     shadow: one(KEYS.shadow, SHADOWS, DEFAULTS.shadow),
     pattern: one(KEYS.pattern, PATTERNS, DEFAULTS.pattern),
     contrast: one(KEYS.contrast, CONTRASTS, DEFAULTS.contrast),
+    dockSize: one(KEYS.dockSize, DOCK_SIZES, DEFAULTS.dockSize),
+    iconSize: one(KEYS.iconSize, ICON_SIZES, DEFAULTS.iconSize),
+    hiddenDockItems: readRaw(KEYS.hiddenDockItems) ?? '',
   }
 }
 
@@ -160,12 +177,21 @@ export function applyAppearance(next: Appearance) {
   stamp('data-pattern', next.pattern, 'none')
   stamp('data-contrast', next.contrast, 'normal')
 
+  /* Dock sizing — CSS variables read directly by BentoDock. */
+  const dockPad = { compact: '6px', default: '8px', large: '12px' }[next.dockSize]
+  const dockBtn = { compact: '32px', default: '40px', large: '48px' }[next.dockSize]
+  const iconPx  = { small: '14px', default: '17px', large: '22px' }[next.iconSize]
+  root.style.setProperty('--dock-pad', dockPad)
+  root.style.setProperty('--dock-btn', dockBtn)
+  root.style.setProperty('--dock-icon', iconPx)
+  root.style.setProperty('--dock-hidden', JSON.stringify(next.hiddenDockItems))
+
   try {
     // Density keeps its JSON spelling: index.html parses it before any of this
     // runs, and changing the format here would blank it for one paint.
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
-                     'contrast'] as const) {
+                     'contrast', 'dockSize', 'iconSize', 'hiddenDockItems'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
   } catch {

@@ -417,7 +417,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       role="dialog"
       aria-modal="true"
       aria-label={t('bento.launcher.title')}
-      className="fade-in fixed inset-0 z-[60] overflow-y-auto bg-background/80 backdrop-blur-xl"
+      className="fade-in fixed inset-0 z-[60] overflow-y-auto bg-[var(--bento-bg)]"
       onClick={onClose}
     >
       <div
@@ -518,8 +518,8 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 style={
                   on
                     ? {
-                        background: `color-mix(in srgb, var(--dom-${hue}) 13%, var(--bento-card))`,
-                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 34%, transparent)`,
+                        background: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
+                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, transparent)`,
                       }
                     : { borderColor: 'hsl(var(--border))', opacity: 0.55 }
                 }
@@ -613,8 +613,8 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                        there is nothing to keep in step and dark mode follows
                        from the ink it already redefines. */
                     style={{
-                      background: `color-mix(in srgb, var(--dom-${hue}) 13%, var(--bento-card))`,
-                      borderColor: `color-mix(in srgb, var(--dom-${hue}) 28%, transparent)`,
+                      background: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
+                      borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, transparent)`,
                     }}
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />

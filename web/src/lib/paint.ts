@@ -15,10 +15,10 @@ import { useCallback, useSyncExternalStore } from 'react'
    dialog: switch to dark afterwards and every surface would still be the light
    one they picked. Only what was deliberately chosen is stored. */
 
-export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards'
+export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards' | 'students' | 'academics' | 'finance' | 'operations' | 'reports'
 export type Channel = 'bg' | 'text' | 'accent'
 
-export const REGIONS: readonly Region[] = ['workarea', 'topbar', 'sidebar', 'bottombar', 'cards'] as const
+export const REGIONS: readonly Region[] = ['workarea', 'topbar', 'sidebar', 'bottombar', 'cards', 'students', 'academics', 'finance', 'operations', 'reports'] as const
 export const CHANNELS: readonly Channel[] = ['bg', 'text', 'accent'] as const
 
 /** An HSL triple, kept unresolved so it can be written straight into a token

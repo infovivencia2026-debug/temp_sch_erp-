@@ -125,8 +125,8 @@ export default function BentoPrincipalDashboard() {
           `--success` — a token measured against a light card sinks into a
           near-black ground — but it meant the head's headline figure changed
           polarity with the theme. This one does not. */}
-      <Cell span="anchor" tone="anchor">
-        <p className="text-[12.5px] font-medium opacity-75">
+      <Cell span="anchor" tone="anchor" domain="students">
+        <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-ink)]">
           {t('bento.principal.anchor_label')}
         </p>
 
@@ -205,6 +205,7 @@ export default function BentoPrincipalDashboard() {
 
       {/* Money out — pink, and pink is used for nothing else on this page. */}
       <StatCell
+        domain="finance"
         label={t('bento.principal.outstanding')}
         value={formatPaise(k.outstanding_paise)}
         badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
@@ -224,6 +225,7 @@ export default function BentoPrincipalDashboard() {
 
       {/* A warning, so orange — the hue this palette reserves for one. */}
       <StatCell
+        domain="staff"
         label={t('bento.principal.defaulters')}
         value={k.defaulters}
         badge={t('bento.principal.pct_of_students', { pct: defaultersPct })}
@@ -244,8 +246,8 @@ export default function BentoPrincipalDashboard() {
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Cell span="wide">
-        <p className="text-[12.5px] text-[var(--bento-muted)]">{t('bento.principal.bars_label')}</p>
+      <Cell span="wide" domain="academics">
+        <p className="text-[12.5px] text-[var(--bento-ink)] opacity-70">{t('bento.principal.bars_label')}</p>
         {trend.error ? (
           <div className="mt-4">
             <CellError message={t('bento.principal.trend_failed')} />
@@ -274,6 +276,7 @@ export default function BentoPrincipalDashboard() {
           not one of those meanings — a tint here would only make the two that
           do mean something harder to find. */}
       <StatCell
+        domain="operations"
         span="wide"
         label={t('bento.principal.students')}
         value={k.students}
@@ -284,6 +287,7 @@ export default function BentoPrincipalDashboard() {
       />
 
       <StatCell
+        domain="reports"
         label={t('bento.principal.staff')}
         value={k.staff}
        
@@ -293,6 +297,7 @@ export default function BentoPrincipalDashboard() {
       />
 
       <StatCell
+        domain="staff"
         label={t('bento.principal.approvals')}
         value={k.pending_leave}
        
@@ -308,6 +313,7 @@ export default function BentoPrincipalDashboard() {
           the bottom right. Below `lg` every wide cell is simply full width. */}
       <StatCell
         span="wide"
+        domain="admissions"
         label={t('bento.principal.applications')}
         value={k.open_applications}
        
@@ -318,6 +324,7 @@ export default function BentoPrincipalDashboard() {
 
       <StatCell
         span="wide"
+        domain="communication"
         label={t('bento.principal.unassigned')}
         value={k.unassigned_subjects}
         badge={k.unassigned_subjects > 0 ? t('bento.principal.needs_attention') : undefined}

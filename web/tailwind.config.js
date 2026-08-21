@@ -52,7 +52,7 @@ export default {
            arrives. Naming only 'Inter' — as this did — matched nothing at all
            and fell silently through to Helvetica Neue. */
         sans: ['Inter Variable', 'Inter', 'Geist', 'Helvetica Neue', 'ui-sans-serif', 'system-ui', 'Arial', 'sans-serif'],
-        mono: ['Geist Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        mono: ['"IBM Plex Mono"', 'Geist Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       letterSpacing: {
         tightest: '-0.02em',
