@@ -372,7 +372,7 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
 [data-layout='bento'] .launcher-tile:hover {
   /* A tint of its own colour rather than a shadow: the panel is already a
      coloured field, and a grey shadow under it reads as dirt. */
-  filter: brightness(0.985) saturate(1.06);
+  filter: saturate(1.12);
 }
 
 /* The dock's items already have a background hover from the utility classes.

@@ -436,10 +436,27 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   <section
                     key={g.name}
                     className={cn(
-                      'launcher-tile rounded-[var(--bento-radius)] p-3.5',
+                      'launcher-tile rounded-[var(--bento-radius)] border p-3.5',
                       tileSpan(count),
                     )}
-                    style={{ background: `var(--dom-${hue}-soft)` }}
+                    /* Mixed from the domain's ink, not its chip tone.
+
+                       The -soft tokens are about 4% saturation, which is right
+                       behind a chip the size of a word and invisible behind a
+                       panel the size of a hand: Home, Students and Finance all
+                       came out off-white and the colour system stopped saying
+                       anything. 13% of the ink against the card is enough to
+                       name a category across the width of the screen while
+                       still reading as a tint, and the border at 28% gives the
+                       block an edge so it is a region rather than a wash.
+
+                       Derived rather than a second set of hexes per domain, so
+                       there is nothing to keep in step and dark mode follows
+                       from the ink it already redefines. */
+                    style={{
+                      background: `color-mix(in srgb, var(--dom-${hue}) 13%, var(--bento-card))`,
+                      borderColor: `color-mix(in srgb, var(--dom-${hue}) 28%, transparent)`,
+                    }}
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
                     <div className={cn('grid gap-1.5', tileColumns(count))}>
