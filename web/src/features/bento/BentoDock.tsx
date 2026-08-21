@@ -5,7 +5,7 @@ import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
-import { BentoLauncher } from './BentoLauncher'
+import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
 
 /* Navigation and the way out, for a layout with no chrome.
@@ -76,6 +76,28 @@ export function BentoDock() {
     return undefined
   }, [role])
 
+  /* Every workspace this role holds, in the order the catalogue files them.
+
+     Each takes its domain's colour, so the bar is the same colour system as
+     the launcher and the cards rather than a third vocabulary. The glyph is
+     coloured and the word is not: nine coloured labels in a row is a bar you
+     squint at, and the mark is what the eye is learning anyway.
+
+     Resolved to the first feature of the workspace that actually opens, so a
+     category with nothing reachable in it is simply absent rather than a
+     button that lands on "not in your workspace". */
+  const categories = useMemo(() => {
+    if (!role) return []
+    const out: { name: string; href: string }[] = []
+    for (const s of role.sections) {
+      const name = s.workspace || s.name
+      if (out.some((x) => x.name === name)) continue
+      const f = s.features.find(usable)
+      if (f) out.push({ name, href: featurePath(role.key, s.slug, f.slug) })
+    }
+    return out
+  }, [role])
+
   if (layout !== 'bento') return null
 
   /* Icon and word together, not one or the other.
@@ -92,8 +114,9 @@ export function BentoDock() {
   return (
     <>
       <div
-        className="bento-dock fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5
-                   rounded-full border bg-popover/90 p-1.5 pl-2.5 backdrop-blur-md"
+        className="bento-dock fixed left-1/2 top-4 z-50 flex max-w-[calc(100vw-6rem)]
+                   -translate-x-1/2 items-center gap-1.5 rounded-full border bg-popover/90
+                   p-1.5 pl-2.5 backdrop-blur-md"
       >
         {homeHref && (
           <button type="button" onClick={() => navigate(homeHref)} className={item}>
@@ -113,8 +136,41 @@ export function BentoDock() {
           </button>
         )}
 
+        {categories.length > 0 && (
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        )}
+
+        {/* The categories scroll rather than wrap. The dock is one line by
+            definition — it floats over the canvas — so a second row would sit
+            on the content it is supposed to hover above. On a wide screen they
+            all fit; on a narrow one they slide. */}
+        <span className="flex min-w-0 items-center gap-0.5 overflow-x-auto
+                         [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((c) => {
+            const Mark = markFor(c.name)
+            return (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => navigate(c.href)}
+                title={c.name}
+                className={item + ' shrink-0'}
+              >
+                <Mark
+                  className="size-3.5 shrink-0"
+                  style={{ color: `var(--dom-${hueFor(c.name)})` }}
+                  aria-hidden="true"
+                />
+                {c.name}
+              </button>
+            )
+          })}
+        </span>
+
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+
         {/* Pointing, for the person who does not know what to type. */}
-        <button type="button" onClick={() => setAll(true)} className={item}>
+        <button type="button" onClick={() => setAll(true)} className={item + ' shrink-0'}>
           <LayoutGrid className="size-3.5 shrink-0" aria-hidden="true" />
           {t('bento.launcher.title')}
         </button>

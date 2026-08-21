@@ -147,13 +147,40 @@
     --lift-panel: 0 1px 2px hsl(220 20% 20% / 0.04);
     --lift-float: 0 4px 12px -2px hsl(220 20% 20% / 0.10), 0 2px 4px -2px hsl(220 20% 20% / 0.06);
 
-    /* Radius scale, by component weight. */
-    --radius-control: 7px;
-    --radius-input: 8px;
-    --radius-card: 11px;
-    --radius-dialog: 14px;
+    /* Radius scale, by component weight — and multiplied.
+
+       Every radius is a base times --radius-scale now, so one preference moves
+       the whole product's corners together instead of a person hunting four
+       numbers. The default of 1 keeps the multiplier invisible until somebody
+       changes it, and the proportion between a control and a dialog survives
+       every setting: sharpening the UI should not make a dialog as square as a
+       checkbox. */
+    --radius-scale: 1;
+    --radius-control: calc(7px * var(--radius-scale));
+    --radius-input: calc(8px * var(--radius-scale));
+    --radius-card: calc(11px * var(--radius-scale));
+    --radius-dialog: calc(14px * var(--radius-scale));
     --radius: var(--radius-card);
+
+    /* Text scale: the same idea applied to size.
+
+       Not browser zoom. This scales the product's own type without changing
+       its layout widths, so somebody who finds 13px labels hard to read gets
+       larger text in the same number of columns rather than a magnified page
+       they have to scroll sideways. */
+    --font-scale: 1;
   }
+
+  /* The scales, applied once at the root so every rem-based size follows.
+     Sizes written in px do not, which is deliberate: the px values here are
+     optical constants — hairlines, icon boxes — that should not grow with body
+     text. */
+  html[data-text='large'] { --font-scale: 1.08; }
+  html[data-text='larger'] { --font-scale: 1.16; }
+  html { font-size: calc(16px * var(--font-scale)); }
+
+  html[data-corners='sharp'] { --radius-scale: 0.35; }
+  html[data-corners='round'] { --radius-scale: 1.6; }
 
   .dark {
     color-scheme: dark;
@@ -213,7 +240,14 @@
   :root { --row-py: 0.875rem; }
   :root[data-density='compact'] { --row-py: 0.5rem; }
   :root[data-density='comfortable'] { --row-py: 0.875rem; }
-  :root[data-density='spacious'] { --row-py: 1.125rem; }
+  /* 'relaxed' is the name the API, the database CHECK and the appearance screen
+     all use; 'spacious' is the name this file was written with. They never met,
+     so choosing the loosest density did nothing at all — accepted, stored, and
+     silently inert. Both are honoured rather than renaming one, because every
+     existing preferences row stores 'relaxed' and a rename needs a migration
+     to go with it. */
+  :root[data-density='spacious'],
+  :root[data-density='relaxed'] { --row-py: 1.125rem; }
 
   /* High contrast, opt in, as a token override and nothing else.
 

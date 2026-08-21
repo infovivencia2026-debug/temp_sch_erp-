@@ -58,7 +58,7 @@ const WORKSPACE_ICON: Record<string, typeof Home> = {
   Setup: Settings2,
 }
 
-function markFor(workspace: string) {
+export function markFor(workspace: string) {
   return WORKSPACE_ICON[workspace] ?? LayoutGrid
 }
 
@@ -104,7 +104,7 @@ const DOMAINS = [
   'admissions', 'communication', 'operations', 'reports',
 ]
 
-function hueFor(workspace: string): string {
+export function hueFor(workspace: string): string {
   const named = WORKSPACE_DOMAIN[workspace]
   if (named) return named
   let h = 0

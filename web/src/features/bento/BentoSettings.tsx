@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, Maximize2 } from 'lucide-react'
+import {
+  Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
+  Maximize2, Rows2, Rows3, Rows4, Squircle, Type,
+} from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
+import {
+  useAppearance, DENSITIES, CORNERS, TEXT_SIZES,
+  type Density, type Corners, type TextSize,
+} from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
@@ -31,6 +38,7 @@ export function BentoSettings() {
   const { theme, resolved, setTheme } = useTheme()
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
+  const { appearance, set: setAppearance } = useAppearance()
   const session = useSession()
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -63,6 +71,52 @@ export function BentoSettings() {
   void resolved
   void session
 
+  /* One row renderer for every axis. Four near-identical map() blocks was how
+     the theme and skin lists started, and a fifth would have made the drift
+     between them a certainty. */
+  const Choice = <T extends string>({
+    value, options, onPick, label, icon: Icon,
+  }: {
+    value: T
+    options: readonly T[]
+    onPick: (v: T) => void
+    label: (v: T) => string
+    icon: (v: T) => typeof Sun
+  }) => (
+    <>
+      {options.map((option) => {
+        const Glyph = Icon(option)
+        const active = value === option
+        return (
+          <button
+            key={option}
+            type="button"
+            role="menuitemradio"
+            aria-checked={active}
+            onClick={() => onPick(option)}
+            className={cn(
+              `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+               transition-colors hover:bg-accent focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-ring`,
+              active && 'font-medium',
+            )}
+          >
+            <Glyph className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="flex-1">{label(option)}</span>
+            {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+          </button>
+        )
+      })}
+    </>
+  )
+
+  const Group = ({ children }: { children: string }) => (
+    <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
+                  text-muted-foreground">
+      {children}
+    </p>
+  )
+
   return (
     <div className="relative" ref={box}>
       <button
@@ -83,8 +137,8 @@ export function BentoSettings() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-48 overflow-hidden rounded-xl
-                     border bg-popover p-1 shadow-lg"
+          className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-52 overflow-y-auto
+                     overscroll-contain rounded-xl border bg-popover p-1 shadow-lg"
         >
           <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
                         text-muted-foreground">
@@ -116,6 +170,35 @@ export function BentoSettings() {
               </button>
             )
           })}
+
+          <div className="my-1 h-px bg-border" role="separator" />
+
+          <Group>{t('bento.settings.density')}</Group>
+          <Choice<Density>
+            value={appearance.density}
+            options={DENSITIES}
+            onPick={(v) => setAppearance('density', v)}
+            label={(v) => t(`bento.settings.density.${v}`)}
+            icon={(v) => (v === 'compact' ? Rows4 : v === 'relaxed' ? Rows2 : Rows3)}
+          />
+
+          <Group>{t('bento.settings.corners')}</Group>
+          <Choice<Corners>
+            value={appearance.corners}
+            options={CORNERS}
+            onPick={(v) => setAppearance('corners', v)}
+            label={(v) => t(`bento.settings.corners.${v}`)}
+            icon={(v) => (v === 'sharp' ? Square : v === 'round' ? Squircle : Frame)}
+          />
+
+          <Group>{t('bento.settings.text')}</Group>
+          <Choice<TextSize>
+            value={appearance.text}
+            options={TEXT_SIZES}
+            onPick={(v) => setAppearance('text', v)}
+            label={(v) => t(`bento.settings.text.${v}`)}
+            icon={() => Type}
+          />
 
           <div className="my-1 h-px bg-border" role="separator" />
 
