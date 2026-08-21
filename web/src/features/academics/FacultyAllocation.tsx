@@ -28,7 +28,7 @@ interface Slot {
   subject: string
   teacher_user_id?: string
   teacher?: string
-  weekly_periods: number
+  weekly_periods?: number
   timetable_differs: boolean
 }
 
@@ -84,7 +84,7 @@ export default function FacultyAllocation() {
     () =>
       (teachers.data?.items ?? []).map((t) => ({
         value: t.user_id,
-        label: `${t.full_name} — ${t.weekly_periods} periods`,
+        label: `${t.full_name} — ${t.weekly_periods ?? 0} periods`,
       })),
     [teachers.data],
   )

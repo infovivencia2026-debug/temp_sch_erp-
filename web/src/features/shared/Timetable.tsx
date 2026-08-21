@@ -21,14 +21,30 @@ export default function Timetable() {
     queryKey: ['session'],
     queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
   })
-  const isStaff = session.data?.permissions.includes('academics.read') ?? false
+  const held = session.data?.permissions ?? []
+  const isStaff = held.includes('academics.read')
 
-  const tabs = isStaff
+  /* Who may read the whole staff's load.
+   *
+   * "Faculty workload" lists every colleague, their weekly periods and who is
+   * overloaded. That is a management view — the question a head of department
+   * or a principal asks before moving a class, and it is answered by naming
+   * which of your colleagues is carrying the most.
+   *
+   * It was offered to anybody who could read academics, which is every
+   * teacher in the school. A teacher needs their own week and the week of a
+   * class they teach; they have no business with a league table of their
+   * colleagues, and being on one is worse. Gated on academics.write, which is
+   * what separates the people who move periods from the people who teach
+   * them. */
+  const mayPlan = held.includes('academics.write')
+
+  const tabs = mayPlan
     ? [
         { id: 'grid', label: 'Grid' },
         { id: 'workload', label: 'Faculty workload' },
       ]
-    : [{ id: 'grid', label: 'My week' }]
+    : [{ id: 'grid', label: isStaff ? 'My week' : 'My week' }]
   return (
     <Card>
       <CardHeader title="Timetable" />
@@ -46,7 +62,7 @@ export default function Timetable() {
           </button>
         ))}
       </div>
-      {tabId === 'grid' || !isStaff ? <Grid isStaff={isStaff} /> : <Workload />}
+      {tabId === 'grid' || !mayPlan ? <Grid isStaff={isStaff} /> : <Workload />}
     </Card>
   )
 }
@@ -157,20 +173,24 @@ function Workload() {
   const rows = data?.items ?? []
   return (
     <Table head={['Code', 'Teacher', 'Weekly periods', 'Load']} empty={!rows.length}>
-      {rows.map((t) => (
+      {rows.map((t) => {
+        // Absent for anybody who does not plan the timetable.
+        const load = t.weekly_periods ?? 0
+        return (
         <tr key={t.user_id}>
           <Td className="font-mono text-xs">{t.employee_code}</Td>
           <Td className="font-medium">{t.full_name}</Td>
-          <Td className="tabular-nums">{t.weekly_periods}</Td>
+          <Td className="tabular-nums">{t.weekly_periods ?? '—'}</Td>
           <Td>
             {/* 30 periods a week is the usual CBSE ceiling for a full-time
                 teacher; over that is worth flagging, not blocking. */}
-            <Badge tone={t.weekly_periods > 30 ? 'danger' : t.weekly_periods > 24 ? 'primary' : 'success'}>
-              {t.weekly_periods > 30 ? 'Overloaded' : t.weekly_periods > 24 ? 'Heavy' : 'Normal'}
+            <Badge tone={load > 30 ? 'danger' : load > 24 ? 'primary' : 'success'}>
+              {load > 30 ? 'Overloaded' : load > 24 ? 'Heavy' : 'Normal'}
             </Badge>
           </Td>
         </tr>
-      ))}
+        )
+      })}
     </Table>
   )
 }

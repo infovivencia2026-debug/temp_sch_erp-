@@ -137,7 +137,15 @@ export interface TimetableEntry {
   subject_name: string; subject_code: string
   teacher_id?: string; teacher_name?: string; room?: string
 }
-export interface Teacher { user_id: string; full_name: string; employee_code: string; weekly_periods: number }
+export interface Teacher {
+  user_id: string
+  full_name: string
+  employee_code: string
+  /* Absent unless the caller plans the timetable. The whole staff's weekly
+     load is a league table of colleagues; the server omits it rather than
+     sending a zero that would say something false about everybody. */
+  weekly_periods?: number
+}
 
 export interface AttendanceRow {
   id: string; student_id: string; student_name: string; admission_no: string

@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 type period struct {
@@ -36,7 +37,18 @@ type teacher struct {
 	UserID   string `json:"user_id"`
 	FullName string `json:"full_name"`
 	Code     string `json:"employee_code"`
-	Periods  int    `json:"weekly_periods"`
+	/* How much this colleague is carrying, omitted from teachers.
+
+	   The list itself is needed by everybody: a teacher picking cover, a class
+	   teacher naming a subject teacher, the office building a timetable. This
+	   one number is not. Together with the rest of the list it is a league
+	   table of who is carrying the most, which is a question a head of
+	   department answers before moving a class and nobody else has business
+	   asking — least of all about the colleague sitting next to them.
+
+	   A pointer so it disappears from the JSON rather than reading zero, which
+	   would say something false about everybody. */
+	Periods *int `json:"weekly_periods,omitempty"`
 	// EmployeeID is what the login endpoint is addressed by.
 	EmployeeID string `json:"employee_id"`
 	// SignInAs is the username, email or phone they sign in with, and CanSignIn
@@ -129,6 +141,7 @@ func (s *Server) listTimetableEntries(w http.ResponseWriter, r *http.Request) {
 // listTeachers carries each teacher's weekly period count so the workload view
 // can flag over-allocation without a second round trip per teacher.
 func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
+	mayPlan := httpx.IdentityFrom(r.Context()).Can(rbac.AcademicsWrite)
 	items, err := collect(s, r, `
 		SELECT u.id::text, u.full_name, e.employee_code, e.id::text,
 		       /* What they sign in with, and whether they can.
@@ -208,9 +221,18 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		},
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
-			return v, rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
-				&v.SignInAs, &v.CanSignIn, &v.Roles, &v.Periods, &v.Subjects,
-				&v.ClassTeacherOf)
+			var periods int
+			if err := rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
+				&v.SignInAs, &v.CanSignIn, &v.Roles, &periods, &v.Subjects,
+				&v.ClassTeacherOf); err != nil {
+				return v, err
+			}
+			// Only for whoever plans the timetable. Hiding the tab in the SPA
+			// hides the screen, not the number.
+			if mayPlan {
+				v.Periods = &periods
+			}
+			return v, nil
 		})
 	respond(w, r, items, err)
 }
