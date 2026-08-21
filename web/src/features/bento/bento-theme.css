@@ -1,38 +1,64 @@
-/* The Bento palette.
+/* The Bento palette — Ethereal, in two polarities.
 
-   Scoped to [data-layout='bento'] on purpose. Classic keeps the tokens it has,
-   so switching back is one click and nothing outside this layout moves — which
-   is the arrangement the whole experiment rests on.
+   Scoped to [data-layout='bento'] so Classic keeps its own tokens entirely and
+   leaving is one click that moves nothing else.
 
-   Two colours are not the ones supplied. #10b981 on #d1fae5 measures 2.24:1
-   and #f59e0b on #fef3c7 measures 1.93:1; AA wants 4.5:1 for text. Those are
-   the same pairings this product already failed and fixed this month, so
-   taking them verbatim would have reintroduced a bug we have the commit for.
-   Each is darkened along its own hue until it just clears the bar and no
-   further — 4.51:1 both — so the palette still reads as the one supplied.
-   The badge grounds are untouched. */
+   The supplied palette is built for a dark ground and is very good there: mint
+   12.35:1, orange 9.49:1, pink 7.69:1, purple 7.11:1 on the card. On white the
+   same four measure 1.35, 1.75, 2.16 and 2.34:1 — so light mode cannot reuse
+   the values, only the hues. Each light ink below is the same hue darkened
+   until it clears 4.5:1 against white *and* against its own tint, because a
+   badge sits on the tint and that is the harder of the two.
+
+   Dark is the default here: it is what the design was drawn for. Light is
+   derived, not guessed. */
+
 [data-layout='bento'] {
-  --bento-primary: #4f46e5;
-  --bento-primary-hover: #4338ca;
-  --bento-bg: #f9fafb;
-  --bento-surface: #ffffff;
-  --bento-text: #111827;
-  --bento-muted: #6b7280;
-  --bento-border: #e5e7eb;
+  color-scheme: light;
 
-  /* 4.83:1 and 4.63:1 on white and on the page — both already pass. */
-  --bento-success: #0b7d57;      /* supplied #10b981, 2.24:1 -> 4.51:1 */
-  --bento-success-bg: #d1fae5;
-  --bento-warning: #9a6306;      /* supplied #f59e0b, 1.93:1 -> 4.51:1 */
-  --bento-warning-bg: #fef3c7;
-  --bento-danger: #ef4444;
+  --bento-bg: #f4f5f7;
+  --bento-card: #ffffff;
+  --bento-card-2: #f0f1f4;
+  --bento-ink: #111827;
+  --bento-muted: #5c5f6b;          /* 5.74:1 on the card */
+  --bento-line: #e5e7eb;
 
-  --bento-radius: 16px;
-  --bento-radius-sm: 8px;
-  --bento-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --bento-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+  --bento-mint: #237d13;           /* supplied #a8f09b, relit for a light ground */
+  --bento-mint-tint: #daf6d5;
+  --bento-purple: #6130f5;
+  --bento-purple-tint: #dcd2f9;
+  --bento-pink: #c40023;
+  --bento-pink-tint: #fbd0d8;
+  --bento-orange: #ad4900;
+  --bento-orange-tint: #fbe2d0;
+
+  /* The anchor keeps the gradient it was drawn with. Dark ink on mint measures
+     14.24:1, which is the one place the original values work in both modes. */
+  --bento-anchor-from: #a8f09b;
+  --bento-anchor-to: #d4f7aa;
+  --bento-anchor-ink: #0d0f14;
+
+  --bento-radius: 24px;
+  --bento-radius-sm: 16px;
+  --bento-gap: 24px;
 }
 
-/* The dark anchor cell keeps drawing in its own foreground pair. A semantic
-   colour measured against a light card is near-black on a dark one, which is
-   why the anchors never reached for these in the first place. */
+html.dark[data-layout='bento'] {
+  color-scheme: dark;
+
+  --bento-bg: #0d0f14;
+  --bento-card: #1c1e26;
+  --bento-card-2: #2a2c35;
+  --bento-ink: #ffffff;
+  --bento-muted: #8b8d96;          /* 5.03:1 on the card */
+  --bento-line: #2a2c35;
+
+  --bento-mint: #a8f09b;
+  --bento-mint-tint: #21301f;
+  --bento-purple: #b39bfa;
+  --bento-purple-tint: #262234;
+  --bento-pink: #ff8fa3;
+  --bento-pink-tint: #331f25;
+  --bento-orange: #ffb37b;
+  --bento-orange-tint: #33261b;
+}
