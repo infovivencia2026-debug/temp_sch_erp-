@@ -575,3 +575,152 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
   [data-layout='bento'] .bento-dock button:hover,
   [data-layout='bento'] .bento-dock button:active { transform: none; }
 }
+
+
+/* ---- glass ------------------------------------------------------------ */
+
+/* Modern skeuomorphism: material rather than ornament.
+
+   The old skeuomorphism drew a picture of a thing — stitched leather, a torn
+   paper edge. This draws how a material behaves: something translucent laid
+   over the page, bending what is behind it, catching light along its top edge
+   and casting a soft shadow beneath. Nothing here is a texture; it is all
+   blur, tint and highlight.
+
+   THE PART EVERYONE FORGETS. Blur over a flat colour is just a lighter flat
+   colour. Frosted glass reads as glass because there is something behind it
+   worth bending, so this skin brings its own ambient ground — three wide,
+   slow colour fields under the canvas. Without them the cards would look
+   washed out rather than translucent, and the whole skin would read as a bug.
+
+   THE COST, stated because it is real: backdrop-filter is composited per
+   element, and a dashboard is nine cards plus panels plus a dock. It is
+   comfortable on a laptop and it is the reason this is a skin somebody
+   chooses rather than the default. */
+
+html[data-skin='glass'][data-layout='bento'],
+html[data-skin='glass'] [data-layout='bento'] {
+  --bento-radius: 22px;
+  --bento-radius-sm: 14px;
+  --bento-border-w: 1px;
+  --bento-line: rgb(255 255 255 / 0.55);
+
+  /* The seat: a wide soft shadow, plus a hairline of light along the top edge
+     drawn as an inset. That inset is the whole trick — a lit edge is what the
+     eye reads as thickness, and without it a translucent panel looks like a
+     hole in the page rather than a pane over it. */
+  --bento-depth-sm:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.12),
+    0 2px 8px rgb(15 23 42 / 0.06);
+  --bento-depth:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 -1px 0 rgb(255 255 255 / 0.14),
+    0 10px 30px -6px rgb(15 23 42 / 0.16);
+  --bento-depth-lg:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 20px 50px -12px rgb(15 23 42 / 0.22);
+  --bento-shadow: var(--bento-depth);
+  --bento-shadow-sm: var(--bento-depth-sm);
+}
+
+/* The ambient ground. Fixed, so it does not scroll with the content — glass
+   over a moving background reads as a parallax gimmick; glass over a still one
+   reads as a window. */
+html[data-skin='glass'] [data-layout='bento']::before,
+html[data-skin='glass'][data-layout='bento']::before {
+  content: '';
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38vmax 38vmax at 12% 8%, color-mix(in srgb, var(--dom-students) 40%, transparent), transparent 70%),
+    radial-gradient(34vmax 34vmax at 88% 18%, color-mix(in srgb, var(--dom-academics) 34%, transparent), transparent 70%),
+    radial-gradient(42vmax 42vmax at 60% 92%, color-mix(in srgb, var(--dom-finance) 30%, transparent), transparent 70%);
+  filter: saturate(1.1);
+}
+
+html[data-skin='glass'] .bento-cell,
+html[data-skin='glass'] .launcher-tile,
+html[data-skin='glass'] .launcher-app,
+html[data-skin='glass'] .bento-dock {
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border-color: var(--bento-line);
+}
+
+/* The cards themselves go translucent. color-mix against transparent rather
+   than an rgba literal, so the tint still follows the theme's card token and
+   dark mode needs no second rule. */
+html[data-skin='glass'] .bento-cell {
+  background: color-mix(in srgb, var(--bento-card) 58%, transparent);
+}
+html[data-skin='glass'] .launcher-app {
+  background: color-mix(in srgb, var(--bento-card) 62%, transparent);
+}
+html[data-skin='glass'] .bento-dock {
+  background: color-mix(in srgb, var(--bento-card) 55%, transparent);
+}
+
+/* The specular sweep: a single soft diagonal, at low opacity, sitting above
+   the blur and below the content. One highlight, not a gloss — two is a
+   plastic button from 2008, which is the version of this idea that aged
+   badly. */
+html[data-skin='glass'] .bento-cell::before,
+html[data-skin='glass'] .launcher-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.22) 0%,
+    rgb(255 255 255 / 0.05) 32%,
+    transparent 58%
+  );
+}
+html[data-skin='glass'] .bento-cell,
+html[data-skin='glass'] .launcher-tile {
+  position: relative;
+}
+
+/* On the dark ground the sheen inverts: a white sweep over near-black is fog.
+   The light edge stays — that is what says "pane" — but it dims, and the tint
+   deepens instead of lightening. */
+html.dark[data-skin='glass'][data-layout='bento'],
+html.dark[data-skin='glass'] [data-layout='bento'] {
+  --bento-line: rgb(255 255 255 / 0.14);
+  --bento-depth-sm:
+    inset 0 1px 0 rgb(255 255 255 / 0.10),
+    0 2px 10px rgb(0 0 0 / 0.5);
+  --bento-depth:
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    0 12px 34px -8px rgb(0 0 0 / 0.7);
+  --bento-depth-lg:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    0 22px 54px -12px rgb(0 0 0 / 0.8);
+}
+html.dark[data-skin='glass'] .bento-cell::before,
+html.dark[data-skin='glass'] .launcher-tile::before {
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.07) 0%,
+    rgb(255 255 255 / 0.02) 34%,
+    transparent 60%
+  );
+}
+
+/* Where backdrop-filter is unavailable the surfaces go opaque rather than
+   transparent. A translucent card with no blur behind it is unreadable text
+   over whatever happens to be underneath, which is worse than losing the
+   effect. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-skin='glass'] .bento-cell,
+  html[data-skin='glass'] .launcher-app,
+  html[data-skin='glass'] .launcher-tile,
+  html[data-skin='glass'] .bento-dock {
+    background: var(--bento-card);
+  }
+}
