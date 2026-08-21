@@ -108,21 +108,35 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
   const { layout } = useLayout()
   const key = useRouteFeatureKey()
 
-  if (layout !== 'bento' || !key) return <>{children}</>
+  const inner = (() => {
+    if (layout !== 'bento' || !key) return <>{children}</>
+    const Screen = bentoComponentFor(key)
+    if (!Screen) return <>{children}</>
+    return (
+      <BentoBoundary resetKey={key} fallback={<>{children}</>}>
+        {/* A quiet placeholder while the Bento chunk loads — not the classic
+            screen, which would mount every one of its queries only to be
+            thrown away a frame later. */}
+        <Suspense fallback={<BentoChunkPending />}>
+          <Screen />
+        </Suspense>
+      </BentoBoundary>
+    )
+  })()
 
-  const Screen = bentoComponentFor(key)
-  if (!Screen) return <>{children}</>
+  if (layout !== 'bento') return inner
 
-  return (
-    <BentoBoundary resetKey={key} fallback={<>{children}</>}>
-      {/* A quiet placeholder while the Bento chunk loads — not the classic
-          screen, which would mount every one of its queries only to be thrown
-          away a frame later. */}
-      <Suspense fallback={<BentoChunkPending />}>
-        <Screen />
-      </Suspense>
-    </BentoBoundary>
-  )
+  /* The dock's clearance belongs here, not on the dashboards.
+
+     It was on BentoPage, which meant only the handful of converted screens
+     allowed for it. Every other feature — and that is most of them, since
+     this outlet deliberately falls through to the classic screen wherever
+     nobody has converted one — got a floating pill sitting on its first row
+     of content. The layout hides the header; it does not stop the dock being
+     there.
+
+     One wrapper, so the allowance is made once for whatever renders. */
+  return <div style={{ paddingTop: 'var(--bento-dock)' }}>{inner}</div>
 }
 
 export default BentoOutlet

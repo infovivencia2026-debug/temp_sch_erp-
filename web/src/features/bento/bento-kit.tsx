@@ -565,10 +565,10 @@ export function BentoPage({
     <div
       className={cn(
         'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7 lg:p-5',
-        // The dock is fixed at top-4 and about 40px tall. It used to overlap
-        // the heading harmlessly; with the heading gone it would sit on the
-        // first row of cards.
-        bentoLayout ? 'pt-[64px] sm:pt-[64px]' : '',
+        // The clearance itself is made once, by BentoOutlet, for every screen
+        // rather than only the converted ones. What is left here is the
+        // consequence: the viewport this page may fill is shorter by it.
+
         /* One screen, no page scroll — but only where that is honest.
 
            A dashboard you have to scroll is not a dashboard; the whole claim
@@ -580,7 +580,9 @@ export function BentoPage({
            Not below lg. Squeezing three rows of cards into a phone would not
            produce a dashboard, it would produce four unreadable boxes, and
            there the honest answer is that the page scrolls. */
-        'lg:flex lg:h-[100dvh] lg:flex-col lg:overflow-auto',
+        bentoLayout
+          ? 'lg:flex lg:h-[calc(100dvh-var(--bento-dock))] lg:flex-col lg:overflow-auto'
+          : 'lg:flex lg:h-[100dvh] lg:flex-col lg:overflow-auto',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}

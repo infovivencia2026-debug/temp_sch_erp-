@@ -49,6 +49,15 @@
      as separate lists rather than one board -- and the ground is now dark
      enough that less of it is needed to separate a card. */
   --bento-gap: 14px;
+
+  /* How much room the floating dock needs, as one number.
+
+     The dock is fixed at top-4 and about forty pixels tall, so 60px clears it
+     with a hairline to spare. It lives here because two different things have
+     to agree about it: every Bento screen pads its top by this, and the
+     dashboards subtract it from the viewport to size themselves. When they
+     disagreed, the dock sat on the cards. */
+  --bento-dock: 60px;
 }
 
 html.dark[data-layout='bento'] {
