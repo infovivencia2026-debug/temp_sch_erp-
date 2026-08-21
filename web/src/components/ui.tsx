@@ -3,7 +3,7 @@ import {
   type ReactElement, type ReactNode,
 } from 'react'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Printer, X,
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Printer, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -898,16 +898,42 @@ export function Input({
      moment anything is typed. Same contract as Checkbox's srLabel. */
   srLabel?: string
 }) {
-  return (
+  /* A password can be looked at.
+   *
+   * Hiding what is typed is worth having — it is also why a mistyped password
+   * is invisible, and every one of these boxes is somewhere a person is
+   * typing a string of hyphenated capitals off a printed list. The reveal is
+   * per box, starts hidden, and is remembered nowhere. */
+  const [shown, setShown] = useState(false)
+  const isPassword = type === 'password'
+
+  const field = (
     <input
-      type={type}
+      type={isPassword && shown ? 'text' : type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       list={list}
       aria-label={srLabel || undefined}
-      className={cn('field', className)}
+      className={cn('field', isPassword && 'pr-10', className)}
     />
+  )
+  if (!isPassword) return field
+
+  return (
+    <span className="relative block">
+      {field}
+      <button
+        type="button"
+        onClick={() => setShown((v) => !v)}
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-pressed={shown}
+        title={shown ? 'Hide password' : 'Show password'}
+        className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
+      >
+        {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </span>
   )
 }
 

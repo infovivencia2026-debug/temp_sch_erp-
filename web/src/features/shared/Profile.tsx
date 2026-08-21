@@ -184,12 +184,13 @@ function PasswordField({ label, value, onChange, hint }: {
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
-      />
+      {/* The shared Input, rather than a hand-rolled one, so this box gets the
+          reveal every other password box has. Changing a password means typing
+          the old one and the new one twice, which is three chances to make a
+          mistake nobody can see. */}
+      <div className="mt-1">
+        <Input type="password" value={value} onChange={onChange} />
+      </div>
       {hint && <span className="mt-0.5 block text-[12px] text-muted-foreground">{hint}</span>}
     </label>
   )

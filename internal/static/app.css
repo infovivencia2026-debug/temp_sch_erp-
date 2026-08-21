@@ -582,3 +582,33 @@ body.pricing .enquire { margin-top: 40px; }
 /* The sign-in card is centred on an otherwise empty page, so its appearance
    control sits in the corner rather than in a bar that does not exist there. */
 .auth-top { position: fixed; top: 16px; right: 16px; z-index: 10; }
+
+/* Showing a password you are typing.
+
+   A password field hides what you type from somebody standing behind you,
+   which is worth having and is also why a mistyped one is invisible. The
+   reveal is opt-in, per field, and reverts on submit: nothing is remembered
+   and nothing is shown until it is asked for. */
+.pw { position: relative; display: block; }
+.pw > input { padding-right: 42px; }
+.pw > button.pw-eye {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pw > button.pw-eye:hover { color: inherit; background: none; }
+.pw > button.pw-eye svg { width: 18px; height: 18px; }
+/* One icon at a time: the slash is shown only while the password is visible,
+   so the button always pictures what pressing it will do next. */
+.pw > button.pw-eye .icon-off { display: none; }
+.pw[data-shown="yes"] > button.pw-eye .icon-on { display: none; }
+.pw[data-shown="yes"] > button.pw-eye .icon-off { display: block; }
