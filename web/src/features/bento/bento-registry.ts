@@ -43,6 +43,13 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      a screen end to end and that every other key falls through. A later
      worker replaces this with the real thing. */
   'faculty.home.my_work': lazy(() => import('./MyWork')),
+
+  /* The two money-and-oversight roles. Keyed by the catalogue key the classic
+     screen is registered under in registry.ts — `institution_admin.home.dashboard`,
+     not `institution_admin.home.executive_kpis`, which is not a key this
+     catalogue holds. */
+  'institution_admin.home.dashboard': lazy(() => import('./PrincipalDashboard')),
+  'finance.home.finance_kpis': lazy(() => import('./FinanceDashboard')),
 }
 
 /** The Bento rendering of a feature key, or undefined — which means "render
