@@ -42,8 +42,16 @@
   --bento-anchor-to: #d4f7aa;
   --bento-anchor-ink: #0d0f14;
 
-  --bento-radius: 24px;
-  --bento-radius-sm: 16px;
+  /* Cards at 16, the small parts at 10.
+
+     24px was a capsule, not a card. On a 200px-tall stat cell the corner ate
+     an eighth of the height on each side and the figure inside floated in a
+     lozenge; at that radius a rectangle stops reading as a surface and starts
+     reading as a button. 16 keeps the softness and gives the corner back to
+     the content, and it is the ceiling of the range this product was specced
+     at — cards 14-16, buttons 8-10, badges the only thing left fully round. */
+  --bento-radius: 16px;
+  --bento-radius-sm: 10px;
   /* Tighter than the reference's 24px. With ten cells on a 1440px grid the
      wider gutter pushed the outer columns apart enough that the dashboard read
      as separate lists rather than one board -- and the ground is now dark

@@ -95,7 +95,15 @@ export function CommandSearch() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="hidden items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:flex"
+        /* Fully round, to sit inside the Bento dock without arguing with it.
+
+           The dock is a pill and every other control in it is a pill; this was
+           a 6px rectangle in the middle of them, which read as a field that had
+           been dropped into the bar rather than built into it. The classic
+           header takes the same shape, where a rounded search is unremarkable
+           — one component, one radius, rather than a prop threaded through to
+           make the same button two shapes in two places. */
+        className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:flex"
         aria-label="Search features"
       >
         <Search className="h-3.5 w-3.5" />
