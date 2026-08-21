@@ -107,8 +107,18 @@ export function BentoDock() {
      hovering. "All features" rather than "Apps" because that is what the panel
      is called when it opens, and a control whose label changes on the way to
      the thing it opens is a control people stop trusting. */
+  /* Icons only, named on hover and to assistive technology.
+
+     Thirteen labelled items — Home, Work, nine categories, All features and
+     the search — is a paragraph across the top of the screen, and a dock that
+     wide stops floating over the canvas and starts dividing it. The marks are
+     what the hand learns anyway; the words were only ever teaching them.
+
+     Every one keeps a title for the pointer and an aria-label for a screen
+     reader, so nothing is lost that was not visual. A bar of unlabelled glyphs
+     with no way to find out what they are would be a puzzle, not a dock. */
   const item =
-    `flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] transition-colors ` +
+    `grid size-9 shrink-0 place-items-center rounded-full transition-colors ` +
     `hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
 
   return (
@@ -119,9 +129,14 @@ export function BentoDock() {
                    p-1.5 pl-2.5 backdrop-blur-md"
       >
         {homeHref && (
-          <button type="button" onClick={() => navigate(homeHref)} className={item}>
-            <House className="size-3.5 shrink-0" aria-hidden="true" />
-            {t('bento.dock.home')}
+          <button
+            type="button"
+            onClick={() => navigate(homeHref)}
+            className={item}
+            title={t('bento.dock.home')}
+            aria-label={t('bento.dock.home')}
+          >
+            <House className="size-[17px]" aria-hidden="true" />
           </button>
         )}
 
@@ -130,9 +145,14 @@ export function BentoDock() {
         <CommandSearch />
 
         {workHref && (
-          <button type="button" onClick={() => navigate(workHref)} className={item}>
-            <Inbox className="size-3.5 shrink-0" aria-hidden="true" />
-            {t('bento.dock.work')}
+          <button
+            type="button"
+            onClick={() => navigate(workHref)}
+            className={item}
+            title={t('bento.dock.work')}
+            aria-label={t('bento.dock.work')}
+          >
+            <Inbox className="size-[17px]" aria-hidden="true" />
           </button>
         )}
 
@@ -154,14 +174,14 @@ export function BentoDock() {
                 type="button"
                 onClick={() => navigate(c.href)}
                 title={c.name}
-                className={item + ' shrink-0'}
+                aria-label={c.name}
+                className={item}
               >
                 <Mark
-                  className="size-3.5 shrink-0"
+                  className="size-[17px]"
                   style={{ color: `var(--dom-${hueFor(c.name)})` }}
                   aria-hidden="true"
                 />
-                {c.name}
               </button>
             )
           })}
@@ -170,8 +190,21 @@ export function BentoDock() {
         <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
 
         {/* Pointing, for the person who does not know what to type. */}
-        <button type="button" onClick={() => setAll(true)} className={item + ' shrink-0'}>
-          <LayoutGrid className="size-3.5 shrink-0" aria-hidden="true" />
+        {/* The one that keeps its words.
+
+            Everything else in the bar is a place — a category, a queue, home —
+            and a place is learnable as a mark. This is the door onto all of
+            them, so it is the one item somebody looks for by name when the
+            marks have not been learnt yet. It also sits at the end, where a
+            wider target costs nothing. */}
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
+                     transition-colors hover:bg-accent focus-visible:outline-none
+                     focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
           {t('bento.launcher.title')}
         </button>
       </div>
