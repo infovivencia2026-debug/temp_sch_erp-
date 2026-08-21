@@ -1173,24 +1173,28 @@ function StaffPanel({ onDone }: PanelProps) {
           <div className="mt-5 border-t pt-5">
         <BulkImport
           entity="staff"
-          title="1. Add all your staff from a sheet"
-          hint="Employee code and first name are required. Give an email and a role and they get a login too. This sheet creates the people; it does not place them — that is the allocation sheet below, and a school needs both."
+          title="Staff sheet — who works here"
+          hint="HR or the principal. Employee code and first name are required; give an email and a role and they get a login too. This sheet creates the people. It does not put them in front of a class — that is the allocation sheet below."
           onDone={onDone}
         />
       </div>
       <div className="mt-5 border-t pt-5">
-        {/* Not "Or".
+        {/* Two sheets, two desks.
          *
-         * The two sheets did different jobs and the word between them said
-         * they were alternatives. Staff creates the people; allocations puts
-         * them in front of a class. Load only the first and you have ten
-         * teachers who teach nothing and own no section; load only the second
-         * and every row fails, because the teachers it names do not exist
-         * yet. They are a sequence, and the headings now say so. */}
+         * "Or" said they were alternatives, which was wrong — a school needs
+         * both. Numbering them said they were one person's two steps, which
+         * was wrong too: the staff sheet needs hr.employees.write and the
+         * allocation sheet needs academics.write, and no role but the
+         * principal holds both. HR loads one, the head of department loads
+         * the other, and usually not on the same day.
+         *
+         * So each is headed by whose job it is, and the only ordering that
+         * actually matters is stated where it bites: allocations finds
+         * teachers by email, so the people have to exist first. */}
         <BulkImport
           entity="allocations"
-          title="2. Then upload the class allocation sheet"
-          hint="Who owns each section and who teaches each subject in it: class, section, room, class teacher, subject and subject teacher. Import the staff above first — this sheet finds them by email. Every column but the class and section is optional."
+          title="Allocation sheet — who teaches what, where"
+          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so load the staff sheet first — otherwise those rows are skipped and named. Every column but the class and section is optional."
           onDone={onDone}
         />
 

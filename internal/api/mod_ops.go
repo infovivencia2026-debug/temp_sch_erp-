@@ -155,6 +155,14 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 			// Collected before enqueueing rather than enqueued inside the row
 			// loop: the queue write and the cursor were sharing one connection,
 			// and a slow enqueue held the cursor open for the whole fan-out.
+			/* The template this asks for has to be one that exists.
+
+			   It asked for "circular.published" and no such template was ever
+			   written: the built-in is "announcement.published", and
+			   message_templates is empty in a school that has not authored its
+			   own. So every circular queued a row that failed template
+			   resolution on the way out. The screen reported how many it had
+			   queued, which was true and read like delivery. */
 			for _, uid := range to {
 				for _, ch := range channels {
 					if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
@@ -163,7 +171,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 								InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
 								RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
 							},
-							Channel: ch, TemplateKey: "circular.published", ToUserID: uid,
+							Channel: ch, TemplateKey: "announcement.published", ToUserID: uid,
 							Vars: map[string]any{"title": req.Title, "body": req.Body},
 						}, queue.HeavyOptions()...); err == nil {
 						queued[ch]++
