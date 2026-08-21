@@ -391,6 +391,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.statutory.contractor_security_staff_bill_verification': lazy(() => import('./hr/Statutory')),
 
   'faculty.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+  /* The people who approve leave also take it.
+   *
+   * A principal and a head of department each had "Leaves & Subs" — everybody
+   * else's requests — and no way to raise their own. The endpoint has never
+   * cared who is asking; there was simply no door to it from either menu, so
+   * the two people most likely to be away were the two who had to ask somebody
+   * else to enter it for them. Same screen as a teacher's. */
+  'institution_admin.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+  'hod.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
   /* Two leave queues, deliberately two doors. Your own leave is an employment
      matter that goes to HR and your head of department; a child's leave is a
      note from a parent that the class teacher has to act on before tomorrow's

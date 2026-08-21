@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 409 features. */
+/** 12 roles, 411 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -425,6 +425,14 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
         ],
       },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'institution_admin.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. A principal takes leave too.' },
+        ],
+      },
     ],
   },
   {
@@ -466,6 +474,7 @@ export const ROLES: Role[] = [
         workspace: 'My Work',
         features: [
           { key: 'hod.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Own details and password.' },
+          { key: 'hod.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. Approving the department\'s leave is a different screen.' },
         ],
       },
     ],

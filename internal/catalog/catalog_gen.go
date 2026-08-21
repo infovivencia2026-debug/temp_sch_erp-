@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 409 features.
+// Roles is the catalog: 12 roles, 411 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -472,6 +472,14 @@ var Roles = []Role{
 					{Key: "institution_admin.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
 				},
 			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "institution_admin.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave, and see where it has got to. A principal takes leave too."},
+				},
+			},
 		},
 	},
 	{
@@ -513,6 +521,7 @@ var Roles = []Role{
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
+					{Key: "hod.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave, and see where it has got to. Approving the department's leave is a different screen."},
 				},
 			},
 		},
