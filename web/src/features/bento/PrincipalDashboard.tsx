@@ -208,7 +208,7 @@ export default function BentoPrincipalDashboard() {
         label={t('bento.principal.outstanding')}
         value={formatPaise(k.outstanding_paise)}
         badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
-        accent="pink"
+        accent="mint"
         shape={
           <Meter
             value={k.outstanding_paise}
@@ -227,7 +227,7 @@ export default function BentoPrincipalDashboard() {
         label={t('bento.principal.defaulters')}
         value={k.defaulters}
         badge={t('bento.principal.pct_of_students', { pct: defaultersPct })}
-        accent="orange"
+        accent="mint"
         shape={
           <Meter
             value={k.defaulters}
@@ -244,7 +244,7 @@ export default function BentoPrincipalDashboard() {
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Cell span="wide" accent="purple">
+      <Cell span="wide" accent="mint">
         <p className="text-[12.5px] text-[var(--bento-muted)]">{t('bento.principal.bars_label')}</p>
         {trend.error ? (
           <div className="mt-4">
@@ -286,7 +286,7 @@ export default function BentoPrincipalDashboard() {
       <StatCell
         label={t('bento.principal.staff')}
         value={k.staff}
-        accent="purple"
+        accent="mint"
         note={t('bento.principal.as_of_today')}
         to={staffHref}
         cue={t('bento.principal.cue_staff')}
@@ -295,7 +295,7 @@ export default function BentoPrincipalDashboard() {
       <StatCell
         label={t('bento.principal.approvals')}
         value={k.pending_leave}
-        accent="pink"
+        accent="mint"
         note={t('bento.principal.approvals_note')}
         to={approvalsHref}
         cue={t('bento.principal.cue_approvals')}
@@ -321,7 +321,7 @@ export default function BentoPrincipalDashboard() {
         label={t('bento.principal.unassigned')}
         value={k.unassigned_subjects}
         badge={k.unassigned_subjects > 0 ? t('bento.principal.needs_attention') : undefined}
-        accent="orange"
+        accent="mint"
         note={t('bento.principal.unassigned_note')}
         to={subjectsHref}
         cue={t('bento.principal.cue_unassigned')}
