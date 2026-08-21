@@ -621,3 +621,22 @@ body.pricing .enquire { margin-top: 40px; }
 .pw > button.pw-eye .icon-off { display: none; }
 .pw[data-shown="yes"] > button.pw-eye .icon-on { display: none; }
 .pw[data-shown="yes"] > button.pw-eye .icon-off { display: block; }
+
+/* The one select on the sign-in pages. Matched to the inputs beside it so the
+   form does not look like two forms. */
+select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}

@@ -548,7 +548,10 @@ func (s *Server) generateTimetableDraft(w http.ResponseWriter, r *http.Request) 
 		}
 		name := strings.TrimSpace(req.Name)
 		if name == "" {
-			name = "Draft of " + nowInIndia().Format("2 Jan 2006, 15:04")
+			// "Draft" is a word from the office, not the staff room. What this
+			// row is, to the person reading it, is a timetable somebody made
+			// on a day and has not put in use.
+			name = "Made " + nowInIndia().Format("2 Jan 2006, 15:04")
 		}
 
 		var draftID uuid.UUID

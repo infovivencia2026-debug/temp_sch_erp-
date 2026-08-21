@@ -1,0 +1,74 @@
+import { useEffect } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useCatalog, usable } from '@/lib/catalog'
+import { PageHead, PageBody, EmptyState, Loading } from '@/components/ui'
+
+/* A link that does not have to know which workspace you are in.
+ *
+ * Notifications carry a link, and something has to decide the first segment of
+ * it — the role. Guessing it from the reader's rbac role looked right and was
+ * not: a head of department holds the role key "hod" and is served the
+ * institution_admin workspace, because that catalogue is the one they borrow.
+ * The alert therefore pointed at /hod/approvals/approvals, a path the app
+ * cannot resolve, and the person who had just been told something needed them
+ * landed on "That feature is not in your workspace".
+ *
+ * So the sender stops guessing. /go/approvals/approvals names the section and
+ * the feature, and this resolves the workspace at the moment it is opened —
+ * which is the only moment anybody knows it, because it depends on who is
+ * reading and on which of their roles is active.
+ *
+ * Falls back to searching by feature slug alone: sections get renamed, and a
+ * notification stored in March should still open in September.
+ */
+export default function GoTo() {
+  const { sectionSlug, featureSlug } = useParams()
+  const catalog = useCatalog()
+  const navigate = useNavigate()
+  /* The query string travels with it.
+   *
+   * A message notification carries ?with=<sender>, which is the whole point of
+   * the link — it opens that conversation rather than the address book. */
+  const { search } = useLocation()
+
+  useEffect(() => {
+    if (!catalog.roles.length) return
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        for (const f of section.features) {
+          if (!usable(f)) continue
+          const bySection = section.slug === sectionSlug && f.slug === featureSlug
+          const bySlugOnly = !sectionSlug && f.slug === featureSlug
+          if (bySection || bySlugOnly) {
+            navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
+            return
+          }
+        }
+      }
+    }
+    // Second pass: the section moved, but the feature is still somewhere.
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        const f = section.features.find((x) => usable(x) && x.slug === featureSlug)
+        if (f) {
+          navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
+          return
+        }
+      }
+    }
+  }, [catalog.roles, sectionSlug, featureSlug, navigate, search])
+
+  if (!catalog.roles.length) return <Loading />
+
+  return (
+    <>
+      <PageHead eyebrow="Not found" title="That screen has moved" />
+      <PageBody>
+        <EmptyState
+          title="This link points at a screen your workspace does not have"
+          body="It may have been renamed since the message was sent, or it may belong to a role you no longer hold."
+        />
+      </PageBody>
+    </>
+  )
+}

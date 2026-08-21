@@ -178,7 +178,7 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 				if err := notify(r, tx, id.InstitutionID, to.id, nil, "leave_request",
 					who+" has applied for leave",
 					span+" — "+req.Reason+". Approve or reject it from Approvals.",
-					"/"+to.role+"/approvals/approvals",
+					"/go/approvals/approvals",
 					"leave_request", &leaveID); err != nil {
 					return err
 				}
@@ -300,7 +300,7 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 				body += " " + strings.TrimSpace(req.Note)
 			}
 			if err := notify(r, tx, id.InstitutionID, *appliedBy, nil, "leave_decided",
-				title, body, "/"+role+"/my_profile/leave_self_service",
+				title, body, "/go/my_profile/leave_self_service",
 				"leave_request", &lid); err != nil {
 				return err
 			}

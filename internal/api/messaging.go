@@ -3146,7 +3146,11 @@ func (s *Server) listMessageLog(w http.ResponseWriter, r *http.Request) {
 // is yes they are told to check their inbox, and where it is no they are shown
 // the link and told plainly that nothing was delivered. Guessing either way is
 // how somebody sits waiting for a message no configured provider could send.
-func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID) bool {
+func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel string) bool {
+	// Anything but the two the reset page offers is not a provider question.
+	if channel != "email" && channel != "whatsapp" {
+		channel = "email"
+	}
 	id := httpx.IdentityFrom(r.Context())
 	var ready bool
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
@@ -3167,15 +3171,15 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID) bool {
 			SELECT config, COALESCE(credentials,'')
 			  FROM integrations
 			 WHERE institution_id = $1
-			   AND kind = 'messaging' AND provider = 'email' AND enabled
-			 LIMIT 1`, inst).Scan(&cfg, &secret)
+			   AND kind = 'messaging' AND provider = $2 AND enabled
+			 LIMIT 1`, inst, channel).Scan(&cfg, &secret)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		ready = buildProvider("email", cfg, secret).Configured()
+		ready = buildProvider(channel, cfg, secret).Configured()
 		return nil
 	})
 	_ = id

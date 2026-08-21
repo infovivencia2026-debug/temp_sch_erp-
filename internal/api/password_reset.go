@@ -49,12 +49,12 @@ type PasswordReset struct {
 	// BaseURL is what goes into the email. A relative path is fine on the page
 	// that produced it and useless in a mail client.
 	BaseURL string
-	// EmailReady reports whether the account's own school can actually carry
-	// the link. Where it can, the page stops printing the link on screen —
-	// showing it there would hand a reset to whoever is at the keyboard
-	// rather than to the account's owner. Where it cannot, the link is the
-	// only way back in and the page says so.
-	EmailReady func(r *http.Request, inst uuid.UUID) bool
+	// EmailReady reports whether the account's own school can carry the link
+	// on the chosen channel. Where it can, the page stops printing the link on
+	// screen — showing it there would hand a reset to whoever is at the
+	// keyboard rather than to the account's owner. Where it cannot, the link
+	// is the only way back in and the page says so.
+	EmailReady func(r *http.Request, inst uuid.UUID, channel string) bool
 }
 
 type resetView struct {
@@ -62,11 +62,19 @@ type resetView struct {
 	Error        string
 	Notice       string
 	Token        string
-	// Link is shown only where no mail provider is configured. A page that
-	// claims to have sent an email that nothing could send is worse than one
-	// that admits it and hands over the link.
+	// Link is shown only where no provider is configured. A page that claims
+	// to have sent something nothing could send is worse than one that admits
+	// it and hands over the link.
 	Link string
 	Done bool
+	// Channel is what was chosen, echoed so the confirmation names it: "sent
+	// to your email" and "sent to your WhatsApp" are different promises, and
+	// somebody watching the wrong one waits for ever.
+	Channel string
+	// Sent is the address or number it went to, masked. Shown because "we
+	// sent it" is not much use to somebody who cannot remember which address
+	// the school holds.
+	Sent string
 }
 
 const resetWindow = 15 * time.Minute
@@ -99,6 +107,23 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* Where to send it.
+
+	   An email address is not something every person at a school has. A
+	   teacher on a government roll often has one only because the office
+	   invented it; a parent has a phone. Offering the choice is the difference
+	   between a reset somebody can complete and one they have to telephone the
+	   office about — and the office issuing a password by hand is exactly what
+	   this page exists to stop.
+
+	   Anything unrecognised falls back to email rather than being refused: a
+	   hand-typed form value is not worth an error page on the screen somebody
+	   already reached because something went wrong. */
+	channel := strings.TrimSpace(r.PostFormValue("channel"))
+	if channel != "whatsapp" {
+		channel = "email"
+	}
+
 	// Said the same way whether or not the account exists.
 	const sameAnswer = "If that account exists, a reset link has been issued. " +
 		"It is good for fifteen minutes."
@@ -116,6 +141,8 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 	// Which school the account belongs to, kept for the readiness check below:
 	// it is only known once the user has been found.
 	var owner uuid.UUID
+	// Where it went, masked for the confirmation line.
+	var sentTo string
 	// Absolute: the link is opened from a mail client, not from the page that
 	// produced it.
 	base := strings.TrimSuffix(p.BaseURL, "/")
@@ -146,11 +173,12 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
+		var phone *string
 		err := tx.QueryRow(r.Context(), `
-			SELECT id, institution_id, email::text FROM users
+			SELECT id, institution_id, email::text, phone FROM users
 			 WHERE status <> 'disabled'
 			   AND (email = $1::citext OR username = $1::citext OR phone = $1)`,
-			who).Scan(&userID, &instID, &email)
+			who).Scan(&userID, &instID, &email, &phone)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil // answered identically below
 		}
@@ -167,26 +195,46 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		}
 		link = "/reset?token=" + token
 
-		// Queued, not marked sent. The worker hands queued rows to whatever
-		// email provider the school has configured, so this becomes a real
-		// message the moment SMTP credentials exist — and stays honestly
-		// waiting when they do not. Writing 'sent' here made the log claim a
-		// delivery nothing had performed.
-		//
-		// The body carries the link and never a password: a link expires and a
-		// password sitting in a message log does not.
-		if instID != nil && email != nil {
+		/* Whichever way they asked to be reached.
+
+		   The address is not always the useful one. A teacher on a government
+		   roll often has an email only because the office invented it, and
+		   reads WhatsApp; a parent may have no address at all. Falling back to
+		   the other channel when the chosen one is missing is deliberate —
+		   being strict about the choice would refuse somebody a reset over a
+		   field the school never filled in.
+
+		   Queued, not marked sent. The worker hands queued rows to whatever
+		   provider the school has, so this becomes a real message the moment
+		   the credentials exist, and stays honestly waiting when they do not.
+		   Writing 'sent' here made the log claim a delivery nothing performed.
+
+		   The body carries the link and never a password: a link expires and a
+		   password sitting in a message log does not. */
+		to, ch := "", channel
+		if channel == "whatsapp" && phone != nil && strings.TrimSpace(*phone) != "" {
+			to = strings.TrimSpace(*phone)
+		} else if email != nil && strings.TrimSpace(*email) != "" {
+			to, ch = strings.TrimSpace(*email), "email"
+		} else if phone != nil && strings.TrimSpace(*phone) != "" {
+			to, ch = strings.TrimSpace(*phone), "whatsapp"
+		}
+
+		if instID != nil && to != "" {
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO message_log (institution_id, channel, template_code,
 				                         recipient, user_id, subject, body, status)
-				VALUES ($1,'email','password_reset',$2,$3,$4,$5,'queued')`,
-				*instID, *email, userID, "Reset your password",
+				VALUES ($1,$6,'password_reset',$2,$3,$4,$5,'queued')`,
+				*instID, to, userID, "Reset your password",
 				"Open this link within fifteen minutes to choose a new password:\n"+
-					base+link+"\n\nIf you did not ask for this, ignore it and nothing changes."); err != nil {
+					base+link+"\n\nIf you did not ask for this, ignore it and nothing changes.",
+				ch); err != nil {
 				return err
 			}
 			queued = true
 			owner = *instID
+			channel = ch
+			sentTo = maskContact(to)
 		}
 		return nil
 	})
@@ -197,8 +245,8 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view := resetView{Notice: sameAnswer}
-	if !queued || p.EmailReady == nil || !p.EmailReady(r, owner) {
+	view := resetView{Notice: sameAnswer, Channel: channel, Sent: sentTo}
+	if !queued || p.EmailReady == nil || !p.EmailReady(r, owner, channel) {
 		view.Link = link
 	}
 	p.render(w, r, "forgot.gohtml", http.StatusOK, view)
@@ -299,4 +347,26 @@ func (p *PasswordReset) userForToken(r *http.Request, token string) (uuid.UUID, 
 			hex.EncodeToString(sum[:])).Scan(&userID)
 	})
 	return userID, err
+}
+
+/*
+maskContact shows enough of an address or number to recognise, and no more.
+
+	The confirmation has to be useful to the person who asked and useless to
+	somebody typing other people's usernames into the form to see what the
+	school holds. "so••@gmail.com" is recognisable to its owner and to
+	nobody else.
+*/
+func maskContact(v string) string {
+	if i := strings.IndexByte(v, '@'); i > 0 {
+		head := v[:i]
+		if len(head) > 2 {
+			head = head[:2] + strings.Repeat("•", len(head)-2)
+		}
+		return head + v[i:]
+	}
+	if len(v) > 5 {
+		return strings.Repeat("•", len(v)-5) + v[len(v)-5:]
+	}
+	return v
 }

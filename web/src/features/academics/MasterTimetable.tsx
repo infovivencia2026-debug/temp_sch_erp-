@@ -184,7 +184,7 @@ export default function MasterTimetable() {
   const stage = needsRequirements
     ? {
         tone: 'warn' as const,
-        title: 'Say how many periods each subject needs',
+        title: 'First, say how many periods each subject needs',
         body:
           'The solver places periods against what the subjects ask for, and nothing asks ' +
           'for any yet. Set periods per week under Academics → Class Setup, or upload the ' +
@@ -196,25 +196,25 @@ export default function MasterTimetable() {
           tone: 'go' as const,
           title:
             drafts.length === 1
-              ? 'A draft is waiting to be read'
-              : drafts.length + ' drafts are waiting to be read',
+              ? 'A suggested timetable is ready to check'
+              : drafts.length + ' suggested timetables are ready to check',
           body:
-            'Review it to see what it placed, correct anything the solver could not know, ' +
-            'and publish when it is right.',
+            'Open it to see what it filled in, change anything it could not know about, ' +
+            'and put it in use when it looks right.',
         }
       : allLive
         ? {
             tone: 'done' as const,
-            title: 'Every section has a timetable',
-            body: 'Generate a new draft only when the year, the staff or the subjects change.',
+            title: 'Every class has a timetable',
+            body: 'Make a new one only when the year, the staff or the subjects change.',
           }
         : {
             tone: 'go' as const,
-            title: 'Generate a draft',
+            title: 'Make a timetable',
             body:
-              'A draft is a candidate worked out by the solver. It never touches the live ' +
-              'timetable — you read what it could and could not place, and publish it only ' +
-              'if you want it.',
+              'The computer works one out from the subjects, the teachers and the school ' +
+              'day. It is only a suggestion — nothing changes for anybody until you look ' +
+              'at it and put it in use.',
           }
 
   return (
@@ -222,7 +222,7 @@ export default function MasterTimetable() {
       <PageHead
         eyebrow="Academics"
         title="Master timetable"
-        description="The whole school's week. Generating writes a draft; publishing is what changes the live timetable."
+        description="The whole school's week. Making one only suggests it — nothing changes for teachers until you put it in use."
       />
       <PageBody>
         {/* The single instruction, and the single button that acts on it. */}
@@ -243,17 +243,17 @@ export default function MasterTimetable() {
                 <span className="tabular-nums">
                   {s?.live_periods ?? 0} of {s?.required_periods ?? 0}
                 </span>{' '}
-                periods live
+                periods in use
                 {(s?.live_unstaffed ?? 0) > 0 && ` · ${s?.live_unstaffed} with no teacher`}
               </p>
             </div>
             {mayWrite && !needsRequirements && (
               <Button disabled={generate.isPending} onClick={() => generate.mutate()}>
                 {generate.isPending
-                  ? 'Generating…'
+                  ? 'Working it out…'
                   : hasDraft
-                    ? 'Generate another'
-                    : 'Generate a draft'}
+                    ? 'Make another'
+                    : 'Make a timetable'}
               </Button>
             )}
           </div>
@@ -266,10 +266,10 @@ export default function MasterTimetable() {
         {hasDraft && (
           <Card>
             <CardHeader
-              title="Drafts"
-              description="A draft becomes the timetable only when somebody publishes it."
+              title="Suggested timetables"
+              description="A suggestion is only a suggestion. It replaces the real timetable when you say so, and not before."
             />
-            <Table head={['Draft', 'Placed', 'Unmet', 'Generated', '']}>
+            <Table head={['Made', 'Periods filled', 'Could not fill', 'By', '']}>
               {drafts.map((x) => (
                 <tr key={x.id}>
                   <Td className="font-medium">{x.name}</Td>
@@ -278,9 +278,9 @@ export default function MasterTimetable() {
                   </Td>
                   <Td>
                     {x.blocking_issues > 0 ? (
-                      <Badge tone="danger">{x.blocking_issues} unmet</Badge>
+                      <Badge tone="danger">{x.blocking_issues} left out</Badge>
                     ) : (
-                      <Badge tone="success">all placed</Badge>
+                      <Badge tone="success">all filled in</Badge>
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
@@ -293,7 +293,7 @@ export default function MasterTimetable() {
                       variant="secondary"
                       onClick={() => setOpenDraft(openDraft === x.id ? '' : x.id)}
                     >
-                      {openDraft === x.id ? 'Close' : 'Review'}
+                      {openDraft === x.id ? 'Close' : 'Open it'}
                     </Button>
                   </Td>
                 </tr>
@@ -320,17 +320,17 @@ export default function MasterTimetable() {
             discover it says nothing. */}
         <Card>
           <CardHeader
-            title="Every section"
-            description="A school at 96% of its periods can still have one class with no science, which is why this is per section rather than a percentage."
+            title="Class by class"
+            description="A school that has filled 96% of its periods can still have one class with no science lessons at all, which is why this is listed per class rather than as one number."
           />
           <Table
             head={
               hasDraft
-                ? ['Section', 'Needs', 'Live now', 'In draft']
-                : ['Section', 'Needs', 'Live now']
+                ? ['Class', 'Periods needed', 'In use now', 'In the suggestion']
+                : ['Class', 'Periods needed', 'In use now']
             }
             empty={sections.length === 0}
-            emptyLabel="No sections in this academic year yet."
+            emptyLabel="No classes in this year yet."
           >
             {sections.map((x) => (
               <tr key={x.section_id}>
@@ -344,10 +344,10 @@ export default function MasterTimetable() {
                     x.live_periods === 0 && 'font-medium text-destructive',
                   )}
                 >
-                  {x.live_periods === 0 ? 'none' : x.live_periods}
+                  {x.live_periods === 0 ? 'no timetable yet' : x.live_periods}
                   {x.live_unstaffed > 0 && (
                     <span className="ml-1.5 text-[12px] text-warning">
-                      {x.live_unstaffed} unstaffed
+                      {x.live_unstaffed} with no teacher
                     </span>
                   )}
                 </Td>
@@ -389,13 +389,13 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
       ),
     onSuccess: (r) =>
       onPublished(
-        `Published: ${r.periods_written} periods written, ${r.periods_replaced} replaced.`,
+        `Now in use: ${r.periods_written} periods set, ${r.periods_replaced} replaced.`,
       ),
   })
 
   const discard = useMutation({
     mutationFn: () => api.post(`${OPTIMIZER}/drafts/${draftID}/discard`, {}),
-    onSuccess: () => onPublished('Draft discarded. The live timetable is untouched.'),
+    onSuccess: () => onPublished('Suggestion thrown away. The timetable in use is unchanged.'),
   })
 
   if (draft.isLoading || preview.isLoading) return <Loading label="Reading the draft…" />
@@ -422,7 +422,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
         />
         {dd.issues.length === 0 ? (
           <div className="p-5 text-[13px] text-muted-foreground">
-            Every requirement was met. Read the overwrite summary below before publishing anyway.
+            Everything asked for was filled in. Check below what it will replace before you put it in use.
           </div>
         ) : (
           <Table head={['', 'Class', 'Subject', 'Required', 'Placed', 'What bound']}>
@@ -446,8 +446,8 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
 
       <Card>
         <CardHeader
-          title="What publishing will overwrite"
-          description="Publishing replaces the live timetable for exactly the sections this draft covers, in this academic year. Sections it is silent about keep theirs."
+          title="What this will replace"
+          description="It replaces the timetable only for the classes it covers. Any class it says nothing about keeps the one it has."
         />
         <div className="p-5 text-[13px]">
           <p>
@@ -524,7 +524,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
                 }
                 onClick={() => publish.mutate()}
               >
-                {publish.isPending ? 'Publishing…' : 'Publish to the live timetable'}
+                {publish.isPending ? 'Putting it in use…' : 'Put this timetable in use'}
               </Button>
               <Button variant="ghost" disabled={discard.isPending} onClick={() => discard.mutate()}>
                 Discard this draft
@@ -543,7 +543,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
       <Card>
         <CardHeader
           title="The draft grid"
-          description="Correct a period before publishing. Every move is re-checked on the server against the same rules the solver honoured, and the refusal says which one bound."
+          description="Move a period before you put it in use. Every move is checked against the same rules, and if it cannot be done the reason says why."
           action={
             <Select
               value={chosen}

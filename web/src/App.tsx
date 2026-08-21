@@ -8,6 +8,7 @@ import {
 } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
 import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
+import GoTo from '@/features/shared/GoTo'
 import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
@@ -220,6 +221,11 @@ export default function App() {
                     already existed to change their own password. */}
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/" element={<Home />} />
+                {/* Role-agnostic links, for anything that is written down
+                    before anybody knows who will read it — a notification,
+                    mostly. See GoTo. */}
+                <Route path="/go/:featureSlug" element={<GoTo />} />
+                <Route path="/go/:sectionSlug/:featureSlug" element={<GoTo />} />
                 <Route path="/:roleKey" element={<RoleIndex />} />
                 <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />
                 <Route path="/:roleKey/:sectionSlug/:featureSlug" element={<FeatureRoute />} />

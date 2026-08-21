@@ -40,7 +40,10 @@ export default function Notifications() {
        does not move, and reloads. Refetching on focus covers the common case
        exactly: the message arrives while they are in another tab, and it is
        there the moment they come back. */
-    refetchInterval: 20_000,
+    /* Ten seconds. Not a socket, and honest about it: the bell is the one
+       thing people watch after being told "I have sent it", and a minute of
+       nothing is what makes somebody reload the page. */
+    refetchInterval: 10_000,
     refetchOnWindowFocus: true,
     retry: false,
   })

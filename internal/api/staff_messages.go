@@ -254,7 +254,7 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 			   the name in a list of eleven colleagues — which is the same
 			   search the notification had just done for them. It carries who
 			   wrote, and the screen opens that conversation. */
-			"/"+role+"/communication/messages?with="+id.UserID.String(),
+			"/go/communication/messages?with="+id.UserID.String(),
 			"staff_message", &newID)
 	})
 	switch {
