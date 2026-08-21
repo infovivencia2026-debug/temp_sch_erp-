@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, LayoutGrid, Palette, Sliders, Type, X } from 'lucide-react'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'

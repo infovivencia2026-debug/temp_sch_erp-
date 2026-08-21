@@ -228,7 +228,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             {t('bento.settings.frame')}
           </p>
           {SKINS.map((option) => {
-            const Icon = option === 'neominimalist' ? Square : Frame
+            const Icon = option === 'focus' ? Square : Frame
             const active = skin === option
             return (
               <button

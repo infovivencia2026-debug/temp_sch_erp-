@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import { BentoDock } from '@/features/bento/BentoDock'
-import { BentoMenuBar } from '@/features/bento/BentoMenuBar'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
@@ -185,24 +184,13 @@ export function Shell({ children }: { children: ReactNode }) {
      class teacher who never opens the ICSE gradebook variant never sees it.
      Same storage pattern as the roadmap toggle, deliberately: one habit to
      learn, not two. */
-  const [showAdvanced, setShowAdvanced] = useState(() => {
+  const [showAdvanced] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('erp.showAdvanced') ?? 'false') as boolean
     } catch {
       return false
     }
   })
-  const toggleAdvanced = () => {
-    setShowAdvanced((v) => {
-      try {
-        localStorage.setItem('erp.showAdvanced', JSON.stringify(!v))
-      } catch {
-        /* private browsing; the default returns next time */
-      }
-      return !v
-    })
-  }
-
   /* One section open at a time, by default.
 
      Every section expanded at once is the same problem as listing unbuilt

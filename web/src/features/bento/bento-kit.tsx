@@ -5,7 +5,6 @@ import { ArrowUpRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
-import { useLayout } from '@/lib/layout'
 
 /* THE BENTO KIT.
 
@@ -590,7 +589,6 @@ export function BentoPage({
   children: ReactNode
 }) {
   const still = useReduceMotion()
-  const bentoLayout = useLayout().layout === 'bento'
   // A one-shot opacity transition rather than a keyframe class: `.reveal` in
   // index.css was deliberately made a no-op, and adding a keyframe would mean
   // editing index.css, which this experiment may not do. When motion is
