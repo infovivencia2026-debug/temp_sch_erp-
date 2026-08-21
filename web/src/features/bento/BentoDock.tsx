@@ -176,8 +176,19 @@ export function BentoDock() {
             definition — it floats over the canvas — so a second row would sit
             on the content it is supposed to hover above. On a wide screen they
             all fit; on a narrow one they slide. */}
-        <span className="flex min-w-0 items-center gap-0.5 overflow-x-auto
-                         [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* No scroller here, and that is the point.
+
+            overflow-x-auto clips in both axes — the y overflow computes to
+            auto the moment x does — so every category's tooltip was drawn
+            below its button, outside this box, and thrown away. Home and Work
+            sat outside the wrapper and showed theirs, which is why it looked
+            like the tooltips half worked.
+
+            Nothing is lost by removing it. With labels gone each item is 36px,
+            so nine categories and the three fixed items come to about 430px:
+            the bar fits on any screen wide enough to be running the desktop
+            layout at all. */}
+        <span className="flex items-center gap-0.5">
           {categories.map((c) => {
             const Mark = markFor(c.name)
             return (

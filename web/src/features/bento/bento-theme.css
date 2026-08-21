@@ -321,10 +321,16 @@ html[data-skin='brutalist'] [data-layout='bento'] {
      Not 1: at 1px with no radius and no shadow the card has nothing left that
      distinguishes it from the premium skin, and the choice in Settings stops
      being a choice. */
-  /* Half a pixel. Browsers antialias it rather than dropping it, so on a
-     retina panel it is a true hairline and on a 1x display it renders as one
-     light device pixel — thinner-looking either way, and never absent. */
+  /* Half a pixel, which is the floor. Below this browsers stop antialiasing a
+     border and start rounding it to zero on standard-density displays, so a
+     0.25px line is not a finer line, it is an intermittently absent one.
+
+     What still makes it read finer is the ink. Pure black at any width looks
+     heavier than it is because the edge has maximum contrast against the card;
+     dropping to near-black takes weight out of the line without taking the
+     line away, which is the only lever left once the width has bottomed out. */
   --bento-border-w: 0.5px;
+  --bento-line: #1c1c1c;
   /* No shadow at all. The offset rectangle was the fashionable half of this
      style and the wrong half: a hard shadow is still a claim that the card is
      floating, and the whole point of the heavy border is that it is not — it
