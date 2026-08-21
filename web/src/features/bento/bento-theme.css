@@ -202,57 +202,39 @@ html.dark[data-layout='bento'] {
   border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
-/* ---- frostedglass ------------------------------------------------------- */
+/* ---- Focus ---------------------------------------------------------------
 
-/* A skin, not a theme: it changes the frame and leaves the colour system
-   alone, so the domain hues mean the same thing in both. Hard edges, a border
-   visible across the room, and a shadow that is an offset rectangle rather
-   than a blur.
-
-   Two things it deliberately is not. Not raw-HTML brutalism — a school office
-   cannot run on unstyled documents, and refusing to style a fee screen is a
-   position rather than a design. And not high-contrast mode: the ink is black
-   because that is the aesthetic, and the separate contrast override still
-   exists for the people who need it.
-
-   Here the border does the work the radius and the soft shadow shared, which
-   is why both go: a 2px edge plus a blur plus a 16px corner is three different
-   claims about where the card ends. */
+   Focus uses one quiet frame treatment: a consistent radius, a hairline and
+   no card shadow. Domain colour carries meaning; depth does not compete with
+   the figures. Wider gutters let each surface read as a group rather than as
+   one tile in a dense mosaic. */
 html[data-skin='focus'][data-layout='bento'],
 html[data-skin='focus'] [data-layout='bento'] {
-  --bento-bg: #F7F8FA;
-  --bento-card: #FFFFFF;
-  --bento-ink: #111827;
-  --bento-muted: #6B7280;
-  --bento-radius: 8px;
-  --bento-radius-sm: 4px;
-  --bento-gap: 6px;
+  --bento-bg: #f6f7f9;
+  --bento-card: #ffffff;
+  --bento-ink: #172033;
+  --bento-muted: #667085;
+  --bento-radius: 10px;
+  --bento-radius-sm: 8px;
+  --bento-gap: 14px;
   --bento-border-w: 1px;
-  --bento-line: rgba(0, 0, 0, 0.18);
-  --bento-shadow: 0 4px 16px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.08);
-  
-  --dom-students: #768289;      /* B-003 Slate Grey   — Anchor */
-  --dom-students-text: #F4F4F4;
-  --dom-academics: #EAEAEA;      /* C-001 Platinum     — Bar Chart */
-  --dom-academics-text: #1A1A1A;
-  --dom-attendance: #768289;
-  --dom-attendance-text: #F4F4F4;
-  --dom-finance: #D3D9D9;        /* A-004 Light Grey   — Outstanding */
-  --dom-finance-text: #1A1A1A;
-  --dom-staff: #95A6A5;          /* A-001 Silver Tree  — Defaulters/Approvals */
-  --dom-staff-text: #1A1A1A;
-  --dom-admissions: #BAC0C4;     /* B-004 Silver Sand  — Open Applications */
-  --dom-admissions-text: #1A1A1A;
-  --dom-communication: #BBC6C5;  /* A-003 Ash Grey     — Unassigned Subjects */
-  --dom-communication-text: #1A1A1A;
-  --dom-operations: #A8B6B5;     /* A-002 Morning Blue — Students */
-  --dom-operations-text: #1A1A1A;
-  --dom-reports: #D3D9D9;        /* A-004 Light Grey   — Staff */
-  --dom-reports-text: #1A1A1A;
-  
-  --dom-critical: #A64E46;
-  --dom-warning: #B79455;
-  --dom-success: #54705A;
+  --bento-line: #d8dee8;
+  --bento-shadow: none;
+  --bento-shadow-sm: none;
+
+  --dom-students: #2563eb;      --dom-students-soft: #dbeafe;      --dom-students-text: #ffffff;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #ede9fe;     --dom-academics-text: #ffffff;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #ccfbf1;    --dom-attendance-text: #ffffff;
+  --dom-finance: #b45309;       --dom-finance-soft: #fef3c7;       --dom-finance-text: #ffffff;
+  --dom-staff: #be123c;         --dom-staff-soft: #ffe4e6;         --dom-staff-text: #ffffff;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #e0f2fe;    --dom-admissions-text: #ffffff;
+  --dom-communication: #6d28d9; --dom-communication-soft: #f3e8ff; --dom-communication-text: #ffffff;
+  --dom-operations: #047857;    --dom-operations-soft: #d1fae5;    --dom-operations-text: #ffffff;
+  --dom-reports: #475569;       --dom-reports-soft: #e2e8f0;       --dom-reports-text: #ffffff;
+
+  --dom-critical: #b42318;      --dom-critical-soft: #fee4e2;
+  --dom-warning: #b54708;       --dom-warning-soft: #fef0c7;
+  --dom-success: #067647;       --dom-success-soft: #dcfae6;
 }
 
 html[data-skin='focus'] [data-layout='bento']::before,
@@ -262,35 +244,28 @@ html[data-skin='focus'][data-layout='bento']::before {
 
 html.dark[data-skin='focus'][data-layout='bento'],
 html.dark[data-skin='focus'] [data-layout='bento'] {
-  --bento-bg: #111827;
-  --bento-card: #1F2937;
-  --bento-ink: #F9FAFB;
-  --bento-muted: #9CA3AF;
-  --bento-line: #374151;
-  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  
-  --dom-students: #768289;
-  --dom-students-text: #F4F4F4;
-  --dom-academics: #EAEAEA;
-  --dom-academics-text: #1A1A1A;
-  --dom-attendance: #768289;
-  --dom-attendance-text: #F4F4F4;
-  --dom-finance: #D3D9D9;
-  --dom-finance-text: #1A1A1A;
-  --dom-staff: #95A6A5;
-  --dom-staff-text: #1A1A1A;
-  --dom-admissions: #BAC0C4;
-  --dom-admissions-text: #1A1A1A;
-  --dom-communication: #BBC6C5;
-  --dom-communication-text: #1A1A1A;
-  --dom-operations: #A8B6B5;
-  --dom-operations-text: #1A1A1A;
-  --dom-reports: #D3D9D9;
-  --dom-reports-text: #1A1A1A;
-  
-  --dom-critical: #D4766D;
-  --dom-warning: #C8A96B;
-  --dom-success: #7D9A80;
+  --bento-bg: #0e121b;
+  --bento-card: #171d29;
+  --bento-ink: #f4f7fb;
+  --bento-muted: #a7b0c0;
+  --bento-line: #30394a;
+
+  /* Deep chromatic surfaces belong to the dark canvas; pale light-mode fills
+     do not. Soft tokens stay dark while their foregrounds lift for icons and
+     labels, preserving each domain without creating luminous stickers. */
+  --dom-students: #1d4ed8;      --dom-students-soft: #172554;      --dom-students-text: #eff6ff;
+  --dom-academics: #6d28d9;     --dom-academics-soft: #2e1065;     --dom-academics-text: #f5f3ff;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #042f2e;    --dom-attendance-text: #f0fdfa;
+  --dom-finance: #a16207;       --dom-finance-soft: #422006;       --dom-finance-text: #fffbeb;
+  --dom-staff: #be123c;         --dom-staff-soft: #4c0519;         --dom-staff-text: #fff1f2;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #082f49;    --dom-admissions-text: #f0f9ff;
+  --dom-communication: #7e22ce; --dom-communication-soft: #3b0764; --dom-communication-text: #faf5ff;
+  --dom-operations: #047857;    --dom-operations-soft: #022c22;    --dom-operations-text: #ecfdf5;
+  --dom-reports: #475569;       --dom-reports-soft: #1e293b;       --dom-reports-text: #f8fafc;
+
+  --dom-critical: #f97066;      --dom-critical-soft: #55160c;
+  --dom-warning: #fdb022;       --dom-warning-soft: #4e2b0b;
+  --dom-success: #32d583;       --dom-success-soft: #073d29;
 }
 
 html[data-skin='focus'] .bento-cell,
@@ -298,40 +273,40 @@ html[data-skin='focus'] .launcher-tile,
 html[data-skin='focus'] .launcher-app,
 html[data-skin='focus'] .bento-dock {
   background-color: var(--bento-card);
-  box-shadow: var(--bento-shadow);
-  border-color: rgba(0, 0, 0, 0.28);
+  box-shadow: none;
+  border-color: var(--bento-line);
 }
 
 html.dark[data-skin='focus'] .bento-cell,
 html.dark[data-skin='focus'] .launcher-tile,
 html.dark[data-skin='focus'] .launcher-app,
 html.dark[data-skin='focus'] .bento-dock {
-  box-shadow: var(--bento-shadow);
+  border-color: var(--bento-line);
 }
 
 html[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
-  filter: brightness(0.95);
+  border-color: color-mix(in srgb, var(--bento-ink) 32%, var(--bento-line));
 }
 html.dark[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
-  filter: brightness(1.1);
+  border-color: color-mix(in srgb, var(--bento-ink) 38%, var(--bento-line));
 }
 
 html[data-skin='focus'] [data-layout='bento'] .bento-cue,
 html[data-skin='focus'][data-layout='bento'] .bento-cue {
-  background-color: #111111;
-  color: #FFFFFF;
-  border: none;
+  background: transparent;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
   border-radius: var(--bento-radius-sm);
 }
 
-html.dark[data-skin='frostedglass'] [data-layout='bento'] .bento-cue,
-html.dark[data-skin='frostedglass'][data-layout='bento'] .bento-cue {
-  background-color: #FFFFFF;
-  color: #111111;
+html[data-skin='focus'] [data-layout='bento'] .bento-cue:hover,
+html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-color: color-mix(in srgb, currentColor 58%, transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-skin='frostedglass'] .bento-cue:active { transform: scale(0.96); }
+  html[data-skin='focus'] .bento-cue:active { transform: scale(0.98); }
 }
 
 

@@ -222,7 +222,6 @@ export function Shell({ children }: { children: ReactNode }) {
     }
   }
 
-  const [opened, setOpened] = useState<Set<string>>(new Set())
   /* Which workspace the rail has selected.
 
      Undefined means "follow the page", which is the resting state: open a fee
@@ -254,13 +253,6 @@ export function Shell({ children }: { children: ReactNode }) {
       /* private browsing; the default returns next time */
     }
   }, [density])
-
-  const toggleSection = (slug: string) =>
-    setOpened((prev) => {
-      const next = new Set(prev)
-      next.has(slug) ? next.delete(slug) : next.add(slug)
-      return next
-    })
 
   /* The rail's workspaces, and the one on screen.
 
@@ -483,21 +475,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
         <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 pb-3">
-          {/* The workspace's name, once, at the top of its own pane. The
-              accordion used to carry it on every heading because nine of them
-              shared the column; here there is only ever one. */}
-          {activeWs && (
-            <p className="mb-1 px-2.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.1em]
-                          text-muted-foreground">
-              {activeWs.name}
-            </p>
-          )}
-
           {(activeWs ? [activeWs] : []).map((ws) => {
-            /* Always open. There is one workspace in this pane, so a drawer
-               around it would be a drawer you open every time you arrive. */
-            const open = true
-            void opened
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,
               0,
@@ -530,68 +508,37 @@ export function Shell({ children }: { children: ReactNode }) {
             }
 
             return (
-              <div key={ws.slug} className="mb-0.5">
-                <button
-                  aria-expanded={open}
-                  onClick={() => toggleSection(ws.slug)}
-                  className={cn(
-                    'flex h-[37px] w-full items-center gap-2 rounded-[7px] pl-2.5 pr-2 text-left',
-                    'text-[13.5px] transition-colors duration-100',
-                    open
-                      ? 'font-[550] text-foreground'
-                      : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
-                  )}
-                >
-                  <span className="truncate">{ws.name}</span>
-                  {!open && count > 0 && (
-                    <span className="ml-auto shrink-0 text-[12px] tabular-nums text-muted-foreground/70">
-                      {count}
-                    </span>
-                  )}
-                  <ChevronDown
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
-                      open ? 'ml-auto rotate-180' : '',
-                    )}
-                  />
-                </button>
-
-                {open && (
-                  <div className="pb-1">
-                    {ws.sections.map((section) => {
-                      const items = visibleFeatures(section, showPlanned, showAdvanced)
-                      if (!items.length) return null
-                      /* A group heading only where it separates something. One
-                         group inside a workspace needs no label over it. */
-                      const labelled = ws.sections.length > 1
-                      return (
-                        <div key={section.slug} className={labelled ? 'mt-2 first:mt-1' : undefined}>
-                          {labelled && (
-                            <p className="px-2.5 pb-0.5 pt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
-                              {section.name}
-                            </p>
+              <div key={ws.slug} className="pb-1 pt-1">
+                {ws.sections.map((section) => {
+                  const items = visibleFeatures(section, showPlanned, showAdvanced)
+                  if (!items.length) return null
+                  const labelled = ws.sections.length > 1
+                  return (
+                    <div key={section.slug} className={labelled ? 'mt-2 first:mt-0' : undefined}>
+                      {labelled && (
+                        <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
+                          {section.name}
+                        </p>
+                      )}
+                      {items.map((f) => (
+                        <NavLink
+                          key={f.key}
+                          to={featurePath(role!.key, section.slug, f.slug)}
+                          onClick={() => setNavOpen(false)}
+                          title={f.summary}
+                          className={({ isActive }) => navItem(isActive, 0, !f.live)}
+                        >
+                          {({ isActive }) => (
+                            <>
+                              {isActive && <ActiveMark />}
+                              <span className="truncate">{shortLabel(f.name)}</span>
+                            </>
                           )}
-                          {items.map((f) => (
-                            <NavLink
-                              key={f.key}
-                              to={featurePath(role!.key, section.slug, f.slug)}
-                              onClick={() => setNavOpen(false)}
-                              title={f.summary}
-                              className={({ isActive }) => navItem(isActive, 1, !f.live)}
-                            >
-                              {({ isActive }) => (
-                                <>
-                                  {isActive && <ActiveMark />}
-                                  <span className="truncate">{shortLabel(f.name)}</span>
-                                </>
-                              )}
-                            </NavLink>
-                          ))}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
