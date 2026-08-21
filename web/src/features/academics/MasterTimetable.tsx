@@ -6,6 +6,7 @@ import {
   Input, Table, Td, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import WeekGrid from '@/components/WeekGrid'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* institution_admin.academics.master_timetable_generation
@@ -556,9 +557,18 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
         />
         <div className="px-5 pb-5">
           <WeekGrid
-            entries={dd.entries.filter((e) => e.section_id === chosen)}
+            entries={dd.entries
+              .filter((e) => e.section_id === chosen)
+              .map((e) => ({
+                weekday: e.weekday,
+                period_id: e.period_id,
+                title: e.subject_name,
+                detail: (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
+                unstaffed: !e.teacher_name,
+              }))}
             periods={dd.periods}
             weekdays={dd.weekdays}
+            empty="This suggestion places nothing for that class."
           />
         </div>
       </Card>
@@ -599,101 +609,6 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
         </Table>
       </Card>
     </>
-  )
-}
-
-/* The week, as a week.
- *
- * The only view of a timetable here was a list of rows — day, period, subject,
- * teacher — sorted by day. That is the right shape for editing one period and
- * the wrong shape for the question everybody actually asks, which is "what
- * does Monday look like". A teacher has never in their life read their
- * timetable as a list.
- *
- * Periods down the side, days across the top, exactly as it is pinned to the
- * staff-room wall. Breaks are drawn as full-width bands rather than cells,
- * because lunch is not something that happens to one class.
- */
-function WeekGrid({
-  entries,
-  periods,
-  weekdays,
-}: {
-  entries: DraftEntry[]
-  periods: GridPeriod[]
-  weekdays: number[]
-}) {
-  // One lookup rather than a scan per cell: six days by nine periods is
-  // fifty-four scans of a list that can hold a school's whole week.
-  const at = new Map<string, DraftEntry>()
-  for (const e of entries) at.set(`${e.weekday}:${e.period_id}`, e)
-
-  const days = weekdays.length ? weekdays : [1, 2, 3, 4, 5, 6]
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[44rem] border-collapse text-[13px]">
-        <thead>
-          <tr className="text-muted-foreground">
-            <th className="w-28 border-b px-3 py-2 text-left font-medium">Period</th>
-            {days.map((d) => (
-              <th key={d} className="border-b px-3 py-2 text-left font-medium">
-                {WEEKDAYS[d - 1] ?? `Day ${d}`}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {periods.map((p) =>
-            p.is_break ? (
-              <tr key={p.id}>
-                <td
-                  colSpan={days.length + 1}
-                  className="border-b bg-muted/40 px-3 py-1.5 text-center text-[12px] text-muted-foreground"
-                >
-                  {p.name} · {p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}
-                </td>
-              </tr>
-            ) : (
-              <tr key={p.id} className="align-top">
-                <td className="border-b px-3 py-2">
-                  <span className="font-medium">{p.name}</span>
-                  <span className="block text-[11.5px] text-muted-foreground">
-                    {p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}
-                  </span>
-                </td>
-                {days.map((d) => {
-                  const e = at.get(`${d}:${p.id}`)
-                  return (
-                    <td key={d} className="border-b px-3 py-2">
-                      {e ? (
-                        <>
-                          <span className="font-medium">{e.subject_name}</span>
-                          {/* A period with nobody to teach it is the thing
-                              somebody has to act on, so it is said in the cell
-                              rather than counted in a summary. */}
-                          <span
-                            className={cn(
-                              'block text-[11.5px]',
-                              e.teacher_name ? 'text-muted-foreground' : 'text-warning',
-                            )}
-                          >
-                            {e.teacher_name ?? 'no teacher'}
-                            {e.room ? ` · ${e.room}` : ''}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground/50">—</span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            ),
-          )}
-        </tbody>
-      </table>
-    </div>
   )
 }
 

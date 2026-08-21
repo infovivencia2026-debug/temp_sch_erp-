@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 374 of the catalog's features are implemented.
+// 377 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -55,6 +55,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.attendance.offline_attendance_diary_capture":                            true,
 	"faculty.attendance.take_attendance":                                             true,
 	"faculty.communication.communication":                                            true,
+	"faculty.communication.messages":                                                 true,
 	"faculty.communication.remarks":                                                  true,
 	"faculty.home.my_day":                                                            true,
 	"faculty.home.my_work":                                                           true,
@@ -123,6 +124,7 @@ var implementedFeatures = map[string]bool{
 	"finance.student_dues.student_ledger":                                            true,
 	"hod.academics.faculty_allocation":                                               true,
 	"hod.academics.language_subject_allocation":                                      true,
+	"hod.my_profile.leave_self_service":                                              true,
 	"hod.my_profile.profile":                                                         true,
 	"hod.staff.leaves_subs":                                                          true,
 	"hod.staff.teacher_remarks":                                                      true,
@@ -221,6 +223,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.library.digital_library_usage":                                true,
 	"institution_admin.library.fine_penalty_summary":                                 true,
 	"institution_admin.library.new_session_textbook_orders":                          true,
+	"institution_admin.my_profile.leave_self_service":                                true,
 	"institution_admin.staff.leaves_subs":                                            true,
 	"institution_admin.standard.attendance_overview":                                 true,
 	"institution_admin.standard.fee_collection":                                      true,
