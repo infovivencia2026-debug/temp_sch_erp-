@@ -1015,8 +1015,9 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			"Which class studies what.", true},
 		{"periods", "Define the school day", c.Periods > 0, c.Periods,
 			"Periods and breaks, in order.", false},
-		{"staff", "Add teachers and assign them", c.Teachers > 0, c.Teachers,
-			"A teacher's scope comes from what they are assigned.", true},
+		{"staff", "Add staff", c.Teachers > 0, c.Teachers,
+			"Teachers, the office, accounts and HR — each with the role that "+
+				"matches the job.", true},
 		{"students", "Enrol students", c.Students > 0, c.Students,
 			"Admit individually or import from a spreadsheet.", true},
 		{"grading", "Set up a grading scale", c.GradingScales > 0, c.GradingScales,
