@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -214,20 +215,73 @@ type subjectRequest struct {
 	IsScholastic *bool  `json:"is_scholastic,omitempty"`
 }
 
+
+/*
+uniqueSubjectCode turns a subject's name into a short code nobody has to think
+
+	about. Letters and digits only, upper-cased, cut to six -- "General
+	Science" becomes GENERA, "Sanskrit" SANSKR -- and a counter appended if
+	that is already taken, because a school may well run two subjects whose
+	names begin the same way.
+
+	Six rather than three: three collides constantly across a state syllabus
+	(SOC, SOC, SCI, SCI) and the code is read by people in the timetable grid,
+	where a truncation they can still recognise beats an abbreviation they
+	cannot.
+*/
+func uniqueSubjectCode(ctx context.Context, tx pgx.Tx, inst, campus uuid.UUID,
+	name string) (string, error) {
+
+	var b strings.Builder
+	for _, r := range strings.ToUpper(name) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+		if b.Len() == 6 {
+			break
+		}
+	}
+	base := b.String()
+	if base == "" {
+		base = "SUBJ"
+	}
+
+	for n := 0; n < 50; n++ {
+		try := base
+		if n > 0 {
+			try = fmt.Sprintf("%s%d", base, n+1)
+		}
+		var taken bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (SELECT 1 FROM subjects
+			                WHERE institution_id = $1 AND campus_id = $2 AND code = $3)`,
+			inst, campus, try).Scan(&taken); err != nil {
+			return "", err
+		}
+		if !taken {
+			return try, nil
+		}
+	}
+	// Fifty subjects sharing six leading letters is not a school; it is a bug
+	// somewhere else, and a random tail beats an error the office cannot act on.
+	return base + uuid.NewString()[:4], nil
+}
+
 func (s *Server) createSubject(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	var req subjectRequest
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Code) == "" {
-		httpx.BadRequest(w, r, "name and code are required")
+	if strings.TrimSpace(req.Name) == "" {
+		httpx.BadRequest(w, r, "a subject needs a name")
 		return
 	}
 	scholastic := true
 	if req.IsScholastic != nil {
 		scholastic = *req.IsScholastic
 	}
+	code := strings.ToUpper(strings.TrimSpace(req.Code))
 
 	var newID string
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -235,19 +289,33 @@ func (s *Server) createSubject(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		/* A code is derived when none is given.
+
+		   It used to be required, which made adding a subject a small quiz:
+		   a school types "Sanskrit" and is asked for an abbreviation it has
+		   never used, has no convention for, and which only exists because
+		   the timetable grid is narrow. Derived from the name and made
+		   unique, so the screen that needs one has one and nobody had to
+		   invent it. */
+		if code == "" {
+			code, err = uniqueSubjectCode(r.Context(), tx, id.InstitutionID, campus, req.Name)
+			if err != nil {
+				return err
+			}
+		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO subjects (institution_id, campus_id, name, code, is_scholastic)
 			VALUES ($1,$2,$3,upper($4),$5)
 			ON CONFLICT (institution_id, campus_id, code)
 			DO UPDATE SET name = EXCLUDED.name, is_scholastic = EXCLUDED.is_scholastic
 			RETURNING id::text`,
-			id.InstitutionID, campus, req.Name, req.Code, scholastic).Scan(&newID)
+			id.InstitutionID, campus, req.Name, code, scholastic).Scan(&newID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID, "code": strings.ToUpper(req.Code)})
+	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID, "code": code})
 }
 
 // --- periods ----------------------------------------------------------------

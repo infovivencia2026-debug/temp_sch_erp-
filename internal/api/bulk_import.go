@@ -356,13 +356,22 @@ var importSpecs = map[string]importSpec{
 			if err != nil {
 				return err
 			}
-			code := strings.ToUpper(strings.TrimSpace(row["subject_code"]))
+			/* The code or the name, because a school writes both.
+
+			   The column is called subject_code and the sheet the office
+			   actually keeps says "General Science". Insisting on the code
+			   rejected files whose every row named a subject that plainly
+			   exists. The staff importer had already learned this; these two
+			   had not. */
+			want := strings.TrimSpace(row["subject_code"])
 			var subjectID uuid.UUID
-			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM subjects WHERE institution_id = $1 AND upper(code) = $2`,
-				c.inst, code).Scan(&subjectID); err != nil {
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT id FROM subjects
+				 WHERE institution_id = $1
+				   AND (upper(code) = upper($2) OR lower(name) = lower($2))`,
+				c.inst, want).Scan(&subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("no subject with code %q — add the subjects first", code)
+					return fmt.Errorf("no subject called %q — add the subjects first", want)
 				}
 				return err
 			}
@@ -769,10 +778,22 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !commit || out.Rejected > 0 || len(rows) == 0 {
-		// Refusing to write a file with any bad row is deliberate: a partial
-		// import leaves the office reconciling what went in against what did
-		// not, which is more work than fixing the sheet.
+	/* A bad row is a bad row, not a bad file.
+
+	   This used to refuse the whole upload if any row failed, on the reasoning
+	   that a partial import leaves the office reconciling what went in against
+	   what did not. That reasoning holds for two schools and fails for the
+	   rest: a sixty-row roll with one child whose section was typed "6A"
+	   instead of "6-A" cannot be loaded at all, and the office has no way to
+	   get the other fifty-nine in while somebody works out which. It also
+	   makes the product the obstacle at exactly the moment a school is trying
+	   to start using it.
+
+	   So the good rows land and the rest are named, with the row number and
+	   the reason. Nothing is silent: the count of what was skipped is returned
+	   beside the count of what was written, and re-uploading the corrected
+	   sheet updates rather than duplicates, because every importer upserts. */
+	if !commit || len(rows) == 0 {
 		httpx.JSON(w, http.StatusOK, out)
 		return
 	}
@@ -792,9 +813,35 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			ctx.year = &year
 		}
 
+		/* Each row inside its own savepoint.
+
+		   One row's failure used to abort the transaction, and with it every
+		   row that had already succeeded. A savepoint per row means a row that
+		   cannot be written is rolled back on its own and the file carries on
+		   — which is the difference between "we could not load your sheet" and
+		   "we loaded your sheet apart from row 14, which says this". */
 		for _, p := range rows {
-			if err := spec.Write(ctx, p.data); err != nil {
-				return fmt.Errorf("row %d: %w", p.row, err)
+			sp, berr := tx.Begin(r.Context())
+			if berr != nil {
+				return berr
+			}
+			outer, madeSoFar := ctx.tx, len(ctx.created)
+			ctx.tx = sp
+			werr := spec.Write(ctx, p.data)
+			ctx.tx = outer
+			if werr != nil {
+				_ = sp.Rollback(r.Context())
+				// Anything the failed row claimed to have created went back
+				// with it, so the undo record must not still name those rows.
+				ctx.created = ctx.created[:madeSoFar]
+				out.Imported = out.Imported
+				out.Rejected++
+				out.Problems = append(out.Problems,
+					importRow{Row: p.row, Data: p.data, Problem: werr.Error()})
+				continue
+			}
+			if cerr := sp.Commit(r.Context()); cerr != nil {
+				return cerr
 			}
 			out.Imported++
 		}

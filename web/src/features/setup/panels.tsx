@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
+import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
 import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
@@ -92,15 +92,66 @@ function Preset({ onClick, children }: { onClick: () => void; children: ReactNod
   )
 }
 
+/* Saying that it worked.
+
+   Every step here reported failure and nothing else: an error appeared above
+   the button, and success looked exactly like not having pressed it. On a
+   panel whose whole output is a row of chips that were already the right
+   colour, there was no way to tell a save from a mis-click, so people pressed
+   it again — which on this particular step rewrites the same set and looks
+   identical a third time.
+
+   A dialog rather than a line of green text, because the line is in the place
+   people have already stopped looking by the time it appears. It says what
+   changed, not just that something did. */
+function SavedDialog({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="Saved"
+    >
+      <div
+        className="w-full max-w-sm rounded-lg border bg-background p-5 text-center shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+          <Check className="h-6 w-6" />
+        </div>
+        <p className="text-[15px] font-medium">Done</p>
+        <p className="mt-1 text-[13.5px] text-muted-foreground">{message}</p>
+        <Button className="mt-4 w-full" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function SaveRow({
   pending,
   error,
   label = 'Save and continue',
+  saved,
+  onDismissSaved,
   children,
 }: {
   pending: boolean
   error: unknown
   label?: string
+  /** What to say once it has worked. Nothing shown when absent. */
+  saved?: string | null
+  onDismissSaved?: () => void
   children?: ReactNode
 }) {
   return (
@@ -112,6 +163,9 @@ function SaveRow({
         </Button>
         {children}
       </div>
+      {saved && onDismissSaved && (
+        <SavedDialog message={saved} onClose={onDismissSaved} />
+      )}
     </>
   )
 }
@@ -800,6 +854,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
     setPicked(new Set((current.data?.items ?? []).map((x) => x.subject_id)))
   }, [classID, current.data])
 
+  const [saved, setSaved] = useState<string | null>(null)
   const save = useSave(async () => {
     const ids = [...picked]
     const targets = applyAll ? (classes?.items ?? []).map((c) => c.id) : [classID]
@@ -807,7 +862,49 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
       if (!cid) continue
       await api.put('/api/v1/setup/class-subjects', { class_id: cid, subject_ids: ids })
     }
+    const subject = ids.length === 1 ? 'subject' : 'subjects'
+    setSaved(
+      applyAll
+        ? `All ${targets.length} classes now study the same ${ids.length} ${subject}.`
+        : `${classes?.items.find((c) => c.id === classID)?.name ?? 'This class'} now studies ` +
+          `${ids.length} ${subject}.`,
+    )
   }, onDone)
+
+  /* Adding a subject without leaving the step.
+   *
+   * The chips were the whole list and there was no way to extend it here: a
+   * school that gets to this step and finds Sanskrit missing had to go back
+   * two steps, add it, and come forward again — losing the class they had
+   * chosen on the way. It is the same endpoint the subjects step uses, and
+   * the new one arrives already ticked, because somebody who just typed it
+   * means this class to study it. */
+  const qc = useQueryClient()
+  const [newSubject, setNewSubject] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
+  const addSubject = async () => {
+    const name = newSubject.trim()
+    if (!name) return
+    setAdding(true)
+    setAddError('')
+    try {
+      // No code sent: the server derives one. A school types "Sanskrit", not
+      // "SAN", and being asked for an abbreviation it has no convention for
+      // is the kind of question that stops somebody mid-task.
+      const made = await api.post<{ id: string }>('/api/v1/setup/subjects', {
+        name,
+        is_scholastic: true,
+      })
+      setNewSubject('')
+      await qc.invalidateQueries({ queryKey: ['subjects'] })
+      if (made?.id) setPicked((prev) => new Set(prev).add(made.id))
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Could not add that subject.')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const toggle = (id: string) => {
     const next = new Set(picked)
@@ -885,7 +982,36 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
           ? 'This is what the class studies now. Saving writes back exactly what is selected — untick one and it is removed.'
           : 'Choose a class above and its current subjects appear ticked.'}
       </p>
-      <SaveRow pending={save.isPending} error={save.error} label="Save mapping" />
+      <div className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">
+        <Field label="Not in the list? Add a subject">
+          <Input
+            value={newSubject}
+            onChange={setNewSubject}
+            placeholder="Sanskrit"
+            className="w-56"
+          />
+        </Field>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!newSubject.trim() || adding}
+          onClick={() => void addSubject()}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {adding ? 'Adding…' : 'Add subject'}
+        </Button>
+        <span className="text-[12.5px] text-muted-foreground">
+          It joins the list above, already selected for this class.
+        </span>
+      </div>
+      {addError && <p className="mt-1 text-[13px] text-destructive">{addError}</p>}
+      <SaveRow
+        pending={save.isPending}
+        error={save.error}
+        label="Save mapping"
+        saved={saved}
+        onDismissSaved={() => setSaved(null)}
+      />
       <div className="mt-5 border-t pt-5">
         <BulkImport
           entity="class_subjects"
@@ -1047,16 +1173,24 @@ function StaffPanel({ onDone }: PanelProps) {
           <div className="mt-5 border-t pt-5">
         <BulkImport
           entity="staff"
-          title="Or add all your staff from a sheet"
-          hint="Employee code and first name are required. Give an email and a role and they get a login too. Adding staff does not assign them — that is the section form above, or the sheet below."
+          title="1. Add all your staff from a sheet"
+          hint="Employee code and first name are required. Give an email and a role and they get a login too. This sheet creates the people; it does not place them — that is the allocation sheet below, and a school needs both."
           onDone={onDone}
         />
       </div>
       <div className="mt-5 border-t pt-5">
+        {/* Not "Or".
+         *
+         * The two sheets did different jobs and the word between them said
+         * they were alternatives. Staff creates the people; allocations puts
+         * them in front of a class. Load only the first and you have ten
+         * teachers who teach nothing and own no section; load only the second
+         * and every row fails, because the teachers it names do not exist
+         * yet. They are a sequence, and the headings now say so. */}
         <BulkImport
           entity="allocations"
-          title="Or upload the class allocation sheet"
-          hint="Class, section, room, class teacher, and the subject teacher for each subject. Every column but the class and section is optional — a school with only class teachers fills three of them and leaves the rest blank."
+          title="2. Then upload the class allocation sheet"
+          hint="Who owns each section and who teaches each subject in it: class, section, room, class teacher, subject and subject teacher. Import the staff above first — this sheet finds them by email. Every column but the class and section is optional."
           onDone={onDone}
         />
 
