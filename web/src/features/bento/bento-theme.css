@@ -259,7 +259,7 @@ html[data-skin='brutalist'] [data-layout='bento'] {
      Not 1: at 1px with no radius and no shadow the card has nothing left that
      distinguishes it from the premium skin, and the choice in Settings stops
      being a choice. */
-  --bento-border-w: 1.5px;
+  --bento-border-w: 1px;
   /* No shadow at all. The offset rectangle was the fashionable half of this
      style and the wrong half: a hard shadow is still a claim that the card is
      floating, and the whole point of the heavy border is that it is not — it

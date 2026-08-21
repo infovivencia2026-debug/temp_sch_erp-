@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { shortcutLabel } from '@/lib/platform'
 import { useNavigate } from 'react-router-dom'
 import { Search, CornerDownLeft } from 'lucide-react'
@@ -118,7 +119,19 @@ export function CommandSearch() {
     setOpen(false)
   }
 
-  return (
+  /* Rendered into the body, not where it is mounted.
+
+     This component lives inside the Bento dock, and the dock carries
+     backdrop-blur. A backdrop-filter establishes a containing block, so a
+     fixed-position descendant anchors to the blurred element rather than to
+     the viewport — the scrim stopped being full-screen and became a dark layer
+     painted across the dock itself, with the palette hanging underneath it.
+
+     BentoLauncher already had to be moved outside the pill for exactly this
+     reason and left a comment saying so; this is the same trap one component
+     along. A portal fixes it at the source, so the palette is correct wherever
+     anybody mounts it next. */
+  return createPortal(
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setOpen(false)} aria-hidden />
       <div
@@ -190,6 +203,7 @@ export function CommandSearch() {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }

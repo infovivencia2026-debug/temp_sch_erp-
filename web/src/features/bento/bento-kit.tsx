@@ -255,7 +255,25 @@ export function Bars({
   accent?: Accent
 }) {
   const still = useReduceMotion()
-  const max = Math.max(...items.map((i) => i.value), 1)
+  /* Scaled to the range, not to zero.
+
+     Attendance sits between 91 and 99 for ten days running. Measured from
+     zero those bars are 92% and 100% of the box — ten identical grey blocks,
+     which is what a school actually saw here, and worse than no chart because
+     it looks like a rendering fault rather than a flat week.
+
+     So the floor drops below the lowest value instead of to zero, but only
+     when the values are genuinely clustered high. A series that does start
+     near zero — money collected, say — still gets a zero baseline, because
+     there the distance from nothing is the information.
+
+     The floor keeps a margin under the minimum rather than sitting on it, so
+     the worst day is a short bar and not an absent one. */
+  const values = items.map((i) => i.value)
+  const max = Math.max(...values, 1)
+  const min = Math.min(...values)
+  const clustered = min > 0 && min / max > 0.6
+  const floor = clustered ? min - (max - min || max * 0.05) * 0.8 : 0
   return (
     <div role="img" aria-label={srLabel} className="flex h-full items-end gap-1.5">
       {items.map((item, i) => (
@@ -268,7 +286,7 @@ export function Bars({
                 still ? '' : 'transition-[height] duration-300',
               )}
               style={{
-                height: `${Math.max(6, (item.value / max) * 100)}%`,
+                height: `${Math.max(6, ((item.value - floor) / (max - floor)) * 100)}%`,
                 // The inactive bars are the muted tone, mixed down onto
                 // whatever card they sit on. `--bento-card-2` alone — the
                 // literal muted card tone — measures 1.13:1 against the light
@@ -631,7 +649,28 @@ export function BentoPage({
           pushing the rest off the bottom. min-h-0 is what lets a grid child
           shrink below its content at all — without it the track floors at the
           content height and the overflow-hidden above simply clips. */}
-      {/* Bounded on both sides, because both failures are real.
+      {/* Rows take the height their contents need.
+
+          They used to be forced equal — auto-rows-fr — so the page would fit
+          the viewport exactly. It fit, and it cost twice over: a card holding
+          "Staff 9" was stretched to the height of the hero beside it and spent
+          most of itself empty, while the hero, which genuinely needed more,
+          was cut off at its own bottom edge with the billed figure below the
+          fold and no way to reach it.
+
+          auto rather than min, because the hero spans two rows and min-content
+          tracks size to the cells that do not span; the tall one would be
+          squeezed into whatever the short ones happened to need, which is the
+          clipping again by another route.
+
+          grid-flow-dense so the short cards back-fill the gaps the tall one
+          leaves, instead of a column of holes down one side.
+
+          The page may now scroll on a short window. That is the trade the last
+          version got backwards: a dashboard that fits by hiding a number is
+          not a dashboard that fits.
+
+          What remains bounded on both sides, because both failures are real:
 
           The principal's grid is nine cards filling sixteen slots — four rows
           of four, packed exactly. Divide the viewport by four and a 1080p
@@ -650,7 +689,7 @@ export function BentoPage({
           grid, where whitespace belongs. */}
       <div
         className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
-                   lg:min-h-[600px] lg:max-h-[1000px] lg:flex-1 lg:auto-rows-fr
+                   lg:min-h-[600px] lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
                    lg:grid-cols-4"
       >
         {children}

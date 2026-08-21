@@ -318,12 +318,20 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         {/* The row's glyph carries its group's colour, which is what ties a
             tile to the heading it sits under once the eye has left it. Within
             a group every glyph is the same, so it reads as grouping rather
-            than as sixty-five separate decisions. */}
-        <Mark
-          className="size-4 shrink-0"
+            than as sixty-five separate decisions.
+
+            It names itself on hover. A mark is only a landmark once you have
+            learnt it, and nothing here teaches it: a book means Academics to
+            whoever chose the book. The title is on a wrapping span rather than
+            the svg because a title inside an aria-hidden element is read by
+            neither the pointer nor the screen reader in some browsers. */}
+        <span
+          title={r.workspace}
+          className="grid shrink-0 place-items-center"
           style={{ color: `var(--dom-${hueFor(r.workspace)})` }}
-          aria-hidden="true"
-        />
+        >
+          <Mark className="size-4" aria-hidden="true" />
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px]">{r.name}</span>
           <span className="block truncate text-[11.5px] text-muted-foreground">{r.section}</span>
@@ -477,6 +485,7 @@ function Heading({
       style={onTint ? { color: `var(--dom-${hue})` } : undefined}
     >
       <span
+        title={label}
         className="flex size-6 items-center justify-center"
         style={{
           background: onTint ? 'transparent' : `var(--dom-${hue}-soft)`,

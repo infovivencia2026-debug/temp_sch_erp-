@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { LayoutGrid, Inbox } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
@@ -60,9 +61,16 @@ export function BentoDock() {
 
   if (layout !== 'bento') return null
 
+  /* Icon and word together, not one or the other.
+
+     The glyph is what the eye finds after a week and the word is what makes it
+     findable in the first one; a bar of bare icons is a bar you learn by
+     hovering. "All features" rather than "Apps" because that is what the panel
+     is called when it opens, and a control whose label changes on the way to
+     the thing it opens is a control people stop trusting. */
   const item =
-    `rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-accent ` +
-    `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+    `flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] transition-colors ` +
+    `hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
 
   return (
     <>
@@ -76,13 +84,15 @@ export function BentoDock() {
 
         {workHref && (
           <button type="button" onClick={() => navigate(workHref)} className={item}>
+            <Inbox className="size-3.5 shrink-0" aria-hidden="true" />
             {t('bento.dock.work')}
           </button>
         )}
 
         {/* Pointing, for the person who does not know what to type. */}
         <button type="button" onClick={() => setAll(true)} className={item}>
-          {t('bento.dock.apps')}
+          <LayoutGrid className="size-3.5 shrink-0" aria-hidden="true" />
+          {t('bento.launcher.title')}
         </button>
       </div>
 
