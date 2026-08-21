@@ -287,7 +287,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open || !role) return null
 
-  const Tile = ({ r, i, onTint }: { r: Row; i?: number; onTint?: boolean }) => {
+  const Tile = ({ r, i }: { r: Row; i?: number }) => {
     const href = featurePath(role.key, r.sectionSlug, r.slug)
     const here = pathname === href
     const onCursor = i !== undefined && i === cursor
@@ -299,19 +299,22 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         onMouseEnter={() => i !== undefined && setCursor(i)}
         data-cursor={onCursor ? 'true' : undefined}
         aria-current={here ? 'page' : undefined}
+        /* Each feature is its own object now, not a line of a list.
+
+           A row of text is read; a box is aimed at. With sixty-five of them
+           the difference is the whole experience of the panel — the eye lands
+           on a shape and the hand goes there, rather than scanning a column
+           for a word. It is the home-screen arrangement, and it works for the
+           same reason: position and colour become memory, so the third visit
+           is faster than the first.
+
+           The box carries its own surface rather than sitting transparently on
+           the category tint. That is what makes it an object at all — on the
+           tint alone it is a hover state pretending to be a thing. */
         className={cn(
-          `flex w-full items-center gap-3 px-3 py-2 text-left transition-colors
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
-          /* On a tinted panel the hover has to be the panel's own colour
-             deepened, not the app's grey accent — a neutral wash over a blue
-             field reads as a rendering fault rather than a hover. */
-          onTint
-            ? onCursor
-              ? 'bg-foreground/[0.09]'
-              : 'hover:bg-foreground/[0.05]'
-            : onCursor
-              ? 'bg-accent'
-              : 'hover:bg-accent/60',
+          `launcher-app group flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2
+           text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
+          onCursor && 'launcher-app-on',
           here && 'font-medium',
         )}
       >
@@ -392,7 +395,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             results.length ? (
               <>
                 <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
-                <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                   {results.map((r, i) => <Tile key={r.key} r={r} i={i} />)}
                 </div>
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
@@ -410,7 +413,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               {recents.length > 0 && (
                 <section className="mb-9">
                   <Heading icon={Clock} label={t('bento.launcher.recent')} />
-                  <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                     {recents.map((r) => <Tile key={`recent-${r.key}`} r={r} />)}
                   </div>
                 </section>
@@ -439,9 +442,9 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                     style={{ background: `var(--dom-${hue}-soft)` }}
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
-                    <div className={cn('grid gap-0.5', tileColumns(count))}>
+                    <div className={cn('grid gap-1.5', tileColumns(count))}>
                       {g.sections.flatMap((s) => s.rows).map((r) => (
-                        <Tile key={r.key} r={r} onTint />
+                        <Tile key={r.key} r={r} />
                       ))}
                     </div>
                   </section>

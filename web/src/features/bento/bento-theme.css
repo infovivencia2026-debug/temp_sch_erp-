@@ -75,8 +75,23 @@
      nothing, present only so a card does not sit flush against the ground. The
      dock gets the stronger one, because it genuinely floats. */
   --bento-border-w: 1px;
-  --bento-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 8px 24px -18px rgb(0 0 0 / 0.28);
-  --bento-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.02);
+
+  /* Depth, in two steps and on purpose.
+
+     The shadows here were almost nothing — deliberately, to keep the surfaces
+     quiet — and the cost was a page of shapes lying flat in one plane with
+     only a hairline telling them apart. Depth is what says which things are
+     objects and which are ground.
+
+     Two layers per step, because one is a blur and reads as fog. The tight
+     layer draws the contact edge, the wide one is the ambient fall; together
+     they make an object sitting on a surface rather than a rectangle with a
+     grey smudge under it. */
+  --bento-depth-sm: 0 1px 2px rgb(15 23 42 / 0.05), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  --bento-depth: 0 2px 4px rgb(15 23 42 / 0.06), 0 12px 28px -10px rgb(15 23 42 / 0.16);
+
+  --bento-shadow: var(--bento-depth);
+  --bento-shadow-sm: var(--bento-depth-sm);
 
   /* Category hues for the launcher.
 
@@ -146,6 +161,12 @@
 }
 
 html.dark[data-layout='bento'] {
+
+  /* On a dark ground a drop shadow does nothing — black on black. Depth there
+     is a hairline of light along the top edge, which is how a raised surface
+     actually behaves, plus a deeper shadow underneath to seat it. */
+  --bento-depth-sm: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 1px 3px rgb(0 0 0 / 0.5);
+  --bento-depth: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 10px 26px -8px rgb(0 0 0 / 0.7);
 
   /* The domains against the dark ground. Inverted in role rather than
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
@@ -300,6 +321,11 @@ html[data-skin='brutalist'] [data-layout='bento'] {
      lying on the page. The border does all of it now. */
   --bento-shadow: none;
   --bento-shadow-sm: none;
+  /* The hard skin keeps its flatness. It was told to have no shadows and the
+     border is doing that work; adding depth back here through a different
+     token name would just be disobeying it in a place nobody would look. */
+  --bento-depth: none;
+  --bento-depth-sm: none;
 }
 
 /* On the dark ground the frame inverts: a black border on near-black is a card
@@ -363,4 +389,31 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
   [data-layout='bento'] .bento-dock button {
     transition: none;
   }
+}
+
+
+/* ---- the launcher's feature boxes ------------------------------------ */
+
+/* Each feature is an object with a surface of its own, sitting on its
+   category's tint rather than being a hover state on it. That is the whole
+   difference between a list and a home screen: a row of text is read, a box is
+   aimed at, and with sixty-five of them the eye stops scanning for a word and
+   starts going to a place.
+
+   The surface is the card tone, not white, so the box reads as raised off the
+   tint in dark mode as well — a white box on a dark tinted panel would glow. */
+[data-layout='bento'] .launcher-app {
+  background: var(--bento-card);
+  border: 1px solid color-mix(in srgb, var(--bento-ink) 8%, transparent);
+  box-shadow: var(--bento-depth-sm);
+  transition: box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+[data-layout='bento'] .launcher-app:hover,
+[data-layout='bento'] .launcher-app-on {
+  border-color: color-mix(in srgb, var(--bento-ink) 18%, transparent);
+  box-shadow: var(--bento-depth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .launcher-app { transition: none; }
 }
