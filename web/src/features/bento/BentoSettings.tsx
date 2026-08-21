@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
-  Maximize2, Rows2, Rows3, Rows4, Squircle, Type, Droplets,
+  Maximize2, Rows2, Rows3, Rows4, Squircle, Type,
 } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
@@ -238,7 +238,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             {t('bento.settings.frame')}
           </p>
           {SKINS.map((option) => {
-            const Icon = option === 'brutalist' ? Square : option === 'glass' ? Droplets : Frame
+            const Icon = option === 'brutalist' ? Square : Frame
             const active = skin === option
             return (
               <button

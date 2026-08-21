@@ -89,21 +89,31 @@ export function BentoDock() {
   const categories = useMemo(() => {
     if (!role) return []
     const out: { name: string; href: string }[] = []
+    /* Seen is tracked apart from the output, and that is the fix rather than a
+       tidy-up.
+
+       A workspace spans several sections — an institution admin's Home holds
+       Home, Getting Started and Approvals — so the loop meets the same
+       workspace three times. When the first of those was skipped for being the
+       home destination, it was skipped *before* being recorded, so the second
+       section found nothing in the output, decided Home had not been added
+       yet, and added it again pointing at School setup. Two house icons, the
+       second going somewhere else.
+
+       Deciding "have I dealt with this workspace" from the list of things kept
+       only works if nothing is ever dropped. */
+    const seen = new Set<string>()
     for (const s of role.sections) {
       const name = s.workspace || s.name
-      if (out.some((x) => x.name === name)) continue
+      if (seen.has(name)) continue
       const f = s.features.find(usable)
       if (!f) continue
+      seen.add(name)
+      /* The home workspace itself is dropped: the button before this list is
+         already it. Matched on the destination rather than on the name "Home",
+         because several roles call that workspace something else and one that
+         called it Dashboard would keep the duplicate. */
       const href = featurePath(role.key, s.slug, f.slug)
-      /* The Home workspace is dropped, because the button before this list is
-         already it. Home resolves to the role's first opening feature, which
-         is by definition the first feature of the first workspace — so the bar
-         was carrying the same house icon twice, side by side, pointing at the
-         same screen.
-
-         Matched on the destination rather than on the name "Home": several
-         roles call that workspace something else, and one that called it
-         Dashboard would have kept the duplicate. */
       if (href === homeHref) continue
       out.push({ name, href })
     }

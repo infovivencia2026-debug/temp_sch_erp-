@@ -1204,7 +1204,6 @@ export const en = {
   'bento.dock.home': 'Home',
   'bento.settings.skin.premium': 'Soft',
   'bento.settings.skin.brutalist': 'Hard edges',
-  'bento.settings.skin.glass': 'Glass',
   'bento.settings.theme.system': 'Match system',
   'bento.settings.theme.light': 'Light',
   'bento.settings.theme.dark': 'Dark',
