@@ -163,7 +163,7 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
 
          min-h-dvh so a short screen is one colour to the bottom of the window
          rather than to the bottom of its content. */
-      className="min-h-dvh bg-[var(--bento-bg)]"
+      className="bento-ground min-h-dvh bg-[var(--bento-bg)]"
       style={{ paddingTop: 'var(--bento-dock)' }}
     >
       {inner}

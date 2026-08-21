@@ -36,11 +36,18 @@
   --bento-anchor-to: #00FFFF;
   --bento-anchor-ink: #0d0f14;
 
-  --bento-radius: 32px;
-  --bento-radius-sm: 16px;
+  /* The global axes reach in here rather than stopping at the layout.
+
+     Focus had its own radius, border and depth, so Corners, Borders and Shadow
+     silently did nothing the moment somebody switched to it — the settings
+     were still there, still remembered, and applied to a layout they were not
+     looking at. Every one is a multiple of the shipped value now, so the
+     layout keeps its own proportions and still answers the preference. */
+  --bento-radius: calc(32px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(16px * var(--radius-scale, 1));
   --bento-gap: 14px;
   --bento-dock: 60px;
-  --bento-border-w: 1px;
+  --bento-border-w: calc(1px * var(--border-scale, 1));
 
   --bento-depth-sm: 0 2px 10px rgba(0,0,0,0.03);
   --bento-depth: 0 4px 20px rgba(0,0,0,0.04);
@@ -471,3 +478,40 @@ html.dark[data-skin='neominimalist'][data-layout='bento'] .bento-cue {
 
 
 
+
+
+/* ---- the global axes, inside Focus ------------------------------------ */
+
+/* Borders. The scale is a multiplier rather than a width, so the layout's own
+   weight is preserved: the soft skin's 1px and the neo-minimalist's 0.5px both
+   move together instead of collapsing to one number. */
+html[data-borders='none'] { --border-scale: 0; }
+html[data-borders='strong'] { --border-scale: 2; }
+
+/* Shadow, mapped onto the three depths Focus uses. Flat is genuinely none —
+   a dashboard read all day is a legitimate place to want no depth at all. */
+html[data-shadow='flat'] [data-layout='bento'],
+html[data-shadow='flat'][data-layout='bento'] {
+  --bento-depth-sm: none;
+  --bento-depth: none;
+  --bento-depth-lg: none;
+}
+html[data-shadow='lifted'] [data-layout='bento'],
+html[data-shadow='lifted'][data-layout='bento'] {
+  --bento-depth-sm: 0 2px 6px rgb(15 23 42 / 0.07), 0 6px 16px -4px rgb(15 23 42 / 0.10);
+  --bento-depth: 0 4px 12px rgb(15 23 42 / 0.09), 0 16px 36px -10px rgb(15 23 42 / 0.18);
+  --bento-depth-lg: 0 8px 20px rgb(15 23 42 / 0.10), 0 28px 60px -14px rgb(15 23 42 / 0.24);
+}
+html[data-shadow='deep'] [data-layout='bento'],
+html[data-shadow='deep'][data-layout='bento'] {
+  --bento-depth-sm: 0 3px 10px rgb(15 23 42 / 0.10), 0 10px 24px -6px rgb(15 23 42 / 0.16);
+  --bento-depth: 0 8px 22px rgb(15 23 42 / 0.14), 0 26px 56px -12px rgb(15 23 42 / 0.26);
+  --bento-depth-lg: 0 14px 34px rgb(15 23 42 / 0.16), 0 44px 90px -18px rgb(15 23 42 / 0.32);
+}
+
+/* The background pattern. Focus paints its own ground over the body, so the
+   texture has to be re-applied there rather than assumed to show through. */
+[data-layout='bento'] .bento-ground {
+  background-image: var(--pattern, none);
+  background-attachment: fixed;
+}
