@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
-import { BentoEscape } from '@/features/bento/BentoEscape'
+import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
@@ -579,7 +579,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
         <main className="min-w-0 flex-1 overflow-y-auto">
           <BentoOutlet>{children}</BentoOutlet>
-          <BentoEscape />
+          <BentoDock />
         </main>
       </div>
     </div>
