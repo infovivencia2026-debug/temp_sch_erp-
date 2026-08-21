@@ -1,6 +1,8 @@
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
+import { useState } from 'react'
 import { CommandSearch } from '@/components/CommandSearch'
+import { BentoLauncher } from './BentoLauncher'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -21,6 +23,7 @@ import { CommandSearch } from '@/components/CommandSearch'
 export function BentoDock() {
   const { layout, setLayout } = useLayout()
   const t = useT()
+  const [all, setAll] = useState(false)
   if (layout !== 'bento') return null
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border
@@ -28,6 +31,16 @@ export function BentoDock() {
       {/* Brings its own ⌘K listener, so the shortcut works again as soon as
           this mounts — mouse and keyboard reach the same thing. */}
       <CommandSearch />
+      {/* Pointing, for the person who does not know what to type. */}
+      <button
+        type="button"
+        onClick={() => setAll(true)}
+        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-accent
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {t('bento.dock.all')}
+      </button>
+      <BentoLauncher open={all} onClose={() => setAll(false)} />
       <button
         type="button"
         onClick={() => setLayout('classic')}
