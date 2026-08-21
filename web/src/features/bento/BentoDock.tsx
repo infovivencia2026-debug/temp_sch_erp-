@@ -26,6 +26,7 @@ export function BentoDock() {
   const [all, setAll] = useState(false)
   if (layout !== 'bento') return null
   return (
+    <>
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border
                     bg-popover/80 p-1.5 pl-2.5 shadow-lg backdrop-blur-md">
       {/* Brings its own ⌘K listener, so the shortcut works again as soon as
@@ -40,7 +41,6 @@ export function BentoDock() {
       >
         {t('bento.dock.all')}
       </button>
-      <BentoLauncher open={all} onClose={() => setAll(false)} />
       <button
         type="button"
         onClick={() => setLayout('classic')}
@@ -50,5 +50,10 @@ export function BentoDock() {
         {t('bento.escape.back')}
       </button>
     </div>
+    {/* Outside the pill on purpose. backdrop-filter establishes a containing
+        block, so a fixed-position child anchors to the blurred element instead
+        of the viewport and the overlay opens inside the dock. */}
+    <BentoLauncher open={all} onClose={() => setAll(false)} />
+    </>
   )
 }
