@@ -341,7 +341,11 @@ html[data-skin='brutalist'] .bento-cell {
   background: color-mix(in srgb, var(--bento-card) 58%, transparent);
 }
 html[data-skin='brutalist'] .launcher-app {
-  background: color-mix(in srgb, var(--bento-card) 62%, transparent);
+  /* Composed from --tile-tint, not from the card token, so a frosted tile is
+     still tinted by its own category. Reading the card directly here would
+     make every pane the same neutral frost and quietly discard the family
+     colouring the moment somebody switched skins. */
+  background: color-mix(in srgb, var(--tile-tint, var(--bento-card)) 62%, transparent);
 }
 html[data-skin='brutalist'] .bento-dock {
   background: color-mix(in srgb, var(--bento-card) 55%, transparent);
@@ -415,7 +419,9 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
    The surface is the card tone, not white, so the box reads as raised off the
    tint in dark mode as well — a white box on a dark tinted panel would glow. */
 [data-layout='bento'] .launcher-app {
-  background: var(--bento-card);
+  /* No background here: each tile is given one inline, mixed from its own
+     category's ink. A declaration in this rule would be the same colour on
+     every box and would have to be overridden on every box. */
   border: 1px solid color-mix(in srgb, var(--bento-ink) 8%, transparent);
   box-shadow: var(--bento-depth-sm);
   transition: box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;

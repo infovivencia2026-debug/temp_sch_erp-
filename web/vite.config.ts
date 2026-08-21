@@ -10,10 +10,10 @@ export default defineConfig({
     // Mirrors the nginx locations, so `npm run dev` hits the same URLs the
     // production bundle does and no code needs a base-URL switch.
     proxy: {
-      '/api': 'http://127.0.0.1:8090',
-      '/login': 'http://127.0.0.1:8090',
-      '/logout': 'http://127.0.0.1:8090',
-      '/healthz': 'http://127.0.0.1:8090',
+      '/api': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
+      '/login': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
+      '/logout': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
+      '/healthz': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
     },
   },
   build: {

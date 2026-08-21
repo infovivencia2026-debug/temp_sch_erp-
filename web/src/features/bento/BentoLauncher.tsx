@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
@@ -320,7 +320,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open || !role) return null
 
-  const Tile = ({ r, i, context }: { r: Row; i?: number; context?: boolean }) => {
+  const Tile = ({ r, i, context, step }: { r: Row; i?: number; context?: boolean; step?: number }) => {
     const href = featurePath(role.key, r.sectionSlug, r.slug)
     const here = pathname === href
     const onCursor = i !== undefined && i === cursor
@@ -350,6 +350,26 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
           onCursor && 'launcher-app-on',
           here && 'font-medium',
         )}
+        /* Each box takes a tone from its category's own colour.
+
+           Not one tint repeated: the mix walks 5, 7, 9, 11 per cent down the
+           tile order and then repeats, so neighbours differ by a step small
+           enough to read as one family and large enough that the boxes are
+           separate objects rather than a striped field. It is the difference
+           between a shelf of books in a series and a shelf of identical books.
+
+           All of them stay lighter than the panel behind, which is at 13, so
+           the boxes lift off their category rather than sinking into it.
+
+           Mixed against the card token rather than white, so dark mode needs
+           no second rule: there the same expression tints a dark surface. */
+        style={
+          {
+            '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
+              5 + ((step ?? 0) % 4) * 2
+            }%, var(--bento-card))`,
+          } as CSSProperties
+        }
       >
         {/* The row's glyph carries its group's colour, which is what ties a
             tile to the heading it sits under once the eye has left it. Within
@@ -535,7 +555,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               <>
                 <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} context />)}
+                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context />)}
                 </div>
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                   <CornerDownLeft className="size-3" aria-hidden="true" />
@@ -553,7 +573,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 <section className="mb-9">
                   <Heading icon={Clock} label={t('bento.launcher.recent')} />
                   <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {recents.map((r) => <Tile key={`recent-${r.key}`} r={r} context />)}
+                    {recents.map((r, i) => <Tile key={`recent-${r.key}`} r={r} step={i} context />)}
                   </div>
                 </section>
               )}
@@ -599,8 +619,8 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
                     <div className={cn('grid gap-1.5', tileColumns(count))}>
-                      {g.sections.flatMap((s) => s.rows).map((r) => (
-                        <Tile key={r.key} r={r} />
+                      {g.sections.flatMap((s) => s.rows).map((r, i) => (
+                        <Tile key={r.key} r={r} step={i} />
                       ))}
                     </div>
                   </section>
