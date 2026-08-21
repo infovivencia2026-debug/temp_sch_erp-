@@ -1281,7 +1281,17 @@ type whatsappTemplateSaveRequest struct {
 	Active   bool     `json:"is_active"`
 }
 
-var waNameShape = regexp.MustCompile(`^[a-z0-9_]{1,512}$`)
+/* Meta's rule for a template name, checked here as well as in the column.
+
+   Go's regexp is happy with {1,512}; Postgres caps a bounded repetition at 255
+   and refuses the whole expression at check time, which is how the identical
+   constraint in 00101 made every insert into message_templates fail. Splitting
+   the shape from the length says the same thing in a way both engines accept —
+   see 00144. */
+var waNameShape = regexp.MustCompile(`^[a-z0-9_]+$`)
+
+// The length Meta documents for a template name.
+const waNameMaxLen = 512
 
 func (s *Server) saveWhatsAppTemplate(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -1295,8 +1305,10 @@ func (s *Server) saveWhatsAppTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimSpace(req.Name)
-	if name != "" && !waNameShape.MatchString(name) {
-		httpx.BadRequest(w, r, "an approved WhatsApp template name is lowercase letters, digits and underscores")
+	if name != "" && (!waNameShape.MatchString(name) || len(name) > waNameMaxLen) {
+		httpx.BadRequest(w, r,
+			"an approved WhatsApp template name is lowercase letters, digits and "+
+				"underscores, up to 512 characters")
 		return
 	}
 	lang := strings.TrimSpace(req.Language)
