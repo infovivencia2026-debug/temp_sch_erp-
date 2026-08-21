@@ -159,6 +159,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           className={cn(
             `absolute z-50 max-h-[70vh] w-52 overflow-y-auto overscroll-contain rounded-xl
              border bg-popover p-1 shadow-lg`,
+            placement === 'dock' ? 'pop-down' : 'pop-up',
             /* From the sidebar's foot it opens upward: there is nothing below
                it but the window edge, and a menu that would need the page to
                scroll to be read is a menu that cannot be used from there. */

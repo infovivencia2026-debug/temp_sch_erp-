@@ -93,10 +93,22 @@ export function BentoDock() {
       const name = s.workspace || s.name
       if (out.some((x) => x.name === name)) continue
       const f = s.features.find(usable)
-      if (f) out.push({ name, href: featurePath(role.key, s.slug, f.slug) })
+      if (!f) continue
+      const href = featurePath(role.key, s.slug, f.slug)
+      /* The Home workspace is dropped, because the button before this list is
+         already it. Home resolves to the role's first opening feature, which
+         is by definition the first feature of the first workspace — so the bar
+         was carrying the same house icon twice, side by side, pointing at the
+         same screen.
+
+         Matched on the destination rather than on the name "Home": several
+         roles call that workspace something else, and one that called it
+         Dashboard would have kept the duplicate. */
+      if (href === homeHref) continue
+      out.push({ name, href })
     }
     return out
-  }, [role])
+  }, [role, homeHref])
 
   if (layout !== 'bento') return null
 
@@ -133,7 +145,7 @@ export function BentoDock() {
             type="button"
             onClick={() => navigate(homeHref)}
             className={item}
-            title={t('bento.dock.home')}
+            data-tip={t('bento.dock.home')}
             aria-label={t('bento.dock.home')}
           >
             <House className="size-[17px]" aria-hidden="true" />
@@ -149,7 +161,7 @@ export function BentoDock() {
             type="button"
             onClick={() => navigate(workHref)}
             className={item}
-            title={t('bento.dock.work')}
+            data-tip={t('bento.dock.work')}
             aria-label={t('bento.dock.work')}
           >
             <Inbox className="size-[17px]" aria-hidden="true" />
@@ -173,7 +185,7 @@ export function BentoDock() {
                 key={c.name}
                 type="button"
                 onClick={() => navigate(c.href)}
-                title={c.name}
+                data-tip={c.name}
                 aria-label={c.name}
                 className={item}
               >

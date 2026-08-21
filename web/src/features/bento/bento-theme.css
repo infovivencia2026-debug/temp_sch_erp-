@@ -430,3 +430,142 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
 @media (prefers-reduced-motion: reduce) {
   [data-layout='bento'] .launcher-app { transition: none; }
 }
+
+
+/* ---- the dock's tooltips --------------------------------------------- */
+
+/* The native title attribute waits about a second before it appears and the
+   delay is the browser's, not ours. On a bar that is now almost entirely
+   unlabelled glyphs that is too slow to be the thing teaching somebody what
+   the glyphs mean — you have moved on before it arrives.
+
+   So the name is drawn from a data attribute instead, after 120ms: long enough
+   that sweeping the pointer across the bar does not fire eleven of them, short
+   enough to feel like a response to pointing rather than to waiting.
+
+   title is deliberately NOT set alongside this, or both would show. The
+   accessible name comes from aria-label, which is the right source anyway —
+   a screen reader should not depend on a decoration. */
+[data-layout='bento'] .bento-dock [data-tip] {
+  position: relative;
+}
+[data-layout='bento'] .bento-dock [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--bento-depth);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 90ms ease 0ms;
+  z-index: 60;
+}
+[data-layout='bento'] .bento-dock [data-tip]:hover::after,
+[data-layout='bento'] .bento-dock [data-tip]:focus-visible::after {
+  opacity: 1;
+  transition-delay: 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .bento-dock [data-tip]::after { transition: none; }
+}
+
+
+/* ---- motion ----------------------------------------------------------- */
+
+/* One easing curve for the whole layout.
+
+   cubic-bezier(0.32, 0.72, 0, 1) is the shape Apple's interfaces move on: it
+   leaves fast and arrives slowly, with the last third of the distance taking
+   most of the time. That asymmetry is what reads as weight — a linear or
+   ease-in-out move looks mechanical because real objects do not decelerate
+   evenly.
+
+   Nothing here uses a bounce. Overshoot is charming on a phone-sized card and
+   wrong on a fee table: this is software somebody uses for seven hours, and a
+   spring that is delightful on the first open is a twitch by the hundredth. */
+[data-layout='bento'] {
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
+}
+
+/* Panels and menus arrive from their own origin rather than fading in place,
+   which is what makes a menu feel attached to the button that opened it
+   instead of appearing over the top of everything. */
+@keyframes bento-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bento-pop-up {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bento-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+[data-layout='bento'] .pop-down { animation: bento-pop var(--dur) var(--ease-out) both; }
+[data-layout='bento'] .pop-up { animation: bento-pop-up var(--dur) var(--ease-out) both; }
+[data-layout='bento'] .fade-in { animation: bento-fade var(--dur-fast) var(--ease-out) both; }
+
+/* Transform origin matters more than the animation. A menu that scales from
+   its centre grows in two directions and reads as a dialog; one that scales
+   from the corner it hangs off grows out of the button. */
+[data-layout='bento'] .pop-down { transform-origin: top right; }
+[data-layout='bento'] .pop-up { transform-origin: bottom left; }
+
+/* The dock's own magnification, heavily restrained. macOS scales an icon to
+   about 1.5; here it is 1.12, because these are 17px glyphs in a bar somebody
+   crosses on the way to something else, not a dock they are aiming at. */
+[data-layout='bento'] .bento-dock button {
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+[data-layout='bento'] .bento-dock button:hover {
+  transform: scale(1.12);
+}
+[data-layout='bento'] .bento-dock button:active {
+  transform: scale(0.96);
+  transition-duration: 60ms;
+}
+
+/* Everything that already had a transition gets the curve rather than the
+   browser's default ease, which is the single change that makes the whole
+   layout feel like one piece of software. */
+[data-layout='bento'] .bento-cell,
+[data-layout='bento'] .launcher-app,
+[data-layout='bento'] .launcher-tile,
+[data-layout='bento'] .bento-cue {
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--dur-fast);
+}
+
+[data-layout='bento'] .bento-dock [data-tip]::after {
+  transition: opacity 90ms var(--ease-out) 0ms, transform 90ms var(--ease-out) 0ms;
+  transform: translateX(-50%) translateY(-3px);
+}
+[data-layout='bento'] .bento-dock [data-tip]:hover::after,
+[data-layout='bento'] .bento-dock [data-tip]:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .pop-down,
+  [data-layout='bento'] .pop-up,
+  [data-layout='bento'] .fade-in { animation: none; }
+  [data-layout='bento'] .bento-dock button:hover,
+  [data-layout='bento'] .bento-dock button:active { transform: none; }
+}

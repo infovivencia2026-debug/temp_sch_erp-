@@ -373,7 +373,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       role="dialog"
       aria-modal="true"
       aria-label={t('bento.launcher.title')}
-      className="fixed inset-0 z-[60] overflow-y-auto bg-background/80 backdrop-blur-xl"
+      className="fade-in fixed inset-0 z-[60] overflow-y-auto bg-background/80 backdrop-blur-xl"
       onClick={onClose}
     >
       <div
