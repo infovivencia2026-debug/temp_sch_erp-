@@ -42,8 +42,16 @@ interface Status {
   ready: boolean
 }
 
-/** Where the wizard lives in the principal's own workspace. */
-const WIZARD = '/institution_admin/academics/academic_structure'
+/* Where the wizard lives in the principal's own workspace.
+
+   It moved. Academics used to carry an "Academic structure" entry that opened
+   the setup wizard, and trimming that menu removed it as a duplicate of
+   Getting Started — correctly, but this link kept pointing at the dead route.
+   A route the catalogue no longer knows resolves to the first screen in the
+   section instead, so every "Open setup" landed on the master timetable: no
+   error, no clue, and the one button whose whole job is to finish setting the
+   school up went somewhere else entirely. */
+const WIZARD = '/institution_admin/getting_started/school_setup'
 
 export default function SetupProgress() {
   const navigate = useNavigate()
