@@ -721,9 +721,19 @@ export function Checkbox({
  *
  * `kind` adds the other half: where the list is vocabulary rather than
  * records, typing something that is not on it offers to add it, and the value
- * joins the list for the whole school. Records cannot work that way — you
- * cannot allocate a subject to a teacher who does not exist — so a dropdown
- * without `kind` filters but never invents.
+ * joins the list for the whole school.
+ *
+ * Every other list of *words* now takes a typed value too, without needing a
+ * kind: the text becomes the value, used here and not added to any shared
+ * vocabulary. A school whose relation is "Grandmother", whose medium is
+ * "Urdu", whose designation is "Correspondent" should not be stopped by a list
+ * somebody else wrote.
+ *
+ * Lists of *records* are exempt, and the difference is not a matter of taste:
+ * you cannot allocate a subject to a teacher who does not exist. Those lists
+ * are recognised by their values being ids rather than words, so nothing has
+ * to remember to opt out — a dropdown of people keeps filtering and never
+ * invents, exactly as before.
  *
  * Deliberately not a native <select>. That gets typeahead free but only on the
  * first letter, only while the menu is open, and never on the middle of a
@@ -736,6 +746,7 @@ export function Select({
   placeholder,
   kind,
   addLabel = 'Add your own',
+  allowCustom,
 }: {
   value: string
   onChange: (v: string) => void
@@ -744,6 +755,8 @@ export function Select({
   /** Enables school-defined additions. Must be a kind the server publishes. */
   kind?: string
   addLabel?: string
+  /** Overrides the id-detection when a caller knows better either way. */
+  allowCustom?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -783,6 +796,27 @@ export function Select({
   const shown = q ? all.filter((o) => o.label.toLowerCase().includes(q)) : all
   const canAdd = !!kind && !!q && !all.some((o) => o.label.toLowerCase() === q)
 
+  /* Words or records?
+   *
+   * A value that is a uuid names a row somebody else owns — a class, a
+   * teacher, a fee head — and typing a new one would send the server an id
+   * that does not exist. A value that is a word is the answer itself, and
+   * there is no reason a school cannot give one the list did not think of.
+   * One list of ids anywhere is enough to settle it for the whole dropdown. */
+  const isID = (v: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+  const freeText = allowCustom ?? (!kind && all.length > 0 && !all.some((o) => isID(o.value)))
+  const canUseTyped =
+    freeText && !!q && !all.some((o) => o.label.toLowerCase() === q)
+
+  /* A chosen value that is not on the list is still the chosen value.
+   *
+   * The box shows the label of the matching option, so a typed-in answer —
+   * which by definition has no option — rendered as an empty field the moment
+   * the menu closed. It looked as though nothing had been saved, and the next
+   * person to open the form would have set it again. */
+  const shownLabel = selected?.label ?? (freeText && value ? value : '')
+
   const choose = (v: string) => { onChange(v); setOpen(false); setQuery('') }
 
   const add = () => {
@@ -796,7 +830,7 @@ export function Select({
       .finally(() => setBusy(false))
   }
 
-  const rows = canAdd ? shown.length + 1 : shown.length
+  const rows = shown.length + (canAdd || canUseTyped ? 1 : 0)
 
   return (
     <div ref={box} className="relative">
@@ -805,8 +839,8 @@ export function Select({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
-        value={open ? query : selected?.label ?? ''}
-        placeholder={selected ? selected.label : placeholder ?? 'Type to search'}
+        value={open ? query : shownLabel}
+        placeholder={shownLabel || placeholder || 'Type to search'}
         onFocus={() => { setOpen(true); setActive(0) }}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0) }}
         onKeyDown={(e) => {
@@ -815,6 +849,7 @@ export function Select({
           else if (e.key === 'Enter') {
             e.preventDefault()
             if (canAdd && active === shown.length) add()
+            else if (canUseTyped && active === shown.length) choose(query.trim())
             else if (shown[active]) choose(shown[active].value)
           } else if (e.key === 'Escape') { setOpen(false); setQuery('') }
         }}
@@ -862,9 +897,25 @@ export function Select({
               {busy ? 'Adding…' : `+ ${addLabel}: “${query.trim()}”`}
             </button>
           )}
-          {!shown.length && !canAdd && (
+          {canUseTyped && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActive(shown.length)}
+              onClick={() => choose(query.trim())}
+              className={cn(
+                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                active === shown.length ? 'bg-accent' : 'hover:bg-accent',
+              )}
+            >
+              Use “{query.trim()}”
+            </button>
+          )}
+          {!shown.length && !canAdd && !canUseTyped && (
             <p className="px-2 py-2 text-[12.5px] text-muted-foreground">
-              {kind ? 'Nothing matches. Keep typing to add it.' : 'Nothing matches that.'}
+              {kind
+                ? 'Nothing matches. Keep typing to add it.'
+                : 'Nothing matches that. This list only takes one of its own.'}
             </p>
           )}
           {err && <p className="px-2 py-1.5 text-[12px] text-destructive">{err}</p>}

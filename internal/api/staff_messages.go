@@ -80,7 +80,15 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		  JOIN users u ON u.id = e.user_id
 		  LEFT JOIN designations d ON d.id = e.designation_id
 		 WHERE e.status = 'active' AND u.id <> $1
-		 ORDER BY 4 DESC, u.full_name`,
+		 /* Conversations first, then the rest of the address book.
+
+		    Unread, then whoever was spoken to most recently, then everybody
+		    else alphabetically. Sorting the whole list by name put a thread
+		    you had just written in among ten colleagues you had never
+		    written to, distinguishable only by a line of preview text — so
+		    the screen read as though nothing had been sent. A message you
+		    sent is history, and history belongs at the top. */
+		 ORDER BY 4 DESC, 6 DESC NULLS LAST, u.full_name`,
 		[]any{id.UserID},
 		func(rows pgx.Rows) (staffThreadRow, error) {
 			var v staffThreadRow

@@ -112,6 +112,14 @@ export default function StaffMessages() {
                       <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
                         {t.full_name}
                       </span>
+                      {/* When you last spoke, so a thread is visibly a thread.
+                          Only the date: the time of a message from March is
+                          not what anybody is looking for in a list. */}
+                      {t.last_at && (
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                          {t.last_at.slice(0, 10)}
+                        </span>
+                      )}
                       {t.unread > 0 && <Badge tone="primary">{t.unread}</Badge>}
                     </span>
                     <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">

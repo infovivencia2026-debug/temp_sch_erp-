@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, Loading, ErrorState, FormNotice,
+  Button, Select, Loading, ErrorState, FormNotice, Field, FormGrid, Input,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -55,6 +55,30 @@ export default function Leave() {
     },
   })
 
+  /* Applying, which nothing could do.
+   *
+   * This screen is the approver's queue, and it was the only leave screen
+   * there was — reachable from a teacher's own menu under "Leave & self
+   * service", where it showed them everybody else's requests and no way to
+   * make one. The endpoint has existed all along with no caller, so every
+   * member of staff, up to and including the principal, had to ask somebody
+   * with database access to take a day off.
+   *
+   * Everyone gets the form. Approving is the part that needs a right. */
+  const [apply, setApply] = useState(false)
+  const [form, setForm] = useState({ from_date: '', to_date: '', reason: '', is_half_day: false })
+  const [applied, setApplied] = useState('')
+  const send = useMutation({
+    mutationFn: () => api.post('/api/v1/workflow/leave', form),
+    onSuccess: () => {
+      setApplied('Sent. Whoever approves leave here will see it — the head of department or the principal, whichever gets there first.')
+      setForm({ from_date: '', to_date: '', reason: '', is_half_day: false })
+      setApply(false)
+      qc.invalidateQueries({ queryKey: ['leave'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    },
+  })
+
   const items = q.data?.items ?? []
   const pending = items.filter((l) => l.status === 'pending')
   const staff = items.filter((l) => l.subject_kind === 'employee').length
@@ -74,6 +98,64 @@ export default function Leave() {
           <Stat label="Staff" value={staff} />
           <Stat label="Students" value={items.length - staff} />
         </CellGrid>
+
+        <Card>
+          <CardHeader
+            title="Take leave yourself"
+            description="Your own request. It goes to whoever approves leave at this school."
+            action={
+              <Button variant={apply ? 'ghost' : 'primary'} onClick={() => setApply((v) => !v)}>
+                {apply ? 'Cancel' : 'Apply for leave'}
+              </Button>
+            }
+          />
+          {apply && (
+            <div className="px-5 pb-5">
+              <FormGrid>
+                <Field label="From" required>
+                  <Input
+                    type="date"
+                    value={form.from_date}
+                    onChange={(v) => setForm({ ...form, from_date: v })}
+                  />
+                </Field>
+                <Field label="To" required>
+                  <Input
+                    type="date"
+                    value={form.to_date}
+                    onChange={(v) => setForm({ ...form, to_date: v })}
+                  />
+                </Field>
+              </FormGrid>
+              <Field label="Reason" required>
+                <Input
+                  value={form.reason}
+                  onChange={(v) => setForm({ ...form, reason: v })}
+                  placeholder="Medical, family function, examination duty…"
+                />
+              </Field>
+              <label className="mt-2 flex items-center gap-2 text-[13.5px]">
+                <input
+                  type="checkbox"
+                  checked={form.is_half_day}
+                  onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })}
+                />
+                Half day
+              </label>
+              <FormNotice error={send.error} />
+              <Button
+                className="mt-3"
+                disabled={!form.from_date || !form.to_date || !form.reason.trim() || send.isPending}
+                onClick={() => send.mutate()}
+              >
+                {send.isPending ? 'Sending…' : 'Send the request'}
+              </Button>
+            </div>
+          )}
+          {!apply && applied && (
+            <p className="px-5 pb-4 text-[13.5px] text-muted-foreground">{applied}</p>
+          )}
+        </Card>
 
         <Card>
           <CardHeader

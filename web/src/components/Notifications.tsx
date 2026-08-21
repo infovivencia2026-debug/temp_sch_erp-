@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -32,8 +33,15 @@ export default function Notifications() {
   const feed = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<{ items: Note[]; unread: number }>('/api/v1/portal/notifications'),
-    // A minute is often enough for a school day and cheap enough to leave on.
-    refetchInterval: 60_000,
+    /* Twenty seconds, and again whenever the tab is looked at.
+    
+       A minute was chosen as cheap, and it is — but somebody who has just
+       been told "I have sent it to you" waits a minute staring at a bell that
+       does not move, and reloads. Refetching on focus covers the common case
+       exactly: the message arrives while they are in another tab, and it is
+       there the moment they come back. */
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
     retry: false,
   })
   const readAll = useMutation({
@@ -46,6 +54,22 @@ export default function Notifications() {
 
   const items = feed.data?.items ?? []
   const unread = feed.data?.unread ?? 0
+
+  /* Clicking a notification opens the thing it is about.
+   *
+   * Every row carried a link and nothing used it: the panel listed what had
+   * happened and left the reader to work out where it lived, which for a
+   * staff message meant knowing that Communication has a Messages screen. The
+   * one action a notification exists to prompt was the one thing it did not
+   * do. */
+  const navigate = useNavigate()
+  const openNote = (n: Note) => {
+    setOpen(false)
+    if (n.link) navigate(n.link)
+    // Read on open rather than on sight: a count that clears because somebody
+    // glanced at the bell is a count that stops meaning anything.
+    if (!n.read_at) readAll.mutate()
+  }
 
   return (
     <div className="relative">
@@ -92,9 +116,14 @@ export default function Notifications() {
               ) : (
                 <ul className="divide-y">
                   {items.map((n) => (
-                    <li
-                      key={n.id}
-                      className={n.read_at ? 'px-3 py-2.5' : 'bg-surface-hover px-3 py-2.5'}
+                    <li key={n.id}>
+                    <button
+                      type="button"
+                      onClick={() => openNote(n)}
+                      className={
+                        (n.read_at ? 'px-3 py-2.5' : 'bg-surface-hover px-3 py-2.5') +
+                        ' block w-full cursor-pointer text-left hover:bg-accent'
+                      }
                     >
                       <div className="flex items-baseline gap-2">
                         <span className="text-[13px] font-medium">{n.title}</span>
@@ -108,6 +137,7 @@ export default function Notifications() {
                       {n.student_name && (
                         <p className="text-[11px] text-muted-foreground">{n.student_name}</p>
                       )}
+                    </button>
                     </li>
                   ))}
                 </ul>
