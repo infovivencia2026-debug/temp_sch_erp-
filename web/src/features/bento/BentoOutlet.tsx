@@ -1,8 +1,9 @@
-import { Component, Suspense, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useCatalog, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { bentoComponentFor } from './bento-registry'
+import { recordRecent } from '@/lib/recents'
 
 /* The routing seam.
    ─────────────────────────────────────────────────────────────────────────
@@ -107,6 +108,20 @@ function BentoChunkPending() {
 export function BentoOutlet({ children }: { children: ReactNode }) {
   const { layout } = useLayout()
   const key = useRouteFeatureKey()
+
+  /* Note what was opened, so the launcher can lead with it.
+
+     Here rather than on the launcher's own click, because most navigation is
+     not a click in the launcher: it is the command palette, a card's cue, a
+     bookmark, the back button. Recording only our own clicks would produce a
+     "recently opened" list that reflected one route in and quietly disagreed
+     with what the person had actually been doing.
+
+     recordRecent is idempotent on the head of the list, so a re-render of the
+     same route does not republish and re-render every subscriber. */
+  useEffect(() => {
+    if (layout === 'bento' && key) recordRecent(key)
+  }, [layout, key])
 
   const inner = (() => {
     if (layout !== 'bento' || !key) return <>{children}</>
