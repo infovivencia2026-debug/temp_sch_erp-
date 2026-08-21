@@ -922,6 +922,45 @@ export const te: Partial<Messages> = {
   'preferences.contrast.checkbox': 'ఎక్కువ కాంట్రాస్ట్',
   'preferences.contrast.hint':
     'అక్షరాలు, అంచులు మరింత స్పష్టంగా. మీరు ఆన్ చేస్తే తప్ప ఆఫ్‌లోనే ఉంటుంది.',
+
+  // --- bento: తల్లిదండ్రుల డాష్‌బోర్డు -------------------------------------
+  // The parent dashboard is the part of this product that is read in Telugu,
+  // so it is translated here rather than left to the English fallback. Every
+  // sentence that describes a figure keeps {name} in it: a guardian of two
+  // must be able to see which child a cell is about in either language.
+  'bento.common.roll': 'రోల్ {roll}',
+  'bento.parent_week.eyebrow': 'హోమ్',
+  'bento.parent_week.title': 'మీ పిల్లలు',
+  'bento.parent_week.loading': 'మీ పిల్లల వివరాలు చూస్తున్నాం…',
+  'bento.parent_week.loading_child': '{name} వారం చదువుతున్నాం…',
+  'bento.parent_week.failed_children':
+    'మీ పిల్లలు ఎవరో చదవలేకపోయాం, కాబట్టి కింది వివరాలు ఎవరివో చెప్పలేం.',
+  'bento.parent_week.failed_child':
+    '{name} వివరాలు రాలేదు. అవి వచ్చేవరకు ఇక్కడి సంఖ్యలను నమ్మవద్దు.',
+  'bento.parent_week.no_link': 'ఈ ఖాతాకు ఇంకా విద్యార్థి రికార్డు జతచేయలేదు.',
+  'bento.parent_week.switcher_sr': 'ఈ డాష్‌బోర్డు ఏ పిల్లవాడి గురించి',
+  'bento.parent_week.one_of_many': '{name} · {form} — మీ {count} మంది పిల్లల్లో ఒకరు',
+  'bento.parent_week.week_label': 'ఈ సంవత్సరం హాజరు',
+  'bento.parent_week.week_cue': 'పూర్తి హాజరు రికార్డు',
+  'bento.parent_week.week_note': 'గుర్తించిన {total} రోజుల్లో {name} {present} రోజులు హాజరు',
+  'bento.parent_week.strip_sr': '{name} చివరి {count} గుర్తించిన రోజులు',
+  'bento.parent_week.no_register': '{name} కోసం ఇంకా ఏ రోజూ గుర్తించలేదు.',
+  'bento.parent_week.fees_label': 'చెల్లించవలసిన ఫీజు',
+  'bento.parent_week.fees_cue': 'ఫీజు, చెల్లింపులు',
+  'bento.parent_week.fees_owed': '{name} ఖాతాలో చెల్లించవలసి ఉంది.',
+  'bento.parent_week.fees_settled': '{name} ఖాతాలో ఏమీ బాకీ లేదు.',
+  'bento.parent_week.homework_label': 'ఇవ్వవలసిన ఇంటిపని',
+  'bento.parent_week.homework_cue': 'ఇచ్చిన ఇంటిపని',
+  'bento.parent_week.homework_none': '{name} ఏమీ ఇవ్వవలసి లేదు.',
+  'bento.parent_week.homework_today': 'దగ్గరి గడువు ఈ రోజే.',
+  'bento.parent_week.homework_days': 'దగ్గరి గడువు {days} రోజుల్లో.',
+  'bento.parent_week.homework_overdue': 'దగ్గరిది {days} రోజులు ఆలస్యం.',
+  'bento.parent_week.absent_label': 'గైర్హాజరు రోజులు',
+  'bento.parent_week.absent_cue': 'పూర్తి హాజరు రికార్డు',
+  'bento.parent_week.absent_note': '{name}, గుర్తించిన {total} రోజుల్లో',
+  'bento.parent_week.absent_sr': 'గుర్తించిన {total} రోజుల్లో {name} {present} రోజులు హాజరు',
+  'bento.parent_week.present_label': 'హాజరైన రోజులు',
+  'bento.parent_week.present_note': '{name} పాఠశాలకు వచ్చిన రోజులు',
 }
 
 export default te

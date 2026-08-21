@@ -50,6 +50,21 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      catalogue holds. */
   'institution_admin.home.dashboard': lazy(() => import('./PrincipalDashboard')),
   'finance.home.finance_kpis': lazy(() => import('./FinanceDashboard')),
+
+  /* The three people who use this product every day, on the screen each of
+     them lands on. Keyed by the catalogue key the classic screen is registered
+     under in registry.ts, which is what the router looks up — the classic
+     files are not opened and not edited.
+
+     `parent.home.child_switcher` is the parent's landing feature: /parent
+     resolves to it, and it and `parent.home.child_summary` both render
+     portal/Portal.tsx classically. Only the landing key is converted, so a
+     parent who navigates to the summary still meets the classic screen rather
+     than two Bento renderings of the same thing; adding the second key is one
+     more line if that is wanted. */
+  'student.home.my_day': lazy(() => import('./StudentDay')),
+  'parent.home.child_switcher': lazy(() => import('./ParentWeek')),
+  'faculty.home.todays_classes': lazy(() => import('./FacultyToday')),
 }
 
 /** The Bento rendering of a feature key, or undefined — which means "render
