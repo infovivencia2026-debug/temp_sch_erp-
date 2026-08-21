@@ -194,6 +194,39 @@ html.dark[data-layout='bento'] {
   border-width: var(--bento-border-w);
   border-color: var(--bento-line);
   box-shadow: var(--bento-shadow-sm);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+/* The card answers the pointer, but only where there is something to answer.
+
+   :has(.bento-cue) is the whole rule: a cell holding an action lifts, and a
+   cell that is only a number does not. A dashboard where every surface
+   responds to the mouse teaches that everything is clickable, and then the
+   person clicks the attendance figure and nothing happens — which is worse
+   than no feedback at all, because it was a promise.
+
+   The effect is the border and the shadow, never a transform. These cards sit
+   in a packed grid with 14px gutters; a card that grows on hover overlaps its
+   neighbour or shoves the row, and either way the thing under the cursor moves
+   while the cursor is on it. */
+[data-layout='bento'] .bento-cell:has(.bento-cue):hover {
+  border-color: color-mix(in srgb, var(--bento-ink) 22%, var(--bento-line));
+  box-shadow: var(--bento-shadow);
+}
+
+/* The action itself comes forward with its card, so the eye is led to the
+   thing that is actually clickable rather than to the card's edge. */
+[data-layout='bento'] .bento-cell:hover .bento-cue {
+  border-color: color-mix(in srgb, currentColor 55%, transparent);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+/* Browsers without :has get the hover on every cell rather than none. Better
+   to over-signal than to leave the interface inert for them. */
+@supports not selector(:has(*)) {
+  [data-layout='bento'] .bento-cell:hover {
+    border-color: color-mix(in srgb, var(--bento-ink) 22%, var(--bento-line));
+  }
 }
 
 [data-layout='bento'] .bento-dock {
@@ -279,6 +312,15 @@ html.dark[data-skin='brutalist'] [data-layout='bento'] {
   --bento-muted: #b9b9b2;
 }
 
+/* In the hard skin the border is already black and there is no shadow, so
+   neither can carry the hover. The surface does: the card tints toward its own
+   secondary tone, which is the only move left that does not add a shadow this
+   skin has just been told not to have. */
+html[data-skin='brutalist'] .bento-cell:has(.bento-cue):hover {
+  background-color: var(--bento-card-2);
+  box-shadow: none;
+}
+
 html[data-skin='brutalist'] [data-layout='bento'] .bento-cue,
 html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
   border: var(--bento-border-w) solid currentColor;
@@ -290,4 +332,35 @@ html[data-skin='brutalist'][data-layout='bento'] .bento-cue {
    two-pixel jump is precisely the movement somebody turned it off to avoid. */
 @media (prefers-reduced-motion: no-preference) {
   html[data-skin='brutalist'] .bento-cue:active { transform: translate(2px, 2px); }
+}
+
+
+/* ---- pointer feedback elsewhere in the layout ------------------------ */
+
+/* The launcher's category panels lift as a unit, so it is obvious which block
+   the cursor is in before you read a row inside it. No transform, for the
+   reason the cards do not use one: these are packed against each other. */
+[data-layout='bento'] .launcher-tile {
+  transition: box-shadow 140ms ease, filter 140ms ease;
+}
+[data-layout='bento'] .launcher-tile:hover {
+  /* A tint of its own colour rather than a shadow: the panel is already a
+     coloured field, and a grey shadow under it reads as dirt. */
+  filter: brightness(0.985) saturate(1.06);
+}
+
+/* The dock's items already have a background hover from the utility classes.
+   What they lacked is the transition, so the fill appeared instantly and read
+   as a flicker when the pointer crossed the bar. */
+[data-layout='bento'] .bento-dock button,
+[data-layout='bento'] .bento-dock a {
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .bento-cell,
+  [data-layout='bento'] .launcher-tile,
+  [data-layout='bento'] .bento-dock button {
+    transition: none;
+  }
 }

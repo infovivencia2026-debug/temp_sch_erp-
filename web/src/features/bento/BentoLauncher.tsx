@@ -433,7 +433,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   <section
                     key={g.name}
                     className={cn(
-                      'rounded-[var(--bento-radius)] p-3.5',
+                      'launcher-tile rounded-[var(--bento-radius)] p-3.5',
                       tileSpan(count),
                     )}
                     style={{ background: `var(--dom-${hue}-soft)` }}
