@@ -56,6 +56,28 @@ export default function GoTo() {
         }
       }
     }
+
+    /* Third pass: the same idea under a different name.
+     *
+     * A parent's homework screen is "homework_academics" and a student's is
+     * "homework_assignments" — one word for one thing, spelt twice because two
+     * roles describe it differently. A link written as /go/homework should
+     * reach whichever of them the reader has, so the last resort matches on
+     * the word rather than the whole slug. */
+    const want = (featureSlug ?? '').toLowerCase()
+    if (want) {
+      for (const role of catalog.roles) {
+        for (const section of role.sections) {
+          const f = section.features.find(
+            (x) => usable(x) && (x.slug.includes(want) || want.includes(x.slug)),
+          )
+          if (f) {
+            navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
+            return
+          }
+        }
+      }
+    }
   }, [catalog.roles, sectionSlug, featureSlug, navigate, search])
 
   if (!catalog.roles.length) return <Loading />

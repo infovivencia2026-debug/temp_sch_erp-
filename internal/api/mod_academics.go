@@ -536,7 +536,7 @@ func (s *Server) notifyReportCardPublished(r *http.Request, tx pgx.Tx,
 		if err := notify(r, tx, inst, t.user, &student, "report_card",
 			t.name+"’s report card is ready",
 			"The school has published it. Open it to see the marks, the grade and the attendance.",
-			"/portal/report-cards", "report_card", &student); err != nil {
+			"/go/report_cards", "report_card", &student); err != nil {
 			return err
 		}
 

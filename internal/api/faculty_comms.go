@@ -1237,7 +1237,7 @@ func notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx, inst, studentID, remark
 
 	for _, p := range parents {
 		if err := notify(r, tx, inst, p, &studentID, "student_remark",
-			title, summary+" — "+from, "/portal/remarks", "student_remark",
+			title, summary+" — "+from, "/go/remarks", "student_remark",
 			&remarkID); err != nil {
 			return err
 		}

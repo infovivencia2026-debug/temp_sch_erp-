@@ -31,7 +31,18 @@ function isChunkError(e: unknown): boolean {
     msg.includes('Importing a module script failed') ||
     // Safari's wording for the same thing.
     msg.includes('Unable to preload') ||
-    msg.includes('error loading dynamically imported module')
+    msg.includes('error loading dynamically imported module') ||
+    /* A dynamic import that fails at the network layer sometimes surfaces as a
+       bare "TypeError: Failed to fetch", with nothing in the message about
+       modules at all — which is what a tab held open across a deploy sees when
+       the chunk it is asking for has been replaced.
+
+       Treating that as stale risks calling a genuine network fault stale. The
+       remedy is the same either way: reload once, and if it fails again say
+       so rather than looping. A page that reloads itself and works is better
+       than one that shows a stack trace nobody can act on. */
+    msg === 'TypeError: Failed to fetch' ||
+    msg.includes('Load failed')
   )
 }
 
