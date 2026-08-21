@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Card, CardHeader, Button } from '@/components/ui'
 
@@ -139,27 +139,6 @@ export default function SetupProgress() {
           </p>
         )}
 
-        {/* The step nobody tells a principal about. Payroll, admissions and the
-            fee counter carry far more of the product than this role holds, and
-            a school that never creates those accounts ends up running a fee
-            counter from the head teacher's login.
-
-            Deliberately points at the wizard's own staff step rather than the
-            platform's Users screen: that screen belongs to super_admin, and a
-            principal following the link would be told the feature is not in
-            their workspace — which is the bug this panel exists to stop. */}
-        <p className="mt-4 flex items-start gap-2 border-t pt-3 text-[12.5px] text-muted-foreground">
-          <Check className="mt-0.5 h-3.5 w-3.5 flex-none" />
-          <span>
-            While you are in{' '}
-            <Link to={WIZARD} className="underline underline-offset-2">
-              Add teachers and assign them
-            </Link>
-            , create your office, accounts and HR staff too and give each the
-            matching role. Admissions, payroll and the fee counter live on those
-            accounts rather than on yours.
-          </span>
-        </p>
       </div>
     </Card>
   )

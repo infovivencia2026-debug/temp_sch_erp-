@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Maximize2, Plus, Upload, Wand2 } from 'lucide-react'
-import BulkImport, { parseCsv, SheetViewer } from '@/components/BulkImport'
+import { KeyRound, Maximize2, Minimize2, Plus, Upload, Wand2, X } from 'lucide-react'
+import BulkImport, { parseCsv } from '@/components/BulkImport'
 import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
@@ -2037,42 +2037,10 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   const [busy, setBusy] = useState('')
   const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
   const [failed, setFailed] = useState('')
-  const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [full, setFull] = useState(false)
+  const withoutLogin = staff.filter((t) => !t.can_sign_in).length
   const [loaded, setLoaded] = useState<{ set: number; skipped: Skip[] } | null>(null)
-
-  /* The table as a sheet, so the same viewer that shows an uploaded file can
-   * show this one. Built here rather than inside the viewer because only this
-   * panel knows that a password nobody has issued yet is a different thing
-   * from one that exists and cannot be looked up. */
-  const sheet: string[][] = [
-    ['Name', 'Subjects', 'Role', 'Class teacher of', 'Signs in as', 'Password'],
-    ...staff.map((t) => [
-      t.full_name,
-      t.subjects ?? '',
-      t.roles ?? '',
-      t.class_teacher_of ?? '',
-      issued[t.user_id]?.user ?? t.sign_in_as ?? '',
-      issued[t.user_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
-    ]),
-  ]
-
-  /* Downloaded so it can be read back in. The columns are the ones the import
-   * matches on, which is why the round trip needs no editing: a file that has
-   * to be rearranged before it will load is a file that gets rearranged
-   * wrongly. */
-  const download = () => {
-    const csv = sheet
-      .map((row) => row.map((c) => '"' + c.replace(/"/g, '""') + '"').join(','))
-      .join('\r\n')
-    const url = URL.createObjectURL(
-      new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }),
-    )
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'staff-logins.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   /* Reading a list back in. Headings are matched by name rather than by
    * position, because the file has been through a spreadsheet by the time it
@@ -2136,19 +2104,59 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
     }
   }
 
+  /* A button, and the page behind it.
+   *
+   * This was a table sitting open under the staff form, which is the wrong
+   * shape for something read once a term: it pushed the form nobody had
+   * finished off the screen, and it was too narrow for the columns it
+   * carries. One button, and a page that opens over the top with room for
+   * them.
+   *
+   * Everything on the page stays live — a reset issued in here is the same
+   * reset, and the password it shows is still shown only once. */
+  if (!open) {
+    return (
+      <div className="mt-5 border-t pt-4">
+        <Button variant="secondary" onClick={() => setOpen(true)}>
+          <KeyRound className="h-3.5 w-3.5" />
+          Staff logins
+          <span className="ml-1 text-muted-foreground">({staff.length})</span>
+        </Button>
+        {withoutLogin > 0 && (
+          <span className="ml-2 text-[12.5px] text-destructive">
+            {withoutLogin} of them cannot sign in yet
+          </span>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="mt-5 border-t pt-4">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <p className="eyebrow">Staff and their logins</p>
+    <div
+      className={
+        full
+          ? 'fixed inset-0 z-50 bg-background'
+          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+      }
+      onClick={() => setOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Staff logins"
+    >
+    <div
+      className={
+        full
+          ? 'flex h-full w-full flex-col overflow-auto border bg-background p-4'
+          : 'flex max-h-[85vh] w-full max-w-[70rem] flex-col overflow-auto rounded-lg border bg-background p-4 shadow-lg'
+      }
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="text-[15px] font-medium">Staff logins</p>
+        <span className="text-[12.5px] text-muted-foreground">
+          {staff.length} on the roll
+        </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setExpanded(true)}>
-            <Maximize2 className="h-3.5 w-3.5" />
-            Expand
-          </Button>
-          <Button size="sm" variant="ghost" onClick={download}>
-            <Download className="h-3.5 w-3.5" />
-            Download the list
-          </Button>
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground">
             <Upload className="h-3.5 w-3.5" />
             {busy === 'import' ? 'Reading…' : 'Import a list'}
@@ -2166,6 +2174,14 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
               }}
             />
           </label>
+          <Button size="sm" variant="ghost" onClick={() => setFull((v) => !v)}>
+            {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {full ? 'Windowed' : 'Expand'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            <X className="h-3.5 w-3.5" />
+            Close
+          </Button>
         </div>
       </div>
       <div className="overflow-x-auto rounded-md border">
@@ -2264,13 +2280,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
         </div>
       )}
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
-      {expanded && (
-        <SheetViewer
-          title="Staff and their logins"
-          rows={sheet}
-          onClose={() => setExpanded(false)}
-        />
-      )}
+    </div>
     </div>
   )
 }
