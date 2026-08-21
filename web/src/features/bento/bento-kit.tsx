@@ -19,15 +19,23 @@ import { cn } from '@/lib/utils'
    endpoint the theme selector and the layout switch already read — because
    `reduce_motion` is an account preference and honouring it is not optional.
 
-   COLOUR, AND THE TRAP IN IT. `--success`, `--warning` and `--info` were each
-   darkened to clear 4.5:1 *against a light card*. On the dark anchor cell,
-   whose ground is `--foreground`, those same tokens are near-black on
-   near-black in the light theme. So the dark cell draws entirely in
-   `currentColor` — the inverted foreground, which is the theme's own maximum
-   contrast pair by construction — at graded opacities, and every band it draws
-   is labelled with its own figure so opacity is never the only thing carrying
-   the meaning. The semantic tokens are used on light cells only, which is the
-   ground they were measured on. No raw hex anywhere. */
+   COLOUR COMES FROM `bento-theme.css` AND NOWHERE ELSE. Not one hex is
+   written below. The classic semantic tokens are not used either, and that is
+   the point rather than an oversight: `--success`, `--warning` and `--info`
+   were each darkened to clear 4.5:1 *against the classic light card*, and the
+   Bento card is a different ground in both polarities. The Bento palette is
+   the same measurement redone for this ground — the supplied pastels sit at
+   7–12:1 on the dark card and only 1.35–2.34:1 on white, so light mode reuses
+   the hues relit, never the values. Every colour below is `var(--bento-…)`,
+   which is defined twice, and the mode branch is therefore CSS's job, not
+   React's.
+
+   The one exception is polarity, which React can see and CSS cannot express in
+   a token: an inverted cell needs its ink and its ground swapped, so `Cell`
+   takes a `tone`. `anchor` is the mint gradient with dark ink — 14.24:1, and
+   the one pairing that is identical in both modes because it did not need
+   relighting. `dark` is the older inverted cell, kept polarised exactly as it
+   was for the four dashboards that still pass `dark`. */
 
 // --- preferences --------------------------------------------------------
 
@@ -94,34 +102,176 @@ const SPAN: Record<CellSpan, string> = {
   one: '',
 }
 
-/** The frame every cell shares: the grid span, the ground, the padding.
+/** The accent hues, one per meaning. Mint is money in, pink is money out,
+    purple is the active state in a chart, orange is a warning. Four, and
+    deliberately not more: a dashboard where every cell has its own colour has
+    no colour at all. Each name resolves to two tokens — the ink and its tint —
+    and both are redefined under `html.dark[data-layout='bento']`, which is why
+    nothing below writes a hex. */
+export type Accent = 'mint' | 'purple' | 'pink' | 'orange'
+
+const ACCENT_INK: Record<Accent, string> = {
+  mint: 'text-[var(--bento-mint)]',
+  purple: 'text-[var(--bento-purple)]',
+  pink: 'text-[var(--bento-pink)]',
+  orange: 'text-[var(--bento-orange)]',
+}
+const ACCENT_TINT: Record<Accent, string> = {
+  mint: 'bg-[var(--bento-mint-tint)]',
+  purple: 'bg-[var(--bento-purple-tint)]',
+  pink: 'bg-[var(--bento-pink-tint)]',
+  orange: 'bg-[var(--bento-orange-tint)]',
+}
+const ACCENT_FILL: Record<Accent, string> = {
+  mint: 'bg-[var(--bento-mint)]',
+  purple: 'bg-[var(--bento-purple)]',
+  pink: 'bg-[var(--bento-pink)]',
+  orange: 'bg-[var(--bento-orange)]',
+}
+
+/** What ground a cell sits on, which is the only thing that decides what may
+    be drawn inside it.
+
+    · `plain`  — the card tone. The pastel inks were relit for exactly this
+                 ground in light mode and measured against it in dark, so this
+                 is the one cell where an accent may be used.
+    · `anchor` — the mint gradient, with dark ink on it. That pairing measures
+                 14.24:1 and, uniquely, is the same in both modes: the gradient
+                 is not re-tinted for light, because it did not need to be.
+    · `dark`   — the inverted cell four other dashboards still anchor on.
+                 Kept exactly as polarised as it was (`--bento-ink` ground,
+                 `--bento-bg` ink) so their `text-background` children keep
+                 landing right side up until their own pass converts them.
 
     No `backdrop-filter` anywhere on these screens. The contract confines blur
     to transient floating panels; a dashboard is read, not glanced at, and blur
     is the first thing to stutter on a school's five-year-old desktop. */
+export type CellTone = 'plain' | 'anchor' | 'dark'
+
+const TONE: Record<CellTone, string> = {
+  // A hairline in light, where the card and the ground are four points apart
+  // and the eye wants an edge; nothing in dark, where the card is separated by
+  // tone alone. That is the reference's flat card, and a border there would
+  // read as a box drawn around it.
+  plain: 'border-[var(--bento-line)] dark:border-transparent bg-[var(--bento-card)] text-[var(--bento-ink)]',
+  // In dark the mint gradient stands 14.24:1 off the ground and needs no edge.
+  // In light it sits at 1.23:1 against a near-white page — the card would
+  // dissolve into it — so it takes the same hairline every other light cell
+  // takes, in its own hue rather than the neutral line.
+  anchor:
+    'border-[var(--bento-mint)] dark:border-transparent bg-[linear-gradient(140deg,var(--bento-anchor-from),var(--bento-anchor-to))] text-[var(--bento-anchor-ink)]',
+  dark: 'border-transparent bg-[var(--bento-ink)] text-[var(--bento-bg)]',
+}
+
 export function Cell({
   span = 'one',
+  tone,
   dark = false,
   className,
   children,
 }: {
   span?: CellSpan
+  tone?: CellTone
+  /** The older boolean, still honoured because four dashboards pass it. */
   dark?: boolean
   className?: string
   children: ReactNode
 }) {
+  const t = tone ?? (dark ? 'dark' : 'plain')
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col rounded-[14px] border p-5',
+        'flex min-w-0 flex-col rounded-[var(--bento-radius)] border p-6',
         SPAN[span],
-        dark
-          ? 'border-transparent bg-foreground text-background'
-          : 'bg-card text-card-foreground',
+        TONE[t],
         className,
       )}
     >
       {children}
+    </div>
+  )
+}
+
+/** A tinted badge: accent ink on its own tint, small, rounded, sitting beside
+    the figure it qualifies.
+
+    The tint is the harder of the two contrast measurements — a badge sits on
+    it, not on the card — and each light ink in bento-theme.css was darkened
+    until it cleared 4.5:1 against both. Which is the whole reason this takes
+    an `Accent` name and not a colour. */
+export function Badge({
+  accent,
+  children,
+  className,
+}: {
+  accent: Accent
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2.5 py-1 text-[11.5px] font-semibold leading-none tabular-nums',
+        ACCENT_TINT[accent],
+        ACCENT_INK[accent],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** A bar chart as plain divs. No chart library, and none is wanted: this has
+    no axis, no tooltip and no legend, and a charting runtime to draw ten
+    rectangles is weight every load pays for.
+
+    The active bar is purple — the one hue reserved for "this is the one you
+    are looking at" — and every other bar is the muted card tone, so the chart
+    carries one piece of meaning rather than ten. The figures are not left to
+    colour alone: the whole series is described in `srLabel`, and each bar
+    carries its own value as a title. */
+export function Bars({
+  items,
+  activeIndex,
+  srLabel,
+  accent = 'purple',
+}: {
+  items: { label: string; value: number; title: string }[]
+  activeIndex?: number
+  srLabel: string
+  accent?: Accent
+}) {
+  const still = useReduceMotion()
+  const max = Math.max(...items.map((i) => i.value), 1)
+  return (
+    <div role="img" aria-label={srLabel} className="flex h-full items-end gap-1.5">
+      {items.map((item, i) => (
+        <div key={`${item.label}-${i}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+          <div className="flex h-16 w-full items-end" title={item.title}>
+            <div
+              className={cn(
+                'w-full rounded-[6px]',
+                i === activeIndex ? ACCENT_FILL[accent] : '',
+                still ? '' : 'transition-[height] duration-300',
+              )}
+              style={{
+                height: `${Math.max(6, (item.value / max) * 100)}%`,
+                // The inactive bars are the muted tone, mixed down onto
+                // whatever card they sit on. `--bento-card-2` alone — the
+                // literal muted card tone — measures 1.13:1 against the light
+                // card, which is a bar nobody can see, and the height of these
+                // bars is information. `--bento-muted` at 70% clears 3:1 in
+                // both modes while staying obviously secondary to the purple.
+                ...(i === activeIndex
+                  ? null
+                  : { backgroundColor: 'color-mix(in srgb, var(--bento-muted) 70%, transparent)' }),
+              }}
+            />
+          </div>
+          <span className="truncate text-[10.5px] text-[var(--bento-muted)]">{item.label}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -133,6 +283,9 @@ export function StatCell({
   value,
   note,
   shape,
+  badge,
+  accent,
+  span,
   to,
   cue,
 }: {
@@ -140,30 +293,85 @@ export function StatCell({
   value: string | number
   note?: string
   shape?: ReactNode
+  /** The tinted qualifier that sits beside the figure. One hue, chosen for
+      what the figure means — not for variety. */
+  badge?: string
+  accent?: Accent
+  span?: CellSpan
   /** Where the detail already lives. Omitted — or refused by the catalogue —
       and the cell simply carries no cue. */
   to?: string
   cue?: string
 }) {
   return (
-    <Cell>
-      <p className="text-[12.5px] text-muted-foreground">{label}</p>
-      <p className="mt-3 text-[28px] font-semibold leading-none tabular-nums">{value}</p>
-      {shape && <div className="mt-3">{shape}</div>}
-      {note && <p className="mt-2 text-[12px] text-muted-foreground">{note}</p>}
+    <Cell span={span}>
+      <p className="text-[12.5px] text-[var(--bento-muted)]">{label}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <p className="text-[32px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+          {value}
+        </p>
+        {badge && accent && <Badge accent={accent}>{badge}</Badge>}
+      </div>
+      {shape && <div className="mt-4">{shape}</div>}
+      {note && <p className="mt-2.5 text-[12px] text-[var(--bento-muted)]">{note}</p>}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>
   )
 }
 
-/** The explicit cue. Always a real route to a screen that already exists. */
-export function Cue({ to, label, dark = false }: { to: string; label: string; dark?: boolean }) {
+/** The explicit cue. Always a real route to a screen that already exists.
+
+    The hover is the reference's one flourish, and it is a colour change, not a
+    movement — but the transition that smooths it is still armed only when
+    motion has not been asked away. With `reduce_motion` set the colour simply
+    changes on the frame the pointer arrives, which is what that preference
+    means: no animation, not no feedback. */
+export function Cue({
+  to,
+  label,
+  tone,
+  dark = false,
+}: {
+  to: string
+  label: string
+  tone?: CellTone
+  /** The older boolean, still honoured because four dashboards pass it. */
+  dark?: boolean
+}) {
+  const still = useReduceMotion()
+  const t = tone ?? (dark ? 'dark' : 'plain')
   return (
     <Link
       to={to}
       className={cn(
-        'mt-auto inline-flex items-center gap-1 pt-3 text-[12.5px] font-medium',
-        dark ? 'text-background/85 hover:text-background' : 'text-primary hover:underline',
+        'mt-auto inline-flex w-fit items-center gap-1.5 rounded-full pt-4 text-[12.5px] font-semibold',
+        still ? '' : 'transition-opacity duration-150',
+        t === 'plain'
+          ? 'text-[var(--bento-ink)] opacity-70 hover:opacity-100'
+          : t === 'anchor'
+            ? 'text-[var(--bento-anchor-ink)] opacity-75 hover:opacity-100'
+            : 'text-[var(--bento-bg)] opacity-80 hover:opacity-100',
+      )}
+    >
+      {label}
+      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+    </Link>
+  )
+}
+
+/** An action along the bottom edge of the anchor: a pill in the anchor's own
+    ink, which is the reference's shape for "the two things you do from here".
+    Only ever drawn on the gradient, so the ink pair is fixed and needs no
+    per-mode branch. */
+export function AnchorAction({ to, label }: { to: string; label: string }) {
+  const still = useReduceMotion()
+  return (
+    <Link
+      to={to}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full bg-[var(--bento-anchor-ink)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--bento-anchor-from)]',
+        still ? '' : 'transition-opacity duration-150',
+        'opacity-95 hover:opacity-100',
       )}
     >
       {label}
@@ -186,12 +394,13 @@ export function Meter({
   srLabel: string
 }) {
   const pct = total > 0 ? Math.min(100, Math.max(0, (value / total) * 100)) : 0
-  const fill = {
-    primary: 'bg-primary',
-    success: 'bg-success',
-    warning: 'bg-warning',
-    destructive: 'bg-destructive',
-  }[tone]
+  // The semantic names four dashboards already pass, mapped onto the one hue
+  // that carries each meaning here. `--success`/`--warning`/`--destructive`
+  // are not used: they were each measured against the classic card, and the
+  // Bento card is a different ground in both modes.
+  const fill = ACCENT_FILL[
+    ({ primary: 'purple', success: 'mint', warning: 'orange', destructive: 'pink' } as const)[tone]
+  ]
   return (
     <div
       role="progressbar"
@@ -199,7 +408,7 @@ export function Meter({
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      className="h-2 w-full overflow-hidden rounded-full bg-[var(--bento-card-2)]"
     >
       <div className={cn('h-full rounded-full', fill)} style={{ width: `${pct}%` }} />
     </div>
@@ -241,7 +450,15 @@ export function Sparkline({
       aria-label={srLabel}
       className={cn('h-8 w-full', className)}
     >
-      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   )
 }
@@ -253,10 +470,10 @@ export function Sparkline({
     somebody will act on it. */
 export function BentoError({ message }: { message: string }) {
   return (
-    <div className="p-6">
+    <div className="min-h-full bg-[var(--bento-bg)] p-6 sm:p-7">
       <p
         role="alert"
-        className="rounded-[14px] border border-destructive/40 bg-card p-5 text-[13.5px] text-destructive"
+        className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-pink)]"
       >
         {message}
       </p>
@@ -266,11 +483,31 @@ export function BentoError({ message }: { message: string }) {
 
 /** The same sentence, inside a cell, when one query of several failed and the
     rest of the dashboard is still true. */
-export function CellError({ message, dark = false }: { message: string; dark?: boolean }) {
+export function CellError({
+  message,
+  tone,
+  dark = false,
+}: {
+  message: string
+  tone?: CellTone
+  dark?: boolean
+}) {
+  const t = tone ?? (dark ? 'dark' : 'plain')
+  // Pink is money out on a plain card and reads as the failure hue there. On
+  // the mint gradient it does not clear 4.5:1, so the anchor's own ink says it
+  // instead — in medium weight, because on the anchor the sentence is the only
+  // thing marking it as a failure.
   return (
     <p
       role="alert"
-      className={cn('text-[12.5px]', dark ? 'text-background/85' : 'text-destructive')}
+      className={cn(
+        'text-[12.5px] font-medium',
+        t === 'plain'
+          ? 'text-[var(--bento-pink)]'
+          : t === 'anchor'
+            ? 'text-[var(--bento-anchor-ink)]'
+            : 'text-[var(--bento-bg)]',
+      )}
     >
       {message}
     </p>
@@ -279,7 +516,10 @@ export function CellError({ message, dark = false }: { message: string; dark?: b
 
 export function BentoLoading({ message }: { message: string }) {
   return (
-    <div className="p-6 text-[13.5px] text-muted-foreground" aria-busy="true">
+    <div
+      className="min-h-full bg-[var(--bento-bg)] p-6 text-[13.5px] text-[var(--bento-muted)] sm:p-7"
+      aria-busy="true"
+    >
       {message}
     </div>
   )
@@ -318,16 +558,18 @@ export function BentoPage({
   return (
     <div
       className={cn(
-        'p-6 sm:p-7',
+        'min-h-full bg-[var(--bento-bg)] p-6 text-[var(--bento-ink)] sm:p-7',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}
     >
-      <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--bento-muted)]">
         {eyebrow}
       </p>
-      <h1 className="mt-1 text-[22px] font-semibold">{title}</h1>
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <h1 className="mt-1.5 text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
+      <div className="mt-6 grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2 lg:grid-cols-4">
+        {children}
+      </div>
     </div>
   )
 }

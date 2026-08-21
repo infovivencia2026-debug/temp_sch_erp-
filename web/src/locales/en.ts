@@ -986,6 +986,18 @@ export const en = {
   'bento.principal.approvals_note': 'Leave requests waiting on a decision',
   'bento.principal.applications': 'Open applications',
   'bento.principal.applications_note': 'Not yet decided',
+  // The tinted badges beside a figure. Each states the share in words, so the
+  // hue behind it is never the only thing carrying the meaning.
+  'bento.principal.pct_of_billed': '{pct}% of billed',
+  'bento.principal.pct_of_students': '{pct}% of the roll',
+  'bento.principal.needs_attention': 'Needs a teacher',
+  // The bar chart. `bars_sr` is the whole series in one sentence, because the
+  // bars themselves are a picture and a screen reader gets no shape from them.
+  'bento.principal.bars_label': 'Attendance, last 10 school days',
+  'bento.principal.bars_sr':
+    'Attendance across the last {count} school days, ranging from {low}% to {high}% present. The most recent day is highlighted.',
+  'bento.principal.bar_title': '{date} — {pct}% present',
+  'bento.principal.bars_none': 'No attendance has been marked yet.',
   'bento.principal.unassigned': 'Unassigned subjects',
   'bento.principal.unassigned_note': 'No teacher timetabled',
   'bento.principal.cue_attendance': 'Attendance overview',
