@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Period, type TimetableEntry, type Teacher } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Select, Loading, ErrorState } from '@/components/ui'
-import { cn, WEEKDAYS } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import WeekGrid from '@/components/WeekGrid'
 
 /* One screen, two audiences.
 
@@ -86,12 +87,14 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   if (periods.isLoading || entries.isLoading) return <Loading />
   if (entries.error) return <ErrorState error={entries.error} />
 
-  const ps = (periods.data?.items ?? []).filter((p) => !p.is_break)
-  // weekday is ISO-8601 from the DB (1 = Monday), so index into WEEKDAYS with
-  // weekday-1 rather than treating 0 as Sunday.
-  const byCell = new Map<string, TimetableEntry>()
-  for (const e of entries.data?.items ?? []) byCell.set(`${e.weekday}:${e.period_id}`, e)
+  /* One grid, shared with the master timetable.
 
+     This drew its own: days down the side, periods across the top, subject
+     codes in the cells and breaks dropped entirely — a second way to read a
+     thing everybody in the school already reads one way. The principal, the
+     head of department, the class teacher and the subject teacher now see the
+     same shape, so a teacher checking their own week and a principal checking
+     the school are reading one document. */
   return (
     <>
       {isStaff && (
@@ -112,54 +115,33 @@ function Grid({ isStaff }: { isStaff: boolean }) {
           <span className="text-xs text-muted-foreground">
             {view.mode === 'me'
               ? 'Every period you teach, across all your classes.'
-              : 'The whole week for this section, whoever teaches it.'}
+              : 'The whole week for this class, whoever teaches it.'}
           </span>
         </div>
       )}
 
-      <div className="overflow-x-auto p-4">
-        <table className="w-full min-w-[640px] border-separate border-spacing-1 text-sm">
-          <thead>
-            <tr>
-              <th className="w-24" />
-              {ps.map((p) => (
-                <th key={p.id} className="rounded bg-muted px-2 py-1.5 text-xs font-medium">
-                  <div>{p.name}</div>
-                  <div className="font-normal text-muted-foreground">{p.starts_at}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[1, 2, 3, 4, 5, 6].map((wd) => (
-              <tr key={wd}>
-                <th className="rounded bg-muted px-2 py-1.5 text-xs font-medium">{WEEKDAYS[wd - 1]}</th>
-                {ps.map((p) => {
-                  const e = byCell.get(`${wd}:${p.id}`)
-                  return (
-                    <td key={p.id} className="rounded border p-1.5 align-top">
-                      {e ? (
-                        <>
-                          <div className="text-xs font-medium">{e.subject_code}</div>
-                          {/* On your own week the teacher is always you, and
-                              printing your own name in thirty cells tells you
-                              nothing. Which room to walk into does. */}
-                          <div className="truncate text-[12px] text-muted-foreground">
-                            {view.mode === 'me'
-                              ? `${e.class_name}-${e.section_name}${e.room ? ` · ${e.room}` : ''}`
-                              : (e.teacher_name ?? 'Unassigned')}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-[12px] text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="p-4">
+        <WeekGrid
+          entries={(entries.data?.items ?? []).map((e) => ({
+            weekday: e.weekday,
+            period_id: e.period_id,
+            title: e.subject_name || e.subject_code,
+            /* On your own week the teacher is always you, and printing your
+               own name in thirty cells tells you nothing. Which class to walk
+               into does. On a section's week it is the other way round. */
+            detail:
+              view.mode === 'me'
+                ? `${e.class_name}-${e.section_name}${e.room ? ` · ${e.room}` : ''}`
+                : (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
+            unstaffed: view.mode !== 'me' && !e.teacher_name,
+          }))}
+          periods={periods.data?.items ?? []}
+          empty={
+            view.mode === 'me'
+              ? 'You have no periods on the timetable yet.'
+              : 'Nothing timetabled for this class yet.'
+          }
+        />
       </div>
     </>
   )
