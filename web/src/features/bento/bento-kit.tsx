@@ -182,11 +182,20 @@ export function Cell({
   return (
     <div
       className={cn(
-        /* min-h-0 for the same reason as the track: a flex/grid child will
-           not shrink past its content without it. overflow-hidden keeps a
-           long list inside its own card rather than letting it lengthen the
-           row and put the bottom row off the screen. */
-        'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[var(--bento-radius)] border p-6',
+        /* min-h-0 for the same reason as the track: a flex/grid child will not
+           shrink past its content without it.
+
+           Scrolls rather than hides. overflow-hidden kept a long card inside
+           its row, which is right, but it did it by cutting the content off at
+           the edge — text ran under the border and the rest was simply gone,
+           unreachable, with nothing to say it was there. A card that is one
+           line too tall should give that line back on a scroll, not eat it.
+
+           Padding tightens on the wide screens where the fit-to-viewport rule
+           applies, because that is exactly where the height is being rationed:
+           16px of vertical padding back is most of a line of text. */
+        `flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain
+         rounded-[var(--bento-radius)] border p-6 lg:p-5`,
         SPAN[span],
         TONE[t],
         className,

@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom'
-import { Check, ChevronDown, LogOut, Menu, Moon, Rows3, Sun, UserRound, X } from 'lucide-react'
+import {
+  Check, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Rows3, Sun,
+  UserRound, X,
+} from 'lucide-react'
 import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import FirstRunTour from './FirstRunTour'
@@ -211,6 +214,31 @@ export function Shell({ children }: { children: ReactNode }) {
      features: a wall to read rather than a menu to use. The section you are in
      opens; the rest stay shut until you click them, and then they stay open
      because you asked. */
+  /* Whether the rail is put away, remembered per device.
+
+     A preference about how much of the screen this person wants given to
+     navigation, on the machine they are sitting at — not an account setting.
+     Somebody working on a laptop and a desk monitor wants different answers on
+     each, and syncing it would make the small screen dictate to the large one.
+
+     Read synchronously on first render so a reload does not show the rail for
+     a frame and then snatch it away. */
+  const [railHidden, setRailHidden] = useState(() => {
+    try {
+      return localStorage.getItem('erp.rail') === 'hidden'
+    } catch {
+      return false
+    }
+  })
+  const toggleRail = (hidden: boolean) => {
+    setRailHidden(hidden)
+    try {
+      localStorage.setItem('erp.rail', hidden ? 'hidden' : 'shown')
+    } catch {
+      /* private browsing: the choice lasts the session, which is enough */
+    }
+  }
+
   const [opened, setOpened] = useState<Set<string>>(new Set())
   /* Row height, for people who live in the tables.
 
@@ -294,11 +322,32 @@ export function Shell({ children }: { children: ReactNode }) {
           'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[280px]',
           'max-lg:border-r max-lg:transition-transform',
           navOpen ? 'flex max-lg:translate-x-0' : 'hidden lg:flex max-lg:-translate-x-full',
+          /* Only on lg. Below it the rail is a drawer that is already closed
+             by default, and hiding a thing that is not shown would leave the
+             hamburger opening nothing. */
+          railHidden ? 'lg:!hidden' : '',
           isBentoRole || chromeless ? '!hidden' : ''
         )}
       >
         {/* --- workspace header: where am I, and whose -------------------- */}
         <div className="relative shrink-0 px-3 pb-2 pt-3">
+          {/* Icon only, and only where there is a rail to put away. It sits
+              over the switcher's right edge rather than in a row of its own:
+              a control for hiding navigation should not itself cost a line of
+              navigation. */}
+          <button
+            type="button"
+            onClick={() => toggleRail(true)}
+            aria-label="Hide navigation"
+            title="Hide navigation"
+            className="absolute right-3 top-3 z-10 hidden h-8 w-8 place-items-center rounded-[7px]
+                       text-muted-foreground transition-colors duration-100
+                       hover:bg-surface-hover hover:text-foreground
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                       lg:grid"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setSwitcherOpen((v) => !v)}
             aria-expanded={switcherOpen}
@@ -523,6 +572,25 @@ export function Shell({ children }: { children: ReactNode }) {
               onClick={() => setNavOpen(true)}
             >
               <Menu className="h-5 w-5" />
+            </button>
+          )}
+
+          {/* The way back. Shown only when the rail is away, because a button
+              that puts back something already there is a button that does
+              nothing — and a hidden rail with no visible way to return it is
+              how a person decides the app has lost its menu. */}
+          {!isBentoRole && railHidden && (
+            <button
+              type="button"
+              aria-label="Show navigation"
+              title="Show navigation"
+              className="hidden h-9 w-9 shrink-0 place-items-center rounded-[7px] text-muted-foreground
+                         transition-colors duration-100 hover:bg-surface-hover hover:text-foreground
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                         lg:grid"
+              onClick={() => toggleRail(false)}
+            >
+              <PanelLeftOpen className="h-5 w-5" />
             </button>
           )}
 
