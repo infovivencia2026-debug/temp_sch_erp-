@@ -19,6 +19,7 @@ import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
+import { BentoSettings } from '@/features/bento/BentoSettings'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -550,6 +551,13 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               {showPlanned ? 'Hide coming later' : 'Coming later'}
             </button>
+
+            {/* The same preferences the chrome-less layout keeps behind its
+                cog. They were only reachable from there, so a person who had
+                never tried Focus could not change the density or the text size
+                at all — the appearance screen that carries them is catalogued
+                for students only. */}
+            <BentoSettings placement="sidebar" />
           </div>
         </nav>
       </aside>

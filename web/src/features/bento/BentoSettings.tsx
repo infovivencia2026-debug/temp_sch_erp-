@@ -34,7 +34,16 @@ const ICON: Record<Theme, typeof Sun> = {
   dark: Moon,
 }
 
-export function BentoSettings() {
+/* Where the menu hangs from.
+
+   The same list of preferences is wanted from two places that are nowhere near
+   each other: the dock, which floats at the top right of a chrome-less canvas,
+   and the foot of the classic sidebar. Rather than two components that drift,
+   one takes a placement — which decides the trigger's shape and which corner
+   the panel opens from, and nothing else. */
+export type SettingsPlacement = 'dock' | 'sidebar'
+
+export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
   const { theme, resolved, setTheme } = useTheme()
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
@@ -126,19 +135,37 @@ export function BentoSettings() {
         aria-expanded={open}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
-        className="grid size-10 place-items-center rounded-full border bg-popover/80
-                   text-muted-foreground shadow-sm backdrop-blur-md transition-colors
-                   hover:bg-accent hover:text-foreground focus-visible:outline-none
-                   focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          placement === 'dock'
+            ? `grid size-10 place-items-center rounded-full border bg-popover/80
+               text-muted-foreground shadow-sm backdrop-blur-md hover:bg-accent
+               hover:text-foreground`
+            : `flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left
+               text-[12.5px] text-muted-foreground hover:bg-surface-hover
+               hover:text-foreground`,
+        )}
       >
-        <Settings className="size-[18px]" aria-hidden="true" />
+        <Settings
+          className={placement === 'dock' ? 'size-[18px]' : 'size-4 shrink-0'}
+          aria-hidden="true"
+        />
+        {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-52 overflow-y-auto
-                     overscroll-contain rounded-xl border bg-popover p-1 shadow-lg"
+          className={cn(
+            `absolute z-50 max-h-[70vh] w-52 overflow-y-auto overscroll-contain rounded-xl
+             border bg-popover p-1 shadow-lg`,
+            /* From the sidebar's foot it opens upward: there is nothing below
+               it but the window edge, and a menu that would need the page to
+               scroll to be read is a menu that cannot be used from there. */
+            placement === 'dock'
+              ? 'right-0 top-[calc(100%+8px)]'
+              : 'bottom-[calc(100%+8px)] left-0',
+          )}
         >
           <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
                         text-muted-foreground">

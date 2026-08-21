@@ -296,7 +296,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open || !role) return null
 
-  const Tile = ({ r, i }: { r: Row; i?: number }) => {
+  const Tile = ({ r, i, context }: { r: Row; i?: number; context?: boolean }) => {
     const href = featurePath(role.key, r.sectionSlug, r.slug)
     const here = pathname === href
     const onCursor = i !== undefined && i === cursor
@@ -346,7 +346,23 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px]">{r.name}</span>
-          <span className="block truncate text-[11.5px] text-muted-foreground">{r.section}</span>
+          {/* Where it belongs, said only where that is not already obvious.
+
+              Inside a category panel the heading has just said it: HOME, and
+              then three tiles each captioned "Home". Repeating the answer to a
+              question the block already answered is noise the eye has to
+              discard on every row.
+
+              Recents and search results are the cases where it earns its
+              place, because those are drawn from everywhere at once — and
+              there it names the category rather than the section, since the
+              category is the thing carrying a colour the reader has been
+              learning. */}
+          {context && (
+            <span className="block truncate text-[11.5px] text-muted-foreground">
+              {r.workspace}
+            </span>
+          )}
         </span>
       </button>
     )
@@ -433,7 +449,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               <>
                 <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} />)}
+                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} context />)}
                 </div>
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                   <CornerDownLeft className="size-3" aria-hidden="true" />
@@ -451,7 +467,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 <section className="mb-9">
                   <Heading icon={Clock} label={t('bento.launcher.recent')} />
                   <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {recents.map((r) => <Tile key={`recent-${r.key}`} r={r} />)}
+                    {recents.map((r) => <Tile key={`recent-${r.key}`} r={r} context />)}
                   </div>
                 </section>
               )}
