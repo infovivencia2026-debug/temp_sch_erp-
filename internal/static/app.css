@@ -593,14 +593,23 @@ body.pricing .enquire { margin-top: 40px; }
 .pw > input { padding-right: 42px; }
 .pw > button.pw-eye {
   position: absolute;
+  /* Stretched between the field's own edges rather than given a height, so it
+     stays centred whatever the field turns out to be. */
   top: 0;
+  bottom: 0;
   right: 0;
   width: 40px;
-  height: 40px;
+  height: auto;
   padding: 0;
+  /* The submit button above sets a width, a height, a background and — the one
+     that actually moved this — a top margin. On an absolutely positioned
+     element that margin is an offset from `top`, which dropped the eye out of
+     the field and onto its bottom border. */
+  margin: 0;
   display: grid;
   place-items: center;
   border: 0;
+  border-radius: 0;
   background: none;
   color: var(--muted);
   cursor: pointer;
