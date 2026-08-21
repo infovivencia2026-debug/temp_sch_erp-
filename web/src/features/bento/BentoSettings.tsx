@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sun, Moon, Monitor, Check, LogOut, Rows3, Square, Frame, Settings } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, Maximize2 } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useT } from '@/lib/i18n'
-import { useLayout } from '@/lib/layout'
+import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
@@ -29,7 +29,7 @@ const ICON: Record<Theme, typeof Sun> = {
 
 export function BentoSettings() {
   const { theme, resolved, setTheme } = useTheme()
-  const { setLayout } = useLayout()
+  const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
   const session = useSession()
   const t = useT()
@@ -152,28 +152,52 @@ export function BentoSettings() {
 
           <div className="my-1 h-px bg-border" role="separator" />
 
-          {/* The way out of Bento lives here now, not in the dock.
+          {/* Layout as a preference, not an exit.
 
-              Nobody should have to know they are "inside Bento" to use the
-              product, so the centre bar stops saying so. But the exit cannot
-              simply go: this layout hides the header, and the header is where
-              the classic product keeps sign-out, notifications and the role
-              switch. A chrome-less layout with no door is the bug this
-              codebase already fixed once. */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setLayout('classic')
-              setOpen(false)
-            }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Rows3 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1">{t('bento.escape.back')}</span>
-          </button>
+              This was a "Leave Bento" button, which asked a user to know that
+              they were inside something called Bento — our word for it, never
+              theirs. It reads as two choices about how the screen is arranged
+              now, which is what it always was.
+
+              It could not simply be deleted. The switch lives nowhere else: the
+              appearance screen that carries theme and density is catalogued for
+              students only, so a principal has no other route to it, and the
+              classic header is hidden by the very layout they would be trying
+              to leave. Removing the row would have stranded them — the bug this
+              codebase already fixed once under "give the chrome-less layout its
+              doors back". */}
+          <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
+                        text-muted-foreground">
+            {t('bento.settings.layout')}
+          </p>
+          {LAYOUTS.map((option) => {
+            const Icon = option === 'classic' ? PanelLeft : Maximize2
+            const active = layout === option
+            return (
+              <button
+                key={option}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                onClick={() => {
+                  setLayout(option as Layout)
+                  setOpen(false)
+                }}
+                className={cn(
+                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                   transition-colors hover:bg-accent focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-ring`,
+                  active && 'font-medium',
+                )}
+              >
+                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="flex-1">{t(`bento.settings.layout.${option}`)}</span>
+                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+              </button>
+            )
+          })}
+
+          <div className="my-1 h-px bg-border" role="separator" />
 
           <a
             href="/logout"

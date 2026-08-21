@@ -942,14 +942,14 @@ export const en = {
   // Two buttons in the shell header. Classic is the product as it ships;
   // Bento is the opt-in experiment. See docs/BENTO_UI_CONTRACT.md.
   'shell.layout.group': 'Dashboard layout',
-  'shell.layout.classic': 'Classic',
-  'shell.layout.bento': 'Bento',
+  'shell.layout.classic': 'Sidebar',
+  'shell.layout.bento': 'Focus',
 
   // --- bento: my work -----------------------------------------------------
   // The smoke-test Bento screen. A later worker replaces it; these keys are
   // the ones the replacement should keep.
   'bento.my_work.title': 'My work',
-  'bento.my_work.eyebrow': 'Bento',
+  'bento.my_work.eyebrow': 'Home',
   'bento.my_work.outstanding': 'Outstanding',
   'bento.my_work.overdue': 'Overdue',
   'bento.my_work.sections': 'Sections',
@@ -960,7 +960,7 @@ export const en = {
   // --- bento: the head's dashboard ----------------------------------------
   // The Bento rendering of institution_admin.home.dashboard. Same endpoints as
   // the classic screen; these words describe the re-layout, not new data.
-  'bento.principal.eyebrow': 'Bento',
+  'bento.principal.eyebrow': 'Home',
   'bento.principal.title': 'Executive overview',
   'bento.principal.loading': 'Opening the school on one page…',
   'bento.principal.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
@@ -1014,7 +1014,7 @@ export const en = {
   // summed in the browser from the overdue invoice list the classic screen
   // already fetches — no second endpoint, and no figure the classic screen
   // does not also show.
-  'bento.finance.eyebrow': 'Bento',
+  'bento.finance.eyebrow': 'Home',
   'bento.finance.title': 'Finance overview',
   'bento.finance.loading': 'Counting what has come in…',
   'bento.finance.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
@@ -1170,7 +1170,7 @@ export const en = {
   'bento.faculty_today.lessons_cue': 'My timetable',
   'bento.faculty_today.lessons_none': 'Nothing timetabled.',
   'bento.faculty_today.lessons_note': '{first} to {last}',
-  'bento.escape.back': 'Leave Bento',
+  'bento.escape.back': 'Sidebar layout',
   'bento.launcher.title': 'All features',
   'bento.launcher.close': 'Close',
   'bento.launcher.recent': 'Recently opened',
@@ -1185,6 +1185,10 @@ export const en = {
   'bento.settings.appearance': 'Appearance',
   'bento.settings.signout': 'Sign out',
   'bento.settings.frame': 'Frame',
+  'bento.settings.layout': 'Layout',
+  'bento.settings.layout.classic': 'Sidebar',
+  'bento.settings.layout.bento': 'Focus',
+  'bento.dock.home': 'Home',
   'bento.settings.skin.premium': 'Soft',
   'bento.settings.skin.brutalist': 'Hard edges',
   'bento.settings.theme.system': 'Match system',

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LayoutGrid, Inbox } from 'lucide-react'
+import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
@@ -59,6 +59,23 @@ export function BentoDock() {
     return undefined
   }, [role])
 
+  /* Home, always, and first.
+
+     Every other item in the dock is conditional on something — Work on the
+     role having a queue, the account on being signed in — and the one thing a
+     person needs from any screen is the way back to the start. It resolves to
+     whatever this role's first opening feature is rather than a fixed path,
+     because "home" is a different screen for a principal, a parent and a
+     student, and there is no route the three share. */
+  const homeHref = useMemo(() => {
+    if (!role) return undefined
+    for (const s of role.sections) {
+      const f = s.features.find(usable)
+      if (f) return featurePath(role.key, s.slug, f.slug)
+    }
+    return undefined
+  }, [role])
+
   if (layout !== 'bento') return null
 
   /* Icon and word together, not one or the other.
@@ -78,6 +95,13 @@ export function BentoDock() {
         className="bento-dock fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1.5
                    rounded-full border bg-popover/90 p-1.5 pl-2.5 backdrop-blur-md"
       >
+        {homeHref && (
+          <button type="button" onClick={() => navigate(homeHref)} className={item}>
+            <House className="size-3.5 shrink-0" aria-hidden="true" />
+            {t('bento.dock.home')}
+          </button>
+        )}
+
         {/* Brings its own ⌘K listener, so the shortcut works again as soon as
             this mounts — mouse and keyboard reach the same thing. */}
         <CommandSearch />
