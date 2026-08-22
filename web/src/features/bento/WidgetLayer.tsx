@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, GripVertical, Minus, Plus, RotateCcw, X } from 'lucide-react'
+import {
+  ArrowLeft, ArrowRight, Check, GripVertical, Minus, Plus, RotateCcw, Undo2, Wand2, X,
+} from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
@@ -79,7 +81,7 @@ export function WidgetLayer({
   const [declared, setDeclared] = useState<BoardWidget[]>([])
   const barRef = useRef<HTMLDivElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, place, reset } = useLayout(dashboard)
+  const { layout, place, reset, undo, canUndo, tidy } = useLayout(dashboard)
   const t = useT()
 
   const declare = useMemo(
@@ -180,6 +182,32 @@ export function WidgetLayer({
           >
             <Check className="size-3.5" aria-hidden="true" />
             {t('bento.widgets.done')}
+          </button>
+
+          {/* Undo first, because it is the control somebody reaches for in a
+              hurry — right after the click they did not mean. */}
+          {canUndo && (
+            <button
+              type="button"
+              onClick={undo}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
+                         transition-colors hover:bg-accent"
+            >
+              <Undo2 className="size-3.5" aria-hidden="true" />
+              {t('bento.widgets.undo')}
+            </button>
+          )}
+
+          {/* One click out of a mess, without losing the sizes and colours
+              somebody chose deliberately. */}
+          <button
+            type="button"
+            onClick={() => tidy(visible)}
+            className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
+                       transition-colors hover:bg-accent"
+          >
+            <Wand2 className="size-3.5" aria-hidden="true" />
+            {t('bento.widgets.tidy')}
           </button>
 
           {arranged && (
@@ -486,6 +514,10 @@ export function Widget({
   const order = orderOf(layout, id, index)
   const editing = layer?.editing ?? false
   const span = spanFor(w, h)
+  const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
+  const moveBtn =
+    'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
+    'transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-popover/90'
   const tint = tintOf(layout, id)
 
   /* Recolouring by REPOINTING the palette, not by painting the card.
@@ -602,10 +634,10 @@ export function Widget({
                      rounded-[var(--bento-radius)] bg-background/70 p-2 backdrop-blur-[2px]"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="flex items-center gap-1 rounded-full bg-popover/90 px-2 py-1
+            <span className="flex min-w-0 items-center gap-1 rounded-full bg-popover/90 px-2 py-1
                              text-[11px] font-medium shadow-sm">
-              <GripVertical className="size-3 cursor-grab text-muted-foreground" aria-hidden="true" />
-              {label}
+              <GripVertical className="size-3 shrink-0 cursor-grab text-muted-foreground" aria-hidden="true" />
+              <span className="truncate">{label}</span>
             </span>
             <button
               type="button"
@@ -623,6 +655,44 @@ export function Widget({
               heights is twenty-five sizes from ten controls, and "three wide,
               one tall" is a thing somebody can now ask for. */}
           <div className="flex flex-col gap-1">
+            {/* Move, by pressing rather than by dragging.
+
+                Dragging was the only way to reorder, and it is the wrong
+                gesture for this board: cards pack densely, so releasing one
+                somewhere sends every card after it shuffling to fill holes
+                that were never visible. The result rarely matches the gesture,
+                which is why the order felt unpredictable.
+
+                A press moves this card one place along the flow. It is
+                undoable, it is repeatable, and it says which direction it
+                means. Dragging still works for anybody who prefers it. */}
+            <div className="flex items-center gap-1">
+              <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
+                {t('bento.widgets.order')}
+              </span>
+              <button
+                type="button"
+                onClick={() => layer && move(id, Math.max(0, pos - 1), layer.visible)}
+                disabled={pos <= 0}
+                aria-label={t('bento.widgets.move_back')}
+                className={moveBtn}
+              >
+                <ArrowLeft className="size-3" aria-hidden="true" />
+              </button>
+              <span className="w-8 text-center text-[11px] tabular-nums text-muted-foreground">
+                {pos + 1}/{layer?.visible.length ?? 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => layer && move(id, Math.min(layer.visible.length - 1, pos + 1), layer.visible)}
+                disabled={!layer || pos >= layer.visible.length - 1}
+                aria-label={t('bento.widgets.move_on')}
+                className={moveBtn}
+              >
+                <ArrowRight className="size-3" aria-hidden="true" />
+              </button>
+            </div>
+
             <Axis
               label={t('bento.widgets.width')}
               steps={WIDTHS}

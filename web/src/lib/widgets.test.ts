@@ -243,6 +243,65 @@ export function testRowPacking(): void {
   assertEqual(rowsThatFit(660, 0, 15), 1, 'a zero row height cannot divide')
 }
 
+/** Undo has to be a safety net, not a toy: one step, no loop, and it must not
+    survive a reload. */
+export function testUndo(): void {
+  const d = freshDashboard()
+  const all = ['a', 'b'].map((id) => ({ id, w: 1, h: 1, label: id, index: 0, size: 'small' as const }))
+
+  api(d).resize('a', 3, 1)
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 3, h: 1 }, 'the change lands')
+  assert(api(d).canUndo, 'and there is something to undo')
+
+  api(d).undo()
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 1, h: 1 }, 'undo puts it back')
+  assert(!api(d).canUndo, 'and there is nothing left to undo')
+
+  // Pressing undo again must do nothing rather than restore the mistake.
+  api(d).undo()
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 1, h: 1 }, 'a second undo is inert')
+
+  // Removing is the accident undo exists for.
+  const e = freshDashboard()
+  api(e).remove('fees')
+  assert(isRemoved(api(e).layout, 'fees'), 'removed')
+  api(e).undo()
+  assert(!isRemoved(api(e).layout, 'fees'), 'undo brings a removed card back')
+
+  void all
+}
+
+/** Tidy sorts big-to-small, which is what makes dense packing come out without
+    holes. It must not touch sizes or colours. */
+export function testTidy(): void {
+  const d = freshDashboard()
+  const RED = { h: 0, s: 80, l: 50 }
+  api(d).resize('small1', 1, 1)
+  api(d).resize('big', 3, 2)
+  api(d).recolour('small1', RED, 1, 1)
+  api(d).resize('mid', 2, 1)
+
+  const all = [
+    { id: 'small1', w: 1, h: 1, label: 's', index: 0, size: 'small' as const },
+    { id: 'big', w: 3, h: 2, label: 'b', index: 1, size: 'large' as const },
+    { id: 'mid', w: 2, h: 1, label: 'm', index: 2, size: 'medium' as const },
+  ]
+  api(d).tidy(all)
+
+  assertEqual(
+    api(d).layout.placed.map((p) => p.id),
+    ['big', 'mid', 'small1'],
+    'largest first, so dense packing leaves no holes',
+  )
+  assertEqual(dimsOf(api(d).layout, 'big', 'small'), { w: 3, h: 2 }, 'tidy does not resize')
+  assertEqual(tintOf(api(d).layout, 'small1'), RED, 'tidy does not recolour')
+
+  // A widget nobody has touched still gets a place, at its declared size.
+  const e = freshDashboard()
+  e && api(e).tidy(all)
+  assertEqual(api(e).layout.placed.length, 3, 'untouched widgets are placed too')
+}
+
 /** A pasted hex must survive the round trip, and a half-typed one must not
     be committed. */
 export function testHexRoundTrip(): void {
@@ -396,6 +455,8 @@ const TESTS: Array<[string, () => void]> = [
   ['ink stays readable on any chosen colour', testInkStaysReadable],
   ['hex codes round-trip and partials are refused', testHexRoundTrip],
   ['row packing matches dense grid flow', testRowPacking],
+  ['undo is one step and does not loop', testUndo],
+  ['tidy orders big-to-small without resizing', testTidy],
   ['layouts saved under named sizes migrate', testLegacyNamedSizesMigrate],
   ['untouched dashboard writes no key', testUntouchedDashboardWritesNoKey],
   ['corrupt stored value degrades', testCorruptStoredValueDegrades],

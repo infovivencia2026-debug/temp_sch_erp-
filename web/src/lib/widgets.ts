@@ -204,6 +204,18 @@ function read(dashboard: string): Layout {
 }
 
 const cache = new Map<string, Layout>()
+
+/* One step of history, kept in memory only.
+
+   Arranging is the one place in this product where somebody can wreck a
+   screen in a single click — remove the card they meant to resize, or drop one
+   somewhere unexpected — and "Reset layout" is far too blunt an answer,
+   because it throws away every deliberate change alongside the accident.
+
+   Deliberately NOT persisted. Undo is for the mistake you just made, and an
+   undo that survives a reload is an invitation to undo something you decided
+   on last week and have forgotten. */
+const history = new Map<string, Layout>()
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -224,7 +236,8 @@ function current(dashboard: string): Layout {
   return cache.get(dashboard)!
 }
 
-function write(dashboard: string, next: Layout) {
+function write(dashboard: string, next: Layout, remember = true) {
+  if (remember) history.set(dashboard, current(dashboard))
   cache.set(dashboard, next)
   try {
     // An untouched dashboard stores nothing, so "never arranged" and "arranged
@@ -331,7 +344,49 @@ export function useLayout(dashboard: string) {
 
   const reset = useCallback(() => write(dashboard, EMPTY), [dashboard])
 
-  return { layout, place, remove, resize, recolour, move, reset }
+  /* Undo the last change, once.
+
+     The undone state is not itself remembered, so undo cannot be undone into a
+     loop — press it twice and the second press does nothing rather than
+     restoring the mistake. */
+  const undo = useCallback(() => {
+    const prev = history.get(dashboard)
+    if (!prev) return
+    history.delete(dashboard)
+    write(dashboard, prev, false)
+  }, [dashboard])
+
+  const canUndo = history.has(dashboard)
+
+  /* Put the board in a sensible order without anybody having to drag anything.
+
+     Largest first, then by the order the dashboard declared. That is not an
+     aesthetic preference: dense packing fills holes with whatever comes next,
+     so a big card arriving late has to start a new row and leaves a gap behind
+     it. Sorting big-to-small is what makes the packing come out without
+     holes — the same reason a mason lays the large stones first.
+
+     Sizes and colours are untouched. This answers "I have made a mess of the
+     order", which is a different problem from "I have made a mess". */
+  const tidy = useCallback(
+    (all: BoardWidget[]) => {
+      const l = current(dashboard)
+      const sized = all.map((x) => {
+        const p = l.placed.find((q) => q.id === x.id)
+        return p ?? { id: x.id, w: x.w, h: x.h }
+      })
+      const declared = new Map(all.map((x, i) => [x.id, i]))
+      const ordered = [...sized].sort((a, b) => {
+        const area = b.w * b.h - a.w * a.h
+        if (area !== 0) return area
+        return (declared.get(a.id) ?? 0) - (declared.get(b.id) ?? 0)
+      })
+      write(dashboard, { placed: ordered, removed: l.removed })
+    },
+    [dashboard],
+  )
+
+  return { layout, place, remove, resize, recolour, move, reset, undo, canUndo, tidy }
 }
 
 /** The width and height a widget should render at: what the person chose,
