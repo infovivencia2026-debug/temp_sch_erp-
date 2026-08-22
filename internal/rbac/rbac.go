@@ -352,8 +352,16 @@ var SystemRoles = []Role{
 	{"front_office", "Receptionist / Front Office", []string{
 		AcademicsRead, AdmissionsRead, StudentsRead, FrontDeskRead, FrontDeskWrite,
 		SelfProfileRead, SelfProfileWrite}},
+	/* HR keeps the record; the school decides the leave.
+
+	   LeaveApprove was here, so a leave request went to HR as well as to the
+	   head of department and the principal, and HR was told about every one of
+	   them. Whether a teacher can be spared on Thursday is a timetable
+	   question — who covers the class — and that is the department's to answer
+	   and the principal's to overrule. HR still holds every consequence of the
+	   decision: the balance, the loss of pay, the payslip that follows. */
 	{"hr", "HR & Payroll", []string{
-		AcademicsRead, EmployeesRead, EmployeesWrite, LeaveApprove, PayrollRead, PayrollWrite,
+		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},
 	{"librarian", "Librarian", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, LibraryRead, LibraryWrite, SelfProfileRead, SelfProfileWrite}},
