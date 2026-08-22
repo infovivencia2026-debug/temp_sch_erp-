@@ -132,7 +132,7 @@ var exportable = map[string]struct {
 	   Each is the whole current picture rather than a filtered slice: a filter
 	   that silently drops rows produces a file somebody files as complete. */
 	"payroll": {
-		perm:   "finance.payroll.read",
+		perm:   "hr.payroll.read",
 		header: []string{"Month", "Year", "Code", "Employee", "Paid Days", "LOP Days", "Gross (Rs)", "Deductions (Rs)", "Net (Rs)", "Status"},
 		query: `SELECT to_char(to_date(pr.period_month::text,'MM'),'Month'), pr.period_year::text,
 		               e.employee_code, concat_ws(' ', e.first_name, e.last_name),
@@ -165,7 +165,7 @@ var exportable = map[string]struct {
 		         ORDER BY ex.name, c.name, sub.name, st.admission_no`,
 	},
 	"staff-attendance": {
-		perm:   "hr.staff.attendance",
+		perm:   "hr.attendance.write",
 		header: []string{"Date", "Code", "Employee", "Status", "In", "Out", "Remarks"},
 		query: `SELECT to_char(sa.on_date,'DD/MM/YYYY'), e.employee_code,
 		               concat_ws(' ', e.first_name, e.last_name), sa.status,
@@ -219,7 +219,7 @@ var exportable = map[string]struct {
 		         ORDER BY a.created_at DESC`,
 	},
 	"library-loans": {
-		perm:   "ops.library.read",
+		perm:   "operations.library.read",
 		header: []string{"Title", "Borrower", "Issued", "Due", "Returned", "Fine (Rs)"},
 		query: `SELECT COALESCE(t.title,''),
 		               COALESCE(concat_ws(' ', st.first_name, st.last_name),
