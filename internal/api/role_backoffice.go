@@ -296,7 +296,7 @@ func (s *Server) getHRDashboard(w http.ResponseWriter, r *http.Request) {
 			  (SELECT count(*) FROM staff_attendance
 			    WHERE on_date = CURRENT_DATE AND status = 'absent'),
 			  (SELECT count(*) FROM leave_requests
-			    WHERE status='pending' AND subject_kind = 'employee'),
+			    WHERE status='pending' AND subject_kind = 'staff'),
 			  (SELECT count(*) FROM employees
 			    WHERE joined_on >= CURRENT_DATE - INTERVAL '30 days'),
 			  (SELECT count(*) FROM departments)
@@ -329,7 +329,7 @@ func (s *Server) getHRDashboard(w http.ResponseWriter, r *http.Request) {
 			  FROM leave_requests lr
 			  JOIN employees e ON e.id = lr.employee_id
 			  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
-			 WHERE lr.subject_kind = 'employee' AND lr.status = 'approved'
+			 WHERE lr.subject_kind = 'staff' AND lr.status = 'approved'
 			   AND CURRENT_DATE BETWEEN lr.from_date AND lr.to_date
 			 ORDER BY 1`)
 		if err2 != nil {
@@ -475,9 +475,17 @@ Whose leave this screen is about.
 	teachers' student leave from the same desk.
 */
 func leaveFor(r *http.Request) any {
+	/* The column spells it "staff".
+
+	   Not "employee" — the check constraint on leave_requests uses 'staff',
+	   and three queries here asked for 'employee' instead. Each matched
+	   nothing, silently: HR's dashboard reported no pending staff leave and
+	   nobody away today however many requests were sitting in the queue, and
+	   filtering the queue to staff emptied it. A value that does not exist
+	   never errors; it just quietly agrees that there is nothing there. */
 	switch r.URL.Query().Get("for") {
 	case "staff", "employee":
-		return "employee"
+		return "staff"
 	case "student", "students":
 		return "student"
 	}

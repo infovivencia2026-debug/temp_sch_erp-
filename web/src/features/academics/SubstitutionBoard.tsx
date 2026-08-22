@@ -44,6 +44,7 @@ interface Slot {
 interface BoardResponse {
   items: Slot[]
   on_date: string
+  away: { user_id: string; full_name: string; reason: string; periods_today: boolean }[]
   summary: {
     absent_teachers: number
     periods: number
@@ -84,6 +85,10 @@ export default function SubstitutionBoard() {
 
   const rows = board.data?.items ?? []
   const s = board.data?.summary
+  /* Somebody away with no timetabled periods used to make the whole board say
+   * "nobody is absent", which is not "nothing to arrange" — it is "we have no
+   * idea". Six of this school's twelve teachers have no periods at all. */
+  const awayWithoutPeriods = (board.data?.away ?? []).filter((a) => !a.periods_today)
 
   return (
     <>
@@ -108,7 +113,25 @@ export default function SubstitutionBoard() {
           />
         </CellGrid>
 
+        {awayWithoutPeriods.length > 0 && (
+          <Card>
+            <CardHeader
+              title="Away today, with nothing timetabled"
+              description="Nothing to cover for these — they have no periods on the timetable. Worth knowing: it usually means their subjects were never allocated, not that they teach nothing."
+            />
+            <ul className="divide-y">
+              {awayWithoutPeriods.map((a) => (
+                <li key={a.user_id} className="flex items-center gap-3 px-1 py-2 text-[14px]">
+                  <span className="font-medium">{a.full_name}</span>
+                  <span className="text-muted-foreground">{a.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+
         {rows.length === 0 ? (
+
           <Card>
             <EmptyState
               title="Nobody is absent"

@@ -893,9 +893,67 @@ func (s *Server) getSubstitutionBoard(w http.ResponseWriter, r *http.Request) {
 			uncoverable++
 		}
 	}
+
+	/* Who is away, counted from the leave register rather than from the
+	   periods they were due to teach.
+
+	   The board found absentees by walking the rows it had already built, and
+	   those rows come from timetable_entries. A teacher with no timetabled
+	   periods therefore produced no rows, and the screen said "nobody is
+	   absent" on a day their leave had been approved. That is the worst
+	   possible sentence to put in front of the person doing the morning cover:
+	   it is not "nothing to arrange", it is "we have no idea".
+
+	   It happens more than it sounds. A class teacher whose subjects were
+	   never allocated, a new joiner, anybody the timetable generator skipped —
+	   this school has six such teachers out of twelve. So the register is
+	   asked directly, and anybody it names who produced no rows is reported as
+	   away with nothing to cover, which is a true and useful thing to know. */
+	away := []map[string]any{}
+	_ = s.DB.InTenant(r.Context(), tenantScope(httpx.IdentityFrom(r.Context())),
+		func(tx pgx.Tx) error {
+			rows, err := tx.Query(r.Context(), `
+				SELECT u.id::text, u.full_name,
+				       CASE WHEN sa.id IS NOT NULL THEN sa.status ELSE 'on approved leave' END
+				  FROM users u
+				  JOIN employees e ON e.user_id = u.id
+				  LEFT JOIN staff_attendance sa
+				         ON sa.user_id = u.id AND sa.on_date = $1::date
+				                            AND sa.status IN ('absent','leave')
+				 WHERE e.status IN ('active','on_leave')
+				   AND (sa.id IS NOT NULL
+				        OR EXISTS (SELECT 1 FROM leave_requests lr
+				                    WHERE lr.employee_id = e.id AND lr.status = 'approved'
+				                      AND $1::date BETWEEN lr.from_date AND lr.to_date))
+				 ORDER BY u.full_name`, onDate)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var uid, name, why string
+				if err := rows.Scan(&uid, &name, &why); err != nil {
+					return err
+				}
+				_, hasPeriods := absentees[uid]
+				away = append(away, map[string]any{
+					"user_id": uid, "full_name": name, "reason": why,
+					// The distinction the screen has to draw: somebody away
+					// with periods needs cover arranging; somebody away with
+					// none needs nothing, and saying so is not the same as
+					// saying nobody is away.
+					"periods_today": hasPeriods,
+				})
+				absentees[uid] = struct{}{}
+			}
+			return rows.Err()
+		})
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"items":   items,
 		"on_date": onDate,
+		// Everybody the register says is away, including the ones with nothing
+		// to cover.
+		"away":    away,
 		"summary": map[string]any{
 			"absent_teachers": len(absentees),
 			"periods":         len(items),
