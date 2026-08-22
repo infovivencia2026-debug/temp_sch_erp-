@@ -359,7 +359,7 @@ export function StatCell({
   value,
   note,
   shape,
-  badge,
+  badge: _badge,
   accent,
   domain,
   span,
@@ -421,7 +421,15 @@ export function StatCell({
         >
           {value}
         </p>
-        {badge && accent && <Badge accent={accent}>{badge}</Badge>}
+        {/* The badge is no longer drawn.
+
+            It was a tinted pill beside the figure — "62% of billed", "needs
+            attention" — competing with the number it was meant to annotate:
+            two things at the top of the card, both asking to be read first.
+            The same fact is already in the note beneath, as a sentence, where
+            it reads as support rather than as a rival.
+
+            The prop stays in the signature so no dashboard breaks. */}
       </div>
       {shape && <div className="bento-shape mt-3">{shape}</div>}
       {note && (
@@ -454,21 +462,31 @@ export function Cue({
   dark?: boolean
 }) {
   const still = useReduceMotion()
-  const t = tone ?? (dark ? 'dark' : 'plain')
+  void tone; void dark
   return (
     <Link
       to={to}
       className={cn(
-        /* mt-auto keeps it on the bottom edge; the padding that used to sit
-           above it is now the button's own, so the control has a body instead
-           of being text with space over it. */
-        'bento-cue mt-auto inline-flex w-fit items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold',
-        still ? '' : 'transition-opacity duration-150',
-        t === 'plain'
-          ? 'text-[var(--bento-ink)] opacity-80 hover:opacity-100'
-          : t === 'anchor'
-            ? 'text-[var(--bento-anchor-ink)] opacity-85 hover:opacity-100'
-            : 'text-[var(--bento-bg)] opacity-85 hover:opacity-100',
+        /* A white pill with black text, on every card, in every theme.
+
+           It used to take its colour from the card's tone — ink on a plain
+           card, anchor-ink on the anchor. That worked while a card's ground
+           came from a palette somebody had measured contrast against. Cards
+           can now be tinted from an open colour wheel, so there is no colour
+           the cue can inherit and still be guaranteed readable: the rule that
+           gives dark text on mint gives dark text on navy too.
+
+           So it stops inheriting. White ground, near-black text, its own
+           contrast — the one control on the card that is legible whatever is
+           behind it, which is what an action ought to be.
+
+           mt-auto keeps it on the bottom edge; the padding is the button's
+           own, so the control has a body rather than being text with space
+           above it. */
+        `bento-cue mt-auto inline-flex w-fit items-center gap-1.5 rounded-full
+         bg-white px-3 py-1.5 text-[12px] font-semibold text-[#101114]
+         shadow-sm ring-1 ring-black/5`,
+        still ? '' : 'transition-transform duration-150 hover:scale-[1.03]',
       )}
     >
       {label}
