@@ -10,6 +10,7 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import SetupProgress from './SetupProgress'
+import { useCan } from '@/lib/session'
 
 interface PrincipalKPIs {
   students: number; staff: number; sections: number
@@ -22,6 +23,8 @@ interface PrincipalKPIs {
 interface TrendPoint { date: string; present: number; absent: number; total: number; pct: number }
 
 export default function PrincipalDashboard() {
+  // Fee collection and arrears are for whoever answers for the money.
+  const canSeeMoney = useCan()('finance.fees.read')
   const [range, setRange] = useRange()
   const presets = useQuery({
     queryKey: ['date-ranges'],
@@ -79,20 +82,32 @@ export default function PrincipalDashboard() {
             hint={`${k.attendance_marked_today} marked`}
             period={k.range?.label}
           />
-          <Stat
-            label="Collected"
-            value={formatPaise(k.collected_paise)}
-            icon={Wallet}
-            delta={{ value: `${formatPaise(k.outstanding_paise)} outstanding now`, positive: false }}
-            period={k.range?.label}
-          />
+          {/* Money, only for whoever is answerable for it.
+           *
+           * What the school collected and what it is owed is a governance
+           * number, not a general one. It was shown to anybody who reached
+           * this dashboard, which after the role fix is the principal — but
+           * the tile should not depend on which workspace somebody landed in.
+           * A head of department has no more business with the school's
+           * arrears than a teacher does. */}
+          {canSeeMoney && (
+            <Stat
+              label="Collected"
+              value={formatPaise(k.collected_paise)}
+              icon={Wallet}
+              delta={{ value: `${formatPaise(k.outstanding_paise)} outstanding now`, positive: false }}
+              period={k.range?.label}
+            />
+          )}
         </CellGrid>
 
         <Card>
           <CardHeader title="Needs attention" description="Items waiting on a decision" />
           <CellGrid cols={4}>
             <Stat label="Pending approvals" value={k.pending_leave} hint="Leave requests" period={asOf} />
-            <Stat period={asOf} label="Fee defaulters" value={k.defaulters} hint="Past due date" />
+            {canSeeMoney && (
+              <Stat period={asOf} label="Fee defaulters" value={k.defaulters} hint="Past due date" />
+            )}
             <Stat period={asOf} label="Open applications" value={k.open_applications} hint="Not yet decided" />
             <Stat period={asOf} label="Unassigned subjects" value={k.unassigned_subjects} hint="No teacher timetabled" />
           </CellGrid>

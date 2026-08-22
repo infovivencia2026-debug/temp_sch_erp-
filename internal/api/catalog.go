@@ -143,6 +143,59 @@ var setupSections = map[string]bool{
 	"my_profile":      true,
 }
 
+
+/*
+catalogRoleKeys is the set of workspaces the caller was actually granted.
+
+	Empty when none of their roles has a catalogue of its own, which is the
+	signal to fall back rather than to show nothing: class_teacher and
+	operations are capability bundles, and somebody holding only those still
+	has to land somewhere.
+
+	Platform staff are exempt for the same reason they are exempt from the
+	setup gate — a super admin looking into a school is the person who has to
+	see everything.
+*/
+func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
+	id := httpx.IdentityFrom(r.Context())
+	if id.PlatformAdmin {
+		return nil, nil
+	}
+
+	held := map[string]bool{}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT r.key
+			  FROM user_roles ur
+			  JOIN roles r ON r.id = ur.role_id
+			 WHERE ur.user_id = $1`, id.UserID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var k string
+			if err := rows.Scan(&k); err != nil {
+				return err
+			}
+			held[k] = true
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Only the keys the catalogue actually has a workspace for.
+	known := map[string]bool{}
+	for _, role := range catalog.Roles {
+		if held[role.Key] {
+			known[role.Key] = true
+		}
+	}
+	return known, nil
+}
+
 // getCatalog returns the signed-in user's workspace: the roles they hold, the
 // sections and features within each, and whether each is reachable.
 //
@@ -188,10 +241,31 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(resp.Implemented)
 
-	// A user may legitimately hold several catalog roles (a principal who also
-	// teaches). Emit every role they have at least one grant in, and let the
-	// client switch between them.
+	/* Which workspaces this person actually holds.
+
+	   A user may legitimately hold several (a principal who also teaches), and
+	   the switcher exists for exactly that. It was deciding membership by
+	   permission overlap — emit any role the caller has one grant in — which
+	   is not what holding a role means. A head of department's grants are
+	   mostly a subset of the principal's, so every HOD was offered the
+	   principal's workspace and dropped into it by default: the switcher said
+	   "Institution Admin / Principal" to somebody whose only role is hod.
+
+	   Read from user_roles, which is the record of what somebody was actually
+	   given. Falling back to the old behaviour when none of their roles has a
+	   catalogue of its own, because some rbac roles are capability bundles
+	   with no workspace — class_teacher, operations — and a strict filter
+	   would hand those people an empty menu. */
+	held, err := s.catalogRoleKeys(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
 	for _, role := range catalog.Roles {
+		if len(held) > 0 && !held[role.Key] {
+			continue
+		}
 		out := catalogRole{Key: role.Key, Name: role.Name, Sections: []catalogSection{}}
 
 		for _, sec := range role.Sections {
