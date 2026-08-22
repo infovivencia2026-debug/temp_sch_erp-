@@ -184,6 +184,7 @@ export function WidgetLayer({
     const measure = () => {
       const styles = getComputedStyle(board)
       const gap = parseFloat(styles.columnGap) || 0
+      const rowGap = parseFloat(styles.rowGap) || gap
       const cols = styles.gridTemplateColumns.split(' ').filter(Boolean).length || 1
       if (cols < 3) {
         // One or two columns: the board stacks and a square would leave a card
@@ -199,15 +200,27 @@ export function WidgetLayer({
           cols,
         ),
       )
-      const room = parseFloat(getComputedStyle(board).getPropertyValue('--board-h')) || board.clientHeight
-      const tallest = (room - (rows - 1) * gap) / rows
+      let room = parseFloat(styles.getPropertyValue('--board-h')) || board.clientHeight
+
+      /* The arrange toolbar is a row of the board too.
+
+         It sits in its own auto-height row above the cards, so while arranging
+         the cards have LESS room than the board's height — and computing the
+         unit from the full height made the last row hang off the bottom of the
+         screen the moment edit mode opened. Its height is read rather than
+         assumed because it wraps to two lines on a narrow window. */
+      const bar = board.querySelector('.bento-arrange-bar') as HTMLElement | null
+      if (bar) room -= bar.getBoundingClientRect().height + rowGap
+      const tallest = (room - (rows - 1) * rowGap) / rows
       board.style.setProperty('--unit', `${Math.max(96, Math.min(colW, tallest))}px`)
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(board)
+    const bar = board.querySelector('.bento-arrange-bar')
+    if (bar) ro.observe(bar)
     return () => ro.disconnect()
-  }, [visible, layout])
+  }, [visible, layout, arranging])
 
   return (
     <Ctx.Provider value={value}>
