@@ -679,82 +679,62 @@ html[data-pattern='grid'] .bento-surface,
 html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   HOW THE BOARD IS SIZED.
+   HOW THE BOARD IS SIZED — and four ways it was got wrong.
 
-   Rows have a MINIMUM height and grow with their contents. Two earlier models
-   were tried and both failed in ways worth recording, because both looked
-   right in the stylesheet:
+   Rows size to their contents, which is where this started. Every attempt to
+   improve on that made the board worse, and all four are recorded because each
+   one looked correct in the stylesheet:
 
-   Square rows — one unit as tall as a column is wide. Honest for "W:1 H:1",
-   and it does not fit a laptop: at 1600x900 one column is 297px and only two
-   such rows sit above the fold, so 15 of the 25 sizes needed scrolling.
+     square rows        one unit as tall as a column is wide. Honest for
+                        "W:1 H:1", but a 297px square fits twice above the fold
+                        on a laptop, so 15 of the 25 sizes needed scrolling.
 
-   Fractional rows — minmax(0, 1fr), dividing the height equally. A fraction
-   needs a DEFINITE height to divide, and the board's height comes from a flex
-   chain; when any link in that chain is indefinite, 1fr degrades silently to
-   max-content. Rows then sized themselves to whatever each card held: a card
-   with one label became a 45px strip clipping its own figure in half, beside
-   a 245px neighbour.
+     fractional rows    minmax(0, 1fr). A fraction needs a DEFINITE height; the
+                        board's comes from a flex chain, and when any link in
+                        it is indefinite the fraction silently becomes
+                        max-content. Rows collapsed onto their contents and
+                        clipped their own figures.
 
-   A floor cannot degrade, which is why it is the model that survived. Every
-   row is tall enough for a label, a figure and a cue; rows holding more grow.
-   H:2 is genuinely twice H:1 plus a gap.
+     a floor            minmax(150px, auto). Cannot degrade, but a single row
+                        of cards still took the whole board height, so 1x1 came
+                        out 280x540.
+
+     a shrinking unit   square where it fits, smaller where it does not. Worked
+                        arithmetically and produced a chaotic board, because
+                        the unit changes with the card COUNT: adding one card
+                        resized every other card on the screen.
+
+   The last one is the lesson. A dashboard where changing one card changes all
+   of them is not a layout, it is a simulation — and content-sized rows, which
+   nobody has to compute, were better than all four.
    ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .bento-board {
-    /* The gap is set HERE, not by a utility class, because the row height is
+    /* The gap is set here, not by a utility class, because other things are
        derived from it. The persona boards used gap-5 while the arithmetic read
-       --bento-gap, so their cells could never come out right. */
+       --bento-gap, and their cells could never come out right. */
     gap: var(--bento-gap) !important;
 
-    /* ROWS DIVIDE THE SCREEN. They are not squares.
+    /* FIVE COLUMNS, THREE ROWS. The board is a fixed 15-slot grid.
 
-       A square unit is the honest reading of "W:1 H:1", and it does not fit a
-       laptop: on a 1600x900 window the board is 1544x660, one column is 297px,
-       and only TWO 297px rows fit above the fold. That left 15 of the 25 sizes
-       unreachable without scrolling and made the board run off the bottom of
-       the screen — the one thing this dashboard was built not to do.
+       --board-h is measured in JS and set on this element, so the height is
+       DEFINITE and the three fractions resolve. That is what every earlier
+       attempt lacked: a fraction of an indefinite height silently becomes
+       max-content, which is how rows ended up collapsed onto their contents.
 
-       So the rows share the height instead. Each is an equal fraction of what
-       is left below the header, whatever the card count, so the board ends at
-       the bottom of the window and never below it.
-
-       What W:H means now: proportions in grid units, not an aspect ratio. A 2x2
-       is twice as wide and twice as tall as a 1x1, and all 25 sizes are
-       reachable — but a 1x1 is a landscape rectangle rather than a square,
-       because that is what fits on the screen people actually use. */
-    /* A floor, then content. NOT 1fr.
-
-       1fr divides a DEFINITE height. The board's height comes from a flex
-       chain, and when any link in that chain is indefinite the fraction
-       silently degrades to max-content — so rows sized themselves to whatever
-       each card happened to hold. A card with one label became a 45px strip
-       that clipped its own figure in half, while the card above it took 245px.
-
-       A floor cannot degrade. Every row is at least tall enough to hold a
-       label, a figure and a cue; rows with more in them grow. H:2 is then
-       genuinely twice H:1 plus a gap, which is what the control promises, and
-       nothing is ever clipped for want of height. */
-    /* Divide what exists. Do not add up what is wanted.
-
-       --board-h is measured in JS and set on this element, so the height IS
-       definite and a fraction resolves properly. That is the whole difference
-       between this and the version that collapsed onto its contents: 1fr with
-       an indefinite height silently degrades to max-content.
-
-       With a definite height the board CANNOT overflow, whatever anybody
-       arranges. Rows get shorter as more are added, which is a legible failure
-       — and the arranger refuses the sizes that would make them too short to
-       read, so it never gets that far. */
+       Fixed beats computed here. The previous model sized the unit from the
+       card COUNT, so adding one card resized every other card on the screen —
+       arithmetically correct and chaotic to use. Three rows are three rows
+       whatever is on them, and a cell's size depends only on its own W and H. */
     height: var(--board-h, auto);
-    /* --unit is a square: as tall as a column is wide, shrunk only as far as it
-       must be for the whole layout to fit. It is computed in JS because CSS
-       cannot count how many rows a set of spans will occupy.
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(0, 1fr) !important;
+  }
 
-       The 1fr fallback matters — before the measurement lands, and on the
-       narrow boards where squares are refused. */
-    grid-auto-rows: var(--unit, minmax(0, 1fr)) !important;
-    align-content: start;
+  /* While arranging, the toolbar takes the first row and the cards share the
+     rest — otherwise a row's worth of height goes to one line of buttons. */
+  .bento-board:has(> .bento-arrange-bar) {
+    grid-template-rows: auto repeat(3, minmax(0, 1fr)) !important;
   }
 
   /* The arrange toolbar is a grid child, so it was taking a full 1fr row —
@@ -765,10 +745,6 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      its natural height, while every row after it keeps dividing what is left.
      Only while arranging: with no toolbar present the selector does not
      match, and row one goes back to being a row like any other. */
-  .bento-board:has(> .bento-arrange-bar) {
-    grid-template-rows: auto !important;
-  }
-
   /* The backstop. The shedding rules are the plan; this stops a card that still
      holds too much from pushing the grid out of shape. */
   .bento-board > * { overflow: hidden; }

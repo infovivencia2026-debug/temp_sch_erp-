@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, inkFor, hexToHsl, hslToHex,
-  rowsNeeded, rowsThatFit,
+  rowsNeeded,
   type WidgetSize,
 } from './widgets'
 
@@ -237,10 +237,6 @@ export function testRowPacking(): void {
   // it as fitting would under-report the rows and let the board overflow.
   assertEqual(rowsNeeded([{ w: 9, h: 1 }, one]), 2, 'an over-wide card is clamped to the board')
 
-  assertEqual(rowsThatFit(660, 150, 15), 4, 'four 150px rows and their gaps fit 660px')
-  assertEqual(rowsThatFit(150, 150, 15), 1, 'exactly one row fits its own height')
-  assertEqual(rowsThatFit(0, 150, 15), 1, 'never reports zero — something must be placeable')
-  assertEqual(rowsThatFit(660, 0, 15), 1, 'a zero row height cannot divide')
 }
 
 /** Undo has to be a safety net, not a toy: one step, no loop, and it must not

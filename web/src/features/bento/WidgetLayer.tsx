@@ -6,7 +6,7 @@ import {
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, rowsThatFit, PRESETS,
+  rowsNeeded, PRESETS, BOARD_ROWS,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
@@ -127,100 +127,18 @@ export function WidgetLayer({
     return () => document.removeEventListener('keydown', onKey)
   }, [arranging, setArranging])
 
-  /* How many rows fit below the board's top edge.
+  /* Three rows, because the board is three rows.
 
-     Measured rather than assumed: the board's top moves with the header, the
-     text size and the density, so a constant here would be wrong on most
-     screens. Re-measured whenever arrange mode opens and on resize, which is
-     when it can change while somebody is looking at it. */
-  const [maxRows, setMaxRows] = useState(3)
-  useEffect(() => {
-    if (!arranging) return
-    const measure = () => {
-      const board = barRef.current?.parentElement
-      if (!board) return
-      const styles = getComputedStyle(board)
-      const gap = parseFloat(styles.rowGap) || 0
-      /* The board divides a measured height, so it can no longer overflow at
-         all — rows just get shorter as more are added. The limit is therefore
-         about LEGIBILITY, not fit: below about 110px a card cannot hold a
-         label, a figure and a cue, and the arranger stops before it gets
-         there.
-
-         Read from the element rather than from the viewport, because the board
-         already knows its own height and that is the number the rows are
-         actually dividing. */
-      const room = board.getBoundingClientRect().height
-      setMaxRows(rowsThatFit(room, 110, gap))
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [arranging])
+     No measuring: the grid is a fixed 5x3, so a layout needing a fourth row
+     does not get a shorter row, it gets pushed off the bottom of the screen.
+     The arranger refuses those sizes rather than letting somebody arrive at
+     one and wonder where their card went. */
+  const maxRows = BOARD_ROWS
 
   const value = useMemo<LayerValue>(
     () => ({ dashboard, editing: arranging, declare, visible, maxRows }),
     [dashboard, arranging, declare, maxRows, visible.map((d) => d.id).join(',')],
   )
-
-  /* ONE UNIT IS A SQUARE — as far as the screen allows.
-
-     A row is as tall as a column is wide, which is what makes W:1 H:1 actually
-     1:1. That was tried before and abandoned because a 297px square only fits
-     twice above the fold and the board ran off the screen.
-
-     What makes it work now is that the unit is allowed to SHRINK. The rows the
-     current layout needs are counted, and if that many squares will not fit,
-     the unit becomes the largest size that does. So cells are square whenever
-     squares are possible, slightly short when they are not, and the board never
-     overflows or clips either way — which is the property that matters more
-     than the shape.
-
-     Counted here rather than in BentoPage because this is the component that
-     knows what is on the board and how big each piece is. */
-  useEffect(() => {
-    const board = markRef.current?.parentElement
-    if (!board) return
-    const measure = () => {
-      const styles = getComputedStyle(board)
-      const gap = parseFloat(styles.columnGap) || 0
-      const rowGap = parseFloat(styles.rowGap) || gap
-      const cols = styles.gridTemplateColumns.split(' ').filter(Boolean).length || 1
-      if (cols < 3) {
-        // One or two columns: the board stacks and a square would leave a card
-        // shorter than its own figure.
-        board.style.removeProperty('--unit')
-        return
-      }
-      const colW = (board.clientWidth - (cols - 1) * gap) / cols
-      const rows = Math.max(
-        1,
-        rowsNeeded(
-          visible.map((v) => dimsOf(layout, v.id, v.size)),
-          cols,
-        ),
-      )
-      let room = parseFloat(styles.getPropertyValue('--board-h')) || board.clientHeight
-
-      /* The arrange toolbar is a row of the board too.
-
-         It sits in its own auto-height row above the cards, so while arranging
-         the cards have LESS room than the board's height — and computing the
-         unit from the full height made the last row hang off the bottom of the
-         screen the moment edit mode opened. Its height is read rather than
-         assumed because it wraps to two lines on a narrow window. */
-      const bar = board.querySelector('.bento-arrange-bar') as HTMLElement | null
-      if (bar) room -= bar.getBoundingClientRect().height + rowGap
-      const tallest = (room - (rows - 1) * rowGap) / rows
-      board.style.setProperty('--unit', `${Math.max(96, Math.min(colW, tallest))}px`)
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(board)
-    const bar = board.querySelector('.bento-arrange-bar')
-    if (bar) ro.observe(bar)
-    return () => ro.disconnect()
-  }, [visible, layout, arranging])
 
   return (
     <Ctx.Provider value={value}>

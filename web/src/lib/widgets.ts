@@ -605,10 +605,8 @@ export function rowsNeeded(items: { w: number; h: number }[], cols = 5): number 
   return rows
 }
 
-/** The tallest layout that still fits, given the room below the board's top
-    edge and the height one row takes. */
-export function rowsThatFit(availablePx: number, rowPx: number, gapPx: number): number {
-  if (rowPx <= 0) return 1
-  // n rows occupy n*row + (n-1)*gap.
-  return Math.max(1, Math.floor((availablePx + gapPx) / (rowPx + gapPx)))
-}
+/** The board is a fixed five columns by three rows. Both are here rather than
+    inferred, because the arranger and the stylesheet have to agree about them
+    and a number that lives in one place cannot drift from the other. */
+export const BOARD_COLS = 5
+export const BOARD_ROWS = 3
