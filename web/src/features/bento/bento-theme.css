@@ -684,11 +684,27 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
    height than its own figure needs.
    ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
+  /* The container is the board's PARENT, not the board.
+
+     container-type makes an element a query container for its DESCENDANTS. An
+     element cannot query itself, so `100cqw` used on .bento-board resolved
+     against whatever container happened to be further up — or against nothing
+     — and the row height came out wrong and inconsistent between rows. The
+     surface wraps the board and its content box is exactly the board's width,
+     so it is the right thing to measure. */
+  .bento-surface { container-type: inline-size; }
+
   .bento-board {
-    container-type: inline-size;
     /* Overrides Tailwind's lg:auto-rows-auto, which is why it is !important:
-       both are single-class selectors and the utility layer wins otherwise. */
+       both are single-class selectors and the utility layer wins otherwise.
+
+       Every row is this tall, so one grid unit is a square and H:1 means the
+       same height on every row of the board. */
     grid-auto-rows: calc((100cqw - 4 * var(--bento-gap)) / 5) !important;
+    /* Rows are a fixed height, so leftover vertical space must NOT be handed
+       back to them — without this the last row on a short board stretches and
+       H:1 stops meaning one square there. */
+    align-content: start !important;
   }
 
   /* The card is not allowed to push the grid out of shape. overflow:hidden is

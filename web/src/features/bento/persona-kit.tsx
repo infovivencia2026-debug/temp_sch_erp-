@@ -62,10 +62,10 @@ export function PersonaPage({
   children: ReactNode
 }) {
   const grid = (
-    <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">{children}</div>
+    <div className="bento-board mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">{children}</div>
   )
   return (
-    <div className="p-6 sm:p-7">
+    <div className="bento-surface p-6 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
