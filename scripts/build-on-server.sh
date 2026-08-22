@@ -97,6 +97,19 @@ cd "$SRC/web"
 # gutted, and the next thing to fail is `tsc: not found` several
 # steps later, which sends you looking in the wrong place.
 npm ci --no-audit --no-fund
+# npm ci can exit 0 having left the tree half-built — a package directory
+# present but its bin symlink never created. That happened after two deploys
+# raced and one died on ETXTBSY: `npm ci` afterwards reported "added 187
+# packages" and success, and the failure surfaced several steps later as
+# `sh: 1: vite: not found`, which sends you looking at PATH and NODE_ENV
+# rather than at node_modules. Check the toolchain is actually runnable.
+for tool in vite tsc; do
+    [ -x "node_modules/.bin/$tool" ] || {
+        echo "npm ci finished but node_modules/.bin/$tool is missing — the tree is" >&2
+        echo "half-installed. Fix: rm -rf $SRC/web/node_modules and deploy again." >&2
+        exit 1
+    }
+done
 npm run build
 du -sh dist
 

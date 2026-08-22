@@ -191,6 +191,24 @@ export function AppearanceDialog({
   }, [open])
 
   /* Scroll to the requested section when the dialog opens */
+  /* While this is open, the dock is lifted above it and the panel keeps clear
+     of the bottom of the screen.
+
+     Dock Settings changes the dock, and the dialog was drawn over the top of
+     it — so the one control you were adjusting was the one thing you could not
+     see change. Marking the root rather than passing a prop keeps the dock
+     ignorant of this dialog's existence. */
+  useEffect(() => {
+    if (!open) {
+      delete document.documentElement.dataset.appearanceOpen
+      return
+    }
+    document.documentElement.dataset.appearanceOpen = 'true'
+    return () => {
+      delete document.documentElement.dataset.appearanceOpen
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const el = initialTab === 'dock' ? dockRef.current : initialTab === 'dashboard' ? dashRef.current : null
@@ -227,7 +245,7 @@ export function AppearanceDialog({
       <div
         data-appearance-dialog=""
         className={cn(
-          `pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border bg-popover
+          `appearance-panel pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border bg-popover
            shadow-[var(--lift-float)]`,
           // Still clickable while aiming, so the dialog can be used to cancel.
           picking && 'pointer-events-auto opacity-25',

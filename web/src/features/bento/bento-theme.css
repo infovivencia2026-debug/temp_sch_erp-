@@ -697,3 +697,32 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      cue, which fit. */
   .bento-board > * { overflow: hidden; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE DOCK STAYS VISIBLE WHILE IT IS BEING CONFIGURED.
+
+   Dock Settings changes the dock. The dialog is a full-screen overlay at
+   z-70, and the dock sits at z-50 underneath it — so the one control being
+   adjusted was the one thing that could not be seen changing. Every slider
+   worked; none of them appeared to.
+
+   The dock is lifted above the overlay and the panel is held clear of the
+   bottom of the screen, so the two occupy different ground instead of
+   competing for the same.
+   ───────────────────────────────────────────────────────────────────────── */
+html[data-appearance-open] .bento-dock {
+  z-index: 90;
+}
+
+/* The backdrop dims the page; the dock is not part of what is being dimmed
+   while it is the subject. A ring keeps it legible against the scrim. */
+html[data-appearance-open] .bento-dock {
+  box-shadow: 0 0 0 1px var(--bento-line), var(--bento-depth-lg);
+}
+
+/* Room at the bottom of the dialog so a tall panel cannot scroll under the
+   dock and hide it again. Generous, because the dock grows with its own
+   settings — icon size and padding are two of the things being changed. */
+html[data-appearance-open] .appearance-panel {
+  margin-bottom: 132px;
+}
