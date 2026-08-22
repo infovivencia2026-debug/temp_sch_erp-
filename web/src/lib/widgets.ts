@@ -91,6 +91,43 @@ export function inkFor({ h, s, l }: Hsl): string {
   return lum > 0.179 ? '#101114' : '#ffffff'
 }
 
+/** A colour written the way people paste it: #rgb or #rrggbb, with or without
+    the hash. Returns null for anything that is not one, so a half-typed value
+    leaves the card alone instead of flashing through every colour on the way. */
+export function hexToHsl(raw: string): Hsl | null {
+  const t = raw.trim().replace(/^#/, '')
+  const full = t.length === 3 ? t.split('').map((c) => c + c).join('') : t
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null
+  const r = parseInt(full.slice(0, 2), 16) / 255
+  const g = parseInt(full.slice(2, 4), 16) / 255
+  const b = parseInt(full.slice(4, 6), 16) / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d === 0) return { h: 0, s: 0, l: l * 100 }
+  const sat = d / (1 - Math.abs(2 * l - 1))
+  let h: number
+  if (max === r) h = ((g - b) / d) % 6
+  else if (max === g) h = (b - r) / d + 2
+  else h = (r - g) / d + 4
+  h *= 60
+  if (h < 0) h += 360
+  return { h, s: sat * 100, l: l * 100 }
+}
+
+/** The same colour written back out, so the field shows what was picked on the
+    wheel rather than going blank the moment somebody uses it. */
+export function hslToHex({ h, s, l }: Hsl): string {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100)
+  const ch = (n: number) => {
+    const k = (n + h / 30) % 12
+    const v = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(255 * v).toString(16).padStart(2, '0')
+  }
+  return `#${ch(0)}${ch(8)}${ch(4)}`
+}
+
 export function cssHsl({ h, s, l }: Hsl): string {
   return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`
 }

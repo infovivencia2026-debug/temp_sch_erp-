@@ -1,5 +1,8 @@
 import * as React from 'react'
-import { useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, inkFor, type WidgetSize } from './widgets'
+import {
+  useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, inkFor, hexToHsl, hslToHex,
+  type WidgetSize,
+} from './widgets'
 
 /* Tests for the layout store, written as plain functions because the web side
    has no test runner (see NOTES at the bottom of this file). Run them with
@@ -203,6 +206,27 @@ export function testColourAndSizeDoNotClobber(): void {
   assertEqual(tintOf(api(g).layout, 'a'), null, 'a non-numeric channel is dropped')
 }
 
+/** A pasted hex must survive the round trip, and a half-typed one must not
+    be committed. */
+export function testHexRoundTrip(): void {
+  assertEqual(hexToHsl('#ffffff'), { h: 0, s: 0, l: 100 }, 'white parses')
+  assertEqual(hexToHsl('#000000'), { h: 0, s: 0, l: 0 }, 'black parses')
+  assertEqual(hexToHsl('4f7fff'), hexToHsl('#4f7fff'), 'the hash is optional')
+  assertEqual(hexToHsl('#f00'), hexToHsl('#ff0000'), 'three digits expand to six')
+
+  /* Nothing short of a complete colour is accepted. A field that committed
+     partial input would drag the card through every shade between what was
+     there and what is being typed. */
+  for (const bad of ['', '#', '#1', '#12', '#12345', '#gggggg', 'red', '#1234567']) {
+    assertEqual(hexToHsl(bad), null, `"${bad}" is refused`)
+  }
+
+  for (const hex of ['#4f7fff', '#1a2b3c', '#00ff88', '#7f7f7f']) {
+    const back = hslToHex(hexToHsl(hex)!)
+    assertEqual(back, hex, `${hex} survives the round trip`)
+  }
+}
+
 /** The ink must be derived, not guessed, or an open wheel produces cards
     nobody can read. */
 export function testInkStaysReadable(): void {
@@ -333,6 +357,7 @@ const TESTS: Array<[string, () => void]> = [
   ['the two axes are independent', testAxesAreIndependent],
   ['colour and size do not clobber each other', testColourAndSizeDoNotClobber],
   ['ink stays readable on any chosen colour', testInkStaysReadable],
+  ['hex codes round-trip and partials are refused', testHexRoundTrip],
   ['layouts saved under named sizes migrate', testLegacyNamedSizesMigrate],
   ['untouched dashboard writes no key', testUntouchedDashboardWritesNoKey],
   ['corrupt stored value degrades', testCorruptStoredValueDegrades],

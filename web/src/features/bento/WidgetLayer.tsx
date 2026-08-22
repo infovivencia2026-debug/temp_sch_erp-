@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Check, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl,
+  WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
@@ -217,6 +217,11 @@ function ColourPick({
 }) {
   const [open, setOpen] = useState(false)
   const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  /* The typed value is held apart from the committed colour. Somebody typing
+     "#1a2b3c" passes through "#1", "#1a", "#1a2" — all unparseable — and a
+     field driven straight from the colour would fight the cursor and blank
+     itself mid-word. */
+  const [typed, setTyped] = useState<string | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
   const t = useT()
@@ -298,7 +303,34 @@ function ColourPick({
               background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 5%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 95%))`,
             }}
           />
-          <div className="mt-3 flex items-center justify-between gap-1">
+          {/* Typed in, for the colour that arrived from a brand book rather
+              than from a wheel. */}
+          <div className="mt-3 flex items-center gap-1.5">
+            <input
+              type="text"
+              spellCheck={false}
+              aria-label={t('bento.widgets.colour_hex')}
+              placeholder="#4f7fff"
+              value={typed ?? hslToHex(current)}
+              onChange={(e) => {
+                setTyped(e.target.value)
+                const parsed = hexToHsl(e.target.value)
+                // Only a COMPLETE colour is committed, so the card does not
+                // flash through every shade on the way to the one being typed.
+                if (parsed) onPick(parsed)
+              }}
+              onBlur={() => setTyped(null)}
+              className="w-full rounded-md border bg-background px-2 py-1 font-mono text-[11.5px]
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <span
+              aria-hidden="true"
+              className="size-6 shrink-0 rounded-md border"
+              style={{ background: cssHsl(current) }}
+            />
+          </div>
+
+          <div className="mt-2 flex items-center justify-between gap-1">
             {TINT_STARTS.map((c, i) => (
               <button
                 key={i}
