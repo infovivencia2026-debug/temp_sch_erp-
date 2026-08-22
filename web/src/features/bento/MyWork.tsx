@@ -69,7 +69,9 @@ function Cell({
             ? 'sm:col-span-2'
             : span === 'full'
               ? 'sm:col-span-2 lg:col-span-4'
-              : '',
+              : span === 'tall'
+                ? 'sm:row-span-2'
+                : '',
         dark ? 'bg-foreground text-background' : 'bg-card text-card-foreground',
       )}
     >

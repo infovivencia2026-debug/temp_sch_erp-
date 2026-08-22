@@ -13,6 +13,7 @@ import { useT } from '@/lib/i18n'
 import { ColourPanel } from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { useActiveRole } from '@/lib/catalog'
+import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
 
 /* Choosing a typeface by looking at it.
 
@@ -359,15 +360,94 @@ export function AppearanceDialog({
               Dashboard Widgets
             </h3>
             <p className="mb-4 text-[12px] text-muted-foreground">
-              Configure quick-access shortcuts shown inside focus mode dashboard cells.
+              Add, remove, resize and reorder the cards on this dashboard.
             </p>
-            <div className="rounded-[10px] border border-dashed p-4 text-[12.5px] text-muted-foreground">
-              Cell shortcut configuration — coming soon. Each cell will let you pin up to 3 feature links directly on the dashboard.
-            </div>
+            <DashboardWidgets onArrange={onClose} />
           </section>
         </div>
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* Settings' half of the arranger.
+
+   The board itself is where sizing and dragging happen — you size a card by
+   looking at it. What belongs HERE is everything you cannot do from the board
+   once a card is gone from it: seeing the full roster of what this dashboard
+   can show, putting something back, and starting over.
+
+   It reads the board the layer publishes rather than importing any dashboard,
+   so it stays correct for the six dashboards that have widgets and honest on
+   the screens that do not. */
+function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
+  const { dashboard, widgets, setArranging } = useBoard()
+  const { layout, place, remove, reset } = useLayout(dashboard ?? 'none')
+
+  if (!dashboard || widgets.length === 0) {
+    return (
+      <div className="rounded-[10px] border border-dashed p-4 text-[12.5px] text-muted-foreground">
+        This screen has no arrangeable dashboard. Open one of the dashboards — the
+        principal, finance, faculty, parent or student home — and these controls
+        will list its cards.
+      </div>
+    )
+  }
+
+  const arranged = layout.placed.length > 0 || layout.removed.length > 0
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setArranging(true)
+            // The board is the thing being arranged, so the dialog covering it
+            // gets out of the way rather than asking to be dismissed.
+            onArrange()
+          }}
+          className="rounded-full border border-primary bg-primary-soft px-3 py-1.5 text-[12.5px]
+                     text-primary transition-colors focus-visible:outline-none
+                     focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Arrange on the dashboard
+        </button>
+        {arranged && (
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-full border px-3 py-1.5 text-[12.5px] text-muted-foreground
+                       transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Reset to default
+          </button>
+        )}
+      </div>
+
+      <ul className="divide-y rounded-[10px] border">
+        {widgets.map((w) => {
+          const off = isRemoved(layout, w.id)
+          return (
+            <li key={w.id} className="flex items-center gap-3 px-3 py-2">
+              <span className={cn('flex-1 truncate text-[12.5px]', off && 'text-muted-foreground line-through')}>
+                {w.label}
+              </span>
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                {off ? '—' : `${w.w}×${w.h}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => (off ? place(w.id, DIMS[w.size].w, DIMS[w.size].h) : remove(w.id))}
+                className="shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors hover:bg-accent"
+              >
+                {off ? 'Add' : 'Remove'}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

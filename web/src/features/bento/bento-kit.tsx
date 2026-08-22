@@ -94,7 +94,7 @@ export function useFeatureHref(key: string): string | undefined {
 
 // --- cells --------------------------------------------------------------
 
-export type CellSpan = 'anchor' | 'wide' | 'one' | 'full'
+export type CellSpan = 'anchor' | 'wide' | 'one' | 'tall' | 'full'
 
 /* Four widths, and only four, because the board is four columns.
 
@@ -102,10 +102,52 @@ export type CellSpan = 'anchor' | 'wide' | 'one' | 'full'
    cell leaves a hole on every row it appears in. Height is 1 or 2 for the same
    reason — taller than two and a card can never share a row, which is a layout
    decision wearing a size's clothes. */
+/* Width and height as classes.
+
+   Spelled out rather than built with `lg:col-span-${w}`, because Tailwind
+   discovers classes by scanning this file as text: an interpolated name is
+   never generated, so an interpolated grid silently collapses to one column.
+
+   Widths are capped at two on `sm`, where the board is only two columns wide —
+   a five-wide card on a two-column grid overflows the page rather than filling
+   it. */
+export const COL: Record<number, string> = {
+  1: '',
+  2: 'sm:col-span-2',
+  3: 'sm:col-span-2 lg:col-span-3',
+  4: 'sm:col-span-2 lg:col-span-4',
+  5: 'sm:col-span-2 lg:col-span-5',
+}
+
+export const ROW: Record<number, string> = {
+  1: '',
+  2: 'sm:row-span-2',
+  3: 'sm:row-span-3',
+  4: 'sm:row-span-4',
+  5: 'sm:row-span-5',
+}
+
+/** The span name a cell should style itself as, given its dimensions. Cells use
+    this for typography — the anchor draws a bigger figure — not for geometry,
+    which the wrapper owns. */
+export function spanFor(w: number, h: number): CellSpan {
+  if (w >= 2 && h >= 2) return 'anchor'
+  if (w >= 4) return 'full'
+  if (w >= 2) return 'wide'
+  if (h >= 2) return 'tall'
+  return 'one'
+}
+
 export const SPAN: Record<CellSpan, string> = {
   anchor: 'sm:col-span-2 sm:row-span-2',
   wide: 'sm:col-span-2',
   one: '',
+  /* The fifth shape, and the last one that tiles. A four-column board can take
+     widths of 1, 2 and 4 and heights of 1 and 2; of those ten combinations the
+     five here are the ones that neither strand a column nor make a card too
+     tall to share a row. 1x2 is the column: a list that wants depth rather
+     than width, beside two stacked 1x1s. */
+  tall: 'sm:row-span-2',
   full: 'sm:col-span-2 lg:col-span-4',
 }
 
@@ -375,17 +417,17 @@ export function StatCell({
              tabular-nums so a column of them lines up on the decimal, which is
              the whole reason a dashboard of money is readable at a glance. */
           className="font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
-                     text-[clamp(26px,3.6vh,40px)]"
+                     text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
         >
           {value}
         </p>
         {badge && accent && <Badge accent={accent}>{badge}</Badge>}
       </div>
-      {shape && <div className="mt-3">{shape}</div>}
+      {shape && <div className="bento-shape mt-3">{shape}</div>}
       {note && (
         /* The subtext, and deliberately quiet: small, muted, and never
            competing with the figure it qualifies. */
-        <p className="mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">{note}</p>
+        <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">{note}</p>
       )}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>
@@ -700,7 +742,7 @@ export function BentoPage({
       <div
         className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
                    lg:min-h-[600px] lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
-                   lg:grid-cols-4"
+                   lg:grid-cols-5"
       >
         {children}
       </div>

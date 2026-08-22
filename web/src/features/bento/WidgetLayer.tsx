@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Check, GripVertical, Plus, RotateCcw, Settings2, X } from 'lucide-react'
-import { useLayout, sizeOf, isRemoved, orderOf, SIZES, type WidgetSize } from '@/lib/widgets'
-import { SPAN, type CellSpan } from './bento-kit'
+import { Check, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
+import {
+  useLayout, dimsOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
+  WIDTHS, HEIGHTS, DIMS, type WidgetSize, type BoardWidget,
+} from '@/lib/widgets'
+import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
@@ -14,38 +17,26 @@ import { cn } from '@/lib/utils'
 
    So a widget declares itself where it already is. <Widget id size> wraps the
    cell that was already written, tells the layer it exists, and decides
-   whether to render it and at what span. Order comes from CSS `order` rather
+   whether to render it and at what size. Order comes from CSS `order` rather
    than from moving JSX, which is what lets somebody rearrange a board whose
    source order never changes.
 
-   The cost of that choice, stated: a removed widget's queries do not run,
-   because it renders nothing — which is the behaviour you want — but the
-   component must be mounted for the layer to know it exists at all. Widgets
-   are therefore declared by rendering them, and the "add" list is built from
-   what declared itself this render rather than from a manifest. */
+   WHERE THE DOOR IS. Arrange mode is entered from Settings > Dashboard
+   Widgets, not from a button on the board. The board is the thing being
+   edited; a permanent control sitting on it is chrome that every user pays for
+   so that the few who rearrange can find it. The state therefore lives in the
+   widgets module, which the settings dialog can reach from the dock — this
+   layer only reads it.
 
-const SPAN_OF: Record<WidgetSize, CellSpan> = {
-  small: 'one',
-  medium: 'wide',
-  large: 'anchor',
-  full: 'full',
-}
-
-interface Declared {
-  id: string
-  label: string
-  index: number
-  /* Its own default size, carried because two things need it and neither can
-     work it out: putting a widget back on the board, and reordering without
-     resizing everything that was never touched. */
-  size: WidgetSize
-}
+   Once arranging, the controls ARE on the board, because that is the thing
+   being manipulated: you size a card by looking at it, not by reading its name
+   in a list. */
 
 interface LayerValue {
   dashboard: string
   editing: boolean
-  declare: (w: Declared) => void
-  visible: Declared[]
+  declare: (w: BoardWidget) => void
+  visible: BoardWidget[]
 }
 
 const Ctx = createContext<LayerValue | null>(null)
@@ -61,14 +52,22 @@ export function WidgetLayer({
   dashboard: string
   children: ReactNode
 }) {
-  const [editing, setEditing] = useState(false)
-  const [declared, setDeclared] = useState<Declared[]>([])
+  const [declared, setDeclared] = useState<BoardWidget[]>([])
+  const { arranging, setArranging } = useBoard()
   const { layout, place, reset } = useLayout(dashboard)
   const t = useT()
 
   const declare = useMemo(
-    () => (w: Declared) =>
-      setDeclared((prev) => (prev.some((d) => d.id === w.id) ? prev : [...prev, w])),
+    () => (w: BoardWidget) =>
+      setDeclared((prev) => {
+        const at = prev.findIndex((d) => d.id === w.id)
+        if (at < 0) return [...prev, w]
+        const old = prev[at]
+        if (old.label === w.label && old.w === w.w && old.h === w.h) return prev
+        const next = [...prev]
+        next[at] = w
+        return next
+      }),
     [],
   )
 
@@ -76,77 +75,111 @@ export function WidgetLayer({
   const off = declared.filter((d) => isRemoved(layout, d.id))
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
 
+  /* Published so Settings can list this board without being inside it, and
+     withdrawn on the way out so a screen with no board cannot be arranged. */
+  useEffect(() => {
+    publishBoard(dashboard, declared)
+  }, [dashboard, declared])
+
+  useEffect(() => () => clearBoard(dashboard), [dashboard])
+
   const value = useMemo<LayerValue>(
-    () => ({ dashboard, editing, declare, visible }),
-    [dashboard, editing, declare, visible.map((d) => d.id).join(',')],
+    () => ({ dashboard, editing: arranging, declare, visible }),
+    [dashboard, arranging, declare, visible.map((d) => d.id).join(',')],
   )
 
   return (
     <Ctx.Provider value={value}>
-      {/* The control sits above the board rather than in the dock: it belongs
-          to this dashboard, and a global chrome button would be offering to
-          edit whatever happened to be on screen. */}
-      {/* A grid child, because BentoPage drops its children straight into the
-          four-column grid — so this has to span the full width and sort first,
-          or the toolbar gets crammed into one column and the Add chips wrap
-          into an unreadable stack. order:-1 keeps it above the cards without
-          depending on being written before them. */}
-      <div
-        className="col-span-full flex flex-wrap items-center gap-2"
-        style={{ order: -1 }}
-      >
-        <button
-          type="button"
-          onClick={() => setEditing((v) => !v)}
-          className={cn(
-            `flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-             transition-colors focus-visible:outline-none focus-visible:ring-2
-             focus-visible:ring-ring`,
-            editing ? 'border-primary bg-primary-soft text-primary' : 'hover:bg-accent',
-          )}
-        >
-          {editing
-            ? <Check className="size-3.5" aria-hidden="true" />
-            : <Settings2 className="size-3.5" aria-hidden="true" />}
-          {t(editing ? 'bento.widgets.done' : 'bento.widgets.edit')}
-        </button>
+      {/* Only while arranging, and a grid child either way.
 
-        {editing && arranged && (
+          BentoPage drops its children straight into the board's grid, so this
+          has to span the full width and sort first, or it gets crammed into
+          one column and the Add chips wrap into an unreadable stack. */}
+      {arranging && (
+        <div
+          className="col-span-full flex flex-wrap items-center gap-2"
+          style={{ order: -1 }}
+        >
           <button
             type="button"
-            onClick={reset}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                       text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={() => setArranging(false)}
+            className="flex items-center gap-1.5 rounded-full border border-primary bg-primary-soft
+                       px-3 py-1.5 text-[12.5px] text-primary focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <RotateCcw className="size-3.5" aria-hidden="true" />
-            {t('bento.widgets.reset')}
+            <Check className="size-3.5" aria-hidden="true" />
+            {t('bento.widgets.done')}
           </button>
-        )}
 
-        {editing && off.length > 0 && (
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[12px] text-muted-foreground">{t('bento.widgets.add')}</span>
-            {off.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => place(d.id, d.size)}
-                className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
-                           text-[12px] transition-colors hover:bg-accent"
-              >
-                <Plus className="size-3" aria-hidden="true" />
-                {d.label}
-              </button>
-            ))}
-          </span>
-        )}
+          {arranged && (
+            <button
+              type="button"
+              onClick={reset}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
+                         text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <RotateCcw className="size-3.5" aria-hidden="true" />
+              {t('bento.widgets.reset')}
+            </button>
+          )}
 
-        {editing && (
+          {off.length > 0 && (
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[12px] text-muted-foreground">{t('bento.widgets.add')}</span>
+              {off.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => place(d.id, DIMS[d.size].w, DIMS[d.size].h)}
+                  className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
+                             text-[12px] transition-colors hover:bg-accent"
+                >
+                  <Plus className="size-3" aria-hidden="true" />
+                  {d.label}
+                </button>
+              ))}
+            </span>
+          )}
+
           <span className="text-[12px] text-muted-foreground">{t('bento.widgets.hint')}</span>
-        )}
-      </div>
+        </div>
+      )}
       {children}
     </Ctx.Provider>
+  )
+}
+
+/** One row of the size control: five steps on a single axis. */
+function Axis({
+  label,
+  steps,
+  value,
+  onPick,
+}: {
+  label: string
+  steps: readonly number[]
+  value: number
+  onPick: (n: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">{label}</span>
+      {steps.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onPick(n)}
+          aria-label={`${label} ${n}`}
+          aria-pressed={value === n}
+          className={cn(
+            'grid size-6 place-items-center rounded-md text-[11px] shadow-sm transition-colors',
+            value === n ? 'bg-primary font-semibold text-primary-foreground' : 'bg-popover/90 hover:bg-accent',
+          )}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -161,6 +194,7 @@ export function Widget({
 }: {
   id: string
   label: string
+  /** The shape this cell was designed at. The person's choice overrides it. */
   size: WidgetSize
   index: number
   /** Given the span to render at, because the cell owns its own <Cell>. */
@@ -170,6 +204,8 @@ export function Widget({
   const { layout, remove, resize, move } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
+  const { w, h } = dimsOf(layout, id, declaredSize)
+
   /* Declared in an effect, not in the render body.
 
      Calling the parent's setState while rendering a child is illegal in React
@@ -177,41 +213,40 @@ export function Widget({
      can drop the render it was in the middle of. The add-list being one paint
      behind is not worth that; a removed widget still runs its effects, so it
      still reports itself and can still be put back. */
+  const declare = layer?.declare
   useEffect(() => {
-    layer?.declare({ id, label, index, size: declaredSize })
-  }, [layer, id, label, index, declaredSize])
+    declare?.({ id, label, index, size: declaredSize, w, h })
+  }, [declare, id, label, index, declaredSize, w, h])
 
   if (isRemoved(layout, id)) return null
 
-  const size = sizeOf(layout, id, declaredSize)
   const order = orderOf(layout, id, index)
   const editing = layer?.editing ?? false
+  const span = spanFor(w, h)
 
   return (
     <div
       /* The span classes belong HERE, on the wrapper.
 
          This div is the grid child; the Cell inside it is not. Cell applies
-         SPAN[span] to its own root, which does nothing once it is a level down
-         — so with the classes only on the Cell, every size in the arranger was
-         accepted, stored, and had no visible effect whatsoever.
+         its own span classes to its own root, which does nothing once it is a
+         level down — so with the classes only on the Cell, every size in the
+         arranger was accepted, stored, and had no visible effect whatsoever.
 
-         Cell is still handed the span, because it also uses it for its own
-         typography — the anchor draws a bigger figure. Only the grid geometry
-         moved out, which is also why the Cell's own copy of the span classes
-         is left in place and inert rather than stripped: one owner for the
-         geometry, and the cell keeps working if it is ever used un-wrapped.
-
-         [&>*]:h-full is not decoration. The cell used to BE the grid child and
-         was stretched by the row track; now the wrapper is stretched and the
-         cell inside sizes to its content, so the 2x2 hero would sit at half
-         height with a gap under it. */
-      className={cn('relative min-w-0 [&>*]:h-full', SPAN[SPAN_OF[size]])}
+         [&>*]:h-full is not decoration either. The cell used to BE the grid
+         child and was stretched by the row track; now the wrapper is stretched
+         and the cell inside sizes to its content, so a two-row card would sit
+         at half height with a gap under it. */
+      className={cn('bento-widget relative min-w-0 [&>*]:h-full', COL[w], ROW[h])}
       style={{ order }}
+      /* The two data attributes are what lets a cell's CONTENTS answer to its
+         size — see the [data-w]/[data-h] rules in index.css. Doing it in CSS
+         from one wrapper means thirty hand-written cells did not each have to
+         learn how to be small. */
+      data-w={w}
+      data-h={h}
       /* Reordering by drop rather than by arrow buttons: this is a home
-         screen, and dragging is the gesture people already have for it. The
-         native API is enough here — the items are grid children, so nothing
-         needs to be measured or animated by hand. */
+         screen, and dragging is the gesture people already have for it. */
       draggable={editing}
       onDragStart={(e) => {
         if (!editing) return
@@ -229,12 +264,12 @@ export function Widget({
         move(from, layer.visible.findIndex((v) => v.id === id), layer.visible)
       }}
     >
-      {children(SPAN_OF[size])}
+      {children(span)}
 
       {editing && (
         <div
-          className="absolute inset-0 z-10 flex flex-col justify-between rounded-[var(--bento-radius)]
-                     bg-background/70 p-2 backdrop-blur-[2px]"
+          className="absolute inset-0 z-10 flex flex-col justify-between gap-2 overflow-auto
+                     rounded-[var(--bento-radius)] bg-background/70 p-2 backdrop-blur-[2px]"
         >
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-1 rounded-full bg-popover/90 px-2 py-1
@@ -246,34 +281,25 @@ export function Widget({
               type="button"
               onClick={() => remove(id)}
               aria-label={`${t('bento.widgets.remove')} ${label}`}
-              className="grid size-7 place-items-center rounded-full bg-popover/90 text-muted-foreground
-                         shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
+              className="grid size-7 shrink-0 place-items-center rounded-full bg-popover/90
+                         text-muted-foreground shadow-sm transition-colors
+                         hover:bg-destructive hover:text-destructive-foreground"
             >
               <X className="size-3.5" />
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-1">
-            {SIZES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => resize(id, s, declaredSize)}
-                aria-pressed={size === s}
-                className={cn(
-                  'rounded-full px-2 py-1 text-[11px] shadow-sm transition-colors',
-                  size === s
-                    ? 'bg-primary text-primary-foreground font-medium'
-                    : 'bg-popover/90 hover:bg-accent',
-                )}
-              >
-                {t(`bento.widgets.size.${s}`)}
-              </button>
-            ))}
+          {/* Two axes rather than a menu of named shapes: five widths and five
+              heights is twenty-five sizes from ten controls, and "three wide,
+              one tall" is a thing somebody can now ask for. */}
+          <div className="flex flex-col gap-1">
+            <Axis label={t('bento.widgets.width')} steps={WIDTHS} value={w}
+                  onPick={(n) => resize(id, n, h)} />
+            <Axis label={t('bento.widgets.height')} steps={HEIGHTS} value={h}
+                  onPick={(n) => resize(id, w, n)} />
           </div>
         </div>
       )}
     </div>
   )
 }
-

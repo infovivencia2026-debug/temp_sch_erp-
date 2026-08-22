@@ -8,7 +8,10 @@ import { useCallback, useSyncExternalStore } from 'react'
    Height is 1 or 2 for the same reason: taller than two rows and a card cannot
    share a row with anything, which is a layout decision disguised as a size.
 
+   That leaves five shapes worth offering, and they are all five here.
+
      small   1x1   a figure and its label
+     tall    1x2   a column: a short list that wants depth, not width
      medium  2x1   a figure with a meter or a note beside it
      large   2x2   the hero: a big number, a chart and two actions
      full    4x1   a strip across the board, for a chart that needs the width
@@ -18,14 +21,38 @@ import { useCallback, useSyncExternalStore } from 'react'
    their laptop dashboard should not find their desk monitor rearranged to
    match a narrower board. */
 
-export type WidgetSize = 'small' | 'medium' | 'large' | 'full'
+export type WidgetSize = 'small' | 'tall' | 'medium' | 'large' | 'full'
 
-export const SIZES: readonly WidgetSize[] = ['small', 'medium', 'large', 'full'] as const
+export const SIZES: readonly WidgetSize[] = ['small', 'tall', 'medium', 'large', 'full'] as const
+
+/* Two axes, five steps each, because that is what a person actually decides.
+
+   The named sizes below are still how a dashboard DECLARES its default — a
+   cell says size="large" and means it — but once somebody starts arranging,
+   they are choosing a width and a height, and a fixed menu of five named
+   shapes cannot express "three wide and one tall". Storing w/h rather than a
+   name also means a later size costs no migration. */
+export const WIDTHS = [1, 2, 3, 4, 5] as const
+export const HEIGHTS = [1, 2, 3, 4, 5] as const
 
 /** What a placed widget carries. Order is the array position. */
 export interface Placed {
   id: string
-  size: WidgetSize
+  w: number
+  h: number
+}
+
+/** The columns and rows a named default occupies. */
+export const DIMS: Record<WidgetSize, { w: number; h: number }> = {
+  small: { w: 1, h: 1 },
+  tall: { w: 1, h: 2 },
+  medium: { w: 2, h: 1 },
+  large: { w: 2, h: 2 },
+  full: { w: 5, h: 1 },
+}
+
+function clamp(n: unknown, hi: number): number | null {
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= hi ? n : null
 }
 
 /** A layout is the placed list plus the ids explicitly taken off the board.
@@ -52,9 +79,25 @@ function read(dashboard: string): Layout {
     if (!raw) return EMPTY
     const v = JSON.parse(raw) as Partial<Layout>
     return {
+      /* Anything unreadable is dropped rather than repaired. A layout is a
+         convenience; a half-understood one that throws on render is not.
+
+         A row saved under the old named-size scheme is translated instead of
+         discarded, so nobody who arranged a board before this change opens it
+         to find their arrangement gone. */
       placed: Array.isArray(v.placed)
-        ? v.placed.filter((p): p is Placed =>
-            !!p && typeof p.id === 'string' && (SIZES as readonly string[]).includes(p.size))
+        ? (v.placed as unknown[]).flatMap((raw) => {
+            const p = raw as { id?: unknown; w?: unknown; h?: unknown; size?: unknown }
+            if (!p || typeof p.id !== 'string') return []
+            const w = clamp(p.w, WIDTHS.length)
+            const h = clamp(p.h, HEIGHTS.length)
+            if (w && h) return [{ id: p.id, w, h }]
+            if (typeof p.size === 'string' && p.size in DIMS) {
+              const d = DIMS[p.size as WidgetSize]
+              return [{ id: p.id, w: d.w, h: d.h }]
+            }
+            return []
+          })
         : [],
       removed: Array.isArray(v.removed) ? v.removed.filter((x): x is string => typeof x === 'string') : [],
     }
@@ -109,10 +152,10 @@ export function useLayout(dashboard: string) {
   )
 
   const place = useCallback(
-    (id: string, size: WidgetSize) => {
+    (id: string, w: number, h: number) => {
       const l = current(dashboard)
       write(dashboard, {
-        placed: l.placed.some((p) => p.id === id) ? l.placed : [...l.placed, { id, size }],
+        placed: l.placed.some((p) => p.id === id) ? l.placed : [...l.placed, { id, w, h }],
         removed: l.removed.filter((r) => r !== id),
       })
     },
@@ -131,15 +174,15 @@ export function useLayout(dashboard: string) {
   )
 
   const resize = useCallback(
-    (id: string, size: WidgetSize, fallback: WidgetSize) => {
+    (id: string, w: number, h: number) => {
       const l = current(dashboard)
       const has = l.placed.some((p) => p.id === id)
       write(dashboard, {
         // A widget resized before it was ever explicitly placed is placed now.
-        // Otherwise the first drag on a default card would do nothing.
+        // Otherwise the first choice on a default card would do nothing.
         placed: has
-          ? l.placed.map((p) => (p.id === id ? { ...p, size } : p))
-          : [...l.placed, { id, size: size ?? fallback }],
+          ? l.placed.map((p) => (p.id === id ? { id, w, h } : p))
+          : [...l.placed, { id, w, h }],
         removed: l.removed.filter((r) => r !== id),
       })
     },
@@ -158,7 +201,7 @@ export function useLayout(dashboard: string) {
          meant the first drag quietly shrank every card that had never been
          resized — the hero included. Reordering must not be a resize. */
       const seed: Placed[] = all.map(
-        (x) => l.placed.find((p) => p.id === x.id) ?? { id: x.id, size: x.size },
+        (x) => l.placed.find((p) => p.id === x.id) ?? { id: x.id, w: x.w, h: x.h },
       )
       const from = seed.findIndex((p) => p.id === id)
       if (from < 0 || to < 0 || to >= seed.length) return
@@ -175,10 +218,11 @@ export function useLayout(dashboard: string) {
   return { layout, place, remove, resize, move, reset }
 }
 
-/** The size a widget should render at: what the person chose, else its own
-    default. */
-export function sizeOf(layout: Layout, id: string, fallback: WidgetSize): WidgetSize {
-  return layout.placed.find((p) => p.id === id)?.size ?? fallback
+/** The width and height a widget should render at: what the person chose,
+    else the dimensions of the size it declared. */
+export function dimsOf(layout: Layout, id: string, fallback: WidgetSize): { w: number; h: number } {
+  const p = layout.placed.find((x) => x.id === id)
+  return p ? { w: p.w, h: p.h } : DIMS[fallback]
 }
 
 export function isRemoved(layout: Layout, id: string): boolean {
@@ -190,4 +234,88 @@ export function isRemoved(layout: Layout, id: string): boolean {
 export function orderOf(layout: Layout, id: string, declared: number): number {
   const i = layout.placed.findIndex((p) => p.id === id)
   return i >= 0 ? i : layout.placed.length + declared
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   The board on screen, published so the settings dialog can reach it.
+
+   Arranging is entered from Settings > Dashboard Widgets, which lives in the
+   dock — outside the dashboard's React tree entirely. So "which board is on
+   screen, what is on it, and are we arranging it" cannot be component state
+   in the layer; it has to be somewhere both ends can see.
+
+   It is deliberately a single board, not a map. Exactly one dashboard is
+   mounted at a time, and keeping a map would raise a question the product
+   never asks: which of several boards does the settings panel mean?
+   ───────────────────────────────────────────────────────────────────────── */
+
+/** A widget as the board reports it: what it is called and how big it is by
+    default, which is what the settings panel needs to list and restore it. */
+export interface BoardWidget {
+  id: string
+  label: string
+  index: number
+  /** Its declared default, which is what "restore" and "add back" mean. */
+  size: WidgetSize
+  w: number
+  h: number
+}
+
+interface Board {
+  dashboard: string | null
+  widgets: BoardWidget[]
+}
+
+const NO_BOARD: Board = { dashboard: null, widgets: [] }
+
+let board: Board = NO_BOARD
+let arranging = false
+const boardListeners = new Set<() => void>()
+
+function subscribeBoard(fn: () => void) {
+  boardListeners.add(fn)
+  return () => {
+    boardListeners.delete(fn)
+  }
+}
+
+function emitBoard() {
+  for (const l of boardListeners) l()
+}
+
+/** Called by the layer when the board it renders changes. Identity is only
+    replaced when the contents actually differ, because the snapshot is read by
+    useSyncExternalStore and a fresh array every render is an infinite loop. */
+export function publishBoard(dashboard: string, widgets: BoardWidget[]) {
+  const same =
+    board.dashboard === dashboard &&
+    board.widgets.length === widgets.length &&
+    board.widgets.every((w, i) => w.id === widgets[i].id && w.label === widgets[i].label && w.w === widgets[i].w && w.h === widgets[i].h)
+  if (same) return
+  board = { dashboard, widgets }
+  emitBoard()
+}
+
+/** Called when a board unmounts. Guarded by dashboard name so a screen that is
+    already gone cannot clear the board its successor has just published. */
+export function clearBoard(dashboard: string) {
+  if (board.dashboard !== dashboard) return
+  board = NO_BOARD
+  // Leaving arrange mode armed would drop the next dashboard straight into an
+  // editing state nobody asked for.
+  arranging = false
+  emitBoard()
+}
+
+export function setArranging(v: boolean) {
+  if (arranging === v) return
+  arranging = v
+  emitBoard()
+}
+
+/** What is on screen and whether it is being arranged. */
+export function useBoard() {
+  const b = useSyncExternalStore(subscribeBoard, () => board, () => NO_BOARD)
+  const on = useSyncExternalStore(subscribeBoard, () => arranging, () => false)
+  return { dashboard: b.dashboard, widgets: b.widgets, arranging: on, setArranging }
 }

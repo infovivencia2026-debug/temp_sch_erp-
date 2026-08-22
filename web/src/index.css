@@ -841,3 +841,42 @@
      rather than belonging to a region. */
   :root { --primary: var(--paint-workarea-accent, var(--primary-base, 217 91% 60%)); }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   A widget's CONTENTS answer to its size.
+
+   A card that is one column wide and one row tall cannot hold what a 5x2 holds,
+   and the honest response is to show less rather than to shrink everything
+   until it is unreadable. The alternative — teaching each of the thirty
+   hand-written cells how to be small — would have meant thirty judgements to
+   keep in step, so the rule lives here and reads the two data attributes the
+   widget wrapper already sets.
+
+   Only ever HIDES the secondary matter: the supporting sentence and, in the
+   smallest box, the meter. The label, the figure and the cue survive at every
+   size, because a card that has dropped its own subject or its way out is not
+   a smaller card, it is a broken one.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* The figure scales with the room it has. Width leads, because these cards are
+   wider than they are tall and a number runs out of horizontal space first. */
+.bento-widget[data-w='1'] { --bento-fig: clamp(20px, 2.6vh, 28px); }
+.bento-widget[data-w='2'] { --bento-fig: clamp(26px, 3.6vh, 40px); }
+.bento-widget[data-w='3'] { --bento-fig: clamp(30px, 4.2vh, 48px); }
+.bento-widget[data-w='4'] { --bento-fig: clamp(34px, 4.8vh, 56px); }
+.bento-widget[data-w='5'] { --bento-fig: clamp(38px, 5.4vh, 64px); }
+
+/* Two rows of height buys back a step, since the constraint there is vertical. */
+.bento-widget[data-h='1'][data-w='4'],
+.bento-widget[data-h='1'][data-w='5'] { --bento-fig: clamp(30px, 4.2vh, 48px); }
+
+/* One column: the supporting sentence goes. It is the longest thing in the
+   card and the first to wrap into an unreadable ladder. */
+.bento-widget[data-w='1'] .bento-note { display: none; }
+
+/* The smallest box keeps only its label, its figure and its cue. */
+.bento-widget[data-w='1'][data-h='1'] .bento-shape { display: none; }
+
+/* Given real room, the supporting matter is allowed to breathe again. */
+.bento-widget[data-w='4'] .bento-note,
+.bento-widget[data-w='5'] .bento-note { font-size: 12.5px; }
