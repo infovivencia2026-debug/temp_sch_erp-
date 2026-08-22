@@ -103,6 +103,20 @@ export function WidgetLayer({
 
   useEffect(() => () => clearBoard(dashboard), [dashboard])
 
+  /* Escape leaves arrange mode.
+
+     It matters more now that the dock hides while editing: with the chrome
+     gone, somebody who does not spot Done at the top of the board has no
+     obvious way out, and Escape is the key they will try. */
+  useEffect(() => {
+    if (!arranging) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setArranging(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [arranging, setArranging])
+
   const value = useMemo<LayerValue>(
     () => ({ dashboard, editing: arranging, declare, visible }),
     [dashboard, arranging, declare, visible.map((d) => d.id).join(',')],

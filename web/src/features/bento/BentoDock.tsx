@@ -8,6 +8,7 @@ import { CommandSearch } from '@/components/CommandSearch'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
+import { useBoard } from '@/lib/widgets'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -40,6 +41,7 @@ export function BentoDock() {
   const location = useLocation()
   const role = useActiveRole()
   const { appearance } = useAppearance()
+  const { arranging } = useBoard()
   const hidden = useMemo(
     () => new Set((appearance.hiddenDockItems ?? '').split(',').map(s => s.trim()).filter(Boolean)),
     [appearance.hiddenDockItems],
@@ -128,6 +130,19 @@ export function BentoDock() {
   }, [role, homeHref])
 
   if (layout !== 'bento') return null
+
+  /* Out of the way while the board is being arranged.
+
+     The dock floats over the canvas rather than reserving a strip, which is
+     right when you are reading a dashboard and wrong when you are editing one:
+     it covers the bottom row of cards, and those cards have controls on them
+     now. Hiding it also removes a whole class of confusion — nothing in the
+     dock does anything useful mid-arrange, and a visible control that quietly
+     does nothing is worse than an absent one.
+
+     Nothing is stranded by this. Done sits at the top of the board, and Escape
+     is not the only way out. */
+  if (arranging) return null
 
   /* Icon and word together, not one or the other.
 
