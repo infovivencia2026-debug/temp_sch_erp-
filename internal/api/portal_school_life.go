@@ -1843,6 +1843,39 @@ type notificationRow struct {
 	ReadAt    *string `json:"read_at,omitempty"`
 }
 
+/* Alerts that outlived the job they were about.
+
+   A notification is written once and read later, and in between the reader's
+   job can change. HR used to decide staff leave and no longer does, so every
+   "X has applied for leave" already in their bell became an alert about
+   somebody else's work — and following it lands on Approvals, which their
+   workspace no longer has. They are told about a decision they cannot make and
+   then shown a door that does not open.
+
+   Deleting those rows was the obvious fix and the wrong one: it is destructive,
+   it cannot be undone when somebody's duties are handed back, and it fixes only
+   the case somebody thought to clean up. Filtering at read time costs one array
+   comparison, needs no migration, and reverses itself the day the permission is
+   granted again.
+
+   Only kinds that call the reader to act belong here. A notification that is
+   merely news — your leave was decided, your paper was approved — is not
+   gated: it is about the reader, and it stays true whatever their duties
+   become. */
+var notificationNeeds = map[string]string{
+	"leave_request": rbac.LeaveApprove,
+}
+
+func hiddenNotificationKinds(id *httpx.Identity) []string {
+	var hidden []string
+	for kind, perm := range notificationNeeds {
+		if !id.Can(perm) {
+			hidden = append(hidden, kind)
+		}
+	}
+	return hidden
+}
+
 // listFamilyNotifications is the alert feed, newest first, with the delivery
 // pass run first so a screen opened after a fortnight away is not empty.
 func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request) {
@@ -1874,8 +1907,9 @@ func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request)
 			  LEFT JOIN students st ON st.id = n.student_id
 			 WHERE n.user_id = $1
 			   AND (n.student_id IS NULL OR n.student_id = ANY($2))
+			   AND n.kind <> ALL($3)
 			 ORDER BY n.created_at DESC
-			 LIMIT 200`, id.UserID, kids)
+			 LIMIT 200`, id.UserID, kids, hiddenNotificationKinds(id))
 		if err != nil {
 			return err
 		}
