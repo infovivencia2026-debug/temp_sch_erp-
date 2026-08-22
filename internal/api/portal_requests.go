@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/fees"
+	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
@@ -1104,14 +1105,82 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 
 	var newID string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO parent_teacher_messages
 			    (institution_id, student_id, parent_user_id, teacher_user_id,
 			     sender_user_id, body)
 			VALUES ($1,$2,$3,$4,$5,$6)
 			RETURNING id::text`,
 			id.InstitutionID, sid, parentID, teacherID, id.UserID,
-			strings.TrimSpace(req.Body)).Scan(&newID)
+			strings.TrimSpace(req.Body)).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* Told, not left to be noticed.
+
+		   The row was written and nobody was informed, so a message reached
+		   its reader on whatever day they next opened the screen. That is
+		   tolerable for a parent writing to a teacher, who is expecting a
+		   reply; it is useless in the other direction, which is the one this
+		   change exists for. A note about a child is written because somebody
+		   needs to know now.
+
+		   Only the other party. A teacher replying to a parent does not need
+		   telling about their own message, and the sender is one of the two by
+		   construction. */
+		to := parentID
+		if id.UserID == parentID {
+			to = teacherID
+		}
+		msgID, perr := uuid.Parse(newID)
+		if perr != nil {
+			return perr
+		}
+
+		var from, child string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT full_name FROM users WHERE id = $1`, id.UserID).Scan(&from); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(), `
+			SELECT trim(first_name || ' ' || COALESCE(last_name,''))
+			  FROM students WHERE id = $1`, sid).Scan(&child); err != nil {
+			return err
+		}
+
+		body := strings.TrimSpace(req.Body)
+		summary := body
+		if len(summary) > 240 {
+			summary = summary[:237] + "…"
+		}
+		if err := notify(r, tx, id.InstitutionID, to, &sid, "parent_message",
+			"Message from "+from+" about "+child, summary,
+			"/go/communication", "parent_teacher_message", &msgID); err != nil {
+			return err
+		}
+
+		// Out of the building as well, so a family that does not open the app
+		// still hears about their own child.
+		if s.Queue != nil {
+			if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+				queue.MessageSendPayload{
+					Envelope: queue.Envelope{
+						InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
+						RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+					},
+					Channel: "email", TemplateKey: "student.remark",
+					ToUserID: to,
+					Vars: map[string]any{
+						"title":   "About " + child,
+						"summary": body,
+						"teacher": from,
+						"on_date": time.Now().Format("2 January 2006"),
+					},
+				}, queue.HeavyOptions()...); err != nil {
+				httpx.LogError(r, err)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())
@@ -1124,10 +1193,28 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 // teaches the child, and the named parent is a guardian of that same child.
 func (s *Server) teacherMayWrite(r *http.Request, sid, teacherID, parentID uuid.UUID) (bool, error) {
 	id := httpx.IdentityFrom(r.Context())
+
+	/* Whoever runs the school may write about any child in it.
+
+	   The rule was "you must teach this child", which is right for a teacher
+	   and wrong for the person who runs the place: a principal teaches nobody,
+	   so there was no way for them to write to one parent about one child at
+	   all. Circulars address audiences, and a note about a particular boy is
+	   not a circular — sending it as one tells four hundred families something
+	   that concerns one.
+
+	   Read-all is the right test rather than a named role: it is already what
+	   separates somebody who may open any child's record from somebody who may
+	   open their own class's, and writing to a family is a smaller act than
+	   reading everything the school holds about their child. The guardian
+	   check below still applies to everybody — nobody opens a thread against a
+	   user who is not that child's parent. */
+	schoolWide := id.Can(rbac.StudentsReadAll)
+
 	var ok bool
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
-			SELECT EXISTS (
+			SELECT ($4::bool OR EXISTS (
 			    SELECT 1 FROM enrollments e
 			     WHERE e.student_id = $1 AND e.status = 'active'
 			       AND (
@@ -1136,12 +1223,12 @@ func (s *Server) teacherMayWrite(r *http.Request, sid, teacherID, parentID uuid.
 			      OR EXISTS (SELECT 1 FROM section_subject_teachers sst
 			                  WHERE sst.section_id = e.section_id AND sst.teacher_user_id = $2)
 			      OR EXISTS (SELECT 1 FROM timetable_entries te
-			                  WHERE te.section_id = e.section_id AND te.teacher_user_id = $2)))
+			                  WHERE te.section_id = e.section_id AND te.teacher_user_id = $2))))
 			AND EXISTS (
 			    SELECT 1 FROM student_guardians sg
 			      JOIN guardians g ON g.id = sg.guardian_id
 			     WHERE sg.student_id = $1 AND g.user_id = $3)`,
-			sid, teacherID, parentID).Scan(&ok)
+			sid, teacherID, parentID, schoolWide).Scan(&ok)
 	})
 	return ok, err
 }

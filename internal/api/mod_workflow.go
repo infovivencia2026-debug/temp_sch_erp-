@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/rbac"
 )
 
@@ -794,7 +795,7 @@ func (s *Server) publishHomework(w http.ResponseWriter, r *http.Request) {
 			}
 			classSubject = &csID
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO homework (institution_id, section_id, class_subject_id, kind,
 			                      title, instructions, assigned_on, due_on, max_marks,
 			                      is_published, allow_submission, created_by)
@@ -802,7 +803,112 @@ func (s *Server) publishHomework(w http.ResponseWriter, r *http.Request) {
 			RETURNING id::text`,
 			id.InstitutionID, sectionID, classSubject, req.Kind,
 			req.Title, nullString(req.Instructions), nullString(req.DueOn),
-			req.MaxMarks, allow, id.UserID).Scan(&newID)
+			req.MaxMarks, allow, id.UserID).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* And tell the family.
+
+		   Setting homework notified nobody at all — not the parent, not the
+		   child. A task published on Tuesday reached a family on whatever day
+		   somebody next opened the app, which for most families is never, and
+		   a diary the school keeps to itself is a diary that changes nothing
+		   at home.
+
+		   Parents only. The child is in the lesson where it was set and has
+		   the task written down; the person who does not know is the one at
+		   home. Sending it to the student as well would put a second copy of
+		   the same sentence in front of somebody who already heard it.
+
+		   The subject name comes from the class-subject row rather than the
+		   title, because "Exercise 6.3" on its own says nothing to somebody
+		   who was not in the lesson. */
+		hwID, perr := uuid.Parse(newID)
+		if perr != nil {
+			return perr
+		}
+		var subject string
+		if classSubject != nil {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT sub.name FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.id = $1`, classSubject).Scan(&subject); err != nil &&
+				!errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+		}
+		due := "no date given"
+		if strings.TrimSpace(req.DueOn) != "" {
+			due = strings.TrimSpace(req.DueOn)
+		}
+
+		rows, err := tx.Query(r.Context(), `
+			SELECT DISTINCT who.uid, st.id,
+			       trim(st.first_name || ' ' || COALESCE(st.last_name,''))
+			  FROM enrollments e
+			  JOIN students st ON st.id = e.student_id AND st.status = 'active'
+			  JOIN LATERAL (
+			        SELECT g.user_id AS uid
+			          FROM student_guardians sg
+			          JOIN guardians g ON g.id = sg.guardian_id
+			         WHERE sg.student_id = st.id AND g.user_id IS NOT NULL
+			  ) AS who ON true
+			 WHERE e.section_id = $1 AND e.status = 'active'`, sectionID)
+		if err != nil {
+			return err
+		}
+		type target struct {
+			user, student uuid.UUID
+			name          string
+		}
+		var targets []target
+		for rows.Next() {
+			var t target
+			if err := rows.Scan(&t.user, &t.student, &t.name); err != nil {
+				rows.Close()
+				return err
+			}
+			targets = append(targets, t)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		label := "Homework"
+		if req.Kind == "classwork" {
+			label = "Classwork"
+		}
+		for _, t := range targets {
+			student := t.student
+			if err := notify(r, tx, id.InstitutionID, t.user, &student, "homework",
+				label+" set for "+t.name,
+				req.Title+" — due "+due, "/go/homework", "homework", &hwID); err != nil {
+				return err
+			}
+			// Email, not SMS: a school that texts every family every evening
+			// is a school whose parents stop reading the texts.
+			if s.Queue != nil {
+				if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+					queue.MessageSendPayload{
+						Envelope: queue.Envelope{
+							InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
+							RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+						},
+						Channel: "email", TemplateKey: "homework.set",
+						ToUserID: t.user,
+						Vars: map[string]any{
+							"student_name": t.name,
+							"subject":      subject,
+							"title":        req.Title,
+							"due_on":       due,
+						},
+					}, queue.HeavyOptions()...); err != nil {
+					httpx.LogError(r, err)
+				}
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, errSubjectNotTaught) {
 		httpx.BadRequest(w, r, "that subject is not on this class's timetable")
