@@ -488,6 +488,10 @@ export function Widget({
          learn how to be small. */
       data-w={w}
       data-h={h}
+      /* So the few things that keep a FIXED colour — the error sentence's pink
+         — can follow the card's derived ink instead once it has been tinted.
+         A pink measured against a white card says nothing on a deep navy. */
+      data-tinted={tint ? 'true' : undefined}
       /* Reordering by drop rather than by arrow buttons: this is a home
          screen, and dragging is the gesture people already have for it. */
       draggable={editing}

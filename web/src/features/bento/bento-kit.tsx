@@ -508,7 +508,17 @@ export function AnchorAction({ to, label }: { to: string; label: string }) {
         /* 10px. A filled CTA is the one place a capsule is tempting and the
            one place it costs most: it is the largest control on the page, so
            it sets the reader's expectation for what a button looks like. */
-        'inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--bento-anchor-ink)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--bento-anchor-from)]',
+        /* White pill, near-black text — the same rule the cue follows, and for
+           the same reason. This drew itself in the anchor's own ink on the
+           anchor's own gradient, which worked while the anchor was the one
+           card whose colours were fixed. Any card can now be tinted from an
+           open wheel, so an action that inherits its colours is an action that
+           can be given a pair with no contrast between them.
+
+           An action carries its own contrast. It is the one thing on a card
+           that must stay legible whatever ends up behind it. */
+        `inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5
+         text-[12.5px] font-semibold text-[#101114] shadow-sm ring-1 ring-black/5`,
         still ? '' : 'transition-opacity duration-150',
         'opacity-95 hover:opacity-100',
       )}

@@ -772,3 +772,15 @@ html[data-appearance-open] .appearance-panel {
    spilling past its own edge. */
 .bento-widget > * { min-height: 0; }
 .bento-widget .bento-cue { flex-shrink: 0; }
+
+/* On a tinted card, the error sentence stops using its own pink.
+
+   The pink was measured against a white card. A card can now be any colour
+   from the wheel, and there is no hue that stays legible on all of them — so
+   on a tinted card the message uses the ink derived from that colour, which is
+   guaranteed to contrast because that is what it was computed for. It keeps
+   its weight and its role="alert", so it is still marked as a failure to
+   both the eye and a screen reader. */
+.bento-widget[data-tinted] [role='alert'] {
+  color: var(--bento-ink);
+}
