@@ -134,15 +134,19 @@ export function WidgetLayer({
     const measure = () => {
       const board = barRef.current?.parentElement
       if (!board) return
-      const top = board.getBoundingClientRect().top
       const styles = getComputedStyle(board)
       const gap = parseFloat(styles.rowGap) || 0
-      // The floor from the stylesheet. A row can be taller when its contents
-      // demand it, so this is the optimistic count — it refuses the sizes that
-      // certainly do not fit rather than every size that might not.
-      const row = parseFloat(styles.gridAutoRows) || 150
-      const room = window.innerHeight - top - 24
-      setMaxRows(rowsThatFit(room, row, gap))
+      /* The board divides a measured height, so it can no longer overflow at
+         all — rows just get shorter as more are added. The limit is therefore
+         about LEGIBILITY, not fit: below about 110px a card cannot hold a
+         label, a figure and a cue, and the arranger stops before it gets
+         there.
+
+         Read from the element rather than from the viewport, because the board
+         already knows its own height and that is the number the rows are
+         actually dividing. */
+      const room = board.getBoundingClientRect().height
+      setMaxRows(rowsThatFit(room, 110, gap))
     }
     measure()
     window.addEventListener('resize', measure)

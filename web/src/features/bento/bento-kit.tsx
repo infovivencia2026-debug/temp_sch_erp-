@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
@@ -762,6 +762,39 @@ export function BentoPage({
     return () => cancelAnimationFrame(id)
   }, [still])
 
+  /* The board is told, in pixels, how much room it has.
+
+     Rows can then be a fraction of a DEFINITE height, which is the only way a
+     board cannot overflow: divide what exists rather than adding up what is
+     wanted. A fraction of an indefinite height silently becomes max-content,
+     which is how rows ended up sized to their contents and the board ran off
+     the bottom of the screen.
+
+     Measured rather than computed from constants: the board's top edge moves
+     with the header, the text-size axis and the density, so any fixed offset
+     here would be wrong on most screens. */
+  const boardRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const board = boardRef.current
+    if (!board) return
+    const measure = () => {
+      const top = board.getBoundingClientRect().top
+      const room = Math.max(240, window.innerHeight - top - 16)
+      board.style.setProperty('--board-h', `${Math.round(room)}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    /* The dock, the density and the text size all move the top edge, and none
+       of them fire a resize. An observer on the board itself catches every
+       cause without this file having to know what they are. */
+    const ro = new ResizeObserver(measure)
+    ro.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro.disconnect()
+    }
+  }, [])
+
   return (
     <div
       className={cn(
@@ -835,6 +868,7 @@ export function BentoPage({
           it reads as broken. Past the ceiling the whitespace goes below the
           grid, where whitespace belongs. */}
       <div
+        ref={boardRef}
         className="bento-board grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
                    lg:min-h-[600px] lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
                    lg:grid-cols-5"
