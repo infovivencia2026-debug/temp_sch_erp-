@@ -165,7 +165,18 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
          rather than to the bottom of its content. */
       className="bento-ground h-dvh flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed overflow-hidden"
     >
-      <div className="flex-1 w-full pt-[12px] pb-[72px] px-4 sm:px-8 flex flex-col">
+      {/* The room around the board.
+
+          12px of top padding and 32px at the sides put the cards hard against
+          the window: on a maximised browser the first card began 28px from the
+          edge of the glass and the top row sat directly under the browser
+          chrome, which reads as a page that has overflowed rather than one
+          that has been laid out.
+
+          The board is measured for its height AFTER this padding is applied,
+          so giving it more room here costs card height rather than pushing
+          anything off screen. */}
+      <div className="flex-1 w-full pt-6 pb-[72px] px-6 sm:px-10 lg:px-14 flex flex-col">
         {inner}
       </div>
     </div>
