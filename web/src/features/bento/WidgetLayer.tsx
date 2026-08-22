@@ -110,15 +110,27 @@ export function WidgetLayer({
 
   return (
     <Ctx.Provider value={value}>
-      {/* Only while arranging, and a grid child either way.
+      {/* Only while arranging, and never a grid child.
 
-          BentoPage drops its children straight into the board's grid, so this
-          has to span the full width and sort first, or it gets crammed into
-          one column and the Add chips wrap into an unreadable stack. */}
-      {arranging && (
+          BentoPage drops its children straight into the board's grid, so a
+          toolbar rendered here becomes a cell. It did, spanning the full width
+          and sorting first — and because that grid is `flex-1` with auto rows,
+          the default align-content stretched every track to share the leftover
+          height. The toolbar's own row took a full share of it, so entering
+          arrange mode opened a tall empty band above the first row of cards
+          with the Done button stranded in the middle of it.
+
+          So it is portaled out and fixed instead, the way the dock already is.
+          Nothing about the board's geometry changes when arrange mode is
+          entered: the cards do not move by a pixel, because the toolbar is no
+          longer part of the layout it was sitting in.
+
+          Top rather than bottom, because the dock owns the bottom edge. */}
+      {arranging && createPortal(
         <div
-          className="col-span-full flex flex-wrap items-center gap-2"
-          style={{ order: -1 }}
+          className="fixed left-1/2 top-4 z-50 flex max-w-[calc(100vw-3rem)] -translate-x-1/2
+                     flex-wrap items-center justify-center gap-2 rounded-full border
+                     bg-popover/95 px-3 py-2 shadow-lg backdrop-blur-sm"
         >
           <button
             type="button"
@@ -162,7 +174,8 @@ export function WidgetLayer({
           )}
 
           <span className="text-[12px] text-muted-foreground">{t('bento.widgets.hint')}</span>
-        </div>
+        </div>,
+        document.body,
       )}
       {children}
     </Ctx.Provider>
