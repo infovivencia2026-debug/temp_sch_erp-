@@ -490,7 +490,9 @@ func (s *Server) listMarkModeration(w http.ResponseWriter, r *http.Request) {
 			 WHERE `+where+`
 			 GROUP BY es.id, ex.name, c.name, sub.name, es.max_marks, es.pass_marks,
 			          mm.adjustment, mm.reason, mu.full_name, mm.moderated_at
-			 ORDER BY (mm.id IS NULL) DESC, ex.name, c.name, sub.name`, args...)
+			 -- Papers nobody has read yet come first: this screen is a queue
+			 -- before it is a record.
+			 ORDER BY (mm.moderated_at IS NULL) DESC, ex.name, c.name, sub.name`, args...)
 		if err != nil {
 			return err
 		}

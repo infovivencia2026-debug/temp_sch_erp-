@@ -128,13 +128,16 @@ func (s *Server) getMyPay(w http.ResponseWriter, r *http.Request) {
 		   question, and a calendar of two hundred rows is the answer to a
 		   different one. */
 		if err := tx.QueryRow(r.Context(), `
-			SELECT count(*) FILTER (WHERE status = 'present')::int,
+			SELECT count(*) FILTER (WHERE status IN ('present', 'half_day'))::int,
 			       count(*) FILTER (WHERE status = 'absent')::int,
 			       count(*) FILTER (WHERE status = 'late')::int,
 			       count(*) FILTER (WHERE status = 'leave')::int,
-			       count(*)::int
+			       -- Holidays and week-offs are counted in neither: "220 days
+			       -- marked" that silently includes every Sunday is a number
+			       -- somebody will subtract from and get the wrong answer.
+			       count(*) FILTER (WHERE status NOT IN ('holiday', 'week_off'))::int
 			  FROM staff_attendance
-			 WHERE employee_id = $1::uuid`, empID).
+			 WHERE user_id = $1`, id.UserID).
 			Scan(&out.Attendance.Present, &out.Attendance.Absent,
 				&out.Attendance.Late, &out.Attendance.Leave,
 				&out.Attendance.Marked); err != nil {
@@ -144,8 +147,8 @@ func (s *Server) getMyPay(w http.ResponseWriter, r *http.Request) {
 		// What is left of each entitlement — the second half of "how many sick
 		// days do I have".
 		brows, err := tx.Query(r.Context(), `
-			SELECT lt.name, lb.entitled::text, lb.used::text,
-			       (lb.entitled - lb.used)::text
+			SELECT lt.name, lb.entitled::text, lb.taken::text,
+			       (lb.entitled - lb.taken)::text
 			  FROM leave_balances lb
 			  JOIN leave_types lt ON lt.id = lb.leave_type_id
 			 WHERE lb.employee_id = $1::uuid
