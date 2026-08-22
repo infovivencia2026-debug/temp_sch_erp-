@@ -119,19 +119,26 @@ func (s *Server) issueStaffLetter(w http.ResponseWriter, r *http.Request) {
 		   nobody reading the person's record will find. The service book is
 		   where a career is read end to end, and a warning or a revision that
 		   is missing from it makes the book a partial account of one. */
-		entry := "letter"
+		/* The service book has its own vocabulary and this uses it rather than
+		   inventing a parallel one. A written warning is filed as a punishment,
+		   which is the term a service book has always used for a disciplinary
+		   entry and the term an inspector reading it will expect. The source is
+		   'manual' because a person decided to write this letter — the other
+		   sources mean it fell out of onboarding, a transfer, an exit or a
+		   payroll run without anybody typing it. */
+		entry := "other"
 		switch kind {
 		case "APPOINTMENT":
 			entry = "appointment"
 		case "SALARY_REVISION":
 			entry = "increment"
 		case "WARNING":
-			entry = "warning"
+			entry = "punishment"
 		}
 		_, err = tx.Exec(r.Context(), `
 			INSERT INTO service_book_entries (institution_id, employee_id, entry_kind,
 			    event_date, title, particulars, source, created_by)
-			VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'letter', $6)`,
+			VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'manual', $6)`,
 			id.InstitutionID, empID, entry, name+" issued ("+serial+")",
 			nullString(body), id.UserID)
 		return err
@@ -146,17 +153,18 @@ func (s *Server) issueStaffLetter(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"serial_no": serial, "kind": kind, "name": name})
 }
 
-/* Who printed it, and when.
+/*
+Who printed it, and when.
 
-   The audit trail asked for, and the reason for it: a letter on school
-   letterhead carries the school's authority, so "who issued this" must have an
-   answer that does not depend on somebody remembering. The client calls this
-   when the letter is opened for printing.
+	The audit trail asked for, and the reason for it: a letter on school
+	letterhead carries the school's authority, so "who issued this" must have an
+	answer that does not depend on somebody remembering. The client calls this
+	when the letter is opened for printing.
 
-   Recorded rather than enforced. Refusing to print until some condition is met
-   would put the software between a clerk and a letter the principal has already
-   agreed to; a record that says who did it is the honest tool for this, and the
-   dishonest use of a letter is a thing people do, not a thing software prevents.
+	Recorded rather than enforced. Refusing to print until some condition is met
+	would put the software between a clerk and a letter the principal has already
+	agreed to; a record that says who did it is the honest tool for this, and the
+	dishonest use of a letter is a thing people do, not a thing software prevents.
 */
 func (s *Server) logLetterPrinted(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
