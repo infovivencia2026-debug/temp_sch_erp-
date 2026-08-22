@@ -601,13 +601,27 @@ export function Sparkline({
   srLabel: string
   className?: string
 }) {
-  if (points.length < 2) return null
+  /* Before the early return: a hook cannot be called conditionally, and this
+     component returns null for a series too short to draw. */
+  const detail = useDetail()
+
+  /* Thirty days of attendance in a 1x1 is a scribble — the line crosses itself
+     several times in 60 pixels and says nothing. The small version is the last
+     ten days, which still shows the trend and has room to show it.
+
+     The tall version is not just a bigger box: a 28-unit viewBox stretched to
+     56px flattens every movement, so the drawing gets more vertical range as
+     well as more height. */
+  const series = detail === 'abstract' ? points.slice(-10) : points
+  const box = detail === 'abstract' ? 'h-6' : detail === 'rich' ? 'h-14' : 'h-8'
+
+  if (series.length < 2) return null
   const w = 100
-  const h = 28
-  const min = Math.min(...points)
-  const max = Math.max(...points)
+  const h = detail === 'rich' ? 44 : 28
+  const min = Math.min(...series)
+  const max = Math.max(...series)
   const range = max - min || 1
-  const d = points
+  const d = series
     .map((p, i) => {
       const x = (i / (points.length - 1)) * w
       const y = h - ((p - min) / range) * (h - 4) - 2
@@ -620,7 +634,7 @@ export function Sparkline({
       preserveAspectRatio="none"
       role="img"
       aria-label={srLabel}
-      className={cn('h-8 w-full', className)}
+      className={cn(box, 'w-full', className)}
     >
       <path
         d={d}

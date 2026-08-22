@@ -91,3 +91,112 @@ reintroduces a raw hex undoes that work.
 - Every string goes through the i18n catalogue.
 - Nothing renders a figure the caller's scope does not permit. A prettier
   dashboard that leaks another child's marks is worse than a plain one.
+
+---
+
+## How a cell's size is decided
+
+Three things, in order.
+
+**1. The stored size.** Each widget is `{ id, w, h, tint? }` in `localStorage`
+under `erp.widgets.<dashboard>`; `w` and `h` are integers 1–5. A widget absent
+from that list falls back to the size its dashboard declared:
+
+| declared | w × h |
+|---|---|
+| `small` | 1 × 1 |
+| `tall` | 1 × 2 |
+| `medium` | 2 × 1 |
+| `large` | 2 × 2 |
+| `full` | 5 × 1 |
+
+Removal is stored, never inferred from absence — otherwise every widget added
+later would be hidden from every existing user, silently and permanently.
+
+**2. Grid geometry.** Five columns at ≥1024px, two at ≥640px, one below. A
+width is capped at two below `lg`: a five-wide card on a two-column grid
+overflows the page rather than filling it.
+
+**3. Row height.** Every row is `minmax(0, 1fr)` — an equal share of the height
+left below the header.
+
+```
+row height = (board height − (rows − 1) × gap) ÷ rows
+col width  = (board width  − 4 × gap) ÷ 5
+```
+
+`gap` is `--bento-gap`, and it is set in the same CSS rule the arithmetic reads
+it from. When it was not — the persona boards used a `gap-5` utility while the
+row height was derived from the token — every ratio on those screens was wrong.
+
+### W:H is a proportion, not an aspect ratio
+
+A 2×2 is twice the width and twice the height of a 1×1. A 1×1 is a landscape
+rectangle, not a square.
+
+Squares were tried and reverted. On a 1600×900 laptop the board is 1544×660 and
+one column is 297px, so only **two** 297px rows fit above the fold: 15 of the 25
+sizes needed scrolling to reach, and the board ran off the bottom of the screen.
+Fitting the screen beat literal squareness. If squares are ever wanted again the
+lever is fewer columns or a taller window, not a different formula.
+
+## How contents follow the size
+
+Two mechanisms, deliberately separate.
+
+### CSS shedding — the general case
+
+Keyed to `data-w` / `data-h` on the widget wrapper, so one rule covers every
+cell and thirty hand-written cells did not each have to learn how to be small.
+
+| Condition | What goes |
+|---|---|
+| `w = 1` | the supporting sentence; the label truncates to one line |
+| `h = 1` | the meter |
+| any size | **nothing else** |
+
+The label, the figure and the cue survive every size. A card that has dropped
+its own subject or its way out is not a smaller card, it is a broken one.
+
+The figure is `min(what the text-size axis asks for, 26cqw, 34cqh)`, so it grows
+until the card runs out and can never overflow it. Measuring the card means
+`container-type: size`, which is only safe at `lg` where the row height is
+definite — below that the contents *are* the height and the same declaration
+would collapse every card to nothing.
+
+### Detail levels — where shedding is not enough
+
+Shedding removes parts. A chart needs to become a **different drawing**: ten
+labelled bars in a 1×1 is not a small chart, it is an unreadable one.
+
+`useDetail()` from `lib/widget-size.ts` returns one of three levels:
+
+| Level | When |
+|---|---|
+| `abstract` | `w ≤ 1` or `w × h ≤ 2` |
+| `normal` | otherwise |
+| `rich` | `w × h ≥ 8` |
+
+Three named levels rather than a raw number, because thirty cells each deciding
+what "small" means is thirty different answers to one question.
+
+Applied so far:
+
+| Component | abstract | normal | rich |
+|---|---|---|---|
+| `Bars` | last 5 days, no labels, short | as designed | full height, all labels |
+| `Sparkline` | last 10 points, short | as designed | taller, more vertical range |
+
+`Meter` and the stat cells are not size-aware and do not need to be — shedding
+covers them. Add a level only where a drawing genuinely changes shape.
+
+`useDetail()` returns `normal` for a cell rendered outside a widget, so anything
+not yet wrapped behaves exactly as it did before.
+
+### Why the mechanism lives in its own module
+
+`lib/widget-size.ts` contains no components. A hook exported alongside
+components makes Vite refuse Fast Refresh and fall back to invalidating the
+module — which rebuilds the context object and detaches every consumer from its
+provider. In dev that looks precisely like the feature being broken, and it cost
+an afternoon once already.
