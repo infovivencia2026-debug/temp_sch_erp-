@@ -861,6 +861,84 @@ func (s *Server) createExam(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+/* Papers, added to an exam that already exists.
+
+   Exams could only be created in the setup wizard, and the papers with them.
+   Afterwards there was no route at all: an exam scheduled without papers — or
+   one that gained a class in September — could never be given any, and every
+   thing downstream hangs off papers existing. Marks entry says "no exam papers
+   exist yet", question paper approval has nothing to approve, moderation has
+   nothing to moderate, hall tickets have nothing to print, and report cards
+   have nothing to total. One missing route stops five screens.
+
+   Adding is idempotent: the unique index on (exam_id, class_subject_id) means
+   running it twice adds the subjects that were missing and leaves the rest
+   alone, which is what somebody who has just added a class actually wants.
+*/
+func (s *Server) addExamPapers(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	examID, ok := uuidParam(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		ClassIDs []string `json:"class_ids,omitempty"`
+		MaxMarks int      `json:"max_marks,omitempty"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	if req.MaxMarks <= 0 {
+		req.MaxMarks = 100
+	}
+
+	var added int
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT EXISTS (SELECT 1 FROM exams WHERE id = $1)`, examID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			httpx.NotFound(w, r)
+			return errStopped
+		}
+		all := len(req.ClassIDs) == 0
+		tag, err := tx.Exec(r.Context(), `
+			INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id,
+			                           max_marks, pass_marks)
+			SELECT $1, $2, cs.id, $3, GREATEST(1, round($3 * 0.33))
+			  FROM class_subjects cs
+			 WHERE $5::bool OR cs.class_id = ANY($4)
+			ON CONFLICT (exam_id, class_subject_id) DO NOTHING`,
+			id.InstitutionID, examID, req.MaxMarks, uuidArray(req.ClassIDs), all)
+		if err != nil {
+			return err
+		}
+		added = int(tag.RowsAffected())
+		if added == 0 {
+			return errNoClassSubjects
+		}
+		return nil
+	})
+	if errors.Is(err, errStopped) {
+		return
+	}
+	if errors.Is(err, errNoClassSubjects) {
+		httpx.BadRequest(w, r,
+			"nothing to add. Either every subject already has a paper in this exam, or the classes chosen have no subjects attached yet.")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"papers_added": added})
+}
+
 // --- grading scale ----------------------------------------------------------
 
 type gradingScaleRequest struct {

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 339 features.
+// Roles is the catalog: 12 roles, 340 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -334,6 +334,7 @@ var Roles = []Role{
 					{Key: "institution_admin.examinations.performance_overview", Slug: "performance_overview", Name: "Performance overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Pass rate, subject performance, at-risk students and backlog summary."},
 					{Key: "institution_admin.examinations.hall_ticket_issue", Slug: "hall_ticket_issue", Name: "Hall Ticket Issue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Issue and reprint board hall tickets against the accepted nominal roll."},
 					{Key: "institution_admin.examinations.exams_results", Slug: "exams_results", Name: "Exams & results", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Exam schedule, marks entry status and result publication readiness."},
+					{Key: "institution_admin.examinations.exams_papers", Slug: "exams_papers", Name: "Exams & papers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every exam the school has scheduled and how many papers it holds. An exam with no papers cannot be marked, moderated, or turned into a report card, so this is where they are created — one for every subject each class studies."},
 				},
 			},
 			{

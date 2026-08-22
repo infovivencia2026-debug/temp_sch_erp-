@@ -494,6 +494,11 @@ func (s *Server) Routes() http.Handler {
 			r.Use(httpx.RequirePermission(rbac.ExamsRead))
 			s.mountBoardExams(r)
 			r.Get("/list", s.listExams)
+			// Papers, on an exam that already exists. Without this an exam
+			// scheduled without them could never be given any, and five
+			// screens downstream stay empty forever.
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).
+				Post("/{id}/papers", s.addExamPapers)
 			r.Get("/subjects", s.listExamSubjects)
 			r.Get("/gradebook", s.getGradebook)
 			r.Get("/report-cards", s.listReportCards)

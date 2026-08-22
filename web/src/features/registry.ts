@@ -119,6 +119,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
      get follows from whether you can write exams. */
+  'institution_admin.examinations.exams_papers': lazy(() => import('./exams/Exams')),
   'institution_admin.examinations.hall_ticket_issue': lazy(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': lazy(() => import('./shared/Attendance')),

@@ -142,6 +142,25 @@ export default function QuestionPapers() {
           <FormNotice error={submit.error ?? decide.error} />
         )}
 
+        {/* Nothing to set a paper against.
+         *
+         * The form only appears when there is an exam paper to attach one to,
+         * and when there is not, the screen used to show an empty list whose
+         * own words said "set one above" — pointing at a control that was not
+         * there. Somebody reading that concludes the button is broken, not
+         * that the school has no exams yet. So the reason is said, with the
+         * one thing that fixes it. */}
+        {open.length === 0 && slots.data && (
+          <EmptyState
+            title="No exam papers to write against yet."
+            body={
+              (slots.data.items.length ?? 0) > 0
+                ? 'Every exam paper for your classes already has a paper submitted. There is nothing left to set.'
+                : 'This school has no exams scheduled for your classes. Once the office schedules one, each subject you teach appears here to attach a paper to.'
+            }
+          />
+        )}
+
         {open.length > 0 && (
           <Card>
             <CardHeader
@@ -203,7 +222,7 @@ export default function QuestionPapers() {
               body={
                 d.decides
                   ? 'When a teacher sends one for approval it appears here.'
-                  : 'Set one above and it will be listed here with where it has got to.'
+                  : 'Papers you set appear here with where each has got to.'
               }
             />
           ) : (

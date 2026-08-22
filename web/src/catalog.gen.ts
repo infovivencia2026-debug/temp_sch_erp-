@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 339 features. */
+/** 12 roles, 340 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -287,6 +287,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.examinations.performance_overview', slug: 'performance_overview', name: 'Performance overview', scope: 'institution', tier: 'core', summary: 'Pass rate, subject performance, at-risk students and backlog summary.' },
           { key: 'institution_admin.examinations.hall_ticket_issue', slug: 'hall_ticket_issue', name: 'Hall Ticket Issue', scope: 'institution', tier: 'core', summary: 'Issue and reprint board hall tickets against the accepted nominal roll.' },
           { key: 'institution_admin.examinations.exams_results', slug: 'exams_results', name: 'Exams & results', scope: 'institution', tier: 'core', summary: 'Exam schedule, marks entry status and result publication readiness.' },
+          { key: 'institution_admin.examinations.exams_papers', slug: 'exams_papers', name: 'Exams & papers', scope: 'institution', tier: 'core', summary: 'Every exam the school has scheduled and how many papers it holds. An exam with no papers cannot be marked, moderated, or turned into a report card, so this is where they are created — one for every subject each class studies.' },
         ],
       },
       {
