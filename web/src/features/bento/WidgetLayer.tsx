@@ -41,7 +41,16 @@ interface LayerValue {
 
 const Ctx = createContext<LayerValue | null>(null)
 
-export function useWidgetLayer() {
+/* Not exported, and that is load-bearing rather than tidiness.
+
+   A module that exports both components and a non-component breaks Vite's Fast
+   Refresh ("export is incompatible"), which falls back to invalidating the
+   module. Re-evaluating this file builds a NEW context object, so <Widget>
+   starts reading a different context than <WidgetLayer> is filling: the layer
+   reads as absent, and every control on the board goes dead until a full
+   reload. A dev-only failure, but one that looks exactly like the feature
+   being broken. */
+function useWidgetLayer() {
   return useContext(Ctx)
 }
 
