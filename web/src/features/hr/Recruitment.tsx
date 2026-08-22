@@ -156,19 +156,19 @@ export default function Recruitment() {
     <>
       <PageHead
         eyebrow="Hiring & growth"
-        title="Recruitment"
-        description="The post, the people applying for it, and the demo lesson that actually decides. A hire made here creates the staff record; it does not ask somebody to type it again."
+        title="Staff hiring"
+        description="Create job openings, track who applies and how their demo lesson went, and turn a hire into a staff record without typing the details a second time."
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Approved posts" value={open.length} icon={Briefcase}
+          <Stat label="Open job positions" value={open.length} icon={Briefcase}
             hint={seatsToFill ? `${seatsToFill} position${seatsToFill === 1 ? '' : 's'} still to fill` : 'Every position taken'} />
-          <Stat label="Awaiting approval" value={awaiting.length}
+          <Stat label="Waiting for approval" value={awaiting.length}
             delta={awaiting.length
               ? { value: 'Nobody may be interviewed yet', positive: false }
               : { value: 'Nothing waiting on a signature', positive: true }} />
-          <Stat label="Candidates in process" value={inProcess} icon={ClipboardList} />
-          <Stat label="Joined" value={joined} icon={UserCheck} />
+          <Stat label="Active applicants" value={inProcess} icon={ClipboardList} />
+          <Stat label="Hired staff" value={joined} icon={UserCheck} />
         </CellGrid>
 
         <div className="flex flex-wrap gap-1 border-b">

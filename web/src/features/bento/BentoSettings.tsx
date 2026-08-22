@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
   Maximize2, Type, Minimize2, LayoutGrid, Sliders,
@@ -101,6 +102,49 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   void session
 
 
+  /* Anchored to the button, but drawn outside everything.
+
+     The menu was absolutely positioned inside its own container, so whichever
+     ancestor happened to scroll — the sidebar, the rail — clipped it. In the
+     sidebar it lost its first item at the top and Sign out at the bottom, which
+     is a menu that hides the one thing somebody opened it to do.
+
+     So it renders into the body and takes its coordinates from the button's
+     own rectangle: no ancestor's overflow can reach it. It opens upward when
+     there is room above and downward when there is not, and is nudged back
+     inside the viewport rather than being allowed to run off the edge. */
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!open) return setAt(null)
+    const place = () => {
+      const b = box.current?.querySelector('button')?.getBoundingClientRect()
+      if (!b) return
+      const W = 256, GAP = 8
+      const room = b.top - GAP
+      const height = Math.min(window.innerHeight * 0.7, 420)
+      const above = room > height
+      const left =
+        placement === 'rail'
+          ? b.right + GAP
+          : placement === 'menubar' || placement === 'dock'
+            ? b.right - W
+            : b.left
+      return setAt({
+        left: Math.max(GAP, Math.min(left, window.innerWidth - W - GAP)),
+        top: above ? Math.max(GAP, b.top - GAP - height) : Math.min(b.bottom + GAP, window.innerHeight - GAP - height),
+      })
+    }
+    place()
+    // A menu that stays put while the page moves under it is worse than one
+    // that closes, so it follows.
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open, placement])
+
   return (
     <div className="relative" ref={box}>
       <button
@@ -131,20 +175,15 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
 
-      {open && (
+      {open && at && createPortal(
         <div
           role="menu"
+          style={{ position: 'fixed', left: at.left, top: at.top, width: 256,
+                   maxHeight: 'min(70vh, 420px)' }}
           className={cn(
-            `absolute z-50 max-h-[70vh] w-64 overflow-y-auto overscroll-contain rounded-xl
+            `z-50 overflow-y-auto overscroll-contain rounded-xl
              border bg-popover p-1 shadow-lg`,
             (placement === 'menubar') ? 'pop-down' : 'pop-up',
-            (placement === 'menubar')
-              ? 'right-0 top-[calc(100%+8px)]'
-              : placement === 'dock'
-                ? 'right-0 bottom-[calc(100%+16px)]'
-              : placement === 'rail'
-                ? 'bottom-0 left-[calc(100%+8px)]'
-                : 'bottom-[calc(100%+8px)] left-0',
           )}
         >
           <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
@@ -341,7 +380,8 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             <LogOut className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="flex-1">{t('bento.settings.signout')}</span>
           </a>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Mounted outside the popover, which closes when either opens: a dialog

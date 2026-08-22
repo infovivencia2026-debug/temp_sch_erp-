@@ -66,8 +66,8 @@ interface Requirement {
 interface Employee { id: string; full_name?: string; name?: string; employee_code?: string }
 
 const TABS = [
-  ['compliance', 'Hours against requirement', FileCheck2],
-  ['programmes', 'Workshops & training', BookOpen],
+  ['compliance', 'Training compliance', FileCheck2],
+  ['programmes', 'Log a workshop', BookOpen],
 ] as const
 
 export default function Training() {
@@ -144,7 +144,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
       <Card>
         <CardHeader
           title="What is expected"
-          description="The number is the board's, not the software's. CBSE asks fifty hours a year of teaching staff; a school answering to another board edits the figure, and a school that holds itself to more can say so."
+          description="The training hours your board requires each year — CBSE asks fifty of teaching staff. Set the figure your board uses; a school that holds itself to more can say so."
         />
         {/* "No requirement set" is a statement about what the school holds
             itself to; a failed request is not entitled to make it. */}
@@ -170,7 +170,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
       <Card>
         <CardHeader
           title="Hours completed against requirement"
-          description="Whoever is furthest short, first — a compliance report sorted by name is a report nobody acts on. Staff with no requirement set are listed rather than dropped, because that is a gap in the policy and not an absence of a person."
+          description="Who is falling behind on required hours, furthest short first — a report sorted by name is one nobody acts on. Staff with no requirement set are listed rather than dropped: that is a gap in the policy, not an absent person."
         />
         <Table
           head={['Staff', 'Role', { label: 'Done', align: 'right' },

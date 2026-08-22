@@ -195,21 +195,21 @@ function CyclesTab({ cycles }: { cycles: Cycle[] }) {
     <>
       <Card>
         <CardHeader
-          title="Open a cycle"
-          description="One per academic year in most schools. The scale is the school's — five is the Indian norm, and changing it here changes one number rather than every screen."
+          title="Start a new review cycle"
+          description="One review cycle a year in most schools. Set when teachers must submit their self-assessment, when the principal's review is due, and what the scores are out of — five is the usual scale here."
         />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Name" required><Input value={name} onChange={setName} placeholder="Annual 2026-27" /></Field>
             <Field label="Opens on"><Input value={opensOn} onChange={setOpensOn} type="date" /></Field>
-            <Field label="Self-assessment due"><Input value={selfDue} onChange={setSelfDue} type="date" /></Field>
-            <Field label="Review due"><Input value={reviewDue} onChange={setReviewDue} type="date" /></Field>
-            <Field label="Scored out of"><Input value={scale} onChange={setScale} type="number" /></Field>
+            <Field label="Teacher submission deadline"><Input value={selfDue} onChange={setSelfDue} type="date" /></Field>
+            <Field label="Principal review deadline"><Input value={reviewDue} onChange={setReviewDue} type="date" /></Field>
+            <Field label="Rating scale (scores out of)"><Input value={scale} onChange={setScale} type="number" /></Field>
           </FormGrid>
           <FormNotice error={create.error} ok={create.isSuccess ? 'Cycle opened.' : undefined} />
           <Button onClick={() => create.mutate()}
             disabled={!mayWrite || !name || create.isPending}>
-            {create.isPending ? 'Opening…' : 'Open cycle'}
+            {create.isPending ? 'Starting…' : 'Start review cycle'}
           </Button>
         </div>
       </Card>

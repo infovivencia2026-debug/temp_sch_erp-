@@ -18,8 +18,5 @@ import { lazy } from 'react'
    lacks renders the honest placeholder instead of the screen, which is a
    silent way to lose a feature that looks finished from the code. */
 export const hrGrowthKeys = {
-  'hr.hiring_growth.recruitment': lazy(() => import('./Recruitment')),
-  'hr.hiring_growth.annual_performance_appraisal_kpi': lazy(() => import('./Appraisal')),
-  'hr.hiring_growth.staff_training_workshop_logs': lazy(() => import('./Training')),
   'hr.attendance.staff_shift_rostering': lazy(() => import('./Rostering')),
 }

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 355 features. */
+/** 12 roles, 343 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -856,42 +856,13 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'payroll',
-        name: 'Payroll',
-        workspace: 'Payroll',
-        features: [
-          { key: 'hr.payroll.payroll', slug: 'payroll', name: 'Payroll', scope: 'institution', tier: 'core', summary: 'Salary structures, payroll runs, payslips, deductions and reimbursements when payroll is enabled.' },
-          { key: 'hr.payroll.salary_structure_builder', slug: 'salary_structure_builder', name: 'Salary Structure Builder', scope: 'institution', tier: 'core', summary: 'Define Basic Pay, HRA, DA, Special Allowances, PF, ESI, Professional Tax, and Income Tax.' },
-          { key: 'hr.payroll.payslip_generation_email_dispatch', slug: 'payslip_generation_email_dispatch', name: 'Payslip Generation & Email Dispatch', scope: 'institution', tier: 'core', summary: 'Generate PDF payslips, publish to employee portals, and dispatch password-protected PDFs.' },
-          { key: 'hr.payroll.direct_bank_payroll_transfer_file', slug: 'direct_bank_payroll_transfer_file', name: 'Direct Bank Payroll Transfer File', scope: 'institution', tier: 'core', summary: 'Export bank-specific bulk salary transfer text/excel files for instant bank disbursement.' },
-          { key: 'hr.payroll.employee_ctc_breakup_calculator', slug: 'employee_ctc_breakup_calculator', name: 'Employee CTC Breakup Calculator', scope: 'institution', tier: 'core', summary: 'Model complete Gross vs. Net vs. CTC salary packages including employer PF and ESI matches.' },
-          { key: 'hr.payroll.overtime_ot_rate_setup', slug: 'overtime_ot_rate_setup', name: 'Overtime (OT) Rate Setup', scope: 'institution', tier: 'core', summary: 'Define hourly overtime rates for non-teaching staff working during weekend school events.' },
-          { key: 'hr.payroll.substitute_workload_allowance', slug: 'substitute_workload_allowance', name: 'Substitute Workload Allowance', scope: 'institution', tier: 'core', summary: 'Track additional proxy classes taken by teachers and compute extra substitution pay.' },
-          { key: 'hr.payroll.staff_loan_advance_management', slug: 'staff_loan_advance_management', name: 'Staff Loan & Advance Management', scope: 'institution', tier: 'advanced', summary: 'Process employee salary advance requests and set auto-deduction installments in monthly payroll.' },
-          { key: 'hr.payroll.pf_encashment_loan_deduction', slug: 'pf_encashment_loan_deduction', name: 'PF Encashment & Loan Deduction', scope: 'institution', tier: 'advanced', summary: 'Process Provident Fund loan deductions and track remaining loan payback balances in payslips.' },
-        ],
-      },
-      {
-        slug: 'statutory',
-        name: 'Statutory',
-        workspace: 'Payroll',
-        features: [
-          { key: 'hr.statutory.pf_esi_statutory_compliance', slug: 'pf_esi_statutory_compliance', name: 'PF & ESI Statutory Compliance', scope: 'institution', tier: 'advanced', summary: 'Generate monthly Provident Fund (ECR) files, ESI returns, and statutory deduction registers.' },
-          { key: 'hr.statutory.income_tax_form_16_generator', slug: 'income_tax_form_16_generator', name: 'Income Tax & Form 16 Generator', scope: 'institution', tier: 'advanced', summary: 'Manage investment proofs, compute annual income tax TDS, and generate Form 16.' },
-          { key: 'hr.statutory.professional_tax_pt_slab_configuration', slug: 'professional_tax_pt_slab_configuration', name: 'Professional Tax (PT) Slab Configuration', scope: 'institution', tier: 'advanced', summary: 'Configure state-specific Professional Tax deduction slabs based on gross monthly salary ranges.' },
-          { key: 'hr.statutory.form_12bb_investment_declarations', slug: 'form_12bb_investment_declarations', name: 'Form 12BB & Investment Declarations', scope: 'institution', tier: 'advanced', summary: 'Collect employee investment declarations with proofs, compute the resulting TDS relief and issue Form 12BB for the assessment year.' },
-          { key: 'hr.statutory.staff_gratuity_liability_estimator', slug: 'staff_gratuity_liability_estimator', name: 'Staff Gratuity Liability Estimator', scope: 'institution', tier: 'advanced', summary: 'Compute cumulative statutory gratuity liabilities for employees completing >5 years of continuous service.' },
-          { key: 'hr.statutory.contractor_security_staff_bill_verification', slug: 'contractor_security_staff_bill_verification', name: 'Contractor / Security Staff Bill Verification', scope: 'institution', tier: 'core', summary: 'Verify outsourced security and cleaning vendor attendance invoices against gate biometric scans.' },
-        ],
-      },
-      {
-        slug: 'hiring_growth',
-        name: 'Hiring & Growth',
+        slug: 'hiring_training',
+        name: 'Hiring & Training',
         workspace: 'People',
         features: [
-          { key: 'hr.hiring_growth.recruitment', slug: 'recruitment', name: 'Recruitment', scope: 'institution', tier: 'core', summary: 'Openings, candidates, interviews and offers when ATS is enabled.' },
-          { key: 'hr.hiring_growth.annual_performance_appraisal_kpi', slug: 'annual_performance_appraisal_kpi', name: 'Annual Performance Appraisal (KPI)', scope: 'institution', tier: 'core', summary: 'Set staff KPIs, collect peer/principal ratings, and process annual increment percentages.' },
-          { key: 'hr.hiring_growth.staff_training_workshop_logs', slug: 'staff_training_workshop_logs', name: 'Staff Training & Workshop Logs', scope: 'institution', tier: 'core', summary: 'Log mandatory teacher professional development hours, workshops attended, and certs.' },
+          { key: 'hr.hiring_training.staff_hiring', slug: 'staff_hiring', name: 'Staff hiring', scope: 'institution', tier: 'core', summary: 'Create job openings, track the people who apply and the demo lesson that decides, and turn a hire into a staff record without anybody typing the details a second time.' },
+          { key: 'hr.hiring_training.staff_performance_reviews', slug: 'staff_performance_reviews', name: 'Staff performance reviews', scope: 'institution', tier: 'core', summary: 'Set up the yearly review cycle for teachers and staff: the scoring scale, when self-assessments are due and when the principal\'s review is due. Scores are kept on the staff member\'s record.' },
+          { key: 'hr.hiring_training.staff_training_development', slug: 'staff_training_development', name: 'Staff training & development', scope: 'institution', tier: 'core', summary: 'The training hours each board requires — CBSE asks fifty a year of teaching staff — and who is short of them, worst first, so the gap is closed before an inspection finds it.' },
         ],
       },
       {
@@ -935,6 +906,16 @@ export const ROLES: Role[] = [
         workspace: 'Onboarding & Exit',
         features: [
           { key: 'hr.onboarding_exit.staff_joinings_exits', slug: 'staff_joinings_exits', name: 'Staff joinings & exits', scope: 'institution', tier: 'core', summary: 'One page, four tabs: the KYC and documents a new appointment depends on; the resignation, notice period and department-by-department clearance an exit runs through; the appointment, experience and relieving letters issued along the way; and transfers between campuses or departments. The final settlement stays locked until every department has signed.' },
+        ],
+      },
+      {
+        slug: 'payroll',
+        name: 'Payroll',
+        workspace: 'Payroll',
+        features: [
+          { key: 'hr.payroll.monthly_payroll', slug: 'monthly_payroll', name: 'Monthly payroll', scope: 'institution', tier: 'core', summary: 'Run the month\'s salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee\'s days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them.' },
+          { key: 'hr.payroll.salary_setup', slug: 'salary_setup', name: 'Salary setup', scope: 'institution', tier: 'core', summary: 'What each member of staff is paid, and the components a payslip is built from — basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year\'s payslips still explain themselves.' },
+          { key: 'hr.payroll.taxes_statutory', slug: 'taxes_statutory', name: 'Taxes & statutory', scope: 'institution', tier: 'core', summary: 'Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff.' },
         ],
       },
     ],

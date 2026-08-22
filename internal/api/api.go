@@ -580,6 +580,16 @@ func (s *Server) Routes() http.Handler {
 			   three things a payroll office does around the payslip — withhold
 			   tax, lend money against salary, and check the security agency
 			   billed for guards who turned up. */
+			/* What a person is paid, which nothing could set.
+
+			   Payroll only ever ran for staff who had a salary structure, and
+			   no endpoint wrote one — so "Run payroll" found nobody, in every
+			   school, for as long as the feature has existed. */
+			r.Get("/components", s.listSalaryComponents)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/components", s.saveSalaryComponent)
+			r.Get("/structures", s.listSalaryStructures)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/structures", s.saveSalaryStructure)
+
 			r.Get("/settings", s.getPayrollSettings)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Put("/settings", s.savePayrollSettings)
 			r.Get("/statutory", s.getStatutoryRegister)

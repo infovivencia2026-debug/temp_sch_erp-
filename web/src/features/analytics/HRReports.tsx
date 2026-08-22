@@ -46,6 +46,10 @@ const ATTENDANCE = '/api/v1/rollups/hr/attendance'
 const WORKLOAD = '/api/v1/rollups/hr/workload'
 const EXPIRIES = '/api/v1/rollups/hr/expiries'
 
+// "this_month" is how the range is stored, not how it is read.
+const prettyPeriod = (p?: string) =>
+  p ? p.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : undefined
+
 export default function HRReports() {
   const [range, setRange] = useRange()
   const q = rangeQuery(range)
@@ -86,8 +90,8 @@ export default function HRReports() {
     <>
       <PageHead
         eyebrow="Reports"
-        title="HR reports"
-        description="Headcount, joiners and leavers, attendance and leave, workload distribution, and renewals falling due."
+        title="Staff analytics & reports"
+        description="Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal."
         actions={<PrintButton />}
       />
       <PageBody>
@@ -96,11 +100,13 @@ export default function HRReports() {
         </div>
 
         <CellGrid cols={4}>
-          <Stat label="On strength" value={total} hint={`${teaching} teaching`} period="As of now" />
-          <Stat label="Joiners" value={joiners} period={range.label ?? range.period} />
-          <Stat label="Leavers" value={leavers} period={range.label ?? range.period} />
+          <Stat label="Total active staff" value={total} hint={`${teaching} teaching`} period="As of now" />
+          {/* The raw period key — "this_month" — was reaching the screen when no
+              label was set, which is a database word shown to a principal. */}
+          <Stat label="New hires" value={joiners} period={range.label ?? prettyPeriod(range.period)} />
+          <Stat label="Exits" value={leavers} period={range.label ?? prettyPeriod(range.period)} />
           <Stat
-            label="Renewals lapsed"
+            label="Expired documents"
             value={lapsed}
             hint="Already past their validity date"
             period="As of now"
