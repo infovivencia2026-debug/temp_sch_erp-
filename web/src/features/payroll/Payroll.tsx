@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState,
+  Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState, ExportButton, PrintButton,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
@@ -87,6 +87,7 @@ export default function Payroll() {
         description="Run monthly salaries. Loss of pay comes from staff attendance, not manual entry."
         actions={
           <>
+            <ExportButton report="payroll" /><PrintButton />
             <Select value={month} onChange={setMonth}
               options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
             <Select value={year} onChange={setYear}

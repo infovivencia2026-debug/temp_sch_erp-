@@ -120,6 +120,121 @@ var exportable = map[string]struct {
 		          LEFT JOIN designations dg ON dg.id = e.designation_id
 		         ORDER BY e.employee_code`,
 	},
+	/* The registers a school actually files.
+
+	   Six datasets could be exported and the rest of the product could not,
+	   which meant the salary register, the mark sheet, the leave register and
+	   the staff attendance register — the four things most often asked for by
+	   an auditor, a board or a trustee — were read off a screen and retyped
+	   into Excel. A screen you cannot get data out of is a screen people work
+	   around.
+
+	   Each is the whole current picture rather than a filtered slice: a filter
+	   that silently drops rows produces a file somebody files as complete. */
+	"payroll": {
+		perm:   "finance.payroll.read",
+		header: []string{"Month", "Year", "Code", "Employee", "Paid Days", "LOP Days", "Gross (Rs)", "Deductions (Rs)", "Net (Rs)", "Status"},
+		query: `SELECT to_char(to_date(pr.period_month::text,'MM'),'Month'), pr.period_year::text,
+		               e.employee_code, concat_ws(' ', e.first_name, e.last_name),
+		               ps.paid_days::text, ps.lop_days::text,
+		               to_char(ps.gross_paise/100.0,'FM999999990.00'),
+		               to_char(ps.deduction_paise/100.0,'FM999999990.00'),
+		               to_char(ps.net_paise/100.0,'FM999999990.00'),
+		               pr.status
+		          FROM payslips ps
+		          JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
+		          JOIN employees e ON e.id = ps.employee_id
+		         ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code`,
+	},
+	"marks": {
+		perm:   "academics.exams.read",
+		header: []string{"Exam", "Class", "Subject", "Admission No", "Student", "Marks", "Grace", "Total", "Out Of", "Grade", "Absent"},
+		query: `SELECT ex.name, c.name, sub.name, st.admission_no,
+		               concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(m.marks_obtained::text,''), m.grace_marks::text,
+		               COALESCE((m.marks_obtained + m.grace_marks)::text,''),
+		               es.max_marks::text, COALESCE(m.grade,''),
+		               CASE WHEN m.is_absent THEN 'yes' ELSE 'no' END
+		          FROM marks m
+		          JOIN exam_subjects es  ON es.id = m.exam_subject_id
+		          JOIN exams ex          ON ex.id = es.exam_id
+		          JOIN class_subjects cs ON cs.id = es.class_subject_id
+		          JOIN classes c         ON c.id = cs.class_id
+		          JOIN subjects sub      ON sub.id = cs.subject_id
+		          JOIN students st       ON st.id = m.student_id
+		         ORDER BY ex.name, c.name, sub.name, st.admission_no`,
+	},
+	"staff-attendance": {
+		perm:   "hr.staff.attendance",
+		header: []string{"Date", "Code", "Employee", "Status", "In", "Out", "Remarks"},
+		query: `SELECT to_char(sa.on_date,'DD/MM/YYYY'), e.employee_code,
+		               concat_ws(' ', e.first_name, e.last_name), sa.status,
+		               COALESCE(to_char(sa.check_in,'HH24:MI'),''),
+		               COALESCE(to_char(sa.check_out,'HH24:MI'),''),
+		               COALESCE(sa.remarks,'')
+		          FROM staff_attendance sa
+		          JOIN employees e ON e.user_id = sa.user_id
+		         ORDER BY sa.on_date DESC, e.employee_code`,
+	},
+	"leave": {
+		perm:   "hr.employees.read",
+		header: []string{"Applied By", "Kind", "Type", "From", "To", "Days", "Reason", "Status"},
+		query: `SELECT COALESCE(concat_ws(' ', e.first_name, e.last_name),
+		                        concat_ws(' ', st.first_name, st.last_name), ''),
+		               lr.subject_kind, COALESCE(lt.name,''),
+		               to_char(lr.from_date,'DD/MM/YYYY'), to_char(lr.to_date,'DD/MM/YYYY'),
+		               lr.days::text, lr.reason, lr.status
+		          FROM leave_requests lr
+		          LEFT JOIN employees   e  ON e.id  = lr.employee_id
+		          LEFT JOIN students    st ON st.id = lr.student_id
+		          LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+		         ORDER BY lr.created_at DESC`,
+	},
+	"staff-documents": {
+		perm:   "hr.employees.read",
+		header: []string{"Code", "Employee", "Document", "Expires", "Days Left", "State"},
+		query: `SELECT e.employee_code, concat_ws(' ', e.first_name, e.last_name),
+		               d.doc_type,
+		               COALESCE(to_char(d.expires_on,'DD/MM/YYYY'),''),
+		               COALESCE((d.expires_on - CURRENT_DATE)::text,''),
+		               CASE WHEN d.expires_on IS NULL THEN 'does not expire'
+		                    WHEN d.expires_on < CURRENT_DATE THEN 'lapsed'
+		                    WHEN d.expires_on < CURRENT_DATE + 60 THEN 'expiring'
+		                    ELSE 'valid' END
+		          FROM employee_documents d
+		          JOIN employees e ON e.id = d.employee_id
+		         ORDER BY d.expires_on NULLS LAST`,
+	},
+	"admissions": {
+		perm:   "admissions.read",
+		header: []string{"Application No", "Applicant", "Class Sought", "Guardian", "Phone", "RTE", "Status", "Applied"},
+		query: `SELECT a.application_no,
+		               concat_ws(' ', a.first_name, a.last_name),
+		               COALESCE(c.name,''), COALESCE(a.parent_name,''),
+		               COALESCE(a.parent_phone,''),
+		               CASE WHEN a.is_rte THEN 'yes' ELSE 'no' END,
+		               a.status, to_char(a.created_at,'DD/MM/YYYY')
+		          FROM applications a
+		          LEFT JOIN classes c ON c.id = a.class_sought
+		         ORDER BY a.created_at DESC`,
+	},
+	"library-loans": {
+		perm:   "ops.library.read",
+		header: []string{"Title", "Borrower", "Issued", "Due", "Returned", "Fine (Rs)"},
+		query: `SELECT COALESCE(t.title,''),
+		               COALESCE(concat_ws(' ', st.first_name, st.last_name),
+		                        concat_ws(' ', e.first_name, e.last_name), ''),
+		               to_char(l.issued_on,'DD/MM/YYYY'),
+		               COALESCE(to_char(l.due_on,'DD/MM/YYYY'),''),
+		               COALESCE(to_char(l.returned_on,'DD/MM/YYYY'),''),
+		               to_char(COALESCE(l.fine_paise,0)/100.0,'FM999999990.00')
+		          FROM library_loans l
+		          LEFT JOIN library_copies  cp ON cp.id = l.copy_id
+		          LEFT JOIN library_titles  t  ON t.id = cp.title_id
+		          LEFT JOIN students st ON st.id = l.student_id
+		          LEFT JOIN employees e ON e.id = l.employee_id
+		         ORDER BY l.issued_on DESC`,
+	},
 	"udise": {
 		perm:   "admin.reports.read",
 		header: []string{"Admission No", "Name", "APAAR ID", "Child Info ID", "Date of Birth", "Gender", "Class", "Medium", "RTE", "CWSN", "Problems"},

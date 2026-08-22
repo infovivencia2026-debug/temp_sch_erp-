@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, Loading, ErrorState, FormNotice, Field, FormGrid, Input,
+  Button, Select, Loading, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton, PrintButton,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -118,7 +118,8 @@ export default function Leave() {
             ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
             : 'Staff and student leave awaiting a decision, and the history behind it.'
         }
-      />
+      actions={<><ExportButton report="leave" /><PrintButton /></>}
+        />
       <PageBody>
         <CellGrid cols={4}>
           <Stat label="Total requests" value={items.length} hint={status || 'all statuses'} />

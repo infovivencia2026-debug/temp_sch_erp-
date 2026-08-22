@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Loading, ErrorState, FormNotice,
+  Button, Input, Loading, ErrorState, FormNotice, ExportButton, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -83,12 +83,17 @@ export default function StaffAttendance() {
         title="Staff register"
         description="Today's marks for every active employee."
         actions={
+          <>
+          {/* The staff register is a document a board asks for by name. */}
+          <ExportButton report="staff-attendance" />
+          <PrintButton />
           <Button
             disabled={!Object.keys(draft).length || save.isPending || !mayMark}
             onClick={() => save.mutate()}
           >
             {save.isPending ? 'Saving…' : `Save ${Object.keys(draft).length || ''}`.trim()}
           </Button>
+          </>
         }
       />
       <PageBody>

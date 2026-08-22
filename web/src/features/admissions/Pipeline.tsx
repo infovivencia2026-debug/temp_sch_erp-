@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState,
+  Table, Td, Badge, Button, Select, Loading, ErrorState, ExportButton,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 
@@ -79,6 +79,9 @@ export default function Pipeline() {
         title="Admissions pipeline"
         description="Merit ranking, seat availability against RTE quota, and the offer-to-enrolment handoff."
         actions={
+          <>
+          {/* The applicant list, for the trustee who wants it in Excel. */}
+          <ExportButton report="admissions" />
           <Select
             value={testWeight}
             onChange={setTestWeight}
@@ -89,6 +92,7 @@ export default function Pipeline() {
               { value: '0', label: 'Interview 100%' },
             ]}
           />
+          </>
         }
       />
       <PageBody>

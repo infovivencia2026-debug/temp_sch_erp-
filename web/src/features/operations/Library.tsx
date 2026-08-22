@@ -4,7 +4,7 @@ import { Search } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Loading, ErrorState, FormNotice, EmptyState,
+  Button, Input, Loading, ErrorState, FormNotice, EmptyState, ExportButton,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -111,7 +111,8 @@ export default function Library() {
         eyebrow="Operations"
         title="Library"
         description="What the school holds, who has it, and what is overdue."
-      />
+      actions={<><ExportButton report="library-loans" /></>}
+        />
       <PageBody>
         <CellGrid cols={4}>
           <Stat label="Titles" value={stock.length} />
