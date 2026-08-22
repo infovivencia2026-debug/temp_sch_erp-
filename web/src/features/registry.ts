@@ -273,10 +273,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      that lapses quietly. Both staff-attendance endpoints existed with no
      caller, which is why every dashboard's "teachers absent" read an empty
      table. */
-  'hr.records.employee_master': lazy(() => import('./hr/Employees')),
-  'hr.records.employee_documents': lazy(() => import('./hr/Employees')),
-  'hr.records.employee_document_expiry_alerts': lazy(() => import('./hr/Employees')),
-  'hr.records.staff_id_card_printing': lazy(() => import('./hr/Employees')),
   'hr.attendance.staff_attendance': lazy(() => import('./hr/StaffAttendance')),
 
   /* Fees: the two ways money leaves a ledger, and the two ways it arrives.
@@ -455,6 +451,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...transportPrefsKeys,
   ...trackerKeys,
 
+  'hr.onboarding_exit.staff_joinings_exits': lazy(() => import('./hr/Lifecycle')),
+  'hr.records.staff_records': lazy(() => import('./hr/Employees')),
+  'hr.records.service_book_qualifications': lazy(() => import('./hr/ServiceRecords')),
   ...financeKeys,
 
   ...facultyCommsKeys,

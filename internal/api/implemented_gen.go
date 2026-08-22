@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 369 of the catalog's features are implemented.
+// 361 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -129,11 +129,7 @@ var implementedFeatures = map[string]bool{
 	"hr.leave.leave":                                                                 true,
 	"hr.leave.leave_policy_configuration":                                            true,
 	"hr.my_profile.my_pay":                                                           true,
-	"hr.onboarding_exit.staff_exit_interview_management":                             true,
-	"hr.onboarding_exit.staff_experience_relieving_cards":                            true,
-	"hr.onboarding_exit.staff_onboarding_kyc_verification":                           true,
-	"hr.onboarding_exit.teacher_relieving_no_deduction_clearance":                    true,
-	"hr.onboarding_exit.teacher_transfer_deputation":                                 true,
+	"hr.onboarding_exit.staff_joinings_exits":                                        true,
 	"hr.payroll.direct_bank_payroll_transfer_file":                                   true,
 	"hr.payroll.employee_ctc_breakup_calculator":                                     true,
 	"hr.payroll.overtime_ot_rate_setup":                                              true,
@@ -143,12 +139,8 @@ var implementedFeatures = map[string]bool{
 	"hr.payroll.salary_structure_builder":                                            true,
 	"hr.payroll.staff_loan_advance_management":                                       true,
 	"hr.payroll.substitute_workload_allowance":                                       true,
-	"hr.records.employee_document_expiry_alerts":                                     true,
-	"hr.records.employee_documents":                                                  true,
-	"hr.records.employee_master":                                                     true,
-	"hr.records.staff_id_card_printing":                                              true,
-	"hr.records.staff_service_book_digitalization":                                   true,
-	"hr.records.teacher_qualification_register":                                      true,
+	"hr.records.service_book_qualifications":                                         true,
+	"hr.records.staff_records":                                                       true,
 	"hr.reports.hr_reports":                                                          true,
 	"hr.statutory.contractor_security_staff_bill_verification":                       true,
 	"hr.statutory.form_12bb_investment_declarations":                                 true,

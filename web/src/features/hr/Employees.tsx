@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Search, Phone, Mail } from 'lucide-react'
+import { Search, Phone, Mail, Printer } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, Loading, ErrorState,
 } from '@/components/ui'
+import IDCards from './IDCards'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
@@ -21,6 +23,17 @@ import { formatDate, cn } from '@/lib/utils'
  *
  * So expiry leads. Already-expired first, then soonest; documents that never
  * lapse sort last, because a degree certificate needs nobody's attention.
+ *
+ * Four menu entries used to open this one screen — Employee master, Employee
+ * documents, Employee document expiry alerts, Staff ID card printing — and
+ * three of them were a lie: you clicked "Print ID cards" and were dropped on a
+ * staff list with no printing anywhere on it. A menu that promises four things
+ * and delivers the same thing four times is worse than a menu with one entry,
+ * because the reader learns not to trust any of it.
+ *
+ * One entry now, and the three jobs are tabs, so the promise is made where it
+ * can be kept. ID card printing was the one that had no implementation behind
+ * it at all; it does now.
  */
 
 interface StaffLogin {
@@ -54,8 +67,24 @@ interface Doc {
   uploaded_on: string
 }
 
+type Tab = 'staff' | 'documents' | 'ids'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'staff', label: 'Staff list' },
+  { key: 'documents', label: 'Documents & expiry' },
+  { key: 'ids', label: 'Print ID cards' },
+]
+
 export default function Employees() {
   const can = useCan()
+  const [params, setParams] = useSearchParams()
+  // An unknown tab falls back to the list rather than a blank page: an old
+  // bookmark should still land somewhere sensible.
+  const tab: Tab = (TABS.find((t) => t.key === params.get('view'))?.key ?? 'staff')
+  const openTab = (key: Tab) => {
+    const next = new URLSearchParams(params)
+    next.set('view', key)
+    setParams(next, { replace: true })
+  }
   const [issuing, setIssuing] = useState<string | null>(null)
   const [handover, setHandover] = useState<StaffLogin | null>(null)
 
@@ -105,11 +134,34 @@ export default function Employees() {
         description="Who works here, and which of their papers are about to lapse."
       />
       <PageBody>
+        <div className="no-print flex flex-wrap items-center gap-1 border-b">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              aria-current={t.key === tab ? 'page' : undefined}
+              onClick={() => openTab(t.key)}
+              className={cn(
+                'rounded-t-md px-3 py-2 text-[13.5px] font-medium transition-colors',
+                t.key === tab
+                  ? 'border-b-2 border-primary text-foreground'
+                  : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'ids' && <IDCards staff={all.filter((e) => e.status !== 'exited')} />}
+
         {/* The screen HR lands on to look somebody up is the screen they land
             on to add somebody. Holding hr.employees.write and finding nothing
             that writes reads as "the product cannot do that" rather than "that
             form is somewhere else". */}
-        {can('hr.employees.write') && <AddStaff onDone={() => staff.refetch()} />}
+        {tab === 'staff' && can('hr.employees.write') && (
+          <AddStaff onDone={() => staff.refetch()} />
+        )}
 
         {/* The one moment the password exists in readable form. It is not in
             the employee record, not in the audit trail and not retrievable —
@@ -146,6 +198,7 @@ export default function Employees() {
             </dl>
           </div>
         )}
+        {tab === 'documents' && (
         <CellGrid cols={4}>
           <Stat label="Active staff" value={all.filter((e) => e.status === 'active').length} />
           <Stat label="Departments" value={departments.length} />
@@ -156,7 +209,9 @@ export default function Employees() {
           />
           <Stat label="Expiring in 60 days" value={soon.length} />
         </CellGrid>
+        )}
 
+        {tab === 'documents' && (
         <Card>
           <CardHeader
             title="Documents"
@@ -221,7 +276,9 @@ export default function Employees() {
             </Table>
           )}
         </Card>
+        )}
 
+        {tab === 'staff' && (
         <Card>
           <CardHeader
             title="Directory"
@@ -269,6 +326,17 @@ export default function Employees() {
                   </Td>
                   <Td><StatusPill status={e.status} /></Td>
                   <Td>
+                    {/* One card, for the person standing at the desk. The
+                        bulk tab is for September; this is for the replacement
+                        somebody lost on Tuesday. */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title={`Print ${e.full_name}'s ID card`}
+                      onClick={() => openTab('ids')}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                    </Button>
                     {can('hr.employees.write') && (
                       <Button
                         size="sm"
@@ -285,6 +353,7 @@ export default function Employees() {
             </Table>
           )}
         </Card>
+        )}
       </PageBody>
     </>
   )

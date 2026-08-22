@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 365 features.
+// Roles is the catalog: 12 roles, 357 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -874,31 +874,6 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug: "records",
-				Name: "Records",
-				Workspace: "Employees",
-				Features: []Feature{
-					{Key: "hr.records.employee_master", Slug: "employee_master", Name: "Employee master", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Employee/faculty profiles, department, designation, documents and employment status."},
-					{Key: "hr.records.employee_documents", Slug: "employee_documents", Name: "Employee documents", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Contracts, IDs and configured employment documents."},
-					{Key: "hr.records.employee_document_expiry_alerts", Slug: "employee_document_expiry_alerts", Name: "Employee Document Expiry Alerts", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Receive alerts for upcoming visa, teaching license, or contract renewal expiration dates."},
-					{Key: "hr.records.staff_id_card_printing", Slug: "staff_id_card_printing", Name: "Staff ID Card Printing", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Design and bulk-print plastic ID cards with barcodes, RFID chips, and staff photos."},
-					{Key: "hr.records.teacher_qualification_register", Slug: "teacher_qualification_register", Name: "Teacher Qualification Register", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Maintain B.Ed, D.El.Ed, TET and subject-competency records required by the board and for inspections."},
-					{Key: "hr.records.staff_service_book_digitalization", Slug: "staff_service_book_digitalization", Name: "Staff Service Book Digitalization", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Maintain complete service book history including promotion orders, transfers, and disciplinary actions."},
-				},
-			},
-			{
-				Slug: "onboarding_exit",
-				Name: "Onboarding & Exit",
-				Workspace: "Employees",
-				Features: []Feature{
-					{Key: "hr.onboarding_exit.staff_onboarding_kyc_verification", Slug: "staff_onboarding_kyc_verification", Name: "Staff Onboarding & KYC Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collect online employee onboarding forms, Aadhaar/PAN verification, and contract letters."},
-					{Key: "hr.onboarding_exit.staff_exit_interview_management", Slug: "staff_exit_interview_management", Name: "Staff Exit Interview Management", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Record exit interview feedback, clearance certificates from library/lab, and final settlement."},
-					{Key: "hr.onboarding_exit.staff_experience_relieving_cards", Slug: "staff_experience_relieving_cards", Name: "Staff Experience & Relieving Cards", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Generate Relieving Letters, Experience Certificates, and Service Certificates upon exit."},
-					{Key: "hr.onboarding_exit.teacher_relieving_no_deduction_clearance", Slug: "teacher_relieving_no_deduction_clearance", Name: "Teacher Relieving No-Deduction Clearance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Verify digital clearance from Library, Science Labs, IT, and Finance prior to final salary settlement."},
-					{Key: "hr.onboarding_exit.teacher_transfer_deputation", Slug: "teacher_transfer_deputation", Name: "Teacher Transfer & Deputation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Record inter-school transfers, deputations and the seniority list used by the state transfer counselling."},
-				},
-			},
-			{
 				Slug: "verification",
 				Name: "Verification",
 				Workspace: "Employees",
@@ -992,6 +967,23 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "hr.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+			{
+				Slug: "records",
+				Name: "Records",
+				Workspace: "Records",
+				Features: []Feature{
+					{Key: "hr.records.staff_records", Slug: "staff_records", Name: "Staff records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here."},
+					{Key: "hr.records.service_book_qualifications", Slug: "service_book_qualifications", Name: "Service book & qualifications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The service record kept for each teacher over their career — postings, promotions, increments — and their degrees and teaching qualifications, which is what an inspector asks to see."},
+				},
+			},
+			{
+				Slug: "onboarding_exit",
+				Name: "Onboarding & Exit",
+				Workspace: "Onboarding & Exit",
+				Features: []Feature{
+					{Key: "hr.onboarding_exit.staff_joinings_exits", Slug: "staff_joinings_exits", Name: "Staff joinings & exits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One page, four tabs: the KYC and documents a new appointment depends on; the resignation, notice period and department-by-department clearance an exit runs through; the appointment, experience and relieving letters issued along the way; and transfers between campuses or departments. The final settlement stays locked until every department has signed."},
 				},
 			},
 		},

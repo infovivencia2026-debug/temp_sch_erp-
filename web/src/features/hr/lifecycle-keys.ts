@@ -15,14 +15,6 @@ import { lazy } from 'react'
  * separate screens would each show a fifteenth of an answer.
  */
 export const hrLifecycleKeys = {
-  'hr.onboarding_exit.staff_onboarding_kyc_verification': lazy(() => import('./Lifecycle')),
-  'hr.onboarding_exit.staff_exit_interview_management': lazy(() => import('./Lifecycle')),
-  'hr.onboarding_exit.staff_experience_relieving_cards': lazy(() => import('./Lifecycle')),
-  'hr.onboarding_exit.teacher_relieving_no_deduction_clearance': lazy(() => import('./Lifecycle')),
-  'hr.onboarding_exit.teacher_transfer_deputation': lazy(() => import('./Lifecycle')),
-
-  'hr.records.staff_service_book_digitalization': lazy(() => import('./ServiceRecords')),
-  'hr.records.teacher_qualification_register': lazy(() => import('./ServiceRecords')),
   'hr.verification.medical_fitness_certificate_registry': lazy(() => import('./ServiceRecords')),
   'hr.verification.staff_criminal_background_verification': lazy(() => import('./ServiceRecords')),
 

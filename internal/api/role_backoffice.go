@@ -256,6 +256,31 @@ type hrKPIs struct {
 	LeavePending int `json:"leave_pending"`
 	NewJoiners   int `json:"new_joiners_30d"`
 	Departments  int `json:"departments"`
+
+	// Who is not in today, and what is unfinished. The dashboard used to
+	// answer neither: it counted the staff and then printed all of them,
+	// which is a filing cabinet standing where the morning's work should be.
+	AwayToday []awayRow  `json:"away_today"`
+	Attention []alertRow `json:"attention"`
+}
+
+// awayRow is one person who is not in today and why. The name is the point —
+// "3 absent" tells HR a number, and what they need is which three, because
+// each one is a class somebody has to cover.
+type awayRow struct {
+	Name   string  `json:"name"`
+	Code   string  `json:"employee_code"`
+	Reason string  `json:"reason"`
+	Until  *string `json:"until,omitempty"`
+}
+
+// alertRow is a thing that needs doing, said as a sentence with a count in it
+// rather than as a bare number somebody has to interpret.
+type alertRow struct {
+	Kind  string `json:"kind"`
+	Text  string `json:"text"`
+	Count int    `json:"count"`
+	Link  string `json:"link"`
 }
 
 // getHRDashboard powers hr.dashboard.hr_kpis.
@@ -263,7 +288,7 @@ func (s *Server) getHRDashboard(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	var k hrKPIs
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
+		err := tx.QueryRow(r.Context(), `
 			SELECT
 			  (SELECT count(*) FROM employees WHERE status='active'),
 			  (SELECT count(*) FROM staff_attendance
@@ -277,6 +302,85 @@ func (s *Server) getHRDashboard(w http.ResponseWriter, r *http.Request) {
 			  (SELECT count(*) FROM departments)
 		`).Scan(&k.Headcount, &k.PresentToday, &k.AbsentToday, &k.LeavePending,
 			&k.NewJoiners, &k.Departments)
+		if err != nil {
+			return err
+		}
+
+		/* Who is not in today.
+
+		   Two sources, because they are two different facts: the register
+		   says who was marked absent this morning, and the leave table says
+		   who was approved to be away before the morning happened. A school
+		   that has not marked the register yet still needs the second list —
+		   in fact that is exactly when it needs it, because it is the list of
+		   classes nobody is standing in front of. */
+		k.AwayToday = []awayRow{}
+		rows, err2 := tx.Query(r.Context(), `
+			SELECT concat_ws(' ', e.first_name, e.last_name), e.employee_code,
+			       'marked absent', NULL::text
+			  FROM staff_attendance sa
+			  JOIN employees e ON e.user_id = sa.user_id
+			 WHERE sa.on_date = CURRENT_DATE AND sa.status IN ('absent', 'leave')
+			UNION
+			SELECT concat_ws(' ', e.first_name, e.last_name), e.employee_code,
+			       COALESCE(lt.name, 'on leave'),
+			       CASE WHEN lr.to_date > CURRENT_DATE
+			            THEN to_char(lr.to_date, 'YYYY-MM-DD') END
+			  FROM leave_requests lr
+			  JOIN employees e ON e.id = lr.employee_id
+			  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+			 WHERE lr.subject_kind = 'employee' AND lr.status = 'approved'
+			   AND CURRENT_DATE BETWEEN lr.from_date AND lr.to_date
+			 ORDER BY 1`)
+		if err2 != nil {
+			return err2
+		}
+		for rows.Next() {
+			var v awayRow
+			if err := rows.Scan(&v.Name, &v.Code, &v.Reason, &v.Until); err != nil {
+				rows.Close()
+				return err
+			}
+			k.AwayToday = append(k.AwayToday, v)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		/* What is unfinished.
+
+		   Counted, not listed: the dashboard says how many and where to go,
+		   and the screen it sends you to does the listing. An alert with a
+		   count of zero is not shown at all — a dashboard that reassures you
+		   four times before it tells you anything is one people stop reading. */
+		k.Attention = []alertRow{}
+		var noDocs, expiring, expired, noLogin int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT (SELECT count(*) FROM employees e
+			         WHERE e.status = 'active'
+			           AND NOT EXISTS (SELECT 1 FROM employee_documents d
+			                            WHERE d.employee_id = e.id))::int,
+			       (SELECT count(*) FROM employee_documents
+			         WHERE expires_on BETWEEN CURRENT_DATE AND CURRENT_DATE + 60)::int,
+			       (SELECT count(*) FROM employee_documents
+			         WHERE expires_on < CURRENT_DATE)::int,
+			       (SELECT count(*) FROM employees e
+			         WHERE e.status = 'active' AND e.user_id IS NULL)::int`).
+			Scan(&noDocs, &expiring, &expired, &noLogin); err != nil {
+			return err
+		}
+		add := func(n int, kind, text, link string) {
+			if n > 0 {
+				k.Attention = append(k.Attention, alertRow{kind, text, n, link})
+			}
+		}
+		add(expired, "danger", "staff documents have already lapsed", "/go/records/staff_records?view=documents")
+		add(expiring, "warning", "staff documents lapse within 60 days", "/go/records/staff_records?view=documents")
+		add(noDocs, "warning", "staff have no documents on file at all", "/go/records/staff_records?view=documents")
+		add(noLogin, "neutral", "staff cannot sign in yet", "/go/records/staff_records")
+		add(k.LeavePending, "warning", "leave requests are waiting on somebody", "/go/leave/leave")
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
