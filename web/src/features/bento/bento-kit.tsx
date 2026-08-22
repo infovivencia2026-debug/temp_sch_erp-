@@ -609,7 +609,7 @@ export function Sparkline({
     somebody will act on it. */
 export function BentoError({ message }: { message: string }) {
   return (
-    <div className="min-h-full bg-[var(--bento-bg)] p-6 sm:p-7">
+    <div className="bento-surface min-h-full bg-[var(--bento-bg)] p-6 sm:p-7">
       <p
         role="alert"
         className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-pink)]"
@@ -656,7 +656,7 @@ export function CellError({
 export function BentoLoading({ message }: { message: string }) {
   return (
     <div
-      className="min-h-full bg-[var(--bento-bg)] p-6 text-[13.5px] text-[var(--bento-muted)] sm:p-7"
+      className="bento-surface min-h-full bg-[var(--bento-bg)] p-6 text-[13.5px] text-[var(--bento-muted)] sm:p-7"
       aria-busy="true"
     >
       {message}

@@ -860,15 +860,15 @@
 
 /* The figure scales with the room it has. Width leads, because these cards are
    wider than they are tall and a number runs out of horizontal space first. */
-.bento-widget[data-w='1'] { --bento-fig: clamp(20px, 2.6vh, 28px); }
-.bento-widget[data-w='2'] { --bento-fig: clamp(26px, 3.6vh, 40px); }
-.bento-widget[data-w='3'] { --bento-fig: clamp(30px, 4.2vh, 48px); }
-.bento-widget[data-w='4'] { --bento-fig: clamp(34px, 4.8vh, 56px); }
-.bento-widget[data-w='5'] { --bento-fig: clamp(38px, 5.4vh, 64px); }
+.bento-widget[data-w='1'] { --bento-fig: calc(clamp(20px, 2.6vh, 28px) * var(--font-scale, 1)); }
+.bento-widget[data-w='2'] { --bento-fig: calc(clamp(26px, 3.6vh, 40px) * var(--font-scale, 1)); }
+.bento-widget[data-w='3'] { --bento-fig: calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)); }
+.bento-widget[data-w='4'] { --bento-fig: calc(clamp(34px, 4.8vh, 56px) * var(--font-scale, 1)); }
+.bento-widget[data-w='5'] { --bento-fig: calc(clamp(38px, 5.4vh, 64px) * var(--font-scale, 1)); }
 
 /* Two rows of height buys back a step, since the constraint there is vertical. */
 .bento-widget[data-h='1'][data-w='4'],
-.bento-widget[data-h='1'][data-w='5'] { --bento-fig: clamp(30px, 4.2vh, 48px); }
+.bento-widget[data-h='1'][data-w='5'] { --bento-fig: calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)); }
 
 /* One column: the supporting sentence goes. It is the longest thing in the
    card and the first to wrap into an unreadable ladder. */

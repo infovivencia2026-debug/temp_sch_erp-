@@ -43,9 +43,9 @@
      were still there, still remembered, and applied to a layout they were not
      looking at. Every one is a multiple of the shipped value now, so the
      layout keeps its own proportions and still answers the preference. */
-  --bento-radius: 8px;
-  --bento-radius-sm: 4px;
-  --bento-gap: 6px;
+  --bento-radius: calc(8px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(4px * var(--radius-scale, 1));
+  --bento-gap: calc(6px * var(--bento-density, 1));
   --bento-dock: 72px;
   --bento-border-w: calc(1px * var(--border-scale, 1));
 
@@ -240,9 +240,9 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-card: #ffffff;
   --bento-ink: #172033;
   --bento-muted: #667085;
-  --bento-radius: 10px;
-  --bento-radius-sm: 8px;
-  --bento-gap: 14px;
+  --bento-radius: calc(10px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(8px * var(--radius-scale, 1));
+  --bento-gap: calc(14px * var(--bento-density, 1));
   --bento-border-w: 1px;
   --bento-line: #d8dee8;
   --bento-shadow: none;
@@ -574,3 +574,92 @@ html[data-shadow='deep'][data-layout='bento'] {
   background-image: var(--pattern, none);
   background-attachment: fixed;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FOCUS ANSWERS TO THE APPEARANCE SETTINGS.
+
+   Focus was built with its own tokens — its own ground, card, radius, gap and
+   depth — so that changing it could never disturb the classic layout. The cost
+   was that it read exactly one of the seven appearance axes (--border-scale)
+   and silently ignored the rest: a person could set Text size to Larger, or
+   Corners to Sharp, and watch nothing happen on the only screen they use.
+
+   Each axis below is wired to the SAME attribute the classic layout reads, so
+   there is one preference and two renderings of it, rather than two settings
+   that happen to share a name.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* DENSITY — the gap between cards, and the padding inside them. */
+:root { --bento-density: 1; }
+:root[data-density='compact'] { --bento-density: 0.6; }
+:root[data-density='comfortable'] { --bento-density: 1; }
+:root[data-density='spacious'],
+:root[data-density='relaxed'] { --bento-density: 1.7; }
+
+/* SHADOW — Focus calls its own depth tokens, so the axis has to move those
+   rather than the classic --lift-* pair. */
+html[data-shadow='flat'] {
+  --bento-depth-sm: none;
+  --bento-depth: none;
+  --bento-depth-lg: none;
+}
+html[data-shadow='lifted'] {
+  --bento-depth-sm: 0 3px 14px rgba(0,0,0,0.06);
+  --bento-depth: 0 8px 28px rgba(0,0,0,0.09);
+  --bento-depth-lg: 0 16px 44px rgba(0,0,0,0.13);
+}
+html[data-shadow='deep'] {
+  --bento-depth-sm: 0 4px 18px rgba(0,0,0,0.10);
+  --bento-depth: 0 12px 38px rgba(0,0,0,0.16);
+  --bento-depth-lg: 0 24px 60px rgba(0,0,0,0.22);
+}
+
+/* TEXT SIZE — the figure already reads --bento-fig; this makes the axis reach
+   it, and the label and note with it.
+
+   Focus sets its type in px through Tailwind arbitrary values, which do NOT
+   respond to the root font-size the classic layout scales. So the scale is
+   applied here, to the tokens Focus actually reads. */
+:root {
+  --bento-text: var(--font-scale, 1);
+}
+.bento-widget { font-size: calc(1em * var(--bento-text)); }
+.bento-widget .bento-note,
+.bento-widget .bento-cue { font-size: calc(12px * var(--bento-text)); }
+
+/* CONTRAST — Focus paints its own ground and ink, so the axis has to restate
+   them. Medium darkens the muted tone; high also separates the card from the
+   ground with a real border rather than a shadow. */
+:root[data-contrast='medium'] {
+  --bento-muted: #4b5563;
+  --bento-line: #d0d5dd;
+}
+:root[data-contrast='high'] {
+  --bento-muted: #1f2937;
+  --bento-line: #6b7280;
+  --bento-border-w: calc(1.5px * var(--border-scale, 1));
+}
+.dark:root[data-contrast='medium'] { --bento-muted: #c3c9d4; }
+.dark:root[data-contrast='high'] {
+  --bento-muted: #e6e9ef;
+  --bento-line: #8b93a3;
+}
+
+/* BACKGROUND PATTERN — drawn on Focus's own ground, not lost behind it.
+
+   The axis paints the pattern on <body>. Focus lays its own full-height ground
+   over the body, so the pattern was there the whole time and simply covered
+   up. Repeating it on that surface is the fix; painting the body harder is
+   not, because the ground is opaque by design. */
+.bento-surface { background-attachment: fixed; }
+html[data-pattern='dots'] .bento-surface,
+html[data-pattern='grid'] .bento-surface,
+html[data-pattern='lines'] .bento-surface,
+html[data-pattern='noise'] .bento-surface {
+  background-image: var(--pattern, none);
+}
+/* currentColor is what the gradients are drawn in, so it has to be a line
+   colour rather than the ground's body text. */
+html[data-pattern='dots'] .bento-surface,
+html[data-pattern='grid'] .bento-surface,
+html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
