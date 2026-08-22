@@ -265,10 +265,27 @@ func (r *Resolved) HasScope(s catalog.Scope) bool {
 		return r.PlatformAdmin || r.InstitutionID != uuid.Nil
 	case catalog.ScopeCampus:
 		return r.AllCampuses || len(r.CampusIDs) > 0
-	case catalog.ScopeDepartment:
-		return len(r.DepartmentIDs) > 0
-	case catalog.ScopeAssignedClasses:
-		return len(r.SectionIDs) > 0
+
+	/* Menu visibility, not data access.
+
+	   This answers "should the entry appear", and it was answering "does this
+	   person already have rows behind it" — so a head of department at a
+	   school that has not created departments yet, and a teacher before
+	   anybody assigned them a class, both signed in to an empty menu. The
+	   product looked broken at exactly the moment somebody was setting it up.
+
+	   Departments are an optional setup step and class assignment happens
+	   after staff are imported, so "not yet" is the normal state on day one
+	   and is not the same as "never". The screens themselves are honest about
+	   it: an empty department timetable says there is no department, which is
+	   a sentence somebody can act on, and a missing menu entry is not.
+
+	   Nothing here widens what anybody can read. Rows are narrowed by
+	   internal/scope's own predicates inside each query — a HOD with no
+	   department still matches no departments — and this value is used only to
+	   decide whether the catalogue lists the feature. */
+	case catalog.ScopeDepartment, catalog.ScopeAssignedClasses:
+		return true
 	case catalog.ScopeSelf:
 		/* "Self" means the person signed in, and everybody has one.
 
