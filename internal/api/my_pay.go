@@ -1,7 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -47,6 +50,22 @@ type myPayslip struct {
 	Locked bool `json:"locked"`
 }
 
+/*
+Why the number was smaller than usual.
+
+	A payslip that is short and does not say why is the single most common
+	reason somebody walks to the payroll office, and the answer is nearly always
+	one of two things: unpaid days, or late arrivals that crossed the policy's
+	limit. Both are already recorded — the payslip carries the lost days, the
+	register carries the late marks, and the policy carries what a late mark is
+	worth — and none of it was ever shown to the person it happened to.
+
+	Said as sentences, because "LOP 2.0" is not an explanation.
+*/
+type payReason struct {
+	Text string `json:"text"`
+}
+
 type myAttendance struct {
 	Present int `json:"present"`
 	Absent  int `json:"absent"`
@@ -64,6 +83,11 @@ type myPayResponse struct {
 	// that has not run payroll yet. An empty list with no explanation reads as
 	// a fault.
 	Note string `json:"note,omitempty"`
+
+	// Late arrivals this month, and what the last payslip's deduction was
+	// actually for.
+	LateThisMonth int         `json:"late_this_month"`
+	Reasons       []payReason `json:"deduction_reasons"`
 }
 
 type leaveBalRow struct {
@@ -167,6 +191,40 @@ func (s *Server) getMyPay(w http.ResponseWriter, r *http.Request) {
 		brows.Close()
 		if err := brows.Err(); err != nil {
 			return err
+		}
+
+		/* Late marks this month, and the sentences that explain the payslip.
+
+		   This month rather than this year: a late mark matters because of the
+		   policy's monthly count — three lates make a day — so a running total
+		   since April answers a question nobody asked. */
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*)::int FROM staff_attendance
+			 WHERE user_id = $1 AND status = 'late'
+			   AND date_trunc('month', on_date) = date_trunc('month', CURRENT_DATE)`,
+			id.UserID).Scan(&out.LateThisMonth); err != nil {
+			return err
+		}
+
+		out.Reasons = []payReason{}
+		if len(out.Payslips) > 0 {
+			p := out.Payslips[0]
+			if lop, err := strconv.ParseFloat(p.LOPDays, 64); err == nil && lop > 0 {
+				word := "days"
+				if lop == 1 {
+					word = "day"
+				}
+				out.Reasons = append(out.Reasons, payReason{
+					Text: fmt.Sprintf("%g unpaid %s in %s — leave taken beyond what you had left, or days not covered by an approved leave.",
+						lop, word, time.Month(p.Month).String()),
+				})
+			}
+		}
+		if out.LateThisMonth > 0 {
+			out.Reasons = append(out.Reasons, payReason{
+				Text: fmt.Sprintf("%d late arrivals recorded this month. Your school's policy sets how many make one unpaid day — it is on the leave and attendance policy.",
+					out.LateThisMonth),
+			})
 		}
 
 		if len(out.Payslips) == 0 && out.Note == "" {

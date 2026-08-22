@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 357 features. */
+/** 12 roles, 355 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -852,9 +852,7 @@ export const ROLES: Role[] = [
         workspace: 'Attendance & Leave',
         features: [
           { key: 'hr.leave.leave', slug: 'leave', name: 'Leave', scope: 'institution', tier: 'core', summary: 'Leave balances, requests, approvals and holiday calendar.' },
-          { key: 'hr.leave.leave_policy_configuration', slug: 'leave_policy_configuration', name: 'Leave Policy Configuration', scope: 'institution', tier: 'core', summary: 'Define Casual Leave, Sick Leave, Earned Leave, Maternity Leave rules and carry-forward limits.' },
-          { key: 'hr.leave.late_arrival_loss_of_pay_lop', slug: 'late_arrival_loss_of_pay_lop', name: 'Late Arrival & Loss of Pay (LOP)', scope: 'institution', tier: 'core', summary: 'Configure auto-deduction rules for late arrivals or unexcused absences leading to LOP.' },
-          { key: 'hr.leave.half_day_leave_deduction_calculation', slug: 'half_day_leave_deduction_calculation', name: 'Half-Day Leave Deduction Calculation', scope: 'institution', tier: 'core', summary: 'Auto-calculate half-day salary deductions when staff check out earlier than prescribed shift hours.' },
+          { key: 'hr.leave.leave_rules', slug: 'leave_rules', name: 'Leave rules', scope: 'institution', tier: 'core', summary: 'The rules leave is decided by: how much of each type staff get a year, what counts as a late arrival and when it becomes loss of pay, and how a half day is deducted. Set once; every leave request and every payslip follows it.' },
         ],
       },
       {

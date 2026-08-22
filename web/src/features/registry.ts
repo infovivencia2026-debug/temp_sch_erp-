@@ -452,6 +452,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...trackerKeys,
 
   'hr.onboarding_exit.staff_joinings_exits': lazy(() => import('./hr/Lifecycle')),
+  'hr.leave.leave_rules': lazy(() => import('./hr/LeavePolicy')),
   'hr.records.staff_records': lazy(() => import('./hr/Employees')),
   'hr.records.service_book_qualifications': lazy(() => import('./hr/ServiceRecords')),
   ...financeKeys,

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 361 of the catalog's features are implemented.
+// 359 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -124,10 +124,8 @@ var implementedFeatures = map[string]bool{
 	"hr.hiring_growth.recruitment":                                                   true,
 	"hr.hiring_growth.staff_training_workshop_logs":                                  true,
 	"hr.home.hr_kpis":                                                                true,
-	"hr.leave.half_day_leave_deduction_calculation":                                  true,
-	"hr.leave.late_arrival_loss_of_pay_lop":                                          true,
 	"hr.leave.leave":                                                                 true,
-	"hr.leave.leave_policy_configuration":                                            true,
+	"hr.leave.leave_rules":                                                           true,
 	"hr.my_profile.my_pay":                                                           true,
 	"hr.onboarding_exit.staff_joinings_exits":                                        true,
 	"hr.payroll.direct_bank_payroll_transfer_file":                                   true,

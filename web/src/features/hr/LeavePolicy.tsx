@@ -128,9 +128,9 @@ export default function LeavePolicy() {
     <>
       <PageHead
         eyebrow="Attendance & Leave"
-        title="Leave policy"
-        description="What each kind of leave allows, what half a day costs, and how many late arrivals make one."
-        actions={<Button onClick={() => save.mutate(draft)} disabled={save.isPending}>Save the policy</Button>}
+        title="Staff leave & attendance policy"
+        description="Leave types and how many days each allows, the late-arrival grace period, and how half days and unpaid leave are deducted — set in one place, and every leave request and payslip follows it."
+        actions={<Button onClick={() => save.mutate(draft)} disabled={save.isPending}>Save all changes</Button>}
       />
       <PageBody>
         <CellGrid cols={4}>

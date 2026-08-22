@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 357 features.
+// Roles is the catalog: 12 roles, 355 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -899,9 +899,7 @@ var Roles = []Role{
 				Workspace: "Attendance & Leave",
 				Features: []Feature{
 					{Key: "hr.leave.leave", Slug: "leave", Name: "Leave", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave balances, requests, approvals and holiday calendar."},
-					{Key: "hr.leave.leave_policy_configuration", Slug: "leave_policy_configuration", Name: "Leave Policy Configuration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Define Casual Leave, Sick Leave, Earned Leave, Maternity Leave rules and carry-forward limits."},
-					{Key: "hr.leave.late_arrival_loss_of_pay_lop", Slug: "late_arrival_loss_of_pay_lop", Name: "Late Arrival & Loss of Pay (LOP)", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Configure auto-deduction rules for late arrivals or unexcused absences leading to LOP."},
-					{Key: "hr.leave.half_day_leave_deduction_calculation", Slug: "half_day_leave_deduction_calculation", Name: "Half-Day Leave Deduction Calculation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Auto-calculate half-day salary deductions when staff check out earlier than prescribed shift hours."},
+					{Key: "hr.leave.leave_rules", Slug: "leave_rules", Name: "Leave rules", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The rules leave is decided by: how much of each type staff get a year, what counts as a late arrival and when it becomes loss of pay, and how a half day is deducted. Set once; every leave request and every payslip follows it."},
 				},
 			},
 			{

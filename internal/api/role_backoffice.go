@@ -454,18 +454,41 @@ type leaveRow struct {
 // leaveArgs supplies the user id only when the predicate references it; pgx
 // rejects a parameter the query never mentions.
 func leaveArgs(r *http.Request, id *httpx.Identity, mine string) []any {
-	args := []any{nullString(r.URL.Query().Get("status"))}
+	args := []any{nullString(r.URL.Query().Get("status")), leaveFor(r)}
 	if mine != "TRUE" {
 		args = append(args, id.UserID)
 	}
 	return args
 }
 
+/*
+Whose leave this screen is about.
+
+	One table holds both, because a leave request is the same shape whoever
+	applies. One screen showing both is a different matter: HR opened their leave
+	queue and found children in it, next to the teachers, in a module that exists
+	for employees. A class teacher answering a parent's note has the opposite
+	problem — a list of colleagues' sick leave they have no business deciding.
+
+	So the caller says which they came for. Absent, it stays both, because the
+	principal genuinely wants one queue: they decide staff leave and their class
+	teachers' student leave from the same desk.
+*/
+func leaveFor(r *http.Request) any {
+	switch r.URL.Query().Get("for") {
+	case "staff", "employee":
+		return "employee"
+	case "student", "students":
+		return "student"
+	}
+	return nil
+}
+
 func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	mine := "TRUE"
 	if !id.Can(rbac.EmployeesRead) {
-		mine = `e.user_id = $2`
+		mine = `e.user_id = $3`
 	}
 
 	items, err := collect(s, r, `
@@ -480,6 +503,7 @@ func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN students   st ON st.id = lr.student_id
 		  LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
 		 WHERE ($1::text IS NULL OR lr.status = $1)
+		   AND ($2::text IS NULL OR lr.subject_kind = $2)
 		   AND `+mine+`
 		 ORDER BY lr.created_at DESC
 		 LIMIT 300`, leaveArgs(r, id, mine),

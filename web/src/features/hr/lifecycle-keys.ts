@@ -21,8 +21,4 @@ export const hrLifecycleKeys = {
   'hr.welfare.staff_birthday_anniversary_alerts': lazy(() => import('./Welfare')),
   'hr.welfare.staff_grievance_cell': lazy(() => import('./Welfare')),
   'hr.welfare.staff_recognition_wall': lazy(() => import('./Welfare')),
-
-  'hr.leave.leave_policy_configuration': lazy(() => import('./LeavePolicy')),
-  'hr.leave.half_day_leave_deduction_calculation': lazy(() => import('./LeavePolicy')),
-  'hr.leave.late_arrival_loss_of_pay_lop': lazy(() => import('./LeavePolicy')),
 }

@@ -41,6 +41,8 @@ interface Balance {
 
 interface MyPay {
   employee_code?: string
+  late_this_month: number
+  deduction_reasons: { text: string }[]
   payslips: Payslip[]
   attendance: { present: number; absent: number; late: number; on_leave: number; days_marked: number }
   leave_balances: Balance[]
@@ -107,6 +109,7 @@ export default function MyPay() {
     : 0
 
   const breakup = latest ? lines(latest.breakup) : { earnings: [], deductions: [] }
+  const latestLOP = latest ? Number(latest.lop_days) : 0
 
   return (
     <>
@@ -146,6 +149,30 @@ export default function MyPay() {
                 />
               )}
             </CellGrid>
+          </Card>
+        )}
+
+        {(d.deduction_reasons?.length > 0 || d.late_this_month > 0) && (
+          <Card>
+            <CardHeader
+              title="Why your pay was reduced"
+              description="Said in full, because a payslip that is short and does not say why is why people walk to the office."
+            />
+            <ul className="space-y-2">
+              {(d.deduction_reasons ?? []).map((r) => (
+                <li key={r.text} className="flex gap-2 text-[14px]">
+                  <span className="text-muted-foreground">·</span>
+                  {r.text}
+                </li>
+              ))}
+            </ul>
+            {latestLOP > 0 && (
+              <p className="mt-3 text-[13px] text-muted-foreground">
+                That is {latestLOP} unpaid {latestLOP === 1 ? 'day' : 'days'} out of{' '}
+                {latest?.paid_days} paid. If you think a day is wrong, the register is what it
+                is taken from — ask HR to check that date rather than the payslip.
+              </p>
+            )}
           </Card>
         )}
 
@@ -207,6 +234,10 @@ export default function MyPay() {
               <Stat label="Absent" value={d.attendance.absent} />
               <Stat label="Late" value={d.attendance.late} />
               <Stat label="On leave" value={d.attendance.on_leave} />
+              {/* This month, because the policy counts late marks by month —
+                  three make an unpaid day at most schools. A total since April
+                  answers a question nobody asked. */}
+              <Stat label="Late this month" value={d.late_this_month ?? 0} />
             </CellGrid>
           )}
         </Card>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -48,9 +49,25 @@ export default function Leave() {
   const [status, setStatus] = useState(canDecide ? 'pending' : '')
   const [done, setDone] = useState('')
 
+  /* Whose leave this screen is about.
+   *
+   * One table holds both, and one screen showing both put children into HR's
+   * queue beside the teachers — in a module that exists for employees. The
+   * workspace in the URL says which door somebody came through: HR's is staff,
+   * everybody else's is unchanged, and the principal still sees one queue
+   * because they genuinely decide both from the same desk. */
+  const workspace = useLocation().pathname.split('/')[1]
+  const forWhom = workspace === 'hr' ? 'staff' : ''
+
   const q = useQuery({
-    queryKey: ['leave', status],
-    queryFn: () => api.get<List<LeaveRow>>(`/api/v1/hr/leave${status ? `?status=${status}` : ''}`),
+    queryKey: ['leave', status, forWhom],
+    queryFn: () => {
+      const p = new URLSearchParams()
+      if (status) p.set('status', status)
+      if (forWhom) p.set('for', forWhom)
+      const qs = p.toString()
+      return api.get<List<LeaveRow>>(`/api/v1/hr/leave${qs ? `?${qs}` : ''}`)
+    },
   })
 
   const decide = useMutation({
@@ -89,27 +106,32 @@ export default function Leave() {
 
   const items = q.data?.items ?? []
   const pending = items.filter((l) => l.status === 'pending')
-  const staff = items.filter((l) => l.subject_kind === 'employee').length
   const mayDecide = canDecide
 
   return (
     <>
       <PageHead
         eyebrow="Attendance & Leave"
-        title="Leave requests"
-        description="Staff and student leave awaiting a decision, and the history behind it."
+        title={forWhom === 'staff' ? 'Staff leave approvals' : 'Staff & student leave approvals'}
+        description={
+          forWhom === 'staff'
+            ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
+            : 'Staff and student leave awaiting a decision, and the history behind it.'
+        }
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Showing" value={items.length} hint={status || 'all statuses'} />
-          <Stat label="Awaiting decision" value={pending.length} />
-          <Stat label="Staff" value={staff} />
-          <Stat label="Students" value={items.length - staff} />
+          <Stat label="Total requests" value={items.length} hint={status || 'all statuses'} />
+          <Stat label="Pending approval" value={pending.length} />
+          <Stat label="Approved" value={items.filter((r) => r.status === 'approved').length} />
+          {/* The fourth box was a headcount split that repeated what the Who
+              column already says. Rejected is the one somebody looks for. */}
+          <Stat label="Rejected" value={items.filter((r) => r.status === 'rejected').length} />
         </CellGrid>
 
         <Card>
           <CardHeader
-            title="Take leave yourself"
+            title="Apply for my leave"
             description="Your own request. It goes to whoever approves leave at this school."
             action={
               <Button variant={apply ? 'ghost' : 'primary'} onClick={() => setApply((v) => !v)}>
