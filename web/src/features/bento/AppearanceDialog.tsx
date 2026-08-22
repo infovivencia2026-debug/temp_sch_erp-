@@ -41,19 +41,23 @@ function Axis<T extends string>({
   options,
   onPick,
   name,
-  stepper = false,
 }: {
   label: string
   value: T
   options: readonly T[]
   onPick: (v: T) => void
   name: (v: T) => string
-  /** Adds - and + either side. For an axis whose options are ORDERED and whose
-      real question is "a bit more" rather than "which one" — text size being
-      the case people reach for most, and usually the case where they cannot
-      comfortably read the labels they are being asked to choose between. */
-  stepper?: boolean
 }) {
+  /* A scale, not a row of buttons.
+
+     Every one of these axes is ORDERED — smaller to larger, tighter to looser,
+     flatter to deeper — and a row of named pills asked people to read four or
+     five labels to express "a bit more". It also grew the dialog sideways in
+     proportion to how many steps an axis happened to have, so the axis with
+     the most options looked like the most important one.
+
+     Minus and plus need no reading, and the current step is stated between
+     them, so nothing is hidden — only the four you did not choose. */
   const at = options.indexOf(value)
   const step = (d: number) => {
     const next = options[Math.min(options.length - 1, Math.max(0, at + d))]
@@ -61,52 +65,55 @@ function Axis<T extends string>({
   }
   const arrow =
     `grid size-7 shrink-0 place-items-center rounded-full border transition-colors
-     hover:bg-accent disabled:opacity-35 disabled:hover:bg-transparent
+     hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent
      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
       <p className="w-[104px] shrink-0 text-[13px] font-medium">{label}</p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {stepper && (
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            disabled={at <= 0}
-            aria-label={`${label} smaller`}
-            className={arrow}
-          >
-            <Minus className="size-3.5" aria-hidden="true" />
-          </button>
-        )}
-        {options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => onPick(o)}
-            aria-pressed={value === o}
-            className={cn(
-              `rounded-full border px-3 py-1 text-[12.5px] transition-colors
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
-              value === o
-                ? 'border-primary bg-primary-soft font-medium text-primary'
-                : 'hover:bg-accent',
-            )}
-          >
-            {name(o)}
-          </button>
-        ))}
-        {stepper && (
-          <button
-            type="button"
-            onClick={() => step(1)}
-            disabled={at >= options.length - 1}
-            aria-label={`${label} bigger`}
-            className={arrow}
-          >
-            <Plus className="size-3.5" aria-hidden="true" />
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          disabled={at <= 0}
+          aria-label={`${label} down`}
+          className={arrow}
+        >
+          <Minus className="size-3.5" aria-hidden="true" />
+        </button>
+
+        {/* Fixed width so the two arrows do not shuffle sideways as the word
+            between them changes length. */}
+        <span
+          role="status"
+          aria-live="polite"
+          className="w-[104px] text-center text-[12.5px] font-medium text-primary"
+        >
+          {name(value)}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => step(1)}
+          disabled={at >= options.length - 1}
+          aria-label={`${label} up`}
+          className={arrow}
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+        </button>
+
+        {/* The position on the scale, which the words alone no longer give. */}
+        <span aria-hidden="true" className="flex items-center gap-1">
+          {options.map((o) => (
+            <span
+              key={o}
+              className={cn(
+                'h-1 rounded-full transition-all',
+                o === value ? 'w-4 bg-primary' : 'w-1.5 bg-border',
+              )}
+            />
+          ))}
+        </span>
       </div>
     </div>
   )
@@ -326,7 +333,6 @@ export function AppearanceDialog({
               options={TEXT_SIZES}
               onPick={(v) => set('text', v)}
               name={(v) => t(`bento.settings.text.${v}`)}
-              stepper
             />
             <Axis<Density>
               label={t('bento.settings.density')}

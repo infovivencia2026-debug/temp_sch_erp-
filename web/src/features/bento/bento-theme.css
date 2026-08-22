@@ -691,10 +691,11 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
     grid-auto-rows: calc((100cqw - 4 * var(--bento-gap)) / 5) !important;
   }
 
-  /* A card may still hold more than a square can show. It clips rather than
-     pushing the grid out of shape — the contents already shed their note and
-     meter at small sizes, so what is left is the label, the figure and the
-     cue, which fit. */
+  /* The card is not allowed to push the grid out of shape. overflow:hidden is
+     the backstop, NOT the plan — the plan is the shedding rules below, which
+     drop content until what remains fits. Clipping as a strategy means a card
+     that silently loses its cue; shedding means it loses its least important
+     part first, deliberately. */
   .bento-board > * { overflow: hidden; }
 }
 
@@ -726,3 +727,48 @@ html[data-appearance-open] .bento-dock {
 html[data-appearance-open] .appearance-panel {
   margin-bottom: 132px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   A CELL SHEDS UNTIL IT FITS. It does not overflow, and it does not rely on
+   being clipped.
+
+   Now that one grid unit is a square, a 1x1 is about 250px on a wide screen —
+   and a card holding a label, a figure, a meter, a sentence and a cue needs
+   roughly twice that. Something has to go, and the useful question is which
+   thing, decided here once rather than by whichever element happens to be
+   last in the box.
+
+   The order things are given up, least useful first:
+     1. the supporting sentence   (already dropped at one column)
+     2. the meter                 (needs vertical room it does not have)
+     3. nothing else
+
+   The label, the figure and the cue survive at every size. A card that has
+   dropped its subject or its way out is not a smaller card, it is a broken
+   one — so instead of hiding those, the label truncates and the figure
+   shrinks.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* A meter in a single row of height has nowhere to go. */
+.bento-widget[data-h='1'] .bento-shape { display: none; }
+
+/* One column: the sentence goes, and the label takes one line with an
+   ellipsis rather than wrapping into three and pushing the figure out. */
+.bento-widget[data-w='1'] .bento-note { display: none; }
+.bento-widget[data-w='1'] .bento-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The smallest card gives its padding back to its contents. */
+.bento-widget[data-w='1'][data-h='1'] > * {
+  padding: 14px;
+}
+
+/* Whatever remains lays out as a column that is allowed to be short: min-height
+   0 is what lets a flex child shrink below its content size instead of
+   overflowing its parent, which is the single most common cause of a card
+   spilling past its own edge. */
+.bento-widget > * { min-height: 0; }
+.bento-widget .bento-cue { flex-shrink: 0; }

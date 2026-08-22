@@ -390,7 +390,7 @@ export function StatCell({
           weight stops reading as emphasis and starts reading as noise, and the
           label is not what the eye is meant to land on. */}
       <p
-        className="text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+        className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
                    text-[var(--bento-muted)]"
       >
         {label}

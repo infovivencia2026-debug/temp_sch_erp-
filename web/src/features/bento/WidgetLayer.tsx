@@ -183,13 +183,12 @@ export function WidgetLayer({
   )
 }
 
-/** One row of the size control: a stepper, with the numbered steps beside it.
+/** One axis of the size control: minus, the number, plus.
 
-    The steppers are what a person reaches for — "one wider" is the thought,
-    not "four". The numbers stay because a stepper alone hides how much room
-    there is: with them you can see that five is the end of the axis and jump
-    straight there. Each end disables at its limit rather than wrapping, so
-    nothing silently jumps from widest to narrowest. */
+    The numbered steps that used to sit between the arrows are gone. On a card
+    that may itself be one grid unit wide, five buttons plus two arrows was a
+    control wider than the thing it was controlling — and the number between
+    the arrows already says where on the scale you are. */
 function Axis({
   label,
   steps,
@@ -203,11 +202,11 @@ function Axis({
 }) {
   const lo = steps[0]
   const hi = steps[steps.length - 1]
-  const step = (delta: number) => onPick(Math.min(hi, Math.max(lo, value + delta)))
+  const step = (d: number) => onPick(Math.min(hi, Math.max(lo, value + d)))
 
   const arrow =
     'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
-    'transition-colors hover:bg-accent disabled:opacity-35 disabled:hover:bg-popover/90'
+    'transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-popover/90'
 
   return (
     <div className="flex items-center gap-1">
@@ -221,21 +220,13 @@ function Axis({
       >
         <Minus className="size-3" aria-hidden="true" />
       </button>
-      {steps.map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onPick(n)}
-          aria-label={`${label} ${n}`}
-          aria-pressed={value === n}
-          className={cn(
-            'grid size-6 place-items-center rounded-md text-[11px] shadow-sm transition-colors',
-            value === n ? 'bg-primary font-semibold text-primary-foreground' : 'bg-popover/90 hover:bg-accent',
-          )}
-        >
-          {n}
-        </button>
-      ))}
+      <span
+        role="status"
+        aria-live="polite"
+        className="w-5 text-center text-[11.5px] font-semibold tabular-nums"
+      >
+        {value}
+      </span>
       <button
         type="button"
         onClick={() => step(1)}
