@@ -1,9 +1,9 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
+import { financeKeys } from './finance/keys'
 import { facultyCommsKeys } from './faculty/keys'
 import { healthKeys } from './operations/health-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
 import { parentKeys } from './portal/parent-keys'
-import { ledgerKeys } from './finance/ledger-keys'
 import { familyKeys } from './portal/family-keys'
 import { adminAcademicsKeys } from './academics/admin-keys'
 import { learningKeys } from './portal/learning-keys'
@@ -11,21 +11,17 @@ import { platformKeys } from './super_admin/platform-keys'
 import { teachingKeys } from './faculty/teaching-keys'
 import { boardKeys } from './exams/board-keys'
 import { messagingKeys } from './super_admin/messaging-keys'
-import { feeEngineKeys } from './finance/fee-engine-keys'
 import { rollupKeys } from './analytics/rollup-keys'
-import { bankingKeys } from './finance/banking-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { hodKeys } from './hod/keys'
-import { concessionsKeys } from './finance/concessions-keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
 import { hrGrowthKeys } from './hr/growth-keys'
 import { commsKeys } from './communication/comms-keys'
 import { studentLifeKeys } from './learning/student-life-keys'
 import { classroomKeys } from './faculty/classroom-keys'
 import { forumKeys } from './portal/forum-keys'
-import { collectionsKeys } from './finance/collections-keys'
 import { admissionsGrowthKeys } from './admissions/growth-keys'
 import { mdmKeys } from './operations/mdm-keys'
 import { masterTimetableKeys } from './academics/master-timetable-keys'
@@ -127,15 +123,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.my_classes.my_classes': lazy(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': lazy(() => import('./shared/Attendance')),
   'faculty.timetable.my_timetable': lazy(() => import('./shared/Timetable')),
-  'finance.home.finance_kpis': lazy(() => import('./finance/Dashboard')),
-  'finance.home.needs_attention': lazy(() => import('./finance/Dashboard')),
-  'finance.collections.collect_payment': lazy(() => import('./finance/FeeCounter')),
-  'finance.student_dues.student_ledger': lazy(() => import('./finance/FeeCounter')),
-  'finance.collections.receipts': lazy(() => import('./finance/FeeCounter')),
-  'finance.collections.partial_advance_payments': lazy(() => import('./finance/FeeCounter')),
-  'finance.student_dues.defaulters_reminders': lazy(() => import('./finance/Defaulters')),
-  'finance.student_dues.post_dated_cheques_pdc_registry': lazy(() => import('./finance/PDCRegister')),
-  'finance.student_dues.cheque_bounce_fine_engine': lazy(() => import('./finance/PDCRegister')),
   'parent.fees.fees_payments': lazy(() => import('./portal/Fees')),
   'student.fees.fees': lazy(() => import('./portal/Fees')),
   'admissions.home.admissions_kpis': lazy(() => import('./admissions/Dashboard')),
@@ -296,14 +283,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Concessions and refunds share a screen because they are one decision from
      two ends; payments splits by mode because cash in the drawer and a cheque
      that may yet bounce are not the same collection. */
-  'finance.concessions_refunds.discounts_scholarships': lazy(() => import('./finance/Concessions')),
-  'finance.concessions_refunds.multi_level_concession_approvals': lazy(() => import('./finance/Concessions')),
-  'finance.concessions_refunds.refunds': lazy(() => import('./finance/Concessions')),
-  'finance.collections.online_payments': lazy(() => import('./finance/Payments')),
-  'finance.reconciliation.reconciliation': lazy(() => import('./finance/Payments')),
-  'finance.reconciliation.payment_gateway_reconciliation': lazy(() => import('./finance/Payments')),
-  'finance.fee_structure.fee_head_group_setup': lazy(() => import('./setup/Wizard')),
-  'finance.fee_structure.class_wise_fee_structure_configuration': lazy(() => import('./setup/Wizard')),
 
   /* Operations. Four screens for the school's physical side, each collapsing
      the catalogue's many entries onto the one place the work happens. */
@@ -420,7 +399,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'faculty.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'hr.my_profile.my_pay': lazy(() => import('./me/MyPay')),
-  'finance.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'admissions.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'librarian.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'transport_manager.my_profile.my_pay': lazy(() => import('./me/MyPay')),
@@ -440,7 +418,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // One export screen, filtered server-side by what the caller may take out.
   'super_admin.platform_configuration.import_export': lazy(() => import('./shared/Exports')),
   'institution_admin.standard.reports': lazy(() => import('./shared/Exports')),
-  'finance.reports.finance_reports': lazy(() => import('./shared/Exports')),
 
   /* Screens built against endpoints that already existed and had no caller.
      Each of these was a working handler the product could not reach: the
@@ -448,7 +425,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      structure into money owed. */
   'faculty.attendance.attendance_correction': lazy(() => import('./workflow/Corrections')),
   'institution_admin.students.class_promotion': lazy(() => import('./lifecycle/Promotion')),
-  'finance.fee_structure.demand_invoice_generation': lazy(() => import('./finance/DemandGeneration')),
 
   // IT Administrator — the same screens super_admin uses, bounded to one
   // school by RLS rather than by a second implementation.
@@ -479,26 +455,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...transportPrefsKeys,
   ...trackerKeys,
 
+  ...financeKeys,
+
   ...facultyCommsKeys,
   ...healthKeys,
   ...hrLifecycleKeys,
   ...parentKeys,
-  ...ledgerKeys,
-  ...feeEngineKeys,
   ...rollupKeys,
-  ...bankingKeys,
   ...statutoryKeys,
   ...tallyKeys,
   ...hodKeys,
   ...timetableOpsKeys,
-  ...concessionsKeys,
   ...adminOpsKeys,
   ...hrGrowthKeys,
   ...commsKeys,
   ...studentLifeKeys,
   ...classroomKeys,
   ...forumKeys,
-  ...collectionsKeys,
   ...admissionsGrowthKeys,
   ...mdmKeys,
   ...masterTimetableKeys,

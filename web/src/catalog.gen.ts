@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 397 features. */
+/** 12 roles, 365 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -641,120 +641,46 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'finance.home.finance_kpis', slug: 'finance_kpis', name: 'Finance KPIs', scope: 'institution', tier: 'core', summary: 'Today\'s collection, month collection, outstanding, overdue, refunds pending and failed/unreconciled online payments.' },
-          { key: 'finance.home.needs_attention', slug: 'needs_attention', name: 'Needs attention', scope: 'institution', tier: 'core', summary: 'Defaulters, failed payments, unreconciled gateway transactions, refunds and fee setup issues.' },
+          { key: 'finance.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'Collected today, collected this month, what is still outstanding, and the handful of things that need somebody this morning.' },
         ],
       },
       {
-        slug: 'collections',
-        name: 'Collections',
+        slug: 'fees',
+        name: 'Fees',
         workspace: 'Fees',
         features: [
-          { key: 'finance.collections.collect_payment', slug: 'collect_payment', name: 'Collect payment', scope: 'institution', tier: 'core', summary: 'Record cash/bank/online/manual payments with controls and receipt generation.' },
-          { key: 'finance.collections.receipts', slug: 'receipts', name: 'Receipts', scope: 'institution', tier: 'core', summary: 'Generate, reprint and verify fee receipts.' },
-          { key: 'finance.collections.online_payments', slug: 'online_payments', name: 'Online payments', scope: 'institution', tier: 'core', summary: 'Track gateway payments and payment status.' },
-          { key: 'finance.collections.partial_advance_payments', slug: 'partial_advance_payments', name: 'Partial & advance payments', scope: 'institution', tier: 'core', summary: 'Handle permitted partial collection, advances and credit application.' },
-          { key: 'finance.collections.cashless_campus_wallet', slug: 'cashless_campus_wallet', name: 'Cashless Campus Wallet', scope: 'campus', tier: 'core', summary: 'Manage student smart card balances for cashless purchases in school canteen and store.' },
-          { key: 'finance.collections.pos_canteen_terminal_integration', slug: 'pos_canteen_terminal_integration', name: 'POS Canteen Terminal Integration', scope: 'campus', tier: 'core', summary: 'Manage daily canteen meal purchases, card swipes, diet restrictions, and wallet debits.' },
-          { key: 'finance.collections.school_store_merchandise_sales', slug: 'school_store_merchandise_sales', name: 'School Store & Merchandise Sales', scope: 'campus', tier: 'core', summary: 'Sell uniforms, stationery, books, and track stock debits against student billing.' },
-          { key: 'finance.collections.gst_compliant_receipt_numbering', slug: 'gst_compliant_receipt_numbering', name: 'GST Compliant Receipt Numbering', scope: 'institution', tier: 'advanced', summary: 'Configure gapless receipt series, GST treatment per fee head and financial-year reset rules.' },
+          { key: 'finance.fees.take_fee_payment', slug: 'take_fee_payment', name: 'Take fee payment', scope: 'institution', tier: 'core', summary: 'The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen.' },
+          { key: 'finance.fees.online_fee_portal', slug: 'online_fee_portal', name: 'Online fee portal', scope: 'institution', tier: 'core', summary: 'Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered.' },
+          { key: 'finance.fees.unpaid_fees_reminders', slug: 'unpaid_fees_reminders', name: 'Unpaid fees & reminders', scope: 'institution', tier: 'core', summary: 'Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too.' },
+          { key: 'finance.fees.class_transport_fee_setup', slug: 'class_transport_fee_setup', name: 'Class & transport fee setup', scope: 'institution', tier: 'core', summary: 'What each class is charged for the year — tuition, lab, transport by distance — with concessions and refunds, the receipt series, and the one action that turns the structure into every family\'s invoice.' },
         ],
       },
       {
-        slug: 'student_dues',
-        name: 'Student Dues',
-        workspace: 'Fees',
+        slug: 'campus_money',
+        name: 'Campus Money',
+        workspace: 'Campus Money',
         features: [
-          { key: 'finance.student_dues.student_ledger', slug: 'student_ledger', name: 'Student ledger', scope: 'institution', tier: 'core', summary: 'Single account view of charges, payments, credits, refunds and outstanding balance.' },
-          { key: 'finance.student_dues.defaulters_reminders', slug: 'defaulters_reminders', name: 'Defaulters & reminders', scope: 'institution', tier: 'core', summary: 'Filter overdue balances and send configured reminders.' },
-          { key: 'finance.student_dues.automated_fee_reminders', slug: 'automated_fee_reminders', name: 'Automated Fee Reminders', scope: 'institution', tier: 'core', summary: 'Schedule automated WhatsApp, SMS, and app push reminders to parents of defaulter students.' },
-          { key: 'finance.student_dues.late_fine_rules_engine', slug: 'late_fine_rules_engine', name: 'Late Fine Rules Engine', scope: 'institution', tier: 'core', summary: 'Configure daily, fixed, or percentage-based late fee fines with grace period thresholds.' },
-          { key: 'finance.student_dues.post_dated_cheques_pdc_registry', slug: 'post_dated_cheques_pdc_registry', name: 'Post-Dated Cheques (PDC) Registry', scope: 'institution', tier: 'core', summary: 'Record PDC entries, track clearance dates, handle bank deposit slips, and log bounced cheques.' },
-          { key: 'finance.student_dues.cheque_bounce_fine_engine', slug: 'cheque_bounce_fine_engine', name: 'Cheque Bounce Fine Engine', scope: 'institution', tier: 'core', summary: 'Automatically levy penalty charges to student ledger upon cheque dishonor notice.' },
+          { key: 'finance.campus_money.cafeteria_store_sales', slug: 'cafeteria_store_sales', name: 'Cafeteria & store sales', scope: 'institution', tier: 'core', summary: 'A till for the canteen and one for the store: record what a student bought for lunch, a book or a uniform, and close the drawer at the end of the day against what it should hold.' },
+          { key: 'finance.campus_money.donations_aid', slug: 'donations_aid', name: 'Donations & aid', scope: 'institution', tier: 'core', summary: 'Money that comes from outside the school — grant-in-aid, government scholarships, alumni giving, education loans — tracked apart from tuition so it can be accounted for to whoever gave it.' },
         ],
       },
       {
-        slug: 'fee_structure',
-        name: 'Fee Structure',
-        workspace: 'Fees',
+        slug: 'accounts',
+        name: 'Accounts',
+        workspace: 'Accounts',
         features: [
-          { key: 'finance.fee_structure.fee_head_group_setup', slug: 'fee_head_group_setup', name: 'Fee Head & Group Setup', scope: 'institution', tier: 'core', summary: 'Define fee heads (Tuition, Transport, Admission, Lab, Sports) and frequency schedules.' },
-          { key: 'finance.fee_structure.class_wise_fee_structure_configuration', slug: 'class_wise_fee_structure_configuration', name: 'Class-Wise Fee Structure Configuration', scope: 'institution', tier: 'core', summary: 'Map fee components, installment amounts, and due dates per class, section, or quota.' },
-          { key: 'finance.fee_structure.fee_structure_versioning', slug: 'fee_structure_versioning', name: 'Fee Structure Versioning', scope: 'institution', tier: 'advanced', summary: 'Version fee structures across academic years with mid-year revision and pro-rata recalculation.' },
-          { key: 'finance.fee_structure.demand_invoice_generation', slug: 'demand_invoice_generation', name: 'Demand / invoice generation', scope: 'institution', tier: 'core', summary: 'Generate student fee demands/invoices for applicable periods.' },
+          { key: 'finance.accounts.approve_pay_salaries', slug: 'approve_pay_salaries', name: 'Approve & pay salaries', scope: 'institution', tier: 'core', summary: 'What HR calculated for the month, read before the money moves, and then the bank file that releases it. Finance approves and pays; HR decides the numbers.' },
+          { key: 'finance.accounts.vendor_bills_petty_cash', slug: 'vendor_bills_petty_cash', name: 'Vendor bills & petty cash', scope: 'institution', tier: 'core', summary: 'Money leaving the school: supplier invoices for electricity and construction at one end, the tea and the minor repair at the other, and every expense in between.' },
+          { key: 'finance.accounts.school_property_budgeting', slug: 'school_property_budgeting', name: 'School property & budgeting', scope: 'institution', tier: 'core', summary: 'Next year\'s spending limits against this year\'s actuals, and the register of what the school owns — buses, computers, desks — with what each is worth after depreciation.' },
         ],
       },
       {
-        slug: 'concessions_refunds',
-        name: 'Concessions & Refunds',
-        workspace: 'Fees',
+        slug: 'banking_reports',
+        name: 'Banking & Reports',
+        workspace: 'Banking & Reports',
         features: [
-          { key: 'finance.concessions_refunds.discounts_scholarships', slug: 'discounts_scholarships', name: 'Discounts / scholarships', scope: 'institution', tier: 'core', summary: 'Apply approved concessions, scholarships and sibling discounts with audit trail.' },
-          { key: 'finance.concessions_refunds.multi_level_concession_approvals', slug: 'multi_level_concession_approvals', name: 'Multi-Level Concession Approvals', scope: 'institution', tier: 'core', summary: 'Route high-value fee concession requests to Principal/Management for digital sign-off.' },
-          { key: 'finance.concessions_refunds.refunds', slug: 'refunds', name: 'Refunds', scope: 'institution', tier: 'core', summary: 'Create and process approved refunds.' },
-          { key: 'finance.concessions_refunds.nsp_scholarship_reconciliation', slug: 'nsp_scholarship_reconciliation', name: 'NSP Scholarship Reconciliation', scope: 'institution', tier: 'advanced', summary: 'Track National Scholarship Portal and state scholarship disbursements against student ledgers.' },
-          { key: 'finance.concessions_refunds.student_loan_assistance_portal', slug: 'student_loan_assistance_portal', name: 'Student Loan Assistance Portal', scope: 'institution', tier: 'advanced', summary: 'Initiate and track third-party NBFC/Bank education loan application workflows.' },
-          { key: 'finance.concessions_refunds.government_reimbursement_claims', slug: 'government_reimbursement_claims', name: 'Government Reimbursement Claims', scope: 'institution', tier: 'advanced', summary: 'Raise and track RTE and fee-reimbursement claims against the state, with sanction and receipt status.' },
-          { key: 'finance.concessions_refunds.grant_in_aid_accounting', slug: 'grant_in_aid_accounting', name: 'Grant-in-Aid Accounting', scope: 'institution', tier: 'advanced', summary: 'Track government grant-in-aid receipts, utilisation certificates and unspent balances.' },
-        ],
-      },
-      {
-        slug: 'reconciliation',
-        name: 'Reconciliation',
-        workspace: 'Fees',
-        features: [
-          { key: 'finance.reconciliation.reconciliation', slug: 'reconciliation', name: 'Reconciliation', scope: 'institution', tier: 'advanced', summary: 'Reconcile payment gateway/bank collections and identify mismatches.' },
-          { key: 'finance.reconciliation.payment_gateway_reconciliation', slug: 'payment_gateway_reconciliation', name: 'Payment Gateway Reconciliation', scope: 'institution', tier: 'advanced', summary: 'Upload gateway settlement reports to auto-reconcile pending, failed, or processing payments.' },
-          { key: 'finance.reconciliation.bank_reconciliation_statement_brs', slug: 'bank_reconciliation_statement_brs', name: 'Bank Reconciliation Statement (BRS)', scope: 'institution', tier: 'advanced', summary: 'Reconcile internal cashbook entries against official bank statement passbooks.' },
-          { key: 'finance.reconciliation.connected_banking_payouts', slug: 'connected_banking_payouts', name: 'Connected Banking Payouts', scope: 'institution', tier: 'core', summary: 'Execute direct vendor payments and staff refund transfers directly from ERP via API.' },
-          { key: 'finance.reconciliation.student_bank_account_register', slug: 'student_bank_account_register', name: 'Student Bank Account Register', scope: 'institution', tier: 'core', summary: 'Maintain student bank account and IFSC details for scholarship and incentive direct benefit transfers.' },
-        ],
-      },
-      {
-        slug: 'ledgers',
-        name: 'Ledgers',
-        workspace: 'Accounting',
-        features: [
-          { key: 'finance.ledgers.expenses_accounting', slug: 'expenses_accounting', name: 'Expenses / accounting', scope: 'institution', tier: 'core', summary: 'Basic institutional expense/account views if accounting is part of the ERP; otherwise integrate with finance system.' },
-          { key: 'finance.ledgers.chart_of_accounts_setup', slug: 'chart_of_accounts_setup', name: 'Chart of Accounts Setup', scope: 'institution', tier: 'advanced', summary: 'Define primary ledgers, income heads, expense heads, and asset/liability structure.' },
-          { key: 'finance.ledgers.general_ledger_trial_balance', slug: 'general_ledger_trial_balance', name: 'General Ledger & Trial Balance', scope: 'institution', tier: 'advanced', summary: 'Post and review double-entry vouchers, run a trial balance, income and expenditure statement and balance sheet for the year; the books an auditor asks for.' },
-          { key: 'finance.ledgers.financial_year_closing', slug: 'financial_year_closing', name: 'Financial Year Closing', scope: 'institution', tier: 'advanced', summary: 'Execute year-end financial closing, carry forward balances, and lock prior accounting periods.' },
-        ],
-      },
-      {
-        slug: 'payables',
-        name: 'Payables',
-        workspace: 'Accounting',
-        features: [
-          { key: 'finance.payables.petty_cash_voucher_management', slug: 'petty_cash_voucher_management', name: 'Petty Cash Voucher Management', scope: 'institution', tier: 'advanced', summary: 'Log daily cash expenses, upload paper receipts, and enforce petty cash limit approvals.' },
-          { key: 'finance.payables.vendor_management_accounts_payable', slug: 'vendor_management_accounts_payable', name: 'Vendor Management & Accounts Payable', scope: 'institution', tier: 'core', summary: 'Maintain vendor directory, log purchase bills, track due dates, and issue payment vouchers.' },
-        ],
-      },
-      {
-        slug: 'assets_budget',
-        name: 'Assets & Budget',
-        workspace: 'Accounting',
-        features: [
-          { key: 'finance.assets_budget.budgeting_variance_analysis', slug: 'budgeting_variance_analysis', name: 'Budgeting & Variance Analysis', scope: 'institution', tier: 'advanced', summary: 'Set annual departmental budgets and track real-time actual spend versus allocated budget.' },
-          { key: 'finance.assets_budget.fixed_asset_register_depreciation', slug: 'fixed_asset_register_depreciation', name: 'Fixed Asset Register & Depreciation', scope: 'institution', tier: 'advanced', summary: 'Track capital assets with purchase value, useful life and location; compute straight-line or WDV depreciation and post the annual charge.' },
-        ],
-      },
-      {
-        slug: 'export',
-        name: 'Export',
-        workspace: 'Accounting',
-        features: [
-          { key: 'finance.export.tally_prime_xml_export', slug: 'tally_prime_xml_export', name: 'Tally Prime XML Export', scope: 'institution', tier: 'advanced', summary: 'Export daybook vouchers, fee sales, and cash receipts in Tally-compatible XML format.' },
-        ],
-      },
-      {
-        slug: 'reports',
-        name: 'Reports',
-        workspace: 'Reports',
-        features: [
-          { key: 'finance.reports.finance_reports', slug: 'finance_reports', name: 'Finance reports', scope: 'institution', tier: 'core', summary: 'Daily collection, outstanding, aging/defaulters, student ledger, payment mode, discount and refund reports.' },
-          { key: 'finance.reports.daybook_cashbook_reports', slug: 'daybook_cashbook_reports', name: 'Daybook & Cashbook Reports', scope: 'institution', tier: 'core', summary: 'Generate daily cashbook transactions, summary collections, and closing cash register.' },
-          { key: 'finance.reports.taxation_audit_reports', slug: 'taxation_audit_reports', name: 'Taxation & Audit Reports', scope: 'institution', tier: 'advanced', summary: 'Export GST summaries, TDS collection reports, and audited financial statements.' },
+          { key: 'finance.banking_reports.match_bank_records', slug: 'match_bank_records', name: 'Match bank records', scope: 'institution', tier: 'core', summary: 'The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside.' },
+          { key: 'finance.banking_reports.accounting_tax_reports', slug: 'accounting_tax_reports', name: 'Accounting & tax reports', scope: 'institution', tier: 'core', summary: 'The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements — with a one-click export for the school\'s accountant.' },
         ],
       },
       {
