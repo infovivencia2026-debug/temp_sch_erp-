@@ -83,7 +83,24 @@ interface Fairness {
   onerous_index?: number
 }
 
-interface Teacher { id: string; full_name?: string; name?: string }
+/* Somebody who can be given a duty.
+ *
+ * From the staff list, not the timetable. The dropdown used to read
+ * /api/v1/timetable/teachers, which is behind academics.timetable.read — a
+ * permission HR does not hold and should not: reading the school's timetable is
+ * not part of rostering gate duty. So the request came back 403 and the form
+ * offered nobody, on the one screen whose entire purpose is choosing a person.
+ *
+ * A duty is assigned to a user account rather than to an employee record,
+ * because it has to appear on that person's own screen. Somebody appointed but
+ * not yet given a login therefore cannot be rostered — said plainly below,
+ * rather than by leaving them out of a list and hoping nobody looks. */
+interface Teacher {
+  id: string
+  user_id?: string
+  full_name?: string
+  name?: string
+}
 
 const TABS = [
   ['roster', 'Roster', CalendarClock],
@@ -139,8 +156,8 @@ export default function Rostering() {
     <>
       <PageHead
         eyebrow="Attendance"
-        title="Staff shift & rostering"
-        description="Gate, ground, invigilation, transport escort, library and lab duty. Teaching load stays in the timetable — this reads it, so a duty that lands on somebody's lesson says so."
+        title="Staff duty roster"
+        description="Assign staff to campus duties — gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they are already teaching."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Input value={range.from} onChange={(v) => setRange({ ...range, from: v })} type="date" />
@@ -154,7 +171,7 @@ export default function Rostering() {
           <Stat label="Duties rostered" value={duties.length} icon={CalendarClock}
             period={`${formatDate(range.from)} – ${formatDate(range.to)}`} />
           <Stat label="Staff on the roster" value={people} />
-          <Stat label="Unpopular duties" value={onerous} icon={Clock}
+          <Stat label="Extra duties" value={onerous} icon={Clock}
             hint="Gate, ground, dispersal and escort" />
           <Stat label="Conflicts" value={clashes.length} icon={ShieldAlert}
             delta={onLeave.length
@@ -220,10 +237,12 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
   }
 
   const teachers = useQuery({
-    queryKey: ['timetable', 'teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryKey: ['hr-employees', 'active'],
+    queryFn: () => api.get<List<Teacher>>('/api/v1/hr/employees?status=active'),
     retry: false,
   })
+  const rosterable = (teachers.data?.items ?? []).filter((t) => t.user_id)
+  const withoutLogin = (teachers.data?.items ?? []).length - rosterable.length
   const invalidate = () => qc.invalidateQueries({ queryKey: ['hr-growth'] })
 
   const assign = useMutation({
@@ -292,11 +311,17 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
             <Field
               label="Member of staff"
               required
-              hint={teachers.error ? 'The staff list could not be loaded, so there is nobody to choose.' : undefined}
+              hint={
+                teachers.error
+                  ? 'The staff list could not be loaded, so there is nobody to choose.'
+                  : withoutLogin > 0
+                    ? `${withoutLogin} of your staff have no login yet, so they cannot be given a duty. Issue one on Staff records.`
+                    : undefined
+              }
             >
               <Select value={user} onChange={retarget(setUser)}
                 placeholder={teachers.error ? 'Unavailable' : 'Choose'}
-                options={(teachers.data?.items ?? []).map((t) => ({ value: t.id, label: nameOf(t) }))} />
+                options={rosterable.map((t) => ({ value: t.user_id!, label: nameOf(t) }))} />
             </Field>
             <Field label="From" required><Input value={from} onChange={retarget(setFrom)} type="date" /></Field>
             <Field label="To" hint="Leave blank for a single day"><Input value={to} onChange={retarget(setTo)} type="date" /></Field>

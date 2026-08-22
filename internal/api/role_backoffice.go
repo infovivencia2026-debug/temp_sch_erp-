@@ -390,7 +390,14 @@ func (s *Server) getHRDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 type employeeRow struct {
-	ID          string  `json:"id"`
+	ID string `json:"id"`
+	// The account behind the person, when they have one. Rosters, duty and
+	// anything else that names "who" keys on the user, not the employee — and
+	// the only other list of staff with a user id on it was the timetable's,
+	// which is behind academics.timetable.read. HR does not hold that
+	// permission and should not, so the duty roster's staff dropdown came back
+	// 403 and empty. Null for somebody appointed but not yet given a login.
+	UserID      *string `json:"user_id,omitempty"`
 	Code        string  `json:"employee_code"`
 	FullName    string  `json:"full_name"`
 	Department  *string `json:"department,omitempty"`
@@ -404,7 +411,7 @@ type employeeRow struct {
 // listEmployees powers hr.hr_workspace.employee_master_directory.
 func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT e.id::text, e.employee_code,
+		SELECT e.id::text, e.user_id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
 		       d.name, dg.name, e.phone, e.email::text,
 		       to_char(e.joined_on,'YYYY-MM-DD'), e.status
@@ -416,7 +423,7 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		 LIMIT 300`, []any{nullString(r.URL.Query().Get("status"))},
 		func(rows pgx.Rows) (employeeRow, error) {
 			var v employeeRow
-			return v, rows.Scan(&v.ID, &v.Code, &v.FullName, &v.Department,
+			return v, rows.Scan(&v.ID, &v.UserID, &v.Code, &v.FullName, &v.Department,
 				&v.Designation, &v.Phone, &v.Email, &v.JoinedOn, &v.Status)
 		})
 	respond(w, r, items, err)
