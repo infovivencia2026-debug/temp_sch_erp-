@@ -58,6 +58,11 @@ export interface Placed {
 
 /** A few places to start from, so the wheel does not open on nothing. Not a
     fixed menu — every one of them is a starting point you then move. */
+/** The layouts somebody picks instead of building one. */
+export type Preset = 'default' | 'compact' | 'spotlight' | 'even'
+
+export const PRESETS: readonly Preset[] = ['default', 'compact', 'spotlight', 'even'] as const
+
 export const TINT_STARTS: Hsl[] = [
   { h: 217, s: 91, l: 60 },
   { h: 163, s: 70, l: 38 },
@@ -344,6 +349,59 @@ export function useLayout(dashboard: string) {
 
   const reset = useCallback(() => write(dashboard, EMPTY), [dashboard])
 
+  /* Pick a layout instead of building one.
+
+     Arrows, sizes, colours and drag between them make a capable editor, and a
+     capable editor is still an editor — most people opening a dashboard do not
+     want to design one, they want a good one and the ability to nudge it. Every
+     control added to make arranging easier made arranging bigger.
+
+     So the ordinary path is four buttons. Each is a RULE over whatever the
+     board happens to declare, not a stored list of ids, which is what lets the
+     same four work on all six dashboards and keep working when a card is added
+     later. Nobody has to maintain a preset per screen. */
+  const applyPreset = useCallback(
+    (preset: Preset, all: BoardWidget[]) => {
+      const l = current(dashboard)
+      const keep = all.filter((x) => !l.removed.includes(x.id))
+      const tint = (id: string) => {
+        const p = l.placed.find((q) => q.id === id)
+        return p?.tint ? { tint: p.tint } : {}
+      }
+
+      let placed: Placed[]
+      switch (preset) {
+        case 'compact':
+          // Everything at one unit: the whole board at a glance, nothing
+          // claiming more attention than anything else.
+          placed = keep.map((x) => ({ id: x.id, w: 1, h: 1, ...tint(x.id) }))
+          break
+        case 'spotlight': {
+          // The first card the dashboard declares is the one it considers most
+          // important — that ordering is a decision somebody already made, and
+          // it is better than asking again.
+          placed = keep.map((x, i) =>
+            i === 0
+              ? { id: x.id, w: 3, h: 2, ...tint(x.id) }
+              : { id: x.id, w: 1, h: 1, ...tint(x.id) },
+          )
+          break
+        }
+        case 'even':
+          placed = keep.map((x) => ({ id: x.id, w: 2, h: 1, ...tint(x.id) }))
+          break
+        case 'default':
+        default:
+          // Back to the sizes each card was designed at, keeping colours and
+          // keeping removals: "as designed" is not the same as "as shipped".
+          placed = keep.map((x) => ({ id: x.id, w: DIMS[x.size].w, h: DIMS[x.size].h, ...tint(x.id) }))
+          break
+      }
+      write(dashboard, { placed, removed: l.removed })
+    },
+    [dashboard],
+  )
+
   /* Undo the last change, once.
 
      The undone state is not itself remembered, so undo cannot be undone into a
@@ -386,7 +444,7 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
-  return { layout, place, remove, resize, recolour, move, reset, undo, canUndo, tidy }
+  return { layout, place, remove, resize, recolour, move, reset, undo, canUndo, tidy, applyPreset }
 }
 
 /** The width and height a widget should render at: what the person chose,

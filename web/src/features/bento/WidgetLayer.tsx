@@ -6,7 +6,7 @@ import {
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, rowsThatFit,
+  rowsNeeded, rowsThatFit, PRESETS,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
@@ -80,8 +80,11 @@ export function WidgetLayer({
 }) {
   const [declared, setDeclared] = useState<BoardWidget[]>([])
   const barRef = useRef<HTMLDivElement>(null)
+  /* Always rendered, unlike the toolbar, so the board element can be reached
+     whether or not anybody is arranging. */
+  const markRef = useRef<HTMLSpanElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, place, reset, undo, canUndo, tidy } = useLayout(dashboard)
+  const { layout, place, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
   const t = useT()
 
   const declare = useMemo(
@@ -160,8 +163,55 @@ export function WidgetLayer({
     [dashboard, arranging, declare, maxRows, visible.map((d) => d.id).join(',')],
   )
 
+  /* ONE UNIT IS A SQUARE — as far as the screen allows.
+
+     A row is as tall as a column is wide, which is what makes W:1 H:1 actually
+     1:1. That was tried before and abandoned because a 297px square only fits
+     twice above the fold and the board ran off the screen.
+
+     What makes it work now is that the unit is allowed to SHRINK. The rows the
+     current layout needs are counted, and if that many squares will not fit,
+     the unit becomes the largest size that does. So cells are square whenever
+     squares are possible, slightly short when they are not, and the board never
+     overflows or clips either way — which is the property that matters more
+     than the shape.
+
+     Counted here rather than in BentoPage because this is the component that
+     knows what is on the board and how big each piece is. */
+  useEffect(() => {
+    const board = markRef.current?.parentElement
+    if (!board) return
+    const measure = () => {
+      const styles = getComputedStyle(board)
+      const gap = parseFloat(styles.columnGap) || 0
+      const cols = styles.gridTemplateColumns.split(' ').filter(Boolean).length || 1
+      if (cols < 3) {
+        // One or two columns: the board stacks and a square would leave a card
+        // shorter than its own figure.
+        board.style.removeProperty('--unit')
+        return
+      }
+      const colW = (board.clientWidth - (cols - 1) * gap) / cols
+      const rows = Math.max(
+        1,
+        rowsNeeded(
+          visible.map((v) => dimsOf(layout, v.id, v.size)),
+          cols,
+        ),
+      )
+      const room = parseFloat(getComputedStyle(board).getPropertyValue('--board-h')) || board.clientHeight
+      const tallest = (room - (rows - 1) * gap) / rows
+      board.style.setProperty('--unit', `${Math.max(96, Math.min(colW, tallest))}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(board)
+    return () => ro.disconnect()
+  }, [visible, layout])
+
   return (
     <Ctx.Provider value={value}>
+      <span ref={markRef} className="hidden" aria-hidden="true" />
       {/* Only while arranging, and a grid child either way.
 
           BentoPage drops its children straight into the board's grid, so this
@@ -184,8 +234,30 @@ export function WidgetLayer({
             {t('bento.widgets.done')}
           </button>
 
-          {/* Undo first, because it is the control somebody reaches for in a
-              hurry — right after the click they did not mean. */}
+          {/* Pick a layout, rather than build one.
+
+              This sits first because it is the path most people should take:
+              arrows, sizes and colours are a capable editor, and a capable
+              editor is still an editor. Somebody opening their dashboard wants
+              a good one, not a canvas. */}
+          <span className="flex flex-wrap items-center gap-1">
+            {PRESETS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => applyPreset(p, visible)}
+                className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent"
+              >
+                {t(`bento.widgets.preset.${p}`)}
+              </button>
+            ))}
+          </span>
+
+          <span className="h-4 w-px bg-border" aria-hidden="true" />
+
+          {/* Undo first among the editing controls, because it is the one
+              somebody reaches for in a hurry — right after the click they did
+              not mean. */}
           {canUndo && (
             <button
               type="button"

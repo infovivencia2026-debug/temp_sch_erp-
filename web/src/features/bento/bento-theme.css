@@ -747,7 +747,14 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        — and the arranger refuses the sizes that would make them too short to
        read, so it never gets that far. */
     height: var(--board-h, auto);
-    grid-auto-rows: minmax(0, 1fr) !important;
+    /* --unit is a square: as tall as a column is wide, shrunk only as far as it
+       must be for the whole layout to fit. It is computed in JS because CSS
+       cannot count how many rows a set of spans will occupy.
+
+       The 1fr fallback matters — before the measurement lands, and on the
+       narrow boards where squares are refused. */
+    grid-auto-rows: var(--unit, minmax(0, 1fr)) !important;
+    align-content: start;
   }
 
   /* The arrange toolbar is a grid child, so it was taking a full 1fr row —
