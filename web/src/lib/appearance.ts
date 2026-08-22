@@ -236,11 +236,23 @@ export function applyAppearance(next: Appearance) {
      variables, so the named steps survive untouched as the fallback for
      anybody who has never moved a slider — and moving one wins immediately
      without either mechanism having to know about the other. */
-  root.style.setProperty('--font-scale', String(next.scales.text))
-  root.style.setProperty('--bento-density', String(next.scales.density))
-  root.style.setProperty('--radius-scale', String(next.scales.corners))
-  root.style.setProperty('--border-scale', String(next.scales.borders))
-  root.style.setProperty('--shadow-scale', String(next.scales.shadow))
+  const scaleVar = (prop: string, n: number) => {
+    /* Removed at 1 rather than written as "1", and that is the whole trick.
+
+       An inline custom property beats every stylesheet rule that sets the same
+       variable — including the html[data-text] blocks the named steps rely on.
+       Writing --font-scale:1 unconditionally would therefore not be a no-op:
+       it would permanently override "Large" and "Larger" with 1 and silently
+       kill the named axis. Absent means "nobody has moved this slider", which
+       is exactly when the named step should be allowed to speak. */
+    if (n === 1) root.style.removeProperty(prop)
+    else root.style.setProperty(prop, String(n))
+  }
+  scaleVar('--font-scale', next.scales.text)
+  scaleVar('--bento-density', next.scales.density)
+  scaleVar('--radius-scale', next.scales.corners)
+  scaleVar('--border-scale', next.scales.borders)
+  scaleVar('--shadow-scale', next.scales.shadow)
 
   /* Dock sizing — CSS variables read directly by BentoDock. */
   const dockPad = { compact: '6px', default: '8px', large: '12px' }[next.dockSize]
