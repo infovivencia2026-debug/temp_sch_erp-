@@ -21,7 +21,9 @@ import { cn } from '@/lib/utils'
 
 const SIZE = 220
 
-function WheelCanvas({
+/* Exported so the dashboard arranger can offer the SAME wheel rather than a
+   second one. Two colour pickers in one product is how they drift apart. */
+export function WheelCanvas({
   value,
   onPick,
 }: {

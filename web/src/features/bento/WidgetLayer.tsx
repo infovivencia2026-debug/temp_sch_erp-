@@ -1,10 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, HEIGHTS, DIMS, TINTS, type WidgetSize, type BoardWidget,
+  WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl,
+  type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
+import { WheelCanvas } from './ColourDialog'
+import type { Hsl } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
@@ -38,6 +42,13 @@ interface LayerValue {
   declare: (w: BoardWidget) => void
   visible: BoardWidget[]
 }
+
+/* Every domain token a cell might read. Repointing all of them is what lets
+   the wrapper recolour a card without knowing which domain the cell asked for. */
+const DOMAINS = [
+  'academics', 'admissions', 'attendance', 'communication', 'critical',
+  'finance', 'operations', 'reports', 'staff', 'students', 'success', 'warning',
+] as const
 
 const Ctx = createContext<LayerValue | null>(null)
 
@@ -192,6 +203,127 @@ function Axis({
   )
 }
 
+/** The colour control: a swatch that opens the product's own wheel.
+
+    Portaled and fixed-positioned because the card it belongs to may be one
+    grid cell across — a popover rendered inside it would be clipped to
+    something smaller than the wheel. */
+function ColourPick({
+  value,
+  onPick,
+}: {
+  value: Hsl | null
+  onPick: (c: Hsl | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  const btn = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const t = useT()
+
+  // Held locally so dragging the lightness slider does not write a layout on
+  // every animation frame.
+  const current = value ?? TINT_STARTS[0]
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      const n = e.target as Node
+      // Both boxes: the popover is portaled, so it is not a DOM descendant of
+      // the button that opens it.
+      if (!btn.current?.contains(n) && !pop.current?.contains(n)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
+        {t('bento.widgets.colour')}
+      </span>
+      <button
+        ref={btn}
+        type="button"
+        aria-label={t('bento.widgets.colour')}
+        aria-expanded={open}
+        onClick={() => {
+          const r = btn.current?.getBoundingClientRect()
+          if (r) {
+            setAt({
+              left: Math.min(r.left, window.innerWidth - 236),
+              top: Math.min(r.bottom + 6, window.innerHeight - 300),
+            })
+          }
+          setOpen((v) => !v)
+        }}
+        className="size-6 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-110"
+        style={{ background: value ? cssHsl(value) : 'var(--bento-card)' }}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onPick(null)}
+          title={t('bento.widgets.colour_default')}
+          aria-label={t('bento.widgets.colour_default')}
+          className="rounded-full bg-popover/90 px-2 py-1 text-[10.5px] shadow-sm hover:bg-accent"
+        >
+          {t('bento.widgets.colour_clear')}
+        </button>
+      )}
+
+      {open && at && createPortal(
+        <div
+          ref={pop}
+          style={{ position: 'fixed', left: at.left, top: at.top, width: 228 }}
+          className="z-[80] rounded-xl border bg-popover p-3 shadow-lg"
+        >
+          <WheelCanvas value={current} onPick={(h, s2) => onPick({ ...current, h, s: s2 })} />
+          <input
+            type="range"
+            min={5}
+            max={95}
+            value={Math.round(current.l)}
+            aria-label={t('bento.widgets.colour_lightness')}
+            onChange={(e) => onPick({ ...current, l: Number(e.target.value) })}
+            className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full"
+            style={{
+              background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 5%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 95%))`,
+            }}
+          />
+          <div className="mt-3 flex items-center justify-between gap-1">
+            {TINT_STARTS.map((c, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onPick(c)}
+                aria-label={cssHsl(c)}
+                className="size-5 rounded-full border shadow-sm transition-transform hover:scale-110"
+                style={{ background: cssHsl(c) }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => onPick(null)}
+              className="rounded-full border px-2 py-0.5 text-[10.5px] hover:bg-accent"
+            >
+              {t('bento.widgets.colour_clear')}
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
 /* One widget: the cell that was already written, plus what the layer needs to
    place it. */
 export function Widget({
@@ -246,16 +378,24 @@ export function Widget({
      nested in the card follow the same variables, so they stay in step instead
      of keeping the old family's colour.
 
-     Each name is aliased to the CHOSEN name's variable rather than to a colour
-     value, so the card still answers to dark mode, to every skin, and to the
-     colour picker — a stored hex would be the one thing on the board that
-     stopped changing with the theme. */
+     The ink is DERIVED from the chosen colour, not chosen alongside it. An open
+     wheel can produce a pale yellow and a near-black navy, and nobody picking a
+     background should also have to work out whether their text now needs to be
+     white. */
   const paint: Record<string, string> = {}
   if (tint) {
-    for (const d of TINTS) {
-      paint[`--dom-${d}`] = `var(--dom-${tint})`
-      paint[`--dom-${d}-text`] = `var(--dom-${tint}-text, var(--bento-ink))`
+    const bg = cssHsl(tint)
+    const ink = inkFor(tint)
+    for (const d of DOMAINS) {
+      paint[`--dom-${d}`] = bg
+      paint[`--dom-${d}-text`] = ink
     }
+    // The card's own ink, for the parts that read the bento tokens rather than
+    // a domain one — the label and any supporting sentence.
+    paint['--bento-ink'] = ink
+    paint['--bento-muted'] = ink === '#ffffff'
+      ? 'rgba(255,255,255,0.72)'
+      : 'rgba(16,17,20,0.62)'
   }
 
   return (
@@ -339,43 +479,14 @@ export function Widget({
             <Axis label={t('bento.widgets.height')} steps={HEIGHTS} value={h}
                   onPick={(n) => resize(id, w, n)} />
 
-            {/* Colour, from the palette the product already speaks rather than
-                from a free picker. Nine named families keep a rearranged board
-                looking like the same product; an arbitrary colour is how a
-                dashboard ends up with a card nobody can read. */}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
-                {t('bento.widgets.colour')}
-              </span>
-              <button
-                type="button"
-                onClick={() => recolour(id, null, w, h)}
-                aria-label={t('bento.widgets.colour_default')}
-                title={t('bento.widgets.colour_default')}
-                aria-pressed={!tint}
-                className={cn(
-                  'size-5 rounded-full border shadow-sm transition-transform hover:scale-110',
-                  !tint ? 'ring-2 ring-primary ring-offset-1' : '',
-                )}
-              >
-                <span aria-hidden="true" className="block text-[10px] leading-[1.1]">×</span>
-              </button>
-              {TINTS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => recolour(id, d, w, h)}
-                  aria-label={d}
-                  title={d}
-                  aria-pressed={tint === d}
-                  className={cn(
-                    'size-5 rounded-full border shadow-sm transition-transform hover:scale-110',
-                    tint === d ? 'ring-2 ring-primary ring-offset-1' : '',
-                  )}
-                  style={{ backgroundColor: `var(--dom-${d})` }}
-                />
-              ))}
-            </div>
+            {/* The wheel, not a menu of colours.
+
+                A fixed palette keeps a board looking like one product, which is
+                why it was tried first — but it also means the one colour
+                somebody wants is the one that is not there. The starting points
+                below the wheel are exactly that: places to begin, not the
+                choices on offer. */}
+            <ColourPick value={tint} onPick={(c) => recolour(id, c, w, h)} />
           </div>
         </div>
       )}

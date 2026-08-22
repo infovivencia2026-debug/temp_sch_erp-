@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, type WidgetSize } from './widgets'
+import { useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, inkFor, type WidgetSize } from './widgets'
 
 /* Tests for the layout store, written as plain functions because the web side
    has no test runner (see NOTES at the bottom of this file). Run them with
@@ -161,33 +161,64 @@ export function testAxesAreIndependent(): void {
 
 /** Colour and size share one row, so each must survive the other being set. */
 export function testColourAndSizeDoNotClobber(): void {
+  const RED = { h: 0, s: 80, l: 50 }
+  const BLUE = { h: 217, s: 91, l: 60 }
+
   const d = freshDashboard()
-  api(d).recolour('a', 'finance', 1, 1)
-  assertEqual(tintOf(api(d).layout, 'a'), 'finance', 'recolouring a never-placed widget places it')
+  api(d).recolour('a', RED, 1, 1)
+  assertEqual(tintOf(api(d).layout, 'a'), RED, 'recolouring a never-placed widget places it')
 
   api(d).resize('a', 4, 2)
-  assertEqual(tintOf(api(d).layout, 'a'), 'finance', 'resizing keeps the colour')
+  assertEqual(tintOf(api(d).layout, 'a'), RED, 'resizing keeps the colour')
   assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'and the new size took')
 
-  api(d).recolour('a', 'staff', 1, 1)
+  api(d).recolour('a', BLUE, 1, 1)
   assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'recolouring keeps the size')
-  assertEqual(tintOf(api(d).layout, 'a'), 'staff', 'and the new colour took')
+  assertEqual(tintOf(api(d).layout, 'a'), BLUE, 'and the new colour took')
 
   api(d).recolour('a', null, 1, 1)
   assertEqual(tintOf(api(d).layout, 'a'), null, 'clearing returns it to the dashboard colour')
   assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'without disturbing the size')
 
-  /* A colour outside the palette is refused on read. Stored names are used to
-     build `var(--dom-NAME)`, so an unknown one resolves to nothing and the card
-     loses its background entirely. */
+  /* A colour saved when tints were palette NAMES is dropped, not guessed at. A
+     name would be interpolated into var(--dom-NAME), resolve to nothing, and
+     leave the card with no background at all. */
   const e = freshDashboard()
-  store.setItem(rawKey(e), JSON.stringify({ placed: [{ id: 'a', w: 1, h: 1, tint: 'critical' }], removed: [] }))
-  assertEqual(tintOf(api(e).layout, 'a'), null, 'a semantic colour is not an option and is dropped')
+  store.setItem(rawKey(e), JSON.stringify({ placed: [{ id: 'a', w: 1, h: 1, tint: 'finance' }], removed: [] }))
+  assertEqual(tintOf(api(e).layout, 'a'), null, 'a legacy named colour is dropped')
+  assertEqual(dimsOf(api(e).layout, 'a', 'small'), { w: 1, h: 1 }, 'but the widget itself survives')
 
+  // Out-of-range channels are normalised rather than dropped: a hue of 400 is a
+  // wheel that wrapped, not corruption.
   const f = freshDashboard()
-  store.setItem(rawKey(f), JSON.stringify({ placed: [{ id: 'a', w: 1, h: 1, tint: 'chartreuse' }], removed: [] }))
-  assertEqual(tintOf(api(f).layout, 'a'), null, 'an unknown colour is dropped')
-  assertEqual(dimsOf(api(f).layout, 'a', 'small'), { w: 1, h: 1 }, 'but the widget itself survives')
+  store.setItem(rawKey(f), JSON.stringify({
+    placed: [{ id: 'a', w: 1, h: 1, tint: { h: 400, s: 150, l: -5 } }], removed: [],
+  }))
+  assertEqual(tintOf(api(f).layout, 'a'), { h: 40, s: 100, l: 0 }, 'channels are wrapped and clamped')
+
+  const g = freshDashboard()
+  store.setItem(rawKey(g), JSON.stringify({
+    placed: [{ id: 'a', w: 1, h: 1, tint: { h: 'red', s: 50, l: 50 } }], removed: [],
+  }))
+  assertEqual(tintOf(api(g).layout, 'a'), null, 'a non-numeric channel is dropped')
+}
+
+/** The ink must be derived, not guessed, or an open wheel produces cards
+    nobody can read. */
+export function testInkStaysReadable(): void {
+  const WHITE = '#ffffff'
+  const BLACK = '#101114'
+
+  assertEqual(inkFor({ h: 0, s: 0, l: 100 }), BLACK, 'black ink on white')
+  assertEqual(inkFor({ h: 0, s: 0, l: 0 }), WHITE, 'white ink on black')
+  assertEqual(inkFor({ h: 217, s: 91, l: 30 }), WHITE, 'white ink on a deep blue')
+
+  /* The case a lightness threshold gets wrong. Yellow and blue at the SAME
+     HSL lightness are nowhere near the same brightness, so `l > 55 ? black :
+     white` puts white text on yellow. Luminance is what the eye actually
+     responds to. */
+  assertEqual(inkFor({ h: 55, s: 100, l: 50 }), BLACK, 'black ink on a full yellow at l=50')
+  assertEqual(inkFor({ h: 240, s: 100, l: 50 }), WHITE, 'white ink on a full blue at the SAME l')
 }
 
 /** Moving must reorder against every visible widget, not just the touched ones. */
@@ -301,6 +332,7 @@ const TESTS: Array<[string, () => void]> = [
   ['move seeds from all visible ids', testMoveSeedsFromAllVisibleIds],
   ['the two axes are independent', testAxesAreIndependent],
   ['colour and size do not clobber each other', testColourAndSizeDoNotClobber],
+  ['ink stays readable on any chosen colour', testInkStaysReadable],
   ['layouts saved under named sizes migrate', testLegacyNamedSizesMigrate],
   ['untouched dashboard writes no key', testUntouchedDashboardWritesNoKey],
   ['corrupt stored value degrades', testCorruptStoredValueDegrades],

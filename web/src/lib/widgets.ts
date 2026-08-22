@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import type { Hsl } from './paint'
 
 /* The dashboard as something a person arranges.
 
@@ -40,23 +41,59 @@ export interface Placed {
   id: string
   w: number
   h: number
-  /** A domain name borrowed for this card's colour, or absent for the colour
-      the dashboard gave it. Stored as a NAME, never as a hex value: the palette
-      is redefined for dark mode and for every skin, so a stored colour would be
-      the one thing on the board that stops answering to the theme. */
-  tint?: string
+  /** The colour chosen from the wheel, or absent for the colour the dashboard
+      gave it.
+
+      Stored as HSL rather than hex because the two things that have to be
+      derived from it — a readable ink, and the softer wash behind a badge —
+      are both trivial in HSL and fiddly in hex.
+
+      This DOES mean a tinted card no longer follows the theme: it stays the
+      colour it was picked as when everything around it goes dark. That is the
+      cost of an open colour wheel over a palette of names, and it is the right
+      trade only because a person picked this colour deliberately for this card.
+      The default — no tint — still follows the theme completely. */
+  tint?: Hsl
 }
 
-/* The colours a card may borrow.
+/** A few places to start from, so the wheel does not open on nothing. Not a
+    fixed menu — every one of them is a starting point you then move. */
+export const TINT_STARTS: Hsl[] = [
+  { h: 217, s: 91, l: 60 },
+  { h: 163, s: 70, l: 38 },
+  { h: 262, s: 72, l: 52 },
+  { h: 32, s: 88, l: 45 },
+  { h: 344, s: 76, l: 50 },
+]
 
-   The nine subject domains only. `critical`, `success` and `warning` are in the
-   same palette but are excluded on purpose: they mean something. A card tinted
-   `critical` because somebody liked the red would read as an alert to everyone
-   who saw it afterwards, and the palette would stop being able to say anything. */
-export const TINTS = [
-  'academics', 'admissions', 'attendance', 'communication', 'finance',
-  'operations', 'reports', 'staff', 'students',
-] as const
+function validHsl(v: unknown): Hsl | null {
+  const t = v as { h?: unknown; s?: unknown; l?: unknown }
+  if (!t || typeof t.h !== 'number' || typeof t.s !== 'number' || typeof t.l !== 'number') return null
+  if (!Number.isFinite(t.h) || !Number.isFinite(t.s) || !Number.isFinite(t.l)) return null
+  return { h: ((t.h % 360) + 360) % 360, s: Math.min(100, Math.max(0, t.s)), l: Math.min(100, Math.max(0, t.l)) }
+}
+
+/** Ink that stays readable on a chosen colour.
+
+    Relative luminance by the WCAG formula rather than a lightness threshold:
+    HSL lightness is not perceptual, so a fully saturated yellow at l=50 is far
+    brighter than a blue at the same l, and a naive `l > 55` test puts white
+    text on it. */
+export function inkFor({ h, s, l }: Hsl): string {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100)
+  const ch = (n: number) => {
+    const k = (n + h / 30) % 12
+    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  }
+  const lum = 0.2126 * ch(0) + 0.7152 * ch(8) + 0.0722 * ch(4)
+  // 0.179 is where white and black draw level against a mid grey.
+  return lum > 0.179 ? '#101114' : '#ffffff'
+}
+
+export function cssHsl({ h, s, l }: Hsl): string {
+  return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`
+}
 
 /** The columns and rows a named default occupies. */
 export const DIMS: Record<WidgetSize, { w: number; h: number }> = {
@@ -107,9 +144,13 @@ function read(dashboard: string): Layout {
             if (!p || typeof p.id !== 'string') return []
             const w = clamp(p.w, WIDTHS.length)
             const h = clamp(p.h, HEIGHTS.length)
-            const tint = typeof p.tint === 'string' && (TINTS as readonly string[]).includes(p.tint)
-              ? { tint: p.tint }
-              : {}
+            /* A tint saved when colours were palette NAMES is dropped rather
+               than guessed at: the card returns to the colour its dashboard
+               gives it, which is a visible, correct state — unlike a name
+               interpolated into var(--dom-NAME) that resolves to nothing and
+               leaves the card with no background at all. */
+            const hsl = validHsl(p.tint)
+            const tint = hsl ? { tint: hsl } : {}
             if (w && h) return [{ id: p.id, w, h, ...tint }]
             if (typeof p.size === 'string' && p.size in DIMS) {
               const d = DIMS[p.size as WidgetSize]
@@ -237,7 +278,7 @@ export function useLayout(dashboard: string) {
      dashboard gave it rather than storing a "default" that would stop tracking
      the dashboard if that colour ever changed. */
   const recolour = useCallback(
-    (id: string, tint: string | null, w: number, h: number) => {
+    (id: string, tint: Hsl | null, w: number, h: number) => {
       const l = current(dashboard)
       const at = l.placed.find((p) => p.id === id)
       const next: Placed = at ? { ...at } : { id, w, h }
@@ -264,7 +305,7 @@ export function dimsOf(layout: Layout, id: string, fallback: WidgetSize): { w: n
 }
 
 /** The colour a widget was given, if any. */
-export function tintOf(layout: Layout, id: string): string | null {
+export function tintOf(layout: Layout, id: string): Hsl | null {
   return layout.placed.find((p) => p.id === id)?.tint ?? null
 }
 
