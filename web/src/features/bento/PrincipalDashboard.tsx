@@ -130,7 +130,7 @@ export default function BentoPrincipalDashboard() {
       <Widget id="pulse" label={t('bento.principal.anchor_label')} size="large" index={0}>
         {(span) => (
           <Cell span={span} tone="anchor" domain="students">
-            <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-ink)]">
+            <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-anchor-ink)]">
               {t('bento.principal.anchor_label')}
             </p>
 

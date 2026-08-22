@@ -709,6 +709,16 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
   .bento-surface { container-type: inline-size; }
 
   .bento-board {
+    /* The gap is set HERE, not by a utility class, because the row height is
+       computed from it.
+
+       The persona boards used gap-5 (20px) while the row height was being
+       derived from --bento-gap (6px, or 14px under the focus frame). The row
+       was therefore calculated for a gap the board was not using, so a "square"
+       came out as a rectangle and every W:H ratio was wrong on those screens.
+       One declaration means the arithmetic and the layout cannot disagree. */
+    gap: var(--bento-gap) !important;
+
     /* Overrides Tailwind's lg:auto-rows-auto, which is why it is !important:
        both are single-class selectors and the utility layer wins otherwise.
 
