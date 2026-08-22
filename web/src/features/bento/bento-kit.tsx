@@ -707,7 +707,16 @@ export function BentoPage({
   return (
     <div
       className={cn(
-        'h-full w-full text-[var(--bento-ink)] flex flex-col pb-[calc(var(--bento-dock)+2rem)]',
+        /* bento-surface is what makes the board measurable.
+
+           The class had been put on BentoError and BentoLoading — the two
+           screens that have no board — and never on the page that does. So the
+           row height's 100cqw had no container to resolve against and fell back
+           to the viewport, which is why rows came out the wrong height and
+           differed from each other. The background pattern, keyed to the same
+           class, was only ever painting on loading screens for the same
+           reason. */
+        'bento-surface h-full w-full text-[var(--bento-ink)] flex flex-col pb-[calc(var(--bento-dock)+2rem)]',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}
