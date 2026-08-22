@@ -41,6 +41,15 @@ export default function Payroll() {
    * Only the next step is offered. A row of four buttons where three are wrong
    * is a row of three chances to do the wrong one. */
   const [note, setNote] = useState('')
+  /* Published is not a state the run carries.
+   *
+   * There are four statuses and 'published' is not one of them — publishing is
+   * an act, not a stage, so the row stays 'paid' afterwards. That left the card
+   * still headed "Paid" and still offering Publish, which invites somebody to
+   * send every teacher a second notification about the same payslip. The act
+   * is remembered here for the rest of the visit, which is as long as the
+   * question "did I already publish this?" is being asked. */
+  const [publishedNow, setPublishedNow] = useState('')
   const state = useMutation({
     mutationFn: (to: 'locked' | 'paid' | 'published' | 'draft') =>
       api.post<{ notified: number; emailed: number; email_failed: number }>(
@@ -60,6 +69,7 @@ export default function Payroll() {
                   ? `. ${r.email_failed} could not be emailed — check the mail provider in Settings; they were still notified in the app.`
                   : '.'),
       )
+      if (to === 'published') setPublishedNow(`${month}-${year}`)
       qc.invalidateQueries({ queryKey: ['payslips'] })
     },
   })
@@ -119,14 +129,18 @@ export default function Payroll() {
           <Card>
             <CardHeader
               title={
-                status === 'paid'
-                  ? 'Paid'
+                publishedNow === `${month}-${year}`
+                  ? 'Published'
+                  : status === 'paid'
+                    ? 'Paid'
                   : status === 'locked'
                     ? 'Locked — ready for the bank'
                     : 'Draft — nobody has approved these figures yet'
               }
               description={
-                status === 'paid'
+                publishedNow === `${month}-${year}`
+                  ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
+                  : status === 'paid'
                   ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
                   : status === 'locked'
                     ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
@@ -159,10 +173,13 @@ export default function Payroll() {
                       </Button>
                     </>
                   )}
-                  {status === 'paid' && (
+                  {status === 'paid' && publishedNow !== `${month}-${year}` && (
                     <Button disabled={state.isPending} onClick={() => state.mutate('published')}>
                       Publish payslips
                     </Button>
+                  )}
+                  {publishedNow === `${month}-${year}` && (
+                    <span className="text-[13px] text-success">Payslips published.</span>
                   )}
                 </div>
               }

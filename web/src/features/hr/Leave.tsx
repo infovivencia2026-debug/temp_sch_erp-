@@ -104,8 +104,17 @@ export default function Leave() {
     },
   })
 
+  const everything = useQuery({
+    queryKey: ['leave', 'all', forWhom],
+    queryFn: () => {
+      const p = new URLSearchParams()
+      if (forWhom) p.set('for', forWhom)
+      const qs = p.toString()
+      return api.get<List<LeaveRow>>(`/api/v1/hr/leave${qs ? `?${qs}` : ''}`)
+    },
+  })
+  const all = everything.data?.items ?? []
   const items = q.data?.items ?? []
-  const pending = items.filter((l) => l.status === 'pending')
   const mayDecide = canDecide
 
   return (
@@ -122,12 +131,17 @@ export default function Leave() {
         />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Total requests" value={items.length} hint={status || 'all statuses'} />
-          <Stat label="Pending approval" value={pending.length} />
-          <Stat label="Approved" value={items.filter((r) => r.status === 'approved').length} />
+          {/* Counted from every request, not from the rows the filter left on
+              screen. With the filter on "pending" these read as totals and
+              showed zero approvals to a school that had approved several —
+              a summary that changes when you filter the list underneath it is
+              not a summary. */}
+          <Stat label="Total requests" value={all.length} hint="Every request" />
+          <Stat label="Pending approval" value={all.filter((r) => r.status === 'pending').length} />
+          <Stat label="Approved" value={all.filter((r) => r.status === 'approved').length} />
           {/* The fourth box was a headcount split that repeated what the Who
               column already says. Rejected is the one somebody looks for. */}
-          <Stat label="Rejected" value={items.filter((r) => r.status === 'rejected').length} />
+          <Stat label="Rejected" value={all.filter((r) => r.status === 'rejected').length} />
         </CellGrid>
 
         <Card>
