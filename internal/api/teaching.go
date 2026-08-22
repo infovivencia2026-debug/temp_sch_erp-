@@ -241,13 +241,16 @@ func (s *Server) listTeachingAssignments(w http.ResponseWriter, r *http.Request)
 	}
 	// A bare GET is the whole of the caller's teaching, most recent first —
 	// useful without a single query parameter.
-	sectionFilter := "TRUE"
+	/* An office role reads every section, so there is nothing to narrow by —
+	   and nothing to bind. Passing an empty uuid array anyway sent one argument
+	   to a statement whose text no longer mentions $1, and pgx refused it:
+	   "expected 0 arguments, got 1". Every principal opening this screen got
+	   "something went wrong". */
+	sectionFilter := "h.section_id = ANY($1)"
 	args := []any{res.SectionIDs}
 	if res.AllStudents {
 		sectionFilter = "TRUE"
-		args = []any{[]uuid.UUID{}}
-	} else {
-		sectionFilter = "h.section_id = ANY($1)"
+		args = nil
 	}
 	if q := strings.TrimSpace(r.URL.Query().Get("section_id")); q != "" {
 		sec, perr := uuid.Parse(q)

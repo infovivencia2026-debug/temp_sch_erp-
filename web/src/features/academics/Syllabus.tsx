@@ -84,8 +84,22 @@ export default function Syllabus() {
    * One component still, because the coverage numbers are computed from the
    * plans and splitting the file would mean fetching the same rows twice and
    * letting the two drift. What splits is what is shown. */
+  /* Three menu entries, three different questions, one set of data.
+   *
+   * Only syllabus_progress was special-cased, so Curriculum Roadmap and Lesson
+   * Plans both fell through to the same view and opened an identical screen
+   * under two names. The three names are not decoration - the roadmap is what a
+   * subject intends to cover and in which term, progress is how much of it has
+   * actually been taught, and lesson plans are what individual teachers wrote
+   * and who has read them. All three were already built here; only the routing
+   * between them was missing. */
   const { featureSlug } = useParams()
-  const view = featureSlug === 'syllabus_progress' ? 'coverage' : 'plans'
+  const view =
+    featureSlug === 'syllabus_progress'
+      ? 'coverage'
+      : featureSlug === 'curriculum_roadmap'
+        ? 'roadmap'
+        : 'plans'
   const qc = useQueryClient()
   const session = useQuery({
     queryKey: ['session'],
@@ -133,11 +147,19 @@ export default function Syllabus() {
     <>
       <PageHead
         eyebrow="Academics"
-        title={view === 'coverage' ? 'Syllabus progress' : 'Lesson plans'}
+        title={
+          view === 'coverage'
+            ? 'Syllabus progress'
+            : view === 'roadmap'
+              ? 'Curriculum roadmap'
+              : 'Lesson plans'
+        }
         description={
           view === 'coverage'
             ? 'How much of each subject has actually been taught, against how much was planned. The question asked in the month before an exam.'
-            : 'Plans teachers have written, and the ones waiting on a signature.'
+            : view === 'roadmap'
+              ? 'The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Set once a year and taught from all of it.'
+              : 'Plans teachers have written, and the ones waiting on a signature.'
         }
       />
       <PageBody>
@@ -234,7 +256,7 @@ export default function Syllabus() {
             <NewLessonPlan />
           </>
         )}
-        {view === 'coverage' && canReview && <ChapterPlanner />}
+        {(view === 'roadmap' || view === 'coverage') && canReview && <ChapterPlanner />}
       </PageBody>
     </>
   )
