@@ -60,7 +60,7 @@ export default function Circulars() {
   })
   const publish = useMutation({
     mutationFn: () =>
-      api.post<{ recipients: number; sms_queued: number; email_queued: number }>(
+      api.post<{ recipients: number; unreachable_children: number; sms_queued: number; email_queued: number }>(
         '/api/v1/communication/circulars',
         {
           title, body, section_ids: [...sectionIds],
@@ -75,6 +75,7 @@ export default function Circulars() {
     },
   })
 
+  const [openId, setOpenId] = useState<string | null>(null)
   const rows = list.data?.items ?? []
   const toggle = (id: string) => {
     const n = new Set(sectionIds)
@@ -227,6 +228,18 @@ export default function Circulars() {
                 {publish.data.email_queued > 0 && `, ${publish.data.email_queued} emails queued`}.
               </p>
             )}
+            {publish.isSuccess && publish.data.unreachable_children > 0 && (
+              /* The other half of the number, and the reason it looks small.
+                 A school of sixty children publishing to "all parents" and
+                 being told "12 recipients" reads it as a targeting fault. It
+                 is not: the other families have never been issued a login, so
+                 there is nowhere to deliver a portal notice to. That is worth
+                 saying plainly, with where to fix it. */
+              <p className="text-[13px] text-warning">
+                {publish.data.unreachable_children} children could not be reached — their family
+                has no login yet. Issue logins on School setup → Students to reach them.
+              </p>
+            )}
             <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>
               <Send className="h-4 w-4" />
               {publish.isPending ? 'Publishing…' : 'Publish circular'}
@@ -238,7 +251,7 @@ export default function Circulars() {
         <Card>
           <CardHeader title="Published" description="Most recent first" />
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
-            <Table head={['Title', 'Kind', 'Audience', 'Sections', 'Acknowledged', 'Published']}
+            <Table head={['Title', 'Kind', 'Audience', 'Sections', 'Acknowledged', 'Published', '']}
               empty={!rows.length} emptyLabel="Nothing published yet.">
               {rows.map((c) => (
                 <tr key={c.id}>
@@ -249,15 +262,93 @@ export default function Circulars() {
                   <Td>
                     {c.requires_ack
                       ? <Badge tone={c.acknowledgements ? 'success' : 'warning'}>{c.acknowledgements}</Badge>
-                      : '—'}
+                      /* An em dash and a zero were being used for the same
+                         state on the same column, which reads as two states.
+                         This one means the circular never asked. */
+                      : <span className="text-muted-foreground">not asked</span>}
                   </Td>
                   <Td className="text-muted-foreground">{formatDate(c.published_at)}</Td>
+                  <Td>
+                    <Button size="sm" variant="ghost" onClick={() => setOpenId(openId === c.id ? null : c.id)}>
+                      {openId === c.id ? 'Hide' : 'Who got it'}
+                    </Button>
+                  </Td>
                 </tr>
               ))}
             </Table>
           )}
         </Card>
+
+        {openId && <Delivery id={openId} />}
       </PageBody>
     </>
+  )
+}
+
+/* Who got it, and who said they read it.
+ *
+ * A principal could publish a notice and then had no way to find out what
+ * happened to it: the published rows were not clickable, there was no recipient
+ * list, no delivery state and no read receipt. The one question a person asks
+ * after sending something to six hundred families had no answer anywhere in the
+ * product, so the honest conclusion was that delivery was broken. It was not
+ * broken; it was invisible, which for the person relying on it is the same
+ * thing.
+ *
+ * Unreachable is the number that explains a small delivery count. A school of
+ * sixty children told "12 reached" assumes the targeting is wrong. Told that
+ * forty-nine families have never been issued a login, they know what to do.
+ */
+function Delivery({ id }: { id: string }) {
+  const q = useQuery({
+    queryKey: ['circular-delivery', id],
+    queryFn: () =>
+      api.get<{
+        title: string
+        delivered: number
+        acknowledged: number
+        unreachable_children: number
+        people: { name: string; role: string; student?: string; acked_at?: string }[]
+      }>(`/api/v1/comms/circulars/${id}/delivery`),
+  })
+
+  if (q.isLoading) return <Loading />
+  if (q.error) return <ErrorState error={q.error} />
+  const d = q.data!
+
+  return (
+    <Card>
+      <CardHeader
+        title={d.title}
+        description="Everyone this circular was delivered to, and whether they have acknowledged it."
+      />
+      <CellGrid cols={3}>
+        <Stat label="Delivered to" value={d.delivered} hint="On their portal and in their bell" />
+        <Stat label="Acknowledged" value={d.acknowledged} />
+        <Stat
+          label="Could not be reached"
+          value={d.unreachable_children}
+          hint={d.unreachable_children ? 'Children whose family has no login' : 'Everyone has a login'}
+        />
+      </CellGrid>
+      <Table
+        head={['Name', 'Who they are', 'About', 'Acknowledged']}
+        empty={d.people.length === 0}
+        emptyLabel="Nobody could be reached — no family or staff account matches this audience."
+      >
+        {d.people.map((p, i) => (
+          <tr key={`${p.name}-${i}`}>
+            <Td className="font-medium">{p.name}</Td>
+            <Td>{p.role}</Td>
+            <Td className="text-muted-foreground">{p.student ?? '—'}</Td>
+            <Td>
+              {p.acked_at
+                ? <Badge tone="success">{p.acked_at}</Badge>
+                : <span className="text-muted-foreground">not yet</span>}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </Card>
   )
 }

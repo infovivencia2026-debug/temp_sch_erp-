@@ -138,7 +138,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var annID uuid.UUID
-	var recipients int
+	var recipients, unreachable int
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO announcements (institution_id, title, body, kind, audience_role,
@@ -162,11 +162,39 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		// Count who it actually reaches, so the author sees the blast radius
-		// before wondering why nobody replied.
-		return tx.QueryRow(r.Context(),
+		/* Who it reaches, and who it cannot.
+
+		   The count was honest and read as a lie. A school with sixty children
+		   published to "all parents" and was told "12 recipients", because
+		   twelve is how many people have an account — the other forty-nine
+		   families have never been issued a login, so there is nowhere to
+		   deliver a portal notice to. Reporting only the reachable number
+		   invites the reader to conclude the audience is wrong, when the truth
+		   is that most of the school cannot be reached at all.
+
+		   So both numbers travel together. A principal who sees "12 reached,
+		   49 children have no family login" can act on it; one who sees "12"
+		   can only be puzzled by it. */
+		if err := tx.QueryRow(r.Context(),
 			`SELECT count(*) FROM (`+circularRecipients+`) AS t`,
-			uuidArray(req.SectionIDs), req.AudienceRole).Scan(&recipients)
+			uuidArray(req.SectionIDs), req.AudienceRole).Scan(&recipients); err != nil {
+			return err
+		}
+		if req.AudienceRole == "staff" {
+			return nil
+		}
+		return tx.QueryRow(r.Context(), `
+			SELECT count(*)::int
+			  FROM students st
+			  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+			 WHERE st.status = 'active'
+			   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))
+			   AND st.user_id IS NULL
+			   AND NOT EXISTS (
+			         SELECT 1 FROM student_guardians sg
+			           JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+			          WHERE sg.student_id = st.id)`,
+			uuidArray(req.SectionIDs)).Scan(&unreachable)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -257,7 +285,10 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": annID.String(), "recipients": recipients,
-		"sms_queued": queued["sms"], "email_queued": queued["email"],
+		// Children nobody can be told about, because their family has no
+		// login. Not an error — a thing to go and fix.
+		"unreachable_children": unreachable,
+		"sms_queued":           queued["sms"], "email_queued": queued["email"],
 		"whatsapp_queued": queued["whatsapp"],
 	})
 }

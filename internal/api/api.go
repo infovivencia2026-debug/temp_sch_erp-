@@ -566,6 +566,8 @@ func (s *Server) Routes() http.Handler {
 		// --- Communication (module 6) --------------------------------------
 		r.Route("/communication", func(r chi.Router) {
 			r.Get("/circulars", s.listCirculars)
+			// "Did it reach them?" had no answer anywhere in the product.
+			r.Get("/circulars/{id}/delivery", s.getCircularDelivery)
 			r.Post("/circulars/{id}/ack", s.ackCircular)
 			r.With(httpx.RequirePermission(rbac.AnnouncementsWrite)).Post("/circulars", s.publishCircular)
 		})
