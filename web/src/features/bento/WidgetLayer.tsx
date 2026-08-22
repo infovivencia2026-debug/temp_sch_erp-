@@ -191,9 +191,13 @@ function Axis({
   const hi = steps[steps.length - 1]
   const step = (delta: number) => onPick(Math.min(hi, Math.max(lo, value + delta)))
 
+  /* Sitting on the control chip now rather than on the card, so the surface
+     steps IN (background over popover) instead of being a translucent tile
+     floating over whatever the card was drawing. */
   const arrow =
-    'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
-    'transition-colors hover:bg-accent disabled:opacity-35 disabled:hover:bg-popover/90'
+    'grid size-6 shrink-0 place-items-center rounded-md border bg-background ' +
+    'transition-colors hover:bg-accent disabled:opacity-35 disabled:hover:bg-background ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
   return (
     <div className="flex items-center gap-1">
@@ -215,8 +219,11 @@ function Axis({
           aria-label={`${label} ${n}`}
           aria-pressed={value === n}
           className={cn(
-            'grid size-6 place-items-center rounded-md text-[11px] shadow-sm transition-colors',
-            value === n ? 'bg-primary font-semibold text-primary-foreground' : 'bg-popover/90 hover:bg-accent',
+            'grid size-6 place-items-center rounded-md border text-[11px] transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            value === n
+              ? 'border-primary bg-primary font-semibold text-primary-foreground'
+              : 'bg-background hover:bg-accent',
           )}
         >
           {n}
@@ -301,7 +308,8 @@ function ColourPick({
           }
           setOpen((v) => !v)
         }}
-        className="size-6 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-110"
+        className="size-6 rounded-full border-2 border-border shadow-sm transition-transform
+                   hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         style={{ background: value ? cssHsl(value) : 'var(--bento-card)' }}
       />
       {value && (
@@ -310,7 +318,8 @@ function ColourPick({
           onClick={() => onPick(null)}
           title={t('bento.widgets.colour_default')}
           aria-label={t('bento.widgets.colour_default')}
-          className="rounded-full bg-popover/90 px-2 py-1 text-[10.5px] shadow-sm hover:bg-accent"
+          className="rounded-full border bg-background px-2 py-1 text-[10.5px] hover:bg-accent
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t('bento.widgets.colour_clear')}
         </button>
@@ -512,13 +521,25 @@ export function Widget({
       <div className="h-full [&>*]:h-full" style={paint}>{children(span)}</div>
 
       {editing && (
+        /* A control layer, not a fog.
+
+           This used to be a full-card scrim with a blur behind it, which meant
+           the thing being sized — the number, the chart, the shape you are
+           judging the size BY — was the least readable thing on screen. So the
+           card keeps its content at full strength and says "editing" with a
+           dashed outline instead, while every control sits on its own opaque
+           chip. Contrast comes from the chips, not from dimming the card.
+
+           The layer itself takes no pointer events, so the outline never eats a
+           drag; each chip switches them back on. */
         <div
-          className="absolute inset-0 z-10 flex flex-col justify-between gap-2 overflow-auto
-                     rounded-[var(--bento-radius)] bg-background/70 p-2 backdrop-blur-[2px]"
+          className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2
+                     rounded-[var(--bento-radius)] border-2 border-dashed border-primary/60 p-2"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="flex items-center gap-1 rounded-full bg-popover/90 px-2 py-1
-                             text-[11px] font-medium shadow-sm">
+            <span className="pointer-events-auto flex items-center gap-1 rounded-full border
+                             bg-popover px-2 py-1 text-[11px] font-medium text-popover-foreground
+                             shadow-md">
               <GripVertical className="size-3 cursor-grab text-muted-foreground" aria-hidden="true" />
               {label}
             </span>
@@ -526,9 +547,11 @@ export function Widget({
               type="button"
               onClick={() => remove(id)}
               aria-label={`${t('bento.widgets.remove')} ${label}`}
-              className="grid size-7 shrink-0 place-items-center rounded-full bg-popover/90
-                         text-muted-foreground shadow-sm transition-colors
-                         hover:bg-destructive hover:text-destructive-foreground"
+              className="pointer-events-auto grid size-7 shrink-0 place-items-center rounded-full
+                         border bg-popover text-muted-foreground shadow-md transition-colors
+                         hover:bg-destructive hover:text-destructive-foreground
+                         hover:border-destructive focus-visible:outline-none
+                         focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="size-3.5" />
             </button>
@@ -536,8 +559,15 @@ export function Widget({
 
           {/* Two axes rather than a menu of named shapes: five widths and five
               heights is twenty-five sizes from ten controls, and "three wide,
-              one tall" is a thing somebody can now ask for. */}
-          <div className="flex flex-col gap-1">
+              one tall" is a thing somebody can now ask for.
+
+              All three rows share ONE chip, anchored to the bottom edge. Three
+              separately floating rows over live content read as debris; one
+              surface with a border and a shadow reads as a panel that belongs
+              to the card it is sitting on. mr-auto so it takes only the width
+              its controls need and leaves the rest of the card visible. */}
+          <div className="pointer-events-auto mr-auto flex max-w-full flex-col gap-1 overflow-x-auto
+                          rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg">
             <Axis label={t('bento.widgets.width')} steps={WIDTHS} value={w}
                   onPick={(n) => resize(id, n, h)} />
             <Axis label={t('bento.widgets.height')} steps={HEIGHTS} value={h}
