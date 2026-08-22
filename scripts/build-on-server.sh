@@ -13,7 +13,7 @@
 #
 # Idempotent. Run as root on the server, or via `make deploy-server`.
 #
-#   BRANCH=operational-erp bash build-on-server.sh
+#   BRANCH=main bash build-on-server.sh
 set -euo pipefail
 
 # One deploy at a time.
@@ -40,7 +40,10 @@ BUILD=$(mktemp -d /tmp/temperp-build.XXXXXXXX)
 trap 'rm -rf "$BUILD"' EXIT
 
 REPO=${REPO:-https://github.com/infovivencia2026-debug/temp_sch_erp-.git}
-BRANCH=${BRANCH:-operational-erp}
+# main is the only branch anybody maintains. The default used to be
+# operational-erp, which meant a deploy run without BRANCH set shipped a branch
+# nobody had committed to in weeks — and reported success doing it.
+BRANCH=${BRANCH:-main}
 SRC=${SRC:-/opt/temperp-src}
 APP_DIR=${APP_DIR:-/opt/temperp}
 WEBROOT=${WEBROOT:-/var/www/temperp}
