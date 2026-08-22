@@ -131,7 +131,7 @@ export function WidgetLayer({
           one column and the Add chips wrap into an unreadable stack. */}
       {arranging && (
         <div
-          className="col-span-full flex flex-wrap items-center gap-2"
+          className="bento-arrange-bar col-span-full flex flex-wrap items-center gap-2"
           style={{ order: -1 }}
         >
           <button

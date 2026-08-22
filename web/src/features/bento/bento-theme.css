@@ -679,63 +679,63 @@ html[data-pattern='grid'] .bento-surface,
 html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   ONE UNIT IS A SQUARE.
+   HOW THE BOARD IS SIZED.
 
-   W:1 H:1 was not 1:1. Rows were auto-height, so a row's height came from the
-   tallest card in it — put a 2x2 hero beside three 1x1s and the 1x1s stretched
-   to half the hero. The numbers in the size control were describing a grid the
-   board was not actually keeping to, which makes them a lie rather than a
-   setting.
+   Rows divide the height that is left below the header. They are NOT squares,
+   and that was a deliberate reversal: a square unit is the honest reading of
+   "W:1 H:1", but on a 1600x900 laptop one column is 297px and only two 297px
+   rows fit above the fold — so 15 of the 25 sizes needed scrolling to reach,
+   and the board ran off the bottom of the screen.
 
-   The row is now exactly as tall as a column is wide. cqw rather than % or vw:
-   the row has to track the BOARD's width, not the viewport's, or a sidebar
-   opening would make every card the wrong shape.
-
-     one column = (board width - four gaps) / five
-
-   Only at lg, where the board is five columns. Narrower boards are one or two
-   columns and stack, and forcing squares there would leave a 1x1 with less
-   height than its own figure needs.
+   Fitting the screen won. W:H is therefore a proportion in grid units rather
+   than an aspect ratio: a 2x2 is twice the width and twice the height of a
+   1x1, and every one of the 25 sizes is reachable, but a 1x1 is a landscape
+   rectangle because that is what a laptop has room for.
    ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
-  /* The container is the board's PARENT, not the board.
-
-     container-type makes an element a query container for its DESCENDANTS. An
-     element cannot query itself, so `100cqw` used on .bento-board resolved
-     against whatever container happened to be further up — or against nothing
-     — and the row height came out wrong and inconsistent between rows. The
-     surface wraps the board and its content box is exactly the board's width,
-     so it is the right thing to measure. */
-  .bento-surface { container-type: inline-size; }
-
   .bento-board {
     /* The gap is set HERE, not by a utility class, because the row height is
-       computed from it.
-
-       The persona boards used gap-5 (20px) while the row height was being
-       derived from --bento-gap (6px, or 14px under the focus frame). The row
-       was therefore calculated for a gap the board was not using, so a "square"
-       came out as a rectangle and every W:H ratio was wrong on those screens.
-       One declaration means the arithmetic and the layout cannot disagree. */
+       derived from it. The persona boards used gap-5 while the arithmetic read
+       --bento-gap, so their cells could never come out right. */
     gap: var(--bento-gap) !important;
 
-    /* Overrides Tailwind's lg:auto-rows-auto, which is why it is !important:
-       both are single-class selectors and the utility layer wins otherwise.
+    /* ROWS DIVIDE THE SCREEN. They are not squares.
 
-       Every row is this tall, so one grid unit is a square and H:1 means the
-       same height on every row of the board. */
-    grid-auto-rows: calc((100cqw - 4 * var(--bento-gap)) / 5) !important;
-    /* Rows are a fixed height, so leftover vertical space must NOT be handed
-       back to them — without this the last row on a short board stretches and
-       H:1 stops meaning one square there. */
-    align-content: start !important;
+       A square unit is the honest reading of "W:1 H:1", and it does not fit a
+       laptop: on a 1600x900 window the board is 1544x660, one column is 297px,
+       and only TWO 297px rows fit above the fold. That left 15 of the 25 sizes
+       unreachable without scrolling and made the board run off the bottom of
+       the screen — the one thing this dashboard was built not to do.
+
+       So the rows share the height instead. Each is an equal fraction of what
+       is left below the header, whatever the card count, so the board ends at
+       the bottom of the window and never below it.
+
+       What W:H means now: proportions in grid units, not an aspect ratio. A 2x2
+       is twice as wide and twice as tall as a 1x1, and all 25 sizes are
+       reachable — but a 1x1 is a landscape rectangle rather than a square,
+       because that is what fits on the screen people actually use. */
+    grid-auto-rows: minmax(0, 1fr) !important;
+
+    /* The rows consume the space now, so it has to be given to them. */
+    align-content: stretch !important;
+    min-height: 0;
   }
 
-  /* The card is not allowed to push the grid out of shape. overflow:hidden is
-     the backstop, NOT the plan — the plan is the shedding rules below, which
-     drop content until what remains fits. Clipping as a strategy means a card
-     that silently loses its cue; shedding means it loses its least important
-     part first, deliberately. */
+  /* The arrange toolbar is a grid child, so it was taking a full 1fr row —
+     an entire row's worth of height for one line of buttons, which is the
+     band of empty space that appears the moment you start editing.
+
+     :has lets the board notice the toolbar is there and give the FIRST row
+     its natural height, while every row after it keeps dividing what is left.
+     Only while arranging: with no toolbar present the selector does not
+     match, and row one goes back to being a row like any other. */
+  .bento-board:has(> .bento-arrange-bar) {
+    grid-template-rows: auto !important;
+  }
+
+  /* The backstop. The shedding rules are the plan; this stops a card that still
+     holds too much from pushing the grid out of shape. */
   .bento-board > * { overflow: hidden; }
 }
 
