@@ -624,8 +624,22 @@ html[data-shadow='deep'] {
   --bento-text: var(--font-scale, 1);
 }
 .bento-widget { font-size: calc(1em * var(--bento-text)); }
+
+/* The supporting text follows the axis, but not all the way.
+
+   The figure is the thing a size slider is really about, and it is capped
+   against the card so it can grow until the card runs out. The label, the
+   sentence and the cue are different: they are read, not glanced at, and at
+   240% a caption becomes 29px, wraps four times and pushes everything else out
+   of a 250px square. They scale to a point and then stop — the slider still
+   makes them comfortably bigger, and never makes the card unusable. */
 .bento-widget .bento-note,
-.bento-widget .bento-cue { font-size: calc(12px * var(--bento-text)); }
+.bento-widget .bento-cue {
+  font-size: min(calc(12px * var(--bento-text)), 16px);
+}
+.bento-widget .bento-label {
+  font-size: min(calc(10px * var(--bento-text)), 14px);
+}
 
 /* CONTRAST — Focus paints its own ground and ink, so the axis has to restate
    them. Medium darkens the muted tone; high also separates the card from the

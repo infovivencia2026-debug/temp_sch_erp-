@@ -860,15 +860,44 @@
 
 /* The figure scales with the room it has. Width leads, because these cards are
    wider than they are tall and a number runs out of horizontal space first. */
-.bento-widget[data-w='1'] { --bento-fig: calc(clamp(20px, 2.6vh, 28px) * var(--font-scale, 1)); }
-.bento-widget[data-w='2'] { --bento-fig: calc(clamp(26px, 3.6vh, 40px) * var(--font-scale, 1)); }
-.bento-widget[data-w='3'] { --bento-fig: calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)); }
-.bento-widget[data-w='4'] { --bento-fig: calc(clamp(34px, 4.8vh, 56px) * var(--font-scale, 1)); }
-.bento-widget[data-w='5'] { --bento-fig: calc(clamp(38px, 5.4vh, 64px) * var(--font-scale, 1)); }
+/* The card measures itself, so its figure can never outgrow it.
+
+   The text-size slider goes to 240%, and the figure follows it — but the card
+   does not, because a grid unit is a square whose size comes from the board's
+   width. So a figure sized purely from the viewport overflowed its own card as
+   soon as the slider went far enough, which is the overflow that appeared the
+   moment the scales became continuous.
+
+   min() of three things: what the size axis asks for, a share of the card's
+   width, and a share of its height. The smallest wins, so the number is as
+   large as the card can actually hold and no larger — the slider still does
+   something on a big card, and stops mattering on a small one, which is the
+   correct behaviour rather than a compromise. */
+.bento-widget { container-type: inline-size; }
+
+/* Height is only measurable where the row height is fixed.
+
+   container-type: size contains BOTH axes, which means the element's contents
+   stop contributing to its size. That is correct at lg, where a row is a fixed
+   square. Below lg the rows are auto — contents ARE the height — so the same
+   declaration would collapse every card to nothing. Hence inline-size by
+   default, and the height cap only inside the breakpoint that guarantees one. */
+@media (min-width: 1024px) {
+  .bento-widget {
+    container-type: size;
+    --fig-cap: min(26cqw, 34cqh);
+  }
+}
+
+.bento-widget[data-w='1'] { --bento-fig: min(calc(clamp(20px, 2.6vh, 28px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='2'] { --bento-fig: min(calc(clamp(26px, 3.6vh, 40px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='3'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='4'] { --bento-fig: min(calc(clamp(34px, 4.8vh, 56px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='5'] { --bento-fig: min(calc(clamp(38px, 5.4vh, 64px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
 
 /* Two rows of height buys back a step, since the constraint there is vertical. */
 .bento-widget[data-h='1'][data-w='4'],
-.bento-widget[data-h='1'][data-w='5'] { --bento-fig: calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)); }
+.bento-widget[data-h='1'][data-w='5'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
 
 /* One column: the supporting sentence goes. It is the longest thing in the
    card and the first to wrap into an unreadable ladder. */
