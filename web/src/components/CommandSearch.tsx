@@ -104,12 +104,12 @@ export function CommandSearch() {
            header takes the same shape, where a rounded search is unremarkable
            — one component, one radius, rather than a prop threaded through to
            make the same button two shapes in two places. */
-        className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:flex"
+        className="hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:flex"
         aria-label="Search features"
       >
         <Search className="h-3.5 w-3.5" />
         <span>Search</span>
-        <kbd className="rounded border px-1 font-mono text-[10px]">{shortcutLabel('K')}</kbd>
+        <kbd className="shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px]">{shortcutLabel('K')}</kbd>
       </button>
     )
   }
