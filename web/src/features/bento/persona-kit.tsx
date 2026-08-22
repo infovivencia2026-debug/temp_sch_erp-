@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Cell, Cue, type CellSpan } from './bento-kit'
+import { WidgetLayer } from './WidgetLayer'
 
 /* THE PERSONA CELLS — the small amount the student, parent and faculty
    dashboards need that `bento-kit.tsx` does not already give them.
@@ -43,14 +44,26 @@ export function PersonaPage({
   title,
   description,
   actions,
+  dashboard,
   children,
 }: {
   eyebrow: string
   title: string
   description?: string
   actions?: ReactNode
+  /** Storage key for the arranger, when this page's cells are <Widget>s.
+
+      It is taken here rather than written around <PersonaPage> at the call
+      site because WidgetLayer renders its toolbar as a sibling of its
+      children: wrapped around the cells it would land inside the grid and be
+      laid out as a card, and wrapped around the whole page it would sit above
+      the title. Only this component can put it between the two. */
+  dashboard?: string
   children: ReactNode
 }) {
+  const grid = (
+    <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+  )
   return (
     <div className="p-6 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -63,7 +76,7 @@ export function PersonaPage({
         </div>
         {actions}
       </div>
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      {dashboard ? <WidgetLayer dashboard={dashboard}>{grid}</WidgetLayer> : grid}
     </div>
   )
 }

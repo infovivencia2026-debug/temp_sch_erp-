@@ -4,6 +4,7 @@ import { useT } from '@/lib/i18n'
 import { formatPaise } from '@/lib/utils'
 import { BentoError, BentoLoading, Meter, useFeatureHref } from './bento-kit'
 import { DotStrip, Figure, PersonaPage, WhoCell, hhmm, useNowMinutes } from './persona-kit'
+import { Widget } from './WidgetLayer'
 
 /* The student's day, in the Bento language.
 
@@ -151,23 +152,26 @@ export default function StudentDay() {
       eyebrow={t('bento.student_day.eyebrow')}
       title={s.full_name}
       description={form || undefined}
+      dashboard="student_day"
     >
       {/* THE ANCHOR — 2x2, and light, because it is read as words. */}
+      <Widget id="now" label={t('bento.student_day.now_label')} size="large" index={0}>
+        {(span) => (
       <WhoCell
-        span="anchor"
+        span={span}
         label={current ? t('bento.student_day.now_label') : t('bento.student_day.next_label')}
         to={toTimetable}
         cue={t('bento.student_day.now_cue')}
       >
         {periods.length === 0 ? (
           <Figure
-            span="anchor"
+            span={span}
             value={t('bento.student_day.no_lessons')}
             note={t('bento.student_day.no_lessons_note')}
           />
         ) : finished ? (
           <Figure
-            span="anchor"
+            span={span}
             value={t('bento.student_day.finished')}
             note={t('bento.student_day.finished_note', { count: periods.length })}
           />
@@ -207,13 +211,18 @@ export default function StudentDay() {
           />
         )}
       </WhoCell>
+        )}
+      </Widget>
 
       {/* THE ONE DARK CELL — attendance, whose point is the proportion. The
           meter is left on a light cell instead: --success was darkened for a
           light card and would sink into this ground, so the figure carries it
           here and the bar lives on the absence cell below. */}
+      <Widget id="attendance" label={t('bento.student_day.attendance')} size="small" index={1}>
+        {(span) => (
       <WhoCell
         dark
+        span={span}
         label={t('bento.student_day.attendance')}
         to={toAttendance}
         cue={t('bento.student_day.attendance_cue')}
@@ -227,16 +236,30 @@ export default function StudentDay() {
           })}
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="homework" label={t('bento.student_day.homework')} size="small" index={2}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.student_day.homework')}
         to={toHomework}
         cue={t('bento.student_day.homework_cue')}
       >
         <Figure value={s.homework_due} note={homeworkNote} />
       </WhoCell>
+        )}
+      </Widget>
 
-      <WhoCell label={t('bento.student_day.fees')} to={toFees} cue={t('bento.student_day.fees_cue')}>
+      <Widget id="fees" label={t('bento.student_day.fees')} size="small" index={3}>
+        {(span) => (
+      <WhoCell
+        span={span}
+        label={t('bento.student_day.fees')}
+        to={toFees}
+        cue={t('bento.student_day.fees_cue')}
+      >
         <Figure
           value={formatPaise(s.outstanding_paise)}
           note={
@@ -246,8 +269,13 @@ export default function StudentDay() {
           }
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="absent" label={t('bento.student_day.absent')} size="small" index={4}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.student_day.absent')}
         to={toAttendance}
         cue={t('bento.student_day.absent_cue')}
@@ -268,6 +296,8 @@ export default function StudentDay() {
           />
         </div>
       </WhoCell>
+        )}
+      </Widget>
     </PersonaPage>
   )
 }

@@ -13,6 +13,7 @@ import {
   StatCell,
   useFeatureHref,
 } from './bento-kit'
+import { Widget, WidgetLayer } from './WidgetLayer'
 
 /* THE FINANCE PAGE, IN THE BENTO LANGUAGE.
 
@@ -118,8 +119,11 @@ export default function BentoFinanceDashboard() {
 
   return (
     <BentoPage eyebrow={t('bento.finance.eyebrow')} title={t('bento.finance.title')}>
+      <WidgetLayer dashboard="finance">
       {/* THE ANCHOR — 2x2, dark, and the only dark cell on the page. */}
-      <Cell span="anchor" dark>
+      <Widget id="collection" label={t('bento.finance.anchor_label')} size="large" index={0}>
+        {(span) => (
+      <Cell span={span} dark>
         <p className="text-[12.5px] opacity-80">{t('bento.finance.anchor_label')}</p>
 
         <p className="mt-4 text-[48px] font-semibold leading-none tabular-nums">
@@ -195,16 +199,26 @@ export default function BentoFinanceDashboard() {
           <Cue dark to={defaultersHref} label={t('bento.finance.cue_overdue')} />
         )}
       </Cell>
+        )}
+      </Widget>
 
+      <Widget id="today" label={t('bento.finance.today')} size="small" index={1}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.today')}
         value={formatPaise(k.today_paise)}
         note={t('bento.finance.today_note')}
         to={collectHref ?? receiptsHref}
         cue={t('bento.finance.cue_collect')}
       />
+        )}
+      </Widget>
 
+      <Widget id="outstanding" label={t('bento.finance.outstanding')} size="small" index={2}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.outstanding')}
         value={formatPaise(k.outstanding_paise)}
         shape={
@@ -219,38 +233,61 @@ export default function BentoFinanceDashboard() {
         to={ledgerHref}
         cue={t('bento.finance.cue_ledger')}
       />
+        )}
+      </Widget>
 
+      <Widget id="defaulters" label={t('bento.finance.defaulters')} size="small" index={3}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.defaulters')}
         value={k.defaulters}
         note={t('bento.finance.defaulters_note')}
         to={defaultersHref}
         cue={t('bento.finance.cue_defaulters')}
       />
+        )}
+      </Widget>
 
+      <Widget id="unreconciled" label={t('bento.finance.unreconciled')} size="small" index={4}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.unreconciled')}
         value={k.unreconciled}
         note={t('bento.finance.unreconciled_note')}
         to={reconciliationHref}
         cue={t('bento.finance.cue_reconcile')}
       />
+        )}
+      </Widget>
 
+      <Widget id="refunds" label={t('bento.finance.refunds')} size="small" index={5}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.refunds')}
         value={k.refunds_pending}
         note={t('bento.finance.refunds_note')}
         to={refundsHref}
         cue={t('bento.finance.cue_refunds')}
       />
+        )}
+      </Widget>
 
+      <Widget id="invoices" label={t('bento.finance.invoices')} size="small" index={6}>
+        {(span) => (
       <StatCell
+        span={span}
         label={t('bento.finance.invoices')}
         value={k.invoices}
         note={t('bento.finance.invoices_note')}
         to={invoicesHref}
         cue={t('bento.finance.cue_invoices')}
       />
+        )}
+      </Widget>
+      </WidgetLayer>
     </BentoPage>
   )
 }

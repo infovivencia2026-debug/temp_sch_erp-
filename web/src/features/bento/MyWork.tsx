@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { WidgetLayer, Widget } from './WidgetLayer'
+import type { CellSpan } from './bento-kit'
 
 /* THE SMOKE TEST.
 
@@ -42,7 +44,9 @@ function Cell({
 }: {
   label: string
   value: string | number
-  span?: 'anchor' | 'one'
+  /* Widened to CellSpan because the arranger can now hand this cell any of
+     the four spans; a narrower union would reject 'wide' and 'full'. */
+  span?: CellSpan
   /* Dark ground for the one figure that matters most; light for everything
      read as text. Both use existing tokens — a raw hex here would undo the
      contrast work already done on this palette. */
@@ -52,7 +56,20 @@ function Cell({
     <div
       className={cn(
         'flex flex-col justify-between rounded-[14px] border p-5',
-        span === 'anchor' ? 'sm:col-span-2 sm:row-span-2' : '',
+        /* Every span, not just the one this file happened to use.
+
+           Widening the prop's TYPE without widening this ternary is the worse
+           of the two bugs: 'wide' and 'full' type-check, the arranger offers
+           them, and the card silently stays 1x1. A size control that accepts a
+           choice and ignores it reads as a broken dashboard, not a broken
+           class name. */
+        span === 'anchor'
+          ? 'sm:col-span-2 sm:row-span-2'
+          : span === 'wide'
+            ? 'sm:col-span-2'
+            : span === 'full'
+              ? 'sm:col-span-2 lg:col-span-4'
+              : '',
         dark ? 'bg-foreground text-background' : 'bg-card text-card-foreground',
       )}
     >
@@ -100,16 +117,26 @@ export default function BentoMyWork() {
       <h1 className="mt-1 text-[22px] font-semibold">{t('bento.my_work.title')}</h1>
 
       {/* Four columns, 20px gaps, one 2x2 anchor. */}
+      <WidgetLayer dashboard="mywork">
       <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Cell span="anchor" dark label={t('bento.my_work.outstanding')} value={d.outstanding} />
-        <Cell label={t('bento.my_work.overdue')} value={overdue} />
-        <Cell label={t('bento.my_work.sections')} value={d.sections} />
+        <Widget id="outstanding" label={t('bento.my_work.outstanding')} size="large" index={0}>
+          {(span) => (
+            <Cell span={span} dark label={t('bento.my_work.outstanding')} value={d.outstanding} />
+          )}
+        </Widget>
+        <Widget id="overdue" label={t('bento.my_work.overdue')} size="small" index={1}>
+          {(span) => <Cell span={span} label={t('bento.my_work.overdue')} value={overdue} />}
+        </Widget>
+        <Widget id="sections" label={t('bento.my_work.sections')} size="small" index={2}>
+          {(span) => <Cell span={span} label={t('bento.my_work.sections')} value={d.sections} />}
+        </Widget>
         {d.outstanding === 0 && (
           <div className="rounded-[14px] border bg-card p-5 text-[13.5px] text-muted-foreground">
             {t('bento.my_work.nothing')}
           </div>
         )}
       </div>
+      </WidgetLayer>
     </div>
   )
 }

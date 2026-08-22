@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n'
 import { cn, formatPaise } from '@/lib/utils'
 import { BentoError, BentoLoading, Meter, useFeatureHref } from './bento-kit'
 import { DotStrip, Figure, PersonaPage, WhoCell } from './persona-kit'
+import { Widget } from './WidgetLayer'
 
 /* The child's week, in the Bento language.
 
@@ -178,7 +179,10 @@ export default function ParentWeek() {
       </div>
     ) : undefined
 
-  const header = (body: React.ReactNode) => (
+  /* `arrange` is off for the loading and error bodies: those render no
+     <Widget> at all, so an arranger toolbar above them would offer to edit a
+     board with nothing on it. */
+  const header = (body: React.ReactNode, arrange = false) => (
     <PersonaPage
       eyebrow={t('bento.parent_week.eyebrow')}
       title={child?.full_name ?? t('bento.parent_week.title')}
@@ -196,6 +200,7 @@ export default function ParentWeek() {
           : form(child) || undefined
       }
       actions={switcher}
+      dashboard={arrange ? 'parent_week' : undefined}
     >
       {body}
     </PersonaPage>
@@ -234,15 +239,17 @@ export default function ParentWeek() {
     <>
       {/* THE ANCHOR — 2x2, light, because it is read. The child's week: how
           often they were there, and the shape of when they were not. */}
+      <Widget id="week" label={t('bento.parent_week.week_label')} size="large" index={0}>
+        {(span) => (
       <WhoCell
-        span="anchor"
+        span={span}
         label={t('bento.parent_week.week_label')}
         who={who}
         to={toAttendance}
         cue={t('bento.parent_week.week_cue')}
       >
         <Figure
-          span="anchor"
+          span={span}
           value={`${s.attendance_pct}%`}
           note={t('bento.parent_week.week_note', {
             name: s.full_name,
@@ -268,13 +275,18 @@ export default function ParentWeek() {
           </p>
         )}
       </WhoCell>
+        )}
+      </Widget>
 
       {/* THE ONE DARK CELL — what is owed, for this child and no other. It is
           the figure a parent came to act on, so it takes the single dark
           ground on the page. Drawn in the inverted foreground pair only; the
           semantic tokens were measured against a light card. */}
+      <Widget id="fees" label={t('bento.parent_week.fees_label')} size="small" index={1}>
+        {(span) => (
       <WhoCell
         dark
+        span={span}
         label={t('bento.parent_week.fees_label')}
         who={who}
         to={toFees}
@@ -290,8 +302,13 @@ export default function ParentWeek() {
           }
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="homework" label={t('bento.parent_week.homework_label')} size="small" index={2}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.parent_week.homework_label')}
         who={who}
         to={toHomework}
@@ -312,8 +329,13 @@ export default function ParentWeek() {
           }
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="absent" label={t('bento.parent_week.absent_label')} size="small" index={3}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.parent_week.absent_label')}
         who={who}
         to={toAttendance}
@@ -336,16 +358,23 @@ export default function ParentWeek() {
           />
         </div>
       </WhoCell>
+        )}
+      </Widget>
 
       {/* Days present. No cue of its own: the register behind it is already
           one click away from the anchor and from the absence cell, and a third
           route to the same screen is noise, not disclosure. */}
-      <WhoCell label={t('bento.parent_week.present_label')} who={who}>
+      <Widget id="present" label={t('bento.parent_week.present_label')} size="small" index={4}>
+        {(span) => (
+      <WhoCell span={span} label={t('bento.parent_week.present_label')} who={who}>
         <Figure
           value={s.present_days}
           note={t('bento.parent_week.present_note', { name: s.full_name })}
         />
       </WhoCell>
+        )}
+      </Widget>
     </>,
+    true,
   )
 }

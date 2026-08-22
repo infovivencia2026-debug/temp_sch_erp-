@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
+import { WidgetLayer, Widget } from './WidgetLayer'
 import { formatPaise } from '@/lib/utils'
 import {
   AnchorAction,
@@ -113,6 +114,7 @@ export default function BentoPrincipalDashboard() {
 
   return (
     <BentoPage eyebrow={t('bento.principal.eyebrow')} title={t('bento.principal.title')}>
+      <WidgetLayer dashboard="principal">
       {/* THE ANCHOR — 2x2, the mint gradient, the largest number on the page,
           its two actions along the bottom edge.
 
@@ -125,217 +127,258 @@ export default function BentoPrincipalDashboard() {
           `--success` — a token measured against a light card sinks into a
           near-black ground — but it meant the head's headline figure changed
           polarity with the theme. This one does not. */}
-      <Cell span="anchor" tone="anchor" domain="students">
-        <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-ink)]">
-          {t('bento.principal.anchor_label')}
-        </p>
+      <Widget id="pulse" label={t('bento.principal.anchor_label')} size="large" index={0}>
+        {(span) => (
+          <Cell span={span} tone="anchor" domain="students">
+            <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-ink)]">
+              {t('bento.principal.anchor_label')}
+            </p>
 
-        <div className="mt-5">
-          {/* The hero figure carries the same rule as the small ones, one step
-              further: heavier and tighter, because at 72px semibold reads thin
-              and default tracking reads gappy. */}
-          <p className="text-[72px] font-extrabold leading-[0.88] tracking-[-0.04em] tabular-nums">
-            {k.attendance_today_pct}%
-          </p>
-          <p className="mt-2 text-[12.5px] opacity-75">
-            {t('bento.principal.attendance_marked', { count: k.attendance_marked_today })}
-          </p>
-          {trend.error ? (
-            <div className="mt-3">
-              <CellError tone="anchor" message={t('bento.principal.trend_failed')} />
+            <div className="mt-5">
+              {/* The hero figure carries the same rule as the small ones, one step
+                  further: heavier and tighter, because at 72px semibold reads thin
+                  and default tracking reads gappy. */}
+              <p className="text-[72px] font-extrabold leading-[0.88] tracking-[-0.04em] tabular-nums">
+                {k.attendance_today_pct}%
+              </p>
+              <p className="mt-2 text-[12.5px] opacity-75">
+                {t('bento.principal.attendance_marked', { count: k.attendance_marked_today })}
+              </p>
+              {trend.error ? (
+                <div className="mt-3">
+                  <CellError tone="anchor" message={t('bento.principal.trend_failed')} />
+                </div>
+              ) : points.length > 1 ? (
+                <>
+                  <Sparkline
+                    points={points}
+                    srLabel={t('bento.principal.trend_sr')}
+                    className="mt-4 opacity-70"
+                  />
+                  <p className="mt-1 text-[11.5px] opacity-70">{t('bento.principal.trend_caption')}</p>
+                </>
+              ) : null}
             </div>
-          ) : points.length > 1 ? (
-            <>
-              <Sparkline
-                points={points}
-                srLabel={t('bento.principal.trend_sr')}
-                className="mt-4 opacity-70"
-              />
-              <p className="mt-1 text-[11.5px] opacity-70">{t('bento.principal.trend_caption')}</p>
-            </>
-          ) : null}
-        </div>
 
-        <div
-          className="mt-6 border-t pt-5"
-          style={{ borderColor: 'color-mix(in srgb, var(--bento-anchor-ink) 15%, transparent)' }}
-        >
-          <p className="text-[12.5px] opacity-75">{t('bento.principal.collected_label')}</p>
-          <p className="mt-1.5 text-[30px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
-            {formatPaise(k.collected_paise)}
-          </p>
-          {/* Track and fill are both the anchor's own ink, one mixed down. No
-              accent is reached for: all four pastels were measured against the
-              card, and the mint gradient is not that ground. The sentence
-              under the bar states the share in words regardless, so colour is
-              never the only channel carrying it. */}
-          <div
-            role="progressbar"
-            aria-label={t('bento.principal.collected_sr')}
-            aria-valuenow={collectedPct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="mt-3.5 h-2 w-full overflow-hidden rounded-full"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--bento-anchor-ink) 18%, transparent)',
-            }}
-          >
             <div
-              className="h-full rounded-full bg-[var(--bento-anchor-ink)]"
-              style={{ width: `${collectedPct}%` }}
-            />
-          </div>
-          <p className="mt-2.5 text-[12px] opacity-75">
-            {t('bento.principal.collected_of_billed', {
-              pct: collectedPct,
-              billed: formatPaise(billed),
-            })}
-          </p>
-        </div>
+              className="mt-6 border-t pt-5"
+              style={{ borderColor: 'color-mix(in srgb, var(--bento-anchor-ink) 15%, transparent)' }}
+            >
+              <p className="text-[12.5px] opacity-75">{t('bento.principal.collected_label')}</p>
+              <p className="mt-1.5 text-[30px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+                {formatPaise(k.collected_paise)}
+              </p>
+              {/* Track and fill are both the anchor's own ink, one mixed down. No
+                  accent is reached for: all four pastels were measured against the
+                  card, and the mint gradient is not that ground. The sentence
+                  under the bar states the share in words regardless, so colour is
+                  never the only channel carrying it. */}
+              <div
+                role="progressbar"
+                aria-label={t('bento.principal.collected_sr')}
+                aria-valuenow={collectedPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="mt-3.5 h-2 w-full overflow-hidden rounded-full"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--bento-anchor-ink) 18%, transparent)',
+                }}
+              >
+                <div
+                  className="h-full rounded-full bg-[var(--bento-anchor-ink)]"
+                  style={{ width: `${collectedPct}%` }}
+                />
+              </div>
+              <p className="mt-2.5 text-[12px] opacity-75">
+                {t('bento.principal.collected_of_billed', {
+                  pct: collectedPct,
+                  billed: formatPaise(billed),
+                })}
+              </p>
+            </div>
 
-        {/* The actions along the bottom edge. Each is checked against the
-            catalogue first: a pill leading somewhere this account cannot open
-            is worse than a shorter row of pills. */}
-        {(attendanceHref || feesHref) && (
-          <div className="mt-auto flex flex-wrap gap-2.5 pt-6">
-            {attendanceHref && (
-              <AnchorAction to={attendanceHref} label={t('bento.principal.cue_attendance')} />
+            {/* The actions along the bottom edge. Each is checked against the
+                catalogue first: a pill leading somewhere this account cannot open
+                is worse than a shorter row of pills. */}
+            {(attendanceHref || feesHref) && (
+              <div className="mt-auto flex flex-wrap gap-2.5 pt-6">
+                {attendanceHref && (
+                  <AnchorAction to={attendanceHref} label={t('bento.principal.cue_attendance')} />
+                )}
+                {feesHref && <AnchorAction to={feesHref} label={t('bento.principal.cue_fees')} />}
+              </div>
             )}
-            {feesHref && <AnchorAction to={feesHref} label={t('bento.principal.cue_fees')} />}
-          </div>
+          </Cell>
         )}
-      </Cell>
+      </Widget>
 
       {/* Money out — pink, and pink is used for nothing else on this page. */}
-      <StatCell
-        domain="finance"
-        label={t('bento.principal.outstanding')}
-        value={formatPaise(k.outstanding_paise)}
-        badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
+      <Widget id="outstanding" label={t('bento.principal.outstanding')} size="small" index={1}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="finance"
+            label={t('bento.principal.outstanding')}
+            value={formatPaise(k.outstanding_paise)}
+            badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
        
-        shape={
-          <Meter
-            value={k.outstanding_paise}
-            total={billed}
-            tone="destructive"
-            srLabel={t('bento.principal.outstanding_sr')}
+            shape={
+              <Meter
+                value={k.outstanding_paise}
+                total={billed}
+                tone="destructive"
+                srLabel={t('bento.principal.outstanding_sr')}
+              />
+            }
+            note={t('bento.principal.of_billed', { billed: formatPaise(billed) })}
+            to={feesHref}
+            cue={t('bento.principal.cue_fees')}
           />
-        }
-        note={t('bento.principal.of_billed', { billed: formatPaise(billed) })}
-        to={feesHref}
-        cue={t('bento.principal.cue_fees')}
-      />
+        )}
+      </Widget>
 
       {/* A warning, so orange — the hue this palette reserves for one. */}
-      <StatCell
-        domain="staff"
-        label={t('bento.principal.defaulters')}
-        value={k.defaulters}
-        badge={t('bento.principal.pct_of_students', { pct: defaultersPct })}
-       
-        shape={
-          <Meter
+      <Widget id="defaulters" label={t('bento.principal.defaulters')} size="small" index={2}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="staff"
+            label={t('bento.principal.defaulters')}
             value={k.defaulters}
-            total={k.students}
-            tone="warning"
-            srLabel={t('bento.principal.defaulters_sr')}
+            badge={t('bento.principal.pct_of_students', { pct: defaultersPct })}
+       
+            shape={
+              <Meter
+                value={k.defaulters}
+                total={k.students}
+                tone="warning"
+                srLabel={t('bento.principal.defaulters_sr')}
+              />
+            }
+            note={t('bento.principal.of_students', { count: k.students })}
+            to={defaultersHref}
+            cue={t('bento.principal.cue_defaulters')}
           />
-        }
-        note={t('bento.principal.of_students', { count: k.students })}
-        to={defaultersHref}
-        cue={t('bento.principal.cue_defaulters')}
-      />
+        )}
+      </Widget>
 
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Cell span="wide" domain="academics">
-        <p className="text-[12.5px] text-[var(--bento-ink)] opacity-70">{t('bento.principal.bars_label')}</p>
-        {trend.error ? (
-          <div className="mt-4">
-            <CellError message={t('bento.principal.trend_failed')} />
-          </div>
-        ) : bars.length > 1 ? (
-          <div className="mt-5">
-            <Bars
-              items={bars}
-              activeIndex={bars.length - 1}
-              srLabel={t('bento.principal.bars_sr', {
-                count: bars.length,
-                low: Math.min(...bars.map((b) => b.value)),
-                high: Math.max(...bars.map((b) => b.value)),
-              })}
-            />
-          </div>
-        ) : (
-          <p className="mt-4 text-[12px] text-[var(--bento-muted)]">
-            {t('bento.principal.bars_none')}
-          </p>
+      <Widget id="trend" label={t('bento.principal.trend_label')} size="medium" index={3}>
+        {(span) => (
+          <Cell span={span} domain="academics">
+            <p className="text-[12.5px] text-[var(--bento-ink)] opacity-70">{t('bento.principal.bars_label')}</p>
+            {trend.error ? (
+              <div className="mt-4">
+                <CellError message={t('bento.principal.trend_failed')} />
+              </div>
+            ) : bars.length > 1 ? (
+              <div className="mt-5">
+                <Bars
+                  items={bars}
+                  activeIndex={bars.length - 1}
+                  srLabel={t('bento.principal.bars_sr', {
+                    count: bars.length,
+                    low: Math.min(...bars.map((b) => b.value)),
+                    high: Math.max(...bars.map((b) => b.value)),
+                  })}
+                />
+              </div>
+            ) : (
+              <p className="mt-4 text-[12px] text-[var(--bento-muted)]">
+                {t('bento.principal.bars_none')}
+              </p>
+            )}
+            {attendanceHref && <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />}
+          </Cell>
         )}
-        {attendanceHref && <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />}
-      </Cell>
+      </Widget>
 
       {/* No badge and no accent. Four hues, one meaning each, and the roll is
           not one of those meanings — a tint here would only make the two that
           do mean something harder to find. */}
-      <StatCell
-        domain="operations"
-        span="wide"
-        label={t('bento.principal.students')}
-        value={k.students}
+      <Widget id="students" label={t('bento.principal.students')} size="medium" index={4}>
+        {(span) => (
+          <StatCell
+            domain="operations"
+            span={span}
+            label={t('bento.principal.students')}
+            value={k.students}
        
-        note={t('bento.principal.sections', { count: k.sections })}
-        to={studentsHref}
-        cue={t('bento.principal.cue_students')}
-      />
+            note={t('bento.principal.sections', { count: k.sections })}
+            to={studentsHref}
+            cue={t('bento.principal.cue_students')}
+          />
+        )}
+      </Widget>
 
-      <StatCell
-        domain="reports"
-        label={t('bento.principal.staff')}
-        value={k.staff}
+      <Widget id="staff" label={t('bento.principal.staff')} size="small" index={5}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="reports"
+            label={t('bento.principal.staff')}
+            value={k.staff}
        
-        note={t('bento.principal.as_of_today')}
-        to={staffHref}
-        cue={t('bento.principal.cue_staff')}
-      />
+            note={t('bento.principal.as_of_today')}
+            to={staffHref}
+            cue={t('bento.principal.cue_staff')}
+          />
+        )}
+      </Widget>
 
-      <StatCell
-        domain="staff"
-        label={t('bento.principal.approvals')}
-        value={k.pending_leave}
+      <Widget id="approvals" label={t('bento.principal.approvals')} size="small" index={6}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="staff"
+            label={t('bento.principal.approvals')}
+            value={k.pending_leave}
        
-        note={t('bento.principal.approvals_note')}
-        to={approvalsHref}
-        cue={t('bento.principal.cue_approvals')}
-      />
+            note={t('bento.principal.approvals_note')}
+            to={approvalsHref}
+            cue={t('bento.principal.cue_approvals')}
+          />
+        )}
+      </Widget>
 
       {/* The last two run wide so the four-column grid closes flush. The
           packing is: anchor 2x2 with outstanding and defaulters beside it and
           the bar chart under those, then students wide with staff and
           approvals, then these two — sixteen slots, four rows, no hole left at
           the bottom right. Below `lg` every wide cell is simply full width. */}
-      <StatCell
-        span="wide"
-        domain="admissions"
-        label={t('bento.principal.applications')}
-        value={k.open_applications}
+      <Widget id="applications" label={t('bento.principal.applications')} size="medium" index={7}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="admissions"
+            label={t('bento.principal.applications')}
+            value={k.open_applications}
        
-        note={t('bento.principal.applications_note')}
-        to={applicationsHref}
-        cue={t('bento.principal.cue_applications')}
-      />
+            note={t('bento.principal.applications_note')}
+            to={applicationsHref}
+            cue={t('bento.principal.cue_applications')}
+          />
+        )}
+      </Widget>
 
-      <StatCell
-        span="wide"
-        domain="communication"
-        label={t('bento.principal.unassigned')}
-        value={k.unassigned_subjects}
-        badge={k.unassigned_subjects > 0 ? t('bento.principal.needs_attention') : undefined}
+      <Widget id="unassigned" label={t('bento.principal.unassigned')} size="medium" index={8}>
+        {(span) => (
+          <StatCell
+            span={span}
+            domain="communication"
+            label={t('bento.principal.unassigned')}
+            value={k.unassigned_subjects}
+            badge={k.unassigned_subjects > 0 ? t('bento.principal.needs_attention') : undefined}
        
-        note={t('bento.principal.unassigned_note')}
-        to={subjectsHref}
-        cue={t('bento.principal.cue_unassigned')}
-      />
+            note={t('bento.principal.unassigned_note')}
+            to={subjectsHref}
+            cue={t('bento.principal.cue_unassigned')}
+          />
+        )}
+      </Widget>
+      </WidgetLayer>
     </BentoPage>
   )
 }

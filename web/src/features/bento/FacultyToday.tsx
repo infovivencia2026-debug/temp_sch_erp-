@@ -3,6 +3,7 @@ import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { BentoError, BentoLoading, Meter, useFeatureHref } from './bento-kit'
 import { DotStrip, Figure, PersonaPage, WhoCell, hhmm, useNowMinutes } from './persona-kit'
+import { Widget } from './WidgetLayer'
 
 /* Today's classes, in the Bento language.
 
@@ -140,23 +141,26 @@ export default function FacultyToday() {
       eyebrow={t('bento.faculty_today.eyebrow')}
       title={t('bento.faculty_today.title')}
       description={t('bento.faculty_today.description', { count: lessons.length })}
+      dashboard="faculty_today"
     >
       {/* THE ANCHOR — 2x2, light, because it is read as words. */}
+      <Widget id="now" label={t('bento.faculty_today.now_label')} size="large" index={0}>
+        {(span) => (
       <WhoCell
-        span="anchor"
+        span={span}
         label={current ? t('bento.faculty_today.now_label') : t('bento.faculty_today.next_label')}
         to={toRegister}
         cue={t('bento.faculty_today.now_cue')}
       >
         {lessons.length === 0 ? (
           <Figure
-            span="anchor"
+            span={span}
             value={t('bento.faculty_today.no_lessons')}
             note={t('bento.faculty_today.no_lessons_note')}
           />
         ) : finished ? (
           <Figure
-            span="anchor"
+            span={span}
             value={t('bento.faculty_today.finished')}
             note={t('bento.faculty_today.finished_note', { marked, count: lessons.length })}
           />
@@ -192,13 +196,18 @@ export default function FacultyToday() {
           />
         )}
       </WhoCell>
+        )}
+      </Widget>
 
       {/* THE ONE DARK CELL. Drawn in the inverted foreground pair only — the
           semantic tokens were darkened against a light card and would sink
           into this ground — so the meter that belongs with it sits on the
           light lessons cell instead and this one carries the figure. */}
+      <Widget id="marked" label={t('bento.faculty_today.marked_label')} size="small" index={1}>
+        {(span) => (
       <WhoCell
         dark
+        span={span}
         label={t('bento.faculty_today.marked_label')}
         to={toRegister}
         cue={t('bento.faculty_today.marked_cue')}
@@ -213,8 +222,13 @@ export default function FacultyToday() {
           }
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="work" label={t('bento.faculty_today.work_label')} size="small" index={2}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.faculty_today.work_label')}
         to={toWork}
         cue={t('bento.faculty_today.work_cue')}
@@ -230,16 +244,26 @@ export default function FacultyToday() {
           }
         />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="sections" label={t('bento.faculty_today.sections_label')} size="small" index={3}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.faculty_today.sections_label')}
         to={toClasses}
         cue={t('bento.faculty_today.sections_cue')}
       >
         <Figure value={mine.length} note={t('bento.faculty_today.sections_note', { count: enrolled })} />
       </WhoCell>
+        )}
+      </Widget>
 
+      <Widget id="lessons" label={t('bento.faculty_today.lessons_label')} size="small" index={4}>
+        {(span) => (
       <WhoCell
+        span={span}
         label={t('bento.faculty_today.lessons_label')}
         to={toTimetable}
         cue={t('bento.faculty_today.lessons_cue')}
@@ -266,6 +290,8 @@ export default function FacultyToday() {
           </div>
         )}
       </WhoCell>
+        )}
+      </Widget>
     </PersonaPage>
   )
 }

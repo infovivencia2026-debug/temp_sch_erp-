@@ -94,12 +94,19 @@ export function useFeatureHref(key: string): string | undefined {
 
 // --- cells --------------------------------------------------------------
 
-export type CellSpan = 'anchor' | 'wide' | 'one'
+export type CellSpan = 'anchor' | 'wide' | 'one' | 'full'
 
-const SPAN: Record<CellSpan, string> = {
+/* Four widths, and only four, because the board is four columns.
+
+   1, 2 and 4 are the widths that tile without stranding a column; a 3-wide
+   cell leaves a hole on every row it appears in. Height is 1 or 2 for the same
+   reason — taller than two and a card can never share a row, which is a layout
+   decision wearing a size's clothes. */
+export const SPAN: Record<CellSpan, string> = {
   anchor: 'sm:col-span-2 sm:row-span-2',
   wide: 'sm:col-span-2',
   one: '',
+  full: 'sm:col-span-2 lg:col-span-4',
 }
 
 /** The accent hues, one per meaning. Mint is money in, pink is money out,
