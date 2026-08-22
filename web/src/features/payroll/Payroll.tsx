@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState,
+  Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
 interface Payslip {
+  run_status?: string
   employee_code: string; full_name: string
   paid_days: string; lop_days: string
   gross_paise: number; deduction_paise: number; net_paise: number
@@ -29,6 +30,40 @@ export default function Payroll() {
     queryKey: ['payslips', month, year],
     queryFn: () => api.get<List<Payslip>>(`/api/v1/payroll/payslips?month=${month}&year=${year}`),
   })
+  /* The month, moved forward one deliberate step at a time.
+   *
+   * Running payroll used to be the end of it: no moment at which HR said the
+   * numbers were finished, nothing stopping attendance from quietly changing a
+   * figure already approved, and nobody told their pay was ready. The bank file
+   * could be drawn from a draft, which is a school paying real money out of
+   * numbers it had not agreed to.
+   *
+   * Only the next step is offered. A row of four buttons where three are wrong
+   * is a row of three chances to do the wrong one. */
+  const [note, setNote] = useState('')
+  const state = useMutation({
+    mutationFn: (to: 'locked' | 'paid' | 'published' | 'draft') =>
+      api.post<{ notified: number; emailed: number; email_failed: number }>(
+        '/api/v1/payroll/state', { month: Number(month), year: Number(year), to },
+      ),
+    onSuccess: (r, to) => {
+      setNote(
+        to === 'locked'
+          ? 'Locked. Attendance can no longer change these figures, and finance can draw the bank file.'
+          : to === 'paid'
+            ? 'Marked as paid. Publish the payslips now and staff will be told.'
+            : to === 'draft'
+              ? 'Unlocked. It can be run again.'
+              : `Published. ${r.notified} staff notified` +
+                (r.emailed ? `, ${r.emailed} emailed` : '') +
+                (r.email_failed
+                  ? `. ${r.email_failed} could not be emailed — check the mail provider in Settings; they were still notified in the app.`
+                  : '.'),
+      )
+      qc.invalidateQueries({ queryKey: ['payslips'] })
+    },
+  })
+
   const run = useMutation({
     mutationFn: () => api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
       month: Number(month), year: Number(year),
@@ -37,6 +72,8 @@ export default function Payroll() {
   })
 
   const rows = slips.data?.items ?? []
+  const status = rows[0]?.run_status ?? ''
+  const locked = status === 'locked' || status === 'paid'
   const gross = rows.reduce((a, r) => a + r.gross_paise, 0)
   const ded = rows.reduce((a, r) => a + r.deduction_paise, 0)
   const net = rows.reduce((a, r) => a + r.net_paise, 0)
@@ -56,9 +93,13 @@ export default function Payroll() {
               options={[now.getFullYear() - 1, now.getFullYear()].map((y) => ({
                 value: String(y), label: String(y),
               }))} />
-            <Button disabled={run.isPending} onClick={() => run.mutate()}>
-              {run.isPending ? 'Running…' : 'Run payroll'}
-            </Button>
+            {/* Re-running a locked month would overwrite figures somebody has
+                already signed off, so it is not offered until it is unlocked. */}
+            {!locked && (
+              <Button disabled={run.isPending} onClick={() => run.mutate()}>
+                {run.isPending ? 'Running…' : 'Run payroll'}
+              </Button>
+            )}
           </>
         }
       />
@@ -69,6 +110,64 @@ export default function Payroll() {
           <Stat label="Deductions" value={formatPaise(ded)} />
           <Stat label="Net payable" value={formatPaise(net)} />
         </CellGrid>
+
+        {note && <FormNotice ok={note} />}
+        {state.isError && <FormNotice error={state.error} />}
+
+        {rows.length > 0 && (
+          <Card>
+            <CardHeader
+              title={
+                status === 'paid'
+                  ? 'Paid'
+                  : status === 'locked'
+                    ? 'Locked — ready for the bank'
+                    : 'Draft — nobody has approved these figures yet'
+              }
+              description={
+                status === 'paid'
+                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
+                  : status === 'locked'
+                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
+                    : 'Check the figures, then lock the month so attendance cannot change them.'
+              }
+              action={
+                <div className="flex flex-wrap gap-2">
+                  {status !== 'locked' && status !== 'paid' && (
+                    <Button disabled={state.isPending} onClick={() => state.mutate('locked')}>
+                      Lock payroll & send to finance
+                    </Button>
+                  )}
+                  {locked && (
+                    <a
+                      className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
+                      href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
+                    >
+                      Download bank file
+                    </a>
+                  )}
+                  {status === 'locked' && (
+                    <>
+                      <Button variant="secondary" disabled={state.isPending}
+                        onClick={() => state.mutate('paid')}>
+                        Mark as paid
+                      </Button>
+                      <Button variant="ghost" disabled={state.isPending}
+                        onClick={() => state.mutate('draft')}>
+                        Unlock
+                      </Button>
+                    </>
+                  )}
+                  {status === 'paid' && (
+                    <Button disabled={state.isPending} onClick={() => state.mutate('published')}>
+                      Publish payslips
+                    </Button>
+                  )}
+                </div>
+              }
+            />
+          </Card>
+        )}
 
         {run.isError && (
           <Card className="p-4">

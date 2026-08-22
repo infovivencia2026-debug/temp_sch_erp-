@@ -705,6 +705,17 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "Fees overdue for {{student_name}}",
 		Body:    "Dear parent,\n\nInvoice {{invoice_no}} for {{student_name}} shows {{amount_due}} outstanding since {{due_on}}.\n\n{{school_name}}",
 	},
+	/* The payslip, said to the person it belongs to.
+
+	   A payslip that exists and nobody is told about is a payslip somebody
+	   walks to the office to ask for. The figure is in the body deliberately:
+	   the one question staff open the mail to answer is "how much", and making
+	   them sign in to find out is a second errand. Nothing else is — what was
+	   deducted and why is on their own screen, where it is theirs alone. */
+	"payroll.payslip": {
+		Subject: "Your payslip for {{month}} {{year}}",
+		Body:    "Dear {{staff_name}},\n\nYour payslip for {{month}} {{year}} is ready. Take-home pay: {{net_pay}}.\n\nSign in and open My pay to see the full breakup, what was deducted and your leave balance.\n\n{{school_name}}",
+	},
 	"ptm.reminder": {
 		Subject: "Parent-teacher meeting on {{on_date}}",
 		Body:    "Dear parent,\n\nYour meeting about {{student_name}} is on {{on_date}} at {{starts_at}}.\n\n{{school_name}}",

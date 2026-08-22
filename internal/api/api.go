@@ -417,6 +417,12 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/dashboard", s.getHRDashboard)
 			r.Get("/employees", s.listEmployees)
 			r.Get("/documents", s.listEmployeeDocuments)
+			// The school's own ID card artwork, front and back. Reading it is
+			// open to anybody who reads staff, because printing a card is the
+			// point; changing it is a write against the school's branding.
+			r.Get("/id-card-template", s.getIDCardTemplate)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Put("/id-card-template", s.saveIDCardTemplate)
 			s.mountHRLifecycle(r)
 		})
 
@@ -585,6 +591,13 @@ func (s *Server) Routes() http.Handler {
 			   Payroll only ever ran for staff who had a salary structure, and
 			   no endpoint wrote one — so "Run payroll" found nobody, in every
 			   school, for as long as the feature has existed. */
+			/* Moving the month forward: lock it so attendance cannot change
+			   an agreed figure, mark it paid when the transfer has gone, and
+			   publish it so staff are told. Each is somebody's decision, and
+			   the order is enforced — publishing before paying is how twelve
+			   people ask where their money is. */
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/state", s.setPayrollState)
+
 			r.Get("/components", s.listSalaryComponents)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/components", s.saveSalaryComponent)
 			r.Get("/structures", s.listSalaryStructures)

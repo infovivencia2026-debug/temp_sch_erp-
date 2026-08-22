@@ -125,7 +125,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 		req.AudienceRole = "all"
 	}
 	/* Checked here rather than left to the column.
-	
+
 	   A value outside the list fails a CHECK constraint deep in the insert,
 	   which surfaces as a 500 and a database error nobody can act on. This
 	   says which audiences exist, which is what the caller needs. */
@@ -922,13 +922,17 @@ type payslipRow struct {
 	Deduction    int64  `json:"deduction_paise"`
 	Net          int64  `json:"net_paise"`
 	Breakup      any    `json:"breakup"`
+	RunStatus    string `json:"run_status"`
 }
 
 func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT e.employee_code, concat_ws(' ', e.first_name, e.last_name),
 		       ps.paid_days::text, ps.lop_days::text,
-		       ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup
+		       ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup,
+		       -- The month's state travels with the rows so the screen can
+		       -- offer the right next step rather than every step at once.
+		       pr.status
 		  FROM payslips ps
 		  JOIN employees e ON e.id = ps.employee_id
 		  JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
@@ -939,7 +943,7 @@ func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (payslipRow, error) {
 			var v payslipRow
 			return v, rows.Scan(&v.EmployeeCode, &v.FullName, &v.PaidDays, &v.LOPDays,
-				&v.Gross, &v.Deduction, &v.Net, &v.Breakup)
+				&v.Gross, &v.Deduction, &v.Net, &v.Breakup, &v.RunStatus)
 		})
 	respond(w, r, items, err)
 }
