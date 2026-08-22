@@ -169,9 +169,14 @@ var Groups = []Group{
 	},
 	{
 		Key: "exams", Name: "Exams & schedules", Band: BandCore,
-		Blurb:     "Exam types, terms, papers and the exam calendar.",
-		View:      []string{ExamsRead},
-		Manage:    []string{ExamsWrite},
+		Blurb:  "Exam types, terms, papers and the exam calendar.",
+		View:   []string{ExamsRead},
+		Manage: []string{ExamsWrite},
+		// Vouching for the paper before it is printed and for the marks after
+		// it is sat. Separate from Manage because scheduling an exam and
+		// standing behind what is on it are different jobs, held by different
+		// people in most schools.
+		Approve:   []string{ExamsApprove},
 		Scopes:    fixed("institution"),
 		ScopeNote: "An exam schedule belongs to the school, not to a section.",
 	},

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 384 features. */
+/** 12 roles, 397 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -333,6 +333,16 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'institution_admin.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. A principal takes leave too.' },
+          { key: 'institution_admin.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+      {
+        slug: 'exams',
+        name: 'Exams',
+        workspace: 'Academics',
+        features: [
+          { key: 'institution_admin.exams.question_paper_approval', slug: 'question_paper_approval', name: 'Question paper approval', scope: 'institution', tier: 'core', summary: 'Every paper waiting to be read, across the school, with who set it and when the exam is.' },
+          { key: 'institution_admin.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'institution', tier: 'core', summary: 'The same paper-by-paper view across every department, and the record of who moderated what.' },
         ],
       },
     ],
@@ -378,6 +388,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hod.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Own details and password.' },
           { key: 'hod.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. Approving the department\'s leave is a different screen.' },
+          { key: 'hod.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
       {
@@ -413,6 +424,15 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hod.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Notices home to the classes they teach, and the thread with a parent about one child.' },
           { key: 'hod.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book and the thread with each of them.' },
+        ],
+      },
+      {
+        slug: 'exams',
+        name: 'Exams',
+        workspace: 'Department Workspace',
+        features: [
+          { key: 'hod.exams.question_paper_approval', slug: 'question_paper_approval', name: 'Question paper approval', scope: 'department', tier: 'core', summary: 'Papers your teachers have sent for approval before an exam: open the paper, approve it for printing, or send it back with the reason. The teacher is told either way, and who approved it is kept.' },
+          { key: 'hod.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'department', tier: 'core', summary: 'Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark — so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays.' },
         ],
       },
     ],
@@ -521,6 +541,15 @@ export const ROLES: Role[] = [
           { key: 'faculty.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'assigned_classes', tier: 'core', summary: 'Own profile, password and leave.' },
           { key: 'faculty.my_profile.student_leave_requests', slug: 'student_leave_requests', name: 'Student leave requests', scope: 'assigned_classes', tier: 'core', summary: 'Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.' },
           { key: 'faculty.my_profile.remarks_about_me', slug: 'remarks_about_me', name: 'Remarks about me', scope: 'self', tier: 'core', summary: 'What your head of department, the principal or a parent has written about you. You are told when one is added.' },
+          { key: 'faculty.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+      {
+        slug: 'exams',
+        name: 'Exams',
+        workspace: 'My Work',
+        features: [
+          { key: 'faculty.exams.question_papers', slug: 'question_papers', name: 'Question papers', scope: 'assigned_classes', tier: 'core', summary: 'Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back.' },
         ],
       },
     ],
@@ -548,6 +577,14 @@ export const ROLES: Role[] = [
           { key: 'librarian.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
           { key: 'librarian.library.reservations', slug: 'reservations', name: 'Reservations', scope: 'campus', tier: 'core', summary: 'Holds placed by students and staff, and who is next in the queue.' },
           { key: 'librarian.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, waived and collected.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'librarian.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],
@@ -583,6 +620,14 @@ export const ROLES: Role[] = [
           { key: 'transport_manager.transport.route_attendance', slug: 'route_attendance', name: 'Route attendance', scope: 'campus', tier: 'core', summary: 'Boarding and alighting scans for each route, morning and afternoon.' },
           { key: 'transport_manager.transport.delays_exceptions', slug: 'delays_exceptions', name: 'Delays & exceptions', scope: 'campus', tier: 'core', summary: 'Routes running late, breakdowns and any child not scanned.' },
           { key: 'transport_manager.transport.live_vehicle_tracking', slug: 'live_vehicle_tracking', name: 'Live vehicle tracking', scope: 'campus', tier: 'core', summary: 'Where every bus is now, against the route it should be running.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'transport_manager.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],
@@ -712,6 +757,14 @@ export const ROLES: Role[] = [
           { key: 'finance.reports.taxation_audit_reports', slug: 'taxation_audit_reports', name: 'Taxation & Audit Reports', scope: 'institution', tier: 'advanced', summary: 'Export GST summaries, TDS collection reports, and audited financial statements.' },
         ],
       },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'finance.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
     ],
   },
   {
@@ -823,6 +876,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'admissions.reports.admission_conversion_reports', slug: 'admission_conversion_reports', name: 'Admission Conversion Reports', scope: 'institution', tier: 'core', summary: 'View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled.' },
           { key: 'admissions.reports.lost_lead_reason_analysis', slug: 'lost_lead_reason_analysis', name: 'Lost Lead Reason Analysis', scope: 'institution', tier: 'core', summary: 'Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school).' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'admissions.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],
@@ -950,6 +1011,14 @@ export const ROLES: Role[] = [
         workspace: 'Reports',
         features: [
           { key: 'hr.reports.hr_reports', slug: 'hr_reports', name: 'HR reports', scope: 'institution', tier: 'core', summary: 'Headcount, attendance, leave and payroll summaries.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'hr.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],

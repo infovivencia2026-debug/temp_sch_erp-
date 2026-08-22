@@ -416,6 +416,19 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * the two people most likely to be away were the two who had to ask somebody
    * else to enter it for them. Same screen as a teacher's. */
   'institution_admin.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
+  'institution_admin.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'hod.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'faculty.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'hr.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'finance.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'admissions.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'librarian.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'transport_manager.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'faculty.exams.question_papers': lazy(() => import('./exams/QuestionPapers')),
+  'hod.exams.question_paper_approval': lazy(() => import('./exams/QuestionPapers')),
+  'institution_admin.exams.question_paper_approval': lazy(() => import('./exams/QuestionPapers')),
+  'hod.exams.mark_moderation': lazy(() => import('./exams/MarkModeration')),
+  'institution_admin.exams.mark_moderation': lazy(() => import('./exams/MarkModeration')),
   'hod.my_profile.leave_self_service': lazy(() => import('./hr/Leave')),
   /* Two leave queues, deliberately two doors. Your own leave is an employment
      matter that goes to HR and your head of department; a child's leave is a

@@ -146,6 +146,13 @@ func (s *Server) Routes() http.Handler {
 
 		r.Route("/me", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfAttendanceRead)).Get("/student", s.getMyStudent)
+			// Ungated on purpose. Every other route asks "may this role read
+			// payroll", and the answer for a teacher is no — which is right for
+			// the payroll office's list of everybody and wrong for their own
+			// payslip. There is no id in the path: the handler looks up the
+			// employee row whose user_id is the caller, so it cannot be aimed
+			// at somebody else's salary.
+			r.Get("/pay", s.getMyPay)
 		})
 
 		// Heavy work is never done inline; these hand off to the queue and
@@ -480,6 +487,23 @@ func (s *Server) Routes() http.Handler {
 			// that were expected, so a missing paper reads as a failed one.
 			r.Get("/report-cards/readiness", s.getReportCardReadiness)
 			r.With(httpx.RequirePermission(rbac.MarksWrite)).Post("/marks", s.enterMarks)
+
+			// Question papers. Listing and submitting are open to anybody who
+			// reads exams, because the handler narrows to the classes the
+			// caller actually teaches — gating submission on a write
+			// permission would mean the person who sets the paper needs the
+			// right to schedule the exam.
+			r.Get("/question-papers", s.listQuestionPapers)
+			r.Get("/question-papers/slots", s.listPaperSlots)
+			r.Post("/question-papers", s.submitQuestionPaper)
+			r.With(httpx.RequirePermission(rbac.ExamsApprove)).
+				Post("/question-papers/{id}/decide", s.decideQuestionPaper)
+
+			// Mark moderation. Both sides need the approval permission: this
+			// is not a screen a teacher reads about their own paper, it is the
+			// department's judgement about all of them.
+			r.With(httpx.RequirePermission(rbac.ExamsApprove)).Get("/moderation", s.listMarkModeration)
+			r.With(httpx.RequirePermission(rbac.ExamsApprove)).Post("/moderation", s.moderateMarks)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/generate", s.generateReportCards)
 
 			/* Exam day: halls, seating and the ticket.

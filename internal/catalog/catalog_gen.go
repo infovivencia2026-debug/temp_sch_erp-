@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 384 features.
+// Roles is the catalog: 12 roles, 397 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -380,6 +380,16 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "institution_admin.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave, and see where it has got to. A principal takes leave too."},
+					{Key: "institution_admin.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+			{
+				Slug: "exams",
+				Name: "Exams",
+				Workspace: "Academics",
+				Features: []Feature{
+					{Key: "institution_admin.exams.question_paper_approval", Slug: "question_paper_approval", Name: "Question paper approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every paper waiting to be read, across the school, with who set it and when the exam is."},
+					{Key: "institution_admin.exams.mark_moderation", Slug: "mark_moderation", Name: "Mark moderation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The same paper-by-paper view across every department, and the record of who moderated what."},
 				},
 			},
 		},
@@ -425,6 +435,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
 					{Key: "hod.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave, and see where it has got to. Approving the department's leave is a different screen."},
+					{Key: "hod.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 			{
@@ -460,6 +471,15 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "hod.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notices home to the classes they teach, and the thread with a parent about one child."},
 					{Key: "hod.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book and the thread with each of them."},
+				},
+			},
+			{
+				Slug: "exams",
+				Name: "Exams",
+				Workspace: "Department Workspace",
+				Features: []Feature{
+					{Key: "hod.exams.question_paper_approval", Slug: "question_paper_approval", Name: "Question paper approval", Scope: Scope("department"), Tier: Tier("core"), Summary: "Papers your teachers have sent for approval before an exam: open the paper, approve it for printing, or send it back with the reason. The teacher is told either way, and who approved it is kept."},
+					{Key: "hod.exams.mark_moderation", Slug: "mark_moderation", Name: "Mark moderation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark — so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays."},
 				},
 			},
 		},
@@ -568,6 +588,15 @@ var Roles = []Role{
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
 					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
 					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
+					{Key: "faculty.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+			{
+				Slug: "exams",
+				Name: "Exams",
+				Workspace: "My Work",
+				Features: []Feature{
+					{Key: "faculty.exams.question_papers", Slug: "question_papers", Name: "Question papers", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back."},
 				},
 			},
 		},
@@ -595,6 +624,14 @@ var Roles = []Role{
 					{Key: "librarian.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 					{Key: "librarian.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
 					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, waived and collected."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "librarian.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
@@ -630,6 +667,14 @@ var Roles = []Role{
 					{Key: "transport_manager.transport.route_attendance", Slug: "route_attendance", Name: "Route attendance", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Boarding and alighting scans for each route, morning and afternoon."},
 					{Key: "transport_manager.transport.delays_exceptions", Slug: "delays_exceptions", Name: "Delays & exceptions", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Routes running late, breakdowns and any child not scanned."},
 					{Key: "transport_manager.transport.live_vehicle_tracking", Slug: "live_vehicle_tracking", Name: "Live vehicle tracking", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Where every bus is now, against the route it should be running."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "transport_manager.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
@@ -759,6 +804,14 @@ var Roles = []Role{
 					{Key: "finance.reports.taxation_audit_reports", Slug: "taxation_audit_reports", Name: "Taxation & Audit Reports", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Export GST summaries, TDS collection reports, and audited financial statements."},
 				},
 			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "finance.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
 		},
 	},
 	{
@@ -870,6 +923,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "admissions.reports.admission_conversion_reports", Slug: "admission_conversion_reports", Name: "Admission Conversion Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled."},
 					{Key: "admissions.reports.lost_lead_reason_analysis", Slug: "lost_lead_reason_analysis", Name: "Lost Lead Reason Analysis", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school)."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "admissions.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
@@ -997,6 +1058,14 @@ var Roles = []Role{
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "hr.reports.hr_reports", Slug: "hr_reports", Name: "HR reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Headcount, attendance, leave and payroll summaries."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "hr.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},

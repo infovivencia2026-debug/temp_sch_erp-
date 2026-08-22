@@ -28,10 +28,15 @@ const (
 	AttendanceWrite   = "academics.attendance.write"
 	// AttendanceWriteAny permits marking any section. Plain AttendanceWrite is
 	// limited to sections the caller teaches or is class teacher of.
-	AttendanceWriteAny  = "academics.attendance.write.any"
-	ExamsRead           = "academics.exams.read"
-	ExamsWrite          = "academics.exams.write"
-	MarksWrite          = "academics.marks.write"
+	AttendanceWriteAny = "academics.attendance.write.any"
+	ExamsRead          = "academics.exams.read"
+	ExamsWrite         = "academics.exams.write"
+	MarksWrite         = "academics.marks.write"
+	// Reading the paper before the exam and the marks after it. Separate from
+	// exams.write, which is scheduling: the person who puts the exam in the
+	// calendar and the person who vouches for what is on the paper are not the
+	// same job, and in most schools not the same person.
+	ExamsApprove        = "academics.exams.approve"
 	ReportCardsGenerate = "academics.reportcards.generate"
 	HomeworkWrite       = "academics.homework.write"
 
@@ -133,6 +138,7 @@ var All = []Permission{
 	{AttendanceWriteAny, "academics", "Mark attendance for any section"},
 	{ExamsRead, "academics", "View exams and schedules"},
 	{ExamsWrite, "academics", "Manage exams and schedules"},
+	{ExamsApprove, "academics", "Approve question papers and moderate marks"},
 	{MarksWrite, "academics", "Enter and amend marks"},
 	{ReportCardsGenerate, "academics", "Generate report cards"},
 	{HomeworkWrite, "academics", "Set homework and review submissions"},
@@ -296,7 +302,7 @@ var SystemRoles = []Role{
 		// Reads every register and may amend any of them: approving a
 		// correction is a write against a section they do not teach.
 		AttendanceRead, AttendanceReadAll, AttendanceWrite, AttendanceWriteAny,
-		ExamsRead, ExamsWrite, MarksWrite, ReportCardsGenerate, HomeworkWrite,
+		ExamsRead, ExamsWrite, ExamsApprove, MarksWrite, ReportCardsGenerate, HomeworkWrite,
 		DisciplineWrite, EmployeesRead, ReportsRead, AnnouncementsWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	{"it_admin", "IT Administrator", []string{
@@ -308,7 +314,7 @@ var SystemRoles = []Role{
 	// expressed here — these are capabilities; internal/scope narrows the rows.
 	{"hod", "HOD / Department Head", []string{
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
-		AttendanceRead, ExamsRead, MarksWrite, ReportsRead,
+		AttendanceRead, ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
 		EmployeesRead, LeaveApprove, AnnouncementsWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	// Operations covers every specialism; the sub-role a user actually performs
