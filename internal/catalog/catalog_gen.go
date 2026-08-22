@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 386 features.
+// Roles is the catalog: 12 roles, 376 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -346,32 +346,6 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug: "directory_workload",
-				Name: "Directory & Workload",
-				Workspace: "Staff",
-				Features: []Feature{
-					{Key: "institution_admin.directory_workload.faculty_directory", Slug: "faculty_directory", Name: "Faculty directory", Scope: Scope("department"), Tier: Tier("core"), Summary: "Department faculty with assigned subjects, timetable, attendance and workload."},
-					{Key: "institution_admin.directory_workload.teacher_workload_timetable_overview", Slug: "teacher_workload_timetable_overview", Name: "Teacher Workload & Timetable Overview", Scope: Scope("department"), Tier: Tier("core"), Summary: "Weekly periods per teacher across every class, so an overloaded teacher and an underused one are both visible before the timetable is set for a term."},
-				},
-			},
-			{
-				Slug: "evaluation",
-				Name: "Evaluation",
-				Workspace: "Staff",
-				Features: []Feature{
-					{Key: "institution_admin.evaluation.appraisals", Slug: "appraisals", Name: "Appraisals", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Peer reviews, student feedback and the principal's own assessment on one record, which is what an annual appraisal is written from."},
-				},
-			},
-			{
-				Slug: "department",
-				Name: "Department",
-				Workspace: "Staff",
-				Features: []Feature{
-					{Key: "institution_admin.department.department_academics", Slug: "department_academics", Name: "Department academics", Scope: Scope("department"), Tier: Tier("core"), Summary: "Programs, courses/subjects, batches/sections and department academic calendar."},
-					{Key: "institution_admin.department.department_timetable", Slug: "department_timetable", Name: "Department timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "View class/faculty/room timetable and manage department substitutions within permission."},
-				},
-			},
-			{
 				Slug: "communication",
 				Name: "Communication",
 				Workspace: "Communication",
@@ -383,15 +357,6 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug: "statutory_returns",
-				Name: "Statutory Returns",
-				Workspace: "Administration",
-				Features: []Feature{
-					{Key: "institution_admin.statutory_returns.govt_returns", Slug: "govt_returns", Name: "Govt Returns", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it."},
-					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
-				},
-			},
-			{
 				Slug: "standard",
 				Name: "Standard",
 				Workspace: "Reports",
@@ -399,16 +364,6 @@ var Roles = []Role{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
 					{Key: "institution_admin.standard.attendance_overview", Slug: "attendance_overview", Name: "Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
 					{Key: "institution_admin.standard.fee_collection", Slug: "fee_collection", Name: "Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
-				},
-			},
-			{
-				Slug: "analysis",
-				Name: "Analysis",
-				Workspace: "Reports",
-				Features: []Feature{
-					{Key: "institution_admin.analysis.custom_report_builder", Slug: "custom_report_builder", Name: "Custom Report Builder", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Build custom drag-and-drop reports selecting desired data fields, filters, and export formats."},
-					{Key: "institution_admin.analysis.performance_analytics", Slug: "performance_analytics", Name: "Performance analytics", Scope: Scope("department"), Tier: Tier("core"), Summary: "Subject pass rate, semester trends, at-risk students and department performance."},
-					{Key: "institution_admin.analysis.department_reports", Slug: "department_reports", Name: "Department reports", Scope: Scope("department"), Tier: Tier("core"), Summary: "Attendance, workload, results, backlogs and department summary reports."},
 				},
 			},
 			{

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 386 features. */
+/** 12 roles, 376 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -299,32 +299,6 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'directory_workload',
-        name: 'Directory & Workload',
-        workspace: 'Staff',
-        features: [
-          { key: 'institution_admin.directory_workload.faculty_directory', slug: 'faculty_directory', name: 'Faculty directory', scope: 'department', tier: 'core', summary: 'Department faculty with assigned subjects, timetable, attendance and workload.' },
-          { key: 'institution_admin.directory_workload.teacher_workload_timetable_overview', slug: 'teacher_workload_timetable_overview', name: 'Teacher Workload & Timetable Overview', scope: 'department', tier: 'core', summary: 'Weekly periods per teacher across every class, so an overloaded teacher and an underused one are both visible before the timetable is set for a term.' },
-        ],
-      },
-      {
-        slug: 'evaluation',
-        name: 'Evaluation',
-        workspace: 'Staff',
-        features: [
-          { key: 'institution_admin.evaluation.appraisals', slug: 'appraisals', name: 'Appraisals', scope: 'institution', tier: 'core', summary: 'Peer reviews, student feedback and the principal\'s own assessment on one record, which is what an annual appraisal is written from.' },
-        ],
-      },
-      {
-        slug: 'department',
-        name: 'Department',
-        workspace: 'Staff',
-        features: [
-          { key: 'institution_admin.department.department_academics', slug: 'department_academics', name: 'Department academics', scope: 'department', tier: 'core', summary: 'Programs, courses/subjects, batches/sections and department academic calendar.' },
-          { key: 'institution_admin.department.department_timetable', slug: 'department_timetable', name: 'Department timetable', scope: 'department', tier: 'core', summary: 'View class/faculty/room timetable and manage department substitutions within permission.' },
-        ],
-      },
-      {
         slug: 'communication',
         name: 'Communication',
         workspace: 'Communication',
@@ -336,15 +310,6 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'statutory_returns',
-        name: 'Statutory Returns',
-        workspace: 'Administration',
-        features: [
-          { key: 'institution_admin.statutory_returns.govt_returns', slug: 'govt_returns', name: 'Govt Returns', scope: 'institution', tier: 'advanced', summary: 'The UDISE+ return as it stands: what is filled, what is missing, and what will bounce at the district office. The principal signs it, so the principal sees it.' },
-          { key: 'institution_admin.statutory_returns.instruction_hours', slug: 'instruction_hours', name: 'Instruction Hours', scope: 'institution', tier: 'core', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
-        ],
-      },
-      {
         slug: 'standard',
         name: 'Standard',
         workspace: 'Reports',
@@ -352,16 +317,6 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.standard.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Core enrollment, attendance, academic, fee and staff reports.' },
           { key: 'institution_admin.standard.attendance_overview', slug: 'attendance_overview', name: 'Attendance Overview', scope: 'institution', tier: 'core', summary: 'School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.' },
           { key: 'institution_admin.standard.fee_collection', slug: 'fee_collection', name: 'Fee Collection', scope: 'institution', tier: 'core', summary: 'Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.' },
-        ],
-      },
-      {
-        slug: 'analysis',
-        name: 'Analysis',
-        workspace: 'Reports',
-        features: [
-          { key: 'institution_admin.analysis.custom_report_builder', slug: 'custom_report_builder', name: 'Custom Report Builder', scope: 'institution', tier: 'core', summary: 'Build custom drag-and-drop reports selecting desired data fields, filters, and export formats.' },
-          { key: 'institution_admin.analysis.performance_analytics', slug: 'performance_analytics', name: 'Performance analytics', scope: 'department', tier: 'core', summary: 'Subject pass rate, semester trends, at-risk students and department performance.' },
-          { key: 'institution_admin.analysis.department_reports', slug: 'department_reports', name: 'Department reports', scope: 'department', tier: 'core', summary: 'Attendance, workload, results, backlogs and department summary reports.' },
         ],
       },
       {

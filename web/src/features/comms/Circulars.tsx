@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send } from 'lucide-react'
+import { Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -29,6 +29,15 @@ export default function Circulars() {
   const [requiresAck, setRequiresAck] = useState(true)
   const [sendSMS, setSendSMS] = useState(false)
   const [sendWhatsApp, setSendWhatsApp] = useState(false)
+  /* The attachment, uploaded before the circular is published.
+   *
+   * Half of what a school circulates is a document — the holiday list, the fee
+   * notice, the exam timetable. Uploading on choose rather than on publish so
+   * the wait happens while the body is still being typed, and so a failed
+   * upload is discovered before the notice goes out rather than instead of it. */
+  const [file, setFile] = useState<{ id: string; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [fileError, setFileError] = useState('')
 
   // A student and a parent read circulars but cannot send one. The section
   // list behind the composer is staff-only, so asking for it as a family
@@ -57,10 +66,11 @@ export default function Circulars() {
           title, body, section_ids: [...sectionIds],
           audience_role: audience,
           requires_ack: requiresAck, send_sms: sendSMS, send_email: sendEmail, send_whatsapp: sendWhatsApp,
+          attachment_file_id: file?.id ?? '',
         },
       ),
     onSuccess: () => {
-      setTitle(''); setBody(''); setSectionIds(new Set())
+      setTitle(''); setBody(''); setSectionIds(new Set()); setFile(null)
       qc.invalidateQueries({ queryKey: ['circulars'] })
     },
   })
@@ -97,6 +107,53 @@ export default function Circulars() {
           <form className="space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); publish.mutate() }}>
             <Input value={title} onChange={setTitle} placeholder="Title" className="w-full" />
             <Textarea value={body} onChange={setBody} placeholder="Body" rows={4} className="w-full" />
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground">
+                <Paperclip className="h-3.5 w-3.5" />
+                {uploading ? 'Uploading…' : file ? 'Replace the file' : 'Attach a file'}
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    // Cleared so the same file can be chosen twice running.
+                    e.target.value = ''
+                    if (!f) return
+                    setUploading(true); setFileError('')
+                    try {
+                      const fd = new FormData()
+                      fd.append('file', f)
+                      fd.append('purpose', 'circular')
+                      const res = await fetch('/api/v1/files', {
+                        method: 'POST', body: fd, credentials: 'same-origin',
+                      })
+                      if (!res.ok) throw new Error((await res.text()) || 'Upload failed')
+                      const made = await res.json()
+                      setFile({ id: made.file_id, name: made.name })
+                    } catch (err) {
+                      setFileError(err instanceof Error ? err.message : 'Could not upload that file.')
+                    } finally {
+                      setUploading(false)
+                    }
+                  }}
+                />
+              </label>
+              {file && (
+                <span className="text-[13px]">
+                  {file.name}
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="ml-2 underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                  >
+                    remove
+                  </button>
+                </span>
+              )}
+              {fileError && <span className="text-[13px] text-destructive">{fileError}</span>}
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] text-muted-foreground">Send to</span>
               <Select

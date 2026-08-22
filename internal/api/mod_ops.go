@@ -39,6 +39,18 @@ type circularRequest struct {
 	   because WhatsApp charges per conversation and refuses anything
 	   outside an approved template. */
 	SendWhatsApp bool `json:"send_whatsapp"`
+	/* A file to go with it.
+
+	   Half of what a school circulates is a document: the holiday list,
+	   the fee notice, the exam timetable. A composer that takes only a
+	   title and a body means those go out as an email from somebody's
+	   personal account instead, which is how a school ends up with two
+	   channels and one record.
+
+	   Uploaded first through /files, which already stores, checksums and
+	   serves attachments for lesson plans and homework; this carries the
+	   id it returns. */
+	AttachmentFileID string `json:"attachment_file_id,omitempty"`
 }
 
 /*
@@ -130,11 +142,13 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO announcements (institution_id, title, body, kind, audience_role,
-			                           requires_ack, publish_at, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6, now(), $7)
+			                           requires_ack, publish_at, created_by,
+			                           attachment_file_id)
+			VALUES ($1,$2,$3,$4,$5,$6, now(), $7, $8::uuid)
 			RETURNING id`,
 			id.InstitutionID, req.Title, req.Body, req.Kind, req.AudienceRole,
-			req.RequiresAck, id.UserID).Scan(&annID); err != nil {
+			req.RequiresAck, id.UserID,
+			nullString(req.AttachmentFileID)).Scan(&annID); err != nil {
 			return err
 		}
 		for _, raw := range req.SectionIDs {
@@ -170,6 +184,23 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.SendWhatsApp {
 		channels = append(channels, "whatsapp")
+	}
+
+	/* The attachment named in the body of the message that leaves.
+
+	   A parent reading this in their inbox has no portal open, so a file they
+	   cannot see is a file they do not know exists. The link is the same one
+	   the portal serves and refuses the same people. */
+	body := req.Body
+	if strings.TrimSpace(req.AttachmentFileID) != "" {
+		// Absolute, from the request that is publishing it: a relative path is
+		// fine on the page that produced it and useless in a mail client.
+		scheme := "https"
+		if r.TLS == nil && !strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			scheme = "http"
+		}
+		body += "\n\nAttached: " + scheme + "://" + r.Host +
+			"/api/v1/files/" + strings.TrimSpace(req.AttachmentFileID)
 	}
 
 	queued := map[string]int{"sms": 0, "email": 0, "whatsapp": 0}
@@ -214,7 +245,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 								RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
 							},
 							Channel: ch, TemplateKey: "announcement.published", ToUserID: uid,
-							Vars: map[string]any{"title": req.Title, "body": req.Body},
+							Vars: map[string]any{"title": req.Title, "body": body},
 						}, queue.HeavyOptions()...); err == nil {
 						queued[ch]++
 					}

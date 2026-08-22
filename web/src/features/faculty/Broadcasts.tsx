@@ -108,14 +108,30 @@ function Compose({ onClose }: { onClose: () => void }) {
   const [studentID, setStudentID] = useState('')
   const roster = useRoster(sectionID)
 
-  const [f, setF] = useState({ title: '', body: '', requires_ack: false })
+  const [f, setF] = useState({
+    title: '',
+    body: '',
+    requires_ack: false,
+    /* Off by default, all three.
+
+       A notice in the portal costs nothing; a WhatsApp costs money per
+       conversation and an SMS costs a text, so the teacher says so each time
+       rather than discovering at the end of the month that every "bring your
+       PT kit" went out three ways. */
+    send_email: false,
+    send_sms: false,
+    send_whatsapp: false,
+  })
 
   const send = useMutation({
     mutationFn: () =>
-      api.post<{ recipients: number }>('/api/v1/teaching/broadcasts', {
+      api.post<{ recipients: number; messages_queued?: number }>('/api/v1/teaching/broadcasts', {
         title: f.title,
         body: f.body,
         requires_ack: f.requires_ack,
+        send_email: f.send_email,
+        send_sms: f.send_sms,
+        send_whatsapp: f.send_whatsapp,
         // One or the other, never both: a notice addressed to a child and to
         // their whole class reaches the class, which is not what was meant.
         section_ids: target === 'class' && sectionID ? [sectionID] : [],
@@ -124,7 +140,10 @@ function Compose({ onClose }: { onClose: () => void }) {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['broadcasts'] })
       qc.invalidateQueries({ queryKey: ['comms-summary'] })
-      toast.ok(`Sent to ${r.recipients} ${r.recipients === 1 ? 'household' : 'households'}`)
+      toast.ok(
+        `Sent to ${r.recipients} ${r.recipients === 1 ? 'household' : 'households'}` +
+          (r.messages_queued ? ` · ${r.messages_queued} messages queued` : ''),
+      )
       onClose()
     },
   })
@@ -195,6 +214,27 @@ function Compose({ onClose }: { onClose: () => void }) {
           label="Ask for an acknowledgement"
           hint="Use it when you need to know the family read it — consent, money, a deadline."
         />
+
+        {/* The same three the principal's circular offers. A notice that only
+            lands in the portal reaches whichever families opened the app that
+            evening, which for most of them is none. */}
+        <div className="flex flex-wrap items-center gap-4">
+          <Checkbox
+            checked={f.send_email}
+            onChange={(v) => setF({ ...f, send_email: v })}
+            label="Also send email"
+          />
+          <Checkbox
+            checked={f.send_sms}
+            onChange={(v) => setF({ ...f, send_sms: v })}
+            label="Also send SMS"
+          />
+          <Checkbox
+            checked={f.send_whatsapp}
+            onChange={(v) => setF({ ...f, send_whatsapp: v })}
+            label="Also send WhatsApp"
+          />
+        </div>
 
         <FormNotice error={send.error} />
         <div className="flex items-center gap-2">

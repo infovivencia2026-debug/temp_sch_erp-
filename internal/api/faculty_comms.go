@@ -956,6 +956,15 @@ type broadcastRequest struct {
 	SectionIDs  []string `json:"section_ids,omitempty"`
 	StudentIDs  []string `json:"student_ids,omitempty"`
 	RequiresAck bool     `json:"requires_ack"`
+	/* The channels a circular has had all along.
+
+	   A teacher's notice went into the portal and stopped there, so "bring PT
+	   kit tomorrow" reached whichever families happened to open the app that
+	   evening. The principal's circular has offered email, SMS and WhatsApp
+	   for months; the person who actually knows the class had none of them. */
+	SendEmail    bool `json:"send_email"`
+	SendSMS      bool `json:"send_sms"`
+	SendWhatsApp bool `json:"send_whatsapp"`
 }
 
 // publishBroadcast sends a class-wide or single-child notice to parents.
@@ -1080,9 +1089,78 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 	if annID == uuid.Nil {
 		return
 	}
+
+	/* Out of the building, on whichever channels were ticked.
+
+	   One task per household per channel, like the circular fan-out: a
+	   rejection for one address must not lose the rest of the notice. The
+	   template is the same announcement.published a circular uses, because to
+	   a parent this is the same thing — a notice from the school — and giving
+	   it a second template would mean a second thing to map in WhatsApp. */
+	channels := make([]string, 0, 3)
+	if req.SendEmail {
+		channels = append(channels, "email")
+	}
+	if req.SendSMS {
+		channels = append(channels, "sms")
+	}
+	if req.SendWhatsApp {
+		channels = append(channels, "whatsapp")
+	}
+	queued := 0
+	if len(channels) > 0 && s.Queue != nil {
+		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			rows, err := tx.Query(r.Context(), `
+				SELECT DISTINCT g.user_id
+				  FROM students st
+				  JOIN student_guardians sg ON sg.student_id = st.id
+				  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+				  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+				 WHERE st.status = 'active'
+				   AND (e.section_id = ANY($1) OR st.id = ANY($2))`,
+				sections, students)
+			if err != nil {
+				return err
+			}
+			var to []uuid.UUID
+			for rows.Next() {
+				var uid uuid.UUID
+				if err := rows.Scan(&uid); err != nil {
+					rows.Close()
+					return err
+				}
+				to = append(to, uid)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			// Collected before enqueueing rather than inside the cursor: the
+			// queue write and the cursor would otherwise share one connection.
+			for _, uid := range to {
+				for _, ch := range channels {
+					if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+						queue.MessageSendPayload{
+							Envelope: queue.Envelope{
+								InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
+								RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+							},
+							Channel: ch, TemplateKey: "announcement.published",
+							ToUserID: uid,
+							Vars: map[string]any{"title": req.Title, "body": req.Body},
+						}, queue.HeavyOptions()...); err == nil {
+						queued++
+					}
+				}
+			}
+			return nil
+		})
+	}
+
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": annID.String(), "recipients": recipients,
 		"sections": len(sections), "students": len(students),
+		"messages_queued": queued,
 	})
 }
 
