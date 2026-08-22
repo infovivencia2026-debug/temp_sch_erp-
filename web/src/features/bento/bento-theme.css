@@ -663,3 +663,37 @@ html[data-pattern='noise'] .bento-surface {
 html[data-pattern='dots'] .bento-surface,
 html[data-pattern='grid'] .bento-surface,
 html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ONE UNIT IS A SQUARE.
+
+   W:1 H:1 was not 1:1. Rows were auto-height, so a row's height came from the
+   tallest card in it — put a 2x2 hero beside three 1x1s and the 1x1s stretched
+   to half the hero. The numbers in the size control were describing a grid the
+   board was not actually keeping to, which makes them a lie rather than a
+   setting.
+
+   The row is now exactly as tall as a column is wide. cqw rather than % or vw:
+   the row has to track the BOARD's width, not the viewport's, or a sidebar
+   opening would make every card the wrong shape.
+
+     one column = (board width - four gaps) / five
+
+   Only at lg, where the board is five columns. Narrower boards are one or two
+   columns and stack, and forcing squares there would leave a 1x1 with less
+   height than its own figure needs.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .bento-board {
+    container-type: inline-size;
+    /* Overrides Tailwind's lg:auto-rows-auto, which is why it is !important:
+       both are single-class selectors and the utility layer wins otherwise. */
+    grid-auto-rows: calc((100cqw - 4 * var(--bento-gap)) / 5) !important;
+  }
+
+  /* A card may still hold more than a square can show. It clips rather than
+     pushing the grid out of shape — the contents already shed their note and
+     meter at small sizes, so what is left is the label, the figure and the
+     cue, which fit. */
+  .bento-board > * { overflow: hidden; }
+}

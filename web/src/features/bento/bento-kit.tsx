@@ -758,7 +758,7 @@ export function BentoPage({
           it reads as broken. Past the ceiling the whitespace goes below the
           grid, where whitespace belongs. */}
       <div
-        className="grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
+        className="bento-board grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
                    lg:min-h-[600px] lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
                    lg:grid-cols-5"
       >
