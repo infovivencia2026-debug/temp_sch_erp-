@@ -883,7 +883,9 @@ func (s *Server) getPortfolioForCuration(w http.ResponseWriter, r *http.Request)
 		}
 		rows, err := tx.Query(r.Context(), `
 			SELECT 'award', a.id::text, a.title, a.kind, a.description,
-			       to_char(a.achieved_on, 'YYYY-MM-DD'), NULL::text, false,
+			       -- awarded_on, not achieved_on: the column has never been
+			       -- called that, so opening any student's portfolio 500'd.
+			       to_char(a.awarded_on, 'YYYY-MM-DD'), NULL::text, false,
 			       c.id::text, COALESCE(c.status, 'uncurated'), c.comment,
 			       COALESCE(c.include_in_report, false), COALESCE(c.is_featured, false),
 			       u.full_name, to_char(c.curated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'

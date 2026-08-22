@@ -291,6 +291,19 @@ func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 				"that APAAR ID is already assigned to another student")
 			return
 		}
+		/* Two children cannot share a roll number in one section.
+
+		   This surfaced as a 500 — "something went wrong" — on the admissions
+		   clerk's screen, twice in a row on the same afternoon, on a form they
+		   had filled in correctly apart from one number. The database was
+		   right to refuse it; the product was wrong to present a rule of the
+		   school's own as a fault of the software. It is the clerk's to fix,
+		   so it is said in words they can act on. */
+		if strings.Contains(err.Error(), "enrollments_roll_no_unique") {
+			httpx.Error(w, r, http.StatusConflict, "roll_no_taken",
+				"another child in that section already has this roll number. Use a different one, or leave it blank and it will be left unset.")
+			return
+		}
 		httpx.Internal(w, r, err)
 		return
 	}
