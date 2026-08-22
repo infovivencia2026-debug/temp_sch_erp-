@@ -941,7 +941,7 @@ var Roles = []Role{
 			{
 				Slug: "records",
 				Name: "Records",
-				Workspace: "Records",
+				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.records.staff_records", Slug: "staff_records", Name: "Staff records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here."},
 					{Key: "hr.records.service_book_qualifications", Slug: "service_book_qualifications", Name: "Service book & qualifications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The service record kept for each teacher over their career — postings, promotions, increments — and their degrees and teaching qualifications, which is what an inspector asks to see."},
@@ -950,7 +950,7 @@ var Roles = []Role{
 			{
 				Slug: "onboarding_exit",
 				Name: "Onboarding & Exit",
-				Workspace: "Onboarding & Exit",
+				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.onboarding_exit.staff_joinings_exits", Slug: "staff_joinings_exits", Name: "Staff joinings & exits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One page, four tabs: the KYC and documents a new appointment depends on; the resignation, notice period and department-by-department clearance an exit runs through; the appointment, experience and relieving letters issued along the way; and transfers between campuses or departments. The final settlement stays locked until every department has signed."},
 				},

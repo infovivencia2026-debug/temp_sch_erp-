@@ -993,9 +993,13 @@ func staffCertificateName(code string) string {
 		return "Relieving Letter"
 	case "EXPERIENCE":
 		return "Experience Certificate"
-	case "SERVICE":
-		return "Service Certificate"
 	default:
+		// The letters a school issues over a career rather than at the end of
+		// one — appointment, salary revision, warning, service — are named in
+		// staff_letters.go, so the two lists cannot drift apart.
+		if name, ok := staffLetterKinds[code]; ok {
+			return name
+		}
 		return code
 	}
 }

@@ -420,6 +420,15 @@ func (s *Server) Routes() http.Handler {
 			// The school's own ID card artwork, front and back. Reading it is
 			// open to anybody who reads staff, because printing a card is the
 			// point; changing it is a write against the school's branding.
+			/* Letters over a career, not only at the end of one.
+
+			   Writing one needs the right to change staff records; reading who
+			   printed what is open to anybody who reads staff, because a
+			   register nobody can see is not a check on anything. */
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/letters", s.issueStaffLetter)
+			r.Post("/letters/printed", s.logLetterPrinted)
+			r.Get("/letters/prints", s.listLetterPrints)
+
 			r.Get("/id-card-template", s.getIDCardTemplate)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
 				Put("/id-card-template", s.saveIDCardTemplate)

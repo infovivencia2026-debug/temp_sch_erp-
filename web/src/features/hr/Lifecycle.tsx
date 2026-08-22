@@ -561,21 +561,116 @@ function ClearanceLine({
   )
 }
 
+/* The letters a school writes over a career, not only at the end of one.
+ *
+ * Two existed and both only at the exit. Everything else that goes on the
+ * school's letterhead - the appointment letter that starts the employment, the
+ * letter confirming a raise, the written warning that has to exist before
+ * anybody is dismissed - was typed in Word, printed, signed, and remembered by
+ * whoever typed it. The warning is the one that matters: a dismissal challenged
+ * at a labour court turns on whether warnings were issued and when, and a file
+ * on a clerk's laptop is not a record.
+ *
+ * Each gets a permanent serial from the school's own series and a snapshot of
+ * the facts as they stood, so a letter issued in 2026 cannot change its own
+ * contents in 2031. Printing one is logged with the name of whoever printed it.
+ */
+const LETTER_KINDS = [
+  { value: 'APPOINTMENT', label: 'Appointment letter' },
+  { value: 'SALARY_REVISION', label: 'Salary revision letter' },
+  { value: 'WARNING', label: 'Warning letter' },
+  { value: 'SERVICE', label: 'Service certificate' },
+]
+
 function LettersTab() {
+  const qc = useQueryClient()
+  const employees = useEmployees()
+  const [employeeId, setEmployeeId] = useState('')
+  const [kind, setKind] = useState('APPOINTMENT')
+  const [body, setBody] = useState('')
+  const [done, setDone] = useState('')
+
   const letters = useQuery({
     queryKey: ['hr', 'certificates'],
     queryFn: () => api.get<List<Certificate>>('/api/v1/hr/service-certificates'),
   })
+  const prints = useQuery({
+    queryKey: ['hr', 'letter-prints'],
+    queryFn: () =>
+      api.get<{ items: { serial_no: string; employee: string; printed_by: string; printed_at: string }[] }>(
+        '/api/v1/hr/letters/prints',
+      ),
+    retry: false,
+  })
+
+  const issue = useMutation({
+    mutationFn: () =>
+      api.post<{ serial_no: string; name: string }>('/api/v1/hr/letters', {
+        employee_id: employeeId, kind, body,
+      }),
+    onSuccess: (r) => {
+      setDone(r.name + ' issued - serial ' + r.serial_no + '. It is on the service book too.')
+      setBody('')
+      qc.invalidateQueries({ queryKey: ['hr', 'certificates'] })
+    },
+  })
+
+  // Printing is recorded, not prevented. A letter on school letterhead carries
+  // the school's authority, so "who issued this" has to have an answer that
+  // does not depend on somebody remembering.
+  const printed = useMutation({
+    mutationFn: (serial_no: string) => api.post('/api/v1/hr/letters/printed', { serial_no }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'letter-prints'] }),
+  })
+
   const rows = letters.data?.items ?? []
   return (
+    <>
     <Card>
-      <CardHeader title="Relieving, experience and service certificates"
-        description="Issued from the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
+      <CardHeader
+        title="Write a letter"
+        description="Appointment, a confirmed raise, a written warning, or a service certificate. Each gets a permanent serial and is kept exactly as it read on the day."
+      />
+      {done && <FormNotice ok={done} />}
+      {issue.error && <FormNotice error={issue.error} />}
+      <FormGrid>
+        <Field label="Who it is for" required>
+          <Select value={employeeId} onChange={setEmployeeId} placeholder="Choose"
+            options={(employees.data?.items ?? []).map((e) => ({ value: e.id, label: nameOf(e) }))} />
+        </Field>
+        <Field label="Which letter" required>
+          <Select value={kind} onChange={setKind} options={LETTER_KINDS} />
+        </Field>
+        <Field
+          label={kind === 'WARNING' ? 'What the warning is about' : 'What this letter says'}
+          hint={
+            kind === 'WARNING'
+              ? 'Required. A warning with no reason on it is worth nothing at a hearing.'
+              : kind === 'SALARY_REVISION'
+                ? 'The new salary and when it starts.'
+                : 'Optional - the terms, or anything the letter should carry.'
+          }
+          wide
+        >
+          <Textarea rows={3} value={body} onChange={setBody} />
+        </Field>
+      </FormGrid>
+      <Button
+        onClick={() => issue.mutate()}
+        disabled={!employeeId || issue.isPending || (kind === 'WARNING' && !body.trim())}
+      >
+        Issue the letter
+      </Button>
+    </Card>
+
+    <Card>
+      <CardHeader title="Letters issued"
+        description="From the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
       {letters.isLoading ? (
         <Loading />
       ) : (
-        <Table head={['Serial', 'Certificate', 'Employee', 'Issued', 'Status']} empty={rows.length === 0}
-          emptyLabel="No staff certificates issued yet. They are generated when an exit is relieved.">
+        <Table head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
+          emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is relieved.">
           {rows.map((c) => (
             <tr key={c.serial_no}>
               <Td className="font-medium tabular-nums">{c.serial_no}</Td>
@@ -583,11 +678,35 @@ function LettersTab() {
               <Td>{c.full_name}</Td>
               <Td className="text-muted-foreground">{c.issued_on}</Td>
               <Td><Badge tone="success">{c.status}</Badge></Td>
+              <Td>
+                <Button size="sm" variant="ghost"
+                  onClick={() => { printed.mutate(c.serial_no); window.print() }}>
+                  Print
+                </Button>
+              </Td>
             </tr>
           ))}
         </Table>
       )}
     </Card>
+
+    {(prints.data?.items.length ?? 0) > 0 && (
+      <Card className="no-print">
+        <CardHeader title="Who printed what"
+          description="Every printing of a school letter, with the person who did it. Recorded rather than restricted: the dishonest use of a letter is a thing people do, not a thing software prevents." />
+        <Table head={['Serial', 'Employee', 'Printed by', 'When']}>
+          {(prints.data?.items ?? []).map((p, i) => (
+            <tr key={p.serial_no + '-' + i}>
+              <Td className="tabular-nums">{p.serial_no}</Td>
+              <Td>{p.employee}</Td>
+              <Td className="font-medium">{p.printed_by}</Td>
+              <Td className="text-muted-foreground tabular-nums">{p.printed_at}</Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+    )}
+    </>
   )
 }
 
