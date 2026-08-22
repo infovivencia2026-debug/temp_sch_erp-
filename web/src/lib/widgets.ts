@@ -40,7 +40,23 @@ export interface Placed {
   id: string
   w: number
   h: number
+  /** A domain name borrowed for this card's colour, or absent for the colour
+      the dashboard gave it. Stored as a NAME, never as a hex value: the palette
+      is redefined for dark mode and for every skin, so a stored colour would be
+      the one thing on the board that stops answering to the theme. */
+  tint?: string
 }
+
+/* The colours a card may borrow.
+
+   The nine subject domains only. `critical`, `success` and `warning` are in the
+   same palette but are excluded on purpose: they mean something. A card tinted
+   `critical` because somebody liked the red would read as an alert to everyone
+   who saw it afterwards, and the palette would stop being able to say anything. */
+export const TINTS = [
+  'academics', 'admissions', 'attendance', 'communication', 'finance',
+  'operations', 'reports', 'staff', 'students',
+] as const
 
 /** The columns and rows a named default occupies. */
 export const DIMS: Record<WidgetSize, { w: number; h: number }> = {
@@ -87,14 +103,17 @@ function read(dashboard: string): Layout {
          to find their arrangement gone. */
       placed: Array.isArray(v.placed)
         ? (v.placed as unknown[]).flatMap((raw) => {
-            const p = raw as { id?: unknown; w?: unknown; h?: unknown; size?: unknown }
+            const p = raw as { id?: unknown; w?: unknown; h?: unknown; size?: unknown; tint?: unknown }
             if (!p || typeof p.id !== 'string') return []
             const w = clamp(p.w, WIDTHS.length)
             const h = clamp(p.h, HEIGHTS.length)
-            if (w && h) return [{ id: p.id, w, h }]
+            const tint = typeof p.tint === 'string' && (TINTS as readonly string[]).includes(p.tint)
+              ? { tint: p.tint }
+              : {}
+            if (w && h) return [{ id: p.id, w, h, ...tint }]
             if (typeof p.size === 'string' && p.size in DIMS) {
               const d = DIMS[p.size as WidgetSize]
-              return [{ id: p.id, w: d.w, h: d.h }]
+              return [{ id: p.id, w: d.w, h: d.h, ...tint }]
             }
             return []
           })
@@ -181,7 +200,7 @@ export function useLayout(dashboard: string) {
         // A widget resized before it was ever explicitly placed is placed now.
         // Otherwise the first choice on a default card would do nothing.
         placed: has
-          ? l.placed.map((p) => (p.id === id ? { id, w, h } : p))
+          ? l.placed.map((p) => (p.id === id ? { ...p, w, h } : p))
           : [...l.placed, { id, w, h }],
         removed: l.removed.filter((r) => r !== id),
       })
@@ -213,9 +232,28 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
+  /* Colour is stored on the placement, so choosing one places the widget the
+     same way choosing a size does. Passing null returns it to the colour the
+     dashboard gave it rather than storing a "default" that would stop tracking
+     the dashboard if that colour ever changed. */
+  const recolour = useCallback(
+    (id: string, tint: string | null, w: number, h: number) => {
+      const l = current(dashboard)
+      const at = l.placed.find((p) => p.id === id)
+      const next: Placed = at ? { ...at } : { id, w, h }
+      if (tint) next.tint = tint
+      else delete next.tint
+      write(dashboard, {
+        placed: at ? l.placed.map((p) => (p.id === id ? next : p)) : [...l.placed, next],
+        removed: l.removed.filter((r) => r !== id),
+      })
+    },
+    [dashboard],
+  )
+
   const reset = useCallback(() => write(dashboard, EMPTY), [dashboard])
 
-  return { layout, place, remove, resize, move, reset }
+  return { layout, place, remove, resize, recolour, move, reset }
 }
 
 /** The width and height a widget should render at: what the person chose,
@@ -223,6 +261,11 @@ export function useLayout(dashboard: string) {
 export function dimsOf(layout: Layout, id: string, fallback: WidgetSize): { w: number; h: number } {
   const p = layout.placed.find((x) => x.id === id)
   return p ? { w: p.w, h: p.h } : DIMS[fallback]
+}
+
+/** The colour a widget was given, if any. */
+export function tintOf(layout: Layout, id: string): string | null {
+  return layout.placed.find((p) => p.id === id)?.tint ?? null
 }
 
 export function isRemoved(layout: Layout, id: string): boolean {

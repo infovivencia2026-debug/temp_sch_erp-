@@ -1206,6 +1206,8 @@ export const en = {
   'bento.widgets.reset': 'Reset layout',
   'bento.widgets.remove': 'Remove',
   'bento.widgets.hint': 'Drag to reorder · set width and height on each card',
+  'bento.widgets.colour': 'C',
+  'bento.widgets.colour_default': 'Default colour',
   'bento.widgets.width': 'W',
   'bento.widgets.height': 'H',
   'bento.widgets.size.small': 'S',

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useLayout, dimsOf, isRemoved, orderOf, DIMS, type WidgetSize } from './widgets'
+import { useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, type WidgetSize } from './widgets'
 
 /* Tests for the layout store, written as plain functions because the web side
    has no test runner (see NOTES at the bottom of this file). Run them with
@@ -159,6 +159,37 @@ export function testAxesAreIndependent(): void {
   assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 5, h: 1 }, 'height changes, width survives')
 }
 
+/** Colour and size share one row, so each must survive the other being set. */
+export function testColourAndSizeDoNotClobber(): void {
+  const d = freshDashboard()
+  api(d).recolour('a', 'finance', 1, 1)
+  assertEqual(tintOf(api(d).layout, 'a'), 'finance', 'recolouring a never-placed widget places it')
+
+  api(d).resize('a', 4, 2)
+  assertEqual(tintOf(api(d).layout, 'a'), 'finance', 'resizing keeps the colour')
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'and the new size took')
+
+  api(d).recolour('a', 'staff', 1, 1)
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'recolouring keeps the size')
+  assertEqual(tintOf(api(d).layout, 'a'), 'staff', 'and the new colour took')
+
+  api(d).recolour('a', null, 1, 1)
+  assertEqual(tintOf(api(d).layout, 'a'), null, 'clearing returns it to the dashboard colour')
+  assertEqual(dimsOf(api(d).layout, 'a', 'small'), { w: 4, h: 2 }, 'without disturbing the size')
+
+  /* A colour outside the palette is refused on read. Stored names are used to
+     build `var(--dom-NAME)`, so an unknown one resolves to nothing and the card
+     loses its background entirely. */
+  const e = freshDashboard()
+  store.setItem(rawKey(e), JSON.stringify({ placed: [{ id: 'a', w: 1, h: 1, tint: 'critical' }], removed: [] }))
+  assertEqual(tintOf(api(e).layout, 'a'), null, 'a semantic colour is not an option and is dropped')
+
+  const f = freshDashboard()
+  store.setItem(rawKey(f), JSON.stringify({ placed: [{ id: 'a', w: 1, h: 1, tint: 'chartreuse' }], removed: [] }))
+  assertEqual(tintOf(api(f).layout, 'a'), null, 'an unknown colour is dropped')
+  assertEqual(dimsOf(api(f).layout, 'a', 'small'), { w: 1, h: 1 }, 'but the widget itself survives')
+}
+
 /** Moving must reorder against every visible widget, not just the touched ones. */
 export function testMoveSeedsFromAllVisibleIds(): void {
   const d = freshDashboard()
@@ -269,6 +300,7 @@ const TESTS: Array<[string, () => void]> = [
   ['resize on a never-placed widget places it', testResizeOnNeverPlacedWidgetPlacesIt],
   ['move seeds from all visible ids', testMoveSeedsFromAllVisibleIds],
   ['the two axes are independent', testAxesAreIndependent],
+  ['colour and size do not clobber each other', testColourAndSizeDoNotClobber],
   ['layouts saved under named sizes migrate', testLegacyNamedSizesMigrate],
   ['untouched dashboard writes no key', testUntouchedDashboardWritesNoKey],
   ['corrupt stored value degrades', testCorruptStoredValueDegrades],

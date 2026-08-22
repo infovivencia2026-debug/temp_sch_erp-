@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Check, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
 import {
-  useLayout, dimsOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, HEIGHTS, DIMS, type WidgetSize, type BoardWidget,
+  useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
+  WIDTHS, HEIGHTS, DIMS, TINTS, type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
 import { useT } from '@/lib/i18n'
@@ -201,7 +201,7 @@ export function Widget({
   children: (span: CellSpan) => ReactNode
 }) {
   const layer = useWidgetLayer()
-  const { layout, remove, resize, move } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, remove, resize, recolour, move } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
   const { w, h } = dimsOf(layout, id, declaredSize)
@@ -223,6 +223,31 @@ export function Widget({
   const order = orderOf(layout, id, index)
   const editing = layer?.editing ?? false
   const span = spanFor(w, h)
+  const tint = tintOf(layout, id)
+
+  /* Recolouring by REPOINTING the palette, not by painting the card.
+
+     Cell writes `background: var(--dom-finance)` as an inline style, and an
+     inline style cannot be overridden from a stylesheet — but a custom property
+     inherits, so redefining --dom-finance on this wrapper changes what that
+     inline style resolves to for everything inside it.
+
+     Every domain is repointed rather than only the card's own, because the
+     wrapper does not know which domain the cell inside it asked for. The badges
+     nested in the card follow the same variables, so they stay in step instead
+     of keeping the old family's colour.
+
+     Each name is aliased to the CHOSEN name's variable rather than to a colour
+     value, so the card still answers to dark mode, to every skin, and to the
+     colour picker — a stored hex would be the one thing on the board that
+     stopped changing with the theme. */
+  const paint: Record<string, string> = {}
+  if (tint) {
+    for (const d of TINTS) {
+      paint[`--dom-${d}`] = `var(--dom-${tint})`
+      paint[`--dom-${d}-text`] = `var(--dom-${tint}-text, var(--bento-ink))`
+    }
+  }
 
   return (
     <div
@@ -264,7 +289,14 @@ export function Widget({
         move(from, layer.visible.findIndex((v) => v.id === id), layer.visible)
       }}
     >
-      {children(span)}
+      {/* The repointed palette is scoped to the CELL, not to the wrapper.
+
+          Put it on the wrapper and the edit overlay inherits it too — and since
+          a tint makes every --dom-* resolve to the same colour, the nine colour
+          swatches inside the overlay would all render as nine identical
+          circles. The control for choosing a colour cannot live inside the
+          thing the colour is applied to. */}
+      <div className="h-full [&>*]:h-full" style={paint}>{children(span)}</div>
 
       {editing && (
         <div
@@ -297,6 +329,44 @@ export function Widget({
                   onPick={(n) => resize(id, n, h)} />
             <Axis label={t('bento.widgets.height')} steps={HEIGHTS} value={h}
                   onPick={(n) => resize(id, w, n)} />
+
+            {/* Colour, from the palette the product already speaks rather than
+                from a free picker. Nine named families keep a rearranged board
+                looking like the same product; an arbitrary colour is how a
+                dashboard ends up with a card nobody can read. */}
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
+                {t('bento.widgets.colour')}
+              </span>
+              <button
+                type="button"
+                onClick={() => recolour(id, null, w, h)}
+                aria-label={t('bento.widgets.colour_default')}
+                title={t('bento.widgets.colour_default')}
+                aria-pressed={!tint}
+                className={cn(
+                  'size-5 rounded-full border shadow-sm transition-transform hover:scale-110',
+                  !tint ? 'ring-2 ring-primary ring-offset-1' : '',
+                )}
+              >
+                <span aria-hidden="true" className="block text-[10px] leading-[1.1]">×</span>
+              </button>
+              {TINTS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => recolour(id, d, w, h)}
+                  aria-label={d}
+                  title={d}
+                  aria-pressed={tint === d}
+                  className={cn(
+                    'size-5 rounded-full border shadow-sm transition-transform hover:scale-110',
+                    tint === d ? 'ring-2 ring-primary ring-offset-1' : '',
+                  )}
+                  style={{ backgroundColor: `var(--dom-${d})` }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
