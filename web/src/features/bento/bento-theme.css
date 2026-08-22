@@ -56,19 +56,41 @@
   --bento-shadow: var(--bento-depth);
   --bento-shadow-sm: var(--bento-depth-sm);
 
-  --dom-students: #768289;      --dom-students-soft: #c8cdd0;  /* B-003 Slate Grey */
-  --dom-academics: #EAEAEA;     --dom-academics-soft: #f5f5f5;  /* C-001 Platinum */
-  --dom-attendance: #768289;    --dom-attendance-soft: #c8cdd0;
-  --dom-finance: #D3D9D9;       --dom-finance-soft: #e8ecec;   /* A-004 Light Grey */
-  --dom-staff: #95A6A5;         --dom-staff-soft: #d0d9d9;     /* A-001 Silver Tree */
-  --dom-admissions: #BAC0C4;    --dom-admissions-soft: #dde0e2; /* B-004 Silver Sand */
-  --dom-communication: #BBC6C5; --dom-communication-soft: #dde3e3; /* A-003 Ash Grey */
-  --dom-operations: #A8B6B5;    --dom-operations-soft: #d5dcdb; /* A-002 Morning Blue */
-  --dom-reports: #D3D9D9;       --dom-reports-soft: #e8ecec;
+  /* The ink is coloured; the panel behind it stays neutral.
 
-  --dom-critical: #FF5F1F;      --dom-critical-soft: #ffece5;
-  --dom-warning: #FF5F1F;       --dom-warning-soft: #ffece5;
-  --dom-success: #39FF14;       --dom-success-soft: #ebffe5;
+     These were paint-chip greys — Platinum, Silver Sand, Morning Blue — picked
+     as swatches and then used as ink. On white, academics measured 1.17:1 and
+     finance 1.37:1, which is not low contrast, it is an invisible glyph. Ten of
+     the twelve failed even the 3:1 large-text floor.
+
+     Three pairs were also identical: finance and reports, students and
+     attendance, and — worst — critical and warning, so an urgent item and a
+     cautionary one drew the same colour in a palette whose entire job is
+     telling things apart.
+
+     The soft values are untouched, deliberately. The greys read well as fills
+     and the restrained surface was the point; what was wrong was using a fill
+     colour to draw with. Panels stay neutral, marks carry the hue, which is the
+     ninety-per-cent-neutral rule this product already follows elsewhere.
+
+     Every ink below clears 4.2:1 against its own 13% panel and 5:1 against the
+     card, and all twelve are distinct. */
+  --dom-students: #2563eb;      --dom-students-soft: #c8cdd0;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #f5f5f5;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #c8cdd0;
+  --dom-finance: #a16207;       --dom-finance-soft: #e8ecec;
+  --dom-staff: #be123c;         --dom-staff-soft: #d0d9d9;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #dde0e2;
+  --dom-communication: #6d28d9; --dom-communication-soft: #dde3e3;
+  --dom-operations: #475569;    --dom-operations-soft: #d5dcdb;
+  --dom-reports: #047857;       --dom-reports-soft: #e8ecec;
+
+  /* Status, and now three different colours rather than one orange twice.
+     Safety orange #FF5F1F and laser green #39FF14 are signal colours at
+     near-maximum chroma: they fail on white and vibrate against a tint. */
+  --dom-critical: #b42318;      --dom-critical-soft: #fee4e2;
+  --dom-warning: #c2410c;       --dom-warning-soft: #fef0c7;
+  --dom-success: #067647;       --dom-success-soft: #dcfae6;
 }
 
 /* The card actions, as buttons rather than blue words with an arrow.
@@ -107,18 +129,22 @@ html.dark[data-layout='bento'] {
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
      a tint of the ground, because a pale chip on near-black is grey mud and
      loses the hue that was the whole point. */
-  --dom-students: #768289;      --dom-students-soft: #2a2d30;
-  --dom-academics: #c8c8c8;     --dom-academics-soft: #2a2a2a;
-  --dom-attendance: #768289;    --dom-attendance-soft: #2a2d30;
-  --dom-finance: #a8aeae;       --dom-finance-soft: #252828;
-  --dom-staff: #7a9190;         --dom-staff-soft: #202828;
-  --dom-admissions: #8f9699;    --dom-admissions-soft: #222628;
-  --dom-communication: #909b9a; --dom-communication-soft: #222727;
-  --dom-operations: #7f8e8d;    --dom-operations-soft: #202626;
-  --dom-reports: #a8aeae;       --dom-reports-soft: #252828;
+  /* Lifted for the dark ground and made distinct, the same two problems the
+     light set had. The greys passed on black — a pale grey on near-black is
+     high contrast — but students and attendance, and finance and reports, were
+     still the same colour as each other. */
+  --dom-students: #7ea9ff;      --dom-students-soft: #2a2d30;
+  --dom-academics: #b794ff;     --dom-academics-soft: #2a2a2a;
+  --dom-attendance: #4fc4b0;    --dom-attendance-soft: #2a2d30;
+  --dom-finance: #d4a15a;       --dom-finance-soft: #252828;
+  --dom-staff: #f39bad;         --dom-staff-soft: #202828;
+  --dom-admissions: #6cc6de;    --dom-admissions-soft: #222628;
+  --dom-communication: #c4a8ff; --dom-communication-soft: #222727;
+  --dom-operations: #a2b0c2;    --dom-operations-soft: #202626;
+  --dom-reports: #62d3a0;       --dom-reports-soft: #252828;
 
   --dom-critical: #f4736b;      --dom-critical-soft: #2b1414;
-  --dom-warning: #e0a350;     --dom-warning-soft: #2a1f0f;
+  --dom-warning: #fb923c;     --dom-warning-soft: #2a1f0f;
   --dom-success: #6cc98a;       --dom-success-soft: #10240f;
   color-scheme: dark;
 
