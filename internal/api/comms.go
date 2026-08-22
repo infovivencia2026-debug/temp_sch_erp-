@@ -143,7 +143,7 @@ func (s *Server) mountComms(r chi.Router) {
 	})
 
 	// --- what a family sees ---------------------------------------------
-	r.Route("/go/communication", func(r chi.Router) {
+	r.Route("/portal/comms", func(r chi.Router) {
 		r.Use(httpx.RequirePermission(rbac.SelfProfileRead))
 		r.Get("/grievances/{id}", s.getPortalFeedback)
 		r.Post("/grievances/{id}/satisfaction", s.rateFeedbackResolution)
