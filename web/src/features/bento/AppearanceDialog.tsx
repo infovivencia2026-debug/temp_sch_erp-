@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, LayoutGrid, Palette, Sliders, Type, X } from 'lucide-react'
+import { Check, LayoutGrid, Minus, Palette, Plus, Sliders, Type, X } from 'lucide-react'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
@@ -41,17 +41,44 @@ function Axis<T extends string>({
   options,
   onPick,
   name,
+  stepper = false,
 }: {
   label: string
   value: T
   options: readonly T[]
   onPick: (v: T) => void
   name: (v: T) => string
+  /** Adds - and + either side. For an axis whose options are ORDERED and whose
+      real question is "a bit more" rather than "which one" — text size being
+      the case people reach for most, and usually the case where they cannot
+      comfortably read the labels they are being asked to choose between. */
+  stepper?: boolean
 }) {
+  const at = options.indexOf(value)
+  const step = (d: number) => {
+    const next = options[Math.min(options.length - 1, Math.max(0, at + d))]
+    if (next && next !== value) onPick(next)
+  }
+  const arrow =
+    `grid size-7 shrink-0 place-items-center rounded-full border transition-colors
+     hover:bg-accent disabled:opacity-35 disabled:hover:bg-transparent
+     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
       <p className="w-[104px] shrink-0 text-[13px] font-medium">{label}</p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {stepper && (
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            disabled={at <= 0}
+            aria-label={`${label} smaller`}
+            className={arrow}
+          >
+            <Minus className="size-3.5" aria-hidden="true" />
+          </button>
+        )}
         {options.map((o) => (
           <button
             key={o}
@@ -69,6 +96,17 @@ function Axis<T extends string>({
             {name(o)}
           </button>
         ))}
+        {stepper && (
+          <button
+            type="button"
+            onClick={() => step(1)}
+            disabled={at >= options.length - 1}
+            aria-label={`${label} bigger`}
+            className={arrow}
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -270,6 +308,7 @@ export function AppearanceDialog({
               options={TEXT_SIZES}
               onPick={(v) => set('text', v)}
               name={(v) => t(`bento.settings.text.${v}`)}
+              stepper
             />
             <Axis<Density>
               label={t('bento.settings.density')}

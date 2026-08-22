@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
+import { Check, GripVertical, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
@@ -169,7 +169,13 @@ export function WidgetLayer({
   )
 }
 
-/** One row of the size control: five steps on a single axis. */
+/** One row of the size control: a stepper, with the numbered steps beside it.
+
+    The steppers are what a person reaches for — "one wider" is the thought,
+    not "four". The numbers stay because a stepper alone hides how much room
+    there is: with them you can see that five is the end of the axis and jump
+    straight there. Each end disables at its limit rather than wrapping, so
+    nothing silently jumps from widest to narrowest. */
 function Axis({
   label,
   steps,
@@ -181,9 +187,26 @@ function Axis({
   value: number
   onPick: (n: number) => void
 }) {
+  const lo = steps[0]
+  const hi = steps[steps.length - 1]
+  const step = (delta: number) => onPick(Math.min(hi, Math.max(lo, value + delta)))
+
+  const arrow =
+    'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
+    'transition-colors hover:bg-accent disabled:opacity-35 disabled:hover:bg-popover/90'
+
   return (
     <div className="flex items-center gap-1">
       <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">{label}</span>
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={value <= lo}
+        aria-label={`${label} smaller`}
+        className={arrow}
+      >
+        <Minus className="size-3" aria-hidden="true" />
+      </button>
       {steps.map((n) => (
         <button
           key={n}
@@ -199,6 +222,15 @@ function Axis({
           {n}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => step(1)}
+        disabled={value >= hi}
+        aria-label={`${label} bigger`}
+        className={arrow}
+      >
+        <Plus className="size-3" aria-hidden="true" />
+      </button>
     </div>
   )
 }
