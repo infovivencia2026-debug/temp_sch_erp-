@@ -73,6 +73,10 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
   const box = useRef<HTMLDivElement>(null)
+  /* The menu is portaled to document.body, so it is NOT a DOM descendant of
+     `box` — the trigger's wrapper — even though it is a React child of it. It
+     needs its own ref, or the dismiss handler below cannot recognise it. */
+  const menu = useRef<HTMLDivElement>(null)
 
   /* Escape and click-outside both close it. A popover dismissable only by the
      button that opened it is one people leave open. */
@@ -82,7 +86,15 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
       if (e.key === 'Escape') setOpen(false)
     }
     const onDown = (e: MouseEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false)
+      /* Both boxes, and that is the whole bug this line used to have.
+
+         Dismissal listens on mousedown, which fires BEFORE click. With only
+         `box` tested, every press inside the portaled menu counted as outside:
+         the menu unmounted on mousedown, and the button never lived long
+         enough to receive its click. The menu opened, and nothing in it
+         worked. */
+      const t = e.target as Node
+      if (!box.current?.contains(t) && !menu.current?.contains(t)) setOpen(false)
     }
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onDown)
@@ -178,6 +190,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
       {open && at && createPortal(
         <div
           role="menu"
+          ref={menu}
           style={{ position: 'fixed', left: at.left, top: at.top, width: 256,
                    maxHeight: 'min(70vh, 420px)' }}
           className={cn(
