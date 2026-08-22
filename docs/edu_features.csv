@@ -103,52 +103,27 @@ Transport Manager,Transport,Transport,Driver Sobriety & Safety Checklist,Require
 Transport Manager,Transport,Transport,Bus Breakdown Emergency Dispatch,Trigger emergency notifications and dispatch replacement buses with auto-route updates.,Assigned campus,Should-Have,core
 Transport Manager,Transport,Transport,Seatbelt & CCTV Video Streaming,Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring.,Assigned campus,Must-Have,optional
 Transport Manager,Transport,Transport,AIS-140 Telematics & VAHAN Compliance,"Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires.",Assigned campus,Nice-to-Have,advanced
-Institution Admin / Principal,Operations,Transport,Compliance & Expiry Alerts,"Insurance, permits, fitness and licences about to lapse. One list, because a bus running on expired insurance is the school's problem and not the driver's.",Assigned campus,Nice-to-Have,advanced
 Transport Manager,Transport,Transport,Vehicles,"The vehicle register: registration, capacity, permit, insurance and fitness expiry.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Drivers & attendants,"Who drives what, with licence expiry and background verification.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Routes & stops,"Route definitions, the stops on each and the timing between them.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Student allocation,"Which child boards at which stop on which route, and the fee slab that implies.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Route attendance,"Boarding and alighting scans for each route, morning and afternoon.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Delays & exceptions,"Routes running late, breakdowns and any child not scanned.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,"Delays, Breakdowns & Emergency Alerts","A breakdown, an accident or a panic button, the moment it happens, so help can be sent and the families on that route told.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Live vehicle tracking,"Where every bus is now, against the route it should be running.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Transport,Live Vehicle Tracking,"Where every bus is now, on one map. Opened when a parent rings to say the bus has not reached stop 4 yet.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Hostel Building & Room Setup,"Define hostel blocks, floors, room types (Single, Shared), and total bed capacity.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Hostel,Room Allocation Engine,"Assign students to specific rooms/beds, view room occupancy rate, and handle room changes.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Room Inventory Checklists,"Inspect room furniture, lights, and appliances upon student check-in and check-out.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Hostel Roll-Call Attendance,"Take daily evening hostel attendance, track present boarders, and alert warden of missing students.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Night Study Room Attendance,Track boarder attendance in mandatory evening/night supervised study halls.,Assigned campus,Must-Have,optional
-Institution Admin / Principal,Operations,Hostel,Digital Outpass Approval,Process student weekend leave or outing requests with warden and verified parent approval.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Hostel Visitor Log,"Record parent/relative visits to hostel premises, check-in time, and exit verification.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Hostel,Mess Menu & Meal Management,Publish weekly hostel mess meal menu and track daily boarder dining headcounts.,Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Hostel,Boarder Laundry Tracking,"Log clothes sent to commercial laundry, track token numbers, and manage returns.",Assigned campus,Should-Have,optional
-Institution Admin / Principal,Operations,Hostel,Hostel Complaint Ticketing,"Log maintenance issues (plumbing, electrical, Wi-Fi) and track resolution by technicians.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Hostel,Buildings & rooms,"Blocks, rooms and beds, with the condition of each.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Room allocation,"Which boarder is in which bed, and the moves waiting to happen.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Roll call,"Morning and night attendance for the hostel, separate from the school register.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Outpass & leave,"Gate passes requested, approved and outstanding, with expected return.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Hostel,Complaints,"Maintenance and welfare complaints raised by boarders, and their status.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Book Cataloging & Accession Register,"Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",Assigned campus,Must-Have,core
 Librarian,Library,Library,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have,core
 Librarian,Library,Library,Book Issue & Return Terminal,Scan student ID and book barcode to issue or return books in <5 seconds.,Assigned campus,Must-Have,core
 Librarian,Library,Library,Book Reservation Queue,Auto-notify students when a reserved book is returned and available for collection.,Assigned campus,Must-Have,core
 Librarian,Library,Library,Fine & Penalty Summary,"Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Fine & Penalty Summary,"Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.",Assigned campus,Must-Have,core
 Librarian,Library,Library,OPAC Digital Book Search,Online Public Access Catalog for students to search book availability and reserve books.,Assigned campus,Must-Have,core
 Librarian,Library,Library,Digital Library Usage,Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.,Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Digital Library Usage,Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.,Assigned campus,Must-Have,core
 Librarian,Library,Library,Annual Book Stock Verification,"The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Library,Annual Book Stock Verification,"The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record.",Assigned campus,Must-Have,core
 Librarian,Library,Library,New Session Textbook Orders,"Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered.",Assigned campus,Must-Have,advanced
-Institution Admin / Principal,Operations,Library,New Session Textbook Orders,"Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered.",Assigned campus,Must-Have,advanced
 Librarian,Library,Library,Books & copies,"Titles, editions and the individual copies held against each.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Accession register,"The statutory accession register, with barcode and spine label printing.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Reservations,"Holds placed by students and staff, and who is next in the queue.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
-Institution Admin / Principal,Operations,Stores,Item Category & Store Setup,"Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.",Assigned campus,Should-Have,core
-Institution Admin / Principal,Operations,Stores,Purchase Order Workflow,"Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.",Assigned campus,Must-Have,core
-Institution Admin / Principal,Operations,Stores,Department Stock Issuance,Issue stock items to specific teachers or departments and track active stock balances.,Assigned campus,Should-Have,core
 Faculty / Teacher,Home,Home,Today's classes,"Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My day,"Today's periods, what is pending and anything about this class that needs attention.",Assigned classes/subjects,Must-Have,core

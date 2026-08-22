@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 411 features. */
+/** 12 roles, 386 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -362,59 +362,6 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.analysis.custom_report_builder', slug: 'custom_report_builder', name: 'Custom Report Builder', scope: 'institution', tier: 'core', summary: 'Build custom drag-and-drop reports selecting desired data fields, filters, and export formats.' },
           { key: 'institution_admin.analysis.performance_analytics', slug: 'performance_analytics', name: 'Performance analytics', scope: 'department', tier: 'core', summary: 'Subject pass rate, semester trends, at-risk students and department performance.' },
           { key: 'institution_admin.analysis.department_reports', slug: 'department_reports', name: 'Department reports', scope: 'department', tier: 'core', summary: 'Attendance, workload, results, backlogs and department summary reports.' },
-        ],
-      },
-      {
-        slug: 'transport',
-        name: 'Transport',
-        workspace: 'Operations',
-        features: [
-          { key: 'institution_admin.transport.compliance_expiry_alerts', slug: 'compliance_expiry_alerts', name: 'Compliance & Expiry Alerts', scope: 'campus', tier: 'advanced', summary: 'Insurance, permits, fitness and licences about to lapse. One list, because a bus running on expired insurance is the school\'s problem and not the driver\'s.' },
-          { key: 'institution_admin.transport.delays_breakdowns_emergency_alerts', slug: 'delays_breakdowns_emergency_alerts', name: 'Delays, Breakdowns & Emergency Alerts', scope: 'campus', tier: 'core', summary: 'A breakdown, an accident or a panic button, the moment it happens, so help can be sent and the families on that route told.' },
-          { key: 'institution_admin.transport.live_vehicle_tracking', slug: 'live_vehicle_tracking', name: 'Live Vehicle Tracking', scope: 'campus', tier: 'core', summary: 'Where every bus is now, on one map. Opened when a parent rings to say the bus has not reached stop 4 yet.' },
-        ],
-      },
-      {
-        slug: 'hostel',
-        name: 'Hostel',
-        workspace: 'Operations',
-        features: [
-          { key: 'institution_admin.hostel.hostel_building_room_setup', slug: 'hostel_building_room_setup', name: 'Hostel Building & Room Setup', scope: 'campus', tier: 'core', summary: 'Define hostel blocks, floors, room types (Single, Shared), and total bed capacity.' },
-          { key: 'institution_admin.hostel.room_allocation_engine', slug: 'room_allocation_engine', name: 'Room Allocation Engine', scope: 'campus', tier: 'core', summary: 'Assign students to specific rooms/beds, view room occupancy rate, and handle room changes.' },
-          { key: 'institution_admin.hostel.room_inventory_checklists', slug: 'room_inventory_checklists', name: 'Room Inventory Checklists', scope: 'campus', tier: 'core', summary: 'Inspect room furniture, lights, and appliances upon student check-in and check-out.' },
-          { key: 'institution_admin.hostel.hostel_roll_call_attendance', slug: 'hostel_roll_call_attendance', name: 'Hostel Roll-Call Attendance', scope: 'campus', tier: 'core', summary: 'Take daily evening hostel attendance, track present boarders, and alert warden of missing students.' },
-          { key: 'institution_admin.hostel.night_study_room_attendance', slug: 'night_study_room_attendance', name: 'Night Study Room Attendance', scope: 'campus', tier: 'optional', summary: 'Track boarder attendance in mandatory evening/night supervised study halls.' },
-          { key: 'institution_admin.hostel.digital_outpass_approval', slug: 'digital_outpass_approval', name: 'Digital Outpass Approval', scope: 'campus', tier: 'core', summary: 'Process student weekend leave or outing requests with warden and verified parent approval.' },
-          { key: 'institution_admin.hostel.hostel_visitor_log', slug: 'hostel_visitor_log', name: 'Hostel Visitor Log', scope: 'campus', tier: 'core', summary: 'Record parent/relative visits to hostel premises, check-in time, and exit verification.' },
-          { key: 'institution_admin.hostel.mess_menu_meal_management', slug: 'mess_menu_meal_management', name: 'Mess Menu & Meal Management', scope: 'campus', tier: 'core', summary: 'Publish weekly hostel mess meal menu and track daily boarder dining headcounts.' },
-          { key: 'institution_admin.hostel.boarder_laundry_tracking', slug: 'boarder_laundry_tracking', name: 'Boarder Laundry Tracking', scope: 'campus', tier: 'optional', summary: 'Log clothes sent to commercial laundry, track token numbers, and manage returns.' },
-          { key: 'institution_admin.hostel.hostel_complaint_ticketing', slug: 'hostel_complaint_ticketing', name: 'Hostel Complaint Ticketing', scope: 'campus', tier: 'core', summary: 'Log maintenance issues (plumbing, electrical, Wi-Fi) and track resolution by technicians.' },
-          { key: 'institution_admin.hostel.buildings_rooms', slug: 'buildings_rooms', name: 'Buildings & rooms', scope: 'campus', tier: 'core', summary: 'Blocks, rooms and beds, with the condition of each.' },
-          { key: 'institution_admin.hostel.room_allocation', slug: 'room_allocation', name: 'Room allocation', scope: 'campus', tier: 'core', summary: 'Which boarder is in which bed, and the moves waiting to happen.' },
-          { key: 'institution_admin.hostel.roll_call', slug: 'roll_call', name: 'Roll call', scope: 'campus', tier: 'core', summary: 'Morning and night attendance for the hostel, separate from the school register.' },
-          { key: 'institution_admin.hostel.outpass_leave', slug: 'outpass_leave', name: 'Outpass & leave', scope: 'campus', tier: 'core', summary: 'Gate passes requested, approved and outstanding, with expected return.' },
-          { key: 'institution_admin.hostel.complaints', slug: 'complaints', name: 'Complaints', scope: 'campus', tier: 'core', summary: 'Maintenance and welfare complaints raised by boarders, and their status.' },
-        ],
-      },
-      {
-        slug: 'library',
-        name: 'Library',
-        workspace: 'Operations',
-        features: [
-          { key: 'institution_admin.library.fine_penalty_summary', slug: 'fine_penalty_summary', name: 'Fine & Penalty Summary', scope: 'campus', tier: 'core', summary: 'Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.' },
-          { key: 'institution_admin.library.digital_library_usage', slug: 'digital_library_usage', name: 'Digital Library Usage', scope: 'campus', tier: 'core', summary: 'Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.' },
-          { key: 'institution_admin.library.annual_book_stock_verification', slug: 'annual_book_stock_verification', name: 'Annual Book Stock Verification', scope: 'campus', tier: 'core', summary: 'The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year\'s stock record.' },
-          { key: 'institution_admin.library.new_session_textbook_orders', slug: 'new_session_textbook_orders', name: 'New Session Textbook Orders', scope: 'campus', tier: 'advanced', summary: 'Next year\'s textbook requirement, class by class against the roll, for the principal to approve before it is ordered.' },
-        ],
-      },
-      {
-        slug: 'stores',
-        name: 'Stores',
-        workspace: 'Operations',
-        features: [
-          { key: 'institution_admin.stores.item_category_store_setup', slug: 'item_category_store_setup', name: 'Item Category & Store Setup', scope: 'campus', tier: 'core', summary: 'Define store locations, item categories (Stationery, Sports, Furniture, IT), and reorder levels.' },
-          { key: 'institution_admin.stores.purchase_order_workflow', slug: 'purchase_order_workflow', name: 'Purchase Order Workflow', scope: 'campus', tier: 'core', summary: 'Raise Purchase Requisitions, compare vendor quotes, issue POs, and record GRN receipts.' },
-          { key: 'institution_admin.stores.department_stock_issuance', slug: 'department_stock_issuance', name: 'Department Stock Issuance', scope: 'campus', tier: 'core', summary: 'Issue stock items to specific teachers or departments and track active stock balances.' },
         ],
       },
       {
