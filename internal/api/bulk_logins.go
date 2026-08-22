@@ -285,20 +285,38 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			/* Inside a savepoint, so one unusable row loses only itself.
+
+			   The intent was always to skip a duplicate and carry on, and the
+			   code below reported exactly that — but a failed INSERT aborts
+			   the Postgres transaction, and every statement after it dies with
+			   "current transaction is aborted". So the first guardian sharing
+			   a phone with somebody took the whole batch of sixty with it, and
+			   the endpoint answered 500 while the code was busy composing a
+			   polite note about one person.
+
+			   A savepoint is what makes the promise true: roll back this row,
+			   keep the rest. */
 			var newID uuid.UUID
-			if err := tx.QueryRow(r.Context(), `
+			sp, berr := tx.Begin(r.Context())
+			if berr != nil {
+				return berr
+			}
+			if err := sp.QueryRow(r.Context(), `
 				INSERT INTO users (institution_id, username, email, phone, full_name,
 				                   password_hash, status)
 				VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active')
 				RETURNING id`,
 				id.InstitutionID, username, p.email, p.phone, p.name, hash).Scan(&newID); err != nil {
-				// One unusable row must not lose the other fifty-nine, so this
-				// is reported against the person rather than failing the batch.
+				_ = sp.Rollback(r.Context())
 				out.Skipped++
 				out.Rows = append(out.Rows, bulkLoginRow{
 					Name: p.name, Detail: "that email or phone already belongs to another account",
 				})
 				continue
+			}
+			if cerr := sp.Commit(r.Context()); cerr != nil {
+				return cerr
 			}
 
 			var table, roleKey string

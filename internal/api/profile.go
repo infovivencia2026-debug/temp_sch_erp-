@@ -97,6 +97,17 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 			id.UserID, req.FullName, req.Phone)
 		return err
 	})
+	/* A number somebody else already has is the caller's problem to fix, not a
+	   fault. A phone is unique within a school because it is a sign-in
+	   identifier — two people sharing one would make "who is this" ambiguous
+	   at the login screen — and "something went wrong" tells the person
+	   holding the phone none of that. */
+	if isUniqueViolation(err) {
+		httpx.BadRequest(w, r,
+			"that phone number is already on another account at this school, and "+
+				"a number can only belong to one person")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

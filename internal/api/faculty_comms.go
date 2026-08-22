@@ -4,12 +4,14 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
 )
@@ -406,7 +408,7 @@ func (s *Server) createRemark(w http.ResponseWriter, r *http.Request) {
 		if private {
 			return nil
 		}
-		return notifyGuardiansOfRemark(r, tx, id.InstitutionID, studentID, newID,
+		return s.notifyGuardiansOfRemark(r, tx, id.InstitutionID, studentID, newID,
 			req.Kind, strings.TrimSpace(req.Body))
 	})
 	if err != nil {
@@ -1180,8 +1182,10 @@ notifyGuardiansOfRemark puts a teacher's remark in front of the child's family.
 	billing and consent field; a father who is not ticked on it is still the
 	child's father.
 */
-func notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx, inst, studentID, remarkID uuid.UUID,
-	kind, body string) error {
+// A method rather than a free function: telling the family now means handing a
+// message to the queue, and the queue lives on the server.
+func (s *Server) notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx,
+	inst, studentID, remarkID uuid.UUID, kind, body string) error {
 
 	var child string
 	if err := tx.QueryRow(r.Context(), `
@@ -1235,11 +1239,45 @@ func notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx, inst, studentID, remark
 		title = "About " + child + "’s conduct"
 	}
 
+	id := httpx.IdentityFrom(r.Context())
 	for _, p := range parents {
 		if err := notify(r, tx, inst, p, &studentID, "student_remark",
 			title, summary+" — "+from, "/go/remarks", "student_remark",
 			&remarkID); err != nil {
 			return err
+		}
+
+		/* And out of the building.
+
+		   A remark written on Tuesday reached a parent on whatever day they
+		   next opened the app, which for most families is never. The whole
+		   point of writing one on the day is that somebody at home hears about
+		   it on the day.
+
+		   Email, not SMS: a remark is read, not glanced at, and a school that
+		   texts every family every time a teacher writes a line is a school
+		   whose parents stop reading the texts. Enqueued rather than sent
+		   inline, so a mail server that is briefly down cannot fail the write
+		   — and a failure to hand it over is logged rather than returned,
+		   because the remark is recorded either way. */
+		if s.Queue != nil {
+			if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+				queue.MessageSendPayload{
+					Envelope: queue.Envelope{
+						InstitutionID: inst, ActorUserID: id.UserID,
+						RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+					},
+					Channel: "email", TemplateKey: "student.remark",
+					ToUserID: p,
+					Vars: map[string]any{
+						"title":   title,
+						"summary": body,
+						"teacher": from,
+						"on_date": time.Now().Format("2 January 2006"),
+					},
+				}, queue.HeavyOptions()...); err != nil {
+				httpx.LogError(r, err)
+			}
 		}
 	}
 	return nil
