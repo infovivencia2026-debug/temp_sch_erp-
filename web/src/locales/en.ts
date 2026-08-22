@@ -1212,6 +1212,7 @@ export const en = {
   'bento.widgets.colour_hex': 'Hex colour code',
   'bento.widgets.colour_lightness': 'Lightness',
   'bento.widgets.colour_default': 'Default colour',
+  'bento.widgets.wont_fit': "Any bigger and the board won't fit on screen",
   'bento.widgets.width': 'W',
   'bento.widgets.height': 'H',
   'bento.widgets.size.small': 'S',

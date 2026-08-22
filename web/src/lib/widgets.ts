@@ -440,3 +440,62 @@ export function useBoard() {
   const on = useSyncExternalStore(subscribeBoard, () => arranging, () => false)
   return { dashboard: b.dashboard, widgets: b.widgets, arranging: on, setArranging }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   WILL IT STILL FIT?
+
+   The board is allowed to be arranged into any shape, EXCEPT one that runs off
+   the bottom of the screen. Letting somebody choose a size and then quietly
+   breaking the dashboard is worse than refusing the choice and saying why.
+
+   That means knowing how many rows a layout needs, which means packing it the
+   way CSS grid does. There is no way to ask the browser this before the fact,
+   so it is simulated: same column count, same dense flow, same order.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/** How many rows this set of widgets occupies at the given column count.
+
+    Mirrors `grid-auto-flow: dense`: each item takes the first position it fits
+    in, scanning left to right and top to bottom, so a later small card may
+    back-fill a gap an earlier wide one left behind. */
+export function rowsNeeded(items: { w: number; h: number }[], cols = 5): number {
+  const taken = new Set<string>()
+  const at = (r: number, c: number) => `${r}:${c}`
+  const fits = (r: number, c: number, w: number, h: number) => {
+    if (c + w > cols) return false
+    for (let y = r; y < r + h; y++) {
+      for (let x = c; x < c + w; x++) if (taken.has(at(y, x))) return false
+    }
+    return true
+  }
+
+  let rows = 0
+  for (const item of items) {
+    // A card wider than the board is placed at full width rather than refused;
+    // the caller decides what to do about it, and pretending it fits would
+    // under-count the rows.
+    const w = Math.min(item.w, cols)
+    const h = Math.max(1, item.h)
+    let placed = false
+    for (let r = 0; !placed && r < 200; r++) {
+      for (let c = 0; c <= cols - w; c++) {
+        if (!fits(r, c, w, h)) continue
+        for (let y = r; y < r + h; y++) {
+          for (let x = c; x < c + w; x++) taken.add(at(y, x))
+        }
+        rows = Math.max(rows, r + h)
+        placed = true
+        break
+      }
+    }
+  }
+  return rows
+}
+
+/** The tallest layout that still fits, given the room below the board's top
+    edge and the height one row takes. */
+export function rowsThatFit(availablePx: number, rowPx: number, gapPx: number): number {
+  if (rowPx <= 0) return 1
+  // n rows occupy n*row + (n-1)*gap.
+  return Math.max(1, Math.floor((availablePx + gapPx) / (rowPx + gapPx)))
+}

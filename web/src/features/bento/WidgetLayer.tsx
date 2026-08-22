@@ -4,6 +4,7 @@ import { Check, GripVertical, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
+  rowsNeeded, rowsThatFit,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
@@ -42,6 +43,8 @@ interface LayerValue {
   editing: boolean
   declare: (w: BoardWidget) => void
   visible: BoardWidget[]
+  /** The tallest layout that still fits on this screen, in rows. */
+  maxRows: number
 }
 
 /* Every domain token a cell might read. Repointing all of them is what lets
@@ -74,6 +77,7 @@ export function WidgetLayer({
   children: ReactNode
 }) {
   const [declared, setDeclared] = useState<BoardWidget[]>([])
+  const barRef = useRef<HTMLDivElement>(null)
   const { arranging, setArranging } = useBoard()
   const { layout, place, reset } = useLayout(dashboard)
   const t = useT()
@@ -118,9 +122,36 @@ export function WidgetLayer({
     return () => document.removeEventListener('keydown', onKey)
   }, [arranging, setArranging])
 
+  /* How many rows fit below the board's top edge.
+
+     Measured rather than assumed: the board's top moves with the header, the
+     text size and the density, so a constant here would be wrong on most
+     screens. Re-measured whenever arrange mode opens and on resize, which is
+     when it can change while somebody is looking at it. */
+  const [maxRows, setMaxRows] = useState(3)
+  useEffect(() => {
+    if (!arranging) return
+    const measure = () => {
+      const board = barRef.current?.parentElement
+      if (!board) return
+      const top = board.getBoundingClientRect().top
+      const styles = getComputedStyle(board)
+      const gap = parseFloat(styles.rowGap) || 0
+      // The floor from the stylesheet. A row can be taller when its contents
+      // demand it, so this is the optimistic count — it refuses the sizes that
+      // certainly do not fit rather than every size that might not.
+      const row = parseFloat(styles.gridAutoRows) || 150
+      const room = window.innerHeight - top - 24
+      setMaxRows(rowsThatFit(room, row, gap))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [arranging])
+
   const value = useMemo<LayerValue>(
-    () => ({ dashboard, editing: arranging, declare, visible }),
-    [dashboard, arranging, declare, visible.map((d) => d.id).join(',')],
+    () => ({ dashboard, editing: arranging, declare, visible, maxRows }),
+    [dashboard, arranging, declare, maxRows, visible.map((d) => d.id).join(',')],
   )
 
   return (
@@ -132,6 +163,7 @@ export function WidgetLayer({
           one column and the Add chips wrap into an unreadable stack. */}
       {arranging && (
         <div
+          ref={barRef}
           className="bento-arrange-bar col-span-full flex flex-wrap items-center gap-2"
           style={{ order: -1 }}
         >
@@ -195,15 +227,26 @@ function Axis({
   steps,
   value,
   onPick,
+  blocked,
+  blockedHint,
 }: {
   label: string
   steps: readonly number[]
   value: number
   onPick: (n: number) => void
+  /** True for a step that would push the board off the screen. */
+  blocked?: (n: number) => boolean
+  blockedHint?: string
 }) {
   const lo = steps[0]
   const hi = steps[steps.length - 1]
-  const step = (d: number) => onPick(Math.min(hi, Math.max(lo, value + d)))
+  const allow = (n: number) => (blocked ? !blocked(n) : true)
+  const step = (d: number) => {
+    const n = Math.min(hi, Math.max(lo, value + d))
+    if (allow(n)) onPick(n)
+  }
+  const nextUp = Math.min(hi, value + 1)
+  const upBlocked = value >= hi || !allow(nextUp)
 
   const arrow =
     'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
@@ -231,8 +274,13 @@ function Axis({
       <button
         type="button"
         onClick={() => step(1)}
-        disabled={value >= hi}
-        aria-label={`${label} bigger`}
+        disabled={upBlocked}
+        aria-label={
+          value < hi && !allow(nextUp) && blockedHint
+            ? `${label} bigger — ${blockedHint}`
+            : `${label} bigger`
+        }
+        title={value < hi && !allow(nextUp) ? blockedHint : undefined}
         className={arrow}
       >
         <Plus className="size-3" aria-hidden="true" />
@@ -452,6 +500,22 @@ export function Widget({
      wheel can produce a pale yellow and a near-black navy, and nobody picking a
      background should also have to work out whether their text now needs to be
      white. */
+  /* Would the board still fit if this card were that size?
+
+     Simulated against the WHOLE layout, not just this card, because a card
+     growing pushes everything after it — the row that overflows is usually not
+     the one being edited. The current size is always allowed even when the
+     board already overflows, or somebody who arrived at a too-tall layout
+     could never shrink out of it. */
+  const fitsAt = (nw: number, nh: number) => {
+    if (!layer) return true
+    if (nw === w && nh === h) return true
+    const items = layer.visible.map((v) =>
+      v.id === id ? { w: nw, h: nh } : { w: dimsOf(layout, v.id, v.size).w, h: dimsOf(layout, v.id, v.size).h },
+    )
+    return rowsNeeded(items) <= layer.maxRows
+  }
+
   const paint: Record<string, string> = {}
   if (tint) {
     const bg = cssHsl(tint)
@@ -555,10 +619,22 @@ export function Widget({
               heights is twenty-five sizes from ten controls, and "three wide,
               one tall" is a thing somebody can now ask for. */}
           <div className="flex flex-col gap-1">
-            <Axis label={t('bento.widgets.width')} steps={WIDTHS} value={w}
-                  onPick={(n) => resize(id, n, h)} />
-            <Axis label={t('bento.widgets.height')} steps={HEIGHTS} value={h}
-                  onPick={(n) => resize(id, w, n)} />
+            <Axis
+              label={t('bento.widgets.width')}
+              steps={WIDTHS}
+              value={w}
+              onPick={(n) => resize(id, n, h)}
+              blocked={(n) => !fitsAt(n, h)}
+              blockedHint={t('bento.widgets.wont_fit')}
+            />
+            <Axis
+              label={t('bento.widgets.height')}
+              steps={HEIGHTS}
+              value={h}
+              onPick={(n) => resize(id, w, n)}
+              blocked={(n) => !fitsAt(w, n)}
+              blockedHint={t('bento.widgets.wont_fit')}
+            />
 
             {/* The wheel, not a menu of colours.
 

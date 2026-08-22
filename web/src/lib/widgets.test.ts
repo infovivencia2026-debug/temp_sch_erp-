@@ -1,6 +1,7 @@
 import * as React from 'react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, DIMS, inkFor, hexToHsl, hslToHex,
+  rowsNeeded, rowsThatFit,
   type WidgetSize,
 } from './widgets'
 
@@ -206,6 +207,42 @@ export function testColourAndSizeDoNotClobber(): void {
   assertEqual(tintOf(api(g).layout, 'a'), null, 'a non-numeric channel is dropped')
 }
 
+/** The packer has to agree with CSS grid, or the arranger refuses the wrong
+    sizes — and a control that says "no" when the answer is "yes" is worse than
+    one that never says no at all. */
+export function testRowPacking(): void {
+  const one = { w: 1, h: 1 }
+  assertEqual(rowsNeeded([]), 0, 'nothing occupies no rows')
+  assertEqual(rowsNeeded([one]), 1, 'one small card is one row')
+  assertEqual(rowsNeeded(Array(5).fill(one)), 1, 'five fill exactly one row')
+  assertEqual(rowsNeeded(Array(6).fill(one)), 2, 'the sixth starts a second')
+  assertEqual(rowsNeeded([{ w: 5, h: 1 }, one]), 2, 'a full-width strip leaves no room beside it')
+  assertEqual(rowsNeeded([{ w: 2, h: 2 }]), 2, 'a tall card claims two rows')
+
+  /* Dense flow: a later small card back-fills the hole a wide one left, so it
+     does NOT start a new row. Getting this wrong is what would make the
+     arranger refuse a size that actually fits. */
+  assertEqual(
+    rowsNeeded([{ w: 3, h: 1 }, { w: 1, h: 1 }, { w: 1, h: 1 }]),
+    1,
+    'small cards fill the gap beside a wide one',
+  )
+  assertEqual(
+    rowsNeeded([{ w: 2, h: 2 }, one, one, one, one, one, one]),
+    2,
+    'small cards pack around a 2x2 rather than below it',
+  )
+
+  // A card wider than the board is placed at full width, not refused: counting
+  // it as fitting would under-report the rows and let the board overflow.
+  assertEqual(rowsNeeded([{ w: 9, h: 1 }, one]), 2, 'an over-wide card is clamped to the board')
+
+  assertEqual(rowsThatFit(660, 150, 15), 4, 'four 150px rows and their gaps fit 660px')
+  assertEqual(rowsThatFit(150, 150, 15), 1, 'exactly one row fits its own height')
+  assertEqual(rowsThatFit(0, 150, 15), 1, 'never reports zero — something must be placeable')
+  assertEqual(rowsThatFit(660, 0, 15), 1, 'a zero row height cannot divide')
+}
+
 /** A pasted hex must survive the round trip, and a half-typed one must not
     be committed. */
 export function testHexRoundTrip(): void {
@@ -358,6 +395,7 @@ const TESTS: Array<[string, () => void]> = [
   ['colour and size do not clobber each other', testColourAndSizeDoNotClobber],
   ['ink stays readable on any chosen colour', testInkStaysReadable],
   ['hex codes round-trip and partials are refused', testHexRoundTrip],
+  ['row packing matches dense grid flow', testRowPacking],
   ['layouts saved under named sizes migrate', testLegacyNamedSizesMigrate],
   ['untouched dashboard writes no key', testUntouchedDashboardWritesNoKey],
   ['corrupt stored value degrades', testCorruptStoredValueDegrades],

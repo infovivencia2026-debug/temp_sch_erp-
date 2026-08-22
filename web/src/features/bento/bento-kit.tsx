@@ -233,7 +233,28 @@ export function Cell({
 }) {
   const t = tone ?? (dark ? 'dark' : 'plain')
   const baseStyle = accent && t === 'plain' ? { '--bento-card': `var(--bento-${accent}-tint)` } as React.CSSProperties : {}
-  const style = domain ? { ...baseStyle, backgroundColor: `var(--dom-${domain})`, color: `var(--dom-${domain}-text, var(--bento-ink))`, borderColor: 'transparent' } : baseStyle
+  /* A coloured card carries its own ink, and its quiet text is that same ink —
+     not a grey.
+
+     --bento-muted is #667085, chosen against a white card. Dropped onto a
+     saturated gold or a deep green it is neither the ink nor the ground: it
+     reads as washed-out and slightly dirty, which is what a label on these
+     cards looked like. Grey only works as "quieter" when the thing it is
+     quieter THAN is black on white.
+
+     So inside a domain card the muted tone becomes the card's own ink. The
+     hierarchy is already carried by size and weight — a 10px caps label
+     against a 40px figure is not at risk of competing — so the label can be
+     the same white the figure is, and simply be small. */
+  const style = domain
+    ? {
+        ...baseStyle,
+        backgroundColor: `var(--dom-${domain})`,
+        color: `var(--dom-${domain}-text, var(--bento-ink))`,
+        ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--bento-ink))`,
+        borderColor: 'transparent',
+      }
+    : baseStyle
   
   return (
     <div
