@@ -390,6 +390,13 @@ type generateReportCardsRequest struct {
 	Publish   bool   `json:"publish"`
 }
 
+var (
+	// Generate wrote nothing, and the three reasons a person can act on.
+	errExamHasNoPapers = errors.New("exam has no papers")
+	errSectionEmpty    = errors.New("section has no students")
+	errNothingToCard   = errors.New("nothing to card")
+)
+
 // generateReportCards computes totals, percentage, grade and rank for a
 // section and writes a report card per student.
 //
@@ -463,6 +470,33 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		created = int(tag.RowsAffected())
+
+		/* Nothing written is a failure, and it used to answer 200.
+
+		   Pressing Generate and being told nothing at all is the worst
+		   possible outcome: no card appears, no error appears, and the person
+		   cannot tell whether the button is broken, the marks are missing or
+		   they chose the wrong section. The two real causes are knowable here,
+		   so they are said. */
+		if created == 0 {
+			var papers, students int
+			if err := tx.QueryRow(r.Context(), `
+				SELECT (SELECT count(*)::int FROM exam_subjects WHERE exam_id = $1),
+				       (SELECT count(*)::int FROM enrollments
+				         WHERE section_id = $2 AND status = 'active')`,
+				examID, sectionID).Scan(&papers, &students); err != nil {
+				return err
+			}
+			switch {
+			case papers == 0:
+				return errExamHasNoPapers
+			case students == 0:
+				return errSectionEmpty
+			default:
+				return errNothingToCard
+			}
+		}
+
 		if !req.Publish {
 			return nil
 		}
@@ -481,6 +515,19 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 		   opens one card. */
 		return s.notifyReportCardPublished(r, tx, id.InstitutionID, sectionID)
 	})
+	switch {
+	case errors.Is(err, errExamHasNoPapers):
+		httpx.BadRequest(w, r,
+			"that exam has no papers, so there is nothing to build a card from. Add its subjects on the exam, then generate.")
+		return
+	case errors.Is(err, errSectionEmpty):
+		httpx.BadRequest(w, r, "no active students are enrolled in that section.")
+		return
+	case errors.Is(err, errNothingToCard):
+		httpx.BadRequest(w, r,
+			"no cards were written. Check that this exam covers the class this section belongs to.")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

@@ -207,6 +207,11 @@ func (s *Server) createSection(w http.ResponseWriter, r *http.Request) {
 
 var errNoAcademicYear = errors.New("no academic year")
 
+// An exam whose classes have no subjects attached: the papers cannot be built,
+// and an exam with no papers blocks marks, moderation and every report card
+// behind it.
+var errNoClassSubjects = errors.New("no class subjects")
+
 // --- subjects ---------------------------------------------------------------
 
 type subjectRequest struct {
@@ -802,25 +807,49 @@ func (s *Server) createExam(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		if len(req.ClassIDs) == 0 {
-			return nil
-		}
+		/* No classes named means every class, not no papers.
+
+		   An exam with no papers is not an exam: nothing can be timetabled
+		   against it, no marks can be entered, no report card can be built, and
+		   the whole chain behind it — question paper approval, moderation, the
+		   parent's result — has nothing to attach to. The form promises "a
+		   paper is created for every subject each selected class studies", and
+		   submitting it with nothing ticked used to return success and create
+		   an empty shell. A silent no-op that reports 201 is worse than a
+		   refusal, because the person who did it walks away believing it
+		   worked.
+
+		   So the empty case means what the sentence says: the whole school. A
+		   school that genuinely wants a paperless exam row can delete the
+		   papers; a school that ticked nothing by accident gets what it
+		   expected. */
+		allClasses := len(req.ClassIDs) == 0
 		tag, err := tx.Exec(r.Context(), `
 			INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id,
 			                           max_marks, pass_marks)
 			SELECT $1, $2::uuid, cs.id, $3, GREATEST(1, round($3 * 0.33))
 			  FROM class_subjects cs
-			 WHERE cs.class_id = ANY($4)
+			 WHERE $5::bool OR cs.class_id = ANY($4)
 			ON CONFLICT (exam_id, class_subject_id) DO NOTHING`,
-			id.InstitutionID, examID, req.MaxMarks, uuidArray(req.ClassIDs))
+			id.InstitutionID, examID, req.MaxMarks, uuidArray(req.ClassIDs), allClasses)
 		if err != nil {
 			return err
 		}
 		papers = int(tag.RowsAffected())
+		if papers == 0 {
+			// The only way to get here is a school with no subjects attached to
+			// its classes. Saying so beats an exam that looks scheduled.
+			return errNoClassSubjects
+		}
 		return nil
 	})
 	if errors.Is(err, errNoAcademicYear) {
 		httpx.BadRequest(w, r, "create an academic year before adding exams")
+		return
+	}
+	if errors.Is(err, errNoClassSubjects) {
+		httpx.BadRequest(w, r,
+			"no papers could be created, because none of the classes chosen have subjects attached yet. Set up class subjects first, then schedule the exam.")
 		return
 	}
 	if err != nil {

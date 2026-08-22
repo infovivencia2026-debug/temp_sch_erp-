@@ -16,6 +16,19 @@ interface ShortageRow {
 export default function AttendanceMonitoring() {
   const [threshold, setThreshold] = useState('75')
 
+  /* An empty shortage list has two meanings and they are opposites.
+   *
+   * "Every student is above the threshold" is a reassurance, and it was being
+   * shown to a school that has never marked a register — where the truth is
+   * that nobody knows. Reassuring somebody with an absence of data is how a
+   * problem stays invisible until the board asks for the register. */
+  const marked = useQuery({
+    queryKey: ['attendance-marked-any'],
+    queryFn: () => api.get<{ items: unknown[] }>('/api/v1/attendance?limit=1'),
+    retry: false,
+  })
+  const noRegisterYet = !marked.isLoading && (marked.data?.items?.length ?? 0) === 0
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['attendance-shortage', threshold],
     queryFn: () => api.get<List<ShortageRow>>(`/api/v1/principal/attendance-shortage?threshold=${threshold}`),
@@ -44,7 +57,11 @@ export default function AttendanceMonitoring() {
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Below threshold" value={rows.length} hint={`Under ${threshold}%`} />
+          <Stat
+            label="Below threshold"
+            value={noRegisterYet ? '—' : rows.length}
+            hint={noRegisterYet ? 'No register marked yet' : `Under ${threshold}%`}
+          />
           <Stat label="Critical" value={critical} hint="Under 60%" />
           <Stat
             label="Lowest"
@@ -62,7 +79,11 @@ export default function AttendanceMonitoring() {
             <Table
               head={['Admission no.', 'Student', 'Class', 'Present', 'Total', 'Attendance']}
               empty={!rows.length}
-              emptyLabel="Every student is above the threshold."
+              emptyLabel={
+                noRegisterYet
+                  ? 'No attendance has been marked yet, so nobody can be counted as short. This is not a clean bill of health.'
+                  : 'Every student is above the threshold.'
+              }
             >
               {rows.map((s) => (
                 <tr key={s.student_id}>

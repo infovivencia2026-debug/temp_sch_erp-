@@ -4,7 +4,7 @@ import { Printer, TriangleAlert } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Select, Loading, ErrorState,
+  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 
 /* One report card, for everybody who has to look at one.
@@ -91,15 +91,27 @@ export default function ReportCards() {
       ),
     enabled: !!sectionId && !!examId,
   })
+  /* Generate used to say nothing at all — no card, no error, no explanation —
+   * which leaves somebody unable to tell whether the button is broken, the
+   * marks are missing or they picked the wrong section. The server now refuses
+   * with a reason when it would write nothing; this shows both that and the
+   * count when it works. */
+  const [outcome, setOutcome] = useState('')
   const generate = useMutation({
     mutationFn: (publish: boolean) =>
-      api.post('/api/v1/exams/report-cards/generate', {
-        exam_id: examId, section_id: sectionId, publish,
-      }),
-    onSuccess: () => {
+      api.post<{ report_cards: number; published: boolean }>(
+        '/api/v1/exams/report-cards/generate',
+        { exam_id: examId, section_id: sectionId, publish },
+      ),
+    onSuccess: (r, publish) => {
+      setOutcome(
+        `${r.report_cards} report ${r.report_cards === 1 ? 'card' : 'cards'} ` +
+          (publish ? 'generated and published — the families have been told.' : 'generated. Nobody has been told yet; publish when you are ready.'),
+      )
       qc.invalidateQueries({ queryKey: ['report-cards', sectionId, examId] })
       qc.invalidateQueries({ queryKey: ['report-readiness', sectionId, examId] })
     },
+    onError: () => setOutcome(''),
   })
 
   const all = cards.data?.items ?? []
@@ -179,6 +191,8 @@ export default function ReportCards() {
         }
       />
       <PageBody>
+        {generate.error && <FormNotice error={generate.error} />}
+        {outcome && <FormNotice ok={outcome} />}
         <CellGrid cols={4}>
           <Stat label="Report cards" value={all.length} />
           <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
