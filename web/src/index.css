@@ -63,6 +63,7 @@
     --ground: 220 20% 97%;       /* #F7F8FA  page */
     --background: 220 20% 97%;
     --card: 0 0% 100%;           /* #FFFFFF  comes forward */
+    --card-default: 0 0% 100%;
     --surface-subtle: 220 20% 98.5%;
     --surface-hover: 220 14% 90%;  /* on the sidebar, so a step darker again */
     --card-foreground: 0 0% 0%;
@@ -198,6 +199,7 @@
     --surface-subtle: 0 0% 9%;
     --surface-hover: 0 0% 13%;
     --card: 0 0% 9%;             /* #171717  comes forward */
+    --card-default: 0 0% 9%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 9%;          /* #181818 */
     --popover-foreground: 0 0% 98%;
@@ -605,6 +607,7 @@
     --background: 0 0% 100%;
     --ground: 0 0% 100%;
     --card: 0 0% 100%;
+    --card-default: 0 0% 100%;
     --foreground: 0 0% 0%;
     --secondary-foreground: 0 0% 15%;
     --muted-foreground: 0 0% 30%;
@@ -819,7 +822,19 @@
   /* Cards are the one region that is many elements rather than one, so it is
      applied through the card token itself: everything already built on
      bg-card follows without being tagged individually. */
-  :root:has([data-paint]) { --card: var(--paint-cards-bg, var(--card-default, var(--card))); }
+  /* The last fallback must not be --card itself.
+
+     A custom property whose value references the property it is defining is
+     invalid, and an invalid custom property resolves to nothing — so
+     bg-card, which is hsl(var(--card)), rendered transparent. Every card,
+     dialog and menu in the product showed the page through it, including the
+     first-run tour, whose text then sat on top of the screen behind it.
+
+     data-paint is on the sidebar, the topbar and the work area, so this
+     selector matches on every page: it was never the "somebody chose a
+     colour" case it reads like. --card-default carries the theme's own value
+     and is defined beside --card in both themes. */
+  :root:has([data-paint]) { --card: var(--paint-cards-bg, var(--card-default)); }
 
   /* Accent is global by definition — buttons, links and focus rings are the
      same colour wherever they appear — so it overrides the primary tokens

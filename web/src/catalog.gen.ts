@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 376 features. */
+/** 12 roles, 384 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -350,6 +350,7 @@ export const ROLES: Role[] = [
           { key: 'hod.timetable.staff_timetable', slug: 'staff_timetable', name: 'Staff timetable', scope: 'department', tier: 'core', summary: 'Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after.' },
           { key: 'hod.timetable.department_timetable', slug: 'department_timetable', name: 'Department timetable', scope: 'department', tier: 'core', summary: 'The department\'s grid by class, by faculty and by room, read together so a gap in one is explained by the other two.' },
           { key: 'hod.timetable.substitution_requests', slug: 'substitution_requests', name: 'Substitution requests', scope: 'department', tier: 'core', summary: 'Cover requests from the department\'s teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately.' },
+          { key: 'hod.timetable.my_timetable', slug: 'my_timetable', name: 'My timetable', scope: 'assigned_classes', tier: 'core', summary: 'Their own teaching week: the periods they stand in front of a class for, apart from the master timetable they build for everybody else.' },
         ],
       },
       {
@@ -377,6 +378,41 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hod.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Own details and password.' },
           { key: 'hod.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. Approving the department\'s leave is a different screen.' },
+        ],
+      },
+      {
+        slug: 'attendance',
+        name: 'Attendance',
+        workspace: 'Department Workspace',
+        features: [
+          { key: 'hod.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Mark the register for the classes they teach.' },
+        ],
+      },
+      {
+        slug: 'teaching',
+        name: 'Teaching',
+        workspace: 'Department Workspace',
+        features: [
+          { key: 'hod.teaching.homework_classwork', slug: 'homework_classwork', name: 'Homework / classwork', scope: 'assigned_classes', tier: 'core', summary: 'Set and grade homework for their own classes, and see who has turned it in.' },
+          { key: 'hod.teaching.lesson_plans_content', slug: 'lesson_plans_content', name: 'Lesson plans / content', scope: 'assigned_classes', tier: 'core', summary: 'Write and submit their own lesson plans. Approving other teachers\' plans is a different screen.' },
+        ],
+      },
+      {
+        slug: 'marks_report_cards',
+        name: 'Marks & Report Cards',
+        workspace: 'Department Workspace',
+        features: [
+          { key: 'hod.marks_report_cards.marks_entry', slug: 'marks_entry', name: 'Marks entry', scope: 'assigned_classes', tier: 'core', summary: 'Enter exam marks for the papers they teach.' },
+          { key: 'hod.marks_report_cards.report_cards', slug: 'report_cards', name: 'Report cards', scope: 'assigned_classes', tier: 'core', summary: 'Generate and publish report cards for a section they are class teacher of.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Department Workspace',
+        features: [
+          { key: 'hod.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Notices home to the classes they teach, and the thread with a parent about one child.' },
+          { key: 'hod.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book and the thread with each of them.' },
         ],
       },
     ],

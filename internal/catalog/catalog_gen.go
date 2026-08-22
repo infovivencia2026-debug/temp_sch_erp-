@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 376 features.
+// Roles is the catalog: 12 roles, 384 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -397,6 +397,7 @@ var Roles = []Role{
 					{Key: "hod.timetable.staff_timetable", Slug: "staff_timetable", Name: "Staff timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after."},
 					{Key: "hod.timetable.department_timetable", Slug: "department_timetable", Name: "Department timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "The department's grid by class, by faculty and by room, read together so a gap in one is explained by the other two."},
 					{Key: "hod.timetable.substitution_requests", Slug: "substitution_requests", Name: "Substitution requests", Scope: Scope("department"), Tier: Tier("core"), Summary: "Cover requests from the department's teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately."},
+					{Key: "hod.timetable.my_timetable", Slug: "my_timetable", Name: "My timetable", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Their own teaching week: the periods they stand in front of a class for, apart from the master timetable they build for everybody else."},
 				},
 			},
 			{
@@ -424,6 +425,41 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
 					{Key: "hod.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave, and see where it has got to. Approving the department's leave is a different screen."},
+				},
+			},
+			{
+				Slug: "attendance",
+				Name: "Attendance",
+				Workspace: "Department Workspace",
+				Features: []Feature{
+					{Key: "hod.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark the register for the classes they teach."},
+				},
+			},
+			{
+				Slug: "teaching",
+				Name: "Teaching",
+				Workspace: "Department Workspace",
+				Features: []Feature{
+					{Key: "hod.teaching.homework_classwork", Slug: "homework_classwork", Name: "Homework / classwork", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Set and grade homework for their own classes, and see who has turned it in."},
+					{Key: "hod.teaching.lesson_plans_content", Slug: "lesson_plans_content", Name: "Lesson plans / content", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Write and submit their own lesson plans. Approving other teachers' plans is a different screen."},
+				},
+			},
+			{
+				Slug: "marks_report_cards",
+				Name: "Marks & Report Cards",
+				Workspace: "Department Workspace",
+				Features: []Feature{
+					{Key: "hod.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter exam marks for the papers they teach."},
+					{Key: "hod.marks_report_cards.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Generate and publish report cards for a section they are class teacher of."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Department Workspace",
+				Features: []Feature{
+					{Key: "hod.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notices home to the classes they teach, and the thread with a parent about one child."},
+					{Key: "hod.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book and the thread with each of them."},
 				},
 			},
 		},

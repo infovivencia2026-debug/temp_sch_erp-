@@ -244,6 +244,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * URL, which a teacher cannot open. One screen, both directions — the thread
    * is a pair of people, not a thing one of them owns. */
   'faculty.communication.messages': lazy(() => import('./comms/StaffMessages')),
+
+  /* A head of department teaches.
+   *
+   * They had the department's timetable, its cover and its leave, and none of
+   * the work they do in front of a class — no register, no homework, no marks,
+   * no lesson plan of their own, and no way to write to a parent. Every one of
+   * these is the screen a teacher already uses, pointed at from a second
+   * catalogue key: the same component, narrowed by the same scope, rather than
+   * a second copy that would drift. */
+  'hod.timetable.my_timetable': lazy(() => import('./shared/Timetable')),
+  'hod.attendance.take_attendance': lazy(() => import('./shared/Attendance')),
+  'hod.teaching.homework_classwork': lazy(() => import('./workflow/Homework')),
+  'hod.teaching.lesson_plans_content': lazy(() => import('./academics/Syllabus')),
+  'hod.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
+  'hod.marks_report_cards.report_cards': lazy(() => import('./exams/ReportCards')),
+  'hod.communication.communication': lazy(() => import('./faculty/Communication')),
+  'hod.communication.messages': lazy(() => import('./comms/StaffMessages')),
   'institution_admin.communication.circulars': lazy(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.

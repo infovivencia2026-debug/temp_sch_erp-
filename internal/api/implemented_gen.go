@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 377 of the catalog's features are implemented.
+// 385 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -124,12 +124,20 @@ var implementedFeatures = map[string]bool{
 	"finance.student_dues.student_ledger":                                            true,
 	"hod.academics.faculty_allocation":                                               true,
 	"hod.academics.language_subject_allocation":                                      true,
+	"hod.attendance.take_attendance":                                                 true,
+	"hod.communication.communication":                                                true,
+	"hod.communication.messages":                                                     true,
+	"hod.marks_report_cards.marks_entry":                                             true,
+	"hod.marks_report_cards.report_cards":                                            true,
 	"hod.my_profile.leave_self_service":                                              true,
 	"hod.my_profile.profile":                                                         true,
 	"hod.staff.leaves_subs":                                                          true,
 	"hod.staff.teacher_remarks":                                                      true,
+	"hod.teaching.homework_classwork":                                                true,
+	"hod.teaching.lesson_plans_content":                                              true,
 	"hod.timetable.class_timetable":                                                  true,
 	"hod.timetable.department_timetable":                                             true,
+	"hod.timetable.my_timetable":                                                     true,
 	"hod.timetable.staff_timetable":                                                  true,
 	"hod.timetable.substitution_requests":                                            true,
 	"hr.attendance.staff_attendance":                                                 true,
