@@ -801,6 +801,12 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			// here rather than left for each screen to re-derive.
 			"below_threshold": total > 0 && pct < 75,
 		}
+		/* Two different measures, and the header must not imply otherwise.
+		   outstanding_paise is what this child still owes on unpaid invoices of
+		   every academic year; paid_paise is every successful receipt ever
+		   taken on the account, across all years and including money not yet
+		   applied to any invoice. They do not add up to one year's bill, and
+		   the profile labels them so. */
 		out["fees"] = map[string]any{"outstanding_paise": duesPaise, "paid_paise": paidPaise}
 
 		if err := scanInto(r.Context(), tx, `

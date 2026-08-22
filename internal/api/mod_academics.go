@@ -277,17 +277,24 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	written := 0
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var maxMarks float64
+		var subject string
 		var scaleID *uuid.UUID
+		// The subject name comes back with the ceiling so a rejection can name
+		// the paper: "50 is above the maximum for Mathematics" is actionable,
+		// "marks out of range" is not.
 		if err := tx.QueryRow(r.Context(), `
-			SELECT es.max_marks, e.grading_scale_id
-			  FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
-			 WHERE es.id = $1`, esID).Scan(&maxMarks, &scaleID); err != nil {
+			SELECT es.max_marks, COALESCE(sub.name, ''), e.grading_scale_id
+			  FROM exam_subjects es
+			  JOIN exams e            ON e.id = es.exam_id
+			  LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
+			  LEFT JOIN subjects sub  ON sub.id = cs.subject_id
+			 WHERE es.id = $1`, esID).Scan(&maxMarks, &subject, &scaleID); err != nil {
 			return err
 		}
 
 		for _, e := range req.Entries {
-			if e.Marks != nil && (*e.Marks < 0 || *e.Marks > maxMarks) {
-				return errMarksOutOfRange
+			if verr := validateMark(subject, maxMarks, e.Marks); verr != nil {
+				return verr
 			}
 			sid, err := uuid.Parse(e.StudentID)
 			if err != nil {
@@ -330,8 +337,9 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if errors.Is(err, errMarksOutOfRange) {
-		httpx.BadRequest(w, r, "marks must be between zero and the paper maximum")
+	var ceiling *markCeilingError
+	if errors.As(err, &ceiling) {
+		httpx.BadRequest(w, r, ceiling.Error())
 		return
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -344,8 +352,6 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"written": written})
 }
-
-var errMarksOutOfRange = errors.New("marks out of range")
 
 type gradebookRow struct {
 	StudentID   string   `json:"student_id"`
@@ -434,7 +440,21 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			                     FROM student_attendance sa
 			                    WHERE sa.student_id = e.student_id), 0) AS attendance
 			    FROM enrollments e
-			    JOIN exam_subjects es ON es.exam_id = $1
+			    -- Only the papers this child's class actually sat.
+			    --
+			    -- This join used to be es.exam_id = $1 alone, with nothing
+			    -- correlating the paper to the enrolment: every enrolled child
+			    -- was crossed with every paper in the exam, school-wide. So
+			    -- max_total was the sum of every class's maxima and total was
+			    -- whatever of them this child happened to have marks for —
+			    -- which for a section whose class is not in the exam is
+			    -- nothing. That is the 0/400, 0%, D2-for-everyone report card:
+			    -- the denominator came from other classes' papers and the
+			    -- numerator from none. The class filter is the same one the
+			    -- report-card listing already applies to the subject breakdown.
+			    JOIN class_subjects cs ON cs.class_id = e.class_id
+			    JOIN exam_subjects es  ON es.exam_id = $1
+			                          AND es.class_subject_id = cs.id
 			    LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = e.student_id
 			   WHERE e.section_id = $2 AND e.status = 'active'
 			   GROUP BY e.student_id, e.id, e.academic_year_id

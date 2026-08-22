@@ -511,12 +511,18 @@ export default function StudentProfile() {
           value: `${p.attendance.percent}%`,
           tone: p.attendance.below_threshold ? 'bad' : 'good',
         },
+        // "Fees settled" over a bare 0 read as "nothing has been settled",
+        // the opposite of what it means. The nothing-due case says so in
+        // words; the amount is only shown when there is one.
         {
-          label: p.fees.outstanding_paise ? 'Outstanding' : 'Fees settled',
-          value: formatPaise(p.fees.outstanding_paise),
+          label: 'Outstanding',
+          value: p.fees.outstanding_paise ? formatPaise(p.fees.outstanding_paise) : 'Nothing due',
           tone: p.fees.outstanding_paise ? 'warn' : 'good',
         },
-        { label: 'Paid to date', value: formatPaise(p.fees.paid_paise) },
+        // Every receipt this child's account has ever taken, across all years
+        // and any advance not yet applied to a bill — which is why it can
+        // exceed the one invoice the Fees tab shows for this year.
+        { label: 'Receipts, all years', value: formatPaise(p.fees.paid_paise) },
       ]}
       tabs={tabs}
       actions={actions}

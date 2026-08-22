@@ -2749,8 +2749,6 @@ type summativeSaveRequest struct {
 	} `json:"entries"`
 }
 
-var errSummativeOutOfRange = errors.New("a mark outside the paper's range")
-
 /*
 saveSummativeMarks enters a summative paper's marks, scoped to the teacher.
 
@@ -2787,11 +2785,18 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var csID uuid.UUID
 		var maxMarks float64
+		var subject string
 		var scaleID *uuid.UUID
+		// Subject name fetched alongside the ceiling so a rejected mark can say
+		// which paper it was out of, the same as the admin entry path.
 		if err := tx.QueryRow(r.Context(), `
-			SELECT es.class_subject_id, es.max_marks, e.grading_scale_id
-			  FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
-			 WHERE es.id = $1`, esID).Scan(&csID, &maxMarks, &scaleID); err != nil {
+			SELECT es.class_subject_id, es.max_marks, COALESCE(sub.name, ''),
+			       e.grading_scale_id
+			  FROM exam_subjects es
+			  JOIN exams e            ON e.id = es.exam_id
+			  LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
+			  LEFT JOIN subjects sub  ON sub.id = cs.subject_id
+			 WHERE es.id = $1`, esID).Scan(&csID, &maxMarks, &subject, &scaleID); err != nil {
 			return err
 		}
 		ok, cerr := classSubjectTaught(r.Context(), tx, res, csID)
@@ -2814,8 +2819,8 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 			if !reach {
 				return errNotTaught
 			}
-			if e.Marks != nil && (*e.Marks < 0 || *e.Marks > maxMarks) {
-				return errSummativeOutOfRange
+			if verr := validateMark(subject, maxMarks, e.Marks); verr != nil {
+				return verr
 			}
 
 			// Grade is derived from the school's band table, never taken from
@@ -2855,6 +2860,7 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	var ceiling *markCeilingError
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		httpx.NotFound(w, r)
@@ -2862,8 +2868,8 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errNotTaught):
 		httpx.Forbidden(w, r, "entering marks for this class")
 		return
-	case errors.Is(err, errSummativeOutOfRange):
-		httpx.BadRequest(w, r, "marks must be between zero and the paper maximum")
+	case errors.As(err, &ceiling):
+		httpx.BadRequest(w, r, ceiling.Error())
 		return
 	case err != nil:
 		httpx.Internal(w, r, err)

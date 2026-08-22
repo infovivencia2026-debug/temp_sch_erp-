@@ -689,17 +689,50 @@ func seedDemoData(ctx context.Context, db *database.DB, institution string) erro
 			return fmt.Errorf("invoices: %w", err)
 		}
 
+		/* Every invoice needs its lines, or "collection by fee head" is empty.
+
+		   getCollectionByHead apportions each allocation across the lines of
+		   the invoice it was applied to; an invoice with a gross amount and no
+		   lines therefore contributes to no head at all, and the report reads
+		   "Nothing to show" while lakhs sit in the collection total. The split
+		   below sums exactly to the 45,000 gross so the apportionment ties
+		   back to the allocated total. */
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id,
+			                           description, amount_paise)
+			SELECT $1, i.id, fh.id, fh.name, h.amount_paise
+			  FROM invoices i
+			  CROSS JOIN (VALUES ('TUI', 3000000::bigint), ('TRN', 900000::bigint),
+			                     ('LAB', 400000::bigint), ('SPT', 200000::bigint)) AS h(code, amount_paise)
+			  JOIN fee_heads fh ON fh.institution_id = $1 AND fh.code = h.code
+			 WHERE i.institution_id = $1
+			   AND NOT EXISTS (SELECT 1 FROM invoice_lines il WHERE il.invoice_id = i.id)`,
+			inst); err != nil {
+			return fmt.Errorf("invoice_lines: %w", err)
+		}
+
 		// Payments allocate against the invoice, which fires sync_invoice_paid
 		// and moves the invoice to paid/partial automatically.
+		//
+		// collected_by is set here because the counter-wise cash book groups on
+		// it: seeded with NULL, every receipt landed under "Unattributed" and
+		// the collector report was unusable.
 		if _, err := tx.Exec(ctx, `
 			WITH pay AS (
 			  INSERT INTO payments (institution_id, campus_id, student_id, receipt_no,
-			                        amount_paise, mode, paid_on, status)
+			                        amount_paise, mode, paid_on, status, collected_by)
 			  SELECT $1, $2, i.student_id, 'RCPT-' || i.invoice_no,
 			         CASE WHEN random() < 0.75 THEN i.gross_paise ELSE i.gross_paise / 2 END,
 			         (ARRAY['cash','upi','card','netbanking'])[1 + floor(random()*4)::int],
-			         CURRENT_DATE - floor(random()*15)::int, 'success'
+			         CURRENT_DATE - floor(random()*15)::int, 'success', c.user_id
 			    FROM invoices i
+			    LEFT JOIN LATERAL (
+			        SELECT e.user_id,
+			               row_number() OVER (ORDER BY e.employee_code) AS rn,
+			               count(*) OVER () AS total
+			          FROM employees e
+			         WHERE e.institution_id = $1 AND e.user_id IS NOT NULL
+			    ) c ON c.rn = 1 + (abs(hashtext(i.id::text)) % GREATEST(c.total, 1))
 			   WHERE i.institution_id = $1 AND random() < 0.7
 			  ON CONFLICT DO NOTHING
 			  RETURNING id, student_id, amount_paise
@@ -709,6 +742,27 @@ func seedDemoData(ctx context.Context, db *database.DB, institution string) erro
 			  FROM pay p JOIN invoices i ON i.student_id = p.student_id
 			ON CONFLICT DO NOTHING`, inst, campus); err != nil {
 			return fmt.Errorf("payments: %w", err)
+		}
+
+		/* Top-up for schools seeded before collected_by was set above: without
+		   it a demo that was already seeded keeps showing 113 of 132 receipts
+		   as "Unattributed". Scoped to this demo institution's own seeded
+		   receipt numbers, and only where nobody is recorded. */
+		if _, err := tx.Exec(ctx, `
+			UPDATE payments p SET collected_by = c.user_id
+			  FROM (
+			      SELECT e.user_id,
+			             row_number() OVER (ORDER BY e.employee_code) AS rn,
+			             count(*) OVER () AS total
+			        FROM employees e
+			       WHERE e.institution_id = $1 AND e.user_id IS NOT NULL
+			  ) c
+			 WHERE p.institution_id = $1
+			   AND p.collected_by IS NULL
+			   AND p.receipt_no LIKE 'RCPT-INV-%'
+			   AND c.rn = 1 + (abs(hashtext(p.id::text)) % GREATEST(c.total, 1))`,
+			inst); err != nil {
+			return fmt.Errorf("payments collected_by: %w", err)
 		}
 
 		// Spread subject teaching across the staff who have logins, so

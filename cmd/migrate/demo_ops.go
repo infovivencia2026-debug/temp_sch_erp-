@@ -97,12 +97,25 @@ func seedExams(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID) (in
 		}
 	}
 
-	// Marks for every paper that has none, whoever created it.
+	/* Marks for every paper that has none, whoever created it.
+
+	   Scaled to each paper's own maximum, not to the 50 this seed happens to
+	   use for the papers it creates. The literal "18 + hash % 33" wrote marks
+	   up to 50 onto whatever papers it found, including papers out of 20
+	   created elsewhere — which is where "Average 169%", subject averages to
+	   190% and a 250% range on Performance overview came from. The seed was
+	   the only writer producing them; both marks-entry endpoints already
+	   refuse a mark above the ceiling.
+
+	   35%-100% of the paper, deterministic per (paper, student) so re-seeding
+	   does not reshuffle a gradebook somebody is looking at. round() to two
+	   places matches numeric(6,2) and keeps 33.333 out of a mark sheet. */
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO marks (institution_id, exam_subject_id, student_id, marks_obtained,
 		                   is_absent, entered_at)
 		SELECT $1, es.id, e.student_id,
-		       18 + (abs(hashtext(es.id::text || e.student_id::text)) % 33),
+		       round(es.max_marks * (0.35 + 0.65 *
+		             (abs(hashtext(es.id::text || e.student_id::text)) % 100) / 99.0), 2),
 		       false, now()
 		  FROM exam_subjects es
 		  JOIN class_subjects cs ON cs.id = es.class_subject_id

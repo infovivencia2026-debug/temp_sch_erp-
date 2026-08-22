@@ -47,10 +47,14 @@ func (s *Server) getFinanceDashboard(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			SELECT
+			  -- Collected means money that arrived. Adjustments are write-offs,
+			  -- excluded here as they are in the day book and the tie-out, so a
+			  -- cashier's drawer figure and the collection report agree.
 			  COALESCE((SELECT sum(amount_paise) FROM payments
-			             WHERE status='success' AND paid_on = CURRENT_DATE), 0),
+			             WHERE status='success' AND mode <> 'adjustment'
+			               AND paid_on = CURRENT_DATE), 0),
 			  COALESCE((SELECT sum(amount_paise) FROM payments
-			             WHERE status='success'
+			             WHERE status='success' AND mode <> 'adjustment'
 			               AND paid_on::date BETWEEN $1::date AND $2::date), 0),
 			  COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices
 			             WHERE status IN ('unpaid','partial','overdue')), 0),

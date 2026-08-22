@@ -639,6 +639,21 @@ getFeeOverview powers institution_admin.fees.fee_overview.
 	operational screens — receipt entry, invoice generation, the student ledger
 	— stay in the finance module and are not duplicated here.
 
+	THE THREE WORDS, DEFINED ONCE (the dashboard uses these same definitions):
+
+	  demanded/billed  sum(invoices.net_paise)         academic year shown, status <> 'cancelled'.
+	                   net is gross - discount + fine, so concessions are already
+	                   netted off and fines are already in.
+	  collected        sum(invoices.paid_paise)        the same rows. This is money APPLIED to
+	                   this year's bills, not receipts banked: an advance nobody
+	                   has allocated yet, and a receipt settling last year's
+	                   arrears, are both real money and neither belongs here.
+	                   The day book's "collected" is the receipt measure.
+	  outstanding      sum(net_paise - paid_paise)     the same rows, as of now.
+
+	Excluded everywhere: cancelled invoices. Not excluded: fines, because a
+	fine is billed and is owed.
+
 	Class is taken from the enrolment for the invoice's own academic year, not
 	from the student's latest enrolment. The "latest" shortcut used elsewhere
 	reads last year's arrears as though they belonged to this year's class,
@@ -649,8 +664,12 @@ func (s *Server) getFeeOverview(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	out := feeOverviewView{
 		ByClass: []feeClassRow{},
-		AsOfNote: "Outstanding and defaulters are levels, true as of now; " +
-			"demanded and collected cover the academic year shown.",
+		AsOfNote: "Every figure here is this year's bills only: demanded is what " +
+			"was billed for the year, collected is what has been applied to those " +
+			"bills, outstanding is the unpaid remainder of them as of now. Debt " +
+			"carried in from earlier years is not counted here — the ageing table " +
+			"below and the executive dashboard both include it, which is why " +
+			"their outstanding figure is the larger one.",
 	}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -747,6 +766,13 @@ type feeAgeingRow struct {
 
 /*
 getFeeAgeing buckets what is outstanding by how long it has been outstanding.
+
+	Deliberately NOT filtered to one academic year: money owed from two years
+	ago is exactly what an ageing table exists to surface, and bucketing only
+	this year's bills would put the oldest debt in no bucket at all. This is
+	why the ageing total exceeds fee_overview's outstanding, which is this
+	year's bills only; the screen says so rather than leaving two numbers to
+	contradict each other silently.
 
 	The buckets are the ones an Indian school's committee asks for, and the
 	predicate is the one the rest of the codebase uses: status IN (unpaid,

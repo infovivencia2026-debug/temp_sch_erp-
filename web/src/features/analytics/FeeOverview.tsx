@@ -92,7 +92,7 @@ export default function FeeOverview() {
           <Stat
             label="Outstanding"
             value={formatPaise(t.outstanding_paise)}
-            hint={`${t.defaulters} past due`}
+            hint={`${t.defaulters} past due · this year's bills only`}
             period="As of now"
           />
           <Stat
@@ -140,7 +140,7 @@ export default function FeeOverview() {
           <Card>
             <CardHeader
               title="Ageing of what is outstanding"
-              description="How long the money has been owed."
+              description="How long the money has been owed. Every unpaid invoice, including arrears carried in from earlier years — so this total is larger than the year's outstanding above."
               action={<CsvButton href={AGEING} />}
             />
             {ageing.isLoading ? (

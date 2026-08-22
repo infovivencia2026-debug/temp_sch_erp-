@@ -21,6 +21,23 @@ type principalKPIs struct {
 	CollectedPaise   int64 `json:"collected_paise"`
 	OutstandingPaise int64 `json:"outstanding_paise"`
 	Defaulters       int   `json:"defaulters"`
+
+	/* The year trio, defined identically to institution_admin fee_overview so
+	   the two screens cannot print different numbers under the same word.
+
+	     BilledPaise       sum(invoices.net_paise)              current academic year, status <> 'cancelled'
+	     CollectedYearPais sum(invoices.paid_paise)             same rows — money applied to this year's bills
+	     OutstandingYearP  sum(net_paise - paid_paise)          same rows
+
+	   CollectedPaise above is a different measure and keeps its own name: it
+	   is receipts banked inside the requested range, whatever year's invoice
+	   they settle and whether or not they have been applied to one at all.
+	   OutstandingPaise is every unpaid invoice of every year — the arrears the
+	   school is actually owed — and is therefore larger than
+	   OutstandingYearPaise by exactly the debt carried in from earlier years. */
+	BilledPaise       int64 `json:"billed_paise"`
+	CollectedYearPais int64 `json:"collected_year_paise"`
+	OutstandingYearP  int64 `json:"outstanding_year_paise"`
 	PendingLeave     int   `json:"pending_leave"`
 	OpenApplications int   `json:"open_applications"`
 	UnassignedSubj   int   `json:"unassigned_subjects"`
@@ -66,8 +83,12 @@ func (s *Server) getPrincipalDashboard(w http.ResponseWriter, r *http.Request) {
 			             WHERE on_date BETWEEN $1::date AND $2::date), 0),
 			  (SELECT count(*) FROM student_attendance
 			    WHERE on_date BETWEEN $1::date AND $2::date),
+			  -- Adjustments are excluded: a write-off is an accounting entry,
+			  -- not a rupee that arrived. The day book (getCollectionSummary)
+			  -- has always excluded them; including them here is what made the
+			  -- dashboard's "collected" exceed every other screen's.
 			  COALESCE((SELECT sum(amount_paise) FROM payments
-			             WHERE status = 'success'
+			             WHERE status = 'success' AND mode <> 'adjustment'
 			               AND paid_on::date BETWEEN $1::date AND $2::date), 0),
 			  COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices
 			             WHERE status IN ('unpaid','partial','overdue')), 0),
@@ -80,10 +101,27 @@ func (s *Server) getPrincipalDashboard(w http.ResponseWriter, r *http.Request) {
 			  -- Subjects offered by a class with nobody timetabled to teach them.
 			  (SELECT count(*) FROM class_subjects cs
 			    WHERE NOT EXISTS (SELECT 1 FROM section_subject_teachers sst
-			                       WHERE sst.class_subject_id = cs.id))
+			                       WHERE sst.class_subject_id = cs.id)),
+			  -- The year trio. Same rows, same predicate, same current-year
+			  -- pick as fee_overview; billed is never derived as collected +
+			  -- outstanding, which added a period flow to an all-years level
+			  -- and called the sum "billed".
+			  COALESCE((SELECT sum(i.net_paise) FROM invoices i
+			             WHERE i.status <> 'cancelled' AND i.academic_year_id =
+			               (SELECT id FROM academic_years
+			                 ORDER BY is_current DESC, starts_on DESC LIMIT 1)), 0),
+			  COALESCE((SELECT sum(i.paid_paise) FROM invoices i
+			             WHERE i.status <> 'cancelled' AND i.academic_year_id =
+			               (SELECT id FROM academic_years
+			                 ORDER BY is_current DESC, starts_on DESC LIMIT 1)), 0),
+			  COALESCE((SELECT sum(i.net_paise - i.paid_paise) FROM invoices i
+			             WHERE i.status <> 'cancelled' AND i.academic_year_id =
+			               (SELECT id FROM academic_years
+			                 ORDER BY is_current DESC, starts_on DESC LIMIT 1)), 0)
 		`, rng.FromS, rng.ToS).Scan(&k.Students, &k.Staff, &k.Sections, &k.AttendanceToday, &k.MarkedToday,
 			&k.CollectedPaise, &k.OutstandingPaise, &k.Defaulters,
-			&k.PendingLeave, &k.OpenApplications, &k.UnassignedSubj)
+			&k.PendingLeave, &k.OpenApplications, &k.UnassignedSubj,
+			&k.BilledPaise, &k.CollectedYearPais, &k.OutstandingYearP)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
