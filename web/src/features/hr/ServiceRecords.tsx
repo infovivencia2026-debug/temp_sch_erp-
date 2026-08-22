@@ -129,18 +129,18 @@ export default function ServiceRecords() {
     <>
       <PageHead
         eyebrow="Employees"
-        title="Service records and verification"
-        description="The service book, the qualifications a board counts, and the two clearances that expire — medical fitness and police verification."
+        title="Staff service & verification records"
+        description="Career histories, the degrees a board counts, medical fitness certificates and police background verifications — with the two that expire flagged before they lapse."
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Fitness certificates" value={meds.length} icon={HeartPulse} />
-          <Stat label="Expiring within 60 days" value={expiring.length}
+          <Stat label="Valid medical certificates" value={meds.length} icon={HeartPulse} />
+          <Stat label="Expiring soon" value={expiring.length}
             delta={expiring.length
               ? { value: 'Book the examinations', positive: false }
               : { value: 'Nothing falls due', positive: true }} />
-          <Stat label="Background checks" value={checks.length} icon={ShieldAlert} />
-          <Stat label="Not currently clear" value={noPolice.length}
+          <Stat label="Cleared backgrounds" value={checks.length} icon={ShieldAlert} />
+          <Stat label="Pending or lapsed checks" value={noPolice.length}
             hint="Requested, adverse, or lapsed past its re-check date" />
         </CellGrid>
 

@@ -69,9 +69,9 @@ interface Doc {
 
 type Tab = 'staff' | 'documents' | 'ids'
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'staff', label: 'Staff list' },
-  { key: 'documents', label: 'Documents & expiry' },
-  { key: 'ids', label: 'Print ID cards' },
+  { key: 'staff', label: 'Staff directory' },
+  { key: 'documents', label: 'Document expiry tracker' },
+  { key: 'ids', label: 'Batch ID card printing' },
 ]
 
 export default function Employees() {
@@ -131,7 +131,7 @@ export default function Employees() {
       <PageHead
         eyebrow="Employees"
         title="Staff records"
-        description="Who works here, and which of their papers are about to lapse."
+        description="Manage active staff, track which of their documents are running out, and print ID cards."
       />
       <PageBody>
         <div className="no-print flex flex-wrap items-center gap-1 border-b">
