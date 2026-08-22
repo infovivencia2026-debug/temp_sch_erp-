@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 347 of the catalog's features are implemented.
+// 344 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -118,12 +118,12 @@ var implementedFeatures = map[string]bool{
 	"hod.timetable.my_timetable":                                                     true,
 	"hod.timetable.staff_timetable":                                                  true,
 	"hod.timetable.substitution_requests":                                            true,
-	"hr.attendance.staff_attendance":                                                 true,
-	"hr.attendance.staff_shift_rostering":                                            true,
+	"hr.attendance.staff_duty_roster":                                                true,
+	"hr.attendance.staff_register":                                                   true,
 	"hr.hiring_training.staff_hiring":                                                true,
 	"hr.hiring_training.staff_performance_reviews":                                   true,
 	"hr.hiring_training.staff_training_development":                                  true,
-	"hr.home.hr_kpis":                                                                true,
+	"hr.home.dashboard":                                                              true,
 	"hr.leave.leave":                                                                 true,
 	"hr.leave.leave_rules":                                                           true,
 	"hr.my_profile.my_pay":                                                           true,
@@ -134,11 +134,8 @@ var implementedFeatures = map[string]bool{
 	"hr.records.service_book_qualifications":                                         true,
 	"hr.records.staff_records":                                                       true,
 	"hr.reports.hr_reports":                                                          true,
-	"hr.verification.medical_fitness_certificate_registry":                           true,
-	"hr.verification.staff_criminal_background_verification":                         true,
-	"hr.welfare.staff_birthday_anniversary_alerts":                                   true,
-	"hr.welfare.staff_grievance_cell":                                                true,
-	"hr.welfare.staff_recognition_wall":                                              true,
+	"hr.reports.staff_analytics_reports":                                             true,
+	"hr.welfare.staff_welfare":                                                       true,
 	"institution_admin.academics.attendance_audit":                                   true,
 	"institution_admin.academics.class_setup":                                        true,
 	"institution_admin.academics.curriculum_roadmap":                                 true,

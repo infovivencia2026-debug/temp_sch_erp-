@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 343 features. */
+/** 12 roles, 339 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -823,16 +823,7 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'hr.home.hr_kpis', slug: 'hr_kpis', name: 'HR KPIs', scope: 'institution', tier: 'core', summary: 'Headcount, present/absent today, leave pending, new joiners and payroll status if payroll enabled.' },
-        ],
-      },
-      {
-        slug: 'verification',
-        name: 'Verification',
-        workspace: 'Employees',
-        features: [
-          { key: 'hr.verification.staff_criminal_background_verification', slug: 'staff_criminal_background_verification', name: 'Staff Criminal Background Verification', scope: 'institution', tier: 'advanced', summary: 'Upload and verify third-party police verification certificates for all teaching and non-teaching staff.' },
-          { key: 'hr.verification.medical_fitness_certificate_registry', slug: 'medical_fitness_certificate_registry', name: 'Medical Fitness Certificate Registry', scope: 'institution', tier: 'advanced', summary: 'Track mandatory annual medical fitness clearances for food handlers, bus drivers, and nannies.' },
+          { key: 'hr.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'Who is away today and whose classes need covering, what paperwork is lapsing or missing, and the three jobs a day is mostly made of.' },
         ],
       },
       {
@@ -840,10 +831,10 @@ export const ROLES: Role[] = [
         name: 'Attendance',
         workspace: 'Attendance & Leave',
         features: [
-          { key: 'hr.attendance.staff_attendance', slug: 'staff_attendance', name: 'Staff attendance', scope: 'institution', tier: 'core', summary: 'Employee attendance, late/early records and attendance reports.' },
+          { key: 'hr.attendance.staff_register', slug: 'staff_register', name: 'Staff register', scope: 'institution', tier: 'core', summary: 'Today\'s attendance for every active member of staff, marked in one pass.' },
           { key: 'hr.attendance.biometric_machine_attendance_sync', slug: 'biometric_machine_attendance_sync', name: 'Biometric Machine Attendance Sync', scope: 'institution', tier: 'advanced', summary: 'Real-time automated fetch of staff check-in/out logs from biometric hardware.' },
           { key: 'hr.attendance.biometric_punch_in_out_grace_period', slug: 'biometric_punch_in_out_grace_period', name: 'Biometric Punch In/Out Grace Period', scope: 'institution', tier: 'advanced', summary: 'Configure 10-minute grace windows for morning staff check-in before triggering late mark deductions.' },
-          { key: 'hr.attendance.staff_shift_rostering', slug: 'staff_shift_rostering', name: 'Staff Shift & Rostering', scope: 'institution', tier: 'core', summary: 'Configure morning, afternoon, or administrative staff shift timings and rotational rosters.' },
+          { key: 'hr.attendance.staff_duty_roster', slug: 'staff_duty_roster', name: 'Staff duty roster', scope: 'institution', tier: 'core', summary: 'Assign staff to campus duties - gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they teach.' },
         ],
       },
       {
@@ -866,21 +857,11 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'welfare',
-        name: 'Welfare',
-        workspace: 'People',
-        features: [
-          { key: 'hr.welfare.staff_grievance_cell', slug: 'staff_grievance_cell', name: 'Staff Grievance Cell', scope: 'institution', tier: 'advanced', summary: 'Confidential ticketing channel for staff members to report workplace issues to management.' },
-          { key: 'hr.welfare.staff_recognition_wall', slug: 'staff_recognition_wall', name: 'Staff Recognition & Wall', scope: 'institution', tier: 'optional', summary: 'Broadcast \'Teacher of the Month\' awards, peer praises, and school achievements.' },
-          { key: 'hr.welfare.staff_birthday_anniversary_alerts', slug: 'staff_birthday_anniversary_alerts', name: 'Staff Birthday & Anniversary Alerts', scope: 'institution', tier: 'optional', summary: 'Trigger automated birthday and work anniversary greetings across app and staff wall.' },
-        ],
-      },
-      {
         slug: 'reports',
         name: 'Reports',
         workspace: 'Reports',
         features: [
-          { key: 'hr.reports.hr_reports', slug: 'hr_reports', name: 'HR reports', scope: 'institution', tier: 'core', summary: 'Headcount, attendance, leave and payroll summaries.' },
+          { key: 'hr.reports.staff_analytics_reports', slug: 'staff_analytics_reports', name: 'Staff analytics & reports', scope: 'institution', tier: 'core', summary: 'Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal.' },
         ],
       },
       {
@@ -916,6 +897,14 @@ export const ROLES: Role[] = [
           { key: 'hr.payroll.monthly_payroll', slug: 'monthly_payroll', name: 'Monthly payroll', scope: 'institution', tier: 'core', summary: 'Run the month\'s salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee\'s days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them.' },
           { key: 'hr.payroll.salary_setup', slug: 'salary_setup', name: 'Salary setup', scope: 'institution', tier: 'core', summary: 'What each member of staff is paid, and the components a payslip is built from — basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year\'s payslips still explain themselves.' },
           { key: 'hr.payroll.taxes_statutory', slug: 'taxes_statutory', name: 'Taxes & statutory', scope: 'institution', tier: 'core', summary: 'Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff.' },
+        ],
+      },
+      {
+        slug: 'welfare',
+        name: 'Welfare',
+        workspace: 'People',
+        features: [
+          { key: 'hr.welfare.staff_welfare', slug: 'staff_welfare', name: 'Staff welfare', scope: 'institution', tier: 'core', summary: 'Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week.' },
         ],
       },
     ],

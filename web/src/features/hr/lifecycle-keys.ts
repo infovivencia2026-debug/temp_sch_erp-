@@ -1,4 +1,3 @@
-import { lazy } from 'react'
 
 /**
  * The staff lifecycle screens, keyed by catalogue feature.
@@ -15,10 +14,4 @@ import { lazy } from 'react'
  * separate screens would each show a fifteenth of an answer.
  */
 export const hrLifecycleKeys = {
-  'hr.verification.medical_fitness_certificate_registry': lazy(() => import('./ServiceRecords')),
-  'hr.verification.staff_criminal_background_verification': lazy(() => import('./ServiceRecords')),
-
-  'hr.welfare.staff_birthday_anniversary_alerts': lazy(() => import('./Welfare')),
-  'hr.welfare.staff_grievance_cell': lazy(() => import('./Welfare')),
-  'hr.welfare.staff_recognition_wall': lazy(() => import('./Welfare')),
 }

@@ -127,7 +127,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'student.fees.fees': lazy(() => import('./portal/Fees')),
   'admissions.home.admissions_kpis': lazy(() => import('./admissions/Dashboard')),
   'admissions.home.follow_ups': lazy(() => import('./admissions/Dashboard')),
-  'hr.home.hr_kpis': lazy(() => import('./hr/Dashboard')),
   'student.home.my_day': lazy(() => import('./portal/Portal')),
   'student.attendance.attendance': lazy(() => import('./portal/Portal')),
   'student.timetable.timetable': lazy(() => import('./shared/Timetable')),
@@ -270,7 +269,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      that lapses quietly. Both staff-attendance endpoints existed with no
      caller, which is why every dashboard's "teachers absent" read an empty
      table. */
-  'hr.attendance.staff_attendance': lazy(() => import('./hr/StaffAttendance')),
 
   /* Fees: the two ways money leaves a ledger, and the two ways it arrives.
      Concessions and refunds share a screen because they are one decision from
@@ -444,6 +442,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.hiring_training.staff_hiring': lazy(() => import('./hr/Recruitment')),
   'hr.hiring_training.staff_performance_reviews': lazy(() => import('./hr/Appraisal')),
   'hr.hiring_training.staff_training_development': lazy(() => import('./hr/Training')),
+  'hr.home.dashboard': lazy(() => import('./hr/Dashboard')),
+  'hr.attendance.staff_register': lazy(() => import('./hr/StaffAttendance')),
+  'hr.attendance.staff_duty_roster': lazy(() => import('./hr/Rostering')),
+  'hr.reports.staff_analytics_reports': lazy(() => import('./analytics/HRReports')),
+  'hr.welfare.staff_welfare': lazy(() => import('./hr/Welfare')),
   'hr.records.staff_records': lazy(() => import('./hr/Employees')),
   'hr.records.service_book_qualifications': lazy(() => import('./hr/ServiceRecords')),
   ...financeKeys,

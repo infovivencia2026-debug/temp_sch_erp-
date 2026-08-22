@@ -1,4 +1,3 @@
-import { lazy } from 'react'
 
 /* Hiring, appraisal, training and duty rostering, keyed by catalogue feature.
 
@@ -18,5 +17,4 @@ import { lazy } from 'react'
    lacks renders the honest placeholder instead of the screen, which is a
    silent way to lose a feature that looks finished from the code. */
 export const hrGrowthKeys = {
-  'hr.attendance.staff_shift_rostering': lazy(() => import('./Rostering')),
 }
