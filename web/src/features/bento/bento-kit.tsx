@@ -334,7 +334,18 @@ export function StatCell({
 }) {
   return (
     <Cell span={span} accent={accent} domain={domain}>
-      <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.06em] text-[var(--bento-muted)]">{label}</p>
+      {/* The whisper. Small, wide-tracked, all caps — it gives the figure its
+          subject and then gets out of the way.
+
+          Semibold rather than bold: at 10px with 0.14em of tracking, extra
+          weight stops reading as emphasis and starts reading as noise, and the
+          label is not what the eye is meant to land on. */}
+      <p
+        className="text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                   text-[var(--bento-muted)]"
+      >
+        {label}
+      </p>
       <div className="mt-2 flex flex-wrap items-center gap-2.5">
         {/* Sized against the viewport, not fixed.
 
@@ -346,8 +357,18 @@ export function StatCell({
             reaches the point where the card has to choose between clipping and
             a scrollbar. */}
         <p
-          className="font-extrabold leading-none tracking-[-0.03em] tabular-nums
-                     text-[clamp(24px,3.1vh,32px)]"
+          /* The shout. Bigger, tighter and the first thing the eye finds.
+
+             The ceiling goes from 32 to 40 because at 32 the figure was
+             competing with the card's own title rather than dominating it; the
+             floor stays at 26 so a short window still fits four rows. Tracking
+             is negative because large figures set at their default spacing
+             read as loose — the counters are already wide at this size.
+
+             tabular-nums so a column of them lines up on the decimal, which is
+             the whole reason a dashboard of money is readable at a glance. */
+          className="font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
+                     text-[clamp(26px,3.6vh,40px)]"
         >
           {value}
         </p>
@@ -355,7 +376,9 @@ export function StatCell({
       </div>
       {shape && <div className="mt-3">{shape}</div>}
       {note && (
-        <p className="mt-2 text-[11.5px] leading-tight text-[var(--bento-muted)]">{note}</p>
+        /* The subtext, and deliberately quiet: small, muted, and never
+           competing with the figure it qualifies. */
+        <p className="mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">{note}</p>
       )}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>

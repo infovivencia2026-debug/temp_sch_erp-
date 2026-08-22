@@ -131,7 +131,10 @@ export default function BentoPrincipalDashboard() {
         </p>
 
         <div className="mt-5">
-          <p className="text-[72px] font-semibold leading-[0.9] tracking-[-0.03em] tabular-nums">
+          {/* The hero figure carries the same rule as the small ones, one step
+              further: heavier and tighter, because at 72px semibold reads thin
+              and default tracking reads gappy. */}
+          <p className="text-[72px] font-extrabold leading-[0.88] tracking-[-0.04em] tabular-nums">
             {k.attendance_today_pct}%
           </p>
           <p className="mt-2 text-[12.5px] opacity-75">
