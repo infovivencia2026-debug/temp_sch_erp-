@@ -302,17 +302,52 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			if berr != nil {
 				return berr
 			}
-			if err := sp.QueryRow(r.Context(), `
-				INSERT INTO users (institution_id, username, email, phone, full_name,
-				                   password_hash, status)
-				VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active')
-				RETURNING id`,
-				id.InstitutionID, username, p.email, p.phone, p.name, hash).Scan(&newID); err != nil {
+			insert := func(tx pgx.Tx, email string) error {
+				return tx.QueryRow(r.Context(), `
+					INSERT INTO users (institution_id, username, email, phone, full_name,
+					                   password_hash, status)
+					VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active')
+					RETURNING id`,
+					id.InstitutionID, username, email, p.phone, p.name, hash).Scan(&newID)
+			}
+			err = insert(sp, p.email)
+
+			/* A shared email must not cost a family their account.
+
+			   Two parents at one school genuinely share an address — a couple
+			   with one inbox, a joint family, a village where the shop's email
+			   is on every form. The users table keeps email unique per school
+			   because it is a sign-in identifier, which is right, and the
+			   consequence was that the second family to use an address was
+			   refused an account altogether. At this school that was
+			   forty-nine of sixty guardians: one demo address appears on six
+			   different parents, and every one of them after the first was
+			   turned away.
+
+			   A parent signs in with their phone number, not their email. So
+			   when the address is the thing that collides, the account is
+			   created without it. They lose nothing they were using — the
+			   email was never their way in — and the school gains a family it
+			   can actually reach. If the phone collides too there is genuinely
+			   no identifier left, and that is the row worth reporting. */
+			if err != nil && p.email != "" && isUniqueViolation(err) {
+				_ = sp.Rollback(r.Context())
+				sp2, berr := tx.Begin(r.Context())
+				if berr != nil {
+					return berr
+				}
+				sp = sp2
+				err = insert(sp, "")
+			}
+
+			if err != nil {
 				_ = sp.Rollback(r.Context())
 				out.Skipped++
-				out.Rows = append(out.Rows, bulkLoginRow{
-					Name: p.name, Detail: "that email or phone already belongs to another account",
-				})
+				detail := "that phone number already belongs to another account"
+				if p.phone == "" {
+					detail = "no phone number on record, and the email is already in use"
+				}
+				out.Rows = append(out.Rows, bulkLoginRow{Name: p.name, Detail: detail})
 				continue
 			}
 			if cerr := sp.Commit(r.Context()); cerr != nil {
