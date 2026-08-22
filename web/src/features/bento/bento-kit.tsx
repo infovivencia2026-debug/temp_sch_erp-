@@ -5,6 +5,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { useDetail } from '@/lib/widget-size'
 
 /* THE BENTO KIT.
 
@@ -301,6 +302,26 @@ export function Bars({
   accent?: Accent
 }) {
   const still = useReduceMotion()
+
+  /* The chart changes SHAPE with the room, it does not just get smaller.
+
+     Ten labelled bars in a 1x1 is not a small chart, it is an unreadable one:
+     the labels collide, each bar is three pixels wide, and the result reads as
+     a rendering fault. The honest small version is a different drawing — the
+     last few days only, no labels, the shape of the week rather than its
+     values. Somebody who wants the values makes the card bigger, which is now
+     a thing they can do.
+
+     Given real room it goes the other way and draws taller, because a trend
+     line in a 5x2 that keeps a 64px bar area is mostly empty card. */
+  const detail = useDetail()
+  const shown = detail === 'abstract' ? items.slice(-5) : items
+  const barArea = detail === 'abstract' ? 'h-10' : detail === 'rich' ? 'h-full min-h-[96px]' : 'h-16'
+  /* activeIndex points into the FULL list, so dropping the leading days shifts
+     it. Without this the highlight lands past the end of what is drawn and the
+     abstract chart loses the one bar that marks today. */
+  const dropped = items.length - shown.length
+  const activeAt = activeIndex === undefined ? undefined : activeIndex - dropped
   /* Scaled to the range, not to zero.
 
      Attendance sits between 91 and 99 for ten days running. Measured from
@@ -322,13 +343,13 @@ export function Bars({
   const floor = clustered ? min - (max - min || max * 0.05) * 0.8 : 0
   return (
     <div role="img" aria-label={srLabel} className="flex h-full items-end gap-1.5">
-      {items.map((item, i) => (
+      {shown.map((item, i) => (
         <div key={`${item.label}-${i}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <div className="flex h-16 w-full items-end" title={item.title}>
+          <div className={cn('flex w-full items-end', barArea)} title={item.title}>
             <div
               className={cn(
                 'w-full rounded-[var(--bento-radius-sm)]',
-                i === activeIndex ? ACCENT_FILL[accent] : '',
+                i === activeAt ? ACCENT_FILL[accent] : '',
                 still ? '' : 'transition-[height] duration-300',
               )}
               style={{
@@ -339,13 +360,15 @@ export function Bars({
                 // card, which is a bar nobody can see, and the height of these
                 // bars is information. `--bento-muted` at 70% clears 3:1 in
                 // both modes while staying obviously secondary to the purple.
-                ...(i === activeIndex
+                ...(i === activeAt
                   ? null
                   : { backgroundColor: 'color-mix(in srgb, var(--bento-muted) 70%, transparent)' }),
               }}
             />
           </div>
-          <span className="truncate text-[10.5px] text-[var(--bento-muted)]">{item.label}</span>
+          {detail !== 'abstract' && (
+            <span className="truncate text-[10.5px] text-[var(--bento-muted)]">{item.label}</span>
+          )}
         </div>
       ))}
     </div>

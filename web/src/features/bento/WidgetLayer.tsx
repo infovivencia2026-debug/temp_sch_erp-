@@ -7,6 +7,7 @@ import {
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
+import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas } from './ColourDialog'
 import type { Hsl } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
@@ -518,7 +519,14 @@ export function Widget({
           swatches inside the overlay would all render as nine identical
           circles. The control for choosing a colour cannot live inside the
           thing the colour is applied to. */}
-      <div className="h-full [&>*]:h-full" style={paint}>{children(span)}</div>
+      <div className="h-full [&>*]:h-full" style={paint}>
+        {/* The cell is told how much room it has, so the few that should draw
+            themselves differently at different sizes can. Most ignore it and
+            let the CSS shedding rules do the work. */}
+        <WidgetSizeContext.Provider value={{ w, h }}>
+          {children(span)}
+        </WidgetSizeContext.Provider>
+      </div>
 
       {editing && (
         <div
