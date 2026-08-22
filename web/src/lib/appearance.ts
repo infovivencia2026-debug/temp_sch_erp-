@@ -42,6 +42,43 @@ export const CONTRASTS: readonly Contrast[] = ['normal', 'medium', 'high'] as co
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
 
+/* The continuous axes.
+
+   Text size, density, corners, borders and depth used to be four or five named
+   steps each. Named steps are honest for a thing with a small set of real
+   states — a pattern is dots or it is not — and dishonest for a thing that is
+   simply a number: "Larger" is a decision somebody else made about how large
+   larger ought to be.
+
+   These five are numbers now, and the named steps stay only as the fallback a
+   stylesheet uses when no number has been chosen. Each is a MULTIPLIER on the
+   shipped value, so 1 is the product as designed and there is always a way
+   back to it.
+
+   The ranges are wide enough to be useful and bounded only where a value stops
+   meaning anything: a text scale of 0 is an invisible interface, and a corner
+   radius beyond about 3 turns every card into a lozenge. Within those, nothing
+   is capped to a step. */
+export interface Scales {
+  text: number
+  density: number
+  corners: number
+  borders: number
+  shadow: number
+}
+
+export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step: number }> = {
+  text: { min: 0.7, max: 2.4, step: 0.01 },
+  density: { min: 0.2, max: 3, step: 0.01 },
+  corners: { min: 0, max: 3.5, step: 0.01 },
+  borders: { min: 0, max: 5, step: 0.01 },
+  shadow: { min: 0, max: 4, step: 0.01 },
+}
+
+export const SCALE_DEFAULTS: Scales = {
+  text: 1, density: 1, corners: 1, borders: 1, shadow: 1,
+}
+
 export interface Appearance {
   density: Density
   corners: Corners
@@ -55,6 +92,7 @@ export interface Appearance {
   iconSize: IconSize
   /** Comma-separated list of workspace names hidden from the dock */
   hiddenDockItems: string
+  scales: Scales
 }
 
 const DEFAULTS: Appearance = {
@@ -68,6 +106,7 @@ const DEFAULTS: Appearance = {
   contrast: 'normal',
   dockSize: 'default',
   iconSize: 'default',
+  scales: SCALE_DEFAULTS,
   hiddenDockItems: '',
 }
 
@@ -113,6 +152,19 @@ function one<T extends string>(key: string, allowed: readonly T[], fallback: T):
   }
 }
 
+function readScales(): Scales {
+  const out = { ...SCALE_DEFAULTS }
+  for (const k of Object.keys(SCALE_DEFAULTS) as (keyof Scales)[]) {
+    const raw = readRaw(`erp.scale.${k}`)
+    const n = raw === null ? NaN : Number(raw)
+    const r = SCALE_RANGE[k]
+    // Out of range is clamped rather than discarded: a value saved before a
+    // range was narrowed is still a preference, just a more extreme one.
+    if (Number.isFinite(n)) out[k] = Math.min(r.max, Math.max(r.min, n))
+  }
+  return out
+}
+
 function read(): Appearance {
   return {
     density: one(KEYS.density, DENSITIES, DEFAULTS.density),
@@ -128,6 +180,7 @@ function read(): Appearance {
     dockSize: one(KEYS.dockSize, DOCK_SIZES, DEFAULTS.dockSize),
     iconSize: one(KEYS.iconSize, ICON_SIZES, DEFAULTS.iconSize),
     hiddenDockItems: readRaw(KEYS.hiddenDockItems) ?? '',
+    scales: readScales(),
   }
 }
 
@@ -177,6 +230,18 @@ export function applyAppearance(next: Appearance) {
   stamp('data-pattern', next.pattern, 'none')
   stamp('data-contrast', next.contrast, 'normal')
 
+  /* The continuous scales, set inline on the root.
+
+     Inline custom properties beat the html[data-*] rules that set the same
+     variables, so the named steps survive untouched as the fallback for
+     anybody who has never moved a slider — and moving one wins immediately
+     without either mechanism having to know about the other. */
+  root.style.setProperty('--font-scale', String(next.scales.text))
+  root.style.setProperty('--bento-density', String(next.scales.density))
+  root.style.setProperty('--radius-scale', String(next.scales.corners))
+  root.style.setProperty('--border-scale', String(next.scales.borders))
+  root.style.setProperty('--shadow-scale', String(next.scales.shadow))
+
   /* Dock sizing — CSS variables read directly by BentoDock. */
   const dockPad = { compact: '6px', default: '8px', large: '12px' }[next.dockSize]
   const dockBtn = { compact: '32px', default: '40px', large: '48px' }[next.dockSize]
@@ -206,7 +271,18 @@ export function useAppearance() {
   const set = useCallback(<K extends keyof Appearance>(key: K, v: Appearance[K]) => {
     applyAppearance({ ...current, [key]: v })
   }, [])
-  return { appearance: value, set }
+  /* One axis of the continuous scales, clamped to its range.
+
+     Separate from `set` because the scales are a nested object: setting one
+     through `set` would mean every caller reconstructing the other four, and
+     the first one to forget would silently reset them. */
+  const setScale = useCallback((axis: keyof Scales, n: number) => {
+    const r = SCALE_RANGE[axis]
+    const clamped = Math.min(r.max, Math.max(r.min, n))
+    applyAppearance({ ...current, scales: { ...current.scales, [axis]: clamped } })
+  }, [])
+
+  return { appearance: value, set, setScale }
 }
 
 /** Reconcile from the account row, which today carries density only. */

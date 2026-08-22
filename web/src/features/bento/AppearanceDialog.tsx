@@ -4,10 +4,8 @@ import { Check, LayoutGrid, Minus, Palette, Plus, Sliders, Type, X } from 'lucid
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
-  DENSITIES, CORNERS, TEXT_SIZES, BORDERS, SHADOWS, PATTERNS, CONTRASTS,
-  DOCK_SIZES, ICON_SIZES,
-  type Density, type Corners, type TextSize, type Borders, type Shadow,
-  type Pattern, type Contrast, type DockSize, type IconSize,
+  PATTERNS, CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
+  type Pattern, type Contrast, type DockSize, type IconSize, type Scales,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { ColourPanel } from './ColourDialog'
@@ -35,6 +33,53 @@ const SPECIMEN = 'Aa Bb 12,482 · ₹8.42Cr'
    turns eight settings from a scroll into a page somebody can take in — and
    the current value is visible for all of them at once rather than one at a
    time. */
+/** A continuous axis: a slider, and the multiplier it is at.
+
+    These five are not four choices somebody else made — they are a number, and
+    the control now says so. The readout is a percentage rather than a raw
+    multiplier because 100% gives "back to how it shipped" an obvious target,
+    and the button beside it goes straight there.
+
+    Committing on every input event rather than on release is deliberate: the
+    whole point of a continuous scale is watching the page answer as you drag
+    it, and the write is one custom property and one localStorage line. */
+function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
+  const { appearance, setScale } = useAppearance()
+  const r = SCALE_RANGE[axis]
+  const v = appearance.scales[axis]
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+      <p className="w-[104px] shrink-0 text-[13px] font-medium">{label}</p>
+      <div className="flex min-w-[240px] flex-1 items-center gap-3">
+        <input
+          type="range"
+          min={r.min}
+          max={r.max}
+          step={r.step}
+          value={v}
+          aria-label={label}
+          onChange={(e) => setScale(axis, Number(e.target.value))}
+          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-border"
+        />
+        <span className="w-[52px] shrink-0 text-right text-[12.5px] font-medium tabular-nums text-primary">
+          {Math.round(v * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={() => setScale(axis, 1)}
+          disabled={v === 1}
+          aria-label={`Reset ${label}`}
+          className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground
+                     transition-colors hover:bg-accent disabled:opacity-30"
+        >
+          100%
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Axis<T extends string>({
   label,
   value,
@@ -327,41 +372,11 @@ export function AppearanceDialog({
           </p>
 
           <div className="mt-7 divide-y border-t pt-1">
-            <Axis<TextSize>
-              label={t('bento.settings.text')}
-              value={appearance.text}
-              options={TEXT_SIZES}
-              onPick={(v) => set('text', v)}
-              name={(v) => t(`bento.settings.text.${v}`)}
-            />
-            <Axis<Density>
-              label={t('bento.settings.density')}
-              value={appearance.density}
-              options={DENSITIES}
-              onPick={(v) => set('density', v)}
-              name={(v) => t(`bento.settings.density.${v}`)}
-            />
-            <Axis<Corners>
-              label={t('bento.settings.corners')}
-              value={appearance.corners}
-              options={CORNERS}
-              onPick={(v) => set('corners', v)}
-              name={(v) => t(`bento.settings.corners.${v}`)}
-            />
-            <Axis<Borders>
-              label={t('bento.settings.borders')}
-              value={appearance.borders}
-              options={BORDERS}
-              onPick={(v) => set('borders', v)}
-              name={(v) => t(`bento.settings.borders.${v}`)}
-            />
-            <Axis<Shadow>
-              label={t('bento.settings.shadow')}
-              value={appearance.shadow}
-              options={SHADOWS}
-              onPick={(v) => set('shadow', v)}
-              name={(v) => t(`bento.settings.shadow.${v}`)}
-            />
+            <Scale axis="text" label={t('bento.settings.text')} />
+            <Scale axis="density" label={t('bento.settings.density')} />
+            <Scale axis="corners" label={t('bento.settings.corners')} />
+            <Scale axis="borders" label={t('bento.settings.borders')} />
+            <Scale axis="shadow" label={t('bento.settings.shadow')} />
             <Axis<Pattern>
               label={t('bento.settings.pattern')}
               value={appearance.pattern}

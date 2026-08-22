@@ -784,3 +784,40 @@ html[data-appearance-open] .appearance-panel {
 .bento-widget[data-tinted] [role='alert'] {
   color: var(--bento-ink);
 }
+
+/* DEPTH AS A NUMBER.
+
+   The named steps (flat, lifted, deep) set three fixed shadows. The slider
+   sets a multiplier instead, and the shadow is built from it — blur, offset
+   and opacity together, because scaling only the blur gives a bigger blurry
+   smudge rather than a card that sits higher.
+
+   Written after the data-shadow blocks so it wins when a number has been
+   chosen, and reading --shadow-scale with a default of 1 so it is inert until
+   one has been. */
+:root {
+  --shadow-scale: 1;
+}
+html[style*='--shadow-scale'] {
+  --bento-depth-sm:
+    0 calc(2px * var(--shadow-scale)) calc(10px * var(--shadow-scale))
+    rgba(0, 0, 0, calc(0.03 * var(--shadow-scale)));
+  --bento-depth:
+    0 calc(4px * var(--shadow-scale)) calc(20px * var(--shadow-scale))
+    rgba(0, 0, 0, calc(0.04 * var(--shadow-scale)));
+  --bento-depth-lg:
+    0 calc(8px * var(--shadow-scale)) calc(30px * var(--shadow-scale))
+    rgba(0, 0, 0, calc(0.06 * var(--shadow-scale)));
+}
+.dark html[style*='--shadow-scale'],
+html[style*='--shadow-scale'] .dark {
+  --bento-depth-sm:
+    0 calc(1px * var(--shadow-scale)) calc(3px * var(--shadow-scale))
+    rgb(0 0 0 / calc(0.5 * var(--shadow-scale)));
+  --bento-depth:
+    0 calc(10px * var(--shadow-scale)) calc(26px * var(--shadow-scale))
+    rgb(0 0 0 / calc(0.7 * var(--shadow-scale)));
+  --bento-depth-lg:
+    0 calc(20px * var(--shadow-scale)) calc(44px * var(--shadow-scale))
+    rgb(0 0 0 / calc(0.85 * var(--shadow-scale)));
+}
