@@ -1353,6 +1353,7 @@ export const en = {
   'bento.colour.region.topbar': 'Top bar',
   'bento.colour.region.sidebar': 'Side bar',
   'bento.colour.region.bottombar': 'Bottom bar',
+  'bento.colour.region.dock': 'Dock',
   'bento.colour.region.cards': 'Cards',
   'bento.colour.region.students': 'Students',
   'bento.colour.region.academics': 'Academics',

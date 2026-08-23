@@ -6,6 +6,7 @@ import {
   type Region, type Channel, type Hsl,
 } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
+import { useLayout } from '@/lib/layout'
 import { cn } from '@/lib/utils'
 
 /* Painting the interface, region by region.
@@ -155,6 +156,30 @@ export function ColourPanel({
   const t = useT()
   const [channel, setChannel] = useState<Channel>('bg')
   const [region, setRegion] = useState<Region>('workarea')
+  const { layout } = useLayout()
+
+  /* Only the regions this layout actually has.
+
+     Bento has no top bar and no side bar — that is the point of it — so two of
+     these chips painted properties nothing on screen reads, and the person
+     clicking them got no feedback because there was nothing to give. The
+     bottom bar is the dock here, and says so. */
+  const regions = useMemo(
+    () => (layout === 'bento'
+      ? REGIONS.filter((r) => r !== 'topbar' && r !== 'sidebar')
+      : REGIONS),
+    [layout],
+  )
+  const regionLabel = (r: Region) =>
+    layout === 'bento' && r === 'bottombar'
+      ? t('bento.colour.region.dock')
+      : t(`bento.colour.region.${r}`)
+
+  /* Switching layout with a now-hidden region selected would leave the editor
+     pointed at a chip nobody can see. */
+  useEffect(() => {
+    if (!regions.includes(region)) setRegion('workarea')
+  }, [regions, region])
   const [name, setName] = useState('')
   const [picking, setPicking] = useState(false)
 
@@ -374,7 +399,7 @@ export function ColourPanel({
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {REGIONS.map((r) => (
+              {regions.map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -386,7 +411,7 @@ export function ColourPanel({
                       : 'hover:bg-accent',
                   )}
                 >
-                  {t(`bento.colour.region.${r}`)}
+                  {regionLabel(r)}
                 </button>
               ))}
             </div>
