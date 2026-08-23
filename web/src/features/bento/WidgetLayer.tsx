@@ -273,7 +273,7 @@ export function WidgetLayer({
       {arranging && (
         <div
           ref={barRef}
-          className="bento-arrange-bar col-span-full flex flex-wrap items-center gap-2"
+          className="bento-arrange-bar text-[var(--bento-ink)] col-span-full flex flex-wrap items-center gap-2"
           style={{ order: -1 }}
         >
           <button
@@ -824,7 +824,7 @@ export function Widget({
       {editing && (
         <div
           className="absolute inset-0 z-10 flex flex-col justify-between gap-2 overflow-auto
-                     rounded-[var(--bento-radius)] bg-background/70 p-2 backdrop-blur-[2px]"
+                     rounded-[var(--bento-radius)] bg-[color-mix(in_srgb,var(--bento-bg)_28%,transparent)] p-2 backdrop-blur-[2px]"
         >
           <div className="flex items-start justify-between gap-2">
             <span className="flex min-w-0 items-center gap-1 rounded-full bg-[var(--bento-card)] px-2 py-1

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
@@ -1490,28 +1490,49 @@ export function BentoLoading({ message }: { message: string }) {
     with the header, the text-size axis and the density, so any fixed offset
     would be wrong on most screens. */
 export function useBoardHeight() {
-  const boardRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const board = boardRef.current
+  /* A CALLBACK ref, not a ref plus an effect with empty deps.
+
+     The old shape captured `boardRef.current` once and measured that node for
+     the life of the component. `ParentWeek` passes `dashboard` only while
+     arranging, so the moment its data arrived the grid was re-parented into a
+     `WidgetLayer` and React built a NEW board node — which nothing ever
+     measured. `--board-h` stayed unset, `repeat(n, 1fr)` of an indefinite
+     height collapsed to `0px 0px`, and the whole board rendered SIX PIXELS
+     tall with every card clipped to nothing.
+
+     A callback ref runs again on the new node, so a board that gets re-parented
+     is measured again. */
+  const cleanup = useRef<(() => void) | null>(null)
+
+  return useCallback((board: HTMLDivElement | null) => {
+    cleanup.current?.()
+    cleanup.current = null
     if (!board) return
+
     const measure = () => {
       const top = board.getBoundingClientRect().top
-      const room = Math.max(240, window.innerHeight - top - 16)
+      /* Reserve the dock, not a hairline. This left 16px, so on the boards
+         whose content reaches the bottom the last row ran UNDER the floating
+         dock — measured at 56px of card covered on four cells. The dock's own
+         height is a token, so ask for it rather than guessing. */
+      const dock = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--bento-dock'),
+        10,
+      )
+      const reserve = Number.isFinite(dock) ? dock + 32 : 104
+      const room = Math.max(240, window.innerHeight - top - reserve)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
     }
+
     measure()
     window.addEventListener('resize', measure)
-    /* The dock, the density and the text size all move the top edge, and none
-       of them fire a resize. An observer on the body catches every cause
-       without this file having to know what they are. */
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
-    return () => {
+    cleanup.current = () => {
       window.removeEventListener('resize', measure)
       ro.disconnect()
     }
   }, [])
-  return boardRef
 }
 
 export function BentoPage({
@@ -1627,7 +1648,7 @@ export function BentoPage({
       <div
         ref={boardRef}
         className="bento-board grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
-                   lg:min-h-[600px] lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
+                   lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense
                    lg:grid-cols-5"
       >
         {children}

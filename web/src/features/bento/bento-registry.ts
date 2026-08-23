@@ -49,7 +49,7 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      not `institution_admin.home.executive_kpis`, which is not a key this
      catalogue holds. */
   'institution_admin.home.dashboard': lazy(() => import('./PrincipalDashboard')),
-  'finance.home.finance_kpis': lazy(() => import('./FinanceDashboard')),
+  'finance.home.dashboard': lazy(() => import('./FinanceDashboard')),
 
   /* The three people who use this product every day, on the screen each of
      them lands on. Keyed by the catalogue key the classic screen is registered

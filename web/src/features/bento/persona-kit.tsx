@@ -106,14 +106,14 @@ export function PersonaPage({
     </div>
   )
   return (
-    <div className="bento-surface p-3 sm:p-4">
+    <div className="bento-surface p-3 sm:p-4 text-[var(--bento-ink)]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-[0.06em] opacity-70">
             {eyebrow}
           </p>
-          <h1 className="mt-1 truncate text-[22px] font-semibold">{title}</h1>
-          {description && <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>}
+          <h1 className="mt-1 truncate text-[22px] font-semibold text-[var(--bento-ink)]">{title}</h1>
+          {description && <p className="mt-1 text-[13px] opacity-70">{description}</p>}
         </div>
         {actions}
       </div>

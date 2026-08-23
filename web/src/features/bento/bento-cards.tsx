@@ -108,8 +108,12 @@ export function CardShell({
       </div>
 
       <div className="mt-1.5 min-w-0">
-        <p className="truncate font-semibold leading-[0.9] tracking-[-0.05em] tabular-nums
-                      text-[length:var(--card-fig,30px)]">
+        {/* leading-[0.95] with a hair of padding, not 0.9 flush. At 0.9 the
+            line box is shorter than the glyphs it holds, so `overflow: hidden`
+            on the cell silently cut 6-12px off every headline figure on every
+            card. It has not eaten a digit yet; it had no margin at all. */}
+        <p className="truncate pb-[0.06em] font-semibold leading-[0.95] tracking-[-0.05em]
+                      tabular-nums text-[length:var(--card-fig,30px)]">
           {value}
         </p>
         {change && (
