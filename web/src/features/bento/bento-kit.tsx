@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
@@ -178,12 +178,56 @@ const ACCENT_TINT: Record<Accent, string> = {
   pink: 'bg-[var(--bento-pink-tint)]',
   orange: 'bg-[var(--bento-orange-tint)]',
 }
-const ACCENT_FILL: Record<Accent, string> = {
-  mint: 'bg-[var(--bento-mint)]',
-  purple: 'bg-[var(--bento-purple)]',
-  pink: 'bg-[var(--bento-pink)]',
-  orange: 'bg-[var(--bento-orange)]',
-}
+/* ACCENT_FILL is gone. It was the flat accent as a background class, and
+   every drawing that used it — the active bar, the meter's fill — now builds
+   its own gradient from `mark`/`deep` below, which is the same hue with the
+   contrast guarantee attached. `Badge` still takes the ink and the tint,
+   because a badge sits ON the tint and that pairing was measured for text. */
+
+// --- drawing in colour --------------------------------------------------
+
+/* HOW EVERY DRAWING BELOW GETS ITS COLOUR, AND THE ONE RULE IT KEEPS.
+
+   AN ACCENT IS NEVER DRAWN ON ITS OWN. It is always mixed into `currentColor`
+   — the ink the cell has already resolved for its own ground: `--bento-ink` on
+   a plain card, `--bento-anchor-ink` on the mint gradient, `--bento-bg` on an
+   inverted card, `--dom-*-text` on a domain-tinted one. So a mark is a HUE
+   CAST over an ink that already read, and it cannot lose its ground the way a
+   named colour can.
+
+   That is not only how the colour got here, it is how these stopped being
+   invisible. `Meter` drew on `--bento-card-2` and the art family drew in
+   `--bento-muted`, both of which are values measured against a light card; on
+   the inverted cell two dashboards ship, the first is 1.13:1 and the second is
+   a smear. Everything below inherits instead.
+
+   55% IS WHERE THE MIX STOPS, and it is measured rather than chosen: across
+   the default light and dark themes, the Focus skin in both polarities and all
+   four palettes in `BUILT_IN_PALETTES`, the worst pairing at 55% is 3.61:1
+   (mint on the default light card) and the rest fall between 5:1 and 14:1.
+   3:1 is the floor for a mark that carries meaning, so the mix cannot go
+   further without one theme losing a drawing.
+
+   THE FOUR HUES KEEP THE MEANINGS `Accent` ALREADY GAVE THEM. Mint is money
+   in, arrived, present, done. Pink is money out, outstanding, at risk. Orange
+   is pending or in caution. Purple is the measurement itself — the reading you
+   came for, and the one you are looking at. A drawing of one plain quantity is
+   purple; a drawing of a quantity with a valence takes the hue of that
+   valence. Nothing below picks a hue for variety. */
+
+/** A mark: the strongest an accent is ever drawn, and the level the 3.61:1
+    floor above was measured at. */
+const mark = (a: Accent) => `color-mix(in srgb, var(--bento-${a}) 55%, currentColor)`
+/** The inky end of a same-hue gradient. Further toward the cell's own ink, so
+    strictly safer than `mark` — a gradient between the two cannot dip under
+    the floor at any point along it. */
+const deep = (a: Accent) => `color-mix(in srgb, var(--bento-${a}) 38%, currentColor)`
+/** A fill under a line, a halo, or the art layer's weight. Decoration: what it
+    sits under, behind or around is what carries the reading. */
+const wash = (a: Accent, pct: number) => `color-mix(in srgb, ${mark(a)} ${pct}%, transparent)`
+/** The neutral weights, on `currentColor` for the same reason everything else
+    is: a track has to sit on whatever ground the cell turned out to have. */
+const TRACK = 'color-mix(in srgb, currentColor 12%, transparent)'
 
 /** What ground a cell sits on, which is the only thing that decides what may
     be drawn inside it.
@@ -285,9 +329,17 @@ export function Cell({
   const style = domain
     ? {
         ...baseStyle,
-        backgroundColor: `var(--dom-${domain})`,
-        color: `var(--dom-${domain}-text, var(--bento-ink))`,
-        ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--bento-ink))`,
+        /* The PANEL is the background and the INK is the text — which is what
+           the token names have said all along. This had them the other way
+           round: it painted `--dom-x`, an ink measured to clear 5:1 against the
+           card, as the card itself, then fell back to `--bento-ink` for the
+           text on top of it. That is near-black on saturated blue — 2.34:1 to
+           3.61:1 across the twelve domains, every one of them failing — and it
+           is why a board of tinted cells read as a rainbow. `-text` is still
+           honoured first, because the palettes set it. */
+        backgroundColor: `var(--dom-${domain}-soft, var(--dom-${domain}))`,
+        color: `var(--dom-${domain}-text, var(--dom-${domain}))`,
+        ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--dom-${domain}))`,
         borderColor: 'transparent',
       }
     : { ...baseStyle, ...artStyle }
@@ -417,21 +469,30 @@ export function Bars({
           <div className={cn('flex w-full items-end', barArea)} title={item.title}>
             <div
               className={cn(
-                'w-full rounded-[var(--bento-radius-sm)]',
-                i === activeAt ? ACCENT_FILL[accent] : '',
+                'w-full rounded-t-[6px] rounded-b-[3px]',
                 still ? '' : 'transition-[height] duration-300',
               )}
               style={{
                 height: `${Math.max(6, ((item.value - floor) / (max - floor)) * 100)}%`,
-                // The inactive bars are the muted tone, mixed down onto
-                // whatever card they sit on. `--bento-card-2` alone — the
-                // literal muted card tone — measures 1.13:1 against the light
-                // card, which is a bar nobody can see, and the height of these
-                // bars is information. `--bento-muted` at 70% clears 3:1 in
-                // both modes while staying obviously secondary to the purple.
-                ...(i === activeAt
-                  ? null
-                  : { backgroundColor: 'color-mix(in srgb, var(--bento-muted) 70%, transparent)' }),
+                /* The active bar is the accent, as a gradient up its own
+                   length — deep at the foot where it meets the baseline, full
+                   strength at the head where the eye reads its height. Every
+                   other bar is the cell's own ink at 55%, which measures 3.75:1
+                   at worst across the six themes: obviously secondary to the
+                   accent, and still a bar whose height can be read, which is
+                   the information it carries.
+
+                   `--bento-muted` at 70% is what this was, and on an inverted
+                   or domain-tinted cell that grey was neither the ink nor the
+                   ground. */
+                background:
+                  i === activeAt
+                    ? `linear-gradient(180deg, ${mark(accent)}, ${deep(accent)})`
+                    : 'color-mix(in srgb, currentColor 55%, transparent)',
+                // Seated rather than floating: a highlight along the top edge
+                // in the bar's own hue, which is the one place a little depth
+                // stops a flat rectangle reading as a wireframe.
+                boxShadow: i === activeAt ? `inset 0 1.5px 0 ${wash(accent, 45)}` : undefined,
               }}
             />
           </div>
@@ -650,8 +711,8 @@ export function Meter({
   // that carries each meaning here. `--success`/`--warning`/`--destructive`
   // are not used: they were each measured against the classic card, and the
   // Bento card is a different ground in both modes.
-  const fill = ACCENT_FILL[
-    ({ primary: 'purple', success: 'mint', warning: 'orange', destructive: 'pink' } as const)[tone]
+  const accent = ({ primary: 'purple', success: 'mint', warning: 'orange', destructive: 'pink' } as const)[
+    tone
   ]
   return (
     <div
@@ -660,9 +721,28 @@ export function Meter({
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-2 w-full overflow-hidden rounded-full bg-[var(--bento-card-2)]"
+      /* 10px rather than 8, and the track is the cell's own ink at 12% rather
+         than `--bento-card-2`. That token is the muted CARD tone: against the
+         light card it measures 1.13:1, so the rail the fill is read against
+         was not visible at all, and on an inverted cell it was a light slab
+         under a dark one. A track mixed from `currentColor` is a fraction of
+         whatever ink the cell resolved, which is a rail on every ground. */
+      className="h-2.5 w-full overflow-hidden rounded-full"
+      style={{ background: TRACK }}
     >
-      <div className={cn('h-full rounded-full', fill)} style={{ width: `${pct}%` }} />
+      {/* The gradient runs ALONG the fill, deep at the origin and full
+          strength at the head, so the bar has a direction and its leading edge
+          is the strongest thing in it — which is the end a reader measures
+          from. Both stops are mixes of the same accent into the same ink, so
+          no point along the ramp is weaker than the 3.61:1 floor. */}
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: `${pct}%`,
+          background: `linear-gradient(90deg, ${deep(accent)}, ${mark(accent)})`,
+          boxShadow: `inset 0 1.5px 0 ${wash(accent, 45)}`,
+        }}
+      />
     </div>
   )
 }
@@ -675,15 +755,23 @@ export function Meter({
 export function Sparkline({
   points,
   srLabel,
+  accent = 'purple',
   className,
 }: {
   points: number[]
   srLabel: string
+  /** The hue the trend is drawn in. Purple by default, which is this file's
+      hue for "the measurement itself" — a trend line is the reading, not a
+      verdict on it. A caller whose series has a valence may say so. */
+  accent?: Accent
   className?: string
 }) {
   /* Before the early return: a hook cannot be called conditionally, and this
      component returns null for a series too short to draw. */
   const detail = useDetail()
+  /* Nor can this one. Two sparklines on one board sharing a gradient id would
+     silently give the second one the first one's geometry. */
+  const gid = useId()
 
   /* Thirty days of attendance in a 1x1 is a scribble — the line crosses itself
      several times in 60 pixels and says nothing. The small version is the last
@@ -701,28 +789,78 @@ export function Sparkline({
   const min = Math.min(...series)
   const max = Math.max(...series)
   const range = max - min || 1
-  const d = series
-    .map((p, i) => {
-      const x = (i / (points.length - 1)) * w
-      const y = h - ((p - min) / range) * (h - 4) - 2
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
-    })
-    .join(' ')
+  const xy = series.map((p, i) => ({
+    x: (i / (points.length - 1)) * w,
+    y: h - ((p - min) / range) * (h - 4) - 2,
+  }))
+  const d = xy.map((q, i) => `${i === 0 ? 'M' : 'L'}${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(' ')
+  /* The area under the line, closed down to the floor of the box. It is the
+     same path plus two corners, so it cannot disagree with the line it sits
+     under — and it fades out downward, because the line is the reading and the
+     fill is only what gives it a body. */
+  const last = xy[xy.length - 1]
+  const area = `${d} L${last.x.toFixed(2)},${h} L${xy[0].x.toFixed(2)},${h} Z`
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
       role="img"
       aria-label={srLabel}
-      className={cn(box, 'w-full', className)}
+      /* overflow-visible so the end dot is not sliced in half by the right
+         edge of its own box: it is centred on the last x, which IS the edge. */
+      className={cn(box, 'w-full overflow-visible', className)}
     >
+      <defs>
+        <linearGradient id={`${gid}-fill`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={wash(accent, 46)} />
+          <stop offset="100%" stopColor={wash(accent, 0)} />
+        </linearGradient>
+        {/* Along the line rather than under it: the trend deepens as it runs
+            left to right, so the current end is the strongest part of it. */}
+        <linearGradient id={`${gid}-line`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={deep(accent)} />
+          <stop offset="100%" stopColor={mark(accent)} />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid}-fill)`} stroke="none" />
       <path
         d={d}
         fill="none"
-        stroke="currentColor"
-        strokeWidth={2.5}
+        stroke={`url(#${gid}-line)`}
+        strokeWidth={2.75}
         strokeLinecap="round"
         strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      {/* The last reading, marked. A trend line's right-hand end is the number
+          the card is actually about, and an unmarked end reads as a line that
+          ran out of room. Drawn as a stroked dot in the CELL'S OWN GROUND —
+          which is why the halo is `wash` and not a card colour: on a
+          domain-tinted cell there is no token that names the ground. */}
+      {/* Drawn as a ZERO-LENGTH ROUND-CAPPED LINE, not a `<circle>`. The
+          viewBox is stretched — `preserveAspectRatio="none"` — so a circle in
+          user units comes out as a flat ellipse thirteen pixels wide at a
+          2x cell. A round cap is a screen-space circle whatever the transform
+          does, which is the same reason every stroke in this file is
+          non-scaling. Two passes: the halo, then the dot. */}
+      <line
+        x1={last.x}
+        y1={last.y}
+        x2={last.x}
+        y2={last.y}
+        stroke={wash(accent, 26)}
+        strokeWidth={11}
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        x1={last.x}
+        y1={last.y}
+        x2={last.x}
+        y2={last.y}
+        stroke={mark(accent)}
+        strokeWidth={6}
+        strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
     </svg>
@@ -748,11 +886,25 @@ export function Sparkline({
       for cell. Nothing below invents a denominator to make a shape look
       finished — that is the same lie `Meter` already refuses to tell.
 
-   2. Quieter than the text, in both modes. Every stroke is `--bento-muted`
-      mixed down with `color-mix`, so there is not one hex here and the mode
-      branch stays CSS's job. On a domain-tinted card `Cell` has already
-      repointed `--bento-muted` at that card's own ink, so the art follows the
-      tint instead of dropping a grey onto a saturated ground.
+   2. Quieter than the text, in both modes, and now in the colour of what it
+      is drawing. Every weight below is `wash(hue, n)` — the accent mixed into
+      `currentColor` and then mixed down into transparency — so there is not
+      one hex here, the mode branch stays CSS's job, and the drawing takes the
+      cell's own ink on a domain-tinted, inverted or gradient card rather than
+      dropping a grey onto a saturated ground.
+
+      Which hue is not a decoration decision. The reservoir's water is mint
+      because it is money that ARRIVED; the arrested length in the blocked flow
+      is pink because it is money that did not; the flagged cells in the risk
+      grid are pink for the same reason; the open applications at the funnel's
+      mouth are orange because they are PENDING; the roll and the teaching
+      network are purple because a count is a measurement with no valence. The
+      four meanings are the ones `Accent` already carried.
+
+      The alphas are a third of what a foreground mark gets. These sit behind
+      the figure and must never compete with it: the contrast floor that
+      governs `Meter` and `Bars` does not apply here, because everything the
+      art says is printed on top of it and it is `aria-hidden` besides.
 
    3. They hide rather than shrink. A funnel at 1x1 — about 264x172 with
       padding — is four grey smudges, and a card that renders noise is worse
@@ -766,13 +918,17 @@ export function Sparkline({
 
 /** The three weights. Faint enough that the figure on top always wins the eye,
     and distinct enough from each other that the drawing still reads. */
-const ART_LINE = 'color-mix(in srgb, var(--bento-muted) 22%, transparent)'
-const ART_FILL = 'color-mix(in srgb, var(--bento-muted) 9%, transparent)'
-const ART_MARK = 'color-mix(in srgb, var(--bento-muted) 32%, transparent)'
+/** The structure a drawing is made of — walls, vessels, the frame of a grid.
+    Neutral, because a wall is not a quantity. */
+const ART_LINE = 'color-mix(in srgb, currentColor 20%, transparent)'
+/** The unmarked state: an empty cell, a slot with nothing in it. */
+const ART_FILL = 'color-mix(in srgb, currentColor 8%, transparent)'
+/** A mark in a given hue, at the art layer's weight. */
+const artMark = (a: Accent) => wash(a, 34)
 /* The network's own weight. Ninety-six edges at the ordinary line weight stop
    being a fan and become a solid grey wedge — the count is what makes it dense,
    so the count is what has to make each stroke fainter. */
-const ART_WEB = 'color-mix(in srgb, var(--bento-muted) 13%, transparent)'
+const ART_WEB = wash('purple', 15)
 
 /** The frame every art shares: stretched to the cell, non-scaling strokes so
     `preserveAspectRatio="none"` cannot turn a hairline into a slab. */
@@ -862,9 +1018,10 @@ export function CalendarDensityArt({ slots }: { slots: (number | null)[] }) {
               y={y}
               width={w}
               height={h}
+              rx={1.6}
               fill="none"
               stroke={ART_LINE}
-              strokeWidth={1}
+              strokeWidth={1.25}
               vectorEffect="non-scaling-stroke"
             />
           )
@@ -872,7 +1029,20 @@ export function CalendarDensityArt({ slots }: { slots: (number | null)[] }) {
         // 0.45 floor so the weakest marked day is still visibly a marked day,
         // not something the reader mistakes for an empty one.
         const weight = 0.45 + ((pct - lo) / range) * 0.55
-        return <rect key={i} x={x} y={y} width={w} height={h} fill={ART_MARK} opacity={weight} />
+        // Mint: a marked day is a day the school was PRESENT for, which is the
+        // hue this file gives to "arrived, present, done".
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            rx={1.6}
+            fill={artMark('mint')}
+            opacity={weight}
+          />
+        )
       })}
     </ArtSvg>
   )
@@ -888,6 +1058,7 @@ export function CalendarDensityArt({ slots }: { slots: (number | null)[] }) {
     Needs 2x1. At 1x1 the vessel and the line are eleven pixels apart. */
 export function ReservoirArt({ fill }: { fill: number }) {
   const room = useArtRoom(2)
+  const gid = useId()
   if (!room) return null
   const f = Math.min(1, Math.max(0, fill))
   /* Inset well clear of the card's own edges. Drawn at 8..92 the vessel sat a
@@ -901,25 +1072,43 @@ export function ReservoirArt({ fill }: { fill: number }) {
 
   return (
     <ArtSvg>
+      <defs>
+        {/* Water is deepest at the bottom. The gradient runs down the vessel
+            so the body of it has weight and the surface stays light, which is
+            what stops a filled rectangle reading as a block. */}
+        <linearGradient id={`${gid}-water`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={wash('mint', 10)} />
+          <stop offset="100%" stopColor={wash('mint', 28)} />
+        </linearGradient>
+      </defs>
       {/* The vessel: everything that was billed. Open at the top, because more
           can still come in. */}
       <path
         d={`M${left},${top} L${left},${bottom} L${right},${bottom} L${right},${top}`}
         fill="none"
         stroke={ART_LINE}
-        strokeWidth={2}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
-      {/* The water: what has been collected. */}
-      <rect x={left} y={level} width={right - left} height={bottom - level} fill={ART_FILL} />
+      {/* The water: what has been collected. Mint, because it arrived. */}
+      <rect
+        x={left}
+        y={level}
+        width={right - left}
+        height={bottom - level}
+        fill={`url(#${gid}-water)`}
+      />
       {/* The waterline, which is the figure. */}
       <line
         x1={left}
         y1={level}
         x2={right}
         y2={level}
-        stroke={ART_MARK}
-        strokeWidth={2}
+        stroke={artMark('mint')}
+        strokeWidth={2.5}
+        strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
     </ArtSvg>
@@ -936,6 +1125,7 @@ export function ReservoirArt({ fill }: { fill: number }) {
     Needs 2x1. A pipe needs length — at 1x1 it is a short grey dash. */
 export function BlockedFlowArt({ moved }: { moved: number }) {
   const room = useArtRoom(2)
+  const gid = useId()
   if (!room) return null
   const m = Math.min(1, Math.max(0, moved))
   const x0 = 6
@@ -950,15 +1140,24 @@ export function BlockedFlowArt({ moved }: { moved: number }) {
 
   return (
     <ArtSvg>
-      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      {/* What moved. */}
-      <rect x={x0} y={top} width={Math.max(0, stop - x0)} height={bot - top} fill={ART_FILL} />
-      {/* Where it stopped. */}
-      <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={ART_MARK} strokeWidth={3} vectorEffect="non-scaling-stroke" />
-      {/* What did not. */}
+      <defs>
+        {/* The flow arrives from the left and thins as it goes, which is what
+            a flow that is about to stop looks like. */}
+        <linearGradient id={`${gid}-flow`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={wash('mint', 26)} />
+          <stop offset="100%" stopColor={wash('mint', 8)} />
+        </linearGradient>
+      </defs>
+      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {/* What moved. Mint: it arrived. */}
+      <rect x={x0} y={top} width={Math.max(0, stop - x0)} height={bot - top} fill={`url(#${gid}-flow)`} />
+      {/* Where it stopped. Orange: the caution, and the one mark in this
+          drawing that is neither arrived nor outstanding. */}
+      <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={artMark('orange')} strokeWidth={3.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {/* What did not. Pink: money out, still outstanding. */}
       {hatch.map((x) => (
-        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={ART_LINE} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={artMark('pink')} strokeWidth={1.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       ))}
     </ArtSvg>
   )
@@ -983,8 +1182,22 @@ export function PopulationArt({ count }: { count: number }) {
   const pts = scatter(n, 0x5eed)
   return (
     <ArtSvg>
+      {/* Round marks rather than squares, and purple: a roll is a count, and
+          a count is a measurement with no valence. A zero-length round-capped
+          line is a screen-space dot whatever the stretched viewBox does to
+          the geometry — an `<ellipse>` here would flatten with the cell. */}
       {pts.map((p, i) => (
-        <rect key={i} x={p.x} y={p.y} width={1.6} height={1.6} fill={ART_MARK} />
+        <line
+          key={i}
+          x1={p.x}
+          y1={p.y}
+          x2={p.x}
+          y2={p.y}
+          stroke={artMark('purple')}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
       ))}
     </ArtSvg>
   )
@@ -1022,12 +1235,24 @@ export function NetworkArt({ nodes, degree }: { nodes: number; degree: number })
                   x2={92}
                   y2={ly}
                   stroke={ART_WEB}
-                  strokeWidth={0.75}
+                  strokeWidth={0.9}
+                  strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
               )
             })}
-            <rect x={9} y={ny - 2.5} width={5} height={5} fill={ART_MARK} />
+            {/* The person at the hub, as a dot. Purple: a teaching load is a
+                ratio, which is a measurement. */}
+            <line
+              x1={11.5}
+              y1={ny}
+              x2={11.5}
+              y2={ny}
+              stroke={artMark('purple')}
+              strokeWidth={6}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
           </g>
         )
       })}
@@ -1049,22 +1274,46 @@ export function NetworkArt({ nodes, degree }: { nodes: number; degree: number })
     rather than reading as a shallow chevron. */
 export function FunnelArt({ count }: { count: number }) {
   const room = useArtRoom(2)
+  const gid = useId()
   if (!room) return null
   const n = Math.min(Math.max(count, 0), 60)
   const pts = scatter(n, 0xfeed).map((p) => ({ x: 12 + (p.x - 6) * 0.86, y: 4 + (p.y - 6) * 0.28 }))
 
   return (
     <ArtSvg>
-      <path d="M6,4 L94,4 L60,40 L60,58 L40,58 L40,40 Z" fill={ART_FILL} />
+      <defs>
+        {/* The funnel narrows downward and so does its fill: strongest at the
+            mouth where the applications are, faint at the spout where few of
+            them come out. */}
+        <linearGradient id={`${gid}-body`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={wash('purple', 20)} />
+          <stop offset="100%" stopColor={wash('purple', 5)} />
+        </linearGradient>
+      </defs>
+      <path d="M6,4 L94,4 L60,40 L60,58 L40,58 L40,40 Z" fill={`url(#${gid}-body)`} />
       <path
         d="M6,4 L40,40 L40,58 M94,4 L60,40 L60,58"
         fill="none"
         stroke={ART_LINE}
-        strokeWidth={1.5}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
+      {/* The open applications, at the mouth. Orange: they are PENDING, which
+          is the one thing an open application is. */}
       {pts.map((p, i) => (
-        <rect key={i} x={p.x} y={p.y} width={2} height={2} fill={ART_MARK} />
+        <line
+          key={i}
+          x1={p.x}
+          y1={p.y}
+          x2={p.x}
+          y2={p.y}
+          stroke={artMark('orange')}
+          strokeWidth={2.8}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
       ))}
     </ArtSvg>
   )
@@ -1105,7 +1354,12 @@ export function RiskGridArt({ total, flagged }: { total: number; flagged: number
             y={Math.floor(i / cols) * ch + ch * 0.18}
             width={cw * 0.64}
             height={ch * 0.64}
-            fill={isFlagged ? ART_MARK : ART_FILL}
+            rx={Math.min(cw, ch) * 0.16}
+            /* Pink on the flagged cells: a defaulter is money out and at risk,
+               which is what pink means everywhere else in this file. The
+               unflagged cells stay neutral — they are the ground the flags are
+               counted against, not a second category with its own hue. */
+            fill={isFlagged ? artMark('pink') : ART_FILL}
           />
         )
       })}

@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { useWidgetSize } from '@/lib/widget-size'
 import { cn } from '@/lib/utils'
 
@@ -34,17 +35,100 @@ import { cn } from '@/lib/utils'
 
    5. No animation, at any motion preference. There is nothing to reduce. */
 
-// --- shared weights -----------------------------------------------------
+// --- the colour rule ----------------------------------------------------
 
-/* The same three weights the art family uses, for the same reason: faint
-   enough that the figure printed over them still wins the eye, distinct
-   enough from each other that the drawing reads. These are drawings a reader
-   is meant to *read* rather than background texture, so the marked weight is a
-   little stronger than the art family's and the strongest state reaches all
-   the way to the card's own ink. */
-const VIZ_LINE = 'color-mix(in srgb, var(--bento-muted) 38%, transparent)'
-const VIZ_TRACK = 'color-mix(in srgb, var(--bento-muted) 12%, transparent)'
-const VIZ_STRONG = 'var(--bento-ink)'
+/* ONE RULE, STATED ONCE, AND NOTHING HERE DEVIATES FROM IT.
+
+   1. EVERY MARK IS AN ACCENT MIXED INTO `currentColor`, NEVER AN ACCENT ON ITS
+      OWN. `currentColor` is the ink the cell has already resolved for its own
+      ground — `--bento-ink` on a plain card, `--bento-anchor-ink` on the
+      gradient, `--bento-bg` on an inverted card, `--dom-*-text` on a
+      domain-tinted one — so a mark built on it cannot lose its ground the way
+      a fixed colour can. The accent is a HUE CAST over an ink that already
+      read, not a replacement for it.
+
+      This also fixes a real failure rather than only adding colour: these six
+      used to draw in `var(--bento-ink)` literally, which on an inverted cell
+      is the ink ON the ink — invisible — and two shipped dashboards have an
+      inverted cell.
+
+      Measured at 55%: the worst pairing across the default light and dark
+      themes, the Focus skin in both polarities and all four shipped palettes
+      is 3.61:1 (mint on the default light card); every other pairing lands
+      between 5:1 and 14:1. 3:1 is the floor for a graphical mark, so 55% is
+      where the mix stops.
+
+   2. FOUR ACCENTS, FOUR MEANINGS — the kit's existing rule, kept and extended
+      rather than re-invented:
+
+        purple  the measurement itself; the reading you came for, and the
+                one you are looking at
+        mint    arrived, collected, present, done
+        orange  pending, in caution
+        pink    outstanding, overdue, at risk, money out
+
+      A primitive that draws one quantity draws it in purple. A primitive
+      whose quantity has a valence draws it in the hue of that valence.
+
+   3. WHERE A DRAWING NEEDS A SEQUENCE, IT USES ONE OF TWO RAMPS, DEFINED ONCE.
+      `intensity` — deep purple to pink — for "more of the same measure":
+      SegmentBar's descending shares, HeatStrip's heavier periods. `risk` —
+      mint through orange to pink — for "this is getting worse": AgeBands.
+      Both are built from the same 55% mixes, so every stop on either ramp
+      carries the same contrast guarantee its endpoints do.
+
+   4. COLOUR IS DECORATION ON TOP OF A READING THAT ALREADY WORKED. Every
+      `title`, every printed value, every legend and every `srLabel` below is
+      untouched. Remove all colour and these still read, which is the test. */
+
+const ACCENT = {
+  mint: 'var(--bento-mint)',
+  purple: 'var(--bento-purple)',
+  pink: 'var(--bento-pink)',
+  orange: 'var(--bento-orange)',
+} as const
+type Hue = keyof typeof ACCENT
+
+/** A mark. The strongest an accent is ever drawn, and the level every
+    measured contrast above refers to. */
+const mark = (h: Hue) => `color-mix(in srgb, ${ACCENT[h]} 55%, currentColor)`
+/** The inky end of a same-hue gradient. Further toward the cell's ink, so it
+    is strictly safer than `mark` and never the weak end of a pairing. */
+const deep = (h: Hue) => `color-mix(in srgb, ${ACCENT[h]} 38%, currentColor)`
+/** A fill under a line, or a halo around a dot. Decorative only: what it sits
+    under or around is what carries the reading. */
+const wash = (h: Hue, pct: number) => `color-mix(in srgb, ${mark(h)} ${pct}%, transparent)`
+
+/** A point on a two-stop ramp, `f` in 0..1. */
+const ramp2 = (a: string, b: string, f: number) =>
+  `color-mix(in srgb, ${b} ${Math.round(Math.min(1, Math.max(0, f)) * 100)}%, ${a})`
+
+/** "More of the same measure": deep purple through to pink. */
+const intensity = (f: number) => ramp2(deep('purple'), mark('pink'), f)
+/** "This is getting worse": mint, through orange, to pink. */
+const risk = (f: number) =>
+  f <= 0.5 ? ramp2(mark('mint'), mark('orange'), f * 2) : ramp2(mark('orange'), mark('pink'), (f - 0.5) * 2)
+
+/* The neutrals. Also `currentColor` rather than `--bento-muted`, for the same
+   reason: a track and a hairline have to sit on whatever ground the cell
+   turned out to have. */
+const VIZ_LINE = 'color-mix(in srgb, currentColor 24%, transparent)'
+const VIZ_TRACK = 'color-mix(in srgb, currentColor 11%, transparent)'
+
+/** QUIET TEXT: the endpoint keys, the band labels, the dates under an axis.
+
+    `--bento-muted` alone is not safe here. It is a grey measured against a
+    LIGHT card, and on the inverted cell two dashboards ship it measures
+    3.55:1 — under the 4.5:1 a label has to clear. Pulled 30% toward
+    `currentColor` it clears 4.45:1 at worst across the default light and dark
+    themes, the Focus skin in both polarities, all four shipped palettes, the
+    anchor gradient and the inverted cell, while staying visibly quieter than
+    the figure beside it.
+
+    On a domain-tinted card this resolves to the card's own ink exactly, since
+    `Cell` has already repointed `--bento-muted` there — which is what that
+    branch was written to achieve, and this does not undo it. */
+const VIZ_QUIET = 'color-mix(in srgb, var(--bento-muted) 70%, currentColor)'
 
 /** Does this cell have room for a drawing that needs `minW` columns and
     `minH` rows? Below it the caller returns null. Deliberately duplicated from
@@ -96,6 +180,10 @@ export function Ring({
   srLabel: string
   className?: string
 }) {
+  /* Before the early return: a hook cannot be called conditionally, and this
+     one only exists to keep two rings on one board from sharing a gradient id
+     — which would silently give the second one the first one's geometry. */
+  const gid = useId()
   if (total <= 0) return null
 
   const v = Math.min(Math.max(value, 0), total)
@@ -105,7 +193,7 @@ export function Ring({
      pixels are a large share of the box and a ring drawn out to the edge has
      its top and bottom cut off by the card. Measured at 264x172 before the
      inset was widened. */
-  const r = 38
+  const r = 35
   const circumference = 2 * Math.PI * r
   const drawn = circumference * frac
   /* At 100% the dash pattern's two round caps meet at twelve o'clock and
@@ -128,26 +216,69 @@ export function Ring({
           it, so the box stops and centres. */}
       <div className="relative aspect-square h-full max-h-[132px] min-h-[64px]">
         <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false" className="h-full w-full">
-        {/* The whole. */}
+          <defs>
+            {/* THE ARC'S GRADIENT, ALONG ITS LENGTH — the `intensity` ramp,
+                the same one SegmentBar and HeatStrip run on, because an arc is
+                the same claim they make: more of one measure.
+
+                It was purple-to-mint for one pass, on the reasoning that the
+                far end of a ring is the thing being finished. It came out
+                muddy and was backed out: purple and mint sit on opposite sides
+                of the wheel, so every intermediate stop is a desaturated
+                grey-green and the middle of the arc looked like the old
+                monochrome drawing with the ends painted on. Purple to pink are
+                neighbours and the ramp between them stays saturated the whole
+                way round.
+
+                `userSpaceOnUse` so the ramp is laid across the ring's own box
+                rather than the stroke's bounding box, which for a short arc
+                would compress the whole ramp into the first few degrees. */}
+            <linearGradient id={`${gid}-arc`} gradientUnits="userSpaceOnUse" x1={10} y1={2} x2={90} y2={98}>
+              <stop offset="0%" stopColor={intensity(0)} />
+              <stop offset="50%" stopColor={intensity(0.5)} />
+              <stop offset="100%" stopColor={intensity(1)} />
+            </linearGradient>
+          </defs>
+          {/* The whole. */}
           <circle
             cx={50}
             cy={50}
             r={r}
             fill="none"
             stroke={VIZ_TRACK}
-            strokeWidth={9}
+            strokeWidth={11}
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
           {/* The part. Started at twelve o'clock and drawn clockwise, because
-              that is the direction every dial a reader has ever met turns. */}
+              that is the direction every dial a reader has ever met turns.
+
+              Drawn twice: a wide, faint pass that seats the arc against the
+              track the way a shadow seats an object, and the arc itself over
+              it. The halo is `wash`, which is the arc's own hue at a fraction
+              of its alpha, so the depth cue cannot be a colour the palette
+              does not know about. */}
           <circle
             cx={50}
             cy={50}
             r={r}
             fill="none"
-            stroke={VIZ_STRONG}
-            strokeWidth={9}
+            stroke={wash('purple', 20)}
+            strokeWidth={15}
+            strokeLinecap="round"
+            strokeDasharray={complete ? undefined : `${drawn} ${circumference}`}
+            transform="rotate(-90 50 50)"
+            vectorEffect="non-scaling-stroke"
+          />
+          <circle
+            cx={50}
+            cy={50}
+            r={r}
+            fill="none"
+            stroke={`url(#${gid}-arc)`}
+            strokeWidth={11}
             strokeLinecap={complete ? 'butt' : 'round'}
+            strokeLinejoin="round"
             strokeDasharray={complete ? undefined : `${drawn} ${circumference}`}
             transform="rotate(-90 50 50)"
             vectorEffect="non-scaling-stroke"
@@ -157,14 +288,14 @@ export function Ring({
             stack and its own size instead of being scaled by the viewBox. */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span
-            className="text-[16px] font-semibold leading-none tabular-nums"
-            style={{ color: 'var(--bento-ink)' }}
+            className="text-[17px] font-bold leading-none tabular-nums"
+            style={{ color: 'currentColor' }}
           >
             {pctText(v, total)}
           </span>
           <span
             className="mt-1 text-[10.5px] leading-none tabular-nums"
-            style={{ color: 'var(--bento-muted)' }}
+            style={{ color: VIZ_QUIET }}
           >
             {v}/{total}
           </span>
@@ -200,10 +331,17 @@ export function Ring({
 export function SegmentBar({
   segments,
   srLabel,
+  formatValue,
   className,
 }: {
   segments: { label: string; value: number }[]
   srLabel: string
+  /** How a segment's value is written, in the legend, the title and the label
+      the screen reader gets. Defaults to the bare number, which is what every
+      existing caller already gets — the prop exists because a count and an
+      amount of money are not the same thing, and a bare paise integer read as
+      rupees is wrong by a factor of a hundred. */
+  formatValue?: (v: number) => string
   className?: string
 }) {
   const { w } = useWidgetSize()
@@ -213,27 +351,44 @@ export function SegmentBar({
 
   const drawn = usable.filter((s) => s.value > 0)
   const wide = w >= 2
+  const fmt = formatValue ?? ((v: number) => String(v))
+  /* Position on the intensity ramp. The bar is ONE ramp and each segment is a
+     window onto it, so the hue a segment gets is decided by where it sits in
+     the ranking and by nothing else — no per-category colour to assign, and
+     no chance of two dashboards giving the same category two hues. The ramp is
+     the ranking cue the descending shade used to be; the legend still prints
+     every share, so a reader who cannot separate two stops has both numbers. */
+  const at = (i: number) => (usable.length <= 1 ? 0 : Math.min(i, 5) / Math.min(usable.length - 1, 5))
 
   return (
     <div
       role="img"
       aria-label={`${srLabel}: ${usable
-        .map((s) => `${s.label} ${s.value}, ${pctText(s.value, total)}`)
-        .join('; ')}. Total ${total}.`}
-      className={cn('flex w-full flex-col gap-2', className)}
+        .map((s) => `${s.label} ${fmt(s.value)}, ${pctText(s.value, total)}`)
+        .join('; ')}. Total ${fmt(total)}.`}
+      className={cn('flex w-full flex-col gap-2.5', className)}
     >
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ gap: '1.5px' }}>
+      {/* 14px rather than 10, and every segment fully rounded rather than the
+          strip being rounded once and the divisions being butt joins. At a
+          hairline's weight this read as a rule under the card; with a body and
+          round ends each share reads as an object, which is what it is. */}
+      <div className="flex h-[14px] w-full items-stretch" style={{ gap: '3px' }}>
         {drawn.map((s, i) => (
           <div
             key={`${s.label}-${i}`}
-            title={`${s.label}: ${s.value} (${pctText(s.value, total)})`}
+            title={`${s.label}: ${fmt(s.value)} (${pctText(s.value, total)})`}
+            className="rounded-full"
             style={{
               width: `${(s.value / total) * 100}%`,
-              // Strongest first, floored well above the ground so the last
-              // segment of a long series is still a segment.
-              background: `color-mix(in srgb, var(--bento-ink) ${Math.round(
-                88 - Math.min(i, 5) * 14,
-              )}%, transparent)`,
+              minWidth: '6px',
+              background: `linear-gradient(90deg, ${intensity(at(usable.indexOf(s)))}, ${intensity(
+                Math.min(1, at(usable.indexOf(s)) + 0.14),
+              )})`,
+              /* Seated, not floating. An inset line of the segment's own hue
+                 along the bottom edge is what makes a flat rectangle read as a
+                 solid object; it is drawn from the same `wash` the rest of the
+                 file uses, so there is no colour here a palette cannot move. */
+              boxShadow: `inset 0 -1.5px 0 ${wash('purple', 26)}`,
             }}
           />
         ))}
@@ -248,19 +403,13 @@ export function SegmentBar({
         {usable.map((s, i) => (
           <li key={`${s.label}-${i}`} className="flex min-w-0 items-center gap-1.5">
             <span
-              className="h-2 w-2 shrink-0 rounded-[1px]"
-              style={{
-                background: `color-mix(in srgb, var(--bento-ink) ${Math.round(
-                  88 - Math.min(i, 5) * 14,
-                )}%, transparent)`,
-              }}
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: intensity(at(i)) }}
             />
-            <span className="truncate" style={{ color: 'var(--bento-muted)' }}>
+            <span className="truncate" style={{ color: VIZ_QUIET }}>
               {s.label}
             </span>
-            <span className="ml-auto shrink-0 font-semibold" style={{ color: 'var(--bento-ink)' }}>
-              {s.value}
-            </span>
+            <span className="ml-auto shrink-0 font-semibold">{fmt(s.value)}</span>
           </li>
         ))}
       </ul>
@@ -292,10 +441,16 @@ export function SegmentBar({
 export function AgeBands({
   bands,
   srLabel,
+  formatValue,
   className,
 }: {
   bands: { label: string; value: number }[]
   srLabel: string
+  /** How a band's count is written, beside the rail and in the label the
+      screen reader gets. Defaults to the bare number. Ageing buckets are as
+      often money as they are counts, and money in paise printed raw is wrong
+      by a factor of a hundred. */
+  formatValue?: (v: number) => string
   className?: string
 }) {
   const { w } = useWidgetSize()
@@ -304,12 +459,18 @@ export function AgeBands({
   if (usable.length === 0 || max <= 0) return null
 
   const wide = w >= 2
+  const fmt = formatValue ?? ((v: number) => String(v))
+  /* The risk ramp, by position rather than by value: the buckets are already
+     in worsening order, so the hue restates the order the reader is reading
+     down. It is the third channel on the same fact — after the position and
+     the printed count — and not one of them on its own. */
+  const at = (i: number) => (usable.length <= 1 ? 0 : Math.min(i, 4) / Math.min(usable.length - 1, 4))
 
   return (
     <div
       role="img"
-      aria-label={`${srLabel}: ${usable.map((b) => `${b.label}, ${b.value}`).join('; ')}.`}
-      className={cn('flex w-full flex-col gap-1.5', className)}
+      aria-label={`${srLabel}: ${usable.map((b) => `${b.label}, ${fmt(b.value)}`).join('; ')}.`}
+      className={cn('flex w-full flex-col gap-2', className)}
     >
       {usable.map((b, i) => (
         <div key={`${b.label}-${i}`} className="flex items-center gap-2">
@@ -318,31 +479,38 @@ export function AgeBands({
               'shrink-0 text-[10.5px] leading-none tabular-nums',
               wide ? 'w-14' : 'w-11',
             )}
-            style={{ color: 'var(--bento-muted)' }}
+            style={{ color: VIZ_QUIET }}
           >
             {b.label}
           </span>
           <div
-            className="h-2 min-w-0 flex-1 overflow-hidden rounded-[var(--bento-radius-sm)]"
+            className="h-[10px] min-w-0 flex-1 overflow-hidden rounded-full"
             style={{ background: VIZ_TRACK }}
           >
             <div
-              className="h-full rounded-[var(--bento-radius-sm)]"
+              className="h-full rounded-full"
               style={{
                 // A floor, so a band with one item in it is a visible mark and
-                // not an empty rail indistinguishable from a zero.
-                width: b.value === 0 ? '0%' : `${Math.max(3, (b.value / max) * 100)}%`,
-                background: `color-mix(in srgb, var(--bento-ink) ${Math.round(
-                  38 + Math.min(i, 4) * 15,
-                )}%, transparent)`,
+                // not an empty rail indistinguishable from a zero. 4% rather
+                // than 3 because a fully rounded cap needs its own diameter of
+                // length before it reads as a bar and not as a dot.
+                width: b.value === 0 ? '0%' : `${Math.max(4, (b.value / max) * 100)}%`,
+                background: `linear-gradient(90deg, ${ramp2(
+                  risk(at(i)),
+                  'transparent',
+                  0.28,
+                )}, ${risk(at(i))})`,
+                boxShadow: `inset 0 -1.5px 0 ${wash('pink', 22)}`,
               }}
             />
           </div>
           <span
-            className="w-9 shrink-0 text-right text-[11px] font-semibold leading-none tabular-nums"
-            style={{ color: 'var(--bento-ink)' }}
+            className={cn(
+              'shrink-0 text-right text-[11px] font-semibold leading-none tabular-nums',
+              wide ? 'w-14' : 'w-9',
+            )}
           >
-            {b.value}
+            {fmt(b.value)}
           </span>
         </div>
       ))}
@@ -403,27 +571,44 @@ export function HeatStrip({
         aria-label={`${srLabel}: ${cells
           .map((c) => (c === null ? 'no data' : fmt(c)))
           .join(', ')}.`}
-        className="flex h-6 w-full items-stretch gap-[2px]"
+        className="flex h-7 w-full items-stretch gap-[3px]"
       >
         {cells.map((c, i) =>
           c === null || !Number.isFinite(c) ? (
             <div
               key={i}
               title="No data"
-              className="min-w-0 flex-1 rounded-[2px]"
-              style={{ border: `1px solid ${VIZ_LINE}` }}
+              className="min-w-0 flex-1 rounded-[3px]"
+              style={{ border: `1.5px solid ${VIZ_LINE}` }}
             />
           ) : (
             <div
               key={i}
               title={fmt(c)}
-              className="min-w-0 flex-1 rounded-[2px]"
+              className="min-w-0 flex-1 rounded-[3px]"
               style={{
-                // 22% floor: the coolest observed cell must still read as a
-                // cell that was measured, not as an absent one.
-                background: `color-mix(in srgb, var(--bento-ink) ${Math.round(
-                  flat ? 55 : 22 + ((c - lo) / range) * 63,
-                )}%, transparent)`,
+                /* The intensity ramp, end to end. Every stop on it is a 55%
+                   mix, so the COOLEST observed cell is as legible against the
+                   card as the hottest — which the old alpha ramp was not: its
+                   floor was 22% of the ink, and a cell nobody can see is
+                   indistinguishable from the outlined cell that means "we have
+                   no data for this period". Value now moves the hue, not the
+                   opacity, and the two states stay different facts.
+
+                   A flat series sits at the middle of the ramp rather than at
+                   its floor, for the reason the doc comment above gives. */
+                /* Two channels, not one. The hue ramp alone came out reading
+                   as a row of different colours rather than as a row of
+                   different WEIGHTS — the whole point of a heat strip — so the
+                   alpha rises with the value as well, from 78% to solid. 78%
+                   is the floor rather than the old 22%: at 78% the coolest
+                   observed cell still measures 3.40:1 against the light card,
+                   and below that it fades into the outlined cell that means
+                   "no data", which is a different fact. */
+                background: `color-mix(in srgb, ${
+                  flat ? intensity(0.5) : intensity((c - lo) / range)
+                } ${flat ? 100 : Math.round(78 + ((c - lo) / range) * 22)}%, transparent)`,
+                boxShadow: `inset 0 -1.5px 0 ${wash('purple', 22)}`,
               }}
             />
           ),
@@ -432,7 +617,7 @@ export function HeatStrip({
       {/* The key back to numbers. Without it the strip is colour-only. */}
       <div
         className="flex items-baseline justify-between text-[10px] leading-none tabular-nums"
-        style={{ color: 'var(--bento-muted)' }}
+        style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >
         <span>{fmt(lo)}</span>
@@ -538,23 +723,17 @@ export function Timeline({
       <div className="relative w-full" style={{ height: `${stackHeight + 10}px` }}>
         {/* The axis. The one piece of pure geometry here, so the one place
             `preserveAspectRatio="none"` belongs. */}
-        <svg
-          viewBox="0 0 100 2"
-          preserveAspectRatio="none"
+        <div
           aria-hidden="true"
-          focusable="false"
-          className="absolute inset-x-0 bottom-0 h-[2px] w-full"
-        >
-          <line
-            x1={0}
-            y1={1}
-            x2={100}
-            y2={1}
-            stroke={VIZ_LINE}
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          className="absolute inset-x-0 bottom-0 h-[3px] w-full rounded-full"
+          style={{
+            /* The axis is time, and time runs left to right, so the rail runs
+               with it: the ramp deepens toward the far end rather than sitting
+               at one flat weight. It is geometry, not a series, so it takes
+               the neutral pair rather than an accent. */
+            background: `linear-gradient(90deg, ${VIZ_TRACK}, ${VIZ_LINE})`,
+          }}
+        />
         {seatedMarks.map((m, i) => (
           <div
             key={`${m.label}-${i}`}
@@ -569,17 +748,24 @@ export function Timeline({
             {/* A stem down to the axis, so a dodged mark still reads as
                 belonging to its own point in time rather than floating. */}
             <span
-              className="absolute left-1/2 w-px"
+              className="absolute left-1/2 w-[1.5px] -translate-x-1/2 rounded-full"
               style={{
                 bottom: `-${m.lane * laneStep}px`,
-                height: `${m.lane * laneStep + 4}px`,
-                background: VIZ_LINE,
+                height: `${m.lane * laneStep + 5}px`,
+                background: `linear-gradient(180deg, ${wash('purple', 55)}, ${VIZ_TRACK})`,
               }}
               aria-hidden="true"
             />
+            {/* An event is a single reading on the axis, so it takes purple,
+                the measurement hue — and a round mark rather than a wireframe
+                diamond, with a halo of its own hue so two marks a lane apart
+                still separate where they nearly touch. */}
             <span
-              className="relative block h-[7px] w-[7px] rotate-45 rounded-[1px]"
-              style={{ background: VIZ_STRONG }}
+              className="relative block h-[9px] w-[9px] rounded-full"
+              style={{
+                background: `linear-gradient(160deg, ${mark('purple')}, ${deep('purple')})`,
+                boxShadow: `0 0 0 3px ${wash('purple', 16)}`,
+              }}
               aria-hidden="true"
             />
           </div>
@@ -593,7 +779,7 @@ export function Timeline({
                 left: `${m.x}%`,
                 bottom: `${m.lane * laneStep + 10}px`,
                 transform: 'translateX(-50%)',
-                color: 'var(--bento-muted)',
+                color: VIZ_QUIET,
               }}
               aria-hidden="true"
             >
@@ -603,7 +789,7 @@ export function Timeline({
       </div>
       <div
         className="flex items-baseline justify-between text-[10px] leading-none tabular-nums"
-        style={{ color: 'var(--bento-muted)' }}
+        style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >
         <span>{dateText(t0)}</span>
@@ -616,9 +802,9 @@ export function Timeline({
 
 // --- 6. Quadrant --------------------------------------------------------
 
-/** Faint enough to sit under the marks without competing with them, and still
-    a token rather than a grey. */
-const VIZ_LINE_TEXT = 'color-mix(in srgb, var(--bento-muted) 72%, transparent)'
+/** The region names. Quiet, and TEXT — so the quiet-text mix above rather than
+    a fraction of `currentColor`: it has to clear 4.5:1, not 3:1. */
+const VIZ_LINE_TEXT = VIZ_QUIET
 
 /** Where each region's name goes and what it says. A table rather than four
     copies of the same span, so a wording change happens once. */
@@ -696,6 +882,23 @@ export function Quadrant({
       <div className="relative min-h-0 w-full flex-1">
         {/* The cross and the frame. Geometry only, so stretched to the cell
             with non-scaling strokes. */}
+        {/* The frame is a rounded box drawn in CSS rather than a `<rect>`: the
+            field is stretched to the cell, so an `rx` in a `preserveAspectRatio
+            ="none"` viewBox would come out as a squashed ellipse at one size
+            and a circle at another. A border-radius does not stretch.
+
+            It also carries the faintest possible wash — the measurement hue at
+            a twentieth of its alpha, deepening toward the top right — so the
+            field reads as a surface the points sit ON rather than as four
+            lines drawn on the card. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 rounded-[var(--bento-radius)]"
+          style={{
+            border: `1px solid ${VIZ_LINE}`,
+            background: `linear-gradient(215deg, ${wash('purple', 7)}, transparent 62%)`,
+          }}
+        />
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
@@ -703,32 +906,24 @@ export function Quadrant({
           focusable="false"
           className="absolute inset-0 h-full w-full"
         >
-          <rect
-            x={0.5}
-            y={0.5}
-            width={99}
-            height={99}
-            fill="none"
-            stroke={VIZ_LINE}
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
           <line
             x1={50}
-            y1={0}
+            y1={4}
             x2={50}
-            y2={100}
+            y2={96}
             stroke={VIZ_LINE}
             strokeWidth={1}
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
           <line
-            x1={0}
+            x1={4}
             y1={50}
-            x2={100}
+            x2={96}
             y2={50}
             stroke={VIZ_LINE}
             strokeWidth={1}
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -752,12 +947,22 @@ export function Quadrant({
           <span
             key={`${p.label}-${i}`}
             title={`${p.label} — ${inQuad(p)}`}
-            className="absolute h-[5px] w-[5px] rounded-[1px]"
+            className="absolute h-[7px] w-[7px] rounded-full"
             style={{
               left: `${px(p.x)}%`,
               top: `${py(p.y)}%`,
               transform: 'translate(-50%, -50%)',
-              background: VIZ_STRONG,
+              /* One hue for every point, deliberately. Density is the finding;
+                 colouring by quadrant would be a claim about which corner is
+                 the bad one, and only the caller knows that. Purple, because a
+                 point here is a reading and nothing more.
+
+                 The halo is what makes a scatter readable at this size: it
+                 gives each point a soft edge against its neighbours without
+                 needing a ring in the card's own colour, which on a
+                 domain-tinted or inverted cell there is no way to name. */
+              background: `radial-gradient(circle at 32% 30%, ${mark('purple')}, ${deep('purple')})`,
+              boxShadow: `0 0 0 3px ${wash('purple', 15)}`,
             }}
             aria-hidden="true"
           />
@@ -766,7 +971,7 @@ export function Quadrant({
       {/* The axes named once, under the field, rather than twice inside it. */}
       <div
         className="flex shrink-0 items-baseline justify-between gap-2 text-[10px] leading-[13px]"
-        style={{ color: 'var(--bento-muted)' }}
+        style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >
         <span className="truncate">↑ {yLabel}</span>

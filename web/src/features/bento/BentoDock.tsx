@@ -246,7 +246,6 @@ export function BentoDock() {
                   style={{
                     width: 'var(--dock-icon, 17px)',
                     height: 'var(--dock-icon, 17px)',
-                    opacity: 0.6,
                     color: `var(--dom-${hueFor(c.name)})`,
                   }}
                   aria-hidden="true"

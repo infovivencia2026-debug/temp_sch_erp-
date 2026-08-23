@@ -75,22 +75,22 @@
 
      Every ink below clears 4.2:1 against its own 13% panel and 5:1 against the
      card, and all twelve are distinct. */
-  --dom-students: #2563eb;      --dom-students-soft: #c8cdd0;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #f5f5f5;
-  --dom-attendance: #0f766e;    --dom-attendance-soft: #c8cdd0;
-  --dom-finance: #a16207;       --dom-finance-soft: #e8ecec;
-  --dom-staff: #be123c;         --dom-staff-soft: #d0d9d9;
-  --dom-admissions: #0369a1;    --dom-admissions-soft: #dde0e2;
-  --dom-communication: #6d28d9; --dom-communication-soft: #dde3e3;
-  --dom-operations: #475569;    --dom-operations-soft: #d5dcdb;
-  --dom-reports: #047857;       --dom-reports-soft: #e8ecec;
+  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;
+  --dom-finance: #a16207;       --dom-finance-soft: #fcf8f3;
+  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;
+  --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2;
+  --dom-operations: #475569;    --dom-operations-soft: #c0ccdd;
+  --dom-reports: #047857;       --dom-reports-soft: #d2f4ea;
 
   /* Status, and now three different colours rather than one orange twice.
      Safety orange #FF5F1F and laser green #39FF14 are signal colours at
      near-maximum chroma: they fail on white and vibrate against a tint. */
-  --dom-critical: #b42318;      --dom-critical-soft: #fee4e2;
-  --dom-warning: #c2410c;       --dom-warning-soft: #fef0c7;
-  --dom-success: #067647;       --dom-success-soft: #dcfae6;
+  --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
+  --dom-warning: #c2410c;       --dom-warning-soft: #fbf2ef;
+  --dom-success: #067647;       --dom-success-soft: #c6f1df;
 }
 
 /* The card actions, as buttons rather than blue words with an arrow.
@@ -111,17 +111,21 @@
      ghost. A plain white button with black text reads at 21:1 against its own
      face on every ground there is, and the hairline is what separates it from
      a white card rather than the fill. */
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #ddd;
+  /* The palette pair, not a fixed white-on-black. `--bento-card` and
+     `--bento-ink` are the one pairing every shipped palette guarantees
+     outright, so the button keeps its 21:1-ish face on every ground there is
+     AND changes when the scheme changes — which the fixed white did not. */
+  background: var(--bento-card);
+  color: var(--bento-ink);
+  border: 1px solid var(--bento-line);
   border-radius: 8px;
   padding: 10px 18px;
   font-weight: 600;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 [data-layout='bento'] .bento-cue:hover {
-  background: #f4f4f5;
-  border-color: #c4c4c8;
+  background: color-mix(in srgb, var(--bento-ink) 5%, var(--bento-card));
+  border-color: color-mix(in srgb, var(--bento-ink) 25%, var(--bento-line));
 }
 
 html.dark[data-layout='bento'] {
@@ -141,19 +145,19 @@ html.dark[data-layout='bento'] {
      light set had. The greys passed on black — a pale grey on near-black is
      high contrast — but students and attendance, and finance and reports, were
      still the same colour as each other. */
-  --dom-students: #7ea9ff;      --dom-students-soft: #2a2d30;
+  --dom-students: #7ea9ff;      --dom-students-soft: #1e3b76;
   --dom-academics: #b794ff;     --dom-academics-soft: #2a2a2a;
-  --dom-attendance: #4fc4b0;    --dom-attendance-soft: #2a2d30;
-  --dom-finance: #d4a15a;       --dom-finance-soft: #252828;
-  --dom-staff: #f39bad;         --dom-staff-soft: #202828;
-  --dom-admissions: #6cc6de;    --dom-admissions-soft: #222628;
-  --dom-communication: #c4a8ff; --dom-communication-soft: #222727;
-  --dom-operations: #a2b0c2;    --dom-operations-soft: #202626;
-  --dom-reports: #62d3a0;       --dom-reports-soft: #252828;
+  --dom-attendance: #4fc4b0;    --dom-attendance-soft: #184940;
+  --dom-finance: #d4a15a;       --dom-finance-soft: #513815;
+  --dom-staff: #f39bad;         --dom-staff-soft: #7a1f31;
+  --dom-admissions: #6cc6de;    --dom-admissions-soft: #174f5e;
+  --dom-communication: #c4a8ff; --dom-communication-soft: #3c1f7a;
+  --dom-operations: #a2b0c2;    --dom-operations-soft: #30425a;
+  --dom-reports: #62d3a0;       --dom-reports-soft: #175438;
 
   --dom-critical: #f4736b;      --dom-critical-soft: #2b1414;
-  --dom-warning: #fb923c;     --dom-warning-soft: #2a1f0f;
-  --dom-success: #6cc98a;       --dom-success-soft: #10240f;
+  --dom-warning: #fb923c;     --dom-warning-soft: #5a3516;
+  --dom-success: #6cc98a;       --dom-success-soft: #1d4e2d;
   color-scheme: dark;
 
   --bento-bg: #0d0f14;
@@ -183,7 +187,11 @@ html.dark[data-layout='bento'] {
 [data-layout='bento'] .bento-cell {
   border-width: var(--bento-border-w);
   border-style: solid;
-  border-color: rgba(0, 0, 0, 0.14);
+  /* Was rgba(0,0,0,0.14): a fixed black wash that no palette could move and
+     that vanished entirely on the two dark schemes. `--bento-line` is the
+     hairline the palettes actually ship, and it is what every hover and focus
+     rule below already mixes against. */
+  border-color: var(--bento-line);
   box-shadow: var(--bento-shadow-sm);
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
@@ -213,7 +221,7 @@ html.dark[data-layout='bento'] {
      through — on a dark or anchor cell that put black text on a dark
      translucent field the moment the pointer touched the card. The button
      keeps one face; coming forward is the border's job. */
-  border-color: #b4b4b8;
+  border-color: color-mix(in srgb, var(--bento-ink) 35%, var(--bento-line));
 }
 
 /* EVERY cell answers the pointer, not just the ones that go somewhere.
@@ -310,19 +318,19 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-shadow: none;
   --bento-shadow-sm: none;
 
-  --dom-students: #2563eb;      --dom-students-soft: #dbeafe;      --dom-students-text: #ffffff;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #ede9fe;     --dom-academics-text: #ffffff;
-  --dom-attendance: #0f766e;    --dom-attendance-soft: #ccfbf1;    --dom-attendance-text: #ffffff;
-  --dom-finance: #b45309;       --dom-finance-soft: #fef3c7;       --dom-finance-text: #ffffff;
-  --dom-staff: #be123c;         --dom-staff-soft: #ffe4e6;         --dom-staff-text: #ffffff;
-  --dom-admissions: #0369a1;    --dom-admissions-soft: #e0f2fe;    --dom-admissions-text: #ffffff;
-  --dom-communication: #6d28d9; --dom-communication-soft: #f3e8ff; --dom-communication-text: #ffffff;
-  --dom-operations: #047857;    --dom-operations-soft: #d1fae5;    --dom-operations-text: #ffffff;
-  --dom-reports: #475569;       --dom-reports-soft: #e2e8f0;       --dom-reports-text: #ffffff;
+  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;      --dom-students-text: #ffffff;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;     --dom-academics-text: #ffffff;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #ffffff;
+  --dom-finance: #b45309;       --dom-finance-soft: #fbf4ef;       --dom-finance-text: #ffffff;
+  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #ffffff;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #ffffff;
+  --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2; --dom-communication-text: #ffffff;
+  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #ffffff;
+  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #ffffff;
 
-  --dom-critical: #b42318;      --dom-critical-soft: #fee4e2;
-  --dom-warning: #b54708;       --dom-warning-soft: #fef0c7;
-  --dom-success: #067647;       --dom-success-soft: #dcfae6;
+  --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
+  --dom-warning: #b54708;       --dom-warning-soft: #f8eae2;
+  --dom-success: #067647;       --dom-success-soft: #c6f1df;
 }
 
 html[data-skin='focus'] [data-layout='bento']::before,
@@ -341,19 +349,19 @@ html.dark[data-skin='focus'] [data-layout='bento'] {
   /* Deep chromatic surfaces belong to the dark canvas; pale light-mode fills
      do not. Soft tokens stay dark while their foregrounds lift for icons and
      labels, preserving each domain without creating luminous stickers. */
-  --dom-students: #1d4ed8;      --dom-students-soft: #172554;      --dom-students-text: #eff6ff;
-  --dom-academics: #6d28d9;     --dom-academics-soft: #2e1065;     --dom-academics-text: #f5f3ff;
-  --dom-attendance: #0f766e;    --dom-attendance-soft: #042f2e;    --dom-attendance-text: #f0fdfa;
-  --dom-finance: #a16207;       --dom-finance-soft: #422006;       --dom-finance-text: #fffbeb;
-  --dom-staff: #be123c;         --dom-staff-soft: #4c0519;         --dom-staff-text: #fff1f2;
-  --dom-admissions: #0369a1;    --dom-admissions-soft: #082f49;    --dom-admissions-text: #f0f9ff;
-  --dom-communication: #7e22ce; --dom-communication-soft: #3b0764; --dom-communication-text: #faf5ff;
-  --dom-operations: #047857;    --dom-operations-soft: #022c22;    --dom-operations-text: #ecfdf5;
-  --dom-reports: #475569;       --dom-reports-soft: #1e293b;       --dom-reports-text: #f8fafc;
+  --dom-students: #1d4ed8;      --dom-students-soft: #ced8f3;      --dom-students-text: #eff6ff;
+  --dom-academics: #6d28d9;     --dom-academics-soft: #d9caf2;     --dom-academics-text: #f5f3ff;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #f0fdfa;
+  --dom-finance: #a16207;       --dom-finance-soft: #fcf8f3;       --dom-finance-text: #fffbeb;
+  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #fff1f2;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #f0f9ff;
+  --dom-communication: #7e22ce; --dom-communication-soft: #dfcaf2; --dom-communication-text: #faf5ff;
+  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #ecfdf5;
+  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #f8fafc;
 
   --dom-critical: #f97066;      --dom-critical-soft: #55160c;
-  --dom-warning: #fdb022;       --dom-warning-soft: #4e2b0b;
-  --dom-success: #32d583;       --dom-success-soft: #073d29;
+  --dom-warning: #fdb022;       --dom-warning-soft: #624818;
+  --dom-success: #32d583;       --dom-success-soft: #145233;
 }
 
 html[data-skin='focus'] .bento-cell,
@@ -487,9 +495,12 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   border-radius: 6px;
   font-size: 11.5px;
   line-height: 1.4;
-  background: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
-  border: 1px solid hsl(var(--border));
+  /* These three read the CLASSIC theme's tokens, so the one piece of chrome
+     that teaches somebody what the dock's glyphs mean was the one piece a
+     palette could not reach. */
+  background: var(--bento-card);
+  color: var(--bento-ink);
+  border: 1px solid var(--bento-line);
   box-shadow: var(--bento-depth);
   opacity: 0;
   pointer-events: none;
@@ -938,4 +949,289 @@ html[style*='--shadow-scale'] .dark {
   --bento-depth-lg:
     0 calc(20px * var(--shadow-scale)) calc(44px * var(--shadow-scale))
     rgb(0 0 0 / calc(0.85 * var(--shadow-scale)));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE APP'S SEMANTIC UTILITIES, RE-POINTED AT THE BENTO TOKENS.
+
+   This block is the answer to "the icons are ignored again in the colour
+   schemes", and to the two complaints before it. None of those were separate
+   bugs. They were one bug reported three times.
+
+   A palette sets fifty-five `--bento-*` / `--dom-*` properties. It does not,
+   and cannot, set the app's own shadcn tokens — `--muted-foreground`,
+   `--popover`, `--accent`, `--border`, `--ring` — because those are HSL
+   triplets consumed as `hsl(var(--x))` while a palette is written in hex.
+   So every element on the bento surface wearing a Tailwind semantic class was
+   painted by the CLASSIC theme and sat there unmoved while all four palettes
+   went past it.
+
+   That is most of the chrome: 73 `text-muted-foreground` (which is nearly
+   every lucide icon on the surface — an icon is `currentColor`, and this is
+   the colour it was inheriting), 37 `hover:bg-accent`, 27 focus rings, the
+   popover panels, the dock's dividers and its tooltip.
+
+   Fixing it at the call sites would mean editing fourteen components, four of
+   which are checked out by somebody else. Fixing it here reaches all of them,
+   including those four, and reaches anything added later that reaches for a
+   semantic class out of habit.
+
+   Two things make these rules land. `[data-layout='bento'] .x` is (0,2,0) or
+   (0,1,0) against a utility's (0,1,0); and this file is imported after
+   index.css in main.tsx, so equal specificity resolves this way too. Scoped to
+   the layout throughout, so Classic is untouched.
+
+   NO NEW TOKENS. Every value below is one of the fifty-five, or a color-mix of
+   one, so there is nothing further for the four palettes to set.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ---- ink ----------------------------------------------------------------
+
+   `--bento-muted` is the measured supporting tone: 4.6:1 on `--bento-card` at
+   worst across the four. `--secondary-foreground` folds into it rather than
+   getting a tone of its own, because inventing a third ink would be inventing
+   a fifty-sixth token. */
+[data-layout='bento'] .text-muted-foreground,
+[data-layout='bento'] .text-secondary-foreground {
+  color: var(--bento-muted);
+}
+
+[data-layout='bento'] .text-foreground,
+[data-layout='bento'] .text-card-foreground,
+[data-layout='bento'] .text-popover-foreground,
+[data-layout='bento'] .text-accent-foreground,
+[data-layout='bento'] .hover\:text-foreground:hover {
+  color: var(--bento-ink);
+}
+
+/* The ground used as ink: the inverted cell prints its text in the page's own
+   colour, which is what `text-background` means there. */
+[data-layout='bento'] .text-background {
+  color: var(--bento-bg);
+}
+[data-layout='bento'] .text-background\/85 {
+  color: color-mix(in srgb, var(--bento-bg) 85%, transparent);
+}
+
+/* The ground ink. Nothing in the layout set a body colour, so every element
+   that did not name one — a menu row's label, a launcher tile's app name, the
+   text in a dialog — inherited the CLASSIC theme's `--foreground` and came out
+   pure black on all four palettes, including the two dark ones. The portalled
+   overlays are children of <body>, not of the bento ground, which is why this
+   sits on the body rather than on `.bento-ground`. */
+[data-layout='bento'] body {
+  color: var(--bento-ink);
+}
+
+/* ---- surfaces ----------------------------------------------------------- */
+
+[data-layout='bento'] .bg-card,
+[data-layout='bento'] .bg-popover {
+  background-color: var(--bento-card);
+}
+[data-layout='bento'] .bg-popover\/90,
+[data-layout='bento'] .hover\:bg-popover\/90:hover {
+  background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
+}
+[data-layout='bento'] .disabled\:hover\:bg-popover\/90:hover:disabled {
+  background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
+}
+[data-layout='bento'] .bg-popover\/80 {
+  background-color: color-mix(in srgb, var(--bento-card) 80%, transparent);
+}
+
+[data-layout='bento'] .bg-background {
+  background-color: var(--bento-bg);
+}
+[data-layout='bento'] .bg-background\/70 {
+  background-color: color-mix(in srgb, var(--bento-bg) 70%, transparent);
+}
+[data-layout='bento'] .bg-background\/25 {
+  background-color: color-mix(in srgb, var(--bento-bg) 25%, transparent);
+}
+[data-layout='bento'] .bg-background\/20 {
+  background-color: color-mix(in srgb, var(--bento-bg) 20%, transparent);
+}
+
+/* The raised shade. `--bento-card-2` is exactly this: the step above the card
+   that the palettes already ship. */
+[data-layout='bento'] .bg-muted,
+[data-layout='bento'] .bg-secondary {
+  background-color: var(--bento-card-2);
+}
+
+[data-layout='bento'] .bg-foreground {
+  background-color: var(--bento-ink);
+}
+
+/* Hover wash. Mixed from the ink rather than named, so one declaration is
+   correct on a light palette and a dark one — a fixed grey would be a smudge
+   on one of the two whichever grey was chosen. */
+[data-layout='bento'] .bg-accent,
+[data-layout='bento'] .bg-surface-hover,
+[data-layout='bento'] .hover\:bg-accent:hover,
+[data-layout='bento'] .hover\:bg-surface-hover:hover {
+  background-color: color-mix(in srgb, var(--bento-ink) 8%, transparent);
+}
+[data-layout='bento'] .bg-accent\/50,
+[data-layout='bento'] .hover\:bg-accent\/50:hover {
+  background-color: color-mix(in srgb, var(--bento-ink) 4%, transparent);
+}
+
+/* ---- lines --------------------------------------------------------------
+
+   `.border` and friends set a width only; the colour arrives from Tailwind's
+   preflight `*` rule, which reads the classic `--border`. `:where()` keeps
+   this at the attribute selector's own weight so a call site that names a
+   colour explicitly still wins. */
+[data-layout='bento'] :where(.border, .border-t, .border-b, .border-l, .border-r,
+                             .border-x, .border-y, .border-border, .border-input) {
+  border-color: var(--bento-line);
+}
+/* The dock's dividers are a background, not a border. */
+[data-layout='bento'] .bg-border {
+  background-color: var(--bento-line);
+}
+[data-layout='bento'] .border-background\/20 {
+  border-color: color-mix(in srgb, var(--bento-bg) 20%, transparent);
+}
+
+/* ---- the selected / active accent --------------------------------------
+
+   There is no `--bento-primary`; there are four measured accents. Mint is the
+   affirmative one and every light value of it clears 4.5:1 both on the card
+   and on its own tint, which is the pair `text-primary` on `bg-primary-soft`
+   actually forms.
+
+   The solid fill is the ink, not the accent: `bg-primary` is always worn with
+   `text-primary-foreground`, and ink-on-card is the one pairing every palette
+   guarantees outright. */
+/* Darkened toward the ink, because this ink's usual ground is not the card.
+   `text-primary` is nearly always worn with `bg-primary-soft`, and the accent
+   measures only 2.80-4.30:1 on its own tint across the four (see the badge
+   note below). Sixty per cent accent, forty per cent ink keeps the hue plainly
+   readable as green and lifts the worst pairing to 4.80:1. On the plain card,
+   where it is occasionally used alone, darkening only helps. */
+[data-layout='bento'] .text-primary {
+  color: color-mix(in srgb, var(--bento-mint) 60%, var(--bento-ink));
+}
+[data-layout='bento'] .border-primary {
+  border-color: var(--bento-mint);
+}
+[data-layout='bento'] .ring-primary {
+  --tw-ring-color: var(--bento-mint);
+}
+[data-layout='bento'] .bg-primary-soft {
+  background-color: var(--bento-mint-tint);
+}
+[data-layout='bento'] .bg-primary {
+  background-color: var(--bento-ink);
+}
+[data-layout='bento'] .text-primary-foreground {
+  color: var(--bento-card);
+}
+
+/* The focus ring. Twenty-seven controls asked for `--ring` and got the classic
+   blue on every palette, including the two dark ones where it is the only
+   thing on screen still wearing the old theme. */
+[data-layout='bento'] .ring-ring,
+[data-layout='bento'] .focus-visible\:ring-ring:focus-visible {
+  --tw-ring-color: var(--bento-mint);
+}
+
+/* ---- status marks -------------------------------------------------------
+
+   Deliberately NOT the `--dom-*` set. In this file `--dom-critical` is an ink
+   (#b42318); in all four shipped palettes the same name is a PANEL tint
+   (#f4d8d7 light, #2b1414 dark) with the ink moved to `--dom-critical-text`.
+   A dot drawn in `var(--dom-critical)` is therefore a red mark today and a
+   1.1:1 pale smudge the moment a palette is applied.
+
+   The four accents have no such ambiguity — they are inks in the base theme
+   and inks in every palette, all measured on the card, and pink / orange /
+   mint / purple carry error / caution / good / informational without anyone
+   having to be told. */
+[data-layout='bento'] .bg-destructive,
+[data-layout='bento'] .hover\:bg-destructive:hover {
+  background-color: var(--bento-pink);
+}
+[data-layout='bento'] .text-destructive {
+  color: var(--bento-pink);
+}
+[data-layout='bento'] .text-destructive-foreground,
+[data-layout='bento'] .hover\:text-destructive-foreground:hover {
+  color: var(--bento-card);
+}
+[data-layout='bento'] .border-destructive\/40 {
+  border-color: color-mix(in srgb, var(--bento-pink) 40%, transparent);
+}
+[data-layout='bento'] .bg-warning {
+  background-color: var(--bento-orange);
+}
+[data-layout='bento'] .bg-warning\/60 {
+  background-color: color-mix(in srgb, var(--bento-orange) 60%, transparent);
+}
+[data-layout='bento'] .bg-success {
+  background-color: var(--bento-mint);
+}
+[data-layout='bento'] .bg-info {
+  background-color: var(--bento-purple);
+}
+[data-layout='bento'] .bg-muted-foreground\/40 {
+  background-color: color-mix(in srgb, var(--bento-muted) 40%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TWO CONTRAST FAULTS THE PALETTES INHERITED, FIXED WITHOUT A NEW TOKEN.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* 1. THE MUTED TONE ON A CELL THAT IS NOT THE PLAIN CARD.
+
+   `--bento-muted` is one value for the whole surface, and it was measured
+   against one ground: `--bento-card`, where it sits at 4.60-4.67:1. Put the
+   same grey on the anchor's gradient and it falls to 2.23:1; on the inverted
+   cell 3.42:1; on the paler domain tints as low as 2.56:1. The label and the
+   supporting sentence on every one of those cards were failing, on all four
+   palettes, and no palette could have fixed it — one token cannot be correct
+   against fourteen different grounds at once.
+
+   So on those cells the muted tone is DERIVED rather than declared: 72% of
+   whatever ink the cell is already using, which is the one colour on that
+   card guaranteed to contrast with it, because that guarantee is exactly what
+   the palette computed the ink for. Worst case across all four palettes and
+   every tone is 5.26:1; the plain card is deliberately left alone, so the
+   measured `--bento-muted` still does its job where it was designed to.
+
+   Selected by the tone class each cell already carries and by the `data-tinted`
+   flag the widget layer already sets, so nothing needed a new attribute. */
+[data-layout='bento'] .bento-cell[class*="text-[var(--bento-anchor-ink)]"],
+[data-layout='bento'] .bento-cell[class*="text-[var(--bento-bg)]"],
+[data-layout='bento'] .bento-cell[class*="text-[var(--dom-"],
+[data-layout='bento'] .bento-widget[data-tinted] {
+  --bento-muted: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+/* 2. THE BADGES, WHICH PUT AN ACCENT ON ITS OWN TINT.
+
+   Each accent was relit until it cleared 4.5:1 against `--bento-card` — and
+   it does, at 4.66-4.81:1. A badge does not sit on the card. It sits on
+   `--bento-<hue>-tint`, which is the same hue lightened, and against that the
+   four measure 3.90-4.30:1 on the light palettes and as little as 2.80:1 on
+   the dark ones. Every badge on the surface fails, in every palette, and the
+   ground it fails against was simply never checked.
+
+   Mixing the accent toward the ink keeps it unmistakably its own hue while
+   moving it far enough off its tint to read: worst pairing 4.80:1. The tint
+   itself is untouched, so the badge still looks like a badge. */
+[data-layout='bento'] [class*="bg-[var(--bento-mint-tint)]"] {
+  color: color-mix(in srgb, var(--bento-mint) 60%, var(--bento-ink));
+}
+[data-layout='bento'] [class*="bg-[var(--bento-purple-tint)]"] {
+  color: color-mix(in srgb, var(--bento-purple) 60%, var(--bento-ink));
+}
+[data-layout='bento'] [class*="bg-[var(--bento-pink-tint)]"] {
+  color: color-mix(in srgb, var(--bento-pink) 60%, var(--bento-ink));
+}
+[data-layout='bento'] [class*="bg-[var(--bento-orange-tint)]"] {
+  color: color-mix(in srgb, var(--bento-orange) 60%, var(--bento-ink));
 }
