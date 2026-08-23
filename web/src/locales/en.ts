@@ -1011,6 +1011,39 @@ export const en = {
   'bento.principal.cue_applications': 'Admissions pipeline',
   'bento.principal.cue_unassigned': 'Teacher assignment',
 
+  /* The attention widgets. The label is this repository's words; the sentence
+     under the figure is the server's headline and is not extracted, because a
+     count already rendered into a sentence by the engine is data, not a
+     string this screen chose. `attention_clear` is what a probe with nothing
+     to report says — a calm zero is an answer, not an empty state. */
+  'bento.principal.attention_clear': 'Nothing needs attention here',
+  'bento.principal.attention_failed': "Couldn't load what needs attention",
+  'bento.principal.attention_loading': 'Checking…',
+  'bento.principal.attention_pending': '—',
+  'bento.principal.attn_fees_overdue': 'Fees overdue',
+  'bento.principal.attn_payments_failed': 'Failed payments',
+  'bento.principal.attn_payments_bounced': 'Bounced cheques',
+  'bento.principal.attn_fees_concessions': 'Concessions to approve',
+  'bento.principal.attn_attendance_unmarked': 'Registers unmarked',
+  'bento.principal.attn_attendance_absent': 'Absent today',
+  'bento.principal.attn_attendance_corrections': 'Attendance corrections',
+  'bento.principal.attn_staff_absent': 'Teachers absent',
+  'bento.principal.attn_admissions_applications': 'Applications waiting',
+  'bento.principal.attn_admissions_documents': 'Documents missing',
+  'bento.principal.attn_admissions_followups': 'Follow-ups overdue',
+  'bento.principal.attn_leave_pending': 'Leave to approve',
+  'bento.principal.attn_marks_pending': 'Papers without marks',
+  'bento.principal.attn_reportcards_unpublished': 'Report cards to publish',
+  'bento.principal.attn_certificates_requested': 'Certificates to issue',
+  'bento.principal.attn_cue_attendance': 'Attendance',
+  'bento.principal.attn_cue_approvals': 'Approvals',
+  'bento.principal.attn_cue_staff': 'Leave and substitutions',
+  'bento.principal.attn_cue_fees': 'Fee collection',
+  'bento.principal.attn_cue_payments': 'Fee dashboard',
+  'bento.principal.attn_cue_admissions': 'Admissions',
+  'bento.principal.attn_cue_marks': 'Results',
+  'bento.principal.attn_cue_students': 'Students',
+
   // --- bento: the finance dashboard ---------------------------------------
   // The Bento rendering of finance.home.finance_kpis. The ageing bands are
   // summed in the browser from the overdue invoice list the classic screen

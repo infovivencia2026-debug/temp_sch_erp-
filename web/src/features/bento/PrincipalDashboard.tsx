@@ -11,6 +11,7 @@ import {
   BentoPage,
   Cell,
   CellError,
+  type CellSpan,
   Cue,
   Meter,
   Sparkline,
@@ -64,6 +65,170 @@ interface TrendPoint {
   pct: number
 }
 
+/* THE ATTENTION WIDGETS.
+
+   Fifteen cells, one endpoint. `GET /api/v1/attention` already answers "what
+   needs me" for whoever is asking — the server runs each probe under the
+   caller's own scope and drops the ones their permissions do not cover — so
+   every cell below is a re-presentation of a line the product already
+   computes, fetched once and read fifteen times. Fifteen cells each holding
+   their own useQuery would be fifteen identical requests for one payload.
+
+   A probe with nothing to report is not in the response at all: the engine
+   drops zero-count items so the classic panel does not fill with reassurance.
+   A widget is not a panel line, though — a person put it on their board on
+   purpose, and one that vanished on the days it had nothing to say would give
+   them a dashboard whose shape changed daily. So an absent probe renders as a
+   calm zero, which is the answer to the question they asked.
+
+   Colour carries the severity the server assigned and nothing else: critical
+   is pink, warning is orange, and everything else — info, and every calm zero
+   — is an untinted card. Three states, because the engine has three. */
+type AttentionSeverity = 'critical' | 'warning' | 'info'
+
+interface AttentionItem {
+  key: string
+  severity: AttentionSeverity
+  count: number
+  headline: string
+  detail?: string
+  action: string
+  href?: string
+  amount_paise?: number
+}
+
+interface AttentionResponse {
+  items: AttentionItem[]
+}
+
+/* Severity to accent. `info` is deliberately absent rather than mapped to a
+   fourth hue: this palette has four accents carrying one meaning each, and a
+   third alarm colour would only make the two real ones harder to find. */
+const ATTENTION_ACCENT: Partial<Record<AttentionSeverity, 'pink' | 'orange'>> = {
+  critical: 'pink',
+  warning: 'orange',
+}
+
+/* Where each probe's detail already lives, as a catalogue key rather than the
+   abstract target the API returns. The engine says "fees" and leaves the route
+   to the client because seventeen navigation trees keep fees in seventeen
+   places; on this board there is one tree, so the destination is named exactly
+   and checked against the catalogue before the cue is drawn. */
+const ATTENTION_TARGETS = {
+  attendance: 'institution_admin.standard.attendance_overview',
+  approvals: 'institution_admin.approvals.approvals',
+  staff: 'institution_admin.staff.leaves_subs',
+  fees: 'institution_admin.standard.fee_collection',
+  payments: 'institution_admin.fees.fee_dashboard',
+  admissions: 'institution_admin.admissions.admissions_pipeline',
+  marks: 'institution_admin.examinations.exams_results',
+  students: 'institution_admin.students.enrollment_lifecycle',
+} as const
+
+type AttentionTarget = keyof typeof ATTENTION_TARGETS
+
+/* The declaration list. `id` is the key a saved layout is stored against, so
+   these are fixed forever: renaming one drops that cell out of every board
+   somebody has already arranged. `probe` is the server's key; `money` marks a
+   figure a bursar reads faster as rupees than as a row count. */
+/* `as const` rather than an explicit element type, so `slot` and `target` stay
+   literal: the catalogue key is built as `bento.principal.attn_${slot}`, and a
+   `string` there would widen it out of `MessageKey` and lose the compile-time
+   check that every one of these strings actually exists in en.ts. */
+const ATTENTION_WIDGETS = [
+  { id: 'attn-fees-overdue', probe: 'fees.overdue', target: 'fees', slot: 'fees_overdue', money: true },
+  { id: 'attn-payments-failed', probe: 'payments.failed', target: 'payments', slot: 'payments_failed', money: false },
+  { id: 'attn-payments-bounced', probe: 'payments.bounced', target: 'payments', slot: 'payments_bounced', money: false },
+  { id: 'attn-fees-concessions', probe: 'fees.concessions_pending', target: 'approvals', slot: 'fees_concessions', money: false },
+  { id: 'attn-attendance-unmarked', probe: 'attendance.unmarked', target: 'attendance', slot: 'attendance_unmarked', money: false },
+  { id: 'attn-attendance-absent', probe: 'attendance.absent_today', target: 'attendance', slot: 'attendance_absent', money: false },
+  { id: 'attn-attendance-corrections', probe: 'attendance.corrections', target: 'approvals', slot: 'attendance_corrections', money: false },
+  { id: 'attn-staff-absent', probe: 'staff.absent_today', target: 'staff', slot: 'staff_absent', money: false },
+  { id: 'attn-admissions-applications', probe: 'admissions.applications', target: 'admissions', slot: 'admissions_applications', money: false },
+  { id: 'attn-admissions-documents', probe: 'admissions.documents', target: 'admissions', slot: 'admissions_documents', money: false },
+  { id: 'attn-admissions-followups', probe: 'admissions.followups', target: 'admissions', slot: 'admissions_followups', money: false },
+  { id: 'attn-leave-pending', probe: 'leave.pending', target: 'approvals', slot: 'leave_pending', money: false },
+  { id: 'attn-marks-pending', probe: 'marks.pending', target: 'marks', slot: 'marks_pending', money: false },
+  { id: 'attn-reportcards-unpublished', probe: 'reportcards.unpublished', target: 'marks', slot: 'reportcards_unpublished', money: false },
+  { id: 'attn-certificates-requested', probe: 'certificates.requested', target: 'students', slot: 'certificates_requested', money: false },
+] as const satisfies readonly {
+  id: string
+  probe: string
+  target: AttentionTarget
+  slot: string
+  money?: boolean
+}[]
+
+/* One cell.
+
+   The three states are kept apart on purpose. A failed fetch draws an error,
+   never a nought: on this board a zero reads as "nothing is wrong here", and
+   that is the most expensive thing a dashboard can say untruthfully. A fetch
+   still in flight draws a dash for the same reason. Only a response that
+   arrived draws a number. */
+function AttentionCell({
+  span,
+  label,
+  cue,
+  to,
+  item,
+  money,
+  status,
+}: {
+  span: CellSpan
+  label: string
+  cue: string
+  to?: string
+  item?: AttentionItem
+  money?: boolean
+  status: 'loading' | 'error' | 'ready'
+}) {
+  const t = useT()
+
+  if (status === 'error') {
+    return (
+      <Cell span={span}>
+        <p
+          className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                     text-[var(--bento-muted)]"
+        >
+          {label}
+        </p>
+        <div className="mt-4">
+          <CellError message={t('bento.principal.attention_failed')} />
+        </div>
+      </Cell>
+    )
+  }
+
+  if (status === 'loading') {
+    return (
+      <StatCell
+        span={span}
+        label={label}
+        value={t('bento.principal.attention_pending')}
+        note={t('bento.principal.attention_loading')}
+      />
+    )
+  }
+
+  // The money item leads with the amount: ₹15.53L is read faster than 44, and
+  // it is the figure the decision is actually made on.
+  const value = money && item?.amount_paise ? formatPaise(item.amount_paise) : (item?.count ?? 0)
+
+  return (
+    <StatCell
+      span={span}
+      label={label}
+      value={value}
+      accent={item ? ATTENTION_ACCENT[item.severity] : undefined}
+      note={item ? item.headline : t('bento.principal.attention_clear')}
+      to={to}
+      cue={cue}
+    />
+  )
+}
+
 export default function BentoPrincipalDashboard() {
   const t = useT()
 
@@ -74,6 +239,13 @@ export default function BentoPrincipalDashboard() {
   const trend = useQuery({
     queryKey: ['attendance-trend'],
     queryFn: () => api.get<List<TrendPoint>>('/api/v1/principal/attendance-trend'),
+  })
+  /* One request behind fifteen cells. The query key is the panel's own, so a
+     board and the classic attention panel share a single cached response
+     rather than racing for the same rows. */
+  const attention = useQuery({
+    queryKey: ['attention', 'bento-principal'],
+    queryFn: () => api.get<AttentionResponse>('/api/v1/attention'),
   })
 
   // Every cue is checked against the catalogue before it is drawn: a link to a
@@ -86,6 +258,32 @@ export default function BentoPrincipalDashboard() {
   const applicationsHref = useFeatureHref('institution_admin.admissions.admissions_pipeline')
   const subjectsHref = useFeatureHref('institution_admin.academics.teacher_assignment')
   const approvalsHref = useFeatureHref('institution_admin.approvals.approvals')
+  // Three more destinations the attention cells need and the KPI cells did
+  // not. Same rule: the catalogue decides, and an unusable feature simply
+  // leaves that cell without a cue rather than offering a door that is locked.
+  const leavesHref = useFeatureHref(ATTENTION_TARGETS.staff)
+  const paymentsHref = useFeatureHref(ATTENTION_TARGETS.payments)
+  const resultsHref = useFeatureHref(ATTENTION_TARGETS.marks)
+
+  const attentionHrefs: Record<AttentionTarget, string | undefined> = {
+    attendance: attendanceHref,
+    approvals: approvalsHref,
+    staff: leavesHref,
+    fees: feesHref,
+    payments: paymentsHref,
+    admissions: applicationsHref,
+    marks: resultsHref,
+    students: studentsHref,
+  }
+
+  const attentionItems = new Map(
+    (attention.data?.items ?? []).map((i) => [i.key, i] as const),
+  )
+  const attentionStatus: 'loading' | 'error' | 'ready' = attention.error
+    ? 'error'
+    : attention.isLoading
+      ? 'loading'
+      : 'ready'
 
   if (kpis.isLoading) return <BentoLoading message={t('bento.principal.loading')} />
   // A failed query is an error. A dashboard of zeroes that is really a failed
@@ -378,6 +576,36 @@ export default function BentoPrincipalDashboard() {
           />
         )}
       </Widget>
+      {/* The fifteen attention cells, declared from one table rather than
+          fifteen near-identical blocks — the only thing that differs between
+          them is which probe they read and where they point, and writing that
+          out fifteen times invites the fifteenth to drift from the first.
+
+          All of them are 1x1 by default: a figure, a label, a sentence and a
+          way out is exactly what fits a 1x1, and a person who wants one bigger
+          resizes it. The indices continue the KPI cells above so a board
+          added to later does not renumber what somebody already arranged. */}
+      {ATTENTION_WIDGETS.map((w, i) => (
+        <Widget
+          key={w.id}
+          id={w.id}
+          label={t(`bento.principal.attn_${w.slot}`)}
+          size="small"
+          index={9 + i}
+        >
+          {(span) => (
+            <AttentionCell
+              span={span}
+              label={t(`bento.principal.attn_${w.slot}`)}
+              cue={t(`bento.principal.attn_cue_${w.target}`)}
+              to={attentionHrefs[w.target]}
+              item={attentionItems.get(w.probe)}
+              money={w.money}
+              status={attentionStatus}
+            />
+          )}
+        </Widget>
+      ))}
       </WidgetLayer>
     </BentoPage>
   )
