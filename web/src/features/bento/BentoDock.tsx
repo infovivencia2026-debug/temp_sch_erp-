@@ -194,13 +194,51 @@ export function BentoDock() {
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
   const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }
 
+  /* THE ONE CONTROL IN HERE THAT IS NOT OURS.
+
+     `CommandSearch` is the classic layout's component, mounted here so ⌘K
+     survives the missing header. It is painted in semantic classes —
+     `text-muted-foreground`, the preflight `border`, `hover:bg-accent` — and
+     the stylesheet repoints all three to the CARD's tokens, which is correct
+     everywhere on this surface except the one place it is actually mounted.
+     On the dock's own face that made it black-on-near-black: the word
+     "Search" measured 1.16:1, and it is the most-used control in the bar.
+
+     Re-coloured from here rather than there, because the component is shared
+     with the layout that reads those tokens correctly, and a colour written
+     into it would be wrong on one of the two screens whichever way it went.
+     Matched on `:has(kbd)` — the shortcut hint is the trigger's own shape, and
+     nothing else in the dock carries one — so this reaches that button and no
+     other. Every value is the dock's ink or a mix of it.
+
+     Marked important, and measured before it was. The re-pointing rules are
+     `[data-layout='bento'] .text-muted-foreground` and
+     `[data-layout='bento'] .hover\:bg-accent:hover` — (0,2,0) and (0,3,0),
+     against (0,1,2) for a descendant selector like this one. Written plainly
+     the declarations compiled, applied to the right element and lost, and the
+     word "Search" stayed at 1.16:1. Weight is the thing being overridden here,
+     so it is the thing that has to be stated. */
+  const adoptSearch =
+    `[&_button:has(kbd)]:!text-[var(--ink-here)] ` +
+    `[&_button:has(kbd)]:!border-[color-mix(in_srgb,var(--ink-here)_38%,transparent)] ` +
+    `[&_button:has(kbd)_kbd]:!border-[color-mix(in_srgb,var(--ink-here)_38%,transparent)] ` +
+    `[&_button:has(kbd):hover]:!bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]`
+
+  /* The hairline between groups, on the dock's face rather than on the card's.
+
+     `bg-border` is `--bento-line`, which the default palette writes as black
+     at fourteen per cent: correct on white paper and completely invisible on
+     the near-black dock, where the three dividers simply were not there. */
+  const rule =
+    'mx-0.5 h-5 w-px shrink-0 bg-[color-mix(in_srgb,var(--ink-here)_35%,transparent)]'
+
   return (
     <>
       <div
-        className="bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
+        className={`bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
                    -translate-x-1/2 items-center gap-2 rounded-[14px] border-none
                    bg-[var(--bento-dock-bg,var(--bento-card))]
-                   text-[var(--ink-here)] shadow-2xl"
+                   text-[var(--ink-here)] shadow-2xl ${adoptSearch}`}
         style={
           {
             padding: 'var(--dock-pad, 8px)',
@@ -244,7 +282,7 @@ export function BentoDock() {
         )}
 
         {categories.length > 0 && (
-          <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+          <span className={rule} aria-hidden="true" />
         )}
 
         {/* The categories scroll rather than wrap. The dock is one line by
@@ -276,11 +314,22 @@ export function BentoDock() {
                 className={item}
                 style={btnStyle}
               >
+                {/* The hue, moved far enough toward the dock's ink to be a
+                    shape rather than a stain.
+
+                    The domain colours under the default palette ARE its card
+                    colours, and two of the twelve — Reports and Staff — are
+                    the same near-black the dock's own face is made of. Drawn
+                    neat, those two glyphs measured 1.00:1: not dim, absent.
+                    Mixed with the ink the dock guarantees it contrasts with,
+                    they keep the hue that ties them to the launcher's panels
+                    and gain an outline. The same 45% the launcher's chips and
+                    headings already use, so the three agree. */}
                 <Mark
                   style={{
                     width: 'var(--dock-icon, 17px)',
                     height: 'var(--dock-icon, 17px)',
-                    color: `var(--dom-${hueFor(c.name)})`,
+                    color: `color-mix(in srgb, var(--dom-${hueFor(c.name)}) 45%, var(--ink-here))`,
                   }}
                   aria-hidden="true"
                 />
@@ -289,7 +338,7 @@ export function BentoDock() {
           })}
         </span>
 
-        <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        <span className={rule} aria-hidden="true" />
 
         {/* Pointing, for the person who does not know what to type. */}
         {/* The one that keeps its words.
@@ -302,15 +351,22 @@ export function BentoDock() {
         <button
           type="button"
           onClick={() => setAll(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
-                     transition-colors hover:bg-accent focus-visible:outline-none
-                     focus-visible:ring-2 focus-visible:ring-ring"
+          /* Same wash and same ring as every other item in the bar.
+
+             `hover:bg-accent` and `ring-ring` are the card's tokens: on the
+             dock's face the wash was black on near-black and the ring was the
+             mint accent at 1.2:1 — a focus ring a keyboard user cannot find,
+             on the one control that opens everything else. */
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
+                     transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]
+                     focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-[var(--ink-here)]`}
         >
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
           {t('bento.launcher.title')}
         </button>
 
-        <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        <span className={rule} aria-hidden="true" />
         <BentoSettings placement="dock" />
       </div>
 

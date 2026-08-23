@@ -10,7 +10,7 @@ import {
 import { useT } from '@/lib/i18n'
 import {
   ColourPanel,
-  INK, EDGE, TRACK, WASH, RING, CHOSEN, SLIDER,
+  INK, EDGE, TRACK, WASH, RING, CHOSEN, SLIDER, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { useActiveRole } from '@/lib/catalog'
@@ -310,18 +310,25 @@ export function AppearanceDialog({
     >
       <div
         data-appearance-dialog=""
+        /* The panel states its own pair, and its edge is a boundary rather
+           than a seam.
+
+           `bg-popover` with no ink beside it left the words inheriting from
+           <body>; the outer `border` was `--bento-line` at 1.38:1, which is
+           not enough to separate a floating dialog from the page behind it. */
         className={cn(
-          `appearance-panel pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border bg-popover
+          `appearance-panel pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border
            shadow-[var(--lift-float)]`,
+          SURFACE, EDGE,
           // Still clickable while aiming, so the dialog can be used to cancel.
           picking && 'pointer-events-auto opacity-25',
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b px-7 py-5">
+        <header className={cn('flex items-start justify-between gap-4 border-b px-7 py-5', SEAM)}>
           <div>
-            <h2 className="text-[21px] font-semibold">{t('bento.appearance.title')}</h2>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
+            <h2 className={cn('text-[21px] font-semibold', INK)}>{t('bento.appearance.title')}</h2>
+            <p className={cn('mt-0.5 text-[13px]', INK)}>
               {t('bento.appearance.subtitle')}
             </p>
           </div>
@@ -329,9 +336,10 @@ export function AppearanceDialog({
             type="button"
             onClick={onClose}
             aria-label={t('bento.launcher.close')}
-            className="grid size-8 shrink-0 place-items-center rounded-[8px] text-muted-foreground
-                       transition-colors hover:bg-accent hover:text-foreground
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'grid size-8 shrink-0 place-items-center rounded-[8px] transition-colors',
+              INK, WASH, RING,
+            )}
           >
             <X className="size-4" />
           </button>
@@ -339,7 +347,7 @@ export function AppearanceDialog({
 
         <div className="max-h-[76vh] overflow-y-auto px-7 py-6">
           <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-            <Type className="size-4 text-muted-foreground" aria-hidden="true" />
+            <Type className="size-4" aria-hidden="true" />
             {t('bento.settings.typeface')}
           </h3>
 
@@ -352,15 +360,31 @@ export function AppearanceDialog({
                   type="button"
                   onClick={() => set('typeface', face.id)}
                   aria-pressed={on}
+                  /* CHOSEN IS AN OUTLINE HERE, NOT A FILL.
+
+                     The card's whole job is to show a face set in itself, so
+                     it cannot be inverted the way the other chosen states in
+                     these dialogs are — the specimen has to stay on the paper
+                     it will be read on. So the ink does the marking from the
+                     edge instead.
+
+                     It was `border-primary ring-primary`, which the stylesheet
+                     resolves to the mint accent: 1.29:1 against the card, so
+                     the one card in fifteen that is selected was marked with a
+                     boundary you cannot see. The ink is 21:1 in every palette,
+                     and the check beside the name says the same thing a second
+                     way for anybody who cannot use the outline. */
                   className={cn(
-                    `rounded-[12px] border p-4 text-left transition-colors
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
-                    on ? 'border-primary ring-1 ring-primary' : 'hover:bg-accent/50',
+                    'rounded-[12px] border p-4 text-left transition-colors',
+                    RING, INK,
+                    on
+                      ? '!border-[var(--bento-ink)] ring-1 ring-[var(--bento-ink)]'
+                      : cn(EDGE, WASH),
                   )}
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-[13px] font-medium">{face.name}</span>
-                    {on && <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />}
+                    {on && <Check className="size-4 shrink-0" aria-hidden="true" />}
                   </span>
                   {/* The specimen, set in the face it is offering. font-feature
                       settings are left alone: a face's default figures are the
@@ -371,7 +395,7 @@ export function AppearanceDialog({
                   >
                     {SPECIMEN}
                   </span>
-                  <span className="mt-1.5 block text-[12px] text-muted-foreground">
+                  <span className={cn('mt-1.5 block text-[12px]', INK)}>
                     {face.note}
                   </span>
                 </button>
@@ -379,13 +403,13 @@ export function AppearanceDialog({
             })}
           </div>
 
-          <p className="mt-5 text-[12px] text-muted-foreground">
+          <p className={cn('mt-5 text-[12px]', INK)}>
             {t('bento.appearance.font_note', {
               name: typefaceById(appearance.typeface).name,
             })}
           </p>
 
-          <div className="mt-7 divide-y border-t pt-1">
+          <div className={cn('mt-7 divide-y border-t pt-1', SEAM, 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
             <Scale axis="text" label={t('bento.settings.text')} />
             <Scale axis="density" label={t('bento.settings.density')} />
             <Scale axis="corners" label={t('bento.settings.corners')} />
@@ -405,21 +429,24 @@ export function AppearanceDialog({
               Typeface, density and colour are three answers to one question —
               how should this look — and splitting them across two windows made
               somebody close one to reach the other. */}
-          <section className="mt-8 border-t pt-6">
+          <section className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-              <Palette className="size-4 text-muted-foreground" aria-hidden="true" />
+              <Palette className="size-4" aria-hidden="true" />
               {t('bento.colour.title')}
             </h3>
             <ColourPanel onPickingChange={onPickingChange} />
           </section>
 
           {/* Dock settings — size and per-category visibility */}
-          <section ref={dockRef} className="mt-8 border-t pt-6">
+          <section ref={dockRef} className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-4 flex items-center gap-2 text-[13px] font-semibold">
-              <LayoutGrid className="size-4 text-muted-foreground" aria-hidden="true" />
+              <LayoutGrid className="size-4" aria-hidden="true" />
               Dock
             </h3>
-            <div className="divide-y border-t">
+            <div className={cn(
+              'divide-y border-t', SEAM,
+              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+            )}>
               <Axis<DockSize>
                 label="Bar size"
                 value={appearance.dockSize}
@@ -439,12 +466,12 @@ export function AppearanceDialog({
           </section>
 
           {/* Dashboard widget shortcuts — focus mode cells */}
-          <section ref={dashRef} className="mt-8 border-t pt-6">
+          <section ref={dashRef} className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
-              <Sliders className="size-4 text-muted-foreground" aria-hidden="true" />
+              <Sliders className="size-4" aria-hidden="true" />
               Dashboard Widgets
             </h3>
-            <p className="mb-4 text-[12px] text-muted-foreground">
+            <p className={cn('mb-4 text-[12px]', INK)}>
               Add, remove, resize and reorder the cards on this dashboard.
             </p>
             <DashboardWidgets onArrange={onClose} />
@@ -472,7 +499,7 @@ function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
 
   if (!dashboard || widgets.length === 0) {
     return (
-      <div className="rounded-[10px] border border-dashed p-4 text-[12.5px] text-muted-foreground">
+      <div className={cn('rounded-[10px] border border-dashed p-4 text-[12.5px]', EDGE, INK)}>
         This screen has no arrangeable dashboard. Open one of the dashboards — the
         principal, finance, faculty, parent or student home — and these controls
         will list its cards.
@@ -493,9 +520,17 @@ function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
             // gets out of the way rather than asking to be dismissed.
             onArrange()
           }}
-          className="rounded-full border border-primary bg-primary-soft px-3 py-1.5 text-[12.5px]
-                     text-primary transition-colors focus-visible:outline-none
-                     focus-visible:ring-2 focus-visible:ring-ring"
+          /* The accent on its own tint, which is the pairing that does not
+             work. `text-primary` resolves to the mint darkened toward the ink
+             and `bg-primary-soft` to the mint's own tint — and under the
+             default palette those are the same lime, so the label measured
+             2.76:1 on its own button. Inverted instead, the way every other
+             chosen state in these dialogs is: ink on card, 21:1 in every
+             palette, and no coloured word left on the surface. */
+          className={cn(
+            'rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+            CHOSEN, RING,
+          )}
         >
           Arrange on the dashboard
         </button>
@@ -503,29 +538,42 @@ function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
           <button
             type="button"
             onClick={reset}
-            className="rounded-full border px-3 py-1.5 text-[12.5px] text-muted-foreground
-                       transition-colors hover:bg-accent hover:text-foreground"
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+              EDGE, WASH, RING, INK,
+            )}
           >
             Reset to default
           </button>
         )}
       </div>
 
-      <ul className="divide-y rounded-[10px] border">
+      <ul className={cn(
+        'divide-y rounded-[10px] border', EDGE,
+        'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+      )}>
         {widgets.map((w) => {
           const off = isRemoved(layout, w.id)
           return (
             <li key={w.id} className="flex items-center gap-3 px-3 py-2">
-              <span className={cn('flex-1 truncate text-[12.5px]', off && 'text-muted-foreground line-through')}>
+              {/* "Off the board" is carried by the strike-through, which does
+                  not cost the label any contrast. It used to also drop to the
+                  muted tone, and a second, weaker signal for a state the first
+                  one already states is a row that is harder to read for
+                  nothing. */}
+              <span className={cn('flex-1 truncate text-[12.5px]', INK, off && 'line-through')}>
                 {w.label}
               </span>
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              <span className={cn('shrink-0 text-[11px] tabular-nums', INK)}>
                 {off ? '—' : `${w.w}×${w.h}`}
               </span>
               <button
                 type="button"
                 onClick={() => (off ? place(w.id, DIMS[w.size].w, DIMS[w.size].h) : remove(w.id))}
-                className="shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors hover:bg-accent"
+                className={cn(
+                  'shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
+                  EDGE, WASH, RING, INK,
+                )}
               >
                 {off ? 'Add' : 'Remove'}
               </button>

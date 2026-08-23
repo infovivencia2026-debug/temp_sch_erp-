@@ -380,7 +380,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
               5 + ((step ?? 0) % 4) * 2
             }%, var(--bento-card))`,
-            '--ink-here': 'hsl(from var(--tile-tint) 0 0% calc((49 - l) * 100%))',
+            '--ink-here': 'hsl(from var(--tile-tint) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
             background: 'var(--tile-tint)',
             color: 'var(--ink-here)',
           } as CSSProperties
@@ -467,7 +467,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
          named and no palette has anything new to set. */
       style={
         {
-          '--ink-here': 'hsl(from var(--bento-bg) 0 0% calc((49 - l) * 100%))',
+          '--ink-here': 'hsl(from var(--bento-bg) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
           color: 'var(--ink-here)',
         } as CSSProperties
       }
@@ -545,7 +545,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
             className="w-full rounded-[10px] border
-                       border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
+                       !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
                        bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
                        text-[var(--bento-ink)] focus-visible:outline-none focus-visible:ring-2
                        focus-visible:ring-[var(--bento-ink)]"
@@ -594,7 +594,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   on
                     ? ({
                         '--chip': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                        '--ink-here': 'hsl(from var(--chip) 0 0% calc((49 - l) * 100%))',
+                        '--ink-here': 'hsl(from var(--chip) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
                         background: 'var(--chip)',
                         color: 'var(--ink-here)',
                         borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,
@@ -712,7 +712,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                     style={
                       {
                         '--panel': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                        '--ink-here': 'hsl(from var(--panel) 0 0% calc((49 - l) * 100%))',
+                        '--ink-here': 'hsl(from var(--panel) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
                         background: 'var(--panel)',
                         color: 'var(--ink-here)',
                         borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,

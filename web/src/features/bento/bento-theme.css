@@ -858,8 +858,14 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      Only while arranging: with no toolbar present the selector does not
      match, and row one goes back to being a row like any other. */
   /* The backstop. The shedding rules are the plan; this stops a card that still
-     holds too much from pushing the grid out of shape. */
-  .bento-board > * { overflow: hidden; }
+     holds too much from pushing the grid out of shape.
+
+     NOT the arrange toolbar. That bar is a grid child like the cards, so this
+     clipped it to its own 31px height — and the add tray hangs off it as a
+     320x280 disclosure panel, which meant the tray could not be seen AT ALL
+     while arranging. A rule written for cards was catching the one child that
+     is not a card. */
+  .bento-board > *:not(.bento-arrange-bar) { overflow: hidden; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

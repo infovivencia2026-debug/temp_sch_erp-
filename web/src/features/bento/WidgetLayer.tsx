@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState,
+         type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowLeft, ArrowRight, Check, GripVertical, Minus, Plus, RotateCcw, Undo2, Wand2, X,
@@ -11,7 +12,7 @@ import {
 } from '@/lib/widgets'
 import { COL, ROW, spanFor, clampSpan, MAX_SPAN, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
-import { WheelCanvas } from './ColourDialog'
+import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
 import type { Hsl } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -273,15 +274,34 @@ export function WidgetLayer({
       {arranging && (
         <div
           ref={barRef}
-          className="bento-arrange-bar text-[var(--bento-ink)] col-span-full flex flex-wrap items-center gap-2"
-          style={{ order: -1 }}
+          className="bento-arrange-bar col-span-full flex flex-wrap items-center gap-2"
+          /* THE BAR'S GROUND IS THE PAGE, SO IT DECLARES THE PAGE'S INK.
+
+             Every control in here is drawn from `currentColor` — the borders,
+             the hover washes, the divider, the glyphs — which is exactly right
+             and was inheriting the wrong colour. Nothing set one, so it fell
+             through to <body>, which the layout paints with `--bento-ink`: the
+             CARD's ink, measured against `--bento-card` and against nothing
+             else. On the default palette that is black, and this bar sits on a
+             near-black page. The entire toolbar — Done, the four presets, Undo,
+             Tidy up, Reset, Add a card and the hint — measured 1.04-1.06:1.
+             Not dim. Gone.
+
+             `--ink-here` is the name the launcher and the dock already give to
+             "the colour that reads on me", derived from the ground itself, so
+             the whole bar follows one declaration and no colour is named. */
+          style={{
+            order: -1,
+            '--ink-here': INK_HERE_FROM_PAGE,
+            color: 'var(--ink-here)',
+          } as CSSProperties}
         >
           <button
             type="button"
             onClick={() => setArranging(false)}
-            className="flex items-center gap-1.5 rounded-full border border-current bg-[color-mix(in_srgb,currentColor_12%,transparent)]
+            className="flex items-center gap-1.5 rounded-full border !border-current bg-[color-mix(in_srgb,currentColor_12%,transparent)]
                        px-3 py-1.5 text-[12.5px] text-current focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+                       focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
           >
             <Check className="size-3.5" aria-hidden="true" />
             {t('bento.widgets.done')}
@@ -299,7 +319,7 @@ export function WidgetLayer({
                 key={p}
                 type="button"
                 onClick={() => applyPreset(p, visible)}
-                className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
+                className="rounded-full border !border-[color-mix(in_srgb,currentColor_45%,transparent)] px-2.5 py-1 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
               >
                 {t(`bento.widgets.preset.${p}`)}
               </button>
@@ -315,7 +335,7 @@ export function WidgetLayer({
             <button
               type="button"
               onClick={undo}
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
+              className="flex items-center gap-1.5 rounded-full border !border-[color-mix(in_srgb,currentColor_45%,transparent)] px-3 py-1.5 text-[12.5px]
                          transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
             >
               <Undo2 className="size-3.5" aria-hidden="true" />
@@ -328,7 +348,7 @@ export function WidgetLayer({
           <button
             type="button"
             onClick={() => tidy(visible)}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
+            className="flex items-center gap-1.5 rounded-full border !border-[color-mix(in_srgb,currentColor_45%,transparent)] px-3 py-1.5 text-[12.5px]
                        transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
           >
             <Wand2 className="size-3.5" aria-hidden="true" />
@@ -339,8 +359,9 @@ export function WidgetLayer({
             <button
               type="button"
               onClick={reset}
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                         opacity-70 transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full border !border-[color-mix(in_srgb,currentColor_45%,transparent)] px-3 py-1.5 text-[12.5px]
+                         opacity-70 transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]
+                         hover:opacity-100"
             >
               <RotateCcw className="size-3.5" aria-hidden="true" />
               {t('bento.widgets.reset')}
@@ -364,7 +385,9 @@ export function WidgetLayer({
                 className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border
                            px-3 py-1 text-[12px] transition-colors
                            hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)]"
-                style={{ borderColor: 'color-mix(in srgb, currentColor 30%, transparent)' }}
+                /* 30% measured 2.59:1 against the page — the same weight the
+                   other controls in this bar carry, which is 45%. */
+                style={{ borderColor: 'color-mix(in srgb, currentColor 45%, transparent)' }}
               >
                 <Plus className="size-3" aria-hidden="true" />
                 {t('bento.widgets.add_count', { count: off.length })}
@@ -372,9 +395,16 @@ export function WidgetLayer({
               <div
                 className="absolute left-0 top-full z-30 mt-1.5 flex max-h-[280px] w-[320px] flex-col
                            gap-1 overflow-y-auto rounded-[10px] border p-2 shadow-lg"
+                /* The tray is a CARD hanging off a bar that is drawn in the
+                   PAGE's ink, so it has to say so or its rows inherit the
+                   wrong one of the two — white on white the moment the bar
+                   above it starts reading correctly. Its edge is mixed from
+                   the card's ink for the same reason: `currentColor` here is
+                   now the page's. */
                 style={{
                   background: 'var(--bento-card)',
-                  borderColor: 'color-mix(in srgb, currentColor 22%, transparent)',
+                  color: 'var(--bento-ink)',
+                  borderColor: 'color-mix(in srgb, var(--bento-ink) 22%, transparent)',
                 }}
               >
                 {off.map((d) => {
@@ -453,7 +483,7 @@ function Axis({
   const upBlocked = value >= hi || !allow(nextUp)
 
   const arrow =
-    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] shadow-sm ' +
+    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] text-[var(--bento-ink)] shadow-sm ' +
     'transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] disabled:opacity-30 disabled:hover:bg-[var(--bento-card)]'
 
   return (
@@ -578,7 +608,13 @@ function ColourPick({
         <div
           ref={pop}
           style={{ position: 'fixed', left: at.left, top: at.top, width: 228 }}
-          className="z-[80] rounded-xl border bg-popover p-3 shadow-lg"
+          /* Portalled to <body>, so it inherits nothing from the card it
+             belongs to: it states its own surface, its own ink and an edge
+             heavy enough to separate it from the near-black page, rather than
+             the `--bento-line` hairline at 1.38:1. */
+          className="z-[80] rounded-xl border p-3 shadow-lg bg-[var(--bento-card)]
+                     text-[var(--bento-ink)]
+                     !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
         >
           <WheelCanvas value={current} onPick={(h, s2) => onPick({ ...current, h, s: s2 })} />
           <input
@@ -610,8 +646,16 @@ function ColourPick({
                 if (parsed) onPick(parsed)
               }}
               onBlur={() => setTyped(null)}
-              className="w-full rounded-md border bg-background px-2 py-1 font-mono text-[11.5px]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              /* `bg-background` is the PAGE, and this field sits on the
+                 popover's paper: on the default palette that is a near-black
+                 box with black text in it. The field is a surface on the card,
+                 so it takes the card — and the ring is the ink rather than the
+                 mint accent, which measures 1.29:1 on that same paper. */
+              className="w-full rounded-md border px-2 py-1 font-mono text-[11.5px]
+                         bg-[var(--bento-card)] text-[var(--bento-ink)]
+                         !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
+                         focus-visible:outline-none focus-visible:ring-2
+                         focus-visible:ring-[var(--bento-ink)]"
             />
             <span
               aria-hidden="true"
@@ -702,7 +746,7 @@ export function Widget({
   const span = spanFor(cw, ch)
   const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
   const moveBtn =
-    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] shadow-sm ' +
+    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] text-[var(--bento-ink)] shadow-sm ' +
     'transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] disabled:opacity-30 disabled:hover:bg-[var(--bento-card)]'
   const tint = tintOf(layout, id)
 
@@ -825,10 +869,28 @@ export function Widget({
         <div
           className="absolute inset-0 z-10 flex flex-col justify-between gap-2 overflow-auto
                      rounded-[var(--bento-radius)] bg-[color-mix(in_srgb,var(--bento-bg)_28%,transparent)] p-2 backdrop-blur-[2px]"
+          /* The scrim is the PAGE at seventy per cent, so its ink is the
+             page's and not the card's.
+
+             `bg-[color-mix(in_srgb,var(--bento-bg)_28%,transparent)]` resolves to `--bento-bg` — correct, and the
+             reason the cards go dark under it — while the labels underneath
+             kept inheriting `--bento-ink`, which is measured against the card.
+             On the default palette that put black letters on a near-black
+             wash: the O/W/H/C axis labels and every "3 / 7" counter measured
+             1.04:1, on the one screen whose whole purpose is those controls.
+
+             The chips inside are their own card-coloured surfaces and restate
+             the card's ink, below. */
+          style={{
+            '--ink-here': INK_HERE_FROM_PAGE,
+            color: 'var(--ink-here)',
+          } as CSSProperties}
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-1 rounded-full bg-[var(--bento-card)] px-2 py-1
-                             text-[11px] font-medium shadow-sm">
+            {/* A chip made of card takes the card's ink, whatever the scrim
+                around it is made of. */}
+            <span className="flex min-w-0 items-center gap-1 rounded-full bg-[var(--bento-card)]
+                             px-2 py-1 text-[11px] font-medium text-[var(--bento-ink)] shadow-sm">
               <GripVertical className="size-3 shrink-0 cursor-grab opacity-70" aria-hidden="true" />
               <span className="truncate">{label}</span>
             </span>
@@ -837,8 +899,8 @@ export function Widget({
               onClick={() => remove(id)}
               aria-label={`${t('bento.widgets.remove')} ${label}`}
               className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--bento-card)]
-                         opacity-70 shadow-sm transition-colors
-                         hover:bg-destructive hover:text-destructive-foreground"
+                         text-[var(--bento-ink)] opacity-70 shadow-sm transition-colors
+                         hover:bg-destructive hover:text-destructive-foreground hover:opacity-100"
             >
               <X className="size-3.5" />
             </button>

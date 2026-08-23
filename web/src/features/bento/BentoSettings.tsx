@@ -12,6 +12,7 @@ import { AppearanceDialog } from './AppearanceDialog'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { INK, EDGE, WASH, RING, SURFACE } from './ColourDialog'
 
 /* Settings, from inside a layout that has no header to put them in.
 
@@ -166,18 +167,26 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         aria-expanded={open}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
+        /* THE RING IS DRAWN ON WHATEVER THIS IS SITTING ON.
+
+           In the dock that is the dock's face, and `ring-ring` — the mint
+           accent — measured 1.2:1 against it. `--ink-here` is the name every
+           surface in this layout gives to "the colour that reads on me"; the
+           dock declares it, and the fallback covers the sidebar and the rail,
+           where the ground is the card. The disc itself keeps its shape: it
+           is the card at 80%, which is a light disc on a dark dock and a dark
+           one on a light dock, and the ink follows it either way. */
         className={cn(
-          'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'transition-colors focus-visible:outline-none focus-visible:ring-2',
+          'focus-visible:ring-[var(--ink-here,var(--bento-ink))]',
           placement === 'dock'
-            ? `grid size-10 place-items-center rounded-full border bg-popover/80
-               text-muted-foreground shadow-sm backdrop-blur-md hover:bg-accent
-               hover:text-foreground`
+            ? `grid size-10 place-items-center rounded-full border
+               bg-[color-mix(in_srgb,var(--bento-card)_80%,transparent)]
+               shadow-sm backdrop-blur-md ${EDGE} ${INK} ${WASH}`
             : (placement === 'rail' || placement === 'menubar')
-              ? `grid size-10 place-items-center rounded-[10px] text-muted-foreground
-                 hover:bg-surface-hover hover:text-foreground`
+              ? `grid size-10 place-items-center rounded-[10px] ${INK} ${WASH}`
               : `flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left
-                 text-[12.5px] text-muted-foreground hover:bg-surface-hover
-                 hover:text-foreground`,
+                 text-[12.5px] ${INK} ${WASH}`,
         )}
       >
         <Settings
@@ -193,14 +202,23 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
           ref={menu}
           style={{ position: 'fixed', left: at.left, top: at.top, width: 256,
                    maxHeight: 'min(70vh, 420px)' }}
+          /* A panel that states both halves of its pair.
+
+             It said `bg-popover` and nothing about ink, so the surface came
+             from the palette and the words came from whatever <body> was
+             inheriting — a coincidence that happens to hold today and has
+             nothing keeping it. Its edge was `--bento-line`, the hairline
+             BETWEEN cards at 1.38:1, which is not enough to separate a
+             floating panel from the near-black page behind it. */
           className={cn(
-            `z-50 overflow-y-auto overscroll-contain rounded-xl
-             border bg-popover p-1 shadow-lg`,
+            `z-50 overflow-y-auto overscroll-contain rounded-xl border p-1 shadow-lg`,
+            SURFACE, EDGE,
             (placement === 'menubar') ? 'pop-down' : 'pop-up',
           )}
         >
-          <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
-                        text-muted-foreground">
+          {/* The caption is the panel's ink, told apart from the rows by size,
+              weight and letter-spacing rather than by a second tone. */}
+          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
             {t('bento.settings.appearance')}
           </p>
           {THEMES.map((option) => {
@@ -218,19 +236,25 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                 }}
                 className={cn(
                   `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors hover:bg-accent focus-visible:outline-none
-                   focus-visible:ring-2 focus-visible:ring-ring`,
+                   transition-colors ${WASH} ${RING}`,
                   active && 'font-medium',
                 )}
               >
-                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
                 {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
               </button>
             )
           })}
 
-          <div className="my-1 h-px bg-border" role="separator" />
+          <div
+            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
+               the panel's own paper it measures 1.38:1, which is a rule that
+               is there in the markup and not on the screen. Mixed from the
+               ink, so it is a rule in both polarities. */
+            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+            role="separator"
+          />
 
 
           {/* Appearance, Dock, Dashboard — three distinct settings destinations */}
@@ -238,11 +262,10 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             type="button"
             role="menuitem"
             onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
-            <Type className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Type className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{t('bento.appearance.title')}</span>
           </button>
 
@@ -250,11 +273,10 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             type="button"
             role="menuitem"
             onClick={() => { setAppearanceTab('dock'); setShowAppearance(true); setOpen(false) }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
-            <LayoutGrid className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">Dock Settings</span>
           </button>
 
@@ -262,21 +284,28 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             type="button"
             role="menuitem"
             onClick={() => { setAppearanceTab('dashboard'); setShowAppearance(true); setOpen(false) }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
-            <Sliders className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Sliders className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">Dashboard Widgets</span>
           </button>
 
-          <div className="my-1 h-px bg-border" role="separator" />
+          <div
+            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
+               the panel's own paper it measures 1.38:1, which is a rule that
+               is there in the markup and not on the screen. Mixed from the
+               ink, so it is a rule in both polarities. */
+            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+            role="separator"
+          />
 
           {/* The frame, beside the palette rather than under a heading of its
               own. They are the same kind of decision — what this surface looks
               like — and a person changing one is usually looking at the other. */}
-          <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
-                        text-muted-foreground">
+          {/* The caption is the panel's ink, told apart from the rows by size,
+              weight and letter-spacing rather than by a second tone. */}
+          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
             {t('bento.settings.frame')}
           </p>
           {SKINS.map((option) => {
@@ -291,19 +320,25 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                 onClick={() => setSkin(option as Skin)}
                 className={cn(
                   `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors hover:bg-accent focus-visible:outline-none
-                   focus-visible:ring-2 focus-visible:ring-ring`,
+                   transition-colors ${WASH} ${RING}`,
                   active && 'font-medium',
                 )}
               >
-                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t(`bento.settings.skin.${option}`)}</span>
                 {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
               </button>
             )
           })}
 
-          <div className="my-1 h-px bg-border" role="separator" />
+          <div
+            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
+               the panel's own paper it measures 1.38:1, which is a rule that
+               is there in the markup and not on the screen. Mixed from the
+               ink, so it is a rule in both polarities. */
+            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+            role="separator"
+          />
 
           {/* Layout as a preference, not an exit.
 
@@ -319,8 +354,9 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
               to leave. Removing the row would have stranded them — the bug this
               codebase already fixed once under "give the chrome-less layout its
               doors back". */}
-          <p className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider
-                        text-muted-foreground">
+          {/* The caption is the panel's ink, told apart from the rows by size,
+              weight and letter-spacing rather than by a second tone. */}
+          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
             {t('bento.settings.layout')}
           </p>
           {LAYOUTS.map((option) => {
@@ -338,31 +374,36 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                 }}
                 className={cn(
                   `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors hover:bg-accent focus-visible:outline-none
-                   focus-visible:ring-2 focus-visible:ring-ring`,
+                   transition-colors ${WASH} ${RING}`,
                   active && 'font-medium',
                 )}
               >
-                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t(`bento.settings.layout.${option}`)}</span>
                 {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
               </button>
             )
           })}
 
-          <div className="my-1 h-px bg-border" role="separator" />
+          <div
+            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
+               the panel's own paper it measures 1.38:1, which is a rule that
+               is there in the markup and not on the screen. Mixed from the
+               ink, so it is a rule in both polarities. */
+            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+            role="separator"
+          />
 
           <button
             type="button"
             role="menuitem"
             onClick={toggleFull}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
             {full
-              ? <Minimize2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              : <Maximize2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+              ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
+              : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
             <span className="flex-1">
               {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
             </span>
@@ -375,22 +416,20 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             type="button"
             role="menuitem"
             onClick={() => resetAppearance()}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
-            <RotateCcw className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{t('bento.settings.reset')}</span>
           </button>
 
           <a
             href="/logout"
             role="menuitem"
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors hover:bg-accent focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
           >
-            <LogOut className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <LogOut className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{t('bento.settings.signout')}</span>
           </a>
         </div>,

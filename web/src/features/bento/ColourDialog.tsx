@@ -49,7 +49,20 @@ export const INK = 'text-[var(--bento-ink)]'
     grounds (measured 3.18:1 on the default paper, 3.6:1 on the darkest card),
     which the palette's `--bento-line` hairline — a divider, not a boundary —
     does not (1.15-1.47:1). */
-export const EDGE = 'border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]'
+/* WHY IT IS MARKED IMPORTANT, AND WHAT WAS MEASURED WITHOUT IT.
+
+   The stylesheet repoints every width-only border class to the palette's
+   hairline with `[data-layout='bento'] :where(.border, .border-t, …)`. The
+   `:where()` is there to keep that rule at the attribute selector's own weight
+   so a call site naming a colour still wins — but a Tailwind utility is
+   (0,1,0) and so is that rule, and the layout's stylesheet is imported after
+   the utilities. Equal weight, later origin: the hairline won every time.
+
+   So EDGE compiled, applied to the right element, and did nothing. Measured on
+   the panel it is supposed to bound: 1.38:1 — the hairline, not the edge. It
+   is stated as important because it is deliberately overriding a global rule
+   for the one job that rule is wrong for. */
+export const EDGE = '!border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]'
 
 /** A filled shape that has to be seen rather than merely bounded: a slider
     track, a step dot. Heavier than EDGE, worst measured 3.18:1 → 4.34:1. */
@@ -69,10 +82,56 @@ export const RING =
 /** Chosen. Inverted rather than tinted: the accent-on-its-own-tint pairing
     this used to wear measured 1.1-4.3:1 and put a coloured word on screen,
     which the surface no longer does. Ink on card is 21:1 in every palette. */
-export const CHOSEN = 'border-[var(--bento-ink)] bg-[var(--bento-ink)] text-[var(--bento-card)]'
+export const CHOSEN = '!border-[var(--bento-ink)] bg-[var(--bento-ink)] text-[var(--bento-card)]'
+
+/** A rule between rows, not around a control.
+
+    `.border` on the bento surface resolves to `--bento-line`, which is the
+    palette's hairline BETWEEN cards: measured 1.38:1 against the card, which
+    is right for a divider inside a panel and wrong for the edge of the panel
+    itself or of anything you can press. Those take EDGE; this is for the
+    seams — the header rule, the row dividers, the list's own lines — and is
+    mixed from the ink so a palette moves it. */
+export const SEAM = '!border-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]'
+
+/** A panel that is its own surface: a popover, a menu, a dialog.
+
+    `bg-popover` alone is half an answer. The stylesheet repoints it to
+    `--bento-card`, but nothing sets the matching ink, so a portalled panel
+    took whatever `color` it inherited from <body> — which on this layout is
+    the CARD's ink by luck rather than by construction. Stating both means the
+    pair is guaranteed rather than coincidental. */
+export const SURFACE = 'bg-[var(--bento-card)] text-[var(--bento-ink)]'
 
 /** The handle on every slider in these dialogs. */
 export const SLIDER = 'bento-slider'
+
+/** Black or white, whichever the given ground is further from.
+
+    The one ink token every palette ships — `--bento-ink` — was measured
+    against `--bento-card` and nothing else, so it is the wrong answer for any
+    surface that is not the card: the page, the dock, a preview of the work
+    area. Relative colour syntax asks the ground itself, so no colour is named
+    and no palette has a fifty-sixth token to set.
+
+    THE CLAMP IS NOT TIDINESS. `(49 - l) * 100%` is meant to land on 0% or 100%
+    and rely on lightness clamping to get there, and as a `color` it does. But
+    `l` is a 0-100 number, so the near-black page — l = 4 — produces 4500%, and
+    Chromium keeps that as an out-of-gamut `color(srgb 44.88 44.88 44.88)`
+    rather than folding it to white. Everything downstream then overflows: a
+    12% mix of it is 5.39, which clamps to opaque white, so `color-mix(…
+    var(--ink-here) 12%, transparent)` — a faint wash — painted a solid white
+    slab. The Done button in the arranger was exactly that: a white pill with
+    white letters on it.
+
+    Clamping in the channel keeps the value inside the gamut, so a mix of it
+    is a mix and not a flood. */
+export function inkOn(ground: string) {
+  return `hsl(from ${ground} 0 0% clamp(0%, (49 - l) * 100%, 100%))`
+}
+
+/** The same, as the raw declaration a `style` prop wants. */
+export const INK_HERE_FROM_PAGE = inkOn('var(--bento-bg)')
 
 /* A thumb a palette can reach, in the one place a utility class cannot go.
 
@@ -361,7 +420,7 @@ export function ColourPanel({
                 type="button"
                 onClick={() => setChannel(c)}
                 className={cn(
-                  'rounded-[8px] border border-transparent px-3 py-1.5 text-[13px] transition-colors',
+                  'rounded-[8px] border !border-transparent px-3 py-1.5 text-[13px] transition-colors',
                   RING,
                   channel === c ? `${CHOSEN} font-medium` : INK,
                 )}
@@ -446,7 +505,7 @@ export function ColourPanel({
         {/* Preview: a wireframe of the product, painted with the same tokens
             the product is. Not a swatch — a swatch tells you the colour and not
             what it does to a screen made of five regions. */}
-        <div className="border-t px-5 py-4">
+        <div className={cn('border-t px-5 py-4', SEAM)}>
           <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
             {t('bento.colour.preview')}
           </p>
@@ -482,7 +541,17 @@ export function ColourPanel({
                 </div>
                 <div
                   className="p-2"
-                  style={{ color: shown('workarea.text', '--bento-ink') }}
+                  /* The work area is the one region of this preview whose
+                     ground is the PAGE. `--bento-ink` is the card's ink, so
+                     the unpainted fallback drew the specimen black on the
+                     near-black page — 1.06:1, inside the dialog somebody opens
+                     because they cannot read something. Derived from whatever
+                     ground the preview is actually showing, painted or not. */
+                  style={{
+                    color: paint['workarea.text']
+                      ? shown('workarea.text', '--bento-ink')
+                      : inkOn(shown('workarea.bg', '--bento-bg')),
+                  }}
                 >
                   <p className="font-medium">Sample text on the work area</p>
                   <div className="mt-1.5 grid grid-cols-2 gap-1.5">
@@ -508,7 +577,7 @@ export function ColourPanel({
 
         {/* Target */}
         {channel !== 'accent' && (
-          <div className="border-t px-5 py-4">
+          <div className={cn('border-t px-5 py-4', SEAM)}>
             <div className="mb-2 flex items-center justify-between">
               <p className={cn('text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
                 {t('bento.colour.select_element')}
@@ -547,7 +616,7 @@ export function ColourPanel({
         )}
 
         {/* Palettes */}
-        <div className="border-t px-5 py-4">
+        <div className={cn('border-t px-5 py-4', SEAM)}>
           <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
             {t('bento.colour.saved')}
           </p>
@@ -664,7 +733,7 @@ export function ColourPanel({
           )}
         </div>
 
-        <footer className="flex items-center gap-3 border-t px-5 py-3">
+        <footer className={cn('flex items-center gap-3 border-t px-5 py-3', SEAM)}>
           <button
             type="button"
             onClick={() => resetPaint()}
