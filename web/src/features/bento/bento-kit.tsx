@@ -112,44 +112,50 @@ export type CellSpan = 'anchor' | 'wide' | 'one' | 'tall' | 'full'
    Widths are capped at two on `sm`, where the board is only two columns wide —
    a five-wide card on a two-column grid overflows the page rather than filling
    it. */
+/* Two is the ceiling in both directions. A cell may be 1x1, 2x1, 1x2 or 2x2
+   and nothing else.
+
+   The cap is the point rather than a limitation: on a four-column board a
+   three- or four-wide card stops being a cell and becomes a band across the
+   page, and the grid it was supposed to belong to has one member. Anything
+   asking for more is clamped rather than refused, so a wrong number is a
+   slightly small card instead of a broken layout. */
+export const MAX_SPAN = 2
+
 export const COL: Record<number, string> = {
   1: '',
   2: 'sm:col-span-2',
-  3: 'sm:col-span-2 lg:col-span-3',
-  4: 'sm:col-span-2 lg:col-span-4',
-  5: 'sm:col-span-2 lg:col-span-5',
 }
 
 export const ROW: Record<number, string> = {
   1: '',
   2: 'sm:row-span-2',
-  3: 'sm:row-span-3',
-  4: 'sm:row-span-4',
-  5: 'sm:row-span-5',
 }
+
+/** Clamp to the 2x2 ceiling. */
+export const clampSpan = (n: number) => Math.min(Math.max(1, Math.round(n || 1)), MAX_SPAN)
 
 /** The span name a cell should style itself as, given its dimensions. Cells use
     this for typography — the anchor draws a bigger figure — not for geometry,
     which the wrapper owns. */
 export function spanFor(w: number, h: number): CellSpan {
-  if (w >= 2 && h >= 2) return 'anchor'
-  if (w >= 4) return 'full'
-  if (w >= 2) return 'wide'
-  if (h >= 2) return 'tall'
+  const cw = clampSpan(w)
+  const ch = clampSpan(h)
+  if (cw === 2 && ch === 2) return 'anchor'
+  if (cw === 2) return 'wide'
+  if (ch === 2) return 'tall'
   return 'one'
 }
 
 export const SPAN: Record<CellSpan, string> = {
+  /* Four shapes, which is all a 2x2 ceiling allows on a four-column board.
+     'full' is kept as an alias of the 2-wide card so that any caller still
+     asking for it gets a legal cell rather than a compile error. */
   anchor: 'sm:col-span-2 sm:row-span-2',
   wide: 'sm:col-span-2',
-  one: '',
-  /* The fifth shape, and the last one that tiles. A four-column board can take
-     widths of 1, 2 and 4 and heights of 1 and 2; of those ten combinations the
-     five here are the ones that neither strand a column nor make a card too
-     tall to share a row. 1x2 is the column: a list that wants depth rather
-     than width, beside two stacked 1x1s. */
   tall: 'sm:row-span-2',
-  full: 'sm:col-span-2 lg:col-span-4',
+  one: '',
+  full: 'sm:col-span-2',
 }
 
 /** The accent hues, one per meaning. Mint is money in, pink is money out,

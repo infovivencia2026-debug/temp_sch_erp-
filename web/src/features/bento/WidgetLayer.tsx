@@ -9,7 +9,7 @@ import {
   rowsNeeded, PRESETS, BOARD_ROWS,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
-import { COL, ROW, spanFor, type CellSpan } from './bento-kit'
+import { COL, ROW, spanFor, clampSpan, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas } from './ColourDialog'
 import type { Hsl } from '@/lib/paint'
@@ -516,7 +516,13 @@ export function Widget({
 
   const order = orderOf(layout, id, index)
   const editing = layer?.editing ?? false
-  const span = spanFor(w, h)
+  /* Clamped to the 2x2 ceiling here as well as inside spanFor, because these
+     two feed the geometry directly: an unclamped 3 would miss the lookup, the
+     class would be undefined, and the cell would silently shrink to one column
+     instead of failing where somebody would see it. */
+  const cw = clampSpan(w)
+  const ch = clampSpan(h)
+  const span = spanFor(cw, ch)
   const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
   const moveBtn =
     'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
@@ -584,7 +590,7 @@ export function Widget({
          child and was stretched by the row track; now the wrapper is stretched
          and the cell inside sizes to its content, so a two-row card would sit
          at half height with a gap under it. */
-      className={cn('bento-widget relative min-w-0 [&>*]:h-full', COL[w], ROW[h])}
+      className={cn('bento-widget relative min-w-0 [&>*]:h-full', COL[cw], ROW[ch])}
       style={{ order }}
       /* The two data attributes are what lets a cell's CONTENTS answer to its
          size — see the [data-w]/[data-h] rules in index.css. Doing it in CSS
