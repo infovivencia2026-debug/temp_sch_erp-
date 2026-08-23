@@ -56,7 +56,11 @@ export function CardShell({
         </div>
         {glyph && (
           <span
-            className="grid size-[22px] shrink-0 place-items-center rounded-full border text-[9px]"
+            /* A rounded rectangle, not a circle. It was the only round thing on
+               a board of rectangles — the cards, the tracks, the bars and the
+               segments all share one corner radius, and a disc in the corner of
+               every card read as a different vocabulary. */
+            className="grid size-[22px] shrink-0 place-items-center rounded-[6px] border text-[9px]"
             style={{ borderColor: ink(35) }}
             aria-hidden="true"
           >
@@ -181,7 +185,12 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
   const pct = Math.max(0, Math.min(100, Math.round((value / total) * 100)))
   return (
     <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
-      <div className="relative grid aspect-square w-[78%] max-w-[104px] place-items-center">
+      {/* Sized by the row's HEIGHT, not its width. A drawing row on a 1x1 is
+          about 69px tall while the card is 264px wide, so a ring measured
+          against the width overflowed the row and had its bottom sliced off by
+          the cell's `overflow: hidden`. `h-full` with a square aspect makes the
+          height the binding constraint, which is the one that is short. */}
+      <div className="relative grid aspect-square h-full max-h-[104px] place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
           <circle cx="50" cy="50" r="42" fill="none" stroke={TRACK} strokeWidth={11} />
           {pct > 0 && (

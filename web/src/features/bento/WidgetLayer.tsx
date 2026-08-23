@@ -256,8 +256,8 @@ export function WidgetLayer({
           <button
             type="button"
             onClick={() => setArranging(false)}
-            className="flex items-center gap-1.5 rounded-full border border-primary bg-primary-soft
-                       px-3 py-1.5 text-[12.5px] text-primary focus-visible:outline-none
+            className="flex items-center gap-1.5 rounded-full border border-current bg-[color-mix(in_srgb,currentColor_12%,transparent)]
+                       px-3 py-1.5 text-[12.5px] text-current focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Check className="size-3.5" aria-hidden="true" />
@@ -276,14 +276,14 @@ export function WidgetLayer({
                 key={p}
                 type="button"
                 onClick={() => applyPreset(p, visible)}
-                className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent"
+                className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
               >
                 {t(`bento.widgets.preset.${p}`)}
               </button>
             ))}
           </span>
 
-          <span className="h-4 w-px bg-border" aria-hidden="true" />
+          <span className="h-4 w-px bg-[color-mix(in_srgb,currentColor_22%,transparent)]" aria-hidden="true" />
 
           {/* Undo first among the editing controls, because it is the one
               somebody reaches for in a hurry — right after the click they did
@@ -293,7 +293,7 @@ export function WidgetLayer({
               type="button"
               onClick={undo}
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                         transition-colors hover:bg-accent"
+                         transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
             >
               <Undo2 className="size-3.5" aria-hidden="true" />
               {t('bento.widgets.undo')}
@@ -306,7 +306,7 @@ export function WidgetLayer({
             type="button"
             onClick={() => tidy(visible)}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                       transition-colors hover:bg-accent"
+                       transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
           >
             <Wand2 className="size-3.5" aria-hidden="true" />
             {t('bento.widgets.tidy')}
@@ -317,7 +317,7 @@ export function WidgetLayer({
               type="button"
               onClick={reset}
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                         text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                         opacity-70 transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] hover:text-foreground"
             >
               <RotateCcw className="size-3.5" aria-hidden="true" />
               {t('bento.widgets.reset')}
@@ -325,43 +325,71 @@ export function WidgetLayer({
           )}
 
           {off.length > 0 && (
-            <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[12px] text-muted-foreground">{t('bento.widgets.add')}</span>
-              {off.map((d) => {
-                /* Would the board still be three rows with this card on it?
-                   Simulated against the whole layout, the same way resizing is,
-                   because the board is a fixed fifteen slots and a card that
-                   does not fit does not get a smaller row — it pushes the
-                   bottom row off the screen and squashes the text in the rest. */
-                const room =
-                  rowsNeeded(
-                    [
+            /* A DISCLOSURE, not a wall.
+
+               This printed every widget in the tray inline — thirty-six of
+               them on the principal board — which wrapped to four lines, buried
+               the rest of the toolbar and pushed the cards down the page. The
+               list is now behind a summary that says how many are waiting, and
+               it opens only when asked.
+
+               `<details>` rather than a custom menu: it is closed by default,
+               it toggles with the keyboard, and it needs no state, no outside
+               click handler and no focus trap to be correct. */
+            <details className="relative">
+              <summary
+                className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border
+                           px-3 py-1 text-[12px] transition-colors
+                           hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)]"
+                style={{ borderColor: 'color-mix(in srgb, currentColor 30%, transparent)' }}
+              >
+                <Plus className="size-3" aria-hidden="true" />
+                {t('bento.widgets.add_count', { count: off.length })}
+              </summary>
+              <div
+                className="absolute left-0 top-full z-30 mt-1.5 flex max-h-[280px] w-[320px] flex-col
+                           gap-1 overflow-y-auto rounded-[10px] border p-2 shadow-lg"
+                style={{
+                  background: 'var(--bento-card)',
+                  borderColor: 'color-mix(in srgb, currentColor 22%, transparent)',
+                }}
+              >
+                {off.map((d) => {
+                  /* Would the board still be three rows with this card on it?
+                     Simulated against the whole layout, the same way a resize
+                     is, because the board is a fixed fifteen slots and a card
+                     that does not fit does not get a smaller row — it pushes
+                     the bottom row off the screen. */
+                  const room =
+                    rowsNeeded([
                       ...visible.map((v) => drawnDims(layout, v.id, v.size)),
                       { w: clampSpan(DIMS[d.size].w), h: clampSpan(DIMS[d.size].h) },
-                    ],
-                  ) <= maxRows
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    disabled={!room}
-                    title={room ? undefined : t('bento.widgets.full')}
-                    onClick={() =>
-                      place(d.id, clampSpan(DIMS[d.size].w), clampSpan(DIMS[d.size].h))
-                    }
-                    className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
-                               text-[12px] transition-colors hover:bg-accent
-                               disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                  >
-                    <Plus className="size-3" aria-hidden="true" />
-                    {d.label}
-                  </button>
-                )
-              })}
-            </span>
+                    ]) <= maxRows
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      disabled={!room}
+                      title={room ? undefined : t('bento.widgets.full')}
+                      onClick={() =>
+                        place(d.id, clampSpan(DIMS[d.size].w), clampSpan(DIMS[d.size].h))
+                      }
+                      className="flex w-full items-center gap-1.5 rounded-[7px] px-2 py-1.5 text-left
+                                 text-[12px] transition-colors
+                                 hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]
+                                 disabled:cursor-not-allowed disabled:opacity-40
+                                 disabled:hover:bg-transparent"
+                    >
+                      <Plus className="size-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{d.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </details>
           )}
 
-          <span className="text-[12px] text-muted-foreground">{t('bento.widgets.hint')}</span>
+          <span className="text-[12px] opacity-60">{t('bento.widgets.hint')}</span>
         </div>
       )}
       {children}
@@ -402,12 +430,12 @@ function Axis({
   const upBlocked = value >= hi || !allow(nextUp)
 
   const arrow =
-    'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
-    'transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-popover/90'
+    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] shadow-sm ' +
+    'transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] disabled:opacity-30 disabled:hover:bg-[var(--bento-card)]'
 
   return (
     <div className="flex items-center gap-1">
-      <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">{label}</span>
+      <span className="w-3 shrink-0 text-[10px] font-semibold opacity-70">{label}</span>
       <button
         type="button"
         onClick={() => step(-1)}
@@ -490,7 +518,7 @@ function ColourPick({
 
   return (
     <div className="flex items-center gap-1">
-      <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
+      <span className="w-3 shrink-0 text-[10px] font-semibold opacity-70">
         {t('bento.widgets.colour')}
       </span>
       <button
@@ -517,7 +545,7 @@ function ColourPick({
           onClick={() => onPick(null)}
           title={t('bento.widgets.colour_default')}
           aria-label={t('bento.widgets.colour_default')}
-          className="rounded-full bg-popover/90 px-2 py-1 text-[10.5px] shadow-sm hover:bg-accent"
+          className="rounded-full bg-[var(--bento-card)] px-2 py-1 text-[10.5px] shadow-sm hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
         >
           {t('bento.widgets.colour_clear')}
         </button>
@@ -583,7 +611,7 @@ function ColourPick({
             <button
               type="button"
               onClick={() => onPick(null)}
-              className="rounded-full border px-2 py-0.5 text-[10.5px] hover:bg-accent"
+              className="rounded-full border px-2 py-0.5 text-[10.5px] hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
             >
               {t('bento.widgets.colour_clear')}
             </button>
@@ -651,8 +679,8 @@ export function Widget({
   const span = spanFor(cw, ch)
   const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
   const moveBtn =
-    'grid size-6 shrink-0 place-items-center rounded-md bg-popover/90 shadow-sm ' +
-    'transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-popover/90'
+    'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] shadow-sm ' +
+    'transition-colors hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)] disabled:opacity-30 disabled:hover:bg-[var(--bento-card)]'
   const tint = tintOf(layout, id)
 
   /* Recolouring by REPOINTING the palette, not by painting the card.
@@ -776,17 +804,17 @@ export function Widget({
                      rounded-[var(--bento-radius)] bg-background/70 p-2 backdrop-blur-[2px]"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-1 rounded-full bg-popover/90 px-2 py-1
+            <span className="flex min-w-0 items-center gap-1 rounded-full bg-[var(--bento-card)] px-2 py-1
                              text-[11px] font-medium shadow-sm">
-              <GripVertical className="size-3 shrink-0 cursor-grab text-muted-foreground" aria-hidden="true" />
+              <GripVertical className="size-3 shrink-0 cursor-grab opacity-70" aria-hidden="true" />
               <span className="truncate">{label}</span>
             </span>
             <button
               type="button"
               onClick={() => remove(id)}
               aria-label={`${t('bento.widgets.remove')} ${label}`}
-              className="grid size-7 shrink-0 place-items-center rounded-full bg-popover/90
-                         text-muted-foreground shadow-sm transition-colors
+              className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--bento-card)]
+                         opacity-70 shadow-sm transition-colors
                          hover:bg-destructive hover:text-destructive-foreground"
             >
               <X className="size-3.5" />
@@ -809,7 +837,7 @@ export function Widget({
                 undoable, it is repeatable, and it says which direction it
                 means. Dragging still works for anybody who prefers it. */}
             <div className="flex items-center gap-1">
-              <span className="w-3 shrink-0 text-[10px] font-semibold text-muted-foreground">
+              <span className="w-3 shrink-0 text-[10px] font-semibold opacity-70">
                 {t('bento.widgets.order')}
               </span>
               <button
@@ -821,7 +849,7 @@ export function Widget({
               >
                 <ArrowLeft className="size-3" aria-hidden="true" />
               </button>
-              <span className="w-8 text-center text-[11px] tabular-nums text-muted-foreground">
+              <span className="w-8 text-center text-[11px] tabular-nums opacity-70">
                 {pos + 1}/{layer?.visible.length ?? 1}
               </span>
               <button

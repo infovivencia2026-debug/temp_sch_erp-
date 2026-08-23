@@ -240,10 +240,10 @@ html.dark[data-layout='bento'] {
    in a packed grid with 14px gutters; a card that grows on hover overlaps its
    neighbour or shoves the row, and either way the thing under the cursor moves
    while the cursor is on it. */
-[data-layout='bento'] .bento-cell:has(.bento-cue):hover {
-  border-color: color-mix(in srgb, var(--bento-ink) 22%, var(--bento-line));
-  box-shadow: var(--bento-shadow);
-}
+/* Cells that lead somewhere used to get a heavier version of this. They no
+   longer do: one hover, one meaning. Where a cell opens something, the cue
+   button inside it already says so, and saying it twice made the cells without
+   an action feel broken rather than merely quiet. */
 
 /* The action itself comes forward with its card, so the eye is led to the
    thing that is actually clickable rather than to the card's edge. */
@@ -280,28 +280,21 @@ html.dark[data-layout='bento'] {
 }
 
 [data-layout='bento'] .bento-cell:hover {
-  /* A wash of the cell's own ink, so this works the same on a white card, a
-     domain-tinted one and an inverted one without a branch for each. */
-  background-image: linear-gradient(
-    0deg,
-    color-mix(in srgb, currentColor 4%, transparent),
-    color-mix(in srgb, currentColor 4%, transparent)
-  );
-  box-shadow: var(--bento-depth, 0 10px 26px -8px rgb(0 0 0 / 0.18));
-  border-color: color-mix(in srgb, var(--bento-ink) 16%, var(--bento-line));
+  /* A border appears. That is the whole effect, and it is the same on every
+     cell — actionable or not.
+
+     The wash and the lift are gone. A tinted ground shifting under the pointer
+     competes with the card's own colour, which now carries meaning, and a
+     shadow on a near-black page is invisible anyway. An edge that was not
+     there and now is reads instantly at any size, on paper, on a coloured
+     ground and on an inverted cell, because it is drawn from the cell's own
+     ink rather than from a colour that has to survive twelve backgrounds. */
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
-/* The actionable ones go further. */
-[data-layout='bento'] .bento-cell:has(.bento-cue):hover {
-  box-shadow: var(--bento-depth-lg, 0 20px 44px -12px rgb(0 0 0 / 0.26));
-  border-color: color-mix(in srgb, var(--bento-ink) 30%, var(--bento-line));
-}
-
-/* Keyboard gets the same answer as the pointer. A hover-only affordance is one
-   that does not exist for anybody tabbing through the board. */
 [data-layout='bento'] .bento-cell:focus-within {
-  box-shadow: var(--bento-depth, 0 10px 26px -8px rgb(0 0 0 / 0.18));
-  border-color: color-mix(in srgb, var(--bento-ink) 30%, var(--bento-line));
+  /* Keyboard gets exactly what the pointer gets. */
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
 /* The state change stays; only its animation goes. Somebody who asked for less
@@ -1283,37 +1276,41 @@ html[style*='--shadow-scale'] .dark {
 }
 
 /* ── THE DEFAULT PALETTE ────────────────────────────────────────────────
-   Supplied as a working reference: a near-black page with paper cards, and
-   six grounds that carry the hue. The card is the colour; the ink on it is
-   black or white, whichever wins — measured, worst pair 5.44:1 on the red.
+   A black page carrying vivid cards, from the supplied reference. The card is
+   the colour; the ink on it is black or white, whichever wins.
 
-   `-soft` equals the ground here because these ARE the card colours, not
-   tints to be derived from an accent. Anything reading `-soft` gets the same
-   surface it would have got from the base token. */
+   Measured, not chosen. Worst ink-on-card pair is 7.47:1 on the orange;
+   everything else clears 9.7:1 and most clear 16:1. Two of the twelve grounds
+   are the near-black card, which takes white — that is the reference's own
+   arrangement, where a dark card sits among the bright ones rather than every
+   card being bright.
+
+   `-soft` equals the ground because these ARE the card colours, not tints to
+   be derived from an accent. */
 [data-layout='bento'] {
-  --bento-bg: #10110f;
-  --bento-card: #efede5;
-  --bento-card-2: #efede5;
+  --bento-bg: #0a0a0b;
+  --bento-card: #ffffff;
+  --bento-card-2: #ededed;
   --bento-ink: #000000;
   --bento-muted: var(--bento-ink);
   --bento-line: color-mix(in srgb, #000000 14%, transparent);
-  --bento-mint: #b8f36b;   --bento-mint-tint: #b8f36b;
-  --bento-purple: #a38aaa; --bento-purple-tint: #a38aaa;
-  --bento-pink: #ff1c22;   --bento-pink-tint: #ff1c22;
-  --bento-orange: #a4aa08; --bento-orange-tint: #a4aa08;
-  --bento-anchor-from: #003d32; --bento-anchor-to: #003d32;
+  --bento-mint: #c9f24d;   --bento-mint-tint: #c9f24d;
+  --bento-purple: #b9a5f2; --bento-purple-tint: #b9a5f2;
+  --bento-pink: #f4762a;   --bento-pink-tint: #f4762a;
+  --bento-orange: #f0ea7a; --bento-orange-tint: #f0ea7a;
+  --bento-anchor-from: #161618; --bento-anchor-to: #161618;
   --bento-anchor-ink: #ffffff;
-  --bento-dock-bg: #efede5; --bento-dock-ink: #000000;
-  --dom-students: #b8c9c3; --dom-students-soft: #b8c9c3; --dom-students-text: #000000;
-  --dom-academics: #a38aaa; --dom-academics-soft: #a38aaa; --dom-academics-text: #000000;
-  --dom-attendance: #b8f36b; --dom-attendance-soft: #b8f36b; --dom-attendance-text: #000000;
-  --dom-finance: #a4aa08; --dom-finance-soft: #a4aa08; --dom-finance-text: #000000;
-  --dom-staff: #003d32; --dom-staff-soft: #003d32; --dom-staff-text: #ffffff;
-  --dom-admissions: #b8c9c3; --dom-admissions-soft: #b8c9c3; --dom-admissions-text: #000000;
-  --dom-communication: #a38aaa; --dom-communication-soft: #a38aaa; --dom-communication-text: #000000;
-  --dom-operations: #efede5; --dom-operations-soft: #efede5; --dom-operations-text: #000000;
-  --dom-reports: #003d32; --dom-reports-soft: #003d32; --dom-reports-text: #ffffff;
-  --dom-critical: #ff1c22; --dom-critical-soft: #ff1c22; --dom-critical-text: #000000;
-  --dom-success: #b8f36b; --dom-success-soft: #b8f36b; --dom-success-text: #000000;
-  --dom-warning: #a4aa08; --dom-warning-soft: #a4aa08; --dom-warning-text: #000000;
+  --bento-dock-bg: #161618; --bento-dock-ink: #ffffff;
+  --dom-students: #a9c2f0; --dom-students-soft: #a9c2f0; --dom-students-text: #000000;
+  --dom-academics: #b9a5f2; --dom-academics-soft: #b9a5f2; --dom-academics-text: #000000;
+  --dom-attendance: #c9f24d; --dom-attendance-soft: #c9f24d; --dom-attendance-text: #000000;
+  --dom-finance: #f0ea7a; --dom-finance-soft: #f0ea7a; --dom-finance-text: #000000;
+  --dom-staff: #161618; --dom-staff-soft: #161618; --dom-staff-text: #ffffff;
+  --dom-admissions: #a9c2f0; --dom-admissions-soft: #a9c2f0; --dom-admissions-text: #000000;
+  --dom-communication: #b9a5f2; --dom-communication-soft: #b9a5f2; --dom-communication-text: #000000;
+  --dom-operations: #ededed; --dom-operations-soft: #ededed; --dom-operations-text: #000000;
+  --dom-reports: #161618; --dom-reports-soft: #161618; --dom-reports-text: #ffffff;
+  --dom-critical: #f4762a; --dom-critical-soft: #f4762a; --dom-critical-text: #000000;
+  --dom-success: #c9f24d; --dom-success-soft: #c9f24d; --dom-success-text: #000000;
+  --dom-warning: #f0ea7a; --dom-warning-soft: #f0ea7a; --dom-warning-text: #000000;
 }
