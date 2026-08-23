@@ -6,7 +6,6 @@ import { WidgetLayer, Widget } from './WidgetLayer'
 import { useLayout } from '@/lib/widgets'
 import { formatPaise } from '@/lib/utils'
 import {
-  Bars,
   BentoError,
   BentoLoading,
   BentoPage,
@@ -582,11 +581,6 @@ export default function BentoPrincipalDashboard() {
   const movedShare = billed > 0 ? k.collected_paise / billed : 0
   const loadPerTeacher = k.staff > 0 ? Math.round(k.students / k.staff) : 0
 
-  const bars = series.slice(-10).map((p) => ({
-    label: p.date.slice(8, 10),
-    value: p.pct,
-    title: t('bento.principal.bar_title', { date: p.date, pct: p.pct }),
-  }))
 
 
   /* The feature widgets' figures. Each one is counted off the response it came
@@ -692,48 +686,11 @@ export default function BentoPrincipalDashboard() {
               </div>
             ) : null}
 
-            <div className="mt-4 border-t border-[var(--bento-line)] pt-4">
-              <p
-                className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
-                           text-[var(--bento-muted)]"
-              >
-                {t('bento.principal.collected_label')}
-              </p>
-              <p
-                className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
-                           text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
-              >
-                {formatPaise(k.collected_paise)}
-              </p>
-              {/* The same Meter the rest of the board uses, rather than a bar
-                  built here out of the anchor's own ink. The sentence under it
-                  still states the share in words, so colour is never the only
-                  channel carrying it. */}
-              <div className="mt-3">
-                <Meter
-                  value={k.collected_paise}
-                  total={billed}
-                  srLabel={t('bento.principal.collected_sr')}
-                />
-              </div>
-              <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
-                {t('bento.principal.collected_of_billed', {
-                  pct: collectedPct,
-                  billed: formatPaise(billed),
-                })}
-              </p>
-            </div>
-
             {/* The actions. The same Cue every other cell carries, checked
                 against the catalogue first: a button leading somewhere this
                 account cannot open is worse than a shorter row of buttons. */}
-            {(attendanceHref || feesHref) && (
-              <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                {attendanceHref && (
-                  <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />
-                )}
-                {feesHref && <Cue to={feesHref} label={t('bento.principal.cue_fees')} />}
-              </div>
+            {attendanceHref && (
+              <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />
             )}
           </Cell>
         )}
@@ -794,32 +751,41 @@ export default function BentoPrincipalDashboard() {
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Widget id="trend" label={t('bento.principal.trend_label')} size="medium" index={1}>
+      {/* Money in. This cell drew BARS of the attendance series — the same
+          figures the anchor already sparklines — while the collected total had
+          no cell of its own and was riding along inside the anchor, which is
+          how one card ended up carrying two unrelated stats. The subject moves
+          here; the id does not, because ids are persisted in saved layouts and
+          renaming one silently drops somebody's arrangement. */}
+      <Widget id="trend" label={t('bento.principal.collected_label')} size="medium" index={1}>
         {(span) => (
-          <Cell span={span} domain="academics">
-            <p className="text-[12.5px] text-[var(--bento-ink)] opacity-70">{t('bento.principal.bars_label')}</p>
-            {trend.error ? (
-              <div className="mt-4">
-                <CellError message={t('bento.principal.trend_failed')} />
-              </div>
-            ) : bars.length > 1 ? (
-              <div className="mt-5">
-                <Bars
-                  items={bars}
-                  activeIndex={bars.length - 1}
-                  srLabel={t('bento.principal.bars_sr', {
-                    count: bars.length,
-                    low: Math.min(...bars.map((b) => b.value)),
-                    high: Math.max(...bars.map((b) => b.value)),
-                  })}
-                />
-              </div>
-            ) : (
-              <p className="mt-4 text-[12px] text-[var(--bento-muted)]">
-                {t('bento.principal.bars_none')}
-              </p>
-            )}
-            {attendanceHref && <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />}
+          <Cell span={span} domain="finance">
+            <p
+              className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                         text-[var(--bento-muted)]"
+            >
+              {t('bento.principal.collected_label')}
+            </p>
+            <p
+              className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
+                         text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
+            >
+              {formatPaise(k.collected_paise)}
+            </p>
+            <div className="mt-3">
+              <Meter
+                value={k.collected_paise}
+                total={billed}
+                srLabel={t('bento.principal.collected_sr')}
+              />
+            </div>
+            <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
+              {t('bento.principal.collected_of_billed', {
+                pct: collectedPct,
+                billed: formatPaise(billed),
+              })}
+            </p>
+            {feesHref && <Cue to={feesHref} label={t('bento.principal.cue_fees')} />}
           </Cell>
         )}
       </Widget>

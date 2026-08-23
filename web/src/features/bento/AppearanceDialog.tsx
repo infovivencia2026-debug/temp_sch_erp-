@@ -4,8 +4,8 @@ import { Check, LayoutGrid, Minus, Palette, Plus, Sliders, Type, X } from 'lucid
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
-  PATTERNS, CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
-  type Pattern, type Contrast, type DockSize, type IconSize, type Scales,
+  CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
+  type Contrast, type DockSize, type IconSize, type Scales,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { ColourPanel } from './ColourDialog'
@@ -377,13 +377,6 @@ export function AppearanceDialog({
             <Scale axis="corners" label={t('bento.settings.corners')} />
             <Scale axis="borders" label={t('bento.settings.borders')} />
             <Scale axis="shadow" label={t('bento.settings.shadow')} />
-            <Axis<Pattern>
-              label={t('bento.settings.pattern')}
-              value={appearance.pattern}
-              options={PATTERNS}
-              onPick={(v) => set('pattern', v)}
-              name={(v) => t(`bento.settings.pattern.${v}`)}
-            />
             <Axis<Contrast>
               label={t('bento.settings.contrast')}
               value={appearance.contrast}

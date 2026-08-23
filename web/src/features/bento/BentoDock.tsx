@@ -170,8 +170,9 @@ export function BentoDock() {
     <>
       <div
         className="bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
-                   -translate-x-1/2 items-center gap-2 rounded-[14px] border-none bg-[var(--bento-card)]
-                   shadow-2xl"
+                   -translate-x-1/2 items-center gap-2 rounded-[14px] border-none
+                   bg-[var(--bento-dock-bg,var(--bento-card))]
+                   text-[var(--bento-dock-ink,var(--bento-ink))] shadow-2xl"
         style={{ padding: 'var(--dock-pad, 8px)', paddingLeft: 'calc(var(--dock-pad, 8px) + 4px)' }}
       >
         {homeHref && (

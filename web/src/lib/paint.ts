@@ -108,6 +108,7 @@ export function applyPaint(next: Paint) {
       else root.style.removeProperty(varName(r, c))
     }
   }
+  applyToBento(next)
   paint = next
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
@@ -115,6 +116,48 @@ export function applyPaint(next: Paint) {
     /* private browsing: the paint lasts the session */
   }
   emit()
+}
+
+/* The bento tokens the paint has to reach.
+
+   The `--paint-*` properties are read by index.css, which dresses the classic
+   layout. Bento reads none of them — it composes from its own `--bento-*` and
+   `--dom-*` set — so a palette applied while in bento repainted the chrome
+   around the board and left every box exactly as it was. Which is what was
+   asked about: the palettes were for the boxes.
+
+   Mapped, not guessed: ground to ground, card to card, the raised shade to the
+   hairline and to the five domain cards. `--bento-muted` is deliberately NOT
+   mapped — the muted shade in these sets measures under 4.5:1 on its own card,
+   and the theme's derived value clears it. */
+const BENTO_MAP: [keyof Paint, string][] = [
+  ['workarea.bg', '--bento-bg'],
+  ['cards.bg', '--bento-card'],
+  ['cards.text', '--bento-ink'],
+  ['students.bg', '--bento-line'],
+  /* The dock has its own two, falling back to the card. It reads
+     `--bento-card` otherwise, so the bottombar region in the colour dialog
+     moved nothing and the dock could not be recoloured at all. */
+  ['bottombar.bg', '--bento-dock-bg'],
+  ['bottombar.text', '--bento-dock-ink'],
+]
+const BENTO_DOMAINS = ['students', 'academics', 'finance', 'operations', 'reports'] as const
+
+function applyToBento(next: Paint) {
+  const root = document.documentElement
+  for (const [key, token] of BENTO_MAP) {
+    const v = next[key]
+    if (v) root.style.setProperty(token, hslCss(v))
+    else root.style.removeProperty(token)
+  }
+  for (const d of BENTO_DOMAINS) {
+    const bg = next[`${d}.bg`]
+    const text = next[`${d}.text`]
+    if (bg) root.style.setProperty(`--dom-${d}`, hslCss(bg))
+    else root.style.removeProperty(`--dom-${d}`)
+    if (text) root.style.setProperty(`--dom-${d}-text`, hslCss(text))
+    else root.style.removeProperty(`--dom-${d}-text`)
+  }
 }
 
 export function setPaint(region: Region, channel: Channel, value: Hsl | undefined) {
