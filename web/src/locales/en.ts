@@ -953,9 +953,60 @@ export const en = {
   'bento.my_work.outstanding': 'Outstanding',
   'bento.my_work.overdue': 'Overdue',
   'bento.my_work.sections': 'Sections',
-  'bento.my_work.nothing': 'Nothing outstanding.',
   'bento.my_work.loading': 'Checking what is outstanding…',
   'bento.my_work.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
+  'bento.my_work.kind_submissions': 'Submissions',
+  'bento.my_work.kind_marks': 'Marks',
+  'bento.my_work.kind_substitution': 'Cover',
+  'bento.my_work.kind_leave': 'Leave',
+  'bento.my_work.kind_announcement': 'Notices',
+  // Outstanding — the queue and what it is made of.
+  'bento.my_work.late_units': 'late',
+  'bento.my_work.kinds_count': 'kinds',
+  'bento.my_work.kinds_sr': 'Outstanding work by kind',
+  'bento.my_work.kinds_note': 'The bar sums to the figure above it: each kind\'s own count, less leave already decided.',
+  'bento.my_work.empty_queue': 'Nothing outstanding on this list.',
+  'bento.my_work.late_head': 'Late',
+  'bento.my_work.none_late': 'None of it is late.',
+  'bento.my_work.due_head': 'Due',
+  'bento.my_work.due_sr': 'Dated outstanding work, by when it falls due',
+  'bento.my_work.due_late': 'Late',
+  'bento.my_work.due_today': 'Today',
+  'bento.my_work.due_week': '1-7d',
+  'bento.my_work.due_later': '8d+',
+  'bento.my_work.no_dates_at_all': 'Nothing outstanding carries a date.',
+  'bento.my_work.largest_head': 'Largest marks queue',
+  'bento.my_work.largest_none': 'No marks queue on this list.',
+  'bento.my_work.largest_unit': '{count} missing',
+  // Says out loud why there is no ranking across the kinds.
+  'bento.my_work.units_note': 'Only marks papers are ranked against each other — marks, lessons and notices are different units.',
+  'bento.my_work.dated_note': '{dated} of {count} outstanding items carry a date.',
+  'bento.my_work.cap_note': 'Listed ten at a time ({kinds}), so these are at least the figures shown.',
+  // Overdue — the ageing of the queue.
+  'bento.my_work.oldest': 'oldest',
+  'bento.my_work.days_late': '{days}d',
+  'bento.my_work.of_listed': 'listed',
+  'bento.my_work.of_items_note': 'Late rows out of the {count} on this list.',
+  'bento.my_work.age_sr': 'Late work by how long it has been late',
+  'bento.my_work.age_today': 'Today',
+  'bento.my_work.age_week': '1-7d',
+  'bento.my_work.age_month': '8-30d',
+  'bento.my_work.age_old': '30d+',
+  'bento.my_work.age_undated': 'No date',
+  'bento.my_work.grid_sr': 'Late work by age and kind',
+  'bento.my_work.oldest_head': 'Oldest late items',
+  'bento.my_work.no_dated_late': 'Nothing late carries a date to age it by.',
+  'bento.my_work.none_late_list': 'Nothing on this list is late.',
+  // The handler has no priority column; the card says so rather than deriving one.
+  'bento.my_work.no_priority': 'This endpoint carries no priority, so none is shown.',
+  'bento.my_work.undated_note': '{n} late without a date.',
+  // Sections — one figure, made dense by hierarchy.
+  'bento.my_work.sections_caption': 'Your work list is scoped to them.',
+  'bento.my_work.rows_head': 'Rows on this list',
+  'bento.my_work.scope_section': 'from your sections',
+  'bento.my_work.scope_own': 'from your account',
+  'bento.my_work.rows_by_kind': 'Rows by kind',
+  'bento.my_work.sections_note': 'Submissions, marks and cover are scoped by section; leave and notices by account.',
 
   // --- bento: the head's dashboard ----------------------------------------
   // The Bento rendering of institution_admin.home.dashboard. Same endpoints as
@@ -972,6 +1023,39 @@ export const en = {
   'bento.principal.trend_label': 'Attendance trend',
   'bento.principal.trend_caption': 'Last 30 days',
   'bento.principal.trend_failed': 'The 30-day trend did not load.',
+  // --- the pulse cell, at four sizes -------------------------------------
+  // Attendance drawn as an instrument. Every one of these names a figure the
+  // two endpoints actually return: there is no attendance target in this
+  // product, so every comparison below is the school against its own month.
+  'bento.principal.pulse_label': 'Attendance today',
+  'bento.principal.pulse_range': '{count} marked days',
+  'bento.principal.pulse_marked_days': 'Marked on {marked} of the last {total} days',
+  // Percentage POINTS, said in words, because a percentage of a percentage is
+  // a different number and this is not it.
+  'bento.principal.pulse_change': '{pts} points against the previous {count} days',
+  'bento.principal.pulse_change_flat': 'Level with the previous {count} days',
+  'bento.principal.pulse_median': 'Median {pct}%',
+  'bento.principal.pulse_high': 'High {pct}% · {date}',
+  'bento.principal.pulse_low': 'Low {pct}% · {date}',
+  'bento.principal.pulse_iqr': 'Band: middle half of the period',
+  // The handler COALESCEs an unmarked morning to 0%. A zero here would read as
+  // "nobody came in", so the cell says what is actually true instead.
+  'bento.principal.pulse_today_none': 'Nothing marked yet today',
+  'bento.principal.pulse_no_series': 'No attendance has been marked in the last 30 days.',
+  'bento.principal.pulse_trend_sr':
+    'Attendance across {count} marked days: lowest {low}% on {lowDate}, highest {high}% on {highDate}, median {median}%, most recent {last}%.',
+  'bento.principal.pulse_weekday_title': 'Median by weekday',
+  'bento.principal.pulse_weekday_sr': 'Median attendance for each of the {count} weekdays the school marked',
+  'bento.principal.pulse_weekday_row': '{day}: median {pct}% across {count} marked days',
+  'bento.principal.pulse_comp_title': 'Present · absent, by day',
+  'bento.principal.pulse_comp_sr':
+    'Composition of the last {count} marked days: {present} present and {absent} absent in total. Each column is one day, its height the size of that day’s register.',
+  'bento.principal.pulse_day_title': '{date}: {present} present, {absent} absent of {total} marked',
+  // Sliced out of the ISO date rather than formatted through the browser's
+  // locale, so a school day cannot move across a timezone.
+  'bento.principal.pulse_months_short': 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
+  // Sunday first: the index is getUTCDay(), not a reading order.
+  'bento.principal.pulse_dow_short': 'Sun Mon Tue Wed Thu Fri Sat',
   'bento.principal.collected_label': "Collected against this year's bills",
   'bento.principal.collected_plain': 'Collected',
   'bento.principal.outstanding_plain': 'Outstanding',
@@ -1015,15 +1099,98 @@ export const en = {
   'bento.principal.cue_applications': 'Admissions pipeline',
   'bento.principal.cue_unassigned': 'Teacher assignment',
 
+  /* THE FLAT CELLS.
+
+     Eight widgets whose endpoint returns one number each. What follows is the
+     vocabulary that makes them dense without making anything up: the name for
+     a supporting figure, the word for a state, and the line that says which
+     period the figure is true for.
+
+     A FACT LABEL IS A NOUN, NOT A SENTENCE. It sits at 9.5px beside a bold
+     figure and has to survive a 264px card, so every one of these is short
+     enough to read at a glance and specific enough to say what was counted.
+     "of the roll" rather than "%", because a bare percent sign beside a
+     number is the shape of a claim with its subject missing. */
+  'bento.principal.prov_as_of_now': 'As of now',
+  'bento.principal.prov_this_year': 'This academic year',
+  'bento.principal.fact_sections': 'sections',
+  'bento.principal.fact_per_section': 'per section',
+  'bento.principal.fact_staff': 'staff',
+  'bento.principal.fact_per_teacher': 'per teacher',
+  'bento.principal.fact_students_each': 'students each',
+  'bento.principal.fact_on_roll': 'on roll',
+  'bento.principal.fact_of_roll': 'of the roll',
+  'bento.principal.fact_billed': 'billed',
+  'bento.principal.fact_of_billed': 'of billed',
+  'bento.principal.fact_defaulters': 'defaulters',
+  'bento.principal.fact_earlier_years': 'from earlier years',
+  /* The state beside the figure. Colour is never the only channel, and on
+     these cells there is often no colour at all — so the word is the channel. */
+  'bento.principal.tag_waiting': 'Waiting',
+  'bento.principal.tag_clear': 'Clear',
+  'bento.principal.tag_undecided': 'Undecided',
+  'bento.principal.tag_all_covered': 'All covered',
+  /* The tally is one mark per thing counted and no base at all, so its reading
+     is simply the count and what was counted. */
+  'bento.principal.approvals_tally_sr': '{count} leave requests waiting, one mark each',
+  'bento.principal.applications_tally_sr': '{count} undecided applications, one mark each',
+  'bento.principal.unassigned_tally_sr': '{count} subjects without a teacher, one mark each',
+  /* The sentences. Each says what the number IS — which population, counted
+     when — because that is the half of a figure a dashboard usually drops. */
+  'bento.principal.students_note': 'Active students on roll, with the sections and staff counted at the same instant.',
+  'bento.principal.staff_note': 'Active employees. The load is the roll divided by them, not a target.',
+  'bento.principal.defaulters_note': 'Students with at least one invoice past its due date.',
+  'bento.principal.outstanding_note_plain': 'Every unpaid invoice, of every year. No bills are tagged to an academic year, so there is nothing to show it against.',
+  'bento.principal.collected_note_plain': "Receipts banked in this period, whatever year's bill they settle.",
+
   /* The attention widgets. The label is this repository's words; the sentence
      under the figure is the server's headline and is not extracted, because a
      count already rendered into a sentence by the engine is data, not a
      string this screen chose. `attention_clear` is what a probe with nothing
      to report says — a calm zero is an answer, not an empty state. */
-  'bento.principal.attention_clear': 'Nothing needs attention here',
+  /* NOT "all clear", because the client cannot know that. The engine drops a
+     probe whose count is zero AND a probe the caller has no permission for,
+     and both arrive as the same absent key — so the only defensible reading is
+     that nothing was REPORTED, with the reason it might not have been said
+     next to it. */
+  'bento.principal.attention_clear': 'Nothing reported for this check',
+  'bento.principal.attention_clear_note':
+    'Only what your permissions cover is counted, so this is “nothing reported”, not a certified all-clear.',
+  'bento.principal.attention_no_level': 'No level',
   'bento.principal.attention_failed': "Couldn't load what needs attention",
   'bento.principal.attention_loading': 'Checking…',
   'bento.principal.attention_pending': '—',
+  /* Severity in words. The attention cards carry severity as a tint — pink
+     for critical, orange for warning — and colour is never allowed to be the
+     only channel, so the word is printed beside the figure at every size. */
+  'bento.principal.sev_critical': 'Critical',
+  'bento.principal.sev_warning': 'Warning',
+  'bento.principal.sev_info': 'For information',
+  /* The other half of a money card. Where the figure is the rupee amount, the
+     count it was summed from is named beneath it — the payload carries both
+     and the full card has room for both. */
+  'bento.principal.attention_count': '{count} flagged',
+  /* The count and the amount said about each other. A sum divided by the count
+     the same query returned is arithmetic, not an invented denominator. */
+  'bento.principal.attention_each': '{amount} each on average',
+  'bento.principal.attention_stat_flagged': 'Flagged',
+  'bento.principal.attention_stat_each': 'Average each',
+  /* The severity ladder. Three rungs because the engine has exactly three
+     levels — a closed vocabulary is a denominator nobody had to invent. The
+     rung words are short so the scale reads as a scale; the definitions are
+     the engine's own, transcribed from the Severity constants in
+     internal/api/attention.go. */
+  'bento.principal.attention_scale': 'How serious',
+  'bento.principal.sev_rung_critical': 'Critical',
+  'bento.principal.sev_rung_warning': 'Warning',
+  'bento.principal.sev_rung_info': 'Info',
+  'bento.principal.sev_def_critical': 'Money, safety or a deadline already missed',
+  'bento.principal.sev_def_warning': 'Late, but recoverable today',
+  'bento.principal.sev_def_info': 'Worth knowing; nothing is on fire',
+  /* The verb the probe declared. It is the fourth question the card answers —
+     what should I do — and it is the server's word, not this screen's. */
+  'bento.principal.attention_next_label': 'Next',
+  'bento.principal.attention_next': 'Next step: {action}',
   'bento.principal.attn_fees_overdue': 'Fees overdue',
   'bento.principal.attn_payments_failed': 'Failed payments',
   'bento.principal.attn_payments_bounced': 'Bounced cheques',
@@ -1056,6 +1223,44 @@ export const en = {
   'bento.principal.source_loading': 'Reading…',
   'bento.principal.source_pending': '—',
   'bento.principal.setup': 'Setup checklist',
+  'bento.principal.cover_all_covered': 'Every period is covered.',
+  'bento.principal.cover_away': '{count} away',
+  'bento.principal.cover_axis_sr': 'The teaching day from {from} to {to}, with each period marked by its coverage.',
+  'bento.principal.cover_day': '{count} periods today',
+  'bento.principal.cover_day_one': '1 period today',
+  'bento.principal.cover_for': '{subject}, {section}',
+  'bento.principal.cover_h_class': 'Class',
+  'bento.principal.cover_h_cover': 'Cover',
+  'bento.principal.cover_h_period': 'Period',
+  'bento.principal.cover_h_state': 'State',
+  'bento.principal.cover_h_time': 'Time',
+  'bento.principal.cover_more': 'and {count} more',
+  'bento.principal.cover_more_classes': 'and {count} more classes',
+  'bento.principal.cover_no_cover': 'Nobody free',
+  'bento.principal.cover_none_needed': 'No cover needed today.',
+  'bento.principal.cover_not_today': 'Showing {date}, not today.',
+  'bento.principal.cover_nothing': 'Nothing scheduled today.',
+  'bento.principal.cover_now': 'Now',
+  'bento.principal.cover_of_periods': 'of {total} periods',
+  'bento.principal.cover_open_count': '{count} still open',
+  'bento.principal.cover_stuck_count': '{count} with nobody free',
+  'bento.principal.setup_blocking_count': '{count} still blocking',
+  'bento.principal.setup_dom_academic': 'Academic',
+  'bento.principal.setup_dom_admin': 'Administration',
+  'bento.principal.setup_dom_finance': 'Finance',
+  'bento.principal.setup_dom_staff': 'Staff',
+  'bento.principal.setup_dom_system': 'System',
+  'bento.principal.setup_field_sr2': '{done} of {total} steps done; {blocking} still blocking.',
+  'bento.principal.setup_group_sr': '{group}: {done} of {total} done.',
+  'bento.principal.setup_next': 'Next: {label}',
+  'bento.principal.setup_next_none': 'Nothing blocking.',
+  'bento.principal.setup_optional_left': '{count} optional steps left',
+  'bento.principal.setup_pct': '{pct}% set up',
+  'bento.principal.setup_ready': 'Ready to run.',
+  'bento.principal.setup_state_active': 'In progress',
+  'bento.principal.setup_state_blocked': 'Blocked',
+  'bento.principal.setup_state_done': 'Done',
+  'bento.principal.setup_state_pending': 'Not started',
   'bento.principal.setup_note': '{count} still blocking',
   'bento.principal.setup_sr': 'Setup steps completed',
   'bento.principal.cue_setup': 'School setup',
@@ -1142,6 +1347,66 @@ export const en = {
     'Each marked paper placed by its average mark and how many candidates failed it',
   'bento.principal.moderation_x': 'average mark',
   'bento.principal.moderation_y': 'failures',
+
+  /* SYLLABUS — the distance cell.
+
+     "Expected" is how far through the June-April academic year today is, which
+     is the same measure `internal/api/syllabus.go` decides `behind` by. It is
+     named in every sentence that uses it, because a marker on a rail that
+     nobody explained is a marker nobody trusts. */
+  'bento.principal.syllabus_behind_of': 'behind, of {total}',
+  'bento.principal.syllabus_on_track': 'none behind',
+  'bento.principal.syllabus_points_behind': 'points behind the calendar',
+  'bento.principal.syllabus_legend': 'Expected {expected}% by today · delivered {actual}%',
+  'bento.principal.syllabus_units_short': '{units} of {total} units short of the calendar',
+  'bento.principal.syllabus_contributors': '{subjects} subjects across {classes} classes',
+  'bento.principal.syllabus_last_taught': 'Days since last taught',
+  'bento.principal.syllabus_never': '{count} never taught',
+  'bento.principal.syllabus_ranking': 'Furthest behind',
+  'bento.principal.syllabus_ranked': 'The {shown} furthest behind, of {total}',
+  'bento.principal.syllabus_matrix': 'Subject × class, filled by how far short',
+  'bento.principal.syllabus_matrix_note':
+    '{subjects} of {allSubjects} subjects × {classes} of {allClasses} classes, worst first',
+  'bento.principal.syllabus_worst_subject': 'Largest lag: {subject}, {points} points',
+  'bento.principal.syllabus_no_history': 'No coverage history on the wire, so no trend is drawn',
+  'bento.principal.syllabus_empty': 'No class subject has a syllabus loaded yet',
+  'bento.principal.syllabus_gap_sr':
+    'Syllabus delivered {actual} percent against {expected} percent expected by today',
+  'bento.principal.syllabus_row_sr':
+    '{label}: {actual} percent delivered against {expected} percent expected by today',
+  'bento.principal.syllabus_stale_sr':
+    'Class subjects by how many days since a unit was last delivered',
+  'bento.principal.syllabus_matrix_sr':
+    '{subjects} subjects by {classes} classes, each square filled by how far short of {expected} percent that pairing is',
+
+  /* MODERATION — the distribution cell.
+
+     One dot is one PAPER, at its average. `/exams/moderation` counts in the
+     database and returns per-paper aggregates, so there are no per-student
+     marks to draw and none are implied: every sentence below says paper. */
+  'bento.principal.moderation_reviewed': '{pct}% reviewed',
+  'bento.principal.moderation_stats': 'Mean {mean}% · median {median}% · pass {pass}',
+  'bento.principal.moderation_legend': 'Filled: still to moderate · hollow: moderated · one dot, one paper',
+  'bento.principal.moderation_below_pass': '{pct}% of {entered} candidates below pass',
+  'bento.principal.moderation_outliers':
+    '{count} of {total} papers outside the 1.5 IQR fence · furthest {worst} at {value}%',
+  'bento.principal.moderation_no_outliers': 'No paper outside the 1.5 IQR fence',
+  'bento.principal.moderation_spread': 'Spread within a paper: {median} points typical, {narrowest} narrowest ({paper})',
+  'bento.principal.moderation_deviation': 'Furthest from the median: {paper}, {points} points',
+  'bento.principal.moderation_subjects': 'By subject: lowest to highest, mean marked',
+  'bento.principal.moderation_subjects_capped': 'Top {shown} of {total} subjects',
+  'bento.principal.moderation_no_average': '{count} papers carry no average yet and are not plotted',
+  'bento.principal.moderation_no_marks': 'No paper carries an average yet',
+  'bento.principal.moderation_per_paper': 'Per paper, not per student: the endpoint aggregates',
+  'bento.principal.moderation_empty': 'No paper has been marked yet',
+  'bento.principal.moderation_shape_normal': 'Spread looks normal',
+  'bento.principal.moderation_shape_compressed': 'Marks look compressed',
+  'bento.principal.moderation_shape_inflated': 'Marks look inflated',
+  'bento.principal.moderation_shape_anomalous': 'A paper is out of line',
+  'bento.principal.moderation_field_sr':
+    '{count} papers placed by their average mark out of 100, mean {mean} percent, median {median} percent',
+  'bento.principal.moderation_subject_sr':
+    '{subject}: {papers} papers, marks from {lo} to {hi} percent, mean {mean} percent',
   'bento.principal.pass_rate_strip_sr':
     'Pass rate for {count} papers, each drawn as one cell, darker where fewer passed',
   'bento.principal.pass_rate_bands_sr': 'Papers by pass rate, in quarters',
@@ -1155,6 +1420,58 @@ export const en = {
   'bento.principal.grievances_late_age_sr':
     'Overdue grievances by how many days they have been open',
   'bento.principal.grievances_late_dept_sr': 'Overdue grievances by the department holding them',
+
+  /* THE TWO GRIEVANCE CELLS. One queue read two ways — how old the open
+     cases are, and how far past their promised date the late ones are — so
+     the wording is shared where the reading is shared. Every band label is
+     held to six characters: `AgeBands` prints them in an 11px gutter at one
+     column, and a seventh character collides with the rail beside it. */
+  'bento.principal.grv_new_today': '{count} new today',
+  'bento.principal.grv_days': '{count}d',
+  'bento.principal.grv_all': 'all',
+  'bento.principal.grv_none_open': 'Nothing open in the queue',
+  'bento.principal.grv_none_late': 'Nothing past its deadline',
+  'bento.principal.grv_median_oldest': 'Median {median}d open, oldest {oldest}d',
+  'bento.principal.grv_median_mark': 'median {count}d',
+  'bento.principal.grv_due_soon_line': '{count} due within 2 days',
+  'bento.principal.grv_stat_median': 'median age',
+  'bento.principal.grv_stat_oldest': 'oldest',
+  'bento.principal.grv_stat_due_soon': 'due in 2d',
+  'bento.principal.grv_stat_escalated': 'escalated',
+  'bento.principal.grv_stat_median_late': 'median late',
+  'bento.principal.grv_stat_oldest_late': 'oldest late',
+  'bento.principal.grv_stat_severe': 'over 14d',
+  'bento.principal.grv_state_open': 'Untouched',
+  'bento.principal.grv_state_active': 'In progress',
+  'bento.principal.grv_state_waiting': 'Waiting',
+  'bento.principal.grv_state_sr': 'Open grievances by what state they are in',
+  'bento.principal.grv_age_field_sr':
+    '{count} open grievances by age, none to {oldest} days; median {median} days',
+  'bento.principal.grv_dept_age_sr': 'Open grievances by department and days open',
+  'bento.principal.grv_late_dept_age_sr': 'Overdue grievances by department and days past deadline',
+  'bento.principal.grv_late_bands_sr': 'Overdue grievances by days past their deadline',
+  'bento.principal.grv_late_cat_sr': 'Overdue grievances by what they are about',
+  'bento.principal.grv_late_summary': 'Oldest {oldest}d past deadline, {severe} beyond 14d',
+  'bento.principal.grv_rail_sr':
+    '{late} of {total} open grievances with a stamped deadline are past it',
+  'bento.principal.grv_of_stamped': '{late} of {total} with a deadline',
+  'bento.principal.grv_no_deadline': '{count} open with no deadline stamped',
+  'bento.principal.grv_no_deadline_any': 'No open case carries a stamped deadline',
+  'bento.principal.grv_boundary_sr':
+    'Open grievances against their deadline: {late} of {total} past it',
+  'bento.principal.grv_in_time': 'In time',
+  'bento.principal.grv_past_due': 'Past due',
+  'bento.principal.grv_deadline': 'due',
+  'bento.principal.grv_sev_clear': 'All in time',
+  'bento.principal.grv_sev_watch': 'Watch',
+  'bento.principal.grv_sev_serious': 'Serious',
+  'bento.principal.grv_sev_critical': 'Critical',
+  /* The server's LIMIT 300. Said on the card rather than in a comment: a
+     count drawn from a capped page is not the size of the queue, and a
+     dashboard that prints it as though it were is wrong on the one number
+     the cell exists to give. */
+  'bento.principal.grv_capped': 'First {count} of the queue — there may be more',
+  'bento.principal.grv_capped_short': 'First {count} only',
   'bento.principal.my_leave_sr': 'Leave days remaining, of the days entitled',
   'bento.principal.my_leave_type_sr': 'Days of {type} remaining, of the days entitled',
   'bento.principal.my_pay_trend_sr': 'Net pay over the last {count} payslips',
@@ -1182,22 +1499,65 @@ export const en = {
   'bento.finance.title': 'Finance overview',
   'bento.finance.loading': 'Counting what has come in…',
   'bento.finance.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
-  'bento.finance.anchor_label': 'Collected this period, against everything billed',
-  'bento.finance.collected_sr': 'Collected as a share of everything billed',
-  'bento.finance.collected_of_expected': '{pct}% of {expected} billed',
-  'bento.finance.ageing': 'How old the rest is',
+
+  // The anchor. The label is the widget's name in the board's own chrome, so
+  // it is short; the range is named on the card itself, where there is room
+  // to say which period the figure belongs to.
+  'bento.finance.anchor_label': 'Collected',
+  'bento.finance.collected_in': 'Collected in {label}',
+
+  // The one decomposition on this page that cannot be argued with:
+  // outstanding is exactly its not-yet-due part plus its overdue part, both
+  // the same sum over the same rows at the same instant.
+  'bento.finance.decomp_sr': 'Everything still owed, split into what is not yet due and what is overdue',
+  'bento.finance.not_yet_due': 'Not yet due',
+  'bento.finance.overdue': 'Overdue',
+  'bento.finance.outstanding_split': '{outstanding} still owed · {pct}% of it overdue',
+  'bento.finance.overdue_sr': 'Share of outstanding that is overdue',
+
+  // THERE IS NO TARGET. Said on the card rather than left as an absence a
+  // future reader fills in with an invented denominator — which is exactly
+  // what happened here once already.
+  'bento.finance.no_target': 'No billed total and no collection target is recorded anywhere in this data, so no progress against one is shown.',
+  'bento.finance.no_daily_series': 'No day-by-day series is recorded for the period, so no daily distribution is drawn.',
+
+  // Ageing, from the due date on each overdue invoice.
+  'bento.finance.ageing': 'Overdue, by age',
+  'bento.finance.ageing_sr': 'Overdue money and invoice counts, by how far past the due date each invoice is',
   'bento.finance.ageing_loading': 'Ageing the overdue invoices…',
-  'bento.finance.ageing_failed': 'The overdue invoices did not load, so the ageing below is unknown — not zero.',
+  'bento.finance.ageing_failed': 'The overdue invoices did not load, so the ageing is unknown — not zero.',
   'bento.finance.ageing_none': 'Nothing overdue.',
-  'bento.finance.ageing_capped': 'The 300 most recent overdue invoices.',
-  'bento.finance.age_fresh': 'Up to 30 days',
-  'bento.finance.age_mid': '31–60 days',
-  'bento.finance.age_old': 'Over 60 days',
+  'bento.finance.ageing_count': 'Across {count} overdue invoices, with their counts at the right.',
+  'bento.finance.ageing_capped': 'The server returns the 300 most recent overdue invoices, so these cover {covered} of the {total} overdue.',
+  'bento.finance.age_1': '1–30d',
+  'bento.finance.age_2': '31–60d',
+  'bento.finance.age_3': '61–90d',
+  'bento.finance.age_4': '90d+',
+  'bento.finance.oldest_overdue': 'Oldest is {days} days past due.',
+  'bento.finance.worst_two': 'Oldest {days} days past due; largest single invoice {amount} ({who}).',
+
+  // Collected today.
   'bento.finance.today': 'Collected today',
-  'bento.finance.today_note': 'Today, for the drawer',
+  'bento.finance.today_part': 'Today',
+  'bento.finance.period_part': 'Earlier in the period',
+  'bento.finance.today_sr': 'Collected today as a share of {label}',
+  'bento.finance.today_of_period': 'Of {amount} collected in {label}.',
+  'bento.finance.today_day_of': 'Day {day} of {span} in the selected period.',
+  'bento.finance.today_position': 'Day {day} of {span} in {label}',
+  'bento.finance.today_outside': '{label} does not include today, so today is not part of that total and no comparison with it is drawn.',
+  'bento.finance.per_day': '{amount} a day on average across {label} so far',
+  'bento.finance.period_track_sr': 'Where today sits in {label}, which runs from {from} to {to}',
+
+  // Outstanding.
   'bento.finance.outstanding': 'Outstanding',
-  'bento.finance.overdue_sr': 'Overdue as a share of outstanding',
-  'bento.finance.overdue_note': '{amount} of it overdue',
+  'bento.finance.overdue_note': '{amount} of it overdue.',
+  'bento.finance.overdue_note_loading': '{amount} of it overdue. Ageing the invoices…',
+  'bento.finance.overdue_ageing_failed': '{amount} of it overdue. The invoice list did not load, so the ageing is unknown — not zero.',
+  'bento.finance.concentration': 'The largest {n} carry {pct}% of the {listed} listed.',
+  'bento.finance.ranked_title': 'The {n} largest, ranked',
+  'bento.finance.ranked_sr': 'The {n} largest overdue invoices, largest first, each with what is still due on it and how far past due it is',
+  'bento.finance.ranked_of': 'The field is the largest {shown} of {total}.',
+
   'bento.finance.defaulters': 'Defaulters',
   'bento.finance.defaulters_note': 'Students past a due date',
   'bento.finance.unreconciled': 'Unreconciled',
