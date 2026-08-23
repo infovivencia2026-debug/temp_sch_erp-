@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Crosshair, Plus, RotateCcw, X } from 'lucide-react'
 import {
   usePaint, usePalettes, savePalette, deletePalette, applyPalette, resetPaint,
-  REGIONS, CHANNELS, BUILT_IN_PALETTES, hslCss,
+  REGIONS, CHANNELS, BUILT_IN_PALETTES, currentPalette,
   type Region, type Channel, type Hsl,
 } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
@@ -153,6 +153,7 @@ export function ColourPanel({
 } = {}) {
   const { paint, set } = usePaint()
   const palettes = usePalettes()
+  const active = currentPalette()
   const t = useT()
   const [channel, setChannel] = useState<Channel>('bg')
   const [region, setRegion] = useState<Region>('workarea')
@@ -445,37 +446,57 @@ export function ColourPanel({
               {t('bento.colour.save')}
             </button>
           </div>
-          {/* The shipped sets. No forget button: they are read-only, so
-              applying one and then editing it saves a copy under whatever name
-              the person gives it rather than overwriting what ships. The
-              swatches are the palette's own five mapped shades, in the order
-              they are applied — ground, card, raised, accent, ink. */}
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {BUILT_IN_PALETTES.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => applyPalette(p.name)}
-                className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px]
-                           transition-colors hover:bg-accent"
-              >
-                <span className="flex" aria-hidden="true">
-                  {(['workarea.bg', 'cards.bg', 'students.bg', 'cards.accent', 'cards.text'] as const)
-                    .map((k) => {
-                      const v = p.paint[k]
-                      return (
-                        <span
-                          key={k}
-                          className="size-3 rounded-full ring-1 ring-black/20 -ml-1 first:ml-0"
-                          style={{ background: v ? hslCss(v) : 'transparent' }}
-                        />
-                      )
-                    })}
-                </span>
-                {p.name}
-              </button>
-            ))}
-          </div>
+          {/* The shipped sets, grouped by the mode they were built for.
+
+              Two light and two dark, because a palette is designed against a
+              ground: a dark set applied in light mode is not a light theme, it
+              is a dark board sitting in a light window. Grouping says which is
+              which before it is clicked rather than after.
+
+              Read-only, so applying one and then editing a region saves a copy
+              under the person's own name rather than overwriting what ships.
+              The swatches are the palette's own ground, card, a domain tint,
+              its accent and its ink. */}
+          {(['light', 'dark'] as const).map((mode) => (
+            <div key={mode} className="mt-2">
+              <p className="mb-1.5 text-[11px] text-muted-foreground">
+                {t(`bento.colour.mode.${mode}`)}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {BUILT_IN_PALETTES.filter((p) => p.mode === mode).map((p) => {
+                  const on = active === p.name
+                  return (
+                    <button
+                      key={p.name}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => applyPalette(p.name)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+                        on
+                          ? 'border-primary bg-primary-soft font-medium text-primary'
+                          : 'hover:bg-accent',
+                      )}
+                    >
+                      <span className="flex" aria-hidden="true">
+                        {([
+                          '--bento-bg', '--bento-card', '--dom-students',
+                          '--bento-mint', '--bento-ink',
+                        ] as const).map((k) => (
+                          <span
+                            key={k}
+                            className="size-3 rounded-full ring-1 ring-black/20 -ml-1 first:ml-0"
+                            style={{ background: p.tokens[k] }}
+                          />
+                        ))}
+                      </span>
+                      {p.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
           {palettes.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {palettes.map((p) => (

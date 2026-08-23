@@ -81,6 +81,27 @@ function readPalettes(): Palette[] {
 }
 
 let paint: Paint = typeof window === 'undefined' ? {} : readPaint()
+
+/* Which shipped palette is on, if any.
+
+   Remembered, because a palette that is forgotten on reload is not a theme, it
+   is a party trick. The hand-painted regions in `paint` are layered ON TOP of
+   it, so somebody can take a shipped palette and then recolour one region
+   without losing the other fifty-four tokens. */
+const PALETTE_KEY = 'erp.palette'
+let activePalette: string | null =
+  typeof window === 'undefined' ? null : (() => {
+    try { return localStorage.getItem(PALETTE_KEY) } catch { return null }
+  })()
+
+/** Every token this module has written, so the next repaint can take them all
+    back. Removing exactly what was set is what stops a half-cleared palette
+    leaving a few tokens from the old one behind. */
+let written: string[] = []
+
+function paletteByName(name: string | null) {
+  return name ? BUILT_IN_PALETTES.find((x) => x.name === name) ?? null : null
+}
 let palettes: Palette[] = typeof window === 'undefined' ? [] : readPalettes()
 const listeners = new Set<() => void>()
 
@@ -100,16 +121,8 @@ function subscribe(fn: () => void) {
     Removal matters as much as setting: a property left behind after somebody
     clears a region would keep that region painted with no way to see why. */
 export function applyPaint(next: Paint) {
-  const root = document.documentElement
-  for (const r of REGIONS) {
-    for (const c of CHANNELS) {
-      const v = next[`${r}.${c}`]
-      if (v) root.style.setProperty(varName(r, c), hslString(v))
-      else root.style.removeProperty(varName(r, c))
-    }
-  }
-  applyToBento(next)
   paint = next
+  repaint()
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
   } catch {
@@ -143,20 +156,39 @@ const BENTO_MAP: [keyof Paint, string][] = [
 ]
 const BENTO_DOMAINS = ['students', 'academics', 'finance', 'operations', 'reports'] as const
 
-function applyToBento(next: Paint) {
+/* Wipe, lay the shipped palette down, then the hand-painted regions over it.
+
+   Order is the whole design. Clearing first means a token the previous palette
+   set and this one does not cannot survive the change. Applying the palette
+   before the paint means a hand-painted region always wins over the shipped
+   value for that one region, while the other fifty-four tokens stay. */
+function repaint() {
   const root = document.documentElement
+  for (const k of written) root.style.removeProperty(k)
+  written = []
+  const set = (k: string, v: string) => {
+    root.style.setProperty(k, v)
+    written.push(k)
+  }
+
+  const shipped = paletteByName(activePalette)
+  if (shipped) for (const [k, v] of Object.entries(shipped.tokens)) set(k, v)
+
+  for (const r of REGIONS) {
+    for (const c of CHANNELS) {
+      const v = paint[`${r}.${c}`]
+      if (v) set(varName(r, c), hslString(v))
+    }
+  }
   for (const [key, token] of BENTO_MAP) {
-    const v = next[key]
-    if (v) root.style.setProperty(token, hslCss(v))
-    else root.style.removeProperty(token)
+    const v = paint[key]
+    if (v) set(token, hslCss(v))
   }
   for (const d of BENTO_DOMAINS) {
-    const bg = next[`${d}.bg`]
-    const text = next[`${d}.text`]
-    if (bg) root.style.setProperty(`--dom-${d}`, hslCss(bg))
-    else root.style.removeProperty(`--dom-${d}`)
-    if (text) root.style.setProperty(`--dom-${d}-text`, hslCss(text))
-    else root.style.removeProperty(`--dom-${d}-text`)
+    const bg = paint[`${d}.bg`]
+    const text = paint[`${d}.text`]
+    if (bg) set(`--dom-${d}`, hslCss(bg))
+    if (text) set(`--dom-${d}-text`, hslCss(text))
   }
 }
 
@@ -168,201 +200,276 @@ export function setPaint(region: Region, channel: Channel, value: Hsl | undefine
 }
 
 export function resetPaint() {
+  activePalette = null
+  remember()
   applyPaint({})
 }
 
-/* The shipped palettes.
+/** The shipped palettes: two for light, two for dark.
 
-   Six shades each, and only five of them land anywhere: ground, card, raised,
-   accent and ink. The sixth in each set is a mid grey meant for muted text,
-   and it measures 2.7-3.2:1 against its own card — under the 4.5:1 that body
-   text needs — so it is deliberately not mapped. `--bento-muted` keeps the
-   value the theme already derives, which does clear it.
+    Each sets FIFTY-FIVE tokens — every colour the bento surface composes from.
+    The earlier version mapped five and let the rest fall through, which is how
+    a palette left the muted text, the dock and seven of the twelve domain
+    tints wearing the previous theme. A palette that dresses most of a screen
+    is worse than none, because the parts it misses look broken rather than
+    unstyled.
 
-   Every pairing that IS mapped was measured: ink on card lands between 15.2
-   and 16.3:1, ink on a domain card between 11.6 and 13.7:1, and the accent on
-   card between 5.3 and 7.7:1. All five pass AA on all three.
+    Generated and measured rather than picked. Every pairing where text sits on
+    a surface was checked against its own background: ink on card, muted on
+    card, each of the four accents on card, the anchor's ink on its gradient,
+    and all twelve domain inks on their own domain card. The worst pairing in
+    any of the four is 4.60:1; nothing ships under 4.5:1. That is also why the
+    muted shade is here at all — the hand-picked greys measured 2.7-3.2:1, so
+    the honest fix was to compute one that reads, not to leave it out. */
+export interface BuiltInPalette {
+  name: string
+  mode: 'light' | 'dark'
+  tokens: Record<string, string>
+}
 
-   The five domain regions take the same raised shade rather than five hues.
-   That is the point of these sets — one accent, and the ground doing the rest.
-
-   These are read-only: `applyPalette` finds them by name, and `deletePalette`
-   only ever touches the saved list, so applying one and then editing it saves
-   a copy under the person's own name instead of overwriting what ships. */
-export const BUILT_IN_PALETTES: readonly Palette[] = [
+export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
+  {
+    name: 'Porcelain Amber',
+    mode: 'light',
+    tokens: {
+      '--bento-bg': '#eceef2',
+      '--bento-card': '#ffffff',
+      '--bento-card-2': '#f4f6f9',
+      '--bento-ink': '#12151a',
+      '--bento-muted': '#6c7684',
+      '--bento-line': '#dde1e8',
+      '--bento-dock-bg': '#ffffff',
+      '--bento-dock-ink': '#12151a',
+      '--bento-mint': '#1f8452',
+      '--bento-mint-tint': '#e5faf0',
+      '--bento-purple': '#9451d6',
+      '--bento-purple-tint': '#f0e5fa',
+      '--bento-pink': '#d0396b',
+      '--bento-pink-tint': '#fae5ec',
+      '--bento-orange': '#ae6029',
+      '--bento-orange-tint': '#faeee5',
+      '--bento-anchor-from': '#eadecc',
+      '--bento-anchor-to': '#f3eee8',
+      '--bento-anchor-ink': '#0d0f12',
+      '--dom-students': '#d7e6f4',
+      '--dom-students-soft': '#ebf2fa',
+      '--dom-students-text': '#070f18',
+      '--dom-academics': '#e3d7f4',
+      '--dom-academics-soft': '#f1ebfa',
+      '--dom-academics-text': '#0e0718',
+      '--dom-finance': '#d7f4ea',
+      '--dom-finance-soft': '#ebfaf5',
+      '--dom-finance-text': '#071812',
+      '--dom-operations': '#f4e5d7',
+      '--dom-operations-soft': '#faf2eb',
+      '--dom-operations-text': '#180f07',
+      '--dom-reports': '#d7edf4',
+      '--dom-reports-soft': '#ebf6fa',
+      '--dom-reports-text': '#071418',
+      '--dom-staff': '#f4d7f4',
+      '--dom-staff-soft': '#faebfa',
+      '--dom-staff-text': '#180718',
+      '--dom-admissions': '#d7d7f4',
+      '--dom-admissions-soft': '#ebebfa',
+      '--dom-admissions-text': '#070718',
+      '--dom-attendance': '#d7f4f1',
+      '--dom-attendance-soft': '#ebfaf9',
+      '--dom-attendance-text': '#071816',
+      '--dom-communication': '#f4d7ea',
+      '--dom-communication-soft': '#faebf5',
+      '--dom-communication-text': '#180712',
+      '--dom-critical': '#f4d8d7',
+      '--dom-critical-soft': '#faebeb',
+      '--dom-critical-text': '#180707',
+      '--dom-success': '#d7f4e3',
+      '--dom-success-soft': '#ebfaf1',
+      '--dom-success-text': '#07180e',
+      '--dom-warning': '#f4ead7',
+      '--dom-warning-soft': '#faf5eb',
+      '--dom-warning-text': '#181207',
+    },
+  },
+  {
+    name: 'Daylight Azure',
+    mode: 'light',
+    tokens: {
+      '--bento-bg': '#e9edf3',
+      '--bento-card': '#ffffff',
+      '--bento-card-2': '#f2f5fa',
+      '--bento-ink': '#12151a',
+      '--bento-muted': '#6c7684',
+      '--bento-line': '#d9e0ea',
+      '--bento-dock-bg': '#ffffff',
+      '--bento-dock-ink': '#12151a',
+      '--bento-mint': '#1f8452',
+      '--bento-mint-tint': '#e5faf0',
+      '--bento-purple': '#9451d6',
+      '--bento-purple-tint': '#f0e5fa',
+      '--bento-pink': '#d0396b',
+      '--bento-pink-tint': '#fae5ec',
+      '--bento-orange': '#ae6029',
+      '--bento-orange-tint': '#faeee5',
+      '--bento-anchor-from': '#ccdbea',
+      '--bento-anchor-to': '#e8edf3',
+      '--bento-anchor-ink': '#0d0f12',
+      '--dom-students': '#d7e6f4',
+      '--dom-students-soft': '#ebf2fa',
+      '--dom-students-text': '#070f18',
+      '--dom-academics': '#e3d7f4',
+      '--dom-academics-soft': '#f1ebfa',
+      '--dom-academics-text': '#0e0718',
+      '--dom-finance': '#d7f4ea',
+      '--dom-finance-soft': '#ebfaf5',
+      '--dom-finance-text': '#071812',
+      '--dom-operations': '#f4e5d7',
+      '--dom-operations-soft': '#faf2eb',
+      '--dom-operations-text': '#180f07',
+      '--dom-reports': '#d7edf4',
+      '--dom-reports-soft': '#ebf6fa',
+      '--dom-reports-text': '#071418',
+      '--dom-staff': '#f4d7f4',
+      '--dom-staff-soft': '#faebfa',
+      '--dom-staff-text': '#180718',
+      '--dom-admissions': '#d7d7f4',
+      '--dom-admissions-soft': '#ebebfa',
+      '--dom-admissions-text': '#070718',
+      '--dom-attendance': '#d7f4f1',
+      '--dom-attendance-soft': '#ebfaf9',
+      '--dom-attendance-text': '#071816',
+      '--dom-communication': '#f4d7ea',
+      '--dom-communication-soft': '#faebf5',
+      '--dom-communication-text': '#180712',
+      '--dom-critical': '#f4d8d7',
+      '--dom-critical-soft': '#faebeb',
+      '--dom-critical-text': '#180707',
+      '--dom-success': '#d7f4e3',
+      '--dom-success-soft': '#ebfaf1',
+      '--dom-success-text': '#07180e',
+      '--dom-warning': '#f4ead7',
+      '--dom-warning-soft': '#faf5eb',
+      '--dom-warning-text': '#181207',
+    },
+  },
   {
     name: 'Obsidian Amber',
-    paint: {
-      'workarea.bg': { h: 216, s: 19, l: 5 },
-      'workarea.text': { h: 39, s: 39, l: 93 },
-      'workarea.accent': { h: 34, s: 56, l: 50 },
-      'topbar.bg': { h: 218, s: 15, l: 11 },
-      'topbar.text': { h: 39, s: 39, l: 93 },
-      'topbar.accent': { h: 34, s: 56, l: 50 },
-      'sidebar.bg': { h: 218, s: 15, l: 11 },
-      'sidebar.text': { h: 39, s: 39, l: 93 },
-      'sidebar.accent': { h: 34, s: 56, l: 50 },
-      'bottombar.bg': { h: 218, s: 15, l: 11 },
-      'bottombar.text': { h: 39, s: 39, l: 93 },
-      'bottombar.accent': { h: 34, s: 56, l: 50 },
-      'cards.bg': { h: 218, s: 15, l: 11 },
-      'cards.text': { h: 39, s: 39, l: 93 },
-      'cards.accent': { h: 34, s: 56, l: 50 },
-      'students.bg': { h: 215, s: 12, l: 19 },
-      'students.text': { h: 39, s: 39, l: 93 },
-      'students.accent': { h: 34, s: 56, l: 50 },
-      'academics.bg': { h: 215, s: 12, l: 19 },
-      'academics.text': { h: 39, s: 39, l: 93 },
-      'academics.accent': { h: 34, s: 56, l: 50 },
-      'finance.bg': { h: 215, s: 12, l: 19 },
-      'finance.text': { h: 39, s: 39, l: 93 },
-      'finance.accent': { h: 34, s: 56, l: 50 },
-      'operations.bg': { h: 215, s: 12, l: 19 },
-      'operations.text': { h: 39, s: 39, l: 93 },
-      'operations.accent': { h: 34, s: 56, l: 50 },
-      'reports.bg': { h: 215, s: 12, l: 19 },
-      'reports.text': { h: 39, s: 39, l: 93 },
-      'reports.accent': { h: 34, s: 56, l: 50 },
+    mode: 'dark',
+    tokens: {
+      '--bento-bg': '#0b0d10',
+      '--bento-card': '#171a1f',
+      '--bento-card-2': '#1f232a',
+      '--bento-ink': '#f4f7fb',
+      '--bento-muted': '#7b8593',
+      '--bento-line': '#2a2f36',
+      '--bento-dock-bg': '#171a1f',
+      '--bento-dock-ink': '#f4f7fb',
+      '--bento-mint': '#24995e',
+      '--bento-mint-tint': '#15472e',
+      '--bento-purple': '#a36adc',
+      '--bento-purple-tint': '#2e1547',
+      '--bento-pink': '#d85a84',
+      '--bento-pink-tint': '#471525',
+      '--bento-orange': '#c66e2f',
+      '--bento-orange-tint': '#472a15',
+      '--bento-anchor-from': '#5d4b32',
+      '--bento-anchor-to': '#3f3527',
+      '--bento-anchor-ink': '#ffffff',
+      '--dom-students': '#273849',
+      '--dom-students-soft': '#1e2933',
+      '--dom-students-text': '#e7f0f8',
+      '--dom-academics': '#352749',
+      '--dom-academics-soft': '#271e33',
+      '--dom-academics-text': '#eee7f8',
+      '--dom-finance': '#27493e',
+      '--dom-finance-soft': '#1e332c',
+      '--dom-finance-text': '#e7f8f3',
+      '--dom-operations': '#493727',
+      '--dom-operations-soft': '#33281e',
+      '--dom-operations-text': '#f8efe7',
+      '--dom-reports': '#274149',
+      '--dom-reports-soft': '#1e2e33',
+      '--dom-reports-text': '#e7f4f8',
+      '--dom-staff': '#492749',
+      '--dom-staff-soft': '#331e33',
+      '--dom-staff-text': '#f8e7f8',
+      '--dom-admissions': '#272749',
+      '--dom-admissions-soft': '#1e1e33',
+      '--dom-admissions-text': '#e7e7f8',
+      '--dom-attendance': '#274946',
+      '--dom-attendance-soft': '#1e3332',
+      '--dom-attendance-text': '#e7f8f7',
+      '--dom-communication': '#49273e',
+      '--dom-communication-soft': '#331e2c',
+      '--dom-communication-text': '#f8e7f3',
+      '--dom-critical': '#492827',
+      '--dom-critical-soft': '#331f1e',
+      '--dom-critical-text': '#f8e8e7',
+      '--dom-success': '#274935',
+      '--dom-success-soft': '#1e3327',
+      '--dom-success-text': '#e7f8ee',
+      '--dom-warning': '#493e27',
+      '--dom-warning-soft': '#332c1e',
+      '--dom-warning-text': '#f8f3e7',
     },
   },
   {
     name: 'Midnight Azure',
-    paint: {
-      'workarea.bg': { h: 220, s: 43, l: 5 },
-      'workarea.text': { h: 212, s: 100, l: 97 },
-      'workarea.accent': { h: 207, s: 70, l: 59 },
-      'topbar.bg': { h: 219, s: 42, l: 11 },
-      'topbar.text': { h: 212, s: 100, l: 97 },
-      'topbar.accent': { h: 207, s: 70, l: 59 },
-      'sidebar.bg': { h: 219, s: 42, l: 11 },
-      'sidebar.text': { h: 212, s: 100, l: 97 },
-      'sidebar.accent': { h: 207, s: 70, l: 59 },
-      'bottombar.bg': { h: 219, s: 42, l: 11 },
-      'bottombar.text': { h: 212, s: 100, l: 97 },
-      'bottombar.accent': { h: 207, s: 70, l: 59 },
-      'cards.bg': { h: 219, s: 42, l: 11 },
-      'cards.text': { h: 212, s: 100, l: 97 },
-      'cards.accent': { h: 207, s: 70, l: 59 },
-      'students.bg': { h: 214, s: 35, l: 17 },
-      'students.text': { h: 212, s: 100, l: 97 },
-      'students.accent': { h: 207, s: 70, l: 59 },
-      'academics.bg': { h: 214, s: 35, l: 17 },
-      'academics.text': { h: 212, s: 100, l: 97 },
-      'academics.accent': { h: 207, s: 70, l: 59 },
-      'finance.bg': { h: 214, s: 35, l: 17 },
-      'finance.text': { h: 212, s: 100, l: 97 },
-      'finance.accent': { h: 207, s: 70, l: 59 },
-      'operations.bg': { h: 214, s: 35, l: 17 },
-      'operations.text': { h: 212, s: 100, l: 97 },
-      'operations.accent': { h: 207, s: 70, l: 59 },
-      'reports.bg': { h: 214, s: 35, l: 17 },
-      'reports.text': { h: 212, s: 100, l: 97 },
-      'reports.accent': { h: 207, s: 70, l: 59 },
-    },
-  },
-  {
-    name: 'Forest Brass',
-    paint: {
-      'workarea.bg': { h: 156, s: 20, l: 5 },
-      'workarea.text': { h: 53, s: 24, l: 93 },
-      'workarea.accent': { h: 39, s: 42, l: 52 },
-      'topbar.bg': { h: 150, s: 17, l: 9 },
-      'topbar.text': { h: 53, s: 24, l: 93 },
-      'topbar.accent': { h: 39, s: 42, l: 52 },
-      'sidebar.bg': { h: 150, s: 17, l: 9 },
-      'sidebar.text': { h: 53, s: 24, l: 93 },
-      'sidebar.accent': { h: 39, s: 42, l: 52 },
-      'bottombar.bg': { h: 150, s: 17, l: 9 },
-      'bottombar.text': { h: 53, s: 24, l: 93 },
-      'bottombar.accent': { h: 39, s: 42, l: 52 },
-      'cards.bg': { h: 150, s: 17, l: 9 },
-      'cards.text': { h: 53, s: 24, l: 93 },
-      'cards.accent': { h: 39, s: 42, l: 52 },
-      'students.bg': { h: 148, s: 17, l: 17 },
-      'students.text': { h: 53, s: 24, l: 93 },
-      'students.accent': { h: 39, s: 42, l: 52 },
-      'academics.bg': { h: 148, s: 17, l: 17 },
-      'academics.text': { h: 53, s: 24, l: 93 },
-      'academics.accent': { h: 39, s: 42, l: 52 },
-      'finance.bg': { h: 148, s: 17, l: 17 },
-      'finance.text': { h: 53, s: 24, l: 93 },
-      'finance.accent': { h: 39, s: 42, l: 52 },
-      'operations.bg': { h: 148, s: 17, l: 17 },
-      'operations.text': { h: 53, s: 24, l: 93 },
-      'operations.accent': { h: 39, s: 42, l: 52 },
-      'reports.bg': { h: 148, s: 17, l: 17 },
-      'reports.text': { h: 53, s: 24, l: 93 },
-      'reports.accent': { h: 39, s: 42, l: 52 },
-    },
-  },
-  {
-    name: 'Deep Plum',
-    paint: {
-      'workarea.bg': { h: 266, s: 26, l: 5 },
-      'workarea.text': { h: 285, s: 33, l: 95 },
-      'workarea.accent': { h: 289, s: 29, l: 59 },
-      'topbar.bg': { h: 270, s: 25, l: 9 },
-      'topbar.text': { h: 285, s: 33, l: 95 },
-      'topbar.accent': { h: 289, s: 29, l: 59 },
-      'sidebar.bg': { h: 270, s: 25, l: 9 },
-      'sidebar.text': { h: 285, s: 33, l: 95 },
-      'sidebar.accent': { h: 289, s: 29, l: 59 },
-      'bottombar.bg': { h: 270, s: 25, l: 9 },
-      'bottombar.text': { h: 285, s: 33, l: 95 },
-      'bottombar.accent': { h: 289, s: 29, l: 59 },
-      'cards.bg': { h: 270, s: 25, l: 9 },
-      'cards.text': { h: 285, s: 33, l: 95 },
-      'cards.accent': { h: 289, s: 29, l: 59 },
-      'students.bg': { h: 275, s: 23, l: 16 },
-      'students.text': { h: 285, s: 33, l: 95 },
-      'students.accent': { h: 289, s: 29, l: 59 },
-      'academics.bg': { h: 275, s: 23, l: 16 },
-      'academics.text': { h: 285, s: 33, l: 95 },
-      'academics.accent': { h: 289, s: 29, l: 59 },
-      'finance.bg': { h: 275, s: 23, l: 16 },
-      'finance.text': { h: 285, s: 33, l: 95 },
-      'finance.accent': { h: 289, s: 29, l: 59 },
-      'operations.bg': { h: 275, s: 23, l: 16 },
-      'operations.text': { h: 285, s: 33, l: 95 },
-      'operations.accent': { h: 289, s: 29, l: 59 },
-      'reports.bg': { h: 275, s: 23, l: 16 },
-      'reports.text': { h: 285, s: 33, l: 95 },
-      'reports.accent': { h: 289, s: 29, l: 59 },
-    },
-  },
-  {
-    name: 'Arctic Slate',
-    paint: {
-      'workarea.bg': { h: 206, s: 28, l: 5 },
-      'workarea.text': { h: 165, s: 33, l: 95 },
-      'workarea.accent': { h: 174, s: 33, l: 58 },
-      'topbar.bg': { h: 202, s: 23, l: 9 },
-      'topbar.text': { h: 165, s: 33, l: 95 },
-      'topbar.accent': { h: 174, s: 33, l: 58 },
-      'sidebar.bg': { h: 202, s: 23, l: 9 },
-      'sidebar.text': { h: 165, s: 33, l: 95 },
-      'sidebar.accent': { h: 174, s: 33, l: 58 },
-      'bottombar.bg': { h: 202, s: 23, l: 9 },
-      'bottombar.text': { h: 165, s: 33, l: 95 },
-      'bottombar.accent': { h: 174, s: 33, l: 58 },
-      'cards.bg': { h: 202, s: 23, l: 9 },
-      'cards.text': { h: 165, s: 33, l: 95 },
-      'cards.accent': { h: 174, s: 33, l: 58 },
-      'students.bg': { h: 201, s: 22, l: 18 },
-      'students.text': { h: 165, s: 33, l: 95 },
-      'students.accent': { h: 174, s: 33, l: 58 },
-      'academics.bg': { h: 201, s: 22, l: 18 },
-      'academics.text': { h: 165, s: 33, l: 95 },
-      'academics.accent': { h: 174, s: 33, l: 58 },
-      'finance.bg': { h: 201, s: 22, l: 18 },
-      'finance.text': { h: 165, s: 33, l: 95 },
-      'finance.accent': { h: 174, s: 33, l: 58 },
-      'operations.bg': { h: 201, s: 22, l: 18 },
-      'operations.text': { h: 165, s: 33, l: 95 },
-      'operations.accent': { h: 174, s: 33, l: 58 },
-      'reports.bg': { h: 201, s: 22, l: 18 },
-      'reports.text': { h: 165, s: 33, l: 95 },
-      'reports.accent': { h: 174, s: 33, l: 58 },
+    mode: 'dark',
+    tokens: {
+      '--bento-bg': '#080c14',
+      '--bento-card': '#101827',
+      '--bento-card-2': '#18202f',
+      '--bento-ink': '#f4f7fb',
+      '--bento-muted': '#788391',
+      '--bento-line': '#1c293a',
+      '--bento-dock-bg': '#101827',
+      '--bento-dock-ink': '#f4f7fb',
+      '--bento-mint': '#23955c',
+      '--bento-mint-tint': '#15472e',
+      '--bento-purple': '#a166db',
+      '--bento-purple-tint': '#2e1547',
+      '--bento-pink': '#d75681',
+      '--bento-pink-tint': '#471525',
+      '--bento-orange': '#c66e2f',
+      '--bento-orange-tint': '#472a15',
+      '--bento-anchor-from': '#32475d',
+      '--bento-anchor-to': '#27333f',
+      '--bento-anchor-ink': '#ffffff',
+      '--dom-students': '#273849',
+      '--dom-students-soft': '#1e2933',
+      '--dom-students-text': '#e7f0f8',
+      '--dom-academics': '#352749',
+      '--dom-academics-soft': '#271e33',
+      '--dom-academics-text': '#eee7f8',
+      '--dom-finance': '#27493e',
+      '--dom-finance-soft': '#1e332c',
+      '--dom-finance-text': '#e7f8f3',
+      '--dom-operations': '#493727',
+      '--dom-operations-soft': '#33281e',
+      '--dom-operations-text': '#f8efe7',
+      '--dom-reports': '#274149',
+      '--dom-reports-soft': '#1e2e33',
+      '--dom-reports-text': '#e7f4f8',
+      '--dom-staff': '#492749',
+      '--dom-staff-soft': '#331e33',
+      '--dom-staff-text': '#f8e7f8',
+      '--dom-admissions': '#272749',
+      '--dom-admissions-soft': '#1e1e33',
+      '--dom-admissions-text': '#e7e7f8',
+      '--dom-attendance': '#274946',
+      '--dom-attendance-soft': '#1e3332',
+      '--dom-attendance-text': '#e7f8f7',
+      '--dom-communication': '#49273e',
+      '--dom-communication-soft': '#331e2c',
+      '--dom-communication-text': '#f8e7f3',
+      '--dom-critical': '#492827',
+      '--dom-critical-soft': '#331f1e',
+      '--dom-critical-text': '#f8e8e7',
+      '--dom-success': '#274935',
+      '--dom-success-soft': '#1e3327',
+      '--dom-success-text': '#e7f8ee',
+      '--dom-warning': '#493e27',
+      '--dom-warning-soft': '#332c1e',
+      '--dom-warning-text': '#f8f3e7',
     },
   },
 ] as const
@@ -393,11 +500,38 @@ export function deletePalette(name: string) {
 }
 
 export function applyPalette(name: string) {
-  /* Saved first, shipped second: somebody who saved their own "Deep Plum"
-     meant theirs. */
-  const p = palettes.find((x) => x.name === name)
-    ?? BUILT_IN_PALETTES.find((x) => x.name === name)
-  if (p) applyPaint({ ...p.paint })
+  /* Saved first: somebody who saved their own "Daylight Azure" meant theirs. */
+  const own = palettes.find((x) => x.name === name)
+  if (own) {
+    activePalette = null
+    remember()
+    applyPaint({ ...own.paint })
+    return
+  }
+  const shipped = BUILT_IN_PALETTES.find((x) => x.name === name)
+  if (!shipped) return
+  /* A shipped palette replaces the hand-painted regions rather than layering
+     under them. Picking a whole palette is a decision about the whole surface,
+     and leaving three regions from the last one on top of it is the mismatch
+     this was meant to end. */
+  activePalette = shipped.name
+  remember()
+  applyPaint({})
+}
+
+/** Which shipped palette is active, for the dialog to mark. */
+export function currentPalette(): string | null {
+  return activePalette
+}
+
+function remember() {
+  try {
+    if (activePalette) localStorage.setItem(PALETTE_KEY, activePalette)
+    else localStorage.removeItem(PALETTE_KEY)
+  } catch {
+    /* private browsing: the choice lasts the session */
+  }
+  emit()
 }
 
 function snapshot() {
