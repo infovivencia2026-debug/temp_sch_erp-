@@ -1281,3 +1281,39 @@ html[style*='--shadow-scale'] .dark {
 [data-layout='bento'] [class*="bg-[var(--bento-orange-tint)]"] {
   color: color-mix(in srgb, var(--bento-orange) 60%, var(--bento-ink));
 }
+
+/* ── THE DEFAULT PALETTE ────────────────────────────────────────────────
+   Supplied as a working reference: a near-black page with paper cards, and
+   six grounds that carry the hue. The card is the colour; the ink on it is
+   black or white, whichever wins — measured, worst pair 5.44:1 on the red.
+
+   `-soft` equals the ground here because these ARE the card colours, not
+   tints to be derived from an accent. Anything reading `-soft` gets the same
+   surface it would have got from the base token. */
+[data-layout='bento'] {
+  --bento-bg: #10110f;
+  --bento-card: #efede5;
+  --bento-card-2: #efede5;
+  --bento-ink: #000000;
+  --bento-muted: var(--bento-ink);
+  --bento-line: color-mix(in srgb, #000000 14%, transparent);
+  --bento-mint: #b8f36b;   --bento-mint-tint: #b8f36b;
+  --bento-purple: #a38aaa; --bento-purple-tint: #a38aaa;
+  --bento-pink: #ff1c22;   --bento-pink-tint: #ff1c22;
+  --bento-orange: #a4aa08; --bento-orange-tint: #a4aa08;
+  --bento-anchor-from: #003d32; --bento-anchor-to: #003d32;
+  --bento-anchor-ink: #ffffff;
+  --bento-dock-bg: #efede5; --bento-dock-ink: #000000;
+  --dom-students: #b8c9c3; --dom-students-soft: #b8c9c3; --dom-students-text: #000000;
+  --dom-academics: #a38aaa; --dom-academics-soft: #a38aaa; --dom-academics-text: #000000;
+  --dom-attendance: #b8f36b; --dom-attendance-soft: #b8f36b; --dom-attendance-text: #000000;
+  --dom-finance: #a4aa08; --dom-finance-soft: #a4aa08; --dom-finance-text: #000000;
+  --dom-staff: #003d32; --dom-staff-soft: #003d32; --dom-staff-text: #ffffff;
+  --dom-admissions: #b8c9c3; --dom-admissions-soft: #b8c9c3; --dom-admissions-text: #000000;
+  --dom-communication: #a38aaa; --dom-communication-soft: #a38aaa; --dom-communication-text: #000000;
+  --dom-operations: #efede5; --dom-operations-soft: #efede5; --dom-operations-text: #000000;
+  --dom-reports: #003d32; --dom-reports-soft: #003d32; --dom-reports-text: #ffffff;
+  --dom-critical: #ff1c22; --dom-critical-soft: #ff1c22; --dom-critical-text: #000000;
+  --dom-success: #b8f36b; --dom-success-soft: #b8f36b; --dom-success-text: #000000;
+  --dom-warning: #a4aa08; --dom-warning-soft: #a4aa08; --dom-warning-text: #000000;
+}
