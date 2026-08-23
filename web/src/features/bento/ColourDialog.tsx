@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Crosshair, Plus, RotateCcw, X } from 'lucide-react'
 import {
   usePaint, usePalettes, savePalette, deletePalette, applyPalette, resetPaint,
-  REGIONS, CHANNELS, type Region, type Channel, type Hsl,
+  REGIONS, CHANNELS, BUILT_IN_PALETTES, hslCss,
+  type Region, type Channel, type Hsl,
 } from '@/lib/paint'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -418,6 +419,37 @@ export function ColourPanel({
               <Plus className="size-3.5" aria-hidden="true" />
               {t('bento.colour.save')}
             </button>
+          </div>
+          {/* The shipped sets. No forget button: they are read-only, so
+              applying one and then editing it saves a copy under whatever name
+              the person gives it rather than overwriting what ships. The
+              swatches are the palette's own five mapped shades, in the order
+              they are applied — ground, card, raised, accent, ink. */}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {BUILT_IN_PALETTES.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => applyPalette(p.name)}
+                className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px]
+                           transition-colors hover:bg-accent"
+              >
+                <span className="flex" aria-hidden="true">
+                  {(['workarea.bg', 'cards.bg', 'students.bg', 'cards.accent', 'cards.text'] as const)
+                    .map((k) => {
+                      const v = p.paint[k]
+                      return (
+                        <span
+                          key={k}
+                          className="size-3 rounded-full ring-1 ring-black/20 -ml-1 first:ml-0"
+                          style={{ background: v ? hslCss(v) : 'transparent' }}
+                        />
+                      )
+                    })}
+                </span>
+                {p.name}
+              </button>
+            ))}
           </div>
           {palettes.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">

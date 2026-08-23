@@ -128,6 +128,202 @@ export function resetPaint() {
   applyPaint({})
 }
 
+/* The shipped palettes.
+
+   Six shades each, and only five of them land anywhere: ground, card, raised,
+   accent and ink. The sixth in each set is a mid grey meant for muted text,
+   and it measures 2.7-3.2:1 against its own card — under the 4.5:1 that body
+   text needs — so it is deliberately not mapped. `--bento-muted` keeps the
+   value the theme already derives, which does clear it.
+
+   Every pairing that IS mapped was measured: ink on card lands between 15.2
+   and 16.3:1, ink on a domain card between 11.6 and 13.7:1, and the accent on
+   card between 5.3 and 7.7:1. All five pass AA on all three.
+
+   The five domain regions take the same raised shade rather than five hues.
+   That is the point of these sets — one accent, and the ground doing the rest.
+
+   These are read-only: `applyPalette` finds them by name, and `deletePalette`
+   only ever touches the saved list, so applying one and then editing it saves
+   a copy under the person's own name instead of overwriting what ships. */
+export const BUILT_IN_PALETTES: readonly Palette[] = [
+  {
+    name: 'Obsidian Amber',
+    paint: {
+      'workarea.bg': { h: 216, s: 19, l: 5 },
+      'workarea.text': { h: 39, s: 39, l: 93 },
+      'workarea.accent': { h: 34, s: 56, l: 50 },
+      'topbar.bg': { h: 218, s: 15, l: 11 },
+      'topbar.text': { h: 39, s: 39, l: 93 },
+      'topbar.accent': { h: 34, s: 56, l: 50 },
+      'sidebar.bg': { h: 218, s: 15, l: 11 },
+      'sidebar.text': { h: 39, s: 39, l: 93 },
+      'sidebar.accent': { h: 34, s: 56, l: 50 },
+      'bottombar.bg': { h: 218, s: 15, l: 11 },
+      'bottombar.text': { h: 39, s: 39, l: 93 },
+      'bottombar.accent': { h: 34, s: 56, l: 50 },
+      'cards.bg': { h: 218, s: 15, l: 11 },
+      'cards.text': { h: 39, s: 39, l: 93 },
+      'cards.accent': { h: 34, s: 56, l: 50 },
+      'students.bg': { h: 215, s: 12, l: 19 },
+      'students.text': { h: 39, s: 39, l: 93 },
+      'students.accent': { h: 34, s: 56, l: 50 },
+      'academics.bg': { h: 215, s: 12, l: 19 },
+      'academics.text': { h: 39, s: 39, l: 93 },
+      'academics.accent': { h: 34, s: 56, l: 50 },
+      'finance.bg': { h: 215, s: 12, l: 19 },
+      'finance.text': { h: 39, s: 39, l: 93 },
+      'finance.accent': { h: 34, s: 56, l: 50 },
+      'operations.bg': { h: 215, s: 12, l: 19 },
+      'operations.text': { h: 39, s: 39, l: 93 },
+      'operations.accent': { h: 34, s: 56, l: 50 },
+      'reports.bg': { h: 215, s: 12, l: 19 },
+      'reports.text': { h: 39, s: 39, l: 93 },
+      'reports.accent': { h: 34, s: 56, l: 50 },
+    },
+  },
+  {
+    name: 'Midnight Azure',
+    paint: {
+      'workarea.bg': { h: 220, s: 43, l: 5 },
+      'workarea.text': { h: 212, s: 100, l: 97 },
+      'workarea.accent': { h: 207, s: 70, l: 59 },
+      'topbar.bg': { h: 219, s: 42, l: 11 },
+      'topbar.text': { h: 212, s: 100, l: 97 },
+      'topbar.accent': { h: 207, s: 70, l: 59 },
+      'sidebar.bg': { h: 219, s: 42, l: 11 },
+      'sidebar.text': { h: 212, s: 100, l: 97 },
+      'sidebar.accent': { h: 207, s: 70, l: 59 },
+      'bottombar.bg': { h: 219, s: 42, l: 11 },
+      'bottombar.text': { h: 212, s: 100, l: 97 },
+      'bottombar.accent': { h: 207, s: 70, l: 59 },
+      'cards.bg': { h: 219, s: 42, l: 11 },
+      'cards.text': { h: 212, s: 100, l: 97 },
+      'cards.accent': { h: 207, s: 70, l: 59 },
+      'students.bg': { h: 214, s: 35, l: 17 },
+      'students.text': { h: 212, s: 100, l: 97 },
+      'students.accent': { h: 207, s: 70, l: 59 },
+      'academics.bg': { h: 214, s: 35, l: 17 },
+      'academics.text': { h: 212, s: 100, l: 97 },
+      'academics.accent': { h: 207, s: 70, l: 59 },
+      'finance.bg': { h: 214, s: 35, l: 17 },
+      'finance.text': { h: 212, s: 100, l: 97 },
+      'finance.accent': { h: 207, s: 70, l: 59 },
+      'operations.bg': { h: 214, s: 35, l: 17 },
+      'operations.text': { h: 212, s: 100, l: 97 },
+      'operations.accent': { h: 207, s: 70, l: 59 },
+      'reports.bg': { h: 214, s: 35, l: 17 },
+      'reports.text': { h: 212, s: 100, l: 97 },
+      'reports.accent': { h: 207, s: 70, l: 59 },
+    },
+  },
+  {
+    name: 'Forest Brass',
+    paint: {
+      'workarea.bg': { h: 156, s: 20, l: 5 },
+      'workarea.text': { h: 53, s: 24, l: 93 },
+      'workarea.accent': { h: 39, s: 42, l: 52 },
+      'topbar.bg': { h: 150, s: 17, l: 9 },
+      'topbar.text': { h: 53, s: 24, l: 93 },
+      'topbar.accent': { h: 39, s: 42, l: 52 },
+      'sidebar.bg': { h: 150, s: 17, l: 9 },
+      'sidebar.text': { h: 53, s: 24, l: 93 },
+      'sidebar.accent': { h: 39, s: 42, l: 52 },
+      'bottombar.bg': { h: 150, s: 17, l: 9 },
+      'bottombar.text': { h: 53, s: 24, l: 93 },
+      'bottombar.accent': { h: 39, s: 42, l: 52 },
+      'cards.bg': { h: 150, s: 17, l: 9 },
+      'cards.text': { h: 53, s: 24, l: 93 },
+      'cards.accent': { h: 39, s: 42, l: 52 },
+      'students.bg': { h: 148, s: 17, l: 17 },
+      'students.text': { h: 53, s: 24, l: 93 },
+      'students.accent': { h: 39, s: 42, l: 52 },
+      'academics.bg': { h: 148, s: 17, l: 17 },
+      'academics.text': { h: 53, s: 24, l: 93 },
+      'academics.accent': { h: 39, s: 42, l: 52 },
+      'finance.bg': { h: 148, s: 17, l: 17 },
+      'finance.text': { h: 53, s: 24, l: 93 },
+      'finance.accent': { h: 39, s: 42, l: 52 },
+      'operations.bg': { h: 148, s: 17, l: 17 },
+      'operations.text': { h: 53, s: 24, l: 93 },
+      'operations.accent': { h: 39, s: 42, l: 52 },
+      'reports.bg': { h: 148, s: 17, l: 17 },
+      'reports.text': { h: 53, s: 24, l: 93 },
+      'reports.accent': { h: 39, s: 42, l: 52 },
+    },
+  },
+  {
+    name: 'Deep Plum',
+    paint: {
+      'workarea.bg': { h: 266, s: 26, l: 5 },
+      'workarea.text': { h: 285, s: 33, l: 95 },
+      'workarea.accent': { h: 289, s: 29, l: 59 },
+      'topbar.bg': { h: 270, s: 25, l: 9 },
+      'topbar.text': { h: 285, s: 33, l: 95 },
+      'topbar.accent': { h: 289, s: 29, l: 59 },
+      'sidebar.bg': { h: 270, s: 25, l: 9 },
+      'sidebar.text': { h: 285, s: 33, l: 95 },
+      'sidebar.accent': { h: 289, s: 29, l: 59 },
+      'bottombar.bg': { h: 270, s: 25, l: 9 },
+      'bottombar.text': { h: 285, s: 33, l: 95 },
+      'bottombar.accent': { h: 289, s: 29, l: 59 },
+      'cards.bg': { h: 270, s: 25, l: 9 },
+      'cards.text': { h: 285, s: 33, l: 95 },
+      'cards.accent': { h: 289, s: 29, l: 59 },
+      'students.bg': { h: 275, s: 23, l: 16 },
+      'students.text': { h: 285, s: 33, l: 95 },
+      'students.accent': { h: 289, s: 29, l: 59 },
+      'academics.bg': { h: 275, s: 23, l: 16 },
+      'academics.text': { h: 285, s: 33, l: 95 },
+      'academics.accent': { h: 289, s: 29, l: 59 },
+      'finance.bg': { h: 275, s: 23, l: 16 },
+      'finance.text': { h: 285, s: 33, l: 95 },
+      'finance.accent': { h: 289, s: 29, l: 59 },
+      'operations.bg': { h: 275, s: 23, l: 16 },
+      'operations.text': { h: 285, s: 33, l: 95 },
+      'operations.accent': { h: 289, s: 29, l: 59 },
+      'reports.bg': { h: 275, s: 23, l: 16 },
+      'reports.text': { h: 285, s: 33, l: 95 },
+      'reports.accent': { h: 289, s: 29, l: 59 },
+    },
+  },
+  {
+    name: 'Arctic Slate',
+    paint: {
+      'workarea.bg': { h: 206, s: 28, l: 5 },
+      'workarea.text': { h: 165, s: 33, l: 95 },
+      'workarea.accent': { h: 174, s: 33, l: 58 },
+      'topbar.bg': { h: 202, s: 23, l: 9 },
+      'topbar.text': { h: 165, s: 33, l: 95 },
+      'topbar.accent': { h: 174, s: 33, l: 58 },
+      'sidebar.bg': { h: 202, s: 23, l: 9 },
+      'sidebar.text': { h: 165, s: 33, l: 95 },
+      'sidebar.accent': { h: 174, s: 33, l: 58 },
+      'bottombar.bg': { h: 202, s: 23, l: 9 },
+      'bottombar.text': { h: 165, s: 33, l: 95 },
+      'bottombar.accent': { h: 174, s: 33, l: 58 },
+      'cards.bg': { h: 202, s: 23, l: 9 },
+      'cards.text': { h: 165, s: 33, l: 95 },
+      'cards.accent': { h: 174, s: 33, l: 58 },
+      'students.bg': { h: 201, s: 22, l: 18 },
+      'students.text': { h: 165, s: 33, l: 95 },
+      'students.accent': { h: 174, s: 33, l: 58 },
+      'academics.bg': { h: 201, s: 22, l: 18 },
+      'academics.text': { h: 165, s: 33, l: 95 },
+      'academics.accent': { h: 174, s: 33, l: 58 },
+      'finance.bg': { h: 201, s: 22, l: 18 },
+      'finance.text': { h: 165, s: 33, l: 95 },
+      'finance.accent': { h: 174, s: 33, l: 58 },
+      'operations.bg': { h: 201, s: 22, l: 18 },
+      'operations.text': { h: 165, s: 33, l: 95 },
+      'operations.accent': { h: 174, s: 33, l: 58 },
+      'reports.bg': { h: 201, s: 22, l: 18 },
+      'reports.text': { h: 165, s: 33, l: 95 },
+      'reports.accent': { h: 174, s: 33, l: 58 },
+    },
+  },
+] as const
+
 export function savePalette(name: string) {
   const trimmed = name.trim()
   if (!trimmed) return
@@ -154,7 +350,10 @@ export function deletePalette(name: string) {
 }
 
 export function applyPalette(name: string) {
+  /* Saved first, shipped second: somebody who saved their own "Deep Plum"
+     meant theirs. */
   const p = palettes.find((x) => x.name === name)
+    ?? BUILT_IN_PALETTES.find((x) => x.name === name)
   if (p) applyPaint({ ...p.paint })
 }
 

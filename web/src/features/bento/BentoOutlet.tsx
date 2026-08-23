@@ -176,7 +176,7 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
           The board is measured for its height AFTER this padding is applied,
           so giving it more room here costs card height rather than pushing
           anything off screen. */}
-      <div className="flex-1 w-full pt-6 pb-[72px] px-6 sm:px-10 lg:px-14 flex flex-col">
+      <div className="flex-1 w-full pt-6 pb-[72px] px-3 sm:px-4 lg:px-5 flex flex-col">
         {inner}
       </div>
     </div>
