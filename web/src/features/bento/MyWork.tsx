@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { type CellSpan } from './bento-kit'
-import { CardShell, Compare, Density, Distribution, Rows } from './bento-cards'
+import { CardShell, Compare, Facts, Distribution, Rows } from './bento-cards'
 
 /* MY WORK, IN THE EDITORIAL CARD LANGUAGE.
 
@@ -537,10 +537,16 @@ function SectionsCell({ span, data }: { span: CellSpan; data: MyWorkView }) {
   const dots = n === 0 ? (
     <Say>{t('bento.my_work.no_sections')}</Say>
   ) : (
-    <Density
-      cells={Array.from({ length: Math.min(n, 60) }, () => 1)}
-      columns={wide ? 20 : 10}
+    /* Was a dot per section — sixty identical marks that said nothing the
+       figure above had not. These three numbers are already in hand and
+       actually divide the work up. */
+    <Facts
       srLabel={t('bento.my_work.sections_sr', { count: n })}
+      items={[
+        { label: t('bento.my_work.fact_sections'), value: String(n) },
+        { label: t('bento.my_work.fact_scoped'), value: String(scoped) },
+        { label: t('bento.my_work.fact_own'), value: String(own) },
+      ]}
     />
   )
 

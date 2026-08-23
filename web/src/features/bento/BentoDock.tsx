@@ -78,6 +78,19 @@ export function BentoDock() {
      student, and there is no route the three share. */
   const homeHref = useMemo(() => {
     if (!role) return undefined
+    /* HOME MEANS THE HOME SCREEN, not simply the first door that opens.
+
+       This walked the sections in catalogue order and returned the first
+       usable feature it met, which is the dashboard only when the dashboard
+       happens to sort first. Where it does not, pressing Home landed on some
+       other screen and the board could not be reached from the dock at all.
+
+       The home section is asked for by name first. The old sweep stays as the
+       fallback, so a role with no such section still gets a door rather than a
+       dead button. */
+    const home = role.sections.find((s) => s.slug === 'home')
+    const preferred = home?.features.find(usable)
+    if (home && preferred) return featurePath(role.key, home.slug, preferred.slug)
     for (const s of role.sections) {
       const f = s.features.find(usable)
       if (f) return featurePath(role.key, s.slug, f.slug)

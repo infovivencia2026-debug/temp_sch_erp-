@@ -28,13 +28,12 @@ import {
   CardShell,
   Compare,
   Compare as CardCompare,
-  Density,
-  Density as CardDensity,
   Distribution,
   Gauge,
   Gauge as CardGauge,
   Line,
   Line as CardLine,
+  Facts,
   Rows,
   Rows as CardRows,
   Scale,
@@ -448,13 +447,10 @@ function MicroStat({ label, value }: { label: string; value: string }) {
 
    Neither is drawn for a calm zero. Nought things is not a field of no dots
    that could be mistaken for a drawing that failed. */
-const DOT_MAX = 60
 
 function AttentionDraw({
   count,
   peak,
-  wide,
-  dotsLabel,
   peakLabel,
   peakStart,
   peakEnd,
@@ -468,15 +464,6 @@ function AttentionDraw({
   peakEnd: string
 }) {
   if (count <= 0) return null
-  if (count <= DOT_MAX) {
-    return (
-      <Density
-        cells={Array.from({ length: count }, () => 1)}
-        columns={wide ? 15 : 8}
-        srLabel={dotsLabel}
-      />
-    )
-  }
   if (!peak || peak <= count) return null
   /* The ends are labelled ON the line rather than in a sentence under it: a
      caption long enough to say what the far end is, is long enough to be
@@ -2147,12 +2134,6 @@ function SetupCell({
   /* The step in hand: the first outstanding blocker, or with none left simply
      the first thing still to do. The handler's order is the order a school is
      meant to work through it. */
-  const firstBlocking = steps.findIndex((s) => !s.done && s.blocking)
-  const firstOpen = steps.findIndex((s) => !s.done)
-  const activeIdx = firstBlocking >= 0 ? firstBlocking : firstOpen
-  const weightOf = (s: SetupStepDetail, i: number) =>
-    s.done ? 1 : i === activeIdx ? 0.85 : s.blocking ? 0.55 : 0.14
-  const cells = steps.map(weightOf)
 
   const groups = SETUP_DOMAINS.map((domain) => {
     const members = steps.filter((s) => (SETUP_DOMAIN[s.key] ?? 'system') === domain)
@@ -2177,14 +2158,14 @@ function SetupCell({
         ? t('bento.principal.setup_ready')
         : t('bento.principal.setup_optional_left', { count: Math.max(0, total - done) })
 
-  const field = (columns: number) => (
-    <Density
-      cells={cells}
-      columns={columns}
+  const field = (_columns: number) => (
+    <Rows
+      items={groups.map((g) => ({
+        label: t(`bento.principal.setup_dom_${g.domain}`),
+        value: g.done,
+      }))}
       srLabel={t('bento.principal.setup_density_sr', {
-        total: steps.length,
-        done,
-        left: Math.max(0, steps.length - done),
+        total: steps.length, done, left: Math.max(0, steps.length - done),
       })}
     />
   )
@@ -2695,12 +2676,6 @@ function gridCapacity(w: number, h: number) {
     dots — laying them across twenty columns draws one thin line adrift in an
     empty row. Shaping to the cell's own aspect keeps a small count square, so
     a quantity still reads as a quantity. */
-function gridColumns(n: number, w: number, h: number) {
-  const { columns, rows } = gridCapacity(w, h)
-  if (n >= columns * rows) return columns
-  const shaped = Math.ceil(Math.sqrt(Math.max(1, n) * (columns / rows)))
-  return Math.max(1, Math.min(columns, shaped))
-}
 
 /** A count drawn as itself: one dot per unit, and the unit is whatever the
     room allows. Under capacity every dot is one thing; over it the unit grows
@@ -3017,10 +2992,12 @@ export function OutstandingCard({
   const owed = unitGrid(defaulters, capacity)
 
   const drawing = !yearly ? (
-    <CardDensity
-      cells={owed.cells}
-      columns={gridColumns(owed.cells.length, w, h)}
+    <Facts
       srLabel={t('bento.principal.card_owed_by_sr', { count: defaulters, unit: owed.unit })}
+      items={[
+        { label: t('bento.principal.fact_flagged'), value: String(defaulters) },
+        { label: t('bento.principal.card_due'), value: money(outstanding) },
+      ]}
     />
   ) : tall ? (
     <PairAside ring={ring} detail={wide ? split : pair} side={wide} />
@@ -3074,9 +3051,7 @@ export function StudentsCard({
   href?: string
 }) {
   const t = useT()
-  const { w, h } = useWidgetSize()
-  const { capacity } = gridCapacity(w, h)
-  const { cells, unit } = unitGrid(students, capacity)
+  const { w } = useWidgetSize()
   const wide = w >= 2
 
   return (
@@ -3098,10 +3073,13 @@ export function StudentsCard({
       to={href}
       cueLabel={t('bento.principal.cue_students')}
     >
-      <CardDensity
-        cells={cells}
-        columns={gridColumns(cells.length, w, h)}
-        srLabel={t('bento.principal.card_roll_sr', { count: students, unit })}
+      <Facts
+        srLabel={t('bento.principal.card_roll_sr', { count: students, unit: 1 })}
+        items={[
+          { label: t('bento.principal.fact_sections'), value: String(sections) },
+          { label: t('bento.principal.fact_per_section'), value: String(perSection) },
+          { label: t('bento.principal.fact_staff'), value: String(staff) },
+        ]}
       />
     </CardCell>
   )
@@ -3143,12 +3121,12 @@ export function DefaultersCard({
   )
 
   const unit = Math.max(1, Math.ceil(students / capacity))
-  const dots = Math.max(1, Math.round(students / unit))
-  const flagged = Math.min(dots, Math.round(defaulters / unit))
   const grid = (
-    <CardDensity
-      cells={Array.from({ length: dots }, (_, i) => (i < flagged ? 1 : 0))}
-      columns={gridColumns(dots, w, h)}
+    <Rows
+      items={[
+        { label: t('bento.principal.fact_flagged'), value: defaulters },
+        { label: t('bento.principal.fact_clear'), value: Math.max(0, students - defaulters) },
+      ]}
       srLabel={t('bento.principal.card_defaulters_grid_sr', {
         flagged: defaulters, roll: students, unit,
       })}
@@ -3205,7 +3183,7 @@ export function CountCard({
   const t = useT()
   const { w, h } = useWidgetSize()
   const { capacity } = gridCapacity(w, h)
-  const { cells, unit } = unitGrid(count, capacity)
+  const { unit } = unitGrid(count, capacity)
 
   return (
     <CardCell
@@ -3220,10 +3198,9 @@ export function CountCard({
       to={to}
       cueLabel={cueLabel}
     >
-      <CardDensity
-        cells={cells}
-        columns={gridColumns(cells.length, w, h)}
+      <Facts
         srLabel={t(srKey, { count, unit })}
+        items={[{ label: title, value: String(count) }]}
       />
     </CardCell>
   )
@@ -3576,7 +3553,6 @@ export default function BentoPrincipalDashboard() {
   const busyDays = new Set(
     upcoming.map((e) => daysAway(e.starts_on)).filter((d) => d >= 0 && d < CALENDAR_DAYS),
   )
-  const calendarCells = Array.from({ length: CALENDAR_DAYS }, (_, i) => (busyDays.has(i) ? 1 : 0))
   const calendarSoon = busyDays.size
   const examRows = exams.data?.items ?? []
   const examsUpcoming = examRows.filter((e) => e.starts_on && e.starts_on >= todayISO).length
@@ -3972,11 +3948,13 @@ export default function BentoPrincipalDashboard() {
                texture rather than a count, and the rail says it alone. */
             draw={
               ttSummary && ttSummary.sections > 0 && ttSummary.sections <= 144 ? (
-                <Density
-                  cells={Array.from({ length: ttSummary.sections }, (_, i) =>
-                    i < ttSummary.sections_without_timetable ? 1 : 0,
-                  )}
-                  columns={12}
+                <Rows
+                  items={[
+                    { label: t('bento.principal.fact_flagged'),
+                      value: ttSummary.sections_without_timetable },
+                    { label: t('bento.principal.fact_clear'),
+                      value: Math.max(0, ttSummary.sections - ttSummary.sections_without_timetable) },
+                  ]}
                   srLabel={t('bento.principal.tt_sections_grid_sr', {
                     count: ttSummary.sections_without_timetable,
                     total: ttSummary.sections,
@@ -4258,13 +4236,7 @@ export default function BentoPrincipalDashboard() {
                 : undefined
             }
             draw={
-              calendarSoon > 0 ? (
-                <Density
-                  cells={calendarCells}
-                  columns={10}
-                  srLabel={t('bento.principal.calendar_density_sr', { count: calendarSoon })}
-                />
-              ) : undefined
+undefined
             }
             note={
               nextEntry

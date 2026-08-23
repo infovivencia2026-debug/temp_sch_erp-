@@ -16,7 +16,6 @@ import {
 import {
   CardShell,
   Compare,
-  Density,
   Distribution,
   Gauge,
   Rows,
@@ -791,26 +790,20 @@ function CountCell({
   const roomy = wide && tall
 
   const ceiling = roomy ? DOT_CAP.roomy : wide || tall ? DOT_CAP.wide : DOT_CAP.small
-  const columns = wide ? 20 : 10
   const n = Math.max(0, Math.floor(value))
   const shown = Math.min(n, ceiling)
 
+  /* Was a dot per unit, capped — up to sixty identical marks that restated the
+     figure printed above them and nothing else. The note is a real sentence
+     about this number and it was already being fetched; it earns the row. */
   const drawing = n === 0 ? (
     <Say>{t('bento.finance.count_none')}</Say>
   ) : (
-    <div className="flex h-full min-h-0 flex-col">
-      {(wide || tall) && (
-        <Head>
-          {shown < n ? t('bento.finance.dots_capped', { shown, total: n }) : t('bento.finance.dots_each')}
-        </Head>
+    <div className="flex h-full min-h-0 flex-col justify-end gap-1">
+      {shown < n && (wide || tall) && (
+        <Head>{t('bento.finance.dots_capped', { shown, total: n })}</Head>
       )}
-      <div className="min-h-0 flex-1">
-        <Density
-          cells={Array.from({ length: shown }, () => 1)}
-          columns={columns}
-          srLabel={t('bento.finance.dots_sr', { shown, total: n, thing: title.toLowerCase() })}
-        />
-      </div>
+      <Say>{note}</Say>
     </div>
   )
 
