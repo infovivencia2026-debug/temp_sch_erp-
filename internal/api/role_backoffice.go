@@ -410,6 +410,10 @@ type employeeRow struct {
 	Email       *string `json:"email,omitempty"`
 	JoinedOn    string  `json:"joined_on"`
 	Status      string  `json:"status"`
+	// How many periods a week they are timetabled for. Zero is the state that
+	// makes a clash check meaningless and a substitution board silent, so it
+	// travels with the person rather than having to be asked for separately.
+	PeriodsWeek int32 `json:"periods_this_week"`
 }
 
 // listEmployees powers hr.hr_workspace.employee_master_directory.
@@ -418,7 +422,9 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		SELECT e.id::text, e.user_id::text, e.employee_code,
 		       concat_ws(' ', e.first_name, e.last_name),
 		       d.name, dg.name, e.phone, e.email::text,
-		       to_char(e.joined_on,'YYYY-MM-DD'), e.status
+		       to_char(e.joined_on,'YYYY-MM-DD'), e.status,
+		       (SELECT count(*)::int FROM timetable_entries te
+		         WHERE te.teacher_user_id = e.user_id)
 		  FROM employees e
 		  LEFT JOIN departments  d  ON d.id = e.department_id
 		  LEFT JOIN designations dg ON dg.id = e.designation_id
@@ -428,7 +434,7 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (employeeRow, error) {
 			var v employeeRow
 			return v, rows.Scan(&v.ID, &v.UserID, &v.Code, &v.FullName, &v.Department,
-				&v.Designation, &v.Phone, &v.Email, &v.JoinedOn, &v.Status)
+				&v.Designation, &v.Phone, &v.Email, &v.JoinedOn, &v.Status, &v.PeriodsWeek)
 		})
 	respond(w, r, items, err)
 }

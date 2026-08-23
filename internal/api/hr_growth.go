@@ -3049,6 +3049,7 @@ func (s *Server) assignDuty(w http.ResponseWriter, r *http.Request) {
 
 	var created int
 	clashes := []rosterClash{}
+	var untimetabled int
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var shiftStart, shiftEnd string
 		var shiftDays []int
@@ -3127,6 +3128,28 @@ func (s *Server) assignDuty(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Err(); err != nil {
 			return err
 		}
+
+		/* "Nothing clashes" means two different things.
+
+		   The check is only as good as the timetable behind it: somebody with
+		   no timetabled periods cannot clash with a lesson, so the roster
+		   reports a clean check and the reader takes it as assurance the
+		   person is free. At this school six of twelve teachers have no
+		   periods at all, and one of them is the class teacher of 6-B — so
+		   the most common answer this check can give is the one it cannot
+		   actually stand behind.
+
+		   Counted, not blocked. The duty is still legitimate; what is not
+		   legitimate is presenting an unchecked assignment as a checked one. */
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*)::int
+			  FROM unnest($1::uuid[]) AS u(id)
+			 WHERE NOT EXISTS (SELECT 1 FROM timetable_entries te
+			                    WHERE te.teacher_user_id = u.id)`,
+			req.UserIDs).Scan(&untimetabled); err != nil {
+			return err
+		}
+
 		if len(clashes) > 0 && strings.TrimSpace(req.OverrideReason) == "" {
 			// Rolls the whole batch back, which is the point: a fortnight of
 			// gate duty half written because Wednesday clashed is worse than
@@ -3167,6 +3190,10 @@ func (s *Server) assignDuty(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"assigned": created, "clashes": clashes,
+		// People the teaching check could not actually check, because they
+		// have no timetable. Reported so a clean result is not mistaken for
+		// an assurance nobody was in a position to give.
+		"unchecked_no_timetable": untimetabled,
 	})
 }
 
