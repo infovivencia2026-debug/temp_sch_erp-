@@ -664,9 +664,26 @@ export default function BentoPrincipalDashboard() {
      an all-years level, which the Go comment at role_principal.go:28-40
      explicitly warns against. Every figure below is drawn against a base the
      backend said was wrong, under a caption that says "this year". */
+  /* Prefer the year trio, fall back to the unqualified measures.
+
+     The trio is scoped to `academic_year_id = (the current year)`, and on a
+     school whose invoices were never tied to an academic year every one of the
+     three comes back 0 — COALESCEd, so it looks like a real zero rather than a
+     missing answer. This board showed a school with 270 invoices ₹0 collected
+     for exactly that reason.
+
+     So: if there IS a billed figure for the year, use the year trio and say
+     "this year", because that is the honest framing and the only one with a
+     real denominator. If there is not, fall back to the measures that are
+     always populated — receipts banked in the range, and arrears of every
+     year — drop the "this year" wording, and draw NO rail, because neither has
+     a denominator and the old code invented one by adding them together. */
+  const yearly = k.billed_paise > 0
   const billed = k.billed_paise
-  const collectedPct = billed > 0 ? Math.round((k.collected_year_paise / billed) * 100) : 0
-  const outstandingPct = billed > 0 ? Math.round((k.outstanding_year_paise / billed) * 100) : 0
+  const collected = yearly ? k.collected_year_paise : k.collected_paise
+  const outstanding = yearly ? k.outstanding_year_paise : k.outstanding_paise
+  const collectedPct = yearly ? Math.round((k.collected_year_paise / billed) * 100) : 0
+  const outstandingPct = yearly ? Math.round((k.outstanding_year_paise / billed) * 100) : 0
   const defaultersPct = k.students > 0 ? Math.round((k.defaulters / k.students) * 100) : 0
 
   const series = trend.data?.items ?? []
@@ -687,7 +704,7 @@ export default function BentoPrincipalDashboard() {
      `moved` is the collected share, which is where the flow stopped; the
      length past the barrier is the outstanding share the card names. */
   const days = trend.error ? [] : calendarSlots(series)
-  const movedShare = billed > 0 ? k.collected_year_paise / billed : 0
+  const movedShare = yearly ? k.collected_year_paise / billed : 0
   const loadPerTeacher = k.staff > 0 ? Math.round(k.students / k.staff) : 0
 
 
@@ -777,20 +794,24 @@ export default function BentoPrincipalDashboard() {
           <StatCell
             span={span}
             domain="finance"
-            label={t('bento.principal.outstanding')}
-            value={formatPaise(k.outstanding_year_paise)}
-            badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
+            label={t(yearly ? 'bento.principal.outstanding' : 'bento.principal.outstanding_plain')}
+            value={formatPaise(outstanding)}
+            badge={yearly ? t('bento.principal.pct_of_billed', { pct: outstandingPct }) : undefined}
             art={<BlockedFlowArt moved={movedShare} />}
-       
+            /* Meter and note only when there is a year to measure against.
+               Without one this drew a bar and a sentence about a total that
+               was zero. */
             shape={
-              <Meter
-                value={k.outstanding_year_paise}
-                total={billed}
-                tone="destructive"
-                srLabel={t('bento.principal.outstanding_sr')}
-              />
+              yearly ? (
+                <Meter
+                  value={outstanding}
+                  total={billed}
+                  tone="destructive"
+                  srLabel={t('bento.principal.outstanding_sr')}
+                />
+              ) : undefined
             }
-            note={t('bento.principal.of_billed', { billed: formatPaise(billed) })}
+            note={yearly ? t('bento.principal.of_billed', { billed: formatPaise(billed) }) : undefined}
             to={feesHref}
             cue={t('bento.principal.cue_fees')}
           />
@@ -839,27 +860,31 @@ export default function BentoPrincipalDashboard() {
               className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
                          text-[var(--bento-muted)]"
             >
-              {t('bento.principal.collected_label')}
+              {t(yearly ? 'bento.principal.collected_label' : 'bento.principal.collected_plain')}
             </p>
             <p
               className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
                          text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
             >
-              {formatPaise(k.collected_year_paise)}
+              {formatPaise(collected)}
             </p>
-            <div className="mt-3">
-              <Meter
-                value={k.collected_year_paise}
-                total={billed}
-                srLabel={t('bento.principal.collected_sr')}
-              />
-            </div>
-            <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
-              {t('bento.principal.collected_of_billed', {
-                pct: collectedPct,
-                billed: formatPaise(billed),
-              })}
-            </p>
+            {yearly && (
+              <>
+                <div className="mt-3">
+                  <Meter
+                    value={collected}
+                    total={billed}
+                    srLabel={t('bento.principal.collected_sr')}
+                  />
+                </div>
+                <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
+                  {t('bento.principal.collected_of_billed', {
+                    pct: collectedPct,
+                    billed: formatPaise(billed),
+                  })}
+                </p>
+              </>
+            )}
             {feesHref && <Cue to={feesHref} label={t('bento.principal.cue_fees')} />}
           </Cell>
         )}

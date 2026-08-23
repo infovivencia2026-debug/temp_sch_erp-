@@ -973,6 +973,8 @@ export const en = {
   'bento.principal.trend_caption': 'Last 30 days',
   'bento.principal.trend_failed': 'The 30-day trend did not load.',
   'bento.principal.collected_label': "Collected against this year's bills",
+  'bento.principal.collected_plain': 'Collected',
+  'bento.principal.outstanding_plain': 'Outstanding',
   'bento.principal.collected_sr': "Collected as a share of this year's bills",
   'bento.principal.collected_of_billed': '{pct}% of {billed} billed this year',
   'bento.principal.outstanding': 'Outstanding this year',
