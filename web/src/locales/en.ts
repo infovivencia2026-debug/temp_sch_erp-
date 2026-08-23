@@ -967,6 +967,8 @@ export const en = {
   'bento.principal.anchor_label': 'Attendance today, and fee collection',
   'bento.principal.attendance_marked': '{count} marked today',
   'bento.principal.trend_sr': 'Attendance, percentage present, last 30 days',
+  'bento.principal.above_median': 'Above the 30-day median',
+  'bento.principal.below_median': 'Below the 30-day median',
   'bento.principal.trend_label': 'Attendance trend',
   'bento.principal.trend_caption': 'Last 30 days',
   'bento.principal.trend_failed': 'The 30-day trend did not load.',

@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { useLayout } from '@/lib/widgets'
 import { formatPaise } from '@/lib/utils'
+import { useWidgetSize } from '@/lib/widget-size'
 import {
   BentoError,
   BentoLoading,
@@ -362,6 +363,102 @@ function SourceCell({
   )
 }
 
+/** Attendance, drawn to fit.
+
+    1x1  the figure, and whether today sits above or below its own 30-day
+         median. A trend line at this width is a squiggle, not a chart.
+    2x1  the figure and the line: width is exactly what a sparkline needs.
+    1x2  the figure and the line stacked, with the supporting sentence back.
+    2x2  all of that over the month-of-days calendar.
+
+    The median comparison is computed from the series this cell already holds.
+    It is a real statement about a real number, not a target invented to give
+    the card something to say. Under two points there is no median worth the
+    name and the mark is not drawn. */
+function PulseCell({
+  span, pct, marked, points, days, trendError, href,
+}: {
+  span: CellSpan
+  pct: number
+  marked: number
+  points: number[]
+  days: (number | null)[]
+  trendError: boolean
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+
+  const sorted = [...points].sort((a, b) => a - b)
+  const median = sorted.length > 1
+    ? sorted.length % 2
+      ? sorted[(sorted.length - 1) / 2]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+    : null
+  const above = median === null ? null : pct >= median
+
+  const wide = w >= 2
+  const tall = h >= 2
+  const showLine = (wide || tall) && !trendError && points.length > 1
+
+  return (
+    <Cell
+      span={span}
+      domain="students"
+      /* The calendar earns its keep only at the full 2x2; below that it is
+         texture rather than information. Empty when the trend query failed,
+         because a grid of unmarked days is a statement about the school and
+         not about the request. */
+      art={wide && tall && days.length > 0 ? <CalendarDensityArt slots={days} /> : undefined}
+    >
+      <p
+        className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                   text-[var(--bento-muted)]"
+      >
+        {t('bento.principal.anchor_label')}
+      </p>
+
+      <div className="mt-2 flex items-baseline gap-2">
+        <p
+          className="font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
+                     text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
+        >
+          {pct}%
+        </p>
+        {/* The small cell's entire chart. A glyph as well as a position, so
+            colour is not the only channel, and the reading is spelled out
+            rather than left to the shape. */}
+        {above !== null && !showLine && (
+          <span className="text-[12px] font-semibold leading-none text-[var(--bento-muted)]">
+            <span aria-hidden="true">{above ? '\u25b2' : '\u25bc'}</span>
+            <span className="sr-only">
+              {t(above ? 'bento.principal.above_median' : 'bento.principal.below_median')}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {(wide || tall) && (
+        <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
+          {t('bento.principal.attendance_marked', { count: marked })}
+        </p>
+      )}
+
+      {trendError && (wide || tall) ? (
+        <div className="mt-3">
+          <CellError message={t('bento.principal.trend_failed')} />
+        </div>
+      ) : showLine ? (
+        <div className="bento-shape mt-3">
+          <Sparkline points={points} srLabel={t('bento.principal.trend_sr')} />
+        </div>
+      ) : null}
+
+      {href && <Cue to={href} label={t('bento.principal.cue_attendance')} />}
+    </Cell>
+  )
+}
+
 export default function BentoPrincipalDashboard() {
   const t = useT()
 
@@ -641,58 +738,24 @@ export default function BentoPrincipalDashboard() {
           `--success` — a token measured against a light card sinks into a
           near-black ground — but it meant the head's headline figure changed
           polarity with the theme. This one does not. */}
+      {/* The reference implementation of shape dispatch.
+
+          `detailFor` collapses on AREA, so 2x1 and 1x2 get the same answer —
+          and they are not the same cell: one has width for a trend line and no
+          height, the other the reverse. A cell that should change DRAWING
+          rather than shed parts reads `useWidgetSize` and switches on the
+          shape itself. */}
       <Widget id="pulse" label={t('bento.principal.anchor_label')} size="large" index={0}>
         {(span) => (
-          <Cell
+          <PulseCell
             span={span}
-            domain="students"
-            /* The month of days behind the day's percentage. Empty — and so
-               not drawn at all — when the trend query failed, because a grid
-               of unmarked days is a statement about the school and not about
-               the request. */
-            art={days.length > 0 ? <CalendarDensityArt slots={days} /> : undefined}
-          >
-            {/* Every class here is the one StatCell uses. This cell was the
-                board's one exception: the mint gradient, a 72px figure against
-                everyone else's clamp, a hand-rolled divider and its own pill
-                component. Two rows could not hold that stack, so the board's
-                `overflow: hidden` cut the bottom off it — and it read as a
-                different kind of object from the fourteen cells around it.
-                It is a 2x2 now, not a genre. */}
-            <p
-              className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
-                         text-[var(--bento-muted)]"
-            >
-              {t('bento.principal.anchor_label')}
-            </p>
-
-            <p
-              className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
-                         text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
-            >
-              {k.attendance_today_pct}%
-            </p>
-            <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
-              {t('bento.principal.attendance_marked', { count: k.attendance_marked_today })}
-            </p>
-
-            {trend.error ? (
-              <div className="mt-3">
-                <CellError message={t('bento.principal.trend_failed')} />
-              </div>
-            ) : points.length > 1 ? (
-              <div className="bento-shape mt-3">
-                <Sparkline points={points} srLabel={t('bento.principal.trend_sr')} />
-              </div>
-            ) : null}
-
-            {/* The actions. The same Cue every other cell carries, checked
-                against the catalogue first: a button leading somewhere this
-                account cannot open is worse than a shorter row of buttons. */}
-            {attendanceHref && (
-              <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />
-            )}
-          </Cell>
+            pct={k.attendance_today_pct}
+            marked={k.attendance_marked_today}
+            points={points}
+            days={days}
+            trendError={Boolean(trend.error)}
+            href={attendanceHref}
+          />
         )}
       </Widget>
 
