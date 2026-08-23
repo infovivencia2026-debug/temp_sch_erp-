@@ -100,6 +100,7 @@ interface Teacher {
   user_id?: string
   full_name?: string
   name?: string
+  periods_this_week?: number
 }
 
 const TABS = [
@@ -148,6 +149,16 @@ export default function Rostering() {
 
   const duties = roster.data?.items ?? []
   const clashes = conflicts.data?.items ?? []
+  /* "Nothing clashes" means two different things, and the check is only as
+   * good as the timetable behind it. Somebody with no timetabled periods
+   * cannot clash with a lesson — six of this school's twelve teachers — so a
+   * clean result is read as assurance nobody was in a position to give. */
+  const staff = useQuery({
+    queryKey: ['hr-employees', 'active'],
+    queryFn: () => api.get<List<Teacher>>('/api/v1/hr/employees?status=active'),
+    retry: false,
+  })
+  const untimetabled = (staff.data?.items ?? []).filter((t) => !t.periods_this_week).length
   const onLeave = clashes.filter((c) => c.kind === 'leave')
   const onerous = duties.filter((d) => d.is_onerous).length
   const people = new Set(duties.map((d) => d.user_id)).size
@@ -178,7 +189,9 @@ export default function Rostering() {
               ? { value: `${onLeave.length} rostered while on leave`, positive: false }
               : clashes.length
                 ? { value: 'Teaching clashes only', positive: false }
-                : { value: 'Nothing clashes', positive: true }} />
+                : untimetabled > 0
+                  ? { value: `${untimetabled} staff have no timetable to check`, positive: false }
+                  : { value: 'Nothing clashes', positive: true }} />
         </CellGrid>
 
         <div className="flex flex-wrap gap-1 border-b">
