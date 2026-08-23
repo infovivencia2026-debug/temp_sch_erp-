@@ -1124,6 +1124,55 @@ export const en = {
   'bento.principal.classes_note': '{count} sections between them',
   'bento.principal.cue_classes': 'Class setup',
 
+  /* THE SIZE-AWARE FEATURE CELLS.
+
+     Every string below is a screen-reader label for a drawing, a bucket label
+     on an axis, or a sentence that says what a drawing was cut to. The bucket
+     labels are held to six characters because they are printed under the bars
+     and a longer one collides with its neighbour at one column. */
+  'bento.principal.strip_capped': 'First {shown} of {total} shown',
+  'bento.principal.other_slice': 'Other',
+  'bento.principal.no_department': 'No department',
+  'bento.principal.syllabus_strip_sr':
+    'Syllabus completion for {count} class subjects, each drawn as one cell, darker where less has been delivered',
+  'bento.principal.syllabus_bands_sr':
+    'Class subjects by how much of the syllabus has been delivered, in quarters',
+  'bento.principal.moderation_bands_sr': 'Marked papers by average mark, in quarters',
+  'bento.principal.moderation_quadrant_sr':
+    'Each marked paper placed by its average mark and how many candidates failed it',
+  'bento.principal.moderation_x': 'average mark',
+  'bento.principal.moderation_y': 'failures',
+  'bento.principal.pass_rate_strip_sr':
+    'Pass rate for {count} papers, each drawn as one cell, darker where fewer passed',
+  'bento.principal.pass_rate_bands_sr': 'Papers by pass rate, in quarters',
+  'bento.principal.at_risk_sr': 'Candidates carrying a backlog, of all candidates',
+  'bento.principal.at_risk_strip_sr':
+    'Candidates below the pass mark in each of {count} papers, one cell per paper',
+  'bento.principal.at_risk_bands_sr': 'Papers by average mark, in quarters',
+  'bento.principal.grievances_cat_sr': 'Open grievances by what they are about',
+  'bento.principal.grievances_age_sr': 'Open grievances by how many days they have been open',
+  'bento.principal.grievances_dept_sr': 'Open grievances by department and category: {pairs}',
+  'bento.principal.grievances_late_age_sr':
+    'Overdue grievances by how many days they have been open',
+  'bento.principal.grievances_late_dept_sr': 'Overdue grievances by the department holding them',
+  'bento.principal.my_leave_sr': 'Leave days remaining, of the days entitled',
+  'bento.principal.my_leave_type_sr': 'Days of {type} remaining, of the days entitled',
+  'bento.principal.my_pay_trend_sr': 'Net pay over the last {count} payslips',
+  'bento.principal.my_pay_split_sr': 'Gross pay of {gross}, of which {deduction} was deducted',
+  'bento.principal.my_pay_net': 'Paid',
+  'bento.principal.my_pay_deducted': 'Deducted',
+  'bento.principal.my_pay_gross_note': '{gross} gross for month {month} of {year}',
+  'bento.principal.setup_blocking': 'blocking',
+  'bento.principal.setup_field_sr': 'Done: {done}. Still to do: {todo}.',
+  'bento.principal.cover_covered': 'Covered',
+  'bento.principal.cover_open': 'Not covered',
+  'bento.principal.cover_stuck': 'Nobody free',
+  'bento.principal.cover_split_sr':
+    'Periods left by absent teachers, split into covered, not yet covered, and those with nobody free to take them',
+  'bento.principal.cover_field_sr':
+    "Today's {count} uncovered periods in order, each marked covered or not",
+  'bento.principal.cover_timeline_sr': 'When in the day the {count} uncovered periods fall',
+
   // --- bento: the finance dashboard ---------------------------------------
   // The Bento rendering of finance.home.finance_kpis. The ageing bands are
   // summed in the browser from the overdue invoice list the classic screen
@@ -1364,6 +1413,8 @@ export const en = {
   'bento.colour.region.finance': 'Finance',
   'bento.colour.region.operations': 'Operations',
   'bento.colour.region.reports': 'Reports',
+  'bento.colour.mode.light': 'For light mode',
+  'bento.colour.mode.dark': 'For dark mode',
   'bento.colour.saved': 'Saved palettes',
   'bento.colour.name_placeholder': 'Name this scheme',
   'bento.colour.save': 'Save',

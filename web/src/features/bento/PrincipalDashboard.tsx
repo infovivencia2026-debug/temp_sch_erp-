@@ -4,7 +4,7 @@ import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { useLayout } from '@/lib/widgets'
-import { formatPaise } from '@/lib/utils'
+import { cn, formatPaise } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import {
   BentoError,
@@ -26,6 +26,7 @@ import {
   StatCell,
   useFeatureHref,
 } from './bento-kit'
+import { AgeBands, HeatStrip, Quadrant, Ring, SegmentBar, Timeline } from './bento-viz'
 
 /* THE HEAD'S PAGE, IN THE BENTO LANGUAGE.
 
@@ -262,15 +263,39 @@ function AttentionCell({
    arrange layer reads the same store — so each query is gated on its own
    widget being on the board. An `optional` widget is on exactly when it has
    been placed. */
+interface SetupStep {
+  key: string
+  label: string
+  done: boolean
+  blocking: boolean
+}
 interface SetupStatus {
   completed: number
   total: number
   blocking_remaining: number
   ready: boolean
+  /* The fifteen steps themselves. Optional in the type only because the
+     endpoint's shape is not this file's to guarantee; a response without them
+     draws the ring and the rail and no field, rather than fifteen empty
+     marks. */
+  steps?: SetupStep[]
 }
 interface ShortageRow { pct: number }
 interface WorkloadRow { weekly_periods: number }
+/* One period an absence left behind. Only the fields this board draws are
+   named; the substitution screen's own type is the full one. `starts_at` is
+   `HH:MM` on the requested date, not a timestamp. */
+interface CoverSlot {
+  timetable_entry_id: string
+  period: string
+  period_sequence: number
+  starts_at: string
+  class_name: string
+  subject: string
+  covered_by?: string
+}
 interface SubstitutionBoard {
+  items?: CoverSlot[]
   summary: { absent_teachers: number; periods: number; covered: number; uncovered: number; no_candidate: number }
 }
 interface TimetableOverview {
@@ -284,19 +309,71 @@ interface TimetableOverview {
     open_drafts: number
   }
 }
-interface CoverageRow { behind: boolean }
+interface CoverageRow {
+  class_name: string
+  subject: string
+  units: number
+  delivered: number
+  /** Whole percent, as the endpoint computes it. */
+  percent: number
+  behind: boolean
+}
 interface PaperRow { status: 'draft' | 'submitted' | 'approved' | 'changes_needed' }
-interface ModerationRow { moderated_at: string | null }
-interface GrievanceRow { status: string; resolved_at?: string; overdue_hours?: number }
+interface ModerationRow {
+  class: string
+  subject: string
+  entered: number
+  absent: number
+  failing: number
+  /** A decimal on the wire, and null for a paper with no marks in it. */
+  average_pct: string | null
+  moderated_at: string | null
+}
+interface GrievanceRow {
+  status: string
+  category: string
+  priority: string
+  department?: string
+  open_days: number
+  resolved_at?: string
+  overdue_hours?: number
+}
 interface CalendarEntry { name: string; starts_on: string; kind: string }
 interface ExamRow { name: string; starts_on?: string; is_published: boolean }
+interface SubjectPerformance {
+  subject: string
+  class_name: string
+  entered: number
+  average_percent?: number
+  below_pass: number
+  pass_rate?: number
+}
 interface PerformanceSummary {
   summary: { candidates: number; passed: number; pass_rate?: number; at_risk: number; papers: number }
+  /* Every paper, uncut. The response's `at_risk` array is capped at fifty
+     while `summary.at_risk` is not, so no drawing on this board is built from
+     it — see `PassRateCell`. */
+  by_subject?: SubjectPerformance[]
 }
 interface ThreadRow { unread: number }
+interface Payslip {
+  period_month: number
+  period_year: number
+  /** Paise, `bigint` on the wire. Never divided into a float for display. */
+  gross_paise: number
+  deduction_paise: number
+  net_paise: number
+}
+interface LeaveBalance {
+  leave_type: string
+  entitled: string
+  used: string
+  remaining: string
+}
 interface MyPayView {
-  payslips: { period_month: number; period_year: number; net_paise: number }[]
-  leave_balances: { leave_type: string; remaining: string }[]
+  /** Newest first, at most twenty-four. */
+  payslips: Payslip[]
+  leave_balances: LeaveBalance[]
 }
 
 /* One feature cell, with the same three states the attention cells keep apart
@@ -366,6 +443,1022 @@ function SourceCell({
       note={note}
       to={to}
       cue={cue}
+    />
+  )
+}
+
+/* ─── THE SIZE-AWARE FEATURE CELLS ────────────────────────────────────────
+
+   Eight of the cells below used to draw the same picture at every shape: a
+   figure, one rail and a sentence, whether they had been given one column or
+   four. The room was real; the drawing ignored it.
+
+   Each component here reads `useWidgetSize` and switches on the SHAPE, the
+   way `PulseCell` above does — `wide` and `tall` tested separately and never
+   multiplied together, because 2x1 and 1x2 are not the same cell. One has the
+   width for a strip and no height for a legend; the other has the reverse.
+
+   THE RULES, which are the rules the figures themselves are held to:
+
+   A PROPORTION NEEDS A REAL TOTAL. Every ring and every rail below divides by
+   a number that arrived in the same response — `summary.candidates`,
+   `rows.length`, `entitled`. Where a response carries no population, the
+   extra room buys a DISTRIBUTION instead, which needs no whole to be true.
+
+   NOTHING IS PADDED. A cell that has nothing more to say at 2x2 than it had
+   at 2x1 draws the same thing twice. That is an honest answer, not a gap.
+
+   THE THREE STATES STAY APART. Every one of these still renders through
+   `SourceCell`, so a failed fetch draws an error and a fetch in flight draws
+   a dash — a drawing can never appear in the place of a request that did not
+   come back. */
+
+type CellStatus = 'loading' | 'error' | 'ready'
+
+/** Counts into fixed buckets, low to high, each bucket open above the one
+    before it. `AgeBands` prints these labels under the bars, so they are held
+    to six characters — a longer one collides with its neighbour at one
+    column. */
+function bandCounts(
+  values: number[],
+  edges: readonly { label: string; max: number }[],
+): { label: string; value: number }[] {
+  return edges.map((e, i) => ({
+    label: e.label,
+    value: values.filter((v) => v <= e.max && (i === 0 || v > edges[i - 1].max)).length,
+  }))
+}
+
+/** Percent buckets, for the several responses that carry a percent per row
+    and no population to divide by. Quarters, because a percent read off a
+    dashboard is quoted to about that precision anyway. */
+const PCT_BANDS = [
+  { label: '0-25', max: 25 },
+  { label: '26-50', max: 50 },
+  { label: '51-75', max: 75 },
+  { label: '76-100', max: Infinity },
+] as const
+
+/** Days-open buckets, in the shape a queue is actually read: today, this
+    week, this month, older than that. */
+const DAY_BANDS = [
+  { label: '0-1', max: 1 },
+  { label: '2-7', max: 7 },
+  { label: '8-30', max: 30 },
+  { label: '31+', max: Infinity },
+] as const
+
+/** How many cells a strip may carry before it stops being a chart. Past this
+    the strip is cut and the cell's own sentence says it was cut — a silently
+    truncated series is a lie about the size of the problem. */
+const STRIP_MAX = 48
+
+/** At most this many named slices before the tail is gathered up. Six greys
+    is the point past which the legend is longer than the bar. */
+const SEGMENT_MAX = 5
+
+/** Two drawings in the one `shape` slot, spaced. */
+function Stack({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-2.5">{children}</div>
+}
+
+/** Frequencies by a string key, commonest first, with the tail gathered into
+    one named remainder rather than dropped. */
+function topCounts<T>(
+  rows: T[],
+  key: (r: T) => string | undefined | null,
+  otherLabel: string,
+): { label: string; value: number }[] {
+  const m = new Map<string, number>()
+  for (const r of rows) {
+    const k = key(r)
+    if (!k) continue
+    m.set(k, (m.get(k) ?? 0) + 1)
+  }
+  const all = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  if (all.length <= SEGMENT_MAX) return all.map(([label, value]) => ({ label, value }))
+  const head = all.slice(0, SEGMENT_MAX).map(([label, value]) => ({ label, value }))
+  const rest = all.slice(SEGMENT_MAX).reduce((n, [, v]) => n + v, 0)
+  return [...head, { label: otherLabel, value: rest }]
+}
+
+/** A field of small marks, one per thing, wrapped.
+
+    For the two cells whose extra room is best spent showing the ITEMS rather
+    than a summary of them: fifteen setup steps, or today's periods. Shape and
+    a glyph carry the state, never the fill alone — a filled square is done, an
+    outline is not, and an outline with an exclamation is not done AND
+    blocking. Each mark keeps its own `title`; the series is stated once for a
+    screen reader and the marks themselves are hidden from it, because fifteen
+    announced squares is not a reading of anything. */
+function DotField({
+  items,
+  srLabel,
+}: {
+  items: { key: string; title: string; filled: boolean; flag?: boolean }[]
+  srLabel: string
+}) {
+  if (items.length === 0) return null
+  return (
+    <div role="img" aria-label={srLabel} className="flex flex-wrap gap-1">
+      {items.map((it) => (
+        <span
+          key={it.key}
+          title={it.title}
+          aria-hidden="true"
+          className={cn(
+            'flex h-4 w-4 items-center justify-center rounded-[3px] text-[9px] font-bold leading-none',
+            it.filled
+              ? 'bg-[var(--bento-ink)] text-[var(--bento-card)]'
+              : 'border border-[var(--bento-line)] text-[var(--bento-muted)]',
+          )}
+        >
+          {it.filled ? '✓' : it.flag ? '!' : ''}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** One rail per named thing, each with its own real denominator printed. The
+    long form of a `Meter`, for the tall narrow cell that has the height for a
+    list and not the width for a chart. */
+function RailList({
+  rows,
+}: {
+  rows: { key: string; label: string; value: number; total: number; caption: string; srLabel: string }[]
+}) {
+  if (rows.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((r) => (
+        <div key={r.key}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-[11px] font-medium leading-snug">{r.label}</span>
+            <span className="shrink-0 text-[11px] tabular-nums text-[var(--bento-muted)]">
+              {r.caption}
+            </span>
+          </div>
+          <div className="mt-1">
+            <Meter value={r.value} total={r.total} tone="success" srLabel={r.srLabel} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Syllabus coverage, drawn to fit.
+
+    1x1  how many class-subjects are behind. A count, nothing else.
+    2x1  the same over a rail against every class-subject in the response.
+    1x2  the rail, then how the percentages are spread across the four
+         quarters — which is the thing a count of "behind" hides: twelve
+         subjects at 74% is a different school from twelve at 20%.
+    2x2  the rail over the class-by-subject strip itself, one cell per pairing
+         in the order the endpoint returned them. */
+function SyllabusCell({
+  span, rows, status, href,
+}: {
+  span: CellSpan
+  rows: CoverageRow[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const behind = rows.filter((c) => c.behind).length
+  const percents = rows.map((c) => c.percent).filter((p) => Number.isFinite(p))
+  const shown = rows.slice(0, STRIP_MAX)
+
+  const rail =
+    rows.length > 0 ? (
+      <Meter
+        value={behind}
+        total={rows.length}
+        tone="warning"
+        srLabel={t('bento.principal.syllabus_sr')}
+      />
+    ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <HeatStrip
+          cells={shown.map((c) => (Number.isFinite(c.percent) ? c.percent : null))}
+          srLabel={t('bento.principal.syllabus_strip_sr', { count: shown.length })}
+          formatValue={(v) => `${Math.round(v)}%`}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <AgeBands
+          bands={bandCounts(percents, PCT_BANDS)}
+          srLabel={t('bento.principal.syllabus_bands_sr')}
+        />
+      </Stack>
+    )
+  } else if (wide) {
+    shape = rail
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="academics"
+      status={status}
+      label={t('bento.principal.syllabus')}
+      value={behind}
+      accent={behind > 0 ? 'orange' : undefined}
+      shape={shape ?? undefined}
+      note={
+        wide && tall && rows.length > shown.length
+          ? t('bento.principal.strip_capped', { shown: shown.length, total: rows.length })
+          : t('bento.principal.syllabus_note', { count: rows.length })
+      }
+      to={href}
+      cue={t('bento.principal.cue_syllabus')}
+    />
+  )
+}
+
+/** Mark moderation, drawn to fit.
+
+    1x1  how many marked papers nobody has moderated yet.
+    2x1  the same over the moderated share of every paper in the response.
+    1x2  the rail, then how the papers' averages are spread — an unmoderated
+         paper averaging 38% and one averaging 88% are the same count and
+         very different problems.
+    2x2  the rail over average against failures, paper by paper. The two
+         numbers a moderator is actually weighing, and the outliers are the
+         whole finding. */
+function ModerationCell({
+  span, rows, status, href,
+}: {
+  span: CellSpan
+  rows: ModerationRow[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const unmoderated = rows.filter((m) => !m.moderated_at).length
+  // `average_pct` arrives as a string, and as null for a paper with no marks
+  // in it yet. Neither becomes a zero: a paper with no average is left out of
+  // the drawing rather than plotted at the bottom of it.
+  const avgOf = (m: ModerationRow) => {
+    if (m.average_pct == null) return null
+    const n = Number(m.average_pct)
+    return Number.isFinite(n) ? n : null
+  }
+  const averages = rows.map(avgOf).filter((v): v is number => v !== null)
+
+  const rail =
+    rows.length > 0 ? (
+      <Meter
+        value={rows.length - unmoderated}
+        total={rows.length}
+        tone="success"
+        srLabel={t('bento.principal.moderation_sr')}
+      />
+    ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    const points = rows
+      .map((m) => ({ x: avgOf(m), y: m.failing, label: `${m.class} ${m.subject}` }))
+      .filter((p): p is { x: number; y: number; label: string } =>
+        p.x !== null && Number.isFinite(p.y),
+      )
+    shape = (
+      <Stack>
+        {rail}
+        <Quadrant
+          points={points}
+          xLabel={t('bento.principal.moderation_x')}
+          yLabel={t('bento.principal.moderation_y')}
+          srLabel={t('bento.principal.moderation_quadrant_sr')}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <AgeBands
+          bands={bandCounts(averages, PCT_BANDS)}
+          srLabel={t('bento.principal.moderation_bands_sr')}
+        />
+      </Stack>
+    )
+  } else if (wide) {
+    shape = rail
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="reports"
+      status={status}
+      label={t('bento.principal.moderation')}
+      value={unmoderated}
+      shape={shape ?? undefined}
+      note={t('bento.principal.moderation_note', { count: rows.length })}
+      to={href}
+      cue={t('bento.principal.cue_moderation')}
+    />
+  )
+}
+
+/** Board pass rate, drawn to fit.
+
+    1x1  the rate.
+    2x1  the rate over passed against candidates — the response's own
+         population, not the length of any list.
+    1x2  the rail, then how the per-paper pass rates are spread.
+    2x2  the rail over the papers themselves, one cell each.
+
+    THE TRUNCATION TRAP. `/exams/board/performance` returns at most fifty
+    at-risk students while `summary.at_risk` counts all of them, so no drawing
+    on this cell or the next is built from that list. Every figure and every
+    mark here comes from `summary` or from `by_subject`, neither of which is
+    cut. */
+function PassRateCell({
+  span, summary, subjects, status, href,
+}: {
+  span: CellSpan
+  summary?: PerformanceSummary['summary']
+  subjects: SubjectPerformance[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const rates = subjects
+    .map((s) => s.pass_rate)
+    .filter((v): v is number => v != null && Number.isFinite(v))
+  const shown = subjects.slice(0, STRIP_MAX)
+
+  const rail =
+    summary && summary.candidates > 0 ? (
+      <Meter
+        value={summary.passed}
+        total={summary.candidates}
+        tone="success"
+        srLabel={t('bento.principal.pass_rate_sr')}
+      />
+    ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <HeatStrip
+          cells={shown.map((s) => (s.pass_rate != null && Number.isFinite(s.pass_rate) ? s.pass_rate : null))}
+          srLabel={t('bento.principal.pass_rate_strip_sr', { count: shown.length })}
+          formatValue={(v) => `${Math.round(v)}%`}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <AgeBands
+          bands={bandCounts(rates, PCT_BANDS)}
+          srLabel={t('bento.principal.pass_rate_bands_sr')}
+        />
+      </Stack>
+    )
+  } else if (wide) {
+    shape = rail
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="success"
+      status={status}
+      label={t('bento.principal.pass_rate')}
+      value={summary?.pass_rate != null ? `${Math.round(summary.pass_rate)}%` : '—'}
+      shape={shape ?? undefined}
+      note={
+        wide && tall && subjects.length > shown.length
+          ? t('bento.principal.strip_capped', { shown: shown.length, total: subjects.length })
+          : t('bento.principal.pass_rate_note', { count: summary?.candidates ?? 0 })
+      }
+      to={href}
+      cue={t('bento.principal.cue_performance')}
+    />
+  )
+}
+
+/** Students at risk, drawn to fit.
+
+    1x1  the count.
+    2x1  the count over candidates, both off `summary`.
+    1x2  the rail, then the spread of the papers' own averages.
+    2x2  the rail over how many sat below the pass mark, paper by paper —
+         where the risk is concentrated, which the single count cannot say.
+
+    Nothing here reads the `at_risk` array: see `PassRateCell` for why. */
+function AtRiskCell({
+  span, summary, subjects, status, href,
+}: {
+  span: CellSpan
+  summary?: PerformanceSummary['summary']
+  subjects: SubjectPerformance[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const atRisk = summary?.at_risk ?? 0
+  const averages = subjects
+    .map((s) => s.average_percent)
+    .filter((v): v is number => v != null && Number.isFinite(v))
+  const shown = subjects.slice(0, STRIP_MAX)
+
+  const rail =
+    summary && summary.candidates > 0 ? (
+      <Meter
+        value={atRisk}
+        total={summary.candidates}
+        tone="warning"
+        srLabel={t('bento.principal.at_risk_sr')}
+      />
+    ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <HeatStrip
+          cells={shown.map((s) => (Number.isFinite(s.below_pass) ? s.below_pass : null))}
+          srLabel={t('bento.principal.at_risk_strip_sr', { count: shown.length })}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <AgeBands
+          bands={bandCounts(averages, PCT_BANDS)}
+          srLabel={t('bento.principal.at_risk_bands_sr')}
+        />
+      </Stack>
+    )
+  } else if (wide) {
+    shape = rail
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="students"
+      status={status}
+      label={t('bento.principal.at_risk')}
+      value={atRisk}
+      accent={atRisk > 0 ? 'orange' : undefined}
+      shape={shape ?? undefined}
+      note={
+        wide && tall && subjects.length > shown.length
+          ? t('bento.principal.strip_capped', { shown: shown.length, total: subjects.length })
+          : t('bento.principal.at_risk_note', { count: summary?.candidates ?? 0 })
+      }
+      to={href}
+      cue={t('bento.principal.cue_at_risk')}
+    />
+  )
+}
+
+/** The open grievance queue, drawn to fit.
+
+    THERE IS NO POPULATION HERE, so there is no rail at any size: the queue is
+    every ticket ever raised and "open as a share of all time" is not a
+    number anybody wants. What the room buys instead is composition and age,
+    both of which are true without a denominator.
+
+    1x1  how many are open.
+    2x1  what they are about, as shares of the open queue.
+    1x2  how long they have been open.
+    2x2  both, plus which department owns which category. */
+function GrievancesOpenCell({
+  span, open, queued, status, href,
+}: {
+  span: CellSpan
+  open: GrievanceRow[]
+  queued: number
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const other = t('bento.principal.other_slice')
+  const byCategory = topCounts(open, (g) => g.category, other)
+  const ages = (
+    <AgeBands
+      bands={bandCounts(open.map((g) => g.open_days), DAY_BANDS)}
+      srLabel={t('bento.principal.grievances_age_sr')}
+    />
+  )
+  const categories = (
+    <SegmentBar
+      segments={byCategory}
+      srLabel={t('bento.principal.grievances_cat_sr')}
+    />
+  )
+
+  /* Department against category, as one strip of counts. Only the pairings
+     that actually occur are drawn — a grid of mostly-zero cells reads as a
+     school with a problem in every department. */
+  const pairs: { label: string; value: number }[] = []
+  const seen = new Map<string, number>()
+  for (const g of open) {
+    const key = `${g.department ?? t('bento.principal.no_department')} · ${g.category}`
+    seen.set(key, (seen.get(key) ?? 0) + 1)
+  }
+  for (const [label, value] of [...seen.entries()].sort((a, b) => b[1] - a[1])) {
+    pairs.push({ label, value })
+  }
+  const shownPairs = pairs.slice(0, STRIP_MAX)
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {categories}
+        <HeatStrip
+          cells={shownPairs.map((p) => p.value)}
+          srLabel={t('bento.principal.grievances_dept_sr', {
+            pairs: shownPairs.map((p) => `${p.label} ${p.value}`).join(', '),
+          })}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = ages
+  } else if (wide) {
+    shape = categories
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="communication"
+      status={status}
+      label={t('bento.principal.grievances')}
+      value={open.length}
+      shape={shape ?? undefined}
+      note={t('bento.principal.grievances_note', { count: queued })}
+      to={href}
+      cue={t('bento.principal.cue_grievances')}
+    />
+  )
+}
+
+/** The overdue slice of that queue, drawn to fit.
+
+    This one DOES have a denominator — the open queue itself, which is in the
+    same response — so the rail is real.
+
+    1x1  how many are past their deadline.
+    2x1  the same over the open queue.
+    1x2  the rail, then how long the overdue ones have been open.
+    2x2  the rail, then which departments they are sitting in. */
+function GrievancesOverdueCell({
+  span, open, status, href,
+}: {
+  span: CellSpan
+  open: GrievanceRow[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const late = open.filter((g) => (g.overdue_hours ?? 0) > 0)
+
+  const rail =
+    open.length > 0 ? (
+      <Meter
+        value={late.length}
+        total={open.length}
+        tone="destructive"
+        srLabel={t('bento.principal.grievances_late_sr')}
+      />
+    ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <SegmentBar
+          segments={topCounts(late, (g) => g.department, t('bento.principal.no_department'))}
+          srLabel={t('bento.principal.grievances_late_dept_sr')}
+        />
+      </Stack>
+    )
+  } else if (tall) {
+    shape = (
+      <Stack>
+        {rail}
+        <AgeBands
+          bands={bandCounts(late.map((g) => g.open_days), DAY_BANDS)}
+          srLabel={t('bento.principal.grievances_late_age_sr')}
+        />
+      </Stack>
+    )
+  } else if (wide) {
+    shape = rail
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="communication"
+      status={status}
+      label={t('bento.principal.grievances_late')}
+      value={late.length}
+      accent={late.length > 0 ? 'pink' : undefined}
+      shape={shape ?? undefined}
+      note={t('bento.principal.grievances_late_note', { count: open.length })}
+      to={href}
+      cue={t('bento.principal.cue_grievances')}
+    />
+  )
+}
+
+/** My leave, drawn to fit.
+
+    The one cell on this board with a denominator somebody actually signed:
+    `entitled` is what the school granted, and `remaining` is what is left of
+    it. Both come off `/me/pay` as strings and are read as numbers here.
+
+    1x1  the ring — days left as a share of days granted.
+    2x1  the same as a rail, which reads faster in a wide short cell.
+    1x2  one rail per leave type, each against its own entitlement, because
+         eleven days left means nothing until you know which eleven.
+    2x2  the ring over the per-type rails. */
+function MyLeaveCell({
+  span, balances, status, href,
+}: {
+  span: CellSpan
+  balances: LeaveBalance[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const num = (v: string | number | undefined) => {
+    const n = Number(v ?? 0)
+    return Number.isFinite(n) ? n : 0
+  }
+  const remaining = balances.reduce((n, b) => n + num(b.remaining), 0)
+  const entitled = balances.reduce((n, b) => n + num(b.entitled), 0)
+
+  const ring = (
+    <Ring value={remaining} total={entitled} srLabel={t('bento.principal.my_leave_sr')} />
+  )
+  const rail =
+    entitled > 0 ? (
+      <Meter
+        value={remaining}
+        total={entitled}
+        tone="success"
+        srLabel={t('bento.principal.my_leave_sr')}
+      />
+    ) : null
+  const perType = (
+    <RailList
+      rows={balances
+        .filter((b) => num(b.entitled) > 0)
+        .map((b) => ({
+          key: b.leave_type,
+          label: b.leave_type,
+          value: num(b.remaining),
+          total: num(b.entitled),
+          caption: `${num(b.remaining)}/${num(b.entitled)}`,
+          srLabel: t('bento.principal.my_leave_type_sr', { type: b.leave_type }),
+        }))}
+    />
+  )
+
+  let shape: ReactNode
+  if (wide && tall) shape = <Stack>{ring}{perType}</Stack>
+  else if (tall) shape = perType
+  else if (wide) shape = rail
+  else shape = ring
+
+  return (
+    <SourceCell
+      span={span}
+      domain="staff"
+      status={status}
+      label={t('bento.principal.my_leave')}
+      value={remaining}
+      shape={shape ?? undefined}
+      note={t('bento.principal.my_leave_note', { count: balances.length })}
+      to={href}
+      cue={t('bento.principal.cue_my_leave')}
+    />
+  )
+}
+
+/** My pay, drawn to fit.
+
+    Paise are `bigint` on the wire and are never divided into a float for
+    display — `formatPaise` prints every figure below. The sparkline plots the
+    raw paise, which is a position on a chart and not a printed number.
+
+    1x1  the last net figure.
+    2x1  up to two years of net pay as a line: the one thing a payslip cannot
+         tell you is whether it is normal.
+    1x2  where the last gross went — what was paid and what was withheld,
+         which sum to gross exactly because the response says they do.
+    2x2  both. */
+function MyPayCell({
+  span, payslips, status, href,
+}: {
+  span: CellSpan
+  payslips: Payslip[]
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  // Oldest first, so the line reads left to right in time. The response's own
+  // order is newest first, which would draw the trend backwards.
+  const chrono = [...payslips].sort(
+    (a, b) => a.period_year - b.period_year || a.period_month - b.period_month,
+  )
+  const latest = payslips[0]
+
+  const line =
+    chrono.length > 1 ? (
+      <Sparkline
+        points={chrono.map((p) => Number(p.net_paise))}
+        srLabel={t('bento.principal.my_pay_trend_sr', { count: chrono.length })}
+      />
+    ) : null
+  const split = latest ? (
+    <SegmentBar
+      segments={[
+        { label: t('bento.principal.my_pay_net'), value: Number(latest.net_paise) },
+        { label: t('bento.principal.my_pay_deducted'), value: Number(latest.deduction_paise) },
+      ]}
+      srLabel={t('bento.principal.my_pay_split_sr', {
+        gross: formatPaise(Number(latest.gross_paise)),
+        deduction: formatPaise(Number(latest.deduction_paise)),
+      })}
+    />
+  ) : null
+
+  let shape: ReactNode = null
+  if (wide && tall) shape = <Stack>{line}{split}</Stack>
+  else if (tall) shape = split
+  else if (wide) shape = line
+
+  const note = latest
+    ? tall
+      ? t('bento.principal.my_pay_gross_note', {
+          gross: formatPaise(Number(latest.gross_paise)),
+          month: latest.period_month,
+          year: latest.period_year,
+        })
+      : t('bento.principal.my_pay_note', { month: latest.period_month, year: latest.period_year })
+    : t('bento.principal.my_pay_none')
+
+  return (
+    <SourceCell
+      span={span}
+      domain="finance"
+      status={status}
+      label={t('bento.principal.my_pay')}
+      value={latest ? formatPaise(Number(latest.net_paise)) : '—'}
+      shape={shape ?? undefined}
+      note={note}
+      to={href}
+      cue={t('bento.principal.cue_my_pay')}
+    />
+  )
+}
+
+/** The setup checklist, drawn to fit.
+
+    1x1  the ring: steps done over steps there are.
+    2x1  the same as a rail.
+    1x2  the rail over the fifteen steps themselves, each one's own mark, the
+         blocking ones that are still outstanding flagged.
+    2x2  the ring over that field. */
+function SetupCell({
+  span, data, status, href,
+}: {
+  span: CellSpan
+  data?: SetupStatus
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const steps = data?.steps ?? []
+  const ring = data ? (
+    <Ring value={data.completed} total={data.total} srLabel={t('bento.principal.setup_sr')} />
+  ) : null
+  const rail = data ? (
+    <Meter
+      value={data.completed}
+      total={data.total}
+      tone="success"
+      srLabel={t('bento.principal.setup_sr')}
+    />
+  ) : null
+  const field = (
+    <DotField
+      items={steps.map((s) => ({
+        key: s.key,
+        title: s.blocking && !s.done ? `${s.label} — ${t('bento.principal.setup_blocking')}` : s.label,
+        filled: s.done,
+        flag: s.blocking,
+      }))}
+      srLabel={t('bento.principal.setup_field_sr', {
+        done: steps.filter((s) => s.done).map((s) => s.label).join(', ') || '—',
+        todo: steps.filter((s) => !s.done).map((s) => s.label).join(', ') || '—',
+      })}
+    />
+  )
+
+  let shape: ReactNode
+  if (wide && tall) shape = <Stack>{ring}{field}</Stack>
+  else if (tall) shape = <Stack>{rail}{field}</Stack>
+  else if (wide) shape = rail
+  else shape = ring
+
+  return (
+    <SourceCell
+      span={span}
+      domain="operations"
+      status={status}
+      label={t('bento.principal.setup')}
+      value={data ? `${data.completed}/${data.total}` : 0}
+      shape={shape ?? undefined}
+      note={t('bento.principal.setup_note', { count: data?.blocking_remaining ?? 0 })}
+      to={href}
+      cue={t('bento.principal.cue_setup')}
+    />
+  )
+}
+
+/** Today's cover, drawn to fit.
+
+    The three-way split is the finding this cell exists for: a period nobody
+    covered and a period nobody COULD cover are the same red on a summary and
+    two different mornings for whoever has to fix them.
+
+    1x1  how many periods are uncovered.
+    2x1  covered, uncovered, and uncoverable as shares of the periods the
+         absences left — the endpoint's own `summary.periods`.
+    1x2  the covered rail over today's periods themselves, in sequence, the
+         uncovered ones marked.
+    2x2  the split over when in the day the uncovered periods fall, on the
+         real clock times the board returned. */
+function CoverCell({
+  span, summary, slots, onDate, status, href,
+}: {
+  span: CellSpan
+  summary?: SubstitutionBoard['summary']
+  slots: CoverSlot[]
+  onDate: string
+  status: CellStatus
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const uncovered = summary?.uncovered ?? 0
+  const noCandidate = summary?.no_candidate ?? 0
+  /* `uncovered` already contains `no_candidate`, so the two are not added:
+     the middle slice is the difference, clamped, and the three then sum to
+     `periods` exactly as the response reports them. */
+  const openWithCandidates = Math.max(0, uncovered - noCandidate)
+
+  const split = summary ? (
+    <SegmentBar
+      segments={[
+        { label: t('bento.principal.cover_covered'), value: summary.covered },
+        { label: t('bento.principal.cover_open'), value: openWithCandidates },
+        { label: t('bento.principal.cover_stuck'), value: noCandidate },
+      ]}
+      srLabel={t('bento.principal.cover_split_sr')}
+    />
+  ) : null
+  const rail =
+    summary && summary.periods > 0 ? (
+      <Meter
+        value={summary.covered}
+        total={summary.periods}
+        tone="success"
+        srLabel={t('bento.principal.cover_sr')}
+      />
+    ) : null
+
+  const ordered = [...slots].sort((a, b) => a.period_sequence - b.period_sequence)
+  const field = (
+    <DotField
+      items={ordered.map((s, i) => ({
+        key: `${s.timetable_entry_id}-${i}`,
+        title: `${s.period} · ${s.class_name} ${s.subject} — ${
+          s.covered_by ?? t('bento.principal.cover_open')
+        }`,
+        filled: Boolean(s.covered_by),
+        flag: !s.covered_by,
+      }))}
+      srLabel={t('bento.principal.cover_field_sr', { count: ordered.length })}
+    />
+  )
+
+  /* The clock times are `HH:MM` on the board's own date; they are joined back
+     onto that date rather than parsed alone, which would land every period in
+     1970 and collapse the window. */
+  const stamped = ordered
+    .filter((s) => !s.covered_by && /^\d{2}:\d{2}$/.test(s.starts_at))
+    .map((s) => ({ label: `${s.class_name} ${s.subject}`, date: `${onDate}T${s.starts_at}:00` }))
+  const dayFrom = ordered.find((s) => /^\d{2}:\d{2}$/.test(s.starts_at))?.starts_at
+  const dayTo = [...ordered].reverse().find((s) => /^\d{2}:\d{2}$/.test(s.starts_at))?.starts_at
+
+  let shape: ReactNode = null
+  if (wide && tall) {
+    shape = (
+      <Stack>
+        {split}
+        {dayFrom && dayTo && dayFrom !== dayTo ? (
+          <Timeline
+            events={stamped}
+            from={`${onDate}T${dayFrom}:00`}
+            to={`${onDate}T${dayTo}:00`}
+            srLabel={t('bento.principal.cover_timeline_sr', { count: stamped.length })}
+          />
+        ) : null}
+      </Stack>
+    )
+  } else if (tall) {
+    shape = <Stack>{rail}{field}</Stack>
+  } else if (wide) {
+    shape = split
+  }
+
+  return (
+    <SourceCell
+      span={span}
+      domain="academics"
+      status={status}
+      label={t('bento.principal.cover')}
+      value={uncovered}
+      accent={uncovered > 0 ? 'pink' : undefined}
+      shape={shape ?? undefined}
+      note={t('bento.principal.cover_note', {
+        covered: summary?.covered ?? 0,
+        periods: summary?.periods ?? 0,
+      })}
+      to={href}
+      cue={t('bento.principal.cue_cover')}
     />
   )
 }
@@ -726,14 +1819,11 @@ export default function BentoPrincipalDashboard() {
   const coverSummary = cover.data?.summary
   const ttSummary = timetable.data?.summary
   const coverageRows = coverage.data?.items ?? []
-  const behind = coverageRows.filter((c) => c.behind).length
   const paperRows = papers.data?.items ?? []
   const papersWaiting = paperRows.filter((p) => p.status === 'submitted').length
   const moderationRows = moderation.data?.items ?? []
-  const unmoderated = moderationRows.filter((m) => !m.moderated_at).length
   const grievanceRows = grievances.data?.items ?? []
   const grievancesOpen = grievanceRows.filter((g) => !g.resolved_at)
-  const grievancesOverdue = grievancesOpen.filter((g) => (g.overdue_hours ?? 0) > 0).length
   /* The year's calendar, forward of today. The comparison is on the ISO string
      rather than through `new Date`, for the reason the bar labels are sliced
      rather than parsed: a Date would move the school's dates by a day for
@@ -746,10 +1836,9 @@ export default function BentoPrincipalDashboard() {
   const examRows = exams.data?.items ?? []
   const examsUpcoming = examRows.filter((e) => e.starts_on && e.starts_on >= todayISO).length
   const perf = performance.data?.summary
+  const bySubject = performance.data?.by_subject ?? []
   const unread = (threads.data?.items ?? []).reduce((n, t2) => n + t2.unread, 0)
-  const payslip = myPay.data?.payslips[0]
   const balances = myPay.data?.leave_balances ?? []
-  const leaveLeft = balances.reduce((n, b) => n + Number(b.remaining || 0), 0)
   const classCount = classes.data?.items.length ?? 0
 
   return (
@@ -1015,26 +2104,7 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="setup-progress" label={t('bento.principal.setup')} size="small" index={24} optional>
         {(span) => (
-          <SourceCell
-            span={span}
-            domain="operations"
-            status={stateOf(setup)}
-            label={t('bento.principal.setup')}
-            value={setupData ? `${setupData.completed}/${setupData.total}` : 0}
-            shape={
-              setupData ? (
-                <Meter
-                  value={setupData.completed}
-                  total={setupData.total}
-                  tone="success"
-                  srLabel={t('bento.principal.setup_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.setup_note', { count: setupData?.blocking_remaining ?? 0 })}
-            to={setupHref}
-            cue={t('bento.principal.cue_setup')}
-          />
+          <SetupCell span={span} data={setupData} status={stateOf(setup)} href={setupHref} />
         )}
       </Widget>
 
@@ -1093,29 +2163,13 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="cover-uncovered" label={t('bento.principal.cover')} size="small" index={27} optional>
         {(span) => (
-          <SourceCell
+          <CoverCell
             span={span}
-            domain="academics"
+            summary={coverSummary}
+            slots={cover.data?.items ?? []}
+            onDate={coverDate}
             status={stateOf(cover)}
-            label={t('bento.principal.cover')}
-            value={coverSummary?.uncovered ?? 0}
-            accent={(coverSummary?.uncovered ?? 0) > 0 ? 'pink' : undefined}
-            shape={
-              coverSummary && coverSummary.periods > 0 ? (
-                <Meter
-                  value={coverSummary.covered}
-                  total={coverSummary.periods}
-                  tone="success"
-                  srLabel={t('bento.principal.cover_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.cover_note', {
-              covered: coverSummary?.covered ?? 0,
-              periods: coverSummary?.periods ?? 0,
-            })}
-            to={substitutionsHref}
-            cue={t('bento.principal.cue_cover')}
+            href={substitutionsHref}
           />
         )}
       </Widget>
@@ -1192,26 +2246,11 @@ export default function BentoPrincipalDashboard() {
         optional
       >
         {(span) => (
-          <SourceCell
+          <SyllabusCell
             span={span}
-            domain="academics"
+            rows={coverageRows}
             status={stateOf(coverage)}
-            label={t('bento.principal.syllabus')}
-            value={behind}
-            accent={behind > 0 ? 'orange' : undefined}
-            shape={
-              coverageRows.length > 0 ? (
-                <Meter
-                  value={behind}
-                  total={coverageRows.length}
-                  tone="warning"
-                  srLabel={t('bento.principal.syllabus_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.syllabus_note', { count: coverageRows.length })}
-            to={syllabusHref}
-            cue={t('bento.principal.cue_syllabus')}
+            href={syllabusHref}
           />
         )}
       </Widget>
@@ -1261,25 +2300,11 @@ export default function BentoPrincipalDashboard() {
         optional
       >
         {(span) => (
-          <SourceCell
+          <ModerationCell
             span={span}
-            domain="reports"
+            rows={moderationRows}
             status={stateOf(moderation)}
-            label={t('bento.principal.moderation')}
-            value={unmoderated}
-            shape={
-              moderationRows.length > 0 ? (
-                <Meter
-                  value={moderationRows.length - unmoderated}
-                  total={moderationRows.length}
-                  tone="success"
-                  srLabel={t('bento.principal.moderation_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.moderation_note', { count: moderationRows.length })}
-            to={moderationHref}
-            cue={t('bento.principal.cue_moderation')}
+            href={moderationHref}
           />
         )}
       </Widget>
@@ -1292,15 +2317,12 @@ export default function BentoPrincipalDashboard() {
         optional
       >
         {(span) => (
-          <SourceCell
+          <GrievancesOpenCell
             span={span}
-            domain="communication"
+            open={grievancesOpen}
+            queued={grievanceRows.length}
             status={stateOf(grievances)}
-            label={t('bento.principal.grievances')}
-            value={grievancesOpen.length}
-            note={t('bento.principal.grievances_note', { count: grievanceRows.length })}
-            to={grievancesHref}
-            cue={t('bento.principal.cue_grievances')}
+            href={grievancesHref}
           />
         )}
       </Widget>
@@ -1313,26 +2335,11 @@ export default function BentoPrincipalDashboard() {
         optional
       >
         {(span) => (
-          <SourceCell
+          <GrievancesOverdueCell
             span={span}
-            domain="communication"
+            open={grievancesOpen}
             status={stateOf(grievances)}
-            label={t('bento.principal.grievances_late')}
-            value={grievancesOverdue}
-            accent={grievancesOverdue > 0 ? 'pink' : undefined}
-            shape={
-              grievancesOpen.length > 0 ? (
-                <Meter
-                  value={grievancesOverdue}
-                  total={grievancesOpen.length}
-                  tone="destructive"
-                  srLabel={t('bento.principal.grievances_late_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.grievances_late_note', { count: grievancesOpen.length })}
-            to={grievancesHref}
-            cue={t('bento.principal.cue_grievances')}
+            href={grievancesHref}
           />
         )}
       </Widget>
@@ -1382,41 +2389,24 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="pass-rate" label={t('bento.principal.pass_rate')} size="small" index={38} optional>
         {(span) => (
-          <SourceCell
+          <PassRateCell
             span={span}
-            domain="success"
+            summary={perf}
+            subjects={bySubject}
             status={stateOf(performance)}
-            label={t('bento.principal.pass_rate')}
-            value={perf?.pass_rate != null ? `${Math.round(perf.pass_rate)}%` : '—'}
-            shape={
-              perf && perf.candidates > 0 ? (
-                <Meter
-                  value={perf.passed}
-                  total={perf.candidates}
-                  tone="success"
-                  srLabel={t('bento.principal.pass_rate_sr')}
-                />
-              ) : undefined
-            }
-            note={t('bento.principal.pass_rate_note', { count: perf?.candidates ?? 0 })}
-            to={performanceHref}
-            cue={t('bento.principal.cue_performance')}
+            href={performanceHref}
           />
         )}
       </Widget>
 
       <Widget id="at-risk" label={t('bento.principal.at_risk')} size="small" index={39} optional>
         {(span) => (
-          <SourceCell
+          <AtRiskCell
             span={span}
-            domain="students"
+            summary={perf}
+            subjects={bySubject}
             status={stateOf(performance)}
-            label={t('bento.principal.at_risk')}
-            value={perf?.at_risk ?? 0}
-            accent={(perf?.at_risk ?? 0) > 0 ? 'orange' : undefined}
-            note={t('bento.principal.at_risk_note', { count: perf?.candidates ?? 0 })}
-            to={academicPerformanceHref}
-            cue={t('bento.principal.cue_at_risk')}
+            href={academicPerformanceHref}
           />
         )}
       </Widget>
@@ -1444,37 +2434,22 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="my-pay" label={t('bento.principal.my_pay')} size="small" index={41} optional>
         {(span) => (
-          <SourceCell
+          <MyPayCell
             span={span}
-            domain="finance"
+            payslips={myPay.data?.payslips ?? []}
             status={stateOf(myPay)}
-            label={t('bento.principal.my_pay')}
-            value={payslip ? formatPaise(payslip.net_paise) : '—'}
-            note={
-              payslip
-                ? t('bento.principal.my_pay_note', {
-                    month: payslip.period_month,
-                    year: payslip.period_year,
-                  })
-                : t('bento.principal.my_pay_none')
-            }
-            to={myPayHref}
-            cue={t('bento.principal.cue_my_pay')}
+            href={myPayHref}
           />
         )}
       </Widget>
 
       <Widget id="my-leave" label={t('bento.principal.my_leave')} size="small" index={42} optional>
         {(span) => (
-          <SourceCell
+          <MyLeaveCell
             span={span}
-            domain="staff"
+            balances={balances}
             status={stateOf(myPay)}
-            label={t('bento.principal.my_leave')}
-            value={leaveLeft}
-            note={t('bento.principal.my_leave_note', { count: balances.length })}
-            to={myLeaveHref}
-            cue={t('bento.principal.cue_my_leave')}
+            href={myLeaveHref}
           />
         )}
       </Widget>
