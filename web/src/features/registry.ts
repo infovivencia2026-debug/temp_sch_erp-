@@ -70,7 +70,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.institution_setup.institutions_campuses': lazy(() => import('./setup/Wizard')),
   'super_admin.institution_setup.academic_year_defaults': lazy(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': lazy(() => import('./setup/ImportStudents')),
-  'institution_admin.students.enrollment_lifecycle': lazy(() => import('./lifecycle/Certificates')),
+  'institution_admin.students.certificates_transfers': lazy(() => import('./lifecycle/Certificates')),
   'super_admin.access_security.users': lazy(() => import('./super_admin/Users')),
   'super_admin.access_security.roles_permissions': lazy(() => import('./super_admin/RolesPermissions')),
   'super_admin.platform_configuration.module_configuration': lazy(() => import('./super_admin/ModuleConfiguration')),
