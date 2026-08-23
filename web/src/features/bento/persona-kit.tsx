@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { Cell, Cue, type CellSpan } from './bento-kit'
+import { Cell, Cue, useBoardHeight, type CellSpan } from './bento-kit'
 import { WidgetLayer } from './WidgetLayer'
 
 /* THE PERSONA CELLS — the small amount the student, parent and faculty
@@ -61,8 +61,19 @@ export function PersonaPage({
   dashboard?: string
   children: ReactNode
 }) {
+  /* Measured like every other board. Without it the height stays indefinite,
+     and the stylesheet's three row FRACTIONS collapse to max-content — three
+     rows all sized to the tallest one, empty rows included. These boards use
+     eight of fifteen slots, so the unused third row was showing up as a blank
+     band the height of a card under the faculty, student and parent screens. */
+  const boardRef = useBoardHeight()
   const grid = (
-    <div className="bento-board mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">{children}</div>
+    <div
+      ref={boardRef}
+      className="bento-board mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5"
+    >
+      {children}
+    </div>
   )
   return (
     <div className="bento-surface p-6 sm:p-7">

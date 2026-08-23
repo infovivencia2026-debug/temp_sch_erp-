@@ -1205,6 +1205,45 @@ export function BentoLoading({ message }: { message: string }) {
     20px gaps, generous padding, four columns above `lg` and a graceful
     collapse below. The entrance fade is the only motion on the page and it is
     skipped outright when `reduce_motion` is set. */
+/** Measures the room below the board and publishes it as `--board-h`.
+
+    Every `.bento-board` needs this. The stylesheet gives the board
+    `height: var(--board-h, auto)` and `repeat(3, minmax(0, 1fr))`, and a
+    fraction of an INDEFINITE height silently becomes max-content — so a board
+    that never measures does not get three equal rows, it gets three rows all
+    sized to the tallest one's content, including the empty ones. That is a
+    blank band the height of a card under any board that does not fill all
+    fifteen slots, which is what the persona boards were doing: they render
+    their own `.bento-board` and only `BentoPage` was measuring.
+
+    Measured rather than computed from constants: the board's top edge moves
+    with the header, the text-size axis and the density, so any fixed offset
+    would be wrong on most screens. */
+export function useBoardHeight() {
+  const boardRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const board = boardRef.current
+    if (!board) return
+    const measure = () => {
+      const top = board.getBoundingClientRect().top
+      const room = Math.max(240, window.innerHeight - top - 16)
+      board.style.setProperty('--board-h', `${Math.round(room)}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    /* The dock, the density and the text size all move the top edge, and none
+       of them fire a resize. An observer on the body catches every cause
+       without this file having to know what they are. */
+    const ro = new ResizeObserver(measure)
+    ro.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro.disconnect()
+    }
+  }, [])
+  return boardRef
+}
+
 export function BentoPage({
   eyebrow,
   title,
@@ -1241,27 +1280,7 @@ export function BentoPage({
      Measured rather than computed from constants: the board's top edge moves
      with the header, the text-size axis and the density, so any fixed offset
      here would be wrong on most screens. */
-  const boardRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const board = boardRef.current
-    if (!board) return
-    const measure = () => {
-      const top = board.getBoundingClientRect().top
-      const room = Math.max(240, window.innerHeight - top - 16)
-      board.style.setProperty('--board-h', `${Math.round(room)}px`)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    /* The dock, the density and the text size all move the top edge, and none
-       of them fire a resize. An observer on the board itself catches every
-       cause without this file having to know what they are. */
-    const ro = new ResizeObserver(measure)
-    ro.observe(document.body)
-    return () => {
-      window.removeEventListener('resize', measure)
-      ro.disconnect()
-    }
-  }, [])
+  const boardRef = useBoardHeight()
 
   return (
     <div
