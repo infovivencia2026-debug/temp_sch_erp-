@@ -22,11 +22,19 @@ import (
 // accepting SQL or table names from the client, which would be an injection
 // surface wearing a convenience costume.
 var exportable = map[string]struct {
-	perm   string
+	perm string
+	// What the file is called on screen. The URL slug is a slug —
+	// "staff-attendance", "library-loans" — and ten of thirteen datasets were
+	// offering it to a principal as though it were a name. A person choosing
+	// what to send their trustee should not have to translate.
+	title  string
+	about  string
 	header []string
 	query  string
 }{
 	"students": {
+		title:  "Student roll",
+		about:  "Every student with their class, guardian and contact details.",
 		perm:   "students.read",
 		header: []string{"Admission No", "Name", "Class", "Section", "Roll", "Gender", "Date of Birth", "Medium", "Guardian", "Phone", "Status"},
 		query: `SELECT st.admission_no,
@@ -51,6 +59,8 @@ var exportable = map[string]struct {
 		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
 	},
 	"defaulters": {
+		title:  "Fee defaulters",
+		about:  "Who owes what, how late they are, and which ageing bucket it falls in.",
 		perm:   "finance.invoices.read",
 		header: []string{"Admission No", "Student", "Class", "Guardian", "Phone", "Oldest Due", "Days Overdue", "Balance (Rs)", "Bucket"},
 		query: `SELECT st.admission_no,
@@ -84,6 +94,8 @@ var exportable = map[string]struct {
 		         ORDER BY 7 DESC`,
 	},
 	"collections": {
+		title:  "Fee collections",
+		about:  "Money taken, by day and by mode.",
 		perm:   "finance.payments.read",
 		header: []string{"Receipt No", "Date", "Student", "Admission No", "Mode", "Amount (Rs)", "Status", "Collected By"},
 		query: `SELECT COALESCE(p.receipt_no,''), to_char(p.paid_on,'DD/MM/YYYY'),
@@ -96,6 +108,8 @@ var exportable = map[string]struct {
 		         ORDER BY p.paid_on DESC, p.receipt_no DESC`,
 	},
 	"attendance": {
+		title:  "Student attendance",
+		about:  "The register, day by day.",
 		perm:   "academics.attendance.read.all",
 		header: []string{"Date", "Admission No", "Student", "Class", "Section", "Status"},
 		query: `SELECT to_char(sa.on_date,'DD/MM/YYYY'), st.admission_no,
@@ -109,6 +123,8 @@ var exportable = map[string]struct {
 		         ORDER BY sa.on_date DESC, st.admission_no`,
 	},
 	"staff": {
+		title:  "Staff list",
+		about:  "Everyone on the roll with department, designation and joining date.",
 		perm:   "hr.employees.read",
 		header: []string{"Code", "Name", "Department", "Designation", "Email", "Phone", "Joined", "Status"},
 		query: `SELECT e.employee_code, concat_ws(' ', e.first_name, e.last_name),
@@ -132,6 +148,8 @@ var exportable = map[string]struct {
 	   Each is the whole current picture rather than a filtered slice: a filter
 	   that silently drops rows produces a file somebody files as complete. */
 	"payroll": {
+		title:  "Salary register",
+		about:  "Each month's payslips: days paid, gross, deductions and take-home.",
 		perm:   "hr.payroll.read",
 		header: []string{"Month", "Year", "Code", "Employee", "Paid Days", "LOP Days", "Gross (Rs)", "Deductions (Rs)", "Net (Rs)", "Status"},
 		query: `SELECT to_char(to_date(pr.period_month::text,'MM'),'Month'), pr.period_year::text,
@@ -147,6 +165,8 @@ var exportable = map[string]struct {
 		         ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code`,
 	},
 	"marks": {
+		title:  "Mark sheet",
+		about:  "Every mark entered, by exam, class and subject.",
 		perm:   "academics.exams.read",
 		header: []string{"Exam", "Class", "Subject", "Admission No", "Student", "Marks", "Grace", "Total", "Out Of", "Grade", "Absent"},
 		query: `SELECT ex.name, c.name, sub.name, st.admission_no,
@@ -165,6 +185,8 @@ var exportable = map[string]struct {
 		         ORDER BY ex.name, c.name, sub.name, st.admission_no`,
 	},
 	"staff-attendance": {
+		title:  "Staff register",
+		about:  "Who was present, absent or late, day by day.",
 		perm:   "hr.attendance.write",
 		header: []string{"Date", "Code", "Employee", "Status", "In", "Out", "Remarks"},
 		query: `SELECT to_char(sa.on_date,'DD/MM/YYYY'), e.employee_code,
@@ -177,6 +199,8 @@ var exportable = map[string]struct {
 		         ORDER BY sa.on_date DESC, e.employee_code`,
 	},
 	"leave": {
+		title:  "Leave register",
+		about:  "Every leave request, who applied, and how it was decided.",
 		perm:   "hr.employees.read",
 		header: []string{"Applied By", "Kind", "Type", "From", "To", "Days", "Reason", "Status"},
 		query: `SELECT COALESCE(concat_ws(' ', e.first_name, e.last_name),
@@ -191,6 +215,8 @@ var exportable = map[string]struct {
 		         ORDER BY lr.created_at DESC`,
 	},
 	"staff-documents": {
+		title:  "Staff document expiry",
+		about:  "Which papers have lapsed and which lapse soon.",
 		perm:   "hr.employees.read",
 		header: []string{"Code", "Employee", "Document", "Expires", "Days Left", "State"},
 		query: `SELECT e.employee_code, concat_ws(' ', e.first_name, e.last_name),
@@ -206,6 +232,8 @@ var exportable = map[string]struct {
 		         ORDER BY d.expires_on NULLS LAST`,
 	},
 	"admissions": {
+		title:  "Admission applications",
+		about:  "Applicants, the class sought, and where each has got to.",
 		perm:   "admissions.read",
 		header: []string{"Application No", "Applicant", "Class Sought", "Guardian", "Phone", "RTE", "Status", "Applied"},
 		query: `SELECT a.application_no,
@@ -219,6 +247,8 @@ var exportable = map[string]struct {
 		         ORDER BY a.created_at DESC`,
 	},
 	"library-loans": {
+		title:  "Library issue register",
+		about:  "Books out, due, returned, and the fines owing.",
 		perm:   "operations.library.read",
 		header: []string{"Title", "Borrower", "Issued", "Due", "Returned", "Fine (Rs)"},
 		query: `SELECT COALESCE(t.title,''),
@@ -236,6 +266,8 @@ var exportable = map[string]struct {
 		         ORDER BY l.issued_on DESC`,
 	},
 	"udise": {
+		title:  "UDISE+ student data",
+		about:  "The fields the government return asks for, with the gaps flagged.",
 		perm:   "admin.reports.read",
 		header: []string{"Admission No", "Name", "APAAR ID", "Child Info ID", "Date of Birth", "Gender", "Class", "Medium", "RTE", "CWSN", "Problems"},
 		query: `SELECT st.admission_no,
@@ -332,8 +364,13 @@ func (s *Server) listExports(w http.ResponseWriter, r *http.Request) {
 		if !id.Can(spec.perm) {
 			continue
 		}
+		title := spec.title
+		if title == "" {
+			title = name
+		}
 		out = append(out, map[string]any{
-			"name": name, "url": "/api/v1/export/" + name, "columns": spec.header,
+			"name": name, "title": title, "about": spec.about,
+			"url": "/api/v1/export/" + name, "columns": spec.header,
 		})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})

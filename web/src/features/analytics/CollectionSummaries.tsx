@@ -4,7 +4,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Loading, ErrorState, PrintButton, Select,
-  RangePicker, rangeQuery, useRange, type RangeOption,
+  RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
@@ -96,8 +96,8 @@ export default function CollectionSummaries() {
         </div>
 
         <CellGrid cols={4}>
-          <Stat label="Collected" value={formatPaise(total)} period={range.label ?? range.period} />
-          <Stat label="Receipts" value={receipts} period={range.label ?? range.period} />
+          <Stat label="Collected" value={formatPaise(total)} period={rangeLabel(range)} />
+          <Stat label="Receipts" value={receipts} period={rangeLabel(range)} />
           <Stat label="Cash" value={formatPaise(cash)} hint="To be counted and banked" />
           <Stat
             label="Unapplied advances"
