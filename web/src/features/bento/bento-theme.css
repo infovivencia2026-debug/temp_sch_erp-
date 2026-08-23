@@ -208,8 +208,12 @@ html.dark[data-layout='bento'] {
 /* The action itself comes forward with its card, so the eye is led to the
    thing that is actually clickable rather than to the card's edge. */
 [data-layout='bento'] .bento-cell:hover .bento-cue {
-  border-color: color-mix(in srgb, currentColor 55%, transparent);
-  background: color-mix(in srgb, currentColor 7%, transparent);
+  /* Only the border moves. This used to wash the face with a currentColor mix,
+     which outranked the button's own white and let the card's ground show
+     through — on a dark or anchor cell that put black text on a dark
+     translucent field the moment the pointer touched the card. The button
+     keeps one face; coming forward is the border's job. */
+  border-color: #b4b4b8;
 }
 
 /* Browsers without :has get the hover on every cell rather than none. Better

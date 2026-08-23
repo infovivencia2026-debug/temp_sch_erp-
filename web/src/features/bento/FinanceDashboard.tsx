@@ -10,6 +10,7 @@ import {
   CellError,
   Cue,
   Meter,
+  ReservoirArt,
   StatCell,
   useFeatureHref,
 } from './bento-kit'
@@ -123,7 +124,15 @@ export default function BentoFinanceDashboard() {
       {/* THE ANCHOR — 2x2, dark, and the only dark cell on the page. */}
       <Widget id="collection" label={t('bento.finance.anchor_label')} size="large" index={0}>
         {(span) => (
-      <Cell span={span} dark>
+      <Cell
+        span={span}
+        dark
+        /* The vessel is everything expected this month; the waterline is what
+           has come in. It is the same proportion the bar below states in
+           words and the same one the headline figure is a part of — the
+           reservoir is that bar at full-card scale, not a second claim. */
+        art={<ReservoirArt fill={expected > 0 ? k.month_paise / expected : 0} />}
+      >
         <p className="text-[12.5px] opacity-80">{t('bento.finance.anchor_label')}</p>
 
         <p className="mt-4 text-[48px] font-semibold leading-none tabular-nums">

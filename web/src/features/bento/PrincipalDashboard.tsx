@@ -9,11 +9,18 @@ import {
   BentoError,
   BentoLoading,
   BentoPage,
+  BlockedFlowArt,
+  CalendarDensityArt,
+  calendarSlots,
   Cell,
   CellError,
   type CellSpan,
   Cue,
+  FunnelArt,
   Meter,
+  NetworkArt,
+  PopulationArt,
+  RiskGridArt,
   Sparkline,
   StatCell,
   useFeatureHref,
@@ -304,6 +311,19 @@ export default function BentoPrincipalDashboard() {
   // drawn. The label is the day of the month taken off the ISO string rather
   // than through `new Date`, which would shift the date across a timezone for
   // anyone whose browser is not in India.
+  /* THE ART LAYER'S INPUTS.
+
+     Every one of these is a figure already printed on the card it is drawn
+     behind — a background layer is still a claim about the school, and a
+     drawing whose proportion disagrees with the number above it is worse than
+     no drawing. The trend-derived one is guarded on the trend query as well:
+     a failed fetch must not become a confident picture of an unmarked month.
+     `moved` is the collected share, which is where the flow stopped; the
+     length past the barrier is the outstanding share the card names. */
+  const days = trend.error ? [] : calendarSlots(series)
+  const movedShare = billed > 0 ? k.collected_paise / billed : 0
+  const loadPerTeacher = k.staff > 0 ? Math.round(k.students / k.staff) : 0
+
   const bars = series.slice(-10).map((p) => ({
     label: p.date.slice(8, 10),
     value: p.pct,
@@ -327,7 +347,16 @@ export default function BentoPrincipalDashboard() {
           polarity with the theme. This one does not. */}
       <Widget id="pulse" label={t('bento.principal.anchor_label')} size="large" index={0}>
         {(span) => (
-          <Cell span={span} tone="anchor" domain="students">
+          <Cell
+            span={span}
+            tone="anchor"
+            domain="students"
+            /* The month of days behind the day's percentage. Empty — and so
+               not drawn at all — when the trend query failed, because a grid
+               of unmarked days is a statement about the school and not about
+               the request. */
+            art={days.length > 0 ? <CalendarDensityArt slots={days} /> : undefined}
+          >
             <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-anchor-ink)]">
               {t('bento.principal.anchor_label')}
             </p>
@@ -419,6 +448,7 @@ export default function BentoPrincipalDashboard() {
             label={t('bento.principal.outstanding')}
             value={formatPaise(k.outstanding_paise)}
             badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
+            art={<BlockedFlowArt moved={movedShare} />}
        
             shape={
               <Meter
@@ -444,6 +474,7 @@ export default function BentoPrincipalDashboard() {
             label={t('bento.principal.defaulters')}
             value={k.defaulters}
             badge={t('bento.principal.pct_of_students', { pct: defaultersPct })}
+            art={<RiskGridArt total={k.students} flagged={k.defaulters} />}
        
             shape={
               <Meter
@@ -503,6 +534,7 @@ export default function BentoPrincipalDashboard() {
             span={span}
             label={t('bento.principal.students')}
             value={k.students}
+            art={<PopulationArt count={k.students} />}
        
             note={t('bento.principal.sections', { count: k.sections })}
             to={studentsHref}
@@ -518,6 +550,7 @@ export default function BentoPrincipalDashboard() {
             domain="reports"
             label={t('bento.principal.staff')}
             value={k.staff}
+            art={<NetworkArt nodes={k.staff} degree={loadPerTeacher} />}
        
             note={t('bento.principal.as_of_today')}
             to={staffHref}
@@ -553,6 +586,7 @@ export default function BentoPrincipalDashboard() {
             domain="admissions"
             label={t('bento.principal.applications')}
             value={k.open_applications}
+            art={<FunnelArt count={k.open_applications} />}
        
             note={t('bento.principal.applications_note')}
             to={applicationsHref}

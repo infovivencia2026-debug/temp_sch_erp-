@@ -5,7 +5,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
-import { useDetail } from '@/lib/widget-size'
+import { useDetail, useWidgetSize } from '@/lib/widget-size'
 
 /* THE BENTO KIT.
 
@@ -225,6 +225,7 @@ export function Cell({
   dark = false,
   accent,
   domain,
+  art,
   className,
   children,
 }: {
@@ -234,6 +235,17 @@ export function Cell({
   dark?: boolean
   accent?: Accent
   domain?: string
+  /** The process behind the figure, drawn faintly behind it.
+
+      A BACKGROUND LAYER, NOT CONTENT. The figure, the label and the cue are
+      the card; this sits underneath them at a fraction of their contrast and
+      never competes. It is `aria-hidden` and `pointer-events-none` because it
+      carries nothing a screen reader or a pointer needs — everything it says
+      is already said by the number printed on top of it.
+
+      Optional, and a cell that passes nothing renders byte-identically to how
+      it rendered before this prop existed. */
+  art?: ReactNode
   className?: string
   children: ReactNode
 }) {
@@ -252,6 +264,24 @@ export function Cell({
      hierarchy is already carried by size and weight — a 10px caps label
      against a 40px figure is not at risk of competing — so the label can be
      the same white the figure is, and simply be small. */
+  /* An inverted cell's art draws in that cell's own ink.
+
+     Same reasoning as the domain branch below, and the same trap: --bento-muted
+     is a grey chosen against a light card, and the `dark` tone's ground is the
+     opposite of one in light mode and the anchor's gradient is not a card tone
+     at all. Dropped onto either, the art is a smear rather than a quieter
+     version of the text.
+
+     Only applied when there IS art, because nothing else inside an inverted
+     cell reads --bento-muted today — those cells carry their contrast with
+     opacity — and repointing a token nobody reads is a change waiting to
+     surprise somebody. */
+  const artStyle =
+    art && t === 'dark'
+      ? { ['--bento-muted' as string]: 'var(--bento-bg)' }
+      : art && t === 'anchor'
+        ? { ['--bento-muted' as string]: 'var(--bento-anchor-ink)' }
+        : {}
   const style = domain
     ? {
         ...baseStyle,
@@ -260,12 +290,19 @@ export function Cell({
         ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--bento-ink))`,
         borderColor: 'transparent',
       }
-    : baseStyle
+    : { ...baseStyle, ...artStyle }
   
   return (
     <div
       className={cn(
-        `bento-cell flex min-h-0 min-w-0 flex-col overflow-hidden
+        /* `relative isolate` is what makes the art layer possible without
+           touching anything else: the cell becomes its own stacking context,
+           so a child at a negative z-index paints above the cell's own
+           background and border but below every in-flow child. The contents
+           therefore keep their exact markup — no wrapper around `children`,
+           which would break the `mt-auto` the cue uses to reach the bottom
+           edge — and simply sit on top. */
+        `bento-cell relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden
          rounded-[var(--bento-radius)] border p-6 lg:p-4`,
         SPAN[span],
         TONE[t],
@@ -273,6 +310,11 @@ export function Cell({
       )}
       style={Object.keys(style).length > 0 ? style : undefined}
     >
+      {art && (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+          {art}
+        </div>
+      )}
       {children}
     </div>
   )
@@ -412,6 +454,7 @@ export function StatCell({
   badge: _badge,
   accent,
   domain,
+  art,
   span,
   to,
   cue,
@@ -420,6 +463,10 @@ export function StatCell({
   value: string | number
   note?: string
   shape?: ReactNode
+  /** The process behind the figure, drawn faintly behind the whole cell.
+      Passed straight through to `Cell`; a stat cell that omits it renders
+      exactly as it did before the slot existed. */
+  art?: ReactNode
   /** The tinted qualifier that sits beside the figure. One hue, chosen for
       what the figure means — not for variety. */
   badge?: string
@@ -432,7 +479,7 @@ export function StatCell({
   cue?: string
 }) {
   return (
-    <Cell span={span} accent={accent} domain={domain}>
+    <Cell span={span} accent={accent} domain={domain} art={art}>
       {/* The whisper. Small, wide-tracked, all caps — it gives the figure its
           subject and then gets out of the way.
 
@@ -680,6 +727,415 @@ export function Sparkline({
       />
     </svg>
   )
+}
+
+// --- art ----------------------------------------------------------------
+
+/* THE PROCESS BEHIND THE FIGURE.
+
+   Each drawing below is the shape of the thing the number came from, not an
+   ornament chosen for variety. A reservoir, because collection genuinely fills
+   toward a total. A blocked flow, because outstanding money genuinely did not
+   move. A funnel, because admissions genuinely narrows. Where the data does
+   not support a metaphor, there is no component here — a picture that teaches
+   the reader something false about how the school works is worse than a plain
+   number, because they will believe it.
+
+   THREE RULES THEY ALL KEEP.
+
+   1. Drawn from the real figure. The reservoir's waterline is
+      collected/billed. The risk grid flags defaulters out of students, cell
+      for cell. Nothing below invents a denominator to make a shape look
+      finished — that is the same lie `Meter` already refuses to tell.
+
+   2. Quieter than the text, in both modes. Every stroke is `--bento-muted`
+      mixed down with `color-mix`, so there is not one hex here and the mode
+      branch stays CSS's job. On a domain-tinted card `Cell` has already
+      repointed `--bento-muted` at that card's own ink, so the art follows the
+      tint instead of dropping a grey onto a saturated ground.
+
+   3. They hide rather than shrink. A funnel at 1x1 — about 264x172 with
+      padding — is four grey smudges, and a card that renders noise is worse
+      than a card that renders nothing. `useWidgetSize` is read directly rather
+      than `useDetail`, because the question here is "is there room for this
+      particular drawing", which differs per drawing, and `detailFor` collapses
+      2x1 and 1x2 into one answer when their difference is the whole point:
+      almost all of these need WIDTH.
+
+   No animation anywhere, at any preference. There is nothing to reduce. */
+
+/** The three weights. Faint enough that the figure on top always wins the eye,
+    and distinct enough from each other that the drawing still reads. */
+const ART_LINE = 'color-mix(in srgb, var(--bento-muted) 22%, transparent)'
+const ART_FILL = 'color-mix(in srgb, var(--bento-muted) 9%, transparent)'
+const ART_MARK = 'color-mix(in srgb, var(--bento-muted) 32%, transparent)'
+/* The network's own weight. Ninety-six edges at the ordinary line weight stop
+   being a fan and become a solid grey wedge — the count is what makes it dense,
+   so the count is what has to make each stroke fainter. */
+const ART_WEB = 'color-mix(in srgb, var(--bento-muted) 13%, transparent)'
+
+/** The frame every art shares: stretched to the cell, non-scaling strokes so
+    `preserveAspectRatio="none"` cannot turn a hairline into a slab. */
+function ArtSvg({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 100 60"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+      className="h-full w-full"
+    >
+      {children}
+    </svg>
+  )
+}
+
+/** Does this cell have room for a drawing that needs `minW` columns and
+    `minH` rows? Below it the caller returns null and the cell is simply a
+    cell, which is what every widget looks like today. */
+function useArtRoom(minW: number, minH = 1): boolean {
+  const { w, h } = useWidgetSize()
+  return w >= minW && h >= minH
+}
+
+/** A stable scatter. Seeded rather than `Math.random` so a card does not
+    rearrange itself on every re-render, which reads as a fault. */
+function scatter(n: number, seed: number): { x: number; y: number }[] {
+  let s = seed >>> 0 || 1
+  const out: { x: number; y: number }[] = []
+  for (let i = 0; i < n; i++) {
+    s = (s * 1664525 + 1013904223) >>> 0
+    const x = (s >>> 8) % 10000
+    s = (s * 1664525 + 1013904223) >>> 0
+    const y = (s >>> 8) % 10000
+    out.push({ x: 6 + (x / 10000) * 88, y: 6 + (y / 10000) * 48 })
+  }
+  return out
+}
+
+/** ATTENDANCE, AS A CALENDAR. Because attendance *is* a calendar of days: the
+    school either marked a day or it did not, and how densely the last month is
+    marked is the fact behind the percentage.
+
+    `slots` is the last 30 dates ending on the last day the school has, each
+    carrying that day's percentage or null where there are no marks — weekends,
+    holidays, and the days somebody has not got to yet. A marked day is filled,
+    and shaded by its own percentage within the observed range so the month has
+    texture; an unmarked day is an empty outline. Nothing is invented to square
+    the grid off: a school with six days of marks gets six filled cells and
+    twenty-four empty ones, which is the truth about that school.
+
+    SEVEN COLUMNS, FOUR ROWS, TWENTY-EIGHT DAYS. Seven because a week is seven
+    days and a calendar the reader recognises is the whole point — a ten-wide
+    grid drew the same data and read as a bar code. Four weeks rather than
+    five because the series is thirty days long: a fifth row would be days the
+    response says nothing about, and an empty cell here means "the school did
+    not mark that day", not "we did not ask".
+
+    Needs 2x2. Twenty-eight cells across a 2x1 are 18px wide and 20px tall,
+    and the rows read as stripes rather than as days. */
+export function CalendarDensityArt({ slots }: { slots: (number | null)[] }) {
+  const room = useArtRoom(2, 2)
+  if (!room || slots.length === 0) return null
+
+  const cols = 7
+  const rows = Math.ceil(slots.length / cols)
+  const marked = slots.filter((v): v is number => v !== null)
+  const lo = marked.length ? Math.min(...marked) : 0
+  const hi = marked.length ? Math.max(...marked) : 1
+  const range = hi - lo || 1
+  const cw = 100 / cols
+  const ch = 60 / rows
+
+  return (
+    <ArtSvg>
+      {slots.map((pct, i) => {
+        const x = (i % cols) * cw + cw * 0.14
+        const y = Math.floor(i / cols) * ch + ch * 0.14
+        const w = cw * 0.72
+        const h = ch * 0.72
+        if (pct === null) {
+          return (
+            <rect
+              key={i}
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              fill="none"
+              stroke={ART_LINE}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+          )
+        }
+        // 0.45 floor so the weakest marked day is still visibly a marked day,
+        // not something the reader mistakes for an empty one.
+        const weight = 0.45 + ((pct - lo) / range) * 0.55
+        return <rect key={i} x={x} y={y} width={w} height={h} fill={ART_MARK} opacity={weight} />
+      })}
+    </ArtSvg>
+  )
+}
+
+/** COLLECTION, AS A RESERVOIR. Because collection genuinely fills toward a
+    total: money arrives, the level rises, and the total does not move.
+
+    `fill` is collected over what was billed, and nothing else. The waterline
+    is drawn at that height, the vessel is the whole of what was billed, and
+    the space above the line is exactly what has not come in.
+
+    Needs 2x1. At 1x1 the vessel and the line are eleven pixels apart. */
+export function ReservoirArt({ fill }: { fill: number }) {
+  const room = useArtRoom(2)
+  if (!room) return null
+  const f = Math.min(1, Math.max(0, fill))
+  /* Inset well clear of the card's own edges. Drawn at 8..92 the vessel sat a
+     few pixels inside the border and read as a second border rather than as a
+     thing with contents. */
+  const left = 20
+  const right = 80
+  const top = 8
+  const bottom = 54
+  const level = bottom - (bottom - top) * f
+
+  return (
+    <ArtSvg>
+      {/* The vessel: everything that was billed. Open at the top, because more
+          can still come in. */}
+      <path
+        d={`M${left},${top} L${left},${bottom} L${right},${bottom} L${right},${top}`}
+        fill="none"
+        stroke={ART_LINE}
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+      />
+      {/* The water: what has been collected. */}
+      <rect x={left} y={level} width={right - left} height={bottom - level} fill={ART_FILL} />
+      {/* The waterline, which is the figure. */}
+      <line
+        x1={left}
+        y1={level}
+        x2={right}
+        y2={level}
+        stroke={ART_MARK}
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+      />
+    </ArtSvg>
+  )
+}
+
+/** OUTSTANDING, AS A BLOCKED FLOW. Because that is money that did not move.
+
+    `moved` is the share of everything billed that was actually collected, so
+    the barrier stands exactly where the flow stopped and the arrested length
+    to its right is exactly the outstanding share. Both fractions come off the
+    same response; neither is chosen to make the picture look better.
+
+    Needs 2x1. A pipe needs length — at 1x1 it is a short grey dash. */
+export function BlockedFlowArt({ moved }: { moved: number }) {
+  const room = useArtRoom(2)
+  if (!room) return null
+  const m = Math.min(1, Math.max(0, moved))
+  const x0 = 6
+  const x1 = 94
+  const stop = x0 + (x1 - x0) * m
+  const top = 18
+  const bot = 42
+  // The arrested length, hatched rather than filled: it is stationary, and a
+  // solid block reads as more of the same flow.
+  const hatch: number[] = []
+  for (let x = stop + 4; x < x1; x += 6) hatch.push(x)
+
+  return (
+    <ArtSvg>
+      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {/* What moved. */}
+      <rect x={x0} y={top} width={Math.max(0, stop - x0)} height={bot - top} fill={ART_FILL} />
+      {/* Where it stopped. */}
+      <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={ART_MARK} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+      {/* What did not. */}
+      {hatch.map((x) => (
+        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={ART_LINE} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      ))}
+    </ArtSvg>
+  )
+}
+
+/** THE ROLL, AS A POPULATION. Because a roll is a population: `count` people,
+    each one a mark, and the card's figure is how many marks there are.
+
+    Deliberately an even scatter and NOT grouped by section, even though the
+    reference calls this a cluster. Per-section counts are not in the response
+    — only how many sections exist — so eight equal clumps would be a claim
+    that the sections are equally full, which nobody has told us. The count is
+    real; the arrangement claims nothing.
+
+    Needs 2x1. Below that the marks collide into a smear. */
+export function PopulationArt({ count }: { count: number }) {
+  const room = useArtRoom(2)
+  if (!room || count <= 0) return null
+  // Past a few hundred the marks stop being countable and start being fog; the
+  // figure is printed on top of this and is the thing that carries the number.
+  const n = Math.min(count, 240)
+  const pts = scatter(n, 0x5eed)
+  return (
+    <ArtSvg>
+      {pts.map((p, i) => (
+        <rect key={i} x={p.x} y={p.y} width={1.6} height={1.6} fill={ART_MARK} />
+      ))}
+    </ArtSvg>
+  )
+}
+
+/** TEACHING LOAD, AS A NETWORK. Because it genuinely is one: a few people
+    each connected to many.
+
+    Drawn from both figures, exactly. `nodes` is the staff count, and each node
+    fans out to `students / staff` edges — so the fan-out degree *is* the ratio
+    the card is about, and the leaves add up to the roll.
+
+    Needs 2x1, and reads far better at 2x2 where the fan has vertical room.
+    At 1x1 the edges overlap into a grey wedge. */
+export function NetworkArt({ nodes, degree }: { nodes: number; degree: number }) {
+  const room = useArtRoom(2)
+  if (!room || nodes <= 0 || degree <= 0) return null
+  const n = Math.min(nodes, 14)
+  const d = Math.min(degree, 26)
+  const band = 60 / n
+
+  return (
+    <ArtSvg>
+      {Array.from({ length: n }, (_, i) => {
+        const ny = band * (i + 0.5)
+        return (
+          <g key={i}>
+            {Array.from({ length: d }, (_, j) => {
+              const ly = band * i + (band * (j + 0.5)) / d
+              return (
+                <line
+                  key={j}
+                  x1={14}
+                  y1={ny}
+                  x2={92}
+                  y2={ly}
+                  stroke={ART_WEB}
+                  strokeWidth={0.75}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+            })}
+            <rect x={9} y={ny - 2.5} width={5} height={5} fill={ART_MARK} />
+          </g>
+        )
+      })}
+    </ArtSvg>
+  )
+}
+
+/** ADMISSIONS, AS A FUNNEL. Because admissions genuinely narrows: more people
+    apply than enrol, and every stage loses some.
+
+    What is drawn from data and what is not, stated plainly. The WALLS are the
+    process — they say the pipe narrows, which is true of admissions everywhere
+    and is not a quantity. The MARKS at the mouth are `count`, the open
+    applications, and that is the only number drawn. No stage counts are shown,
+    because the response does not carry any and inventing three would be
+    exactly the decoration this is against.
+
+    Needs 2x1; wants 2x2, where the walls have the height to actually converge
+    rather than reading as a shallow chevron. */
+export function FunnelArt({ count }: { count: number }) {
+  const room = useArtRoom(2)
+  if (!room) return null
+  const n = Math.min(Math.max(count, 0), 60)
+  const pts = scatter(n, 0xfeed).map((p) => ({ x: 12 + (p.x - 6) * 0.86, y: 4 + (p.y - 6) * 0.28 }))
+
+  return (
+    <ArtSvg>
+      <path d="M6,4 L94,4 L60,40 L60,58 L40,58 L40,40 Z" fill={ART_FILL} />
+      <path
+        d="M6,4 L40,40 L40,58 M94,4 L60,40 L60,58"
+        fill="none"
+        stroke={ART_LINE}
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
+      {pts.map((p, i) => (
+        <rect key={i} x={p.x} y={p.y} width={2} height={2} fill={ART_MARK} />
+      ))}
+    </ArtSvg>
+  )
+}
+
+/** DEFAULTERS, AS A RISK GRID. Because it is a subset of a known whole: 44 of
+    96, both figures on the same response, so the grid can be drawn cell for
+    cell with no rounding and no invented total.
+
+    The flagged cells are spread evenly through the grid rather than clumped in
+    a corner. Which particular cells are flagged is not information we have —
+    only how many — so an even spread is the arrangement that claims least. A
+    clump would read as "one section is in trouble", which nobody has said. */
+export function RiskGridArt({ total, flagged }: { total: number; flagged: number }) {
+  const room = useArtRoom(2)
+  if (!room || total <= 0) return null
+  const n = Math.min(total, 400)
+  const f = Math.min(Math.max(flagged, 0), n)
+  // Roughly 100:60, so about 1.67 cells across for every one down.
+  const cols = Math.max(4, Math.round(Math.sqrt(n * 1.67)))
+  const rows = Math.ceil(n / cols)
+  const cw = 100 / cols
+  const ch = 60 / rows
+  // Evenly spread, deterministic: cell i is flagged when the running count of
+  // flags due by i ticks over. Exactly `f` cells end up flagged.
+  let acc = 0
+
+  return (
+    <ArtSvg>
+      {Array.from({ length: n }, (_, i) => {
+        const before = acc
+        acc = Math.floor(((i + 1) * f) / n)
+        const isFlagged = acc > before
+        return (
+          <rect
+            key={i}
+            x={(i % cols) * cw + cw * 0.18}
+            y={Math.floor(i / cols) * ch + ch * 0.18}
+            width={cw * 0.64}
+            height={ch * 0.64}
+            fill={isFlagged ? ART_MARK : ART_FILL}
+          />
+        )
+      })}
+    </ArtSvg>
+  )
+}
+
+/** The last `days` calendar days ending on the last day the series has, each
+    carrying that day's attendance percentage or null where the school has no
+    marks for it.
+
+    Anchored on the series' own last date rather than on the reader's clock, so
+    a browser outside India cannot shift the grid by a day — the same reason
+    the bar labels are sliced off the ISO string instead of parsed. */
+export function calendarSlots(
+  series: { date: string; pct: number }[],
+  days = 28,
+): (number | null)[] {
+  if (series.length === 0) return []
+  const byDate = new Map(series.map((p) => [p.date, p.pct]))
+  const last = series[series.length - 1].date
+  const end = Date.parse(`${last}T00:00:00Z`)
+  if (Number.isNaN(end)) return []
+  const out: (number | null)[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const iso = new Date(end - i * 86_400_000).toISOString().slice(0, 10)
+    const v = byDate.get(iso)
+    out.push(v === undefined ? null : v)
+  }
+  return out
 }
 
 // --- states -------------------------------------------------------------
