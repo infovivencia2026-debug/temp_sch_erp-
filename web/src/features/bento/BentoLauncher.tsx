@@ -346,7 +346,8 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
            tint alone it is a hover state pretending to be a thing. */
         className={cn(
           `launcher-app group flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2
-           text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
+           text-left focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-[var(--ink-here)]`,
           onCursor && 'launcher-app-on',
           here && 'font-medium',
         )}
@@ -363,11 +364,25 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
            Mixed against the card token rather than white, so dark mode needs
            no second rule: there the same expression tints a dark surface. */
+        /* THE TINT IS NOW ACTUALLY PAINTED.
+
+           `--tile-tint` was computed here and consumed nowhere: the stylesheet
+           says the background is "given inline", the inline style set only the
+           variable, and so every one of the sixty-five boxes was transparent.
+           The whole reason the box exists — an object you aim at rather than a
+           row you read — was never on screen, and its words were inheriting the
+           ink of whatever it happened to be sitting over.
+
+           With a surface it also gets an ink, chosen against that surface the
+           same way every other surface here chooses one. */
         style={
           {
             '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
               5 + ((step ?? 0) % 4) * 2
             }%, var(--bento-card))`,
+            '--ink-here': 'hsl(from var(--tile-tint) 0 0% calc((49 - l) * 100%))',
+            background: 'var(--tile-tint)',
+            color: 'var(--ink-here)',
           } as CSSProperties
         }
       >
@@ -384,7 +399,12 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         <span
           title={r.workspace}
           className="grid shrink-0 place-items-center"
-          style={{ color: `var(--dom-${hueFor(r.workspace)})` }}
+          /* Neat domain colour on a surface mixed from that same domain colour
+             is a glyph you cannot see — 1.00:1 for Operations under the default
+             palette, where `--dom-operations` IS the paper the tile is made of.
+             Mixed toward the tile's own ink it keeps the hue that ties it to
+             its heading and gains a shape. */
+          style={{ color: `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) 45%, var(--ink-here))` }}
         >
           <Mark className="size-4" aria-hidden="true" />
         </span>
@@ -403,7 +423,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               category is the thing carrying a colour the reader has been
               learning. */}
           {context && (
-            <span className="block truncate text-[11.5px] text-muted-foreground">
+            <span className="block truncate text-[11.5px] opacity-80">
               {r.workspace}
             </span>
           )}
@@ -412,12 +432,45 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
     )
   }
 
+  /* The two header controls, and the reason they no longer name a semantic
+     class. `hover:bg-accent` is a wash mixed from `--bento-ink` — the card's
+     ink — which on the near-black page is a black smear that cannot be seen;
+     `focus-visible:ring-ring` is the mint accent, measured against the card
+     and 1.2:1 against the paper dock, so the focus ring was the one thing on
+     screen a keyboard user could not find. Both are mixed from `--ink-here`
+     instead, which is by construction the colour this ground contrasts with. */
+  const quiet =
+    `flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors ` +
+    `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
+    `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t('bento.launcher.title')}
       className="fade-in fixed inset-0 z-[60] overflow-y-auto bg-[var(--bento-bg)]"
+      /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
+
+         This panel is the one place in the layout whose ground is the PAGE and
+         not a card. `--bento-ink` is the card's ink — the palettes measured it
+         against `--bento-card` and nothing else — so every word in this header
+         inherited black and the default palette put it on a near-black page at
+         1.11:1. Not a palette that could fix it: one ink cannot be right on two
+         grounds.
+
+         So the ink is derived from the ground it will sit on: black or white,
+         whichever the ground is further from, by that ground's own lightness.
+         `--ink-here` is redefined by each surface below — the page, a category
+         panel, a chip, a tile — and everything inside a surface reads it, so a
+         word is always the ink of the thing it is printed on. No colour is
+         named and no palette has anything new to set. */
+      style={
+        {
+          '--ink-here': 'hsl(from var(--bento-bg) 0 0% calc((49 - l) * 100%))',
+          color: 'var(--ink-here)',
+        } as CSSProperties
+      }
       onClick={onClose}
     >
       <div
@@ -439,7 +492,11 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       >
         <div className="mb-5 flex items-baseline justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            {/* `text-muted-foreground` resolves to `--bento-muted`, which is
+                the card's ink. On the page it is the wrong ground's ink, and
+                the muted tone is the ink anyway — the difference is carried by
+                size and weight, which is where it already was. */}
+            <p className="text-[11px] uppercase tracking-[0.14em]">
               {role.name}
             </p>
             <h2 className="text-[22px] font-semibold">{t('bento.launcher.title')}</h2>
@@ -449,10 +506,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               <button
                 type="button"
                 onClick={() => go(homeRow)}
-                className="flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px]
-                           text-muted-foreground transition-colors hover:bg-accent
-                           hover:text-foreground focus-visible:outline-none focus-visible:ring-2
-                           focus-visible:ring-ring"
+                className={quiet}
               >
                 <House className="size-3.5" aria-hidden="true" />
                 {t('bento.dock.home')}
@@ -461,9 +515,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-[10px] px-3 py-1.5 text-[12.5px] text-muted-foreground transition-colors
-                         hover:bg-accent hover:text-foreground focus-visible:outline-none
-                         focus-visible:ring-2 focus-visible:ring-ring"
+              className={quiet}
             >
               {t('bento.launcher.close')}
             </button>
@@ -471,19 +523,32 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
         </div>
 
         <div className="relative mb-8">
+          {/* The glyph sits ON the field, not on the page, so it takes the
+              card's ink rather than the page's. */}
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2
-                       text-muted-foreground"
+                       text-[var(--bento-ink)]"
             aria-hidden="true"
           />
+          {/* The field is a card, so its words are the card's ink — it was
+              inheriting the page's and came out black on white by luck on two
+              palettes and black on near-black on the default.
+
+              Its edge is mixed from the ink rather than taken from
+              `--bento-line`: the line token is the hairline BETWEEN cards, and
+              at 1.13:1 against the page it left the one text input on the
+              surface with no visible boundary at all. */}
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
-            className="w-full rounded-[10px] border bg-popover py-2.5 pl-10 pr-3.5 text-[13.5px]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-[10px] border
+                       border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
+                       bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
+                       text-[var(--bento-ink)] focus-visible:outline-none focus-visible:ring-2
+                       focus-visible:ring-[var(--bento-ink)]"
           />
         </div>
 
@@ -512,21 +577,46 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 className={cn(
                   `flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px]
                    transition-colors focus-visible:outline-none focus-visible:ring-2
-                   focus-visible:ring-ring`,
-                  on ? 'font-medium' : 'text-muted-foreground',
+                   focus-visible:ring-[var(--ink-here)]`,
+                  on && 'font-medium',
                 )}
+                /* A chip that is on is its own little surface, so it declares
+                   its own ink; a chip that is off is the page, so it keeps the
+                   page's.
+
+                   The off state's border was a literal `hsl(var(--border))` —
+                   the classic theme's token, written inline where the
+                   stylesheet's re-pointing rules cannot reach it. It is the one
+                   value in these three components a palette structurally could
+                   not move, and it moved only when the theme flipped between
+                   light and dark. */
                 style={
                   on
-                    ? {
-                        background: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, transparent)`,
+                    ? ({
+                        '--chip': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
+                        '--ink-here': 'hsl(from var(--chip) 0 0% calc((49 - l) * 100%))',
+                        background: 'var(--chip)',
+                        color: 'var(--ink-here)',
+                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,
+                      } as CSSProperties)
+                    : {
+                        borderColor: 'color-mix(in srgb, var(--ink-here) 45%, transparent)',
+                        opacity: 0.75,
                       }
-                    : { borderColor: 'hsl(var(--border))', opacity: 0.55 }
                 }
               >
+                {/* The mark keeps its hue and is moved far enough toward the
+                    chip's own ink to be a shape rather than a stain: the
+                    default palette's domain colours ARE its card colours, so
+                    drawn neat on a chip mixed from the same colour they
+                    measured 1.0-1.9:1. */}
                 <Mark
                   className="size-3.5 shrink-0"
-                  style={{ color: on ? `var(--dom-${hue})` : 'currentColor' }}
+                  style={{
+                    color: on
+                      ? `color-mix(in srgb, var(--dom-${hue}) 45%, var(--ink-here))`
+                      : 'currentColor',
+                  }}
                   aria-hidden="true"
                 />
                 {name}
@@ -540,9 +630,9 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             <button
               type="button"
               onClick={() => setOff(new Set())}
-              className="ml-1 rounded-full px-2.5 py-1 text-[12px] text-muted-foreground
-                         underline-offset-4 transition-colors hover:text-foreground hover:underline
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="ml-1 rounded-full px-2.5 py-1 text-[12px] underline-offset-4
+                         transition-colors hover:underline focus-visible:outline-none
+                         focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
             >
               {t('bento.launcher.show_all')}
             </button>
@@ -557,13 +647,13 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                   {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context />)}
                 </div>
-                <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                <p className="mt-6 flex items-center gap-1.5 text-[11.5px] opacity-80">
                   <CornerDownLeft className="size-3" aria-hidden="true" />
                   {t('bento.launcher.hint')}
                 </p>
               </>
             ) : (
-              <p className="py-10 text-center text-[13.5px] text-muted-foreground">
+              <p className="py-10 text-center text-[13.5px] opacity-80">
                 {t('bento.launcher.empty', { q: q.trim() })}
               </p>
             )
@@ -612,10 +702,22 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                        Derived rather than a second set of hexes per domain, so
                        there is nothing to keep in step and dark mode follows
                        from the ink it already redefines. */
-                    style={{
-                      background: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                      borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, transparent)`,
-                    }}
+                    /* The panel declares the ink for everything printed
+                       directly on it. Its colour is a mix, so which of black
+                       and white wins is a question about the mix and not about
+                       the palette's polarity: under the default palette Staff
+                       and Department Workspace come out dark enough to need
+                       white while their neighbours need black, and no single
+                       token could have said that. */
+                    style={
+                      {
+                        '--panel': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
+                        '--ink-here': 'hsl(from var(--panel) 0 0% calc((49 - l) * 100%))',
+                        background: 'var(--panel)',
+                        color: 'var(--ink-here)',
+                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,
+                      } as CSSProperties
+                    }
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
                     <div className={cn('grid gap-1.5', tileColumns(count))}>
@@ -661,19 +763,32 @@ function Heading({
   return (
     <h3
       className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]"
-      style={onTint ? { color: `var(--dom-${hue})` } : undefined}
+      /* On the tint the heading was drawn in `--dom-<hue>` — the domain colour
+         — on a panel mixed from that same domain colour. In the shipped
+         palettes that name is a dark ink and it read; under the default palette
+         it is the panel's own colour and the heading measured 1.86:1. It takes
+         the panel's ink instead, which is the one colour the panel is
+         guaranteed to contrast with, and the weight keeps it the strongest
+         thing in the block. */
+      style={onTint ? { color: 'var(--ink-here)' } : undefined}
     >
       <span
         title={label}
         className="flex size-6 items-center justify-center"
+        /* Off the tint the chip is the domain's own panel, so the glyph is
+           that panel's measured ink — `-text` is exactly the token for it, and
+           `--dom-<hue>` was the panel colour again: a mark drawn in the colour
+           it sits on. */
         style={{
           background: onTint ? 'transparent' : `var(--dom-${hue}-soft)`,
-          color: `var(--dom-${hue})`,
+          color: onTint
+            ? `color-mix(in srgb, var(--dom-${hue}) 45%, var(--ink-here))`
+            : `var(--dom-${hue}-text)`,
         }}
       >
         <Icon className="size-3.5" aria-hidden="true" />
       </span>
-      <span className={onTint ? 'font-semibold' : 'text-muted-foreground'}>{label}</span>
+      <span className={onTint ? 'font-semibold' : undefined}>{label}</span>
     </h3>
   )
 }

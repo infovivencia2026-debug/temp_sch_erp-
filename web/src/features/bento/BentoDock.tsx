@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState , type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
@@ -174,9 +174,24 @@ export function BentoDock() {
      Every one keeps a title for the pointer and an aria-label for a screen
      reader, so nothing is lost that was not visual. A bar of unlabelled glyphs
      with no way to find out what they are would be a puzzle, not a dock. */
+  /* THE DOCK'S OWN INK, NOT THE CARD'S.
+
+     The bar reads `--bento-dock-ink` with the card's ink as its fallback, and
+     that is right — a palette may give the dock a face of its own and it
+     measured the ink against that face. What did not follow were the three
+     things the utility classes were painting: the hover wash came from
+     `--bento-ink`, the focus ring from `--bento-mint`, and the dividers from
+     `--bento-line`. All three are the CARD's values, so on a dock that is not
+     the card they were the wrong colour, and the mint ring measured 1.2:1
+     against the default palette's paper dock — a focus ring a keyboard user
+     cannot see is the same as no focus ring.
+
+     `--ink-here` is the dock's ink under the name every surface in this layout
+     uses for "the colour that reads on me", and the three are mixed from it. */
   const item =
     `grid shrink-0 place-items-center rounded-full transition-colors ` +
-    `hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+    `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
+    `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
   const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }
 
   return (
@@ -185,8 +200,14 @@ export function BentoDock() {
         className="bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
                    -translate-x-1/2 items-center gap-2 rounded-[14px] border-none
                    bg-[var(--bento-dock-bg,var(--bento-card))]
-                   text-[var(--bento-dock-ink,var(--bento-ink))] shadow-2xl"
-        style={{ padding: 'var(--dock-pad, 8px)', paddingLeft: 'calc(var(--dock-pad, 8px) + 4px)' }}
+                   text-[var(--ink-here)] shadow-2xl"
+        style={
+          {
+            padding: 'var(--dock-pad, 8px)',
+            paddingLeft: 'calc(var(--dock-pad, 8px) + 4px)',
+            '--ink-here': 'var(--bento-dock-ink, var(--bento-ink))',
+          } as CSSProperties
+        }
       >
         {homeHref && (
           <button

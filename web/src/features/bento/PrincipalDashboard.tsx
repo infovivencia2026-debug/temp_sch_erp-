@@ -1098,6 +1098,7 @@ function SourceCell({
   flat,
   draw,
   drawNeedsHeight,
+  empty,
   facts,
   provenance,
   tag,
@@ -1138,6 +1139,16 @@ function SourceCell({
       tall shapes; false for one that scales to whatever box it is given
       (`Density`, `Distribution`), which a 2x1 can hold as well. */
   drawNeedsHeight?: boolean
+  /** WHAT THE DRAWING SLOT SAYS WHEN THE LIST CAME BACK EMPTY.
+
+      Every `draw` above is passed as `rows.length > 0 ? <…> : undefined`, so
+      on a school with none of that kind the slot is simply absent and the
+      room it would have taken is the empty space this board was rebuilt to
+      stop having. This is the cell's own sentence about having nothing of
+      that kind — "No child is below the line", not a nought and not a chart
+      of no rows. Drawn only where a drawing would have been: never at 1x1,
+      which spends its height on the figure and one fact. */
+  empty?: string
   /** Supporting figures, most important first. The cell shows as many as the
       room holds and no more; the rest are simply not drawn, because a fact
       that has been squeezed to three characters is not a fact. */
@@ -1195,8 +1206,16 @@ function SourceCell({
      with neither keep the three lines they have always had. */
   const dense = shown.length > 0 || Boolean(flat)
   /* A row-shaped drawing needs the height; an elastic one takes whatever box
-     it is handed. Neither is offered a 1x1. */
-  const drawn = draw && (tall || (wide && !drawNeedsHeight)) ? draw : null
+     it is handed. Neither is offered a 1x1. Where the response carried no
+     rows to draw, the same slot takes the cell's own sentence about that —
+     `empty` is only consulted when there is no `draw` at all, so a 2x1 that
+     is merely too short for a `Rows` still shows its facts and its note
+     rather than being told the school has nothing. */
+  const drawn = draw
+    ? (tall || (wide && !drawNeedsHeight) ? draw : null)
+    : empty && (wide || tall)
+      ? <Say>{empty}</Say>
+      : null
 
   return (
     <Cell span={span} accent={accent} domain={domain} art={art}>
@@ -1507,6 +1526,52 @@ function Fit({ children }: { children: ReactNode }) {
   )
 }
 
+/** A SENTENCE IN THE DRAWING ROW — the one thing that row may hold that is
+    not a picture.
+
+    Every drawing in `bento-cards.tsx` returns null on empty data, which is
+    correct of the drawing and fatal for the cell: the row is `minmax(0,1fr)`
+    of whatever is left, so a null drawing is not a smaller card, it is the
+    same card with a hole in it. That hole IS the empty cell this whole effort
+    set out to remove.
+
+    So a cell with nothing to draw says so, in words, and never with a zero and
+    never with a chart of no rows. `items-end` puts the sentence on the same
+    baseline `Facts` and `Rows` sit on, so a board of mixed cells still reads
+    as one row of type. Clamped at three lines: the drawing row on a 1x1 is
+    about 69px and four lines of this size is 56 plus the leading. */
+function Say({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full min-h-0 items-end overflow-hidden">
+      <p className="line-clamp-3 text-[10.5px] leading-snug opacity-75">{children}</p>
+    </div>
+  )
+}
+
+/** The halves of a two-part drawing row that are REALLY there.
+
+    `<Pair top={<Rows items={[]} />} …>` is not an empty half — it is an
+    element that renders nothing, and React cannot be asked which. So the
+    caller passes `condition && drawing`, the falsy ones are dropped here, and
+    a row that has lost a half gives the whole height to the half that is
+    left rather than drawing it at half size over a gap. With neither half
+    left the caller falls to the next rung of its own ladder. */
+function stack(...parts: (ReactNode | false | null | undefined)[]): ReactNode | null {
+  const real = parts.filter(Boolean) as ReactNode[]
+  if (real.length === 0) return null
+  if (real.length === 1) return real[0]
+  return <Pair top={real[0]} bottom={real[1]} />
+}
+
+/** The same rule, side by side. `lead` gives the left one only what it needs,
+    for a ring beside a ranking. */
+function beside(lead: boolean, ...parts: (ReactNode | false | null | undefined)[]): ReactNode | null {
+  const real = parts.filter(Boolean) as ReactNode[]
+  if (real.length === 0) return null
+  if (real.length === 1) return real[0]
+  return <Split lead={lead} left={real[0]} right={real[1]} />
+}
+
 /** Counts into equal buckets across a stated range — the input `Distribution`
     wants. A spread, not a ranking, and it needs no denominator: the bars are
     counts of rows the response actually carried. */
@@ -1580,7 +1645,9 @@ function SyllabusCell({
         change={t('bento.principal.syllabus_empty')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.syllabus_empty')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -1607,17 +1674,33 @@ function SyllabusCell({
       srLabel={t('bento.principal.syllabus_lag_sr', { count: Math.min(n, ranked.length) })}
     />
   )
+  /* Rows arrived, but not one of them carried a readable percent — every
+     `percent` off the wire was null or NaN. There is no spread and no ranking
+     in that, and both drawings above would render nothing. What DID arrive is
+     the count of class-subjects, how many are flagged behind, and the units
+     against the units delivered, all three summed off the same rows. */
+  const has = percents.length > 0
+  const facts = (
+    <Facts
+      srLabel={t('bento.principal.syllabus_facts_sr', {
+        rows: rows.length, behind, delivered, units,
+      })}
+      items={[
+        { label: t('bento.principal.fact_class_subjects'), value: String(rows.length) },
+        { label: t('bento.principal.fact_behind'), value: String(behind) },
+        { label: t('bento.principal.fact_units_done'), value: `${delivered}/${units}` },
+      ]}
+    />
+  )
 
   const drawing =
-    wide && tall ? (
-      <Pair top={worst(4)} bottom={spread(24)} />
-    ) : tall ? (
-      <Pair top={spread(12)} bottom={worst(3)} />
-    ) : wide ? (
-      worst(3)
-    ) : (
-      spread(10)
-    )
+    (wide && tall
+      ? stack(has && worst(4), has && spread(24))
+      : tall
+        ? stack(has && spread(12), has && worst(3))
+        : wide
+          ? has && worst(3)
+          : has && spread(10)) ?? facts
 
   return (
     <FeatureCard
@@ -1698,7 +1781,9 @@ function ModerationCell({
         change={t('bento.principal.moderation_empty')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.moderation_empty')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -1724,17 +1809,32 @@ function ModerationCell({
       srLabel={t('bento.principal.moderation_low_sr', { count: Math.min(n, ranked.length) })}
     />
   )
+  /* Papers arrived and not one of them carries an average yet — `average_pct`
+     is nullable on the wire and a paper with no marks in it has none. Neither
+     drawing has anything to draw, so the row takes the three counts that are
+     true whatever the averages did. */
+  const has = papers.length > 0
+  const facts = (
+    <Facts
+      srLabel={t('bento.principal.moderation_facts_sr', {
+        total: rows.length, unmoderated, reviewed,
+      })}
+      items={[
+        { label: t('bento.principal.fact_papers'), value: String(rows.length) },
+        { label: t('bento.principal.fact_to_moderate'), value: String(unmoderated) },
+        { label: t('bento.principal.fact_reviewed'), value: String(reviewed) },
+      ]}
+    />
+  )
 
   const drawing =
-    wide && tall ? (
-      <Pair top={worst(4)} bottom={spread(24)} />
-    ) : tall ? (
-      <Pair top={spread(12)} bottom={worst(3)} />
-    ) : wide ? (
-      worst(3)
-    ) : (
-      spread(10)
-    )
+    (wide && tall
+      ? stack(has && worst(4), has && spread(24))
+      : tall
+        ? stack(has && spread(12), has && worst(3))
+        : wide
+          ? has && worst(3)
+          : has && spread(10)) ?? facts
 
   return (
     <FeatureCard
@@ -1833,16 +1933,33 @@ function PassRateCell({
     />
   )
 
-  const drawing =
-    wide && tall ? (
-      <Pair top={<Split lead left={ring} right={worst(4)} />} bottom={spread(24)} />
-    ) : tall ? (
-      <Pair top={ring} bottom={spread(12)} />
-    ) : wide ? (
-      worst(3)
+  /* `summary` counted everybody and `by_subject` came back empty — the two
+     halves of this response fail independently. With candidates but no papers
+     the ring is all there is; with neither, the row says nothing was entered
+     rather than drawing a nought against a nought. */
+  const has = rates.length > 0
+  const facts =
+    candidates > 0 ? (
+      <Facts
+        srLabel={t('bento.principal.pass_rate_facts_sr', { passed, total: candidates })}
+        items={[
+          { label: t('bento.principal.fact_candidates'), value: String(candidates) },
+          { label: t('bento.principal.fact_passed'), value: String(passed) },
+          { label: t('bento.principal.fact_at_risk'), value: String(summary?.at_risk ?? 0) },
+        ]}
+      />
     ) : (
-      ring
+      <Say>{t('bento.principal.pass_rate_none')}</Say>
     )
+
+  const drawing =
+    (wide && tall
+      ? stack(beside(true, ring, has && worst(4)), has && spread(24))
+      : tall
+        ? stack(ring, has && spread(12))
+        : wide
+          ? has && worst(3)
+          : ring) ?? facts
 
   return (
     <FeatureCard
@@ -1933,16 +2050,32 @@ function AtRiskCell({
     />
   )
 
-  const drawing =
-    wide && tall ? (
-      <Pair top={<Split lead left={ring} right={worst(4)} />} bottom={perPaper} />
-    ) : tall ? (
-      <Pair top={ring} bottom={perPaper} />
-    ) : wide ? (
-      worst(3)
+  /* A bar of height zero in every column is a picture of nothing, so the
+     per-paper spread is drawn only where at least one paper really has
+     candidates under the pass mark. */
+  const has = below.some((v) => v > 0)
+  const facts =
+    candidates > 0 ? (
+      <Facts
+        srLabel={t('bento.principal.at_risk_facts_sr', { count: atRisk, total: candidates })}
+        items={[
+          { label: t('bento.principal.fact_candidates'), value: String(candidates) },
+          { label: t('bento.principal.fact_at_risk'), value: String(atRisk) },
+          { label: t('bento.principal.fact_papers'), value: String(subjects.length) },
+        ]}
+      />
     ) : (
-      perPaper
+      <Say>{t('bento.principal.pass_rate_none')}</Say>
     )
+
+  const drawing =
+    (wide && tall
+      ? stack(beside(true, ring, has && worst(4)), has && perPaper)
+      : tall
+        ? stack(ring, has && perPaper)
+        : wide
+          ? has && worst(3)
+          : (has && perPaper) || ring) ?? facts
 
   return (
     <FeatureCard
@@ -2127,7 +2260,9 @@ function SetupCell({
         change={t('bento.principal.source_failed')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.source_failed')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -2158,11 +2293,15 @@ function SetupCell({
         ? t('bento.principal.setup_ready')
         : t('bento.principal.setup_optional_left', { count: Math.max(0, total - done) })
 
+  /* Steps DONE per area on a school that has started, and steps LEFT on one
+     that has not: five tracks all at nought is a picture of nothing, and the
+     steps left are the same fifteen rows counted the other way round. Both
+     are counts of steps the response returned. */
   const field = (_columns: number) => (
     <Rows
       items={groups.map((g) => ({
         label: t(`bento.principal.setup_dom_${g.domain}`),
-        value: g.done,
+        value: done > 0 ? g.done : g.left,
       }))}
       srLabel={t('bento.principal.setup_density_sr', {
         total: steps.length, done, left: Math.max(0, steps.length - done),
@@ -2190,16 +2329,29 @@ function SetupCell({
     />
   )
 
+  /* The steps are a Go literal fifteen long, so `groups` is only ever empty
+     if the shape of that response changes under us. It is guarded anyway: a
+     cell that draws nothing is the failure this file is here to stop. */
+  const has = groups.length > 0
+  const facts = (
+    <Facts
+      srLabel={t('bento.principal.setup_facts_sr', { done, total, blocking })}
+      items={[
+        { label: t('bento.principal.fact_steps_done'), value: `${done}/${total}` },
+        { label: t('bento.principal.fact_blocking'), value: String(blocking) },
+        { label: t('bento.principal.fact_left'), value: String(Math.max(0, total - done)) },
+      ]}
+    />
+  )
+
   const drawing =
-    wide && tall ? (
-      <Pair top={<Split lead left={ring} right={byArea(5)} />} bottom={field(15)} />
-    ) : tall ? (
-      <Pair top={ring} bottom={field(5)} />
-    ) : wide ? (
-      <Split left={field(5)} right={byArea(3)} />
-    ) : (
-      field(5)
-    )
+    (wide && tall
+      ? stack(beside(true, ring, has && byArea(5)), has && field(15))
+      : tall
+        ? stack(ring, has && field(5))
+        : wide
+          ? beside(false, has && field(5), has && byArea(3))
+          : has && field(5)) ?? facts
 
   return (
     <FeatureCard
@@ -2316,7 +2468,9 @@ function CoverCell({
         change={t('bento.principal.cover_none_needed')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.cover_none_needed')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -2356,17 +2510,22 @@ function CoverCell({
   const byClass = (
     <Rows items={uncoveredClasses} srLabel={t('bento.principal.cover_class_sr')} />
   )
+  /* `summary.periods` can be non-zero while the rows carry no readable clock
+     — the summary is counted in SQL and the times are formatted per row — so
+     the day is drawn only where minutes were actually parsed, and the classes
+     only where a period is still uncovered. The three states are counted off
+     the summary and always have one to show. */
+  const hasDay = mins.length > 0
+  const hasClasses = uncoveredClasses.length > 0
 
   const drawing =
-    wide && tall ? (
-      <Pair top={<Split left={byState} right={byClass} />} bottom={day(18)} />
-    ) : tall ? (
-      <Pair top={day(10)} bottom={byState} />
-    ) : wide ? (
-      <Split left={byState} right={day(12)} />
-    ) : (
-      byState
-    )
+    (wide && tall
+      ? stack(beside(false, byState, hasClasses && byClass), hasDay && day(18))
+      : tall
+        ? stack(hasDay && day(10), byState)
+        : wide
+          ? beside(false, byState, hasDay && day(12))
+          : byState) ?? byState
 
   return (
     <FeatureCard
@@ -2440,7 +2599,9 @@ function MyLeaveCell({
         change={t('bento.principal.my_leave_none')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.my_leave_none')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -2539,7 +2700,9 @@ function MyPayCell({
         change={t('bento.principal.my_pay_none')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.my_pay_none')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -2575,16 +2738,20 @@ function MyPayCell({
     />
   )
 
+  /* ONE PAYSLIP IS NOT A TREND. `Line` and `Area` need two points and draw
+     nothing with one, which is the ordinary case for somebody paid for the
+     first time this month. The month's own split — gross, net, deducted — is
+     three real figures off that one payslip, so it takes the row instead. */
+  const series = nets.length >= 2
+
   const drawing =
-    wide && tall ? (
-      <Pair top={stacked} bottom={split} />
-    ) : tall ? (
-      <Pair top={wave} bottom={split} />
-    ) : wide ? (
-      stacked
-    ) : (
-      trend
-    )
+    (wide && tall
+      ? stack(stacked, split)
+      : tall
+        ? stack(series && wave, split)
+        : wide
+          ? stacked
+          : (series && trend) || split) ?? split
 
   return (
     <FeatureCard
@@ -2809,20 +2976,47 @@ export function PulseCard({
   const tall = h >= 2
   const marked28 = days.filter((d) => d !== null) as number[]
 
+  /* A LINE NEEDS TWO DAYS AND A SCHOOL THAT HAS NEVER MARKED A REGISTER HAS
+     NONE. `/principal/attendance-trend` answers `{"items":[]}` on that school
+     — a real empty list, not a failure — and every one of the four drawings
+     below renders nothing from it. So the row falls to the two figures the
+     KPI response carried about TODAY, which is the same reading at lower
+     resolution; and with no register marked at all it says so in words.
+
+     `attendance_today_pct` is COALESCEd to 0 in the handler, so a nought
+     percent and a morning nobody marked are the same number on the wire.
+     `attendance_marked_today` is the tell, and it is what the fallback tests
+     — never the percentage. */
+  const series = points.length >= 2
+  const fallback =
+    marked > 0 ? (
+      <Facts
+        srLabel={t('bento.principal.card_pulse_facts_sr', { pct, count: marked })}
+        items={[
+          { label: t('bento.principal.fact_marked_today'), value: String(marked) },
+          { label: t('bento.principal.fact_present'), value: `${pct}%` },
+        ]}
+      />
+    ) : (
+      <Say>{t('bento.principal.card_pulse_empty')}</Say>
+    )
+
   const drawing = trendError ? (
     <CellError message={t('bento.principal.trend_failed')} />
-  ) : wide && tall ? (
+  ) : wide && tall && marked28.length > 0 ? (
     <CardBars
       values={marked28}
       activeIndex={marked28.length - 1}
       srLabel={t('bento.principal.card_pulse_month_sr', { days: marked28.length })}
     />
-  ) : tall ? (
+  ) : tall && series ? (
     <CardArea points={points} srLabel={t('bento.principal.trend_sr')} />
-  ) : wide ? (
+  ) : wide && series ? (
     <CardLine points={points} srLabel={t('bento.principal.trend_sr')} />
-  ) : (
+  ) : series ? (
     <CardLine points={points.slice(-10)} srLabel={t('bento.principal.card_pulse_short_sr')} />
+  ) : (
+    fallback
   )
 
   return (
@@ -2895,15 +3089,23 @@ export function CollectedCard({
   )
   const ring = <CardGauge value={collected} total={billed} srLabel={t('bento.principal.collected_sr')} />
 
+  /* Every money field on this handler is `COALESCE(sum(…),0)`, so nought
+     collected and nought owed is what a school with no invoice at all looks
+     like. Two tracks of zero length under two ₹0.00 labels is a drawing of
+     that nothing; the sentence is not. */
   const drawing = !yearly ? (
-    <CardRows
-      items={[
-        { label: t('bento.principal.card_in'), value: collected },
-        { label: t('bento.principal.card_due'), value: outstanding },
-      ]}
-      formatValue={money}
-      srLabel={t('bento.principal.card_money_pair_sr')}
-    />
+    collected > 0 || outstanding > 0 ? (
+      <CardRows
+        items={[
+          { label: t('bento.principal.card_in'), value: collected },
+          { label: t('bento.principal.card_due'), value: outstanding },
+        ]}
+        formatValue={money}
+        srLabel={t('bento.principal.card_money_pair_sr')}
+      />
+    ) : (
+      <Say>{t('bento.principal.card_money_empty')}</Say>
+    )
   ) : tall ? (
     <PairAside ring={ring} detail={wide ? three : pair} side={wide} />
   ) : wide ? (
@@ -2992,13 +3194,17 @@ export function OutstandingCard({
   const owed = unitGrid(defaulters, capacity)
 
   const drawing = !yearly ? (
-    <Facts
-      srLabel={t('bento.principal.card_owed_by_sr', { count: defaulters, unit: owed.unit })}
-      items={[
-        { label: t('bento.principal.fact_flagged'), value: String(defaulters) },
-        { label: t('bento.principal.card_due'), value: money(outstanding) },
-      ]}
-    />
+    outstanding > 0 || defaulters > 0 ? (
+      <Facts
+        srLabel={t('bento.principal.card_owed_by_sr', { count: defaulters, unit: owed.unit })}
+        items={[
+          { label: t('bento.principal.fact_flagged'), value: String(defaulters) },
+          { label: t('bento.principal.card_due'), value: money(outstanding) },
+        ]}
+      />
+    ) : (
+      <Say>{t('bento.principal.card_money_empty')}</Say>
+    )
   ) : tall ? (
     <PairAside ring={ring} detail={wide ? split : pair} side={wide} />
   ) : wide ? (
@@ -3073,14 +3279,18 @@ export function StudentsCard({
       to={href}
       cueLabel={t('bento.principal.cue_students')}
     >
-      <Facts
-        srLabel={t('bento.principal.card_roll_sr', { count: students, unit: 1 })}
-        items={[
-          { label: t('bento.principal.fact_sections'), value: String(sections) },
-          { label: t('bento.principal.fact_per_section'), value: String(perSection) },
-          { label: t('bento.principal.fact_staff'), value: String(staff) },
-        ]}
-      />
+      {students > 0 || sections > 0 || staff > 0 ? (
+        <Facts
+          srLabel={t('bento.principal.card_roll_sr', { count: students, unit: 1 })}
+          items={[
+            { label: t('bento.principal.fact_sections'), value: String(sections) },
+            { label: t('bento.principal.fact_per_section'), value: String(perSection) },
+            { label: t('bento.principal.fact_staff'), value: String(staff) },
+          ]}
+        />
+      ) : (
+        <Say>{t('bento.principal.card_roll_empty')}</Say>
+      )}
     </CardCell>
   )
 }
@@ -3134,8 +3344,12 @@ export function DefaultersCard({
   )
   const ring = <CardGauge value={defaulters} total={students} srLabel={t('bento.principal.defaulters_sr')} />
 
+  /* No roll, no proportion, and nothing to draw a proportion OF. The ring
+     divides by the roll and the two tracks are the roll against the flagged
+     part of it, so with nought children every one of them is a picture of
+     nought — which is the sentence's job, not a drawing's. */
   const drawing =
-    students <= 0 ? null
+    students <= 0 ? <Say>{t('bento.principal.card_roll_empty')}</Say>
       : tall ? <PairAside ring={ring} detail={wide ? grid : pair} side={wide} />
       : wide ? grid
       : pair
@@ -3198,10 +3412,17 @@ export function CountCard({
       to={to}
       cueLabel={cueLabel}
     >
-      <Facts
-        srLabel={t(srKey, { count, unit })}
-        items={[{ label: title, value: String(count) }]}
-      />
+      {/* A queue of nought is a fact, and `empty` is the sentence this cell
+          was already given for it — "Nothing waiting", "Every subject has a
+          teacher". A single `Facts` row reading 0 says the same thing worse. */}
+      {count > 0 ? (
+        <Facts
+          srLabel={t(srKey, { count, unit })}
+          items={[{ label: title, value: String(count) }]}
+        />
+      ) : (
+        <Say>{empty}</Say>
+      )}
     </CardCell>
   )
 }
@@ -3846,6 +4067,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.shortage_empty')}
             note={t('bento.principal.shortage_note')}
             to={auditHref}
             cue={t('bento.principal.cue_shortage')}
@@ -3896,6 +4118,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.unallocated_empty')}
             note={t('bento.principal.unallocated_note', { count: workloadRows.length })}
             to={subjectsHref}
             cue={t('bento.principal.cue_unassigned')}
@@ -3962,6 +4185,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.tt_empty')}
             note={t('bento.principal.tt_sections_note', { count: ttSummary?.sections ?? 0 })}
             to={timetableHref}
             cue={t('bento.principal.cue_timetable')}
@@ -4016,6 +4240,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.tt_empty')}
             note={t('bento.principal.tt_unstaffed_note', { count: ttSummary?.live_periods ?? 0 })}
             to={timetableHref}
             cue={t('bento.principal.cue_timetable')}
@@ -4084,6 +4309,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.plans_empty')}
             note={t('bento.principal.plans_note')}
             to={lessonPlansHref}
             cue={t('bento.principal.cue_plans')}
@@ -4141,6 +4367,7 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            empty={t('bento.principal.papers_empty')}
             note={t('bento.principal.papers_note', { count: paperRows.length })}
             to={questionPapersHref}
             cue={t('bento.principal.cue_papers')}
@@ -4235,9 +4462,25 @@ export default function BentoPrincipalDashboard() {
                   ]
                 : undefined
             }
+            /* The slot was empty. Every entry carries the day it falls on
+               and `daysAway` is a whole number of days off the ISO strings,
+               so the next few dates ARE a ranking in one unit — no
+               denominator anywhere in it, and the tracks are days rather
+               than a share of a month. */
+            drawNeedsHeight
             draw={
-undefined
+              upcoming.length > 0 ? (
+                <Rows
+                  items={upcoming.slice(0, 4).map((e) => ({
+                    label: e.name,
+                    value: Math.max(0, daysAway(e.starts_on)),
+                  }))}
+                  formatValue={(d) => t('bento.principal.days_short', { count: d })}
+                  srLabel={t('bento.principal.calendar_rows_sr', { count: upcoming.length })}
+                />
+              ) : undefined
             }
+            empty={t('bento.principal.calendar_none')}
             note={
               nextEntry
                 ? t('bento.principal.calendar_next', {
@@ -4288,6 +4531,7 @@ undefined
                 />
               ) : undefined
             }
+            empty={t('bento.principal.exams_empty')}
             note={t('bento.principal.exams_note', { count: examRows.length })}
             to={examsHref}
             cue={t('bento.principal.cue_exams')}
@@ -4359,6 +4603,7 @@ undefined
                 />
               ) : undefined
             }
+            empty={t('bento.principal.messages_empty')}
             note={t('bento.principal.messages_note', { count: threadRows.length })}
             to={messagesHref}
             cue={t('bento.principal.cue_messages')}
@@ -4415,6 +4660,7 @@ undefined
                 : []),
               { key: 'roll', value: String(k.students), label: t('bento.principal.fact_on_roll') },
             ]}
+            empty={classCount > 0 ? undefined : t('bento.principal.classes_empty')}
             note={t('bento.principal.classes_note', { count: k.sections })}
             to={classSetupHref}
             cue={t('bento.principal.cue_classes')}
@@ -4468,7 +4714,9 @@ function GrievancesOpenCell({
         change={t('bento.principal.grievances_none')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.grievances_none')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -4565,7 +4813,9 @@ function GrievancesOverdueCell({
         change={t('bento.principal.grv_none_open')}
         href={href}
         cue={cue}
-      />
+      >
+        <Say>{t('bento.principal.grv_none_open')}</Say>
+      </FeatureCard>
     )
   }
 
@@ -4593,16 +4843,20 @@ function GrievancesOverdueCell({
     />
   )
 
+  /* Tickets are open and not one of them is past its deadline — the good
+     case, and the one where the ageing spread has no rows. The comparison of
+     the two counts is still true and still worth the row: it is what says
+     nought of nine are late. */
+  const has = late.length > 0
+
   const drawing =
-    wide && tall ? (
-      <Pair top={<Split left={against} right={byDepartment(4)} />} bottom={spread(18)} />
-    ) : tall ? (
-      <Pair top={against} bottom={spread(10)} />
-    ) : wide ? (
-      against
-    ) : (
-      spread(10)
-    )
+    (wide && tall
+      ? stack(beside(false, against, has && byDepartment(4)), has && spread(18))
+      : tall
+        ? stack(against, has && spread(10))
+        : wide
+          ? against
+          : (has && spread(10)) || against) ?? against
 
   return (
     <FeatureCard
@@ -4623,4 +4877,29 @@ function GrievancesOverdueCell({
       {drawing}
     </FeatureCard>
   )
+}
+
+/* THE PROBE SEAM.
+
+   The size-aware cells above are mounted by this file and by nothing else in
+   the product, which is also why a blank drawing row in one of them could sit
+   on the board unseen. These aliases let a headless probe mount each cell at
+   all four shapes twice over — once with the response its handler really
+   returns for a working school, once with the empty response the same handler
+   returns for a school that has none of that kind — and read what the drawing
+   row actually contains. Same convention `FinanceDashboard.tsx` already uses,
+   and nothing in the running product imports them. */
+export {
+  SyllabusCell as __SyllabusCell,
+  ModerationCell as __ModerationCell,
+  PassRateCell as __PassRateCell,
+  AtRiskCell as __AtRiskCell,
+  SetupCell as __SetupCell,
+  CoverCell as __CoverCell,
+  MyLeaveCell as __MyLeaveCell,
+  MyPayCell as __MyPayCell,
+  GrievancesOpenCell as __GrievancesOpenCell,
+  GrievancesOverdueCell as __GrievancesOverdueCell,
+  SourceCell as __SourceCell,
+  AttentionCell as __AttentionCell,
 }

@@ -8,7 +8,10 @@ import {
   type Contrast, type DockSize, type IconSize, type Scales,
 } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
-import { ColourPanel } from './ColourDialog'
+import {
+  ColourPanel,
+  INK, EDGE, TRACK, WASH, RING, CHOSEN, SLIDER,
+} from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { useActiveRole } from '@/lib/catalog'
 import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
@@ -50,7 +53,7 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <p className="w-[104px] shrink-0 text-[13px] font-medium">{label}</p>
+      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
       <div className="flex min-w-[240px] flex-1 items-center gap-3">
         <input
           type="range"
@@ -60,9 +63,13 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
           value={v}
           aria-label={label}
           onChange={(e) => setScale(axis, Number(e.target.value))}
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-border"
+          /* The track was `bg-border`, which is the palette's hairline: it
+             measured 1.21-1.33:1 against the card in all four, a slider you
+             cannot find. Mixed from the ink instead, with the two-tone
+             handle. */
+          className={cn('h-1.5 flex-1 cursor-pointer appearance-none rounded-full', TRACK, SLIDER, RING)}
         />
-        <span className="w-[52px] shrink-0 text-right text-[12.5px] font-medium tabular-nums text-primary">
+        <span className={cn('w-[52px] shrink-0 text-right text-[12.5px] font-medium tabular-nums', INK)}>
           {Math.round(v * 100)}%
         </span>
         <button
@@ -70,8 +77,10 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
           onClick={() => setScale(axis, 1)}
           disabled={v === 1}
           aria-label={`Reset ${label}`}
-          className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground
-                     transition-colors hover:bg-accent disabled:opacity-30"
+          className={cn(
+            'shrink-0 rounded-full border px-2 py-0.5 text-[11px]',
+            'transition-colors disabled:opacity-30', EDGE, WASH, RING, INK,
+          )}
         >
           100%
         </button>
@@ -108,14 +117,15 @@ function Axis<T extends string>({
     const next = options[Math.min(options.length - 1, Math.max(0, at + d))]
     if (next && next !== value) onPick(next)
   }
-  const arrow =
-    `grid size-7 shrink-0 place-items-center rounded-full border transition-colors
-     hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent
-     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
+  const arrow = cn(
+    'grid size-7 shrink-0 place-items-center rounded-full border transition-colors',
+    'disabled:opacity-30 disabled:hover:bg-transparent',
+    EDGE, WASH, RING, INK,
+  )
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <p className="w-[104px] shrink-0 text-[13px] font-medium">{label}</p>
+      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -132,7 +142,7 @@ function Axis<T extends string>({
         <span
           role="status"
           aria-live="polite"
-          className="w-[104px] text-center text-[12.5px] font-medium text-primary"
+          className={cn('w-[104px] text-center text-[12.5px] font-medium', INK)}
         >
           {name(value)}
         </span>
@@ -154,7 +164,11 @@ function Axis<T extends string>({
               key={o}
               className={cn(
                 'h-1 rounded-full transition-all',
-                o === value ? 'w-4 bg-primary' : 'w-1.5 bg-border',
+                /* Both marks are ink now: the current step solid, the rest at
+                   the track's weight. They were the accent and the hairline,
+                   and on the default palette that is a pale green pip on
+                   paper beside pips measuring 1.29:1. */
+                o === value ? 'w-4 bg-[var(--bento-ink)]' : cn('w-1.5', TRACK),
               )}
             />
           ))}
@@ -191,7 +205,7 @@ function DockItemsToggle() {
 
   return (
     <div className="mt-3">
-      <p className="mb-2 text-[12px] text-muted-foreground">Visible categories in dock</p>
+      <p className={cn('mb-2 text-[12px]', INK)}>Visible categories in dock</p>
       <div className="flex flex-wrap gap-2">
         {workspaces.map(name => {
           const visible = !hidden.has(name)
@@ -201,11 +215,11 @@ function DockItemsToggle() {
               type="button"
               onClick={() => toggle(name)}
               className={cn(
-                `rounded-full border px-3 py-1 text-[12px] transition-colors
-                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
+                'rounded-full border px-3 py-1 text-[12px] transition-colors',
+                RING,
                 visible
-                  ? 'border-primary bg-primary-soft font-medium text-primary'
-                  : 'border-dashed text-muted-foreground hover:bg-accent',
+                  ? `${CHOSEN} font-medium`
+                  : cn('border-dashed', EDGE, WASH, INK),
               )}
             >
               {visible ? '✓ ' : ''}{name}

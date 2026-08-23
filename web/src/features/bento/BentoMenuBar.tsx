@@ -15,7 +15,7 @@ export function BentoMenuBar() {
   const formattedDate = time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex h-8 items-center justify-between px-4 text-[13px] font-medium text-[var(--bento-ink)] bg-[var(--bento-card)] border-b-0 shadow-sm">
+    <div className="bento-menubar fixed top-0 left-0 right-0 z-50 flex h-8 items-center justify-between px-4 text-[13px] font-medium text-[var(--bento-ink)] bg-[var(--bento-card)] border-b-0 shadow-sm">
       <div className="flex items-center gap-4">
         {/* Abstract "OS" Logo or Title */}
         <div className="flex items-center gap-2 font-bold tracking-wide">

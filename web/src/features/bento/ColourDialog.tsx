@@ -23,6 +23,89 @@ import { cn } from '@/lib/utils'
 
 const SIZE = 220
 
+/* The vocabulary these three dialogs are painted in.
+
+   They used to wear the app's semantic utilities — `bg-popover`, `bg-accent`,
+   `text-muted-foreground`, `focus-visible:ring-ring` — and those resolve to
+   the shadcn theme, which is HSL triplets read as `hsl(var(--x))`. A palette
+   is fifty-five hex values. The two sets cannot meet, so every one of those
+   classes sat unmoved while all four palettes went past it: measured, and the
+   swatch rings, the wheel marker and the preview wireframe were identical in
+   all four.
+
+   So this dialog names bento tokens, or a mix of one, and nothing else. No
+   colour is written here: `--bento-ink` is black or white by construction —
+   every palette computes it against its own card — and `--bento-card` is
+   whatever that palette's paper is. A mix of the ink is therefore correct on
+   a white card and on a near-black one without a branch.
+
+   Exported because AppearanceDialog and BentoSettings are the same surface
+   seen from two other doors, and three copies of these strings would drift. */
+
+/** Text and icons. Black or white, decided by the palette against its card. */
+export const INK = 'text-[var(--bento-ink)]'
+
+/** A control's own outline: enough ink to clear 3:1 on any of the five
+    grounds (measured 3.18:1 on the default paper, 3.6:1 on the darkest card),
+    which the palette's `--bento-line` hairline — a divider, not a boundary —
+    does not (1.15-1.47:1). */
+export const EDGE = 'border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]'
+
+/** A filled shape that has to be seen rather than merely bounded: a slider
+    track, a step dot. Heavier than EDGE, worst measured 3.18:1 → 4.34:1. */
+export const TRACK = 'bg-[color-mix(in_srgb,var(--bento-ink)_55%,transparent)]'
+
+/** Hover wash, mixed from the ink so one value darkens a light card and
+    lightens a dark one. */
+export const WASH = 'hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]'
+
+/** The focus ring. It was the accent, which on the default palette is a light
+    green on light paper — 1.04:1, a ring you cannot see on the one dialog
+    somebody opens *because* they cannot see. The ink always wins against the
+    card it is drawn on. */
+export const RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]'
+
+/** Chosen. Inverted rather than tinted: the accent-on-its-own-tint pairing
+    this used to wear measured 1.1-4.3:1 and put a coloured word on screen,
+    which the surface no longer does. Ink on card is 21:1 in every palette. */
+export const CHOSEN = 'border-[var(--bento-ink)] bg-[var(--bento-ink)] text-[var(--bento-card)]'
+
+/** The handle on every slider in these dialogs. */
+export const SLIDER = 'bento-slider'
+
+/* A thumb a palette can reach, in the one place a utility class cannot go.
+
+   Every slider here — the five scales and the lightness track — was drawing
+   the browser's own blue handle, identical under all four palettes and dead
+   against the lightness gradient at both ends. `accent-color` would move it,
+   but a single-tone thumb is invisible at one end of a black-to-white track
+   whichever tone it is. So it is two: the card as the disc and the ink as its
+   ring, the pair every palette guarantees, which reads on any track there is.
+
+   A pseudo-element cannot be written as a class, and the palette work in
+   bento-theme.css is not this dialog's to edit, so it is declared here beside
+   the controls it dresses. */
+export function SliderThumbStyle() {
+  return (
+    <style>{`
+      .bento-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none;
+        width: 14px; height: 14px; border-radius: 999px;
+        background: var(--bento-card);
+        box-shadow: 0 0 0 2px var(--bento-ink);
+        cursor: pointer;
+      }
+      .bento-slider::-moz-range-thumb {
+        width: 12px; height: 12px; border-radius: 999px;
+        background: var(--bento-card);
+        border: 2px solid var(--bento-ink);
+        cursor: pointer;
+      }
+    `}</style>
+  )
+}
+
 /* Exported so the dashboard arranger can offer the SAME wheel rather than a
    second one. Two colour pickers in one product is how they drift apart. */
 export function WheelCanvas({
@@ -98,10 +181,16 @@ export function WheelCanvas({
         style={{ width: SIZE, height: SIZE }}
         className="cursor-crosshair rounded-full shadow-[var(--lift-panel)]"
       />
+      {/* Two-tone, because this marker sits on every hue there is and a single
+          ring is invisible against one of them. The card and the ink are the
+          one pair a palette guarantees contrasts, so whichever the wheel is
+          under the marker, one of the two rings shows. It was `border-white`:
+          a named colour, and identical in all four palettes. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2
-                   rounded-full border-2 border-white shadow"
+                   rounded-full border-2 border-[var(--bento-card)]
+                   ring-1 ring-[var(--bento-ink)]"
         style={{ left: mx, top: my }}
       />
     </div>
@@ -235,20 +324,46 @@ export function ColourPanel({
 
   const update = (next: Partial<Hsl>) => set(region, channel, { ...current, ...next })
 
+  /* What the wireframe below shows for one region.
+
+     A region somebody has painted shows their colour. A region they have not
+     used to fall through to the CLASSIC theme — `var(--background)`,
+     `var(--card)`, `var(--primary)` — which is a set of shadcn HSL triplets no
+     palette writes to. So the preview of the palette was drawn in the other
+     layout's colours: measured identical across all four, including the blue
+     accent bar, while the page behind it was near-black. The fallback is the
+     matching bento token now, which is the thing the preview claims to be
+     previewing.
+
+     The fallback cannot live inside `hsl(...)` the way the painted value does:
+     paint stores an unwrapped `H S% L%` triplet and a token is hex. So the
+     branch is here rather than in CSS. */
+  const shown = (key: `${Region}.${Channel}`, token: string) => {
+    const v = paint[key]
+    return v ? `hsl(${v.h} ${v.s}% ${v.l}%)` : `var(${token})`
+  }
+
   return (
     <div className={cn(picking && 'opacity-25')}>
 
         <div className="px-5 py-4">
-          {/* Channel */}
-          <div className="mb-4 grid grid-cols-3 gap-1 rounded-[10px] bg-muted p-1">
+          {/* Channel.
+
+              The track was `bg-muted` and the chosen tab `bg-popover` — the
+              raised shade and the card. On the default palette those are the
+              same paper, so the whole segmented control disappeared and there
+              was no way to see which channel you were editing. */}
+          <div className="mb-4 grid grid-cols-3 gap-1 rounded-[10px] p-1
+                          bg-[color-mix(in_srgb,var(--bento-ink)_8%,transparent)]">
             {CHANNELS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setChannel(c)}
                 className={cn(
-                  'rounded-[8px] px-3 py-1.5 text-[13px] transition-colors',
-                  channel === c ? 'bg-popover font-medium shadow-[var(--lift-panel)]' : 'text-muted-foreground',
+                  'rounded-[8px] border border-transparent px-3 py-1.5 text-[13px] transition-colors',
+                  RING,
+                  channel === c ? `${CHOSEN} font-medium` : INK,
                 )}
               >
                 {t(`bento.colour.channel.${c}`)}
@@ -258,7 +373,7 @@ export function ColourPanel({
 
           {channel === 'accent' && (
             <>
-              <p className="mb-3 text-[12.5px] text-muted-foreground">
+              <p className={cn('mb-3 text-[12.5px]', INK)}>
                 {t('bento.colour.accent_note')}
               </p>
               {/* The five named accents, as a shortcut to the wheel rather than
@@ -275,12 +390,18 @@ export function ColourPanel({
                     key={p.id}
                     type="button"
                     onClick={() => set('workarea', 'accent', p.hsl)}
-                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1
-                               text-[12.5px] transition-colors hover:bg-accent"
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-2.5 py-1',
+                      'text-[12.5px] transition-colors',
+                      EDGE, WASH, RING, INK,
+                    )}
                   >
                     <span
                       aria-hidden="true"
-                      className="size-3 rounded-full"
+                      /* The swatch is the accent itself, so its outline has to
+                         come from the card it sits on rather than from it. */
+                      className="size-3 rounded-full ring-1
+                                 ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
                       style={{ background: `hsl(${p.hsl.h} ${p.hsl.s}% ${p.hsl.l}%)` }}
                     />
                     {t(`bento.settings.accent.${p.id}`)}
@@ -291,16 +412,16 @@ export function ColourPanel({
           )}
 
           <WheelCanvas value={current} onPick={(h, s) => update({ h, s })} />
-          <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
+          <p className={cn('mt-2 text-center text-[12.5px]', INK)}>
             {t('bento.colour.wheel_hint')}
           </p>
 
           <div className="mt-4">
             <div className="flex items-baseline justify-between">
-              <label htmlFor="lightness" className="text-[13px] font-medium">
+              <label htmlFor="lightness" className={cn('text-[13px] font-medium', INK)}>
                 {t('bento.colour.lightness')}
               </label>
-              <span className="text-[13px] tabular-nums text-muted-foreground">
+              <span className={cn('text-[13px] tabular-nums', INK)}>
                 {Math.round(current.l)}
               </span>
             </div>
@@ -311,8 +432,11 @@ export function ColourPanel({
               max={100}
               value={Math.round(current.l)}
               onChange={(e) => update({ l: Number(e.target.value) })}
-              className="mt-1.5 h-2 w-full cursor-pointer appearance-none rounded-full"
+              className={cn('mt-1.5 h-2 w-full cursor-pointer appearance-none rounded-full', SLIDER, RING)}
               style={{
+                /* The track stays the colour being chosen — it is the value,
+                   not chrome. The handle is the two-tone one above, because
+                   the browser's blue was the same blue in every palette. */
                 background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 0%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 100%))`,
               }}
             />
@@ -323,19 +447,19 @@ export function ColourPanel({
             the product is. Not a swatch — a swatch tells you the colour and not
             what it does to a screen made of five regions. */}
         <div className="border-t px-5 py-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
             {t('bento.colour.preview')}
           </p>
           <div
-            className="overflow-hidden rounded-[10px] border text-[11px]"
-            style={{ background: 'hsl(var(--paint-workarea-bg, var(--background)))' }}
+            className={cn('overflow-hidden rounded-[10px] border text-[11px]', EDGE)}
+            style={{ background: shown('workarea.bg', '--bento-bg') }}
           >
             <div className="flex">
               <div
                 className="w-[74px] shrink-0 p-2"
                 style={{
-                  background: 'hsl(var(--paint-sidebar-bg, var(--sidebar)))',
-                  color: 'hsl(var(--paint-sidebar-text, var(--foreground)))',
+                  background: shown('sidebar.bg', '--bento-card-2'),
+                  color: shown('sidebar.text', '--bento-ink'),
                 }}
               >
                 <p className="font-semibold">Menu</p>
@@ -346,29 +470,29 @@ export function ColourPanel({
                 <div
                   className="flex items-center justify-between p-2"
                   style={{
-                    background: 'hsl(var(--paint-topbar-bg, var(--card)))',
-                    color: 'hsl(var(--paint-topbar-text, var(--foreground)))',
+                    background: shown('topbar.bg', '--bento-card'),
+                    color: shown('topbar.text', '--bento-ink'),
                   }}
                 >
                   <span className="font-semibold">Dashboard</span>
                   <span
                     className="h-2 w-8 rounded-full"
-                    style={{ background: 'hsl(var(--paint-workarea-accent, var(--primary)))' }}
+                    style={{ background: shown('workarea.accent', '--bento-mint') }}
                   />
                 </div>
                 <div
                   className="p-2"
-                  style={{ color: 'hsl(var(--paint-workarea-text, var(--foreground)))' }}
+                  style={{ color: shown('workarea.text', '--bento-ink') }}
                 >
                   <p className="font-medium">Sample text on the work area</p>
                   <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                     {[['STUDENTS', '2,840'], ['COLLECTED', '8.4L']].map(([k, v]) => (
                       <div
                         key={k}
-                        className="rounded-[6px] border p-1.5"
+                        className={cn('rounded-[6px] border p-1.5', EDGE)}
                         style={{
-                          background: 'hsl(var(--paint-cards-bg, var(--card)))',
-                          color: 'hsl(var(--paint-cards-text, var(--foreground)))',
+                          background: shown('cards.bg', '--bento-card'),
+                          color: shown('cards.text', '--bento-ink'),
                         }}
                       >
                         <p className="opacity-60">{k}</p>
@@ -386,14 +510,16 @@ export function ColourPanel({
         {channel !== 'accent' && (
           <div className="border-t px-5 py-4">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              <p className={cn('text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
                 {t('bento.colour.select_element')}
               </p>
               <button
                 type="button"
                 onClick={() => setPicking(true)}
-                className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]
-                           transition-colors hover:bg-accent"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px]',
+                  'transition-colors', EDGE, WASH, RING, INK,
+                )}
               >
                 <Crosshair className="size-3.5" aria-hidden="true" />
                 {t('bento.colour.pick_on_page')}
@@ -407,9 +533,10 @@ export function ColourPanel({
                   onClick={() => setRegion(r)}
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+                    RING,
                     region === r
-                      ? 'border-primary bg-primary-soft font-medium text-primary'
-                      : 'hover:bg-accent',
+                      ? `${CHOSEN} font-medium`
+                      : cn(EDGE, WASH, INK),
                   )}
                 >
                   {regionLabel(r)}
@@ -421,7 +548,7 @@ export function ColourPanel({
 
         {/* Palettes */}
         <div className="border-t px-5 py-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
             {t('bento.colour.saved')}
           </p>
           <div className="flex gap-2">
@@ -429,8 +556,15 @@ export function ColourPanel({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('bento.colour.name_placeholder')}
-              className="h-9 min-w-0 flex-1 rounded-[10px] border bg-background px-3 text-[13px]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              /* `bg-background` is the PAGE, and the page is now near-black
+                 while this field sits on paper: a black box with black text
+                 in it, in every palette that inverts the two. The field is a
+                 surface on the card, so it takes the card. */
+              className={cn(
+                'h-9 min-w-0 flex-1 rounded-[10px] border px-3 text-[13px]',
+                'bg-[var(--bento-card)] placeholder:text-[color-mix(in_srgb,var(--bento-ink)_60%,transparent)]',
+                EDGE, RING, INK,
+              )}
             />
             <button
               type="button"
@@ -439,8 +573,10 @@ export function ColourPanel({
                 savePalette(name)
                 setName('')
               }}
-              className="flex shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13px]
-                         transition-colors hover:bg-accent disabled:opacity-40"
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13px]',
+                'transition-colors disabled:opacity-40', EDGE, WASH, RING, INK,
+              )}
             >
               <Plus className="size-3.5" aria-hidden="true" />
               {t('bento.colour.save')}
@@ -459,7 +595,7 @@ export function ColourPanel({
               its accent and its ink. */}
           {(['light', 'dark'] as const).map((mode) => (
             <div key={mode} className="mt-2">
-              <p className="mb-1.5 text-[11px] text-muted-foreground">
+              <p className={cn('mb-1.5 text-[11px]', INK)}>
                 {t(`bento.colour.mode.${mode}`)}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -473,9 +609,8 @@ export function ColourPanel({
                       onClick={() => applyPalette(p.name)}
                       className={cn(
                         'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
-                        on
-                          ? 'border-primary bg-primary-soft font-medium text-primary'
-                          : 'hover:bg-accent',
+                        RING,
+                        on ? `${CHOSEN} font-medium` : cn(EDGE, WASH, INK),
                       )}
                     >
                       <span className="flex" aria-hidden="true">
@@ -485,7 +620,14 @@ export function ColourPanel({
                         ] as const).map((k) => (
                           <span
                             key={k}
-                            className="size-3 rounded-full ring-1 ring-black/20 -ml-1 first:ml-0"
+                            /* The chip shows a palette's own colour, so its
+                               ring cannot be one of them — and `ring-black/20`
+                               was a literal, invisible against every dark
+                               swatch it circled (measured 1.00-1.02:1). Mixed
+                               from the ink of the palette in force, which is
+                               the card's opposite by construction. */
+                            className="size-3 rounded-full -ml-1 first:ml-0 ring-1
+                                       ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
                             style={{ background: p.tokens[k] }}
                           />
                         ))}
@@ -500,11 +642,11 @@ export function ColourPanel({
           {palettes.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {palettes.map((p) => (
-                <span key={p.name} className="flex items-center rounded-full border text-[12.5px]">
+                <span key={p.name} className={cn('flex items-center rounded-full border text-[12.5px]', EDGE)}>
                   <button
                     type="button"
                     onClick={() => applyPalette(p.name)}
-                    className="rounded-l-full px-3 py-1.5 transition-colors hover:bg-accent"
+                    className={cn('rounded-l-full px-3 py-1.5 transition-colors', WASH, RING, INK)}
                   >
                     {p.name}
                   </button>
@@ -512,8 +654,7 @@ export function ColourPanel({
                     type="button"
                     onClick={() => deletePalette(p.name)}
                     aria-label={`${t('bento.colour.forget')} ${p.name}`}
-                    className="rounded-r-full px-2 py-1.5 text-muted-foreground transition-colors
-                               hover:bg-accent hover:text-foreground"
+                    className={cn('rounded-r-full px-2 py-1.5 transition-colors', WASH, RING, INK)}
                   >
                     <X className="size-3" />
                   </button>
@@ -527,13 +668,15 @@ export function ColourPanel({
           <button
             type="button"
             onClick={() => resetPaint()}
-            className="flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-[13px]
-                       transition-colors hover:bg-accent"
+            className={cn(
+              'flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-[13px]',
+              'transition-colors', EDGE, WASH, RING, INK,
+            )}
           >
             <RotateCcw className="size-3.5" aria-hidden="true" />
             {t('bento.colour.reset')}
           </button>
-          <p className="min-w-0 flex-1 truncate text-center text-[12px] text-muted-foreground">
+          <p className={cn('min-w-0 flex-1 truncate text-center text-[12px]', INK)}>
             {channel === 'accent'
               ? t('bento.colour.channel.accent')
               : `${t(`bento.colour.region.${region}`)} · ${t(`bento.colour.channel.${channel}`)}`}

@@ -19,6 +19,21 @@ import { cn } from '@/lib/utils'
 /** Ink at a given strength. The only colour expression in this file. */
 const ink = (pct: number) => `color-mix(in srgb, currentColor ${pct}%, transparent)`
 
+/** A finite number, or the fallback. Guards every drawing against NaN and
+    Infinity, which arrive whenever an API field is null and something does
+    arithmetic on it. Unguarded, `Math.max(0, Math.min(100, Math.round(NaN)))`
+    is NaN — a clamp does not clamp a non-number — and that reached the DOM as
+    the literal string "NaN%". */
+const num = (v: unknown, fallback = 0) =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback
+
+/** Does this series carry any signal at all? An all-zero series is not a small
+    series: `Math.max(...values) || 1` turns it into a denominator of 1, and the
+    per-mark minimum heights then draw a visible mark for every zero — a month
+    with no activity reading as a month of small activity. */
+const hasSignal = (values: number[]) =>
+  values.some((v) => Number.isFinite(v) && v !== 0)
+
 const MARK = ink(88)
 const TRACK = ink(10)
 const QUIET = ink(38)
@@ -98,7 +113,7 @@ function svgPath(points: number[], h = 150, w = 400) {
 
 /** Trend. An open path, nothing under it. */
 export function Line({ points, srLabel }: { points: number[]; srLabel: string }) {
-  if (points.length < 2) return null
+  if (points.length < 2 || !hasSignal(points)) return null
   return (
     <svg viewBox="0 0 400 150" preserveAspectRatio="none" className="h-full w-full"
          role="img" aria-label={srLabel}>
@@ -110,7 +125,7 @@ export function Line({ points, srLabel }: { points: number[]; srLabel: string })
 
 /** Magnitude and trend: the same line with the ground filled beneath it. */
 export function Area({ points, srLabel }: { points: number[]; srLabel: string }) {
-  if (points.length < 2) return null
+  if (points.length < 2 || !hasSignal(points)) return null
   const d = svgPath(points)
   return (
     <svg viewBox="0 0 400 150" preserveAspectRatio="none" className="h-full w-full"
@@ -126,7 +141,7 @@ export function Area({ points, srLabel }: { points: number[]; srLabel: string })
 export function Bars({ values, activeIndex, srLabel }: {
   values: number[]; activeIndex?: number; srLabel: string
 }) {
-  if (!values.length) return null
+  if (!values.length || !hasSignal(values)) return null
   const hi = Math.max(...values) || 1
   return (
     <div className="flex h-full items-end gap-1" role="img" aria-label={srLabel}>
@@ -147,7 +162,7 @@ export function Rows({ items, srLabel, formatValue }: {
   srLabel: string
   formatValue?: (n: number) => string
 }) {
-  if (!items.length) return null
+  if (!items.length || !hasSignal(items.map((i) => i.value))) return null
   const hi = Math.max(...items.map((i) => i.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
@@ -181,8 +196,9 @@ export function Rows({ items, srLabel, formatValue }: {
     100 so the dash array is literally the percentage — no circumference
     arithmetic to get wrong when the radius changes. */
 export function Gauge({ value, total, srLabel }: { value: number; total: number; srLabel: string }) {
-  if (total <= 0) return null
-  const pct = Math.max(0, Math.min(100, Math.round((value / total) * 100)))
+  const t = num(total)
+  if (t <= 0) return null
+  const pct = Math.max(0, Math.min(100, Math.round((num(value) / t) * 100)))
   return (
     <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
       {/* Sized by the row's HEIGHT, not its width. A drawing row on a 1x1 is
@@ -212,7 +228,7 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
 export function Stack({ columns, srLabel }: {
   columns: { total: number; parts: number[] }[]; srLabel: string
 }) {
-  if (!columns.length) return null
+  if (!columns.length || !hasSignal(columns.map((c) => c.total))) return null
   const hi = Math.max(...columns.map((c) => c.total)) || 1
   return (
     <div className="flex h-full items-end gap-1.5" role="img" aria-label={srLabel}>
@@ -233,7 +249,7 @@ export function Stack({ columns, srLabel }: {
 
 /** Spread. Bars whose heights describe a curve rather than a ranking. */
 export function Distribution({ values, srLabel }: { values: number[]; srLabel: string }) {
-  if (!values.length) return null
+  if (!values.length || !hasSignal(values)) return null
   const hi = Math.max(...values) || 1
   return (
     <div className="flex h-full items-end gap-1" role="img" aria-label={srLabel}>
@@ -251,7 +267,7 @@ export function Compare({ rows, srLabel, formatValue }: {
   srLabel: string
   formatValue?: (n: number) => string
 }) {
-  if (rows.length < 2) return null
+  if (rows.length < 2 || !hasSignal(rows.map((r) => r.value))) return null
   const hi = Math.max(...rows.map((r) => r.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
@@ -289,7 +305,7 @@ export function Compare({ rows, srLabel, formatValue }: {
     Right-aligned values on a tabular figure so a column of them lines up. */
 export function Facts({ items, srLabel }: {
   items: { label: string; value: string }[]
-  srLabel?: string
+  srLabel: string
 }) {
   if (!items.length) return null
   return (
@@ -297,7 +313,7 @@ export function Facts({ items, srLabel }: {
        it. Pinned to the end, one fact left the whole drawing row empty above
        it — the dead space this component exists to remove. `flex-1` on each
        line means one fact fills the row and four split it. */
-    <dl className="flex h-full flex-col gap-1" aria-label={srLabel}>
+    <dl className="flex h-full flex-col gap-1" role="img" aria-label={srLabel}>
       {items.map((f) => (
         <div key={f.label}
              className="flex flex-1 items-center justify-between gap-2 border-t pt-1"
@@ -325,7 +341,7 @@ export function Funnel({ stages, srLabel, formatValue }: {
   srLabel: string
   formatValue?: (n: number) => string
 }) {
-  if (!stages.length) return null
+  if (!stages.length || !hasSignal(stages.map((s) => s.value))) return null
   const hi = Math.max(...stages.map((s) => s.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
@@ -347,8 +363,9 @@ export function Funnel({ stages, srLabel, formatValue }: {
 export function Scale({ value, min, max, srLabel }: {
   value: number; min: number; max: number; srLabel: string
 }) {
-  if (max <= min) return null
-  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  const lo = num(min), hi = num(max)
+  if (hi <= lo || !Number.isFinite(value)) return null
+  const pct = Math.max(0, Math.min(100, ((value - lo) / (hi - lo)) * 100))
   return (
     <div className="flex h-full items-center" role="img" aria-label={srLabel}>
       <span className="relative block h-px w-full" style={{ background: ink(45) }}>
@@ -365,8 +382,12 @@ export function Flow({ rows, srLabel }: { rows: number[]; srLabel: string }) {
   return (
     <div className="flex h-full flex-col justify-center gap-2" role="img" aria-label={srLabel}>
       {rows.map((n, i) => (
+        /* Capped. This built one span per unit with no ceiling, so a paise
+           amount handed to it by mistake threw `RangeError: Invalid array
+           length` and took the whole dashboard down with it — and well short
+           of throwing, 100k rendered 100k DOM nodes. */
         <div key={i} className="flex gap-1" style={{ paddingLeft: `${i * 16}px` }}>
-          {Array.from({ length: Math.max(0, n) }, (_, j) => (
+          {Array.from({ length: Math.min(24, Math.max(0, Math.floor(num(n)))) }, (_, j) => (
             <span key={j} className="h-1.5 w-3 rounded-full" style={{ background: MARK }} />
           ))}
         </div>

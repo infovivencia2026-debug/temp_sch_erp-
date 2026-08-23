@@ -180,11 +180,18 @@ export function Ring({
   srLabel: string
   className?: string
 }) {
-  /* Before the early return: a hook cannot be called conditionally, and this
+  /* NOTE the guard below sits after this hook, deliberately: a hook cannot be
+     called conditionally.
+
+     Before the early return: a hook cannot be called conditionally, and this
      one only exists to keep two rings on one board from sharing a gradient id
      — which would silently give the second one the first one's geometry. */
   const gid = useId()
-  if (total <= 0) return null
+  /* A clamp does not clamp a non-number, so NaN reached the printed share,
+     the value line AND the accessible label, while the dasharray became
+     "NaN <circumference>" — the browser drew no arc at all and the bare track
+     read as a confident 0%. */
+  if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) return null
 
   const v = Math.min(Math.max(value, 0), total)
   const frac = v / total
@@ -555,8 +562,13 @@ export function HeatStrip({
   className?: string
 }) {
   const room = useRoom(2)
+  /* An all-zero series is not a flat series. With `range === 0` this took the
+     flat branch and painted every cell at half intensity, so a month in which
+     nothing happened rendered as a month of uniformly moderate activity. Flat
+     is right for a flat NON-ZERO series; this one draws nothing. */
+  const anySignal = cells.some((c) => c !== null && c !== 0)
   const present = cells.filter((c): c is number => c !== null && Number.isFinite(c))
-  if (!room || cells.length === 0 || present.length === 0) return null
+  if (!room || cells.length === 0 || present.length === 0 || !anySignal) return null
 
   const fmt = formatValue ?? ((v: number) => String(v))
   const lo = Math.min(...present)

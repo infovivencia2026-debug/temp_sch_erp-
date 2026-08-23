@@ -377,7 +377,11 @@ function CollectionCell({
     t('bento.finance.age_3'), t('bento.finance.age_4'),
   ]
 
-  const split = (
+  /* Both money fields on this handler are `COALESCE(sum(…),0)`, so a school
+     with no invoice at all reports nought outstanding and nought overdue —
+     and the decomposition of nought into two parts of nought is two empty
+     tracks under two ₹0.00 labels. That is not a drawing of anything. */
+  const split = k.outstanding_paise > 0 ? (
     <Compare
       rows={[
         { label: t('bento.finance.not_yet_due'), value: notYetDue },
@@ -386,6 +390,8 @@ function CollectionCell({
       formatValue={formatPaise}
       srLabel={t('bento.finance.decomp_sr')}
     />
+  ) : (
+    <Say>{t('bento.finance.owed_none')}</Say>
   )
 
   /* The ageing, in whatever state the invoice list is in. The receipts and
@@ -515,7 +521,10 @@ function TodayCell({ span, k, href }: { span: CellSpan; k: FinanceKPIs; href?: s
      still running. Money divided by a count of days is still money. */
   const perDay = pos && pos.day > 0 ? Math.round(k.month_paise / pos.day) : 0
 
-  const scaleOnly = pos ? (
+  /* `Scale` draws nothing when `max <= min`, and a range resolved to a single
+     day is exactly that — today is the whole of it, so there is no position
+     inside it to mark. */
+  const scaleOnly = pos && pos.span > 1 ? (
     <Scale
       value={pos.day}
       min={1}
@@ -526,7 +535,7 @@ function TodayCell({ span, k, href }: { span: CellSpan; k: FinanceKPIs; href?: s
     />
   ) : null
 
-  const scale = pos ? (
+  const scale = scaleOnly && pos ? (
     <Titled head={t('bento.finance.today_position', {
       day: pos.day, span: pos.span, label: k.range.label,
     })}>
@@ -545,7 +554,7 @@ function TodayCell({ span, k, href }: { span: CellSpan; k: FinanceKPIs; href?: s
     />
   ) : null
 
-  const ranked = pos ? (
+  const ranked = pos && (k.month_paise > 0 || k.today_paise > 0) ? (
     <Rows
       items={[
         { label: t('bento.finance.today_part'), value: k.today_paise },
@@ -557,27 +566,34 @@ function TodayCell({ span, k, href }: { span: CellSpan; k: FinanceKPIs; href?: s
     />
   ) : null
 
+  /* Nothing banked in the range, and no position worth marking inside it.
+     Every drawing above is a decomposition of `month_paise`, so with no
+     receipts there is nothing to decompose — and a half of a `Split` holding
+     a drawing that renders nothing is a hole in the row, so a missing half
+     is not laid out at all. */
+  const none = <Say>{t('bento.finance.receipts_none', { label: k.range.label })}</Say>
+
   let drawing: ReactNode
   if (!pos) {
     drawing = <Say>{t('bento.finance.today_outside', { label: k.range.label })}</Say>
   } else if (roomy) {
     drawing = (
       <Split>
-        <Part>{scale}</Part>
-        <Part grow={2}>{ranked}</Part>
+        {scale && <Part>{scale}</Part>}
+        <Part grow={2}>{ranked ?? none}</Part>
       </Split>
     )
   } else if (wide) {
-    drawing = compare ?? scaleOnly
+    drawing = compare ?? scaleOnly ?? none
   } else if (tall) {
     drawing = (
       <Split>
-        <Part>{scale}</Part>
-        <Part grow={2}>{compare}</Part>
+        {scale && <Part>{scale}</Part>}
+        <Part grow={2}>{compare ?? none}</Part>
       </Split>
     )
   } else {
-    drawing = scaleOnly
+    drawing = scaleOnly ?? none
   }
 
   const change = !pos
@@ -645,12 +661,17 @@ function OutstandingCell({
     t('bento.finance.age_3'), t('bento.finance.age_4'),
   ]
 
-  const gauge = (
+  /* `Gauge` needs a real total and draws nothing without one, which on this
+     card is every school that owes nothing — the 1x1 is the gauge and only
+     the gauge, so a nought balance emptied the card completely. */
+  const gauge = k.outstanding_paise > 0 ? (
     <GaugeBox
       value={k.overdue_paise}
       total={k.outstanding_paise}
       srLabel={t('bento.finance.overdue_sr')}
     />
+  ) : (
+    <Say>{t('bento.finance.owed_none')}</Say>
   )
 
   const bands = (shape: 'rows' | 'dist') => {
