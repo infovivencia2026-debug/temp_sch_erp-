@@ -45,6 +45,9 @@ interface LayerValue {
   editing: boolean
   declare: (w: BoardWidget) => void
   visible: BoardWidget[]
+  /** The ids that actually fit inside the five-by-three board. A widget not in
+      here does not render, however it was declared. */
+  fitted: Set<string>
   /** The tallest layout that still fits on this screen, in rows. */
   maxRows: number
 }
@@ -122,7 +125,32 @@ export function WidgetLayer({
     .filter(isOn)
     .slice()
     .sort((a, b) => orderOf(layout, a.id, a.index) - orderOf(layout, b.id, b.index))
-  const off = declared.filter((d) => !isOn(d))
+  /* THE CEILING, ENFORCED. Five columns, three rows, fifteen slots — and a
+     widget that does not fit does not render.
+
+     Everything before this was advisory: the add button was disabled when the
+     board was full and a resize was refused past three rows, but `Widget`
+     itself only ever checked the removed list, so anything declared painted
+     regardless. A dashboard that declared twenty-four cells drew twenty-four
+     cells, six rows deep, and the ceiling was a suggestion.
+
+     Packed in declared order against the real `rowsNeeded`. `continue` rather
+     than `break`, because the pack is dense: a 1x1 further down the list can
+     still drop into a gap a 2x1 could not use. Anything that does not fit is
+     offered in the add tray instead of vanishing — the board is capped, not
+     the dashboard. */
+  const maxRows = BOARD_ROWS
+  const fitted = new Set<string>()
+  {
+    const packed: { w: number; h: number }[] = []
+    for (const d of visible) {
+      const dim = dimsOf(layout, d.id, d.size)
+      if (rowsNeeded([...packed, dim]) > maxRows) continue
+      packed.push(dim)
+      fitted.add(d.id)
+    }
+  }
+  const off = declared.filter((d) => !isOn(d) || !fitted.has(d.id))
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
 
   /* Published so Settings can list this board without being inside it, and
@@ -153,11 +181,14 @@ export function WidgetLayer({
      does not get a shorter row, it gets pushed off the bottom of the screen.
      The arranger refuses those sizes rather than letting somebody arrive at
      one and wonder where their card went. */
-  const maxRows = BOARD_ROWS
 
   const value = useMemo<LayerValue>(
-    () => ({ dashboard, editing: arranging, declare, visible, maxRows }),
-    [dashboard, arranging, declare, maxRows, visible.map((d) => d.id).join(',')],
+    () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows }),
+    [
+      dashboard, arranging, declare, maxRows,
+      visible.map((d) => d.id).join(','),
+      [...fitted].join(','),
+    ],
   )
 
   return (
@@ -549,6 +580,11 @@ export function Widget({
     declare?.({ id, label, index, size: declaredSize, w, h, optional })
   }, [declare, id, label, index, declaredSize, w, h, optional])
 
+  /* One gate, and it is the board's own answer. `layer.fitted` already folds
+     in the removed list, the `optional` default and the three-row ceiling, so
+     there is no second opinion here to fall out of step with it — which is
+     exactly what happened when this line was `isRemoved` alone. */
+  if (layer && !layer.fitted.has(id)) return null
   if (isRemoved(layout, id)) return null
 
   const order = orderOf(layout, id, index)
