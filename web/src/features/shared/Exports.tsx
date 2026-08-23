@@ -21,20 +21,17 @@ import {
 
 interface ExportSpec {
   name: string
+  /* What a school calls it. The names used to live here, in a map covering
+   * three of the thirteen datasets — so the other ten showed a URL slug,
+   * "staff-attendance", to somebody choosing what to send their trustee. They
+   * now come from the server beside the query each one runs, which is the only
+   * place that cannot fall out of step with the list. */
+  title?: string
+  about?: string
   url: string
   columns: string[]
 }
 
-/** The catalogue names datasets by key; these are what a school calls them. */
-const LABELS: Record<string, { title: string; blurb: string }> = {
-  students: { title: 'Students', blurb: 'Every student with class, section and guardian contact.' },
-  attendance: { title: 'Attendance', blurb: 'Daily marks per student, for the selected period.' },
-  invoices: { title: 'Invoices', blurb: 'Raised, paid and outstanding, per student.' },
-  payments: { title: 'Payments', blurb: 'Receipts with mode, date and collector.' },
-  employees: { title: 'Employees', blurb: 'Staff records with department and designation.' },
-  marks: { title: 'Marks', blurb: 'Exam marks per student per paper.' },
-  enquiries: { title: 'Enquiries', blurb: 'Admission leads with source and status.' },
-}
 
 export default function Exports() {
   const q = useQuery({
@@ -68,7 +65,7 @@ export default function Exports() {
               emptyLabel="Your role does not permit any export."
             >
               {items.map((x) => {
-                const label = LABELS[x.name] ?? { title: x.name, blurb: '' }
+                const label = { title: x.title ?? x.name, blurb: x.about ?? '' }
                 return (
                   <tr key={x.name}>
                     <Td className="font-medium">

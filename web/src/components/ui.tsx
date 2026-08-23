@@ -1301,6 +1301,40 @@ export function RangePicker({
  * four dashboards in a row, and having each one snap back to "this month"
  * turns one question into four re-selections.
  */
+/* What a saved range is called.
+ *
+ * The picker knows the label while it is open, and a range restored from
+ * localStorage on the next visit has only the key it was stored under. Every
+ * screen then wrote `range.label ?? range.period`, so a principal reloading a
+ * report was shown "fin_year" — a storage key, printed to somebody running a
+ * school. The names live here, beside the picker that offers them, so no
+ * screen has to keep its own copy.
+ *
+ * An unknown key is turned into words rather than passed through: a preset
+ * added later should read as "last quarter", not fail the same way again.
+ */
+const RANGE_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  last_7: 'Last 7 days',
+  last_30: 'Last 30 days',
+  this_week: 'This week',
+  this_month: 'This month',
+  last_month: 'Last month',
+  this_quarter: 'This quarter',
+  this_term: 'This term',
+  this_year: 'This academic year',
+  last_year: 'Last academic year',
+  fin_year: 'This financial year',
+  custom: 'Custom range',
+}
+
+export function rangeLabel(r: { label?: string; period?: string }): string {
+  if (r.label) return r.label
+  const p = r.period ?? ''
+  return RANGE_LABELS[p] ?? p.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+}
+
 export function useRange(): [ActiveRange, (r: ActiveRange) => void] {
   const [range, setRange] = useState<ActiveRange>(() => {
     try {
