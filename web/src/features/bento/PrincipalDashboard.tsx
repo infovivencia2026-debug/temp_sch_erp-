@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { WidgetLayer, Widget } from './WidgetLayer'
+import { useLayout } from '@/lib/widgets'
 import { formatPaise } from '@/lib/utils'
 import {
   Bars,
@@ -235,6 +237,132 @@ function AttentionCell({
   )
 }
 
+/* THE FEATURE WIDGETS.
+
+   The attention table above answers "what needs me". These answer the other
+   half of the question the head asked for — "let me put any of my screens on
+   the board" — one cell per principal feature that has a real figure behind
+   it. The rule they are held to is the rule the rest of this file is held to:
+   the figure is one an existing screen already prints, off an endpoint that
+   already exists, and where a feature has no such figure it has no cell here
+   rather than an invented one.
+
+   THEY DO NOT FETCH UNTIL THEY ARE PLACED. Fifteen attention cells share one
+   request, so fetching for all of them costs nothing whether or not anybody
+   added them. These are seventeen different endpoints, and a board that
+   fired seventeen requests to render eight cells nobody asked for would be
+   paying for the tray. `useLayout` already knows what somebody placed — the
+   arrange layer reads the same store — so each query is gated on its own
+   widget being on the board. An `optional` widget is on exactly when it has
+   been placed. */
+interface SetupStatus {
+  completed: number
+  total: number
+  blocking_remaining: number
+  ready: boolean
+}
+interface ShortageRow { pct: number }
+interface WorkloadRow { weekly_periods: number }
+interface SubstitutionBoard {
+  summary: { absent_teachers: number; periods: number; covered: number; uncovered: number; no_candidate: number }
+}
+interface TimetableOverview {
+  summary: {
+    sections: number
+    sections_without_timetable: number
+    required_periods: number
+    live_periods: number
+    live_unstaffed: number
+    draft_periods: number
+    open_drafts: number
+  }
+}
+interface CoverageRow { behind: boolean }
+interface PaperRow { status: 'draft' | 'submitted' | 'approved' | 'changes_needed' }
+interface ModerationRow { moderated_at: string | null }
+interface GrievanceRow { status: string; resolved_at?: string; overdue_hours?: number }
+interface CalendarEntry { name: string; starts_on: string; kind: string }
+interface ExamRow { name: string; starts_on?: string; is_published: boolean }
+interface PerformanceSummary {
+  summary: { candidates: number; passed: number; pass_rate?: number; at_risk: number; papers: number }
+}
+interface ThreadRow { unread: number }
+interface MyPayView {
+  payslips: { period_month: number; period_year: number; net_paise: number }[]
+  leave_balances: { leave_type: string; remaining: string }[]
+}
+
+/* One feature cell, with the same three states the attention cells keep apart
+   and for the same reason: a fetch that failed must not be able to render as a
+   nought, because a nought here reads as "nothing to do". */
+function SourceCell({
+  span,
+  label,
+  value,
+  note,
+  shape,
+  accent,
+  domain,
+  to,
+  cue,
+  status,
+}: {
+  span: CellSpan
+  label: string
+  value: string | number
+  note?: string
+  shape?: ReactNode
+  accent?: 'pink' | 'orange'
+  domain?: string
+  to?: string
+  cue: string
+  status: 'loading' | 'error' | 'ready'
+}) {
+  const t = useT()
+
+  if (status === 'error') {
+    return (
+      <Cell span={span} domain={domain}>
+        <p
+          className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                     text-[var(--bento-muted)]"
+        >
+          {label}
+        </p>
+        <div className="mt-4">
+          <CellError message={t('bento.principal.source_failed')} />
+        </div>
+      </Cell>
+    )
+  }
+
+  if (status === 'loading') {
+    return (
+      <StatCell
+        span={span}
+        domain={domain}
+        label={label}
+        value={t('bento.principal.source_pending')}
+        note={t('bento.principal.source_loading')}
+      />
+    )
+  }
+
+  return (
+    <StatCell
+      span={span}
+      domain={domain}
+      label={label}
+      value={value}
+      accent={accent}
+      shape={shape}
+      note={note}
+      to={to}
+      cue={cue}
+    />
+  )
+}
+
 export default function BentoPrincipalDashboard() {
   const t = useT()
 
@@ -254,13 +382,123 @@ export default function BentoPrincipalDashboard() {
     queryFn: () => api.get<AttentionResponse>('/api/v1/attention'),
   })
 
+  /* The feature widgets' data. One query each, none of them asked for until
+     its own cell is on the board. `useLayout` is the same store the arrange
+     layer reads; an optional widget is on exactly when it has been placed. */
+  const { layout } = useLayout('principal')
+  const placed = (id: string) => layout.placed.some((p) => p.id === id)
+
+  const setup = useQuery({
+    queryKey: ['setup-status', null],
+    queryFn: () => api.get<SetupStatus>('/api/v1/setup/status'),
+    enabled: placed('setup-progress'),
+  })
+  // 75 is the endpoint's own default — the board eligibility line most Indian
+  // boards use — and the label says so rather than leaving the reader to guess
+  // what "short" means.
+  const shortage = useQuery({
+    queryKey: ['attendance-shortage', 75],
+    queryFn: () => api.get<List<ShortageRow>>('/api/v1/principal/attendance-shortage?threshold=75'),
+    enabled: placed('attendance-shortage'),
+  })
+  const workload = useQuery({
+    queryKey: ['staff-workload'],
+    queryFn: () => api.get<List<WorkloadRow>>('/api/v1/principal/staff-workload'),
+    enabled: placed('staff-unallocated'),
+  })
+  /* Today's cover. The date is built the way the substitution board itself
+     builds it, so the two share a cache entry rather than asking twice for the
+     same day. */
+  const coverDate = new Date().toISOString().slice(0, 10)
+  const cover = useQuery({
+    queryKey: ['substitution-board', coverDate],
+    queryFn: () =>
+      api.get<SubstitutionBoard>(
+        `/api/v1/academics/admin/substitution-board?on_date=${coverDate}`,
+      ),
+    enabled: placed('cover-uncovered'),
+  })
+  const timetable = useQuery({
+    queryKey: ['master-timetable', 'overview'],
+    queryFn: () => api.get<TimetableOverview>('/api/v1/master-timetable/overview'),
+    enabled: placed('timetable-sections') || placed('timetable-unstaffed'),
+  })
+  const coverage = useQuery({
+    queryKey: ['syllabus-coverage'],
+    queryFn: () => api.get<List<CoverageRow>>('/api/v1/syllabus/coverage'),
+    enabled: placed('syllabus-behind'),
+  })
+  const plans = useQuery({
+    queryKey: ['lesson-plans', 'submitted'],
+    queryFn: () => api.get<List<unknown>>('/api/v1/syllabus/lesson-plans?status=submitted'),
+    enabled: placed('lesson-plans'),
+  })
+  const papers = useQuery({
+    queryKey: ['question-papers'],
+    queryFn: () => api.get<{ items: PaperRow[] }>('/api/v1/exams/question-papers'),
+    enabled: placed('question-papers'),
+  })
+  const moderation = useQuery({
+    queryKey: ['mark-moderation'],
+    queryFn: () => api.get<{ items: ModerationRow[] }>('/api/v1/exams/moderation'),
+    enabled: placed('mark-moderation'),
+  })
+  /* The whole queue, unfiltered, and the two figures counted here rather than
+     asked for twice: the server's own filters would need one request for the
+     open ones and another for the overdue ones, and the overdue ones are a
+     subset of what the first request already returned. */
+  const grievances = useQuery({
+    queryKey: ['comms', 'grievances', 'list', '', '', false],
+    queryFn: () => api.get<List<GrievanceRow>>('/api/v1/comms/grievances/?status=&category=&overdue='),
+    enabled: placed('grievances-open') || placed('grievances-overdue'),
+  })
+  const calendar = useQuery({
+    queryKey: ['admin-calendar', ''],
+    queryFn: () => api.get<{ items: CalendarEntry[] }>('/api/v1/academics/admin/calendar'),
+    enabled: placed('calendar-next'),
+  })
+  const exams = useQuery({
+    queryKey: ['exams-list'],
+    queryFn: () => api.get<List<ExamRow>>('/api/v1/exams/list'),
+    enabled: placed('exams-upcoming'),
+  })
+  /* Unfiltered, which is what the performance screen itself opens on: every
+     exam of the year, not one. The note says so, because a pass rate with no
+     stated population is the kind of number somebody quotes in a meeting. */
+  const performance = useQuery({
+    queryKey: ['board-performance', '', ''],
+    queryFn: () => api.get<PerformanceSummary>('/api/v1/exams/board/performance'),
+    enabled: placed('pass-rate') || placed('at-risk'),
+  })
+  const threads = useQuery({
+    queryKey: ['staff-threads'],
+    queryFn: () => api.get<List<ThreadRow>>('/api/v1/staff-messages/threads'),
+    enabled: placed('staff-messages'),
+  })
+  const myPay = useQuery({
+    queryKey: ['my-pay'],
+    queryFn: () => api.get<MyPayView>('/api/v1/me/pay'),
+    enabled: placed('my-pay') || placed('my-leave'),
+  })
+  const classes = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => api.get<List<{ id: string }>>('/api/v1/academics/classes'),
+    enabled: placed('classes'),
+  })
+
   // Every cue is checked against the catalogue before it is drawn: a link to a
   // screen this account cannot open is worse than no link.
   const attendanceHref = useFeatureHref('institution_admin.standard.attendance_overview')
   const feesHref = useFeatureHref('institution_admin.standard.fee_collection')
   const defaultersHref = useFeatureHref('institution_admin.fees.fee_default')
-  const studentsHref = useFeatureHref('institution_admin.students.enrollment_lifecycle')
-  const staffHref = useFeatureHref('institution_admin.directory_workload.faculty_directory')
+  /* Both of these used to name catalogue keys that do not exist —
+     `students.enrollment_lifecycle` and `directory_workload.faculty_directory`.
+     `useFeatureHref` answers `undefined` for a key it cannot find, and a cell
+     with no href renders no cue, so the two cells sat there with no way out of
+     them and nothing said so. These are the real keys nearest what each cell
+     is counting. */
+  const studentsHref = useFeatureHref('institution_admin.students.student_360')
+  const staffHref = useFeatureHref('institution_admin.staff.leaves_subs')
   const applicationsHref = useFeatureHref('institution_admin.admissions.admissions_pipeline')
   const subjectsHref = useFeatureHref('institution_admin.academics.teacher_assignment')
   const approvalsHref = useFeatureHref('institution_admin.approvals.approvals')
@@ -270,6 +508,27 @@ export default function BentoPrincipalDashboard() {
   const leavesHref = useFeatureHref(ATTENTION_TARGETS.staff)
   const paymentsHref = useFeatureHref(ATTENTION_TARGETS.payments)
   const resultsHref = useFeatureHref(ATTENTION_TARGETS.marks)
+
+  /* The feature widgets' destinations. Same rule again: the catalogue decides,
+     and a feature this account cannot open leaves its cell without a cue
+     rather than offering a locked door. */
+  const setupHref = useFeatureHref('institution_admin.getting_started.school_setup')
+  const auditHref = useFeatureHref('institution_admin.academics.attendance_audit')
+  const substitutionsHref = useFeatureHref('institution_admin.academics.substitutions')
+  const timetableHref = useFeatureHref('institution_admin.academics.master_timetable')
+  const syllabusHref = useFeatureHref('institution_admin.academics.syllabus_progress')
+  const lessonPlansHref = useFeatureHref('institution_admin.academics.lesson_plans')
+  const questionPapersHref = useFeatureHref('institution_admin.exams.question_paper_approval')
+  const moderationHref = useFeatureHref('institution_admin.exams.mark_moderation')
+  const grievancesHref = useFeatureHref('institution_admin.communication.grievances')
+  const calendarHref = useFeatureHref('institution_admin.academics.school_calendar')
+  const examsHref = useFeatureHref('institution_admin.examinations.exams_papers')
+  const performanceHref = useFeatureHref('institution_admin.examinations.performance_overview')
+  const academicPerformanceHref = useFeatureHref('institution_admin.students.academic_performance')
+  const messagesHref = useFeatureHref('institution_admin.communication.messages')
+  const myPayHref = useFeatureHref('institution_admin.my_profile.my_pay')
+  const myLeaveHref = useFeatureHref('institution_admin.my_profile.leave_self_service')
+  const classSetupHref = useFeatureHref('institution_admin.academics.class_setup')
 
   const attentionHrefs: Record<AttentionTarget, string | undefined> = {
     attendance: attendanceHref,
@@ -328,6 +587,50 @@ export default function BentoPrincipalDashboard() {
     value: p.pct,
     title: t('bento.principal.bar_title', { date: p.date, pct: p.pct }),
   }))
+
+
+  /* The feature widgets' figures. Each one is counted off the response it came
+     in, and each denominator is a number in that same response — never one
+     this file decided would be reasonable. */
+  const stateOf = (q: { error: unknown; data: unknown }): 'loading' | 'error' | 'ready' =>
+    q.error ? 'error' : q.data === undefined ? 'loading' : 'ready'
+
+  const setupData = setup.data
+  const shortageRows = shortage.data?.items ?? []
+  // The endpoint returns at most a hundred. A hundred is therefore a floor,
+  // not a count, and the cell says so rather than printing 100 as though the
+  // hundred-and-first child did not exist.
+  const shortageCapped = shortageRows.length >= 100
+  const workloadRows = workload.data?.items ?? []
+  const unallocated = workloadRows.filter((s) => s.weekly_periods === 0).length
+  const coverSummary = cover.data?.summary
+  const ttSummary = timetable.data?.summary
+  const coverageRows = coverage.data?.items ?? []
+  const behind = coverageRows.filter((c) => c.behind).length
+  const paperRows = papers.data?.items ?? []
+  const papersWaiting = paperRows.filter((p) => p.status === 'submitted').length
+  const moderationRows = moderation.data?.items ?? []
+  const unmoderated = moderationRows.filter((m) => !m.moderated_at).length
+  const grievanceRows = grievances.data?.items ?? []
+  const grievancesOpen = grievanceRows.filter((g) => !g.resolved_at)
+  const grievancesOverdue = grievancesOpen.filter((g) => (g.overdue_hours ?? 0) > 0).length
+  /* The year's calendar, forward of today. The comparison is on the ISO string
+     rather than through `new Date`, for the reason the bar labels are sliced
+     rather than parsed: a Date would move the school's dates by a day for
+     anyone whose browser is not in India. */
+  const todayISO = coverDate
+  const upcoming = (calendar.data?.items ?? [])
+    .filter((e) => e.starts_on >= todayISO)
+    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+  const nextEntry = upcoming[0]
+  const examRows = exams.data?.items ?? []
+  const examsUpcoming = examRows.filter((e) => e.starts_on && e.starts_on >= todayISO).length
+  const perf = performance.data?.summary
+  const unread = (threads.data?.items ?? []).reduce((n, t2) => n + t2.unread, 0)
+  const payslip = myPay.data?.payslips[0]
+  const balances = myPay.data?.leave_balances ?? []
+  const leaveLeft = balances.reduce((n, b) => n + Number(b.remaining || 0), 0)
+  const classCount = classes.data?.items.length ?? 0
 
   return (
     <BentoPage eyebrow={t('bento.principal.eyebrow')} title={t('bento.principal.title')}>
@@ -638,6 +941,492 @@ export default function BentoPrincipalDashboard() {
           )}
         </Widget>
       ))}
+
+      {/* THE FEATURE CELLS — every principal screen that has a real figure
+          behind it, as a cell somebody can add. All `optional`, all 1x1, and
+          all numbered after the attention block so that adding them renumbers
+          nothing anybody has already arranged. */}
+
+      <Widget id="setup-progress" label={t('bento.principal.setup')} size="small" index={24} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="operations"
+            status={stateOf(setup)}
+            label={t('bento.principal.setup')}
+            value={setupData ? `${setupData.completed}/${setupData.total}` : 0}
+            shape={
+              setupData ? (
+                <Meter
+                  value={setupData.completed}
+                  total={setupData.total}
+                  tone="success"
+                  srLabel={t('bento.principal.setup_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.setup_note', { count: setupData?.blocking_remaining ?? 0 })}
+            to={setupHref}
+            cue={t('bento.principal.cue_setup')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="attendance-shortage"
+        label={t('bento.principal.shortage')}
+        size="small"
+        index={25}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="attendance"
+            status={stateOf(shortage)}
+            label={t('bento.principal.shortage')}
+            value={shortageCapped ? '100+' : shortageRows.length}
+            accent={shortageRows.length > 0 ? 'orange' : undefined}
+            note={t('bento.principal.shortage_note')}
+            to={auditHref}
+            cue={t('bento.principal.cue_shortage')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="staff-unallocated"
+        label={t('bento.principal.unallocated')}
+        size="small"
+        index={26}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="staff"
+            status={stateOf(workload)}
+            label={t('bento.principal.unallocated')}
+            value={unallocated}
+            shape={
+              workloadRows.length > 0 ? (
+                <Meter
+                  value={unallocated}
+                  total={workloadRows.length}
+                  tone="warning"
+                  srLabel={t('bento.principal.unallocated_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.unallocated_note', { count: workloadRows.length })}
+            to={subjectsHref}
+            cue={t('bento.principal.cue_unassigned')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="cover-uncovered" label={t('bento.principal.cover')} size="small" index={27} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="academics"
+            status={stateOf(cover)}
+            label={t('bento.principal.cover')}
+            value={coverSummary?.uncovered ?? 0}
+            accent={(coverSummary?.uncovered ?? 0) > 0 ? 'pink' : undefined}
+            shape={
+              coverSummary && coverSummary.periods > 0 ? (
+                <Meter
+                  value={coverSummary.covered}
+                  total={coverSummary.periods}
+                  tone="success"
+                  srLabel={t('bento.principal.cover_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.cover_note', {
+              covered: coverSummary?.covered ?? 0,
+              periods: coverSummary?.periods ?? 0,
+            })}
+            to={substitutionsHref}
+            cue={t('bento.principal.cue_cover')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="timetable-sections"
+        label={t('bento.principal.tt_sections')}
+        size="small"
+        index={28}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="academics"
+            status={stateOf(timetable)}
+            label={t('bento.principal.tt_sections')}
+            value={ttSummary?.sections_without_timetable ?? 0}
+            accent={(ttSummary?.sections_without_timetable ?? 0) > 0 ? 'orange' : undefined}
+            shape={
+              ttSummary && ttSummary.sections > 0 ? (
+                <Meter
+                  value={ttSummary.sections_without_timetable}
+                  total={ttSummary.sections}
+                  tone="warning"
+                  srLabel={t('bento.principal.tt_sections_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.tt_sections_note', { count: ttSummary?.sections ?? 0 })}
+            to={timetableHref}
+            cue={t('bento.principal.cue_timetable')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="timetable-unstaffed"
+        label={t('bento.principal.tt_unstaffed')}
+        size="small"
+        index={29}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="academics"
+            status={stateOf(timetable)}
+            label={t('bento.principal.tt_unstaffed')}
+            value={ttSummary?.live_unstaffed ?? 0}
+            accent={(ttSummary?.live_unstaffed ?? 0) > 0 ? 'orange' : undefined}
+            shape={
+              ttSummary && ttSummary.live_periods > 0 ? (
+                <Meter
+                  value={ttSummary.live_unstaffed}
+                  total={ttSummary.live_periods}
+                  tone="warning"
+                  srLabel={t('bento.principal.tt_unstaffed_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.tt_unstaffed_note', { count: ttSummary?.live_periods ?? 0 })}
+            to={timetableHref}
+            cue={t('bento.principal.cue_timetable')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="syllabus-behind"
+        label={t('bento.principal.syllabus')}
+        size="small"
+        index={30}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="academics"
+            status={stateOf(coverage)}
+            label={t('bento.principal.syllabus')}
+            value={behind}
+            accent={behind > 0 ? 'orange' : undefined}
+            shape={
+              coverageRows.length > 0 ? (
+                <Meter
+                  value={behind}
+                  total={coverageRows.length}
+                  tone="warning"
+                  srLabel={t('bento.principal.syllabus_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.syllabus_note', { count: coverageRows.length })}
+            to={syllabusHref}
+            cue={t('bento.principal.cue_syllabus')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="lesson-plans" label={t('bento.principal.plans')} size="small" index={31} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="academics"
+            status={stateOf(plans)}
+            label={t('bento.principal.plans')}
+            value={plans.data?.items.length ?? 0}
+            note={t('bento.principal.plans_note')}
+            to={lessonPlansHref}
+            cue={t('bento.principal.cue_plans')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="question-papers"
+        label={t('bento.principal.papers')}
+        size="small"
+        index={32}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="reports"
+            status={stateOf(papers)}
+            label={t('bento.principal.papers')}
+            value={papersWaiting}
+            accent={papersWaiting > 0 ? 'orange' : undefined}
+            note={t('bento.principal.papers_note', { count: paperRows.length })}
+            to={questionPapersHref}
+            cue={t('bento.principal.cue_papers')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="mark-moderation"
+        label={t('bento.principal.moderation')}
+        size="small"
+        index={33}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="reports"
+            status={stateOf(moderation)}
+            label={t('bento.principal.moderation')}
+            value={unmoderated}
+            shape={
+              moderationRows.length > 0 ? (
+                <Meter
+                  value={moderationRows.length - unmoderated}
+                  total={moderationRows.length}
+                  tone="success"
+                  srLabel={t('bento.principal.moderation_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.moderation_note', { count: moderationRows.length })}
+            to={moderationHref}
+            cue={t('bento.principal.cue_moderation')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="grievances-open"
+        label={t('bento.principal.grievances')}
+        size="small"
+        index={34}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="communication"
+            status={stateOf(grievances)}
+            label={t('bento.principal.grievances')}
+            value={grievancesOpen.length}
+            note={t('bento.principal.grievances_note', { count: grievanceRows.length })}
+            to={grievancesHref}
+            cue={t('bento.principal.cue_grievances')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="grievances-overdue"
+        label={t('bento.principal.grievances_late')}
+        size="small"
+        index={35}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="communication"
+            status={stateOf(grievances)}
+            label={t('bento.principal.grievances_late')}
+            value={grievancesOverdue}
+            accent={grievancesOverdue > 0 ? 'pink' : undefined}
+            shape={
+              grievancesOpen.length > 0 ? (
+                <Meter
+                  value={grievancesOverdue}
+                  total={grievancesOpen.length}
+                  tone="destructive"
+                  srLabel={t('bento.principal.grievances_late_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.grievances_late_note', { count: grievancesOpen.length })}
+            to={grievancesHref}
+            cue={t('bento.principal.cue_grievances')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="calendar-next"
+        label={t('bento.principal.calendar')}
+        size="small"
+        index={36}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="operations"
+            status={stateOf(calendar)}
+            label={t('bento.principal.calendar')}
+            value={upcoming.length}
+            note={
+              nextEntry
+                ? t('bento.principal.calendar_next', {
+                    name: nextEntry.name,
+                    date: nextEntry.starts_on,
+                  })
+                : t('bento.principal.calendar_none')
+            }
+            to={calendarHref}
+            cue={t('bento.principal.cue_calendar')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="exams-upcoming" label={t('bento.principal.exams')} size="small" index={37} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="reports"
+            status={stateOf(exams)}
+            label={t('bento.principal.exams')}
+            value={examsUpcoming}
+            note={t('bento.principal.exams_note', { count: examRows.length })}
+            to={examsHref}
+            cue={t('bento.principal.cue_exams')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="pass-rate" label={t('bento.principal.pass_rate')} size="small" index={38} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="success"
+            status={stateOf(performance)}
+            label={t('bento.principal.pass_rate')}
+            value={perf?.pass_rate != null ? `${Math.round(perf.pass_rate)}%` : '—'}
+            shape={
+              perf && perf.candidates > 0 ? (
+                <Meter
+                  value={perf.passed}
+                  total={perf.candidates}
+                  tone="success"
+                  srLabel={t('bento.principal.pass_rate_sr')}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.pass_rate_note', { count: perf?.candidates ?? 0 })}
+            to={performanceHref}
+            cue={t('bento.principal.cue_performance')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="at-risk" label={t('bento.principal.at_risk')} size="small" index={39} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="students"
+            status={stateOf(performance)}
+            label={t('bento.principal.at_risk')}
+            value={perf?.at_risk ?? 0}
+            accent={(perf?.at_risk ?? 0) > 0 ? 'orange' : undefined}
+            note={t('bento.principal.at_risk_note', { count: perf?.candidates ?? 0 })}
+            to={academicPerformanceHref}
+            cue={t('bento.principal.cue_at_risk')}
+          />
+        )}
+      </Widget>
+
+      <Widget
+        id="staff-messages"
+        label={t('bento.principal.messages')}
+        size="small"
+        index={40}
+        optional
+      >
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="communication"
+            status={stateOf(threads)}
+            label={t('bento.principal.messages')}
+            value={unread}
+            note={t('bento.principal.messages_note', { count: threads.data?.items.length ?? 0 })}
+            to={messagesHref}
+            cue={t('bento.principal.cue_messages')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="my-pay" label={t('bento.principal.my_pay')} size="small" index={41} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="finance"
+            status={stateOf(myPay)}
+            label={t('bento.principal.my_pay')}
+            value={payslip ? formatPaise(payslip.net_paise) : '—'}
+            note={
+              payslip
+                ? t('bento.principal.my_pay_note', {
+                    month: payslip.period_month,
+                    year: payslip.period_year,
+                  })
+                : t('bento.principal.my_pay_none')
+            }
+            to={myPayHref}
+            cue={t('bento.principal.cue_my_pay')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="my-leave" label={t('bento.principal.my_leave')} size="small" index={42} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="staff"
+            status={stateOf(myPay)}
+            label={t('bento.principal.my_leave')}
+            value={leaveLeft}
+            note={t('bento.principal.my_leave_note', { count: balances.length })}
+            to={myLeaveHref}
+            cue={t('bento.principal.cue_my_leave')}
+          />
+        )}
+      </Widget>
+
+      <Widget id="classes" label={t('bento.principal.classes')} size="small" index={43} optional>
+        {(span) => (
+          <SourceCell
+            span={span}
+            domain="operations"
+            status={stateOf(classes)}
+            label={t('bento.principal.classes')}
+            value={classCount}
+            note={t('bento.principal.classes_note', { count: k.sections })}
+            to={classSetupHref}
+            cue={t('bento.principal.cue_classes')}
+          />
+        )}
+      </Widget>
       </WidgetLayer>
     </BentoPage>
   )
