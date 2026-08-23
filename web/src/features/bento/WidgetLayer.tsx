@@ -225,6 +225,29 @@ export function WidgetLayer({
      The arranger refuses those sizes rather than letting somebody arrive at
      one and wonder where their card went. */
 
+  /* The board uses the rows it NEEDS, not always three.
+
+     Three equal fractions of a definite height is right when the layout fills
+     them. When it does not — nine cards that pack into two rows, which is what
+     a board looks like as soon as anyone removes a card — the third row still
+     claimed its 196px and the board ended a third of the way up the page with
+     black underneath it.
+
+     `rowsNeeded` is already computed for the ceiling, so this costs nothing:
+     the same pack that decides what fits decides how tall the board is. Still
+     capped at BOARD_ROWS, so the ceiling is unchanged; a two-row layout simply
+     gets two taller rows instead of two short ones and a hole. */
+  const rowsUsed = Math.max(
+    1,
+    Math.min(maxRows, rowsNeeded(visible.map((v) => drawnDims(layout, v.id, v.size)))),
+  )
+  useEffect(() => {
+    document.documentElement.style.setProperty('--board-rows', String(rowsUsed))
+    return () => {
+      document.documentElement.style.removeProperty('--board-rows')
+    }
+  }, [rowsUsed])
+
   const value = useMemo<LayerValue>(
     () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows }),
     [

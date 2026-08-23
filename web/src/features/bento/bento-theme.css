@@ -839,14 +839,14 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        arithmetically correct and chaotic to use. Three rows are three rows
        whatever is on them, and a cell's size depends only on its own W and H. */
     height: var(--board-h, auto);
-    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(var(--board-rows, 3), minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr) !important;
   }
 
   /* While arranging, the toolbar takes the first row and the cards share the
      rest — otherwise a row's worth of height goes to one line of buttons. */
   .bento-board:has(> .bento-arrange-bar) {
-    grid-template-rows: auto repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(var(--board-rows, 3), minmax(0, 1fr)) !important;
   }
 
   /* The arrange toolbar is a grid child, so it was taking a full 1fr row —
