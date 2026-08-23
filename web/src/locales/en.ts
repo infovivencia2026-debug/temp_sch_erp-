@@ -1007,6 +1007,22 @@ export const en = {
   'bento.my_work.scope_own': 'from your account',
   'bento.my_work.rows_by_kind': 'Rows by kind',
   'bento.my_work.sections_note': 'Submissions, marks and cover are scoped by section; leave and notices by account.',
+  // --- the card language ---------------------------------------------------
+  'bento.my_work.on_you': 'Outstanding on you',
+  'bento.my_work.by_kind_head': 'By kind',
+  'bento.my_work.late_of': '{late} late, across {kinds} kinds.',
+  'bento.my_work.marks_sr': 'Marks papers, by how many marks are still missing on each',
+  'bento.my_work.late_rows_sub': 'Late rows',
+  'bento.my_work.age_head': 'How late',
+  'bento.my_work.late_rows_head': 'Late rows by kind',
+  'bento.my_work.late_kind_sr': 'Late rows on this list, counted by kind',
+  'bento.my_work.oldest_of': 'Oldest {days} days late, of {count} rows on this list.',
+  'bento.my_work.oldest_sr': 'The oldest late items, in days past their due date',
+  'bento.my_work.scoped_to': 'Your work is scoped to them',
+  'bento.my_work.sections_sr': '{count} sections, one dot each',
+  'bento.my_work.no_sections': 'No sections are assigned to you.',
+  'bento.my_work.rows_kind_sr': 'Rows on this work list, counted by kind',
+  'bento.my_work.scope_sr': 'Rows the handler scoped by section against rows it scoped by account',
 
   // --- bento: the head's dashboard ----------------------------------------
   // The Bento rendering of institution_admin.home.dashboard. Same endpoints as
@@ -1143,6 +1159,46 @@ export const en = {
   'bento.principal.outstanding_note_plain': 'Every unpaid invoice, of every year. No bills are tagged to an academic year, so there is nothing to show it against.',
   'bento.principal.collected_note_plain': "Receipts banked in this period, whatever year's bill they settle.",
 
+  /* THE CARD VOCABULARY — the eight KPI cells rebuilt on `CardShell`.
+
+     Two rules run through all of these. Every line under a figure names the
+     POPULATION and the INSTANT, because a number without those is the half of
+     a fact that gets quoted in a meeting. And every unit-grid label says what
+     one dot is worth: a dot grid whose unit is unstated is decoration, and at
+     a roll of four hundred one dot is never one child. */
+  'bento.principal.card_pulse_title': 'Attendance today',
+  'bento.principal.card_pulse_sub': 'Against the last 30 days',
+  'bento.principal.card_pulse_month_sr': 'Attendance for each of the last 28 days, {days} of them marked',
+  'bento.principal.card_pulse_short_sr': 'Attendance over the last ten marked days',
+  /* Short enough to survive a 1x1 row label at 8px. The full words are in the
+     card title and the screen-reader line. */
+  'bento.principal.card_billed': 'Billed',
+  'bento.principal.card_in': 'Collected',
+  'bento.principal.card_due': 'Due',
+  'bento.principal.card_this_year': 'This year',
+  'bento.principal.card_earlier': 'Earlier',
+  'bento.principal.card_roll_label': 'On roll',
+  'bento.principal.card_arrears_label': 'In arrears',
+  'bento.principal.card_of_billed': '{pct}% of {billed} billed',
+  'bento.principal.card_of_billed_due': '{pct}% of billed, owed by {count} students',
+  'bento.principal.card_due_plain': 'Unpaid invoices of every year, owed by {count} students',
+  'bento.principal.card_range_receipts': "Receipts banked in this period, whatever year's bill they settle",
+  'bento.principal.card_money_three_sr': 'Billed this year, collected against it and the balance still due, on one scale',
+  'bento.principal.card_owed_by_sr': 'Arrears spread across {count} students, one dot per {unit}',
+  'bento.principal.card_money_pair_sr': 'Receipts in this period and arrears of every year, drawn on one scale — neither is a share of the other',
+  'bento.principal.card_arrears_split_sr': "Billed this year, the total owed, this year's share of it and the debt carried in from earlier years",
+  'bento.principal.card_roll': '{sections} sections · {staff} staff',
+  'bento.principal.card_roll_wide': '{sections} sections, {per} each · {staff} staff, {load} each',
+  'bento.principal.card_roll_sr': '{count} students on roll, one dot per {unit}',
+  'bento.principal.card_of_roll': '{pct}% of {roll} on roll',
+  'bento.principal.card_defaulters_grid_sr': '{flagged} of {roll} students in arrears, one dot per {unit}',
+  'bento.principal.card_unit': '{note} · one dot per {unit}',
+  'bento.principal.card_queue_clear': 'Nothing waiting',
+  'bento.principal.card_all_covered': 'Every subject has a teacher',
+  'bento.principal.card_approvals_sr': '{count} leave requests waiting, one dot per {unit}',
+  'bento.principal.card_applications_sr': '{count} undecided applications, one dot per {unit}',
+  'bento.principal.card_unassigned_sr': '{count} subjects with no teacher timetabled, one dot per {unit}',
+
   /* The attention widgets. The label is this repository's words; the sentence
      under the figure is the server's headline and is not extracted, because a
      count already rendered into a sentence by the engine is data, not a
@@ -1189,6 +1245,14 @@ export const en = {
   'bento.principal.sev_def_info': 'Worth knowing; nothing is on fire',
   /* The verb the probe declared. It is the fourth question the card answers —
      what should I do — and it is the server's word, not this screen's. */
+  /* THE COUNT, DRAWN. A scalar supports exactly two pictures: the count as
+     itself, one mark per thing, and the count placed against the biggest
+     count the same response carried. The second caption NAMES that peak,
+     because a dot on a line with an unnamed end is a percentage in disguise. */
+  'bento.principal.attention_dots': 'One mark for each of the {count} flagged',
+  'bento.principal.attention_peak': 'Against {count}, the largest queue flagged now',
+  'bento.principal.attention_peak_start': 'None',
+  'bento.principal.attention_peak_end': '{count} largest now',
   'bento.principal.attention_next_label': 'Next',
   'bento.principal.attention_next': 'Next step: {action}',
   'bento.principal.attn_fees_overdue': 'Fees overdue',
@@ -1327,7 +1391,138 @@ export const en = {
   'bento.principal.cue_my_leave': 'Leave and self service',
   'bento.principal.classes': 'Classes',
   'bento.principal.classes_note': '{count} sections between them',
+
+  /* THE PER-ROW DRAWINGS ON THE FLAT CELLS.
+
+     Ten of these cells fetched a list and printed its length. Where the rows
+     carried a quantity — days waited, a percent, a status, a date, an unread
+     count — it is bucketed and drawn, and every label below names a bucket of
+     rows that really arrived. Band labels are held short: they sit in a 38px
+     column beside their own bar at one column of width. */
+  'bento.principal.band_lt50': 'Under 50',
+  'bento.principal.band_50': '50–59',
+  'bento.principal.band_60': '60–64',
+  'bento.principal.band_65': '65–69',
+  'bento.principal.band_70': '70–75',
+  'bento.principal.shortage_bands_sr': 'Students short of the line, counted by how far below it they are',
+  'bento.principal.fact_lowest': 'Lowest',
+  'bento.principal.fact_under_60': 'Under 60%',
+  'bento.principal.band_none': 'None',
+  'bento.principal.band_1_10': '1–10',
+  'bento.principal.band_11_20': '11–20',
+  'bento.principal.band_21_30': '21–30',
+  'bento.principal.band_31_up': '31+',
+  'bento.principal.workload_bands_sr': 'Teaching staff counted by periods timetabled a week',
+  'bento.principal.tt_sections_grid_sr':
+    'One mark per section: {count} of {total} have no timetable',
+  'bento.principal.band_no_teacher': 'No one',
+  'bento.principal.band_staffed': 'Staffed',
+  'bento.principal.tt_unstaffed_split_sr': 'Live periods a week, with a teacher and without',
+  'bento.principal.band_today': 'Today',
+  'bento.principal.band_1_2d': '1–2d',
+  'bento.principal.band_3_7d': '3–7d',
+  'bento.principal.band_8_14d': '8–14d',
+  'bento.principal.band_15d_up': '15d+',
+  'bento.principal.plans_bands_sr': 'Lesson plans waiting, counted by how long they have waited',
+  'bento.principal.days_short': '{count}d',
+  'bento.principal.fact_longest_wait': 'Longest wait',
+  'bento.principal.fact_over_a_week': 'Over a week',
+  'bento.principal.band_submitted': 'Waiting',
+  'bento.principal.band_changes': 'Changes',
+  'bento.principal.band_draft': 'Draft',
+  'bento.principal.band_approved': 'Approved',
+  'bento.principal.papers_status_sr': 'Question papers counted by the status each one is in',
+  'bento.principal.fact_changes_needed': 'Changes asked',
+  'bento.principal.fact_approved': 'Approved',
+  'bento.principal.calendar_density_sr':
+    'The next thirty days; {count} of them have something on the calendar',
+  'bento.principal.fact_days_away': 'Days away',
+  'bento.principal.fact_in_30_days': 'In 30 days',
+  'bento.principal.band_ahead': 'Ahead',
+  'bento.principal.band_sat': 'Sat',
+  'bento.principal.band_undated': 'No date',
+  'bento.principal.exams_split_sr': 'Exams still to sit, already sat, and with no date set',
+  'bento.principal.fact_published': 'Published',
+  'bento.principal.fact_undated': 'No date',
+  'bento.principal.messages_spread_sr':
+    'Unread messages in each of the {count} conversations with something waiting, busiest first',
+  'bento.principal.fact_busiest': 'Busiest',
+  'bento.principal.fact_with_unread': 'Conversations',
+  'bento.principal.fact_sections_each': 'Sections each',
   'bento.principal.cue_classes': 'Class setup',
+
+  /* THE TEN CARD CELLS. Header, figure and drawing — the subs are the eyebrow
+     under the title, the changes are the line under the figure, and every
+     `_sr` is what a screen reader is told the drawing shows. A sentence that
+     states a share names the total it was taken from, because on this board
+     there is no proportion without one. */
+  'bento.principal.syllabus_sub': 'Delivered against the calendar',
+  'bento.principal.syllabus_change':
+    'Of {total} class subjects · {lag} points behind · {short} of {units} units to teach',
+  'bento.principal.syllabus_level': 'Level with the calendar · {delivered} of {units} units taught',
+  'bento.principal.syllabus_dist_sr':
+    'How delivered coverage is spread across {count} class subjects, 0 to 100 percent of each one’s own units',
+  'bento.principal.syllabus_lag_sr':
+    'The {count} class subjects with the least delivered, each as a percent of its own units',
+  'bento.principal.moderation_sub': 'Paper averages',
+  'bento.principal.moderation_change':
+    '{reviewed} of {total} papers moderated · {papers} carry an average',
+  'bento.principal.moderation_dist_sr':
+    'How the averages of {count} papers are spread, 0 to 100 percent',
+  'bento.principal.moderation_low_sr': 'The {count} papers with the lowest average, in percent',
+  'bento.principal.pass_rate_sub': 'Candidates passed',
+  'bento.principal.pass_rate_change': '{passed} of {total} candidates with marks',
+  'bento.principal.pass_rate_none': 'No results entered yet',
+  'bento.principal.pass_rate_gauge_sr': 'Candidates passed, of {total} candidates with marks',
+  'bento.principal.pass_rate_dist_sr': 'How pass rates are spread across {count} papers',
+  'bento.principal.pass_rate_low_sr': 'The {count} papers with the lowest pass rate',
+  'bento.principal.at_risk_sub': 'Below pass, paper by paper',
+  'bento.principal.at_risk_change': 'Of {total} candidates, counted by the summary and not the list',
+  'bento.principal.at_risk_gauge_sr': 'Students at risk, of {total} candidates with marks',
+  'bento.principal.at_risk_dist_sr': 'Candidates below the pass mark in each of {count} papers',
+  'bento.principal.at_risk_low_sr': 'The {count} papers with the most candidates below pass',
+  'bento.principal.setup_sub': 'Fifteen steps',
+  'bento.principal.setup_density_sr':
+    '{total} setup steps: {done} done, {left} still to do, brightest where a step is complete',
+  'bento.principal.setup_gauge_sr': 'Setup steps done, of {total}',
+  'bento.principal.setup_rows_left_sr': 'Steps still to do, by area of the school',
+  'bento.principal.setup_rows_done_sr': 'Steps done, by area of the school',
+  'bento.principal.cover_sub': 'Periods left by absences',
+  'bento.principal.cover_change': '{covered} of {periods} covered · {away} away today',
+  'bento.principal.cover_states_sr':
+    '{covered} periods covered, {open} still open, {stuck} with nobody free',
+  'bento.principal.cover_day_sr': 'Periods across the day, {from} to {to}, on {date}',
+  'bento.principal.cover_class_sr': 'Uncovered periods by class',
+  'bento.principal.grievances_sub': 'Age of the queue',
+  'bento.principal.grievances_change': 'Of {count} tickets fetched · oldest {oldest} days',
+  'bento.principal.grievances_capped':
+    'The queue is cut at {count} tickets — what is drawn is the oldest {count}, not the whole of it',
+  'bento.principal.grievances_none': 'Nothing open',
+  'bento.principal.grievances_days_sr':
+    'How long {count} open tickets have been open, none to {oldest} days',
+  'bento.principal.grievances_cat_rows_sr': 'Open tickets by category',
+  'bento.principal.grievances_dept_rows_sr': 'Open tickets by department',
+  'bento.principal.grv_late_sub': 'Past the resolution deadline',
+  'bento.principal.grv_late_change': 'Of {count} tickets still open',
+  'bento.principal.grv_late_capped':
+    'Of {open} open in the oldest {count} fetched — the queue is cut there',
+  'bento.principal.grv_late_compare_sr': '{late} tickets past deadline, of {open} open',
+  'bento.principal.grv_late_hours_sr':
+    'How far past deadline {count} tickets are, none to {worst} hours',
+  'bento.principal.grv_late_dept_rows_sr': 'Tickets past deadline, by department',
+  'bento.principal.my_leave_sub': 'Days left of what was granted',
+  'bento.principal.my_leave_change': 'Of {entitled} days granted across {types} types',
+  'bento.principal.my_leave_none': 'No leave entitlement on record',
+  'bento.principal.my_leave_left': 'Left',
+  'bento.principal.my_leave_taken': 'Taken',
+  'bento.principal.my_leave_compare_sr': 'Days left against days taken, of {entitled} granted',
+  'bento.principal.my_leave_rows_sr': 'Days left in each of {count} leave types',
+  'bento.principal.my_pay_sub': 'Net pay',
+  'bento.principal.my_pay_change': '{month}/{year} · gross {gross}',
+  'bento.principal.my_pay_gross': 'Gross',
+  'bento.principal.my_pay_line_sr': 'Net pay across the last {count} months',
+  'bento.principal.my_pay_stack_sr':
+    'Gross pay across {count} months, each month split into what was paid and what was withheld',
 
   /* THE SIZE-AWARE FEATURE CELLS.
 
@@ -1554,7 +1749,7 @@ export const en = {
   'bento.finance.overdue_note_loading': '{amount} of it overdue. Ageing the invoices…',
   'bento.finance.overdue_ageing_failed': '{amount} of it overdue. The invoice list did not load, so the ageing is unknown — not zero.',
   'bento.finance.concentration': 'The largest {n} carry {pct}% of the {listed} listed.',
-  'bento.finance.ranked_title': 'The {n} largest, ranked',
+  'bento.finance.ranked_title': 'Largest {n} of {total} listed',
   'bento.finance.ranked_sr': 'The {n} largest overdue invoices, largest first, each with what is still due on it and how far past due it is',
   'bento.finance.ranked_of': 'The field is the largest {shown} of {total}.',
 
@@ -1573,6 +1768,25 @@ export const en = {
   'bento.finance.cue_reconcile': 'Reconciliation',
   'bento.finance.cue_refunds': 'Refunds',
   'bento.finance.cue_invoices': 'Invoices',
+  // --- the card language ---------------------------------------------------
+  // Headers, captions and the sentences that say where a figure came from.
+  // Every one of these is printed on a card whose drawing is one of the twelve
+  // in bento-cards.tsx; none of them describes a share the handler cannot
+  // support.
+  'bento.finance.as_of_today': 'As of today',
+  'bento.finance.all_time': 'All time',
+  'bento.finance.no_target_sub': 'No billed total is recorded',
+  'bento.finance.per_day_short': 'Per day',
+  'bento.finance.today_rows_sr':
+    'Collected today, the mean per elapsed day, and the total for {label} — all three in rupees.',
+  'bento.finance.today_day_none': '{label} does not include today.',
+  // The four open-item counts. One dot per item, and the caption says so —
+  // there is no population on this response to put any of them over.
+  'bento.finance.count_none': 'Nothing open.',
+  'bento.finance.dots_each': 'One dot each',
+  'bento.finance.dots_capped': 'One dot each, first {shown} of {total}',
+  'bento.finance.dots_sr': '{shown} of {total} {thing}, one dot each.',
+  'bento.finance.no_share': 'No total is recorded for this count, so it is drawn as a count and not as a share.',
 
   // --- bento: the three daily personas ------------------------------------
   // The student, parent and faculty landing screens in the Bento layout.

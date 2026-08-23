@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
-import { useT } from '@/lib/i18n'
+import { useT, type MessageKey } from '@/lib/i18n'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { useLayout } from '@/lib/widgets'
 import { cn, formatPaise } from '@/lib/utils'
@@ -10,23 +11,35 @@ import {
   BentoError,
   BentoLoading,
   BentoPage,
-  BlockedFlowArt,
-  CalendarDensityArt,
   calendarSlots,
   Cell,
   CellError,
   type CellSpan,
   Cue,
-  FunnelArt,
   Meter,
   NetworkArt,
-  PopulationArt,
-  RiskGridArt,
-  Sparkline,
   StatCell,
   useFeatureHref,
 } from './bento-kit'
-import { AgeBands, HeatStrip, Ring, SegmentBar } from './bento-viz'
+import {
+  Area,
+  Area as CardArea,
+  Bars as CardBars,
+  CardShell,
+  Compare,
+  Compare as CardCompare,
+  Density,
+  Density as CardDensity,
+  Distribution,
+  Gauge,
+  Gauge as CardGauge,
+  Line,
+  Line as CardLine,
+  Rows,
+  Rows as CardRows,
+  Scale,
+  Stack as StackCols,
+} from './bento-cards'
 
 /* THE HEAD'S PAGE, IN THE BENTO LANGUAGE.
 
@@ -190,6 +203,24 @@ const LABEL_CLASS =
 
 /** The whisper above the figure. One copy of the markup three cells were
     repeating verbatim. */
+/** Bucket a list of numbers into labelled bands, for `Rows`.
+
+    Bands are given in ascending order with an inclusive `max`; anything above
+    the last band's max falls into that last band, so the buckets always cover
+    the whole range and a value cannot be silently dropped. Empty bands are
+    kept: "none in this band" is a real reading, and dropping them would make
+    the gaps in a distribution invisible. */
+function bandCounts(values: number[], bands: { label: string; max: number }[]) {
+  return bands.map((b, i) => {
+    const lo = i === 0 ? -Infinity : bands[i - 1].max
+    const last = i === bands.length - 1
+    return {
+      label: b.label,
+      value: values.filter((v) => v > lo && (last || v <= b.max)).length,
+    }
+  })
+}
+
 function CellLabel({ children }: { children: ReactNode }) {
   return <p className={LABEL_CLASS}>{children}</p>
 }
@@ -394,6 +425,80 @@ function MicroStat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/* THE COUNT, DRAWN AS THE THINGS IT COUNTS.
+
+   The payload is a scalar, so there is no series to plot and no whole to take
+   a share of. There are exactly two pictures a lone count supports, and both
+   are drawn from the number already printed above them:
+
+   A DOT PER THING. Up to `DOT_MAX` the count is drawn as itself — twelve marks
+   are twelve registers, and the reading is the size of the field rather than
+   the numeral. Nothing is claimed that the figure did not already claim; the
+   drawing only makes it countable at a glance. Past `DOT_MAX` the marks stop
+   being countable and start being a texture, so they are not drawn.
+
+   A PLACE IN THE DAY'S RANGE. Above that, the one honest range this screen
+   has is the response itself: fifteen probes ran, several came back, and the
+   largest count among them is a real number that arrived in the same payload.
+   So the dot is placed between none and that peak, and the caption NAMES the
+   peak — this is not "43% of something", it is "this queue, against the
+   biggest queue flagged right now". Drawn only when a bigger peer exists;
+   against a range of one the dot would sit at the end of the line and say
+   nothing.
+
+   Neither is drawn for a calm zero. Nought things is not a field of no dots
+   that could be mistaken for a drawing that failed. */
+const DOT_MAX = 60
+
+function AttentionDraw({
+  count,
+  peak,
+  wide,
+  dotsLabel,
+  peakLabel,
+  peakStart,
+  peakEnd,
+}: {
+  count: number
+  peak?: number
+  wide: boolean
+  dotsLabel: string
+  peakLabel: string
+  peakStart: string
+  peakEnd: string
+}) {
+  if (count <= 0) return null
+  if (count <= DOT_MAX) {
+    return (
+      <Density
+        cells={Array.from({ length: count }, () => 1)}
+        columns={wide ? 15 : 8}
+        srLabel={dotsLabel}
+      />
+    )
+  }
+  if (!peak || peak <= count) return null
+  /* The ends are labelled ON the line rather than in a sentence under it: a
+     caption long enough to say what the far end is, is long enough to be
+     ellipsised at one column, and a range whose end has been cut off is a
+     percentage again. */
+  return (
+    <div className="flex h-full min-h-0 flex-col justify-end gap-1.5 pb-1">
+      <div className="h-2.5 shrink-0">
+        <Scale value={count} min={0} max={peak} srLabel={peakLabel} />
+      </div>
+      <div
+        aria-hidden="true"
+        className="flex items-baseline justify-between gap-2 text-[8px] font-semibold
+                   uppercase leading-none tracking-[0.1em] text-[var(--bento-muted)]"
+      >
+        <span>{peakStart}</span>
+        <span className="truncate">{peakEnd}</span>
+      </div>
+    </div>
+  )
+}
+
 /* ONE CELL, ONE GRAMMAR, FIFTEEN WIDGETS.
 
    The card answers four questions in a fixed order, and every size answers all
@@ -454,6 +559,7 @@ function AttentionCell({
   to,
   item,
   money,
+  peak,
   status,
 }: {
   span: CellSpan
@@ -462,6 +568,10 @@ function AttentionCell({
   to?: string
   item?: AttentionItem
   money?: boolean
+  /** The largest count among the probes that DID come back, so a queue can be
+      placed against the day's own biggest queue rather than an invented base.
+      Undefined until the response arrives. */
+  peak?: number
   status: 'loading' | 'error' | 'ready'
 }) {
   const t = useT()
@@ -571,6 +681,22 @@ function AttentionCell({
       </div>
     ) : null
 
+  /* The drawing. Never at 1x1 — that card is spending every pixel it has on
+     the figure, the severity word and the way out — and never for a calm zero,
+     which has no count to draw. */
+  const drawing =
+    roomy && item && item.count > 0 ? (
+      <AttentionDraw
+        count={item.count}
+        peak={peak}
+        wide={wide}
+        dotsLabel={t('bento.principal.attention_dots', { count: item.count })}
+        peakLabel={t('bento.principal.attention_peak', { count: peak ?? 0 })}
+        peakStart={t('bento.principal.attention_peak_start')}
+        peakEnd={t('bento.principal.attention_peak_end', { count: peak ?? 0 })}
+      />
+    ) : null
+
   const headlineText = (
     <p
       aria-hidden="true"
@@ -583,8 +709,11 @@ function AttentionCell({
     </p>
   )
 
+  /* The second sentence, wherever there is a second row of height for it. The
+     1x2 has as much room as the 2x2 and was shedding it for no reason other
+     than being narrow. */
   const detailText =
-    full && (detail || !item) ? (
+    (full || tall) && (detail || !item) ? (
       <p
         aria-hidden="true"
         className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--bento-muted)]
@@ -626,10 +755,27 @@ function AttentionCell({
           {stats}
           {full && <div className="mt-2">{headlineText}</div>}
           {full && detailText}
+          {/* At 2x2 the drawing takes the room the sentences did not, in the
+              same column as the figure it is a picture OF. */}
+          {full && drawing && (
+            <div className="mt-2 min-h-0 flex-1 overflow-hidden">{drawing}</div>
+          )}
         </div>
 
-        <div className={cn('flex min-w-0 flex-col', wide ? 'flex-1' : '')}>
+        {/* `flex-1 min-h-0` in BOTH directions. Wide, it is the column that
+            grows; tall, it is the row — and without it the drawing inside had
+            only its own content height to work with, which squashed a dot grid
+            into one clipped line and left the slack sitting under the ladder
+            instead of inside the picture. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {roomy && !full && <div className={wide ? '' : 'mt-2'}>{headlineText}</div>}
+          {tall && !wide && detailText}
+          {/* At 2x1 and 1x2 the drawing sits between the sentence and the
+              ladder, and it is what takes up the slack — the ladder stays
+              pinned to the bottom edge either way. */}
+          {!full && drawing && (
+            <div className="mt-2 min-h-0 flex-1 overflow-hidden">{drawing}</div>
+          )}
           {full ? (
             <SeverityScale
               level={severity}
@@ -642,7 +788,7 @@ function AttentionCell({
               heading={t('bento.principal.attention_scale')}
             />
           ) : (
-            <div className="mt-auto pt-2">
+            <div className={cn('pt-2', drawing ? '' : 'mt-auto')}>
               <SeverityLadder level={severity} labels={rungs} showLabels={roomy} />
             </div>
           )}
@@ -738,6 +884,10 @@ interface CoverageRow {
   last_taught?: string
   plans_waiting?: number
 }
+/** One plan in the reviewer's queue. `waiting_days` is what `listLessonPlans`
+    sorts the queue by and the only per-row figure this board draws from it —
+    everything else in `planRow2` is a name, and a name is not a quantity. */
+interface PlanRow { waiting_days: number }
 interface PaperRow { status: 'draft' | 'submitted' | 'approved' | 'changes_needed' }
 interface ModerationRow {
   class: string
@@ -915,30 +1065,6 @@ function StateTag({ children }: { children: ReactNode }) {
     so nothing is drawn rather than a field that misreports its own length by
     being cut. Nothing at 1x1 either: the smallest card is spending its height
     on the figure and the facts. */
-const TALLY_MAX = 40
-function TallyField({
-  n,
-  accent,
-  srLabel,
-}: {
-  n: number
-  accent: 'orange' | 'pink' | 'purple'
-  srLabel: string
-}) {
-  const { w, h } = useWidgetSize()
-  if (n <= 0 || n > TALLY_MAX || (w < 2 && h < 2)) return null
-  return (
-    <div role="img" aria-label={srLabel} className="mt-2.5 flex flex-wrap items-end gap-[3px]">
-      {Array.from({ length: n }, (_, i) => (
-        <span
-          key={i}
-          className="inline-block h-2.5 w-[3px] rounded-[1.5px]"
-          style={{ background: `color-mix(in srgb, var(--bento-${accent}) 55%, currentColor)` }}
-        />
-      ))}
-    </div>
-  )
-}
 
 /* One feature cell, with the same three states the attention cells keep apart
    and for the same reason: a fetch that failed must not be able to render as a
@@ -983,6 +1109,8 @@ function SourceCell({
   note,
   shape,
   flat,
+  draw,
+  drawNeedsHeight,
   facts,
   provenance,
   tag,
@@ -1004,6 +1132,25 @@ function SourceCell({
       fits. So it goes in its own slot rather than fighting a rule that exists
       for a good reason. */
   flat?: ReactNode
+  /** A DRAWING BUILT FROM THE ROWS THE RESPONSE ACTUALLY CARRIED.
+
+      Ten cells here fetch a list and print `.length`. Several of those lists
+      have real per-row data in them — how many days a plan has waited, what
+      status a paper is in, which day a calendar entry falls on, how many
+      unread messages one conversation holds — and throwing it away is what
+      left the extra room empty. This slot is where it goes back.
+
+      NOT A PLACE FOR A DERIVED BASE. Everything passed here is a count of rows
+      that arrived, bucketed by a field that arrived. Where the list is only
+      ids, nothing is passed and the cell keeps its facts and its sentence.
+
+      Never drawn at 1x1: that card is the figure and one fact, and it always
+      was. */
+  draw?: ReactNode
+  /** True for a drawing made of fixed-height rows (`Rows`), which needs the
+      tall shapes; false for one that scales to whatever box it is given
+      (`Density`, `Distribution`), which a 2x1 can hold as well. */
+  drawNeedsHeight?: boolean
   /** Supporting figures, most important first. The cell shows as many as the
       room holds and no more; the rest are simply not drawn, because a fact
       that has been squeezed to three characters is not a fact. */
@@ -1046,7 +1193,11 @@ function SourceCell({
     )
   }
 
-  const showNote = Boolean(note) && (wide || (tall && !shape))
+  /* A 2x1 that has both a drawing and a sentence has room for one of them.
+     The drawing wins, because the sentence is fixed copy this file wrote and
+     the drawing is the response; the sentence is still read out, from the
+     `sr-only` copy that is rendered whatever the shape. */
+  const showNote = Boolean(note) && (wide || (tall && !shape)) && !(draw && wide && !tall)
   /* How many facts fit, by shape rather than by area — 2x1 and 1x2 hold the
      same number and lay them out differently, and the 1x1 holds one. */
   const limit = wide && tall ? 4 : wide ? 3 : tall ? 3 : 1
@@ -1056,6 +1207,9 @@ function SourceCell({
      sentence gets the line that is left rather than three that are not. Cells
      with neither keep the three lines they have always had. */
   const dense = shown.length > 0 || Boolean(flat)
+  /* A row-shaped drawing needs the height; an elastic one takes whatever box
+     it is handed. Neither is offered a 1x1. */
+  const drawn = draw && (tall || (wide && !drawNeedsHeight)) ? draw : null
 
   return (
     <Cell span={span} accent={accent} domain={domain} art={art}>
@@ -1066,6 +1220,23 @@ function SourceCell({
       </div>
       {shown.length > 0 && <FactField facts={shown} mode={mode} />}
       {flat}
+      {/* `flex-1` and `min-h-0` together: the drawing takes the room that is
+          left over and is allowed to be shorter than its content wants, which
+          is what stops it pushing the sentence and the cue off the card. */}
+      {drawn && (
+        <div
+          className={cn(
+            'mt-2 flex-1 overflow-hidden',
+            /* At one row the drawing has to be given a floor or the row above
+               it takes everything and leaves a two-pixel smear that reads as a
+               rendering fault. 22px is four bars of Distribution and two rows
+               of a dot grid — small, and still a picture. */
+            tall ? 'min-h-0' : 'min-h-[22px]',
+          )}
+        >
+          {drawn}
+        </div>
+      )}
       {/* Rendered whatever the shape, and shed by the stylesheet at one row of
           height, which is where a meter has nowhere to go. Unchanged. */}
       {shape && <div className="bento-shape mt-3">{shape}</div>}
@@ -1117,52 +1288,21 @@ function SourceCell({
 
 type CellStatus = 'loading' | 'error' | 'ready'
 
-/** Counts into fixed buckets, low to high, each bucket open above the one
-    before it. `AgeBands` prints these labels under the bars, so they are held
-    to six characters — a longer one collides with its neighbour at one
-    column. */
-function bandCounts(
-  values: number[],
-  edges: readonly { label: string; max: number }[],
-): { label: string; value: number }[] {
-  return edges.map((e, i) => ({
-    label: e.label,
-    value: values.filter((v) => v <= e.max && (i === 0 || v > edges[i - 1].max)).length,
-  }))
-}
-
-/** Percent buckets, for the several responses that carry a percent per row
-    and no population to divide by. Quarters, because a percent read off a
-    dashboard is quoted to about that precision anyway. */
-const PCT_BANDS = [
-  { label: '0-25', max: 25 },
-  { label: '26-50', max: 50 },
-  { label: '51-75', max: 75 },
-  { label: '76-100', max: Infinity },
-] as const
-
-/** Days-open buckets, in the shape a queue is actually read: today, this
-    week, this month, older than that. */
-const DAY_BANDS = [
-  { label: '0-1', max: 1 },
-  { label: '2-7', max: 7 },
-  { label: '8-30', max: 30 },
-  { label: '31+', max: Infinity },
-] as const
 
 /** How many cells a strip may carry before it stops being a chart. Past this
     the strip is cut and the cell's own sentence says it was cut — a silently
     truncated series is a lie about the size of the problem. */
 const STRIP_MAX = 48
 
+/** What `/comms/grievances/` will return and no more — the handler's own
+    `LIMIT 300`. A response of exactly this length is a cut queue, and the two
+    grievance cells say so rather than printing a total that is really a cap. */
+const GRIEVANCE_LIMIT = 300
+
 /** At most this many named slices before the tail is gathered up. Six greys
     is the point past which the legend is longer than the bar. */
 const SEGMENT_MAX = 5
 
-/** Two drawings in the one `shape` slot, spaced. */
-function Stack({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-2.5">{children}</div>
-}
 
 /** Frequencies by a string key, commonest first, with the tail gathered into
     one named remainder rather than dropped. */
@@ -1194,33 +1334,6 @@ function topCounts<T>(
     screen reader and the marks themselves are hidden from it, because fifteen
     announced squares is not a reading of anything. */
 
-/** One rail per named thing, each with its own real denominator printed. The
-    long form of a `Meter`, for the tall narrow cell that has the height for a
-    list and not the width for a chart. */
-function RailList({
-  rows,
-}: {
-  rows: { key: string; label: string; value: number; total: number; caption: string; srLabel: string }[]
-}) {
-  if (rows.length === 0) return null
-  return (
-    <div className="flex flex-col gap-2">
-      {rows.map((r) => (
-        <div key={r.key}>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[11px] font-medium leading-snug">{r.label}</span>
-            <span className="shrink-0 text-[11px] tabular-nums text-[var(--bento-muted)]">
-              {r.caption}
-            </span>
-          </div>
-          <div className="mt-1">
-            <Meter value={r.value} total={r.total} tone="success" srLabel={r.srLabel} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 /* ─── DISTANCE, AND DISTRIBUTION ─────────────────────────────────────────
 
@@ -1261,31 +1374,8 @@ function RailList({
     band a mark sits on — restated here because those helpers are private to
     that file and this file may not edit it. No hex, and nothing that assumes
     a light card: a cell can be light, domain-tinted or inverted. */
-const hueMark = (a: 'mint' | 'orange' | 'purple' | 'pink') =>
-  `color-mix(in srgb, var(--bento-${a}) 55%, currentColor)`
-const hueWash = (a: 'mint' | 'orange' | 'purple' | 'pink', pct: number) =>
-  `color-mix(in srgb, ${hueMark(a)} ${pct}%, transparent)`
-/** The neutral rail, and the neutral hairline: fractions of the cell's own
-    ink, so they are visible on every ground. */
-const RAIL = 'color-mix(in srgb, currentColor 14%, transparent)'
-const HAIR = 'color-mix(in srgb, currentColor 40%, transparent)'
 
 const clampPct = (n: number) => Math.max(0, Math.min(100, n))
-const median = (xs: number[]) => {
-  if (xs.length === 0) return null
-  const s = [...xs].sort((a, b) => a - b)
-  const m = s.length >> 1
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
-}
-/** The quartile a box plot uses, by the same nearest-rank rule for both ends
-    so the fence below is symmetric. */
-const quantile = (sorted: number[], q: number) => {
-  if (sorted.length === 0) return null
-  const pos = (sorted.length - 1) * q
-  const lo = Math.floor(pos)
-  const hi = Math.ceil(pos)
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
-}
 
 /* ── SYLLABUS: THE DISTANCE INSTRUMENT ─────────────────────────────────── */
 
@@ -1306,238 +1396,165 @@ function yearElapsedPct(now: Date): number {
   return clampPct(Math.round((days / 334) * 100))
 }
 
-/** The distance itself: expected, actual, and the band between them.
 
-    THREE CHANNELS, NOT ONE. The expected mark is a triangle above the rail,
-    the actual mark is a solid bar through it, and the band between them is
-    tinted — orange when the actual sits short of expected, mint when it is
-    past it. Take the colour away and the two marks are still different shapes
-    with a visible distance between them, which is the whole reading. */
-function GapRail({
-  expected,
-  actual,
-  srLabel,
-  lg = false,
+/* ─── THE CARD SHELL, ON THIS BOARD ──────────────────────────────────────
+
+   The ten cells below are the richest on the page: their endpoints already
+   return one row per class-subject, per paper, per ticket, per period. They
+   were drawing a label, a number and a lot of nothing. Each one now renders
+   through `CardShell` — header, figure, drawing, the drawing taking every
+   pixel the figure did not — and every drawing is one of the twelve.
+
+   NOTHING HERE NAMES A COLOUR. The drawings are `currentColor`; the cell
+   resolved its own ink before they were mounted.
+
+   NO PROPORTION WITHOUT A REAL TOTAL. Every `Gauge` below divides by a number
+   that arrived in the same payload — `summary.candidates`, `rows.length`,
+   `steps.length`. Where a response carries no population — the grievance
+   queue is every ticket ever raised — the room buys a `Distribution`, which
+   needs no whole to be true. */
+
+/** The card, plus the way out. `Cell` resolves the ground and the ink;
+    `CardShell` lays the three rows on it; `Cue` keeps the bottom edge.
+
+    `--bento-card` is re-pointed at a domain cell's own ground because
+    `Gauge` punches its centre with that token: left at the plain card tone it
+    would draw a pale disc in the middle of a tinted card. */
+function FeatureCard({
+  span, domain, accent, title, sub, glyph, value, change, href, cue, children,
 }: {
-  expected: number
-  actual: number
-  srLabel: string
-  lg?: boolean
+  span: CellSpan
+  domain?: string
+  accent?: 'pink' | 'orange'
+  title: string
+  sub?: string
+  glyph?: ReactNode
+  value: ReactNode
+  change?: ReactNode
+  href?: string
+  cue: string
+  children?: ReactNode
 }) {
-  const e = clampPct(expected)
-  const a = clampPct(actual)
-  const lo = Math.min(e, a)
-  const span = Math.abs(e - a)
-  const behind = a < e
-  const h = lg ? 20 : 16
-  const bar = lg ? 9 : 7
-  const top = h - bar - (lg ? 2 : 1)
+  const style = domain
+    ? ({ ['--bento-card' as string]: `var(--dom-${domain}-soft, var(--dom-${domain}))` } as CSSProperties)
+    : undefined
   return (
-    <div role="img" aria-label={srLabel} className="relative w-full shrink-0" style={{ height: h }}>
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 rounded-full"
-        style={{ top, height: bar, background: RAIL }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute rounded-full"
-        style={{
-          top,
-          height: bar,
-          left: `${lo}%`,
-          width: `${span}%`,
-          background: hueMark(behind ? 'orange' : 'mint'),
-        }}
-      />
-      {/* Expected: a caret standing on the rail. */}
-      <div
-        aria-hidden="true"
-        className="absolute"
-        style={{
-          top: 0,
-          left: `${e}%`,
-          transform: 'translateX(-50%)',
-          width: 0,
-          height: 0,
-          borderLeft: '4px solid transparent',
-          borderRight: '4px solid transparent',
-          borderTop: `${lg ? 6 : 5}px solid currentColor`,
-        }}
-      />
-      {/* Actual: a solid bar through the rail, taller than it. */}
-      <div
-        aria-hidden="true"
-        className="absolute rounded-[1.5px]"
-        style={{
-          top: top - 2,
-          height: bar + 4,
-          width: 3,
-          left: `${a}%`,
-          transform: 'translateX(-50%)',
-          background: 'currentColor',
-        }}
-      />
-    </div>
+    <Cell span={span} domain={domain} accent={accent}>
+      <div className="flex min-h-0 flex-1 flex-col" style={style}>
+        <CardShell
+          className="flex-1"
+          title={title}
+          sub={sub}
+          glyph={glyph}
+          value={value}
+          change={change}
+        >
+          {children}
+        </CardShell>
+      </div>
+      {href && <Cue to={href} label={cue} />}
+    </Cell>
   )
 }
 
-/** The direction, as a glyph and a number. Never colour alone. */
-function GapFigure({ points, className }: { points: number; className?: string }) {
-  const behind = points > 0
-  return (
-    <span className={cn('tabular-nums', className)}>
-      <span aria-hidden="true">{behind ? '▼' : points < 0 ? '▲' : '·'}</span>
-      {' '}
-      {Math.abs(Math.round(points))}
-    </span>
-  )
-}
-
-/** One class-subject, ranked by how far short of expected it is. */
-function LagRow({
-  label,
-  expected,
-  actual,
-  worst,
-  srLabel,
+/** The two faces that are not a reading: a request in flight, and one that
+    did not come back. Neither ever draws a confident zero. */
+function PendingCard({
+  span, domain, label, status,
 }: {
+  span: CellSpan
+  domain: string
   label: string
-  expected: number
-  actual: number
-  worst?: boolean
-  srLabel: string
+  status: 'loading' | 'error'
 }) {
+  const t = useT()
+  if (status === 'error') return <InstrumentError span={span} domain={domain} label={label} />
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span
-        className={cn(
-          'w-[84px] shrink-0 truncate text-[10.5px] leading-tight',
-          worst ? 'font-bold' : 'font-medium',
-        )}
-        title={label}
-      >
-        {label}
-      </span>
-      <div className="min-w-0 flex-1">
-        <GapRail expected={expected} actual={actual} srLabel={srLabel} />
-      </div>
-      <GapFigure
-        points={expected - actual}
-        className={cn('w-[34px] shrink-0 text-right text-[10.5px]', worst && 'font-bold')}
-      />
+    <StatCell
+      span={span}
+      domain={domain}
+      label={label}
+      value={t('bento.principal.source_pending')}
+      note={t('bento.principal.source_loading')}
+    />
+  )
+}
+
+/** Two drawings sharing the drawing row, half each. */
+function Pair({ top, bottom }: { top: ReactNode; bottom: ReactNode }) {
+  return (
+    <div className="grid h-full min-h-0 grid-rows-2 gap-1.5">
+      <div className="min-h-0 min-w-0">{top}</div>
+      <div className="min-h-0 min-w-0">{bottom}</div>
     </div>
   )
 }
 
-/** Subject x class, one square per pairing, filled from the bottom by how far
-    short of expected that pairing is.
-
-    THE FILL IS THE READING and the tint only agrees with it: an empty square
-    is on schedule, a full one is a subject nobody has taught. A pairing the
-    response does not carry is drawn as an outline, so a hole in the grid is
-    visibly a hole rather than a good result. */
-function GapMatrix({
-  subjects,
-  classes,
-  cell,
-  expected,
-  srLabel,
-}: {
-  subjects: string[]
-  classes: string[]
-  cell: (subject: string, cls: string) => number | null
-  expected: number
-  srLabel: string
-}) {
+/** Two drawings side by side. `lead` gives the left one only what it needs —
+    for a ring beside a ranking. */
+function Split({ left, right, lead }: { left: ReactNode; right: ReactNode; lead?: boolean }) {
   return (
-    <div role="img" aria-label={srLabel} className="min-w-0">
-      <div
-        className="grid gap-[3px]"
-        style={{ gridTemplateColumns: `52px repeat(${classes.length}, minmax(0, 1fr))` }}
-      >
-        <span aria-hidden="true" />
-        {classes.map((c) => (
-          <span
-            key={c}
-            aria-hidden="true"
-            className="overflow-hidden text-center text-[8px] font-semibold uppercase leading-none tracking-tight"
-            style={{ color: HAIR }}
-            title={c}
-          >
-            {c}
-          </span>
-        ))}
-        {/* A flat array of squares rather than one fragment per row: the grid
-            places its own children, so a wrapper element per row would break
-            the column alignment the matrix is entirely made of. */}
-        {subjects.flatMap((s) => [
-          <span
-            key={`row-${s}`}
-            aria-hidden="true"
-            className="truncate pr-1 text-[9px] font-medium leading-none"
-            title={s}
-          >
-            {s}
-          </span>,
-          ...classes.map((c) => {
-              const pct = cell(s, c)
-              if (pct === null) {
-                return (
-                  <span
-                    key={`${s}-${c}`}
-                    aria-hidden="true"
-                    className="h-[13px] rounded-[2px] border border-dashed"
-                    style={{ borderColor: RAIL }}
-                    title={`${c} ${s}: not offered`}
-                  />
-                )
-              }
-              const short = Math.max(0, expected - pct)
-              const fill = expected > 0 ? Math.min(100, (short / expected) * 100) : 0
-              return (
-                <span
-                  key={`${s}-${c}`}
-                  aria-hidden="true"
-                  className="relative block h-[13px] overflow-hidden rounded-[2px]"
-                  style={{ background: RAIL }}
-                  title={`${c} ${s}: ${Math.round(pct)}% delivered, ${Math.round(expected)}% expected`}
-                >
-                  <span
-                    className="absolute inset-x-0 bottom-0"
-                    style={{
-                      height: `${fill}%`,
-                      background: fill > 0 ? hueMark('orange') : hueMark('mint'),
-                    }}
-                  />
-                </span>
-              )
-          }),
-        ])}
-      </div>
+    <div
+      className={cn(
+        'grid h-full min-h-0 gap-2.5',
+        lead ? 'grid-cols-[auto_minmax(0,1fr)]' : 'grid-cols-2',
+      )}
+    >
+      <div className="min-h-0 min-w-0">{left}</div>
+      <div className="min-h-0 min-w-0">{right}</div>
     </div>
   )
 }
 
-/** Syllabus coverage, drawn as the distance between where the year is and
-    where the teaching is.
+/** A square as tall as the row it is in.
 
-    1x1  SIGNAL. How many class-subjects are short, the school's own delivered
-         share, and one rail carrying both marks and the gap between them.
-    1x2  + MOVEMENT. The rail at full size with both marks named, the lag in
-         points and in units, how many subjects and classes contribute, and
-         when those subjects were last taught — which is the only movement
-         this endpoint carries. There is no coverage history on the wire, so
-         no trajectory is drawn.
-    2x1  + STRUCTURE. The dense per-class-subject field: one rail each for the
-         six furthest behind, expected and actual marked on every one, the
-         worst in bold.
-    2x2  + EXPLANATION. The school rail, the subject x class matrix, the lag
-         ranking, the largest lagging subject, and the units still to teach.
+    `Gauge` sizes itself off its own WIDTH, which is right in a tall cell and
+    wrong in a short one — a 104px ring in a 40px row is clipped by the card.
+    A definite height plus a 1:1 ratio makes the width follow the height, so
+    the ring fits whatever row it lands in. */
+function Fit({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto h-full" style={{ aspectRatio: '1 / 1' }}>
+      {children}
+    </div>
+  )
+}
 
-    NOT DRAWN, AND WHY. "Change" and "recent movement" at 1x1 and 2x2 want a
-    previous coverage reading; `/syllabus/coverage` returns today's state only
-    and keeps no history, so nothing stands in for them. */
+/** Counts into equal buckets across a stated range — the input `Distribution`
+    wants. A spread, not a ranking, and it needs no denominator: the bars are
+    counts of rows the response actually carried. */
+function histogram(values: number[], bins: number, lo: number, hi: number): number[] {
+  if (values.length === 0 || bins < 1) return []
+  const span = hi - lo
+  const out = new Array<number>(bins).fill(0)
+  for (const v of values) {
+    const i = span > 0 ? Math.min(bins - 1, Math.max(0, Math.floor(((v - lo) / span) * bins))) : 0
+    out[i] += 1
+  }
+  return out
+}
+
+/** A figure that is a money string rather than a count. Paise are printed by
+    `formatPaise` and never divided; this only stops a nine-character rupee
+    figure from being truncated at the card's own figure size. */
+function Money({ children }: { children: ReactNode }) {
+  return <span className="text-[length:min(var(--bento-fig,32px),24px)]">{children}</span>
+}
+
+const pctText = (n: number) => `${Math.round(n)}%`
+
+/** Syllabus coverage, on the card.
+
+    THE DENOMINATOR IS `units`, which arrives on every row: `percent` is that
+    row's own delivered share of its own units, and the school figure is the
+    sum of `delivered` over the sum of `units` — both off the same payload.
+    `yearElapsedPct` is the CALENDAR, not a denominator: it says where the year
+    is so the lag can be printed, and nothing is divided by it.
+
+    1x1  the spread of delivered percentages across every class-subject.
+    2x1  the three furthest behind, named, each against its own units.
+    1x2  the spread, and the three furthest behind under it.
+    2x2  the four furthest behind, and the full-resolution spread. */
 function SyllabusCell({
   span, rows, status, href,
 }: {
@@ -1550,334 +1567,98 @@ function SyllabusCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.syllabus')
+  const cue = t('bento.principal.cue_syllabus')
 
-  /* Where the year is. The same definition the endpoint judges `behind` by. */
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="academics" label={label} status={status} />
+  }
+
   const expected = yearElapsedPct(new Date())
-
   const behind = rows.filter((c) => c.behind).length
-  /* The school's own delivered share, over the units the response itself
-     counted. Both sides of this fraction arrived in the same payload. */
   const units = rows.reduce((n, c) => n + (Number.isFinite(c.units) ? c.units : 0), 0)
   const delivered = rows.reduce((n, c) => n + (Number.isFinite(c.delivered) ? c.delivered : 0), 0)
   const actual = units > 0 ? (delivered / units) * 100 : 0
-  const lag = expected - actual
-  /* Units still to teach to stand where the calendar stands. A count of
-     units, over the units the rows carry — not a period, and not a guess. */
+  const lag = Math.round(expected - actual)
   const unitsShort = Math.max(0, Math.round((expected / 100) * units) - delivered)
 
-  const ranked = [...rows]
-    .filter((c) => Number.isFinite(c.percent))
-    .sort((a, b) => a.percent - b.percent || a.class_name.localeCompare(b.class_name))
-  const worstSubject = (() => {
-    const m = new Map<string, { short: number; n: number }>()
-    for (const c of rows) {
-      if (!Number.isFinite(c.percent)) continue
-      const cur = m.get(c.subject) ?? { short: 0, n: 0 }
-      cur.short += Math.max(0, expected - c.percent)
-      cur.n += 1
-      m.set(c.subject, cur)
-    }
-    let best: { subject: string; avg: number } | null = null
-    for (const [subject, v] of m) {
-      const avg = v.short / v.n
-      if (!best || avg > best.avg) best = { subject, avg }
-    }
-    return best
-  })()
-  const subjectsBehind = new Set(rows.filter((c) => c.behind).map((c) => c.subject)).size
-  const classesBehind = new Set(rows.filter((c) => c.behind).map((c) => c.class_name)).size
-
-  /* When those subjects were last taught: the only time this response
-     carries. Days, bucketed the way a queue is read. */
-  const staleDays = rows
-    .map((c) => {
-      if (!c.last_taught) return null
-      const d = Date.parse(`${c.last_taught}T00:00:00`)
-      if (!Number.isFinite(d)) return null
-      return Math.max(0, Math.round((Date.now() - d) / 86_400_000))
-    })
-    .filter((d): d is number => d !== null)
-  const neverTaught = rows.filter((c) => !c.last_taught).length
-
-  if (status !== 'ready') {
+  if (rows.length === 0) {
     return (
-      <SourceCell
+      <FeatureCard
         span={span}
         domain="academics"
-        status={status}
-        label={t('bento.principal.syllabus')}
-        value={behind}
-        cue={t('bento.principal.cue_syllabus')}
-        to={href}
+        title={label}
+        sub={t('bento.principal.syllabus_sub')}
+        value="—"
+        change={t('bento.principal.syllabus_empty')}
+        href={href}
+        cue={cue}
       />
     )
   }
 
-  const railSr = t('bento.principal.syllabus_gap_sr', {
-    expected: Math.round(expected),
-    actual: Math.round(actual),
-  })
+  const percents = rows.map((c) => c.percent).filter((p) => Number.isFinite(p))
+  const ranked = [...rows]
+    .filter((c) => Number.isFinite(c.percent))
+    .sort((a, b) => a.percent - b.percent || a.class_name.localeCompare(b.class_name))
+  const lagged = (n: number) =>
+    ranked.slice(0, n).map((c) => ({
+      label: `${c.class_name} ${c.subject}`,
+      value: Math.round(c.percent),
+    }))
 
-  if (rows.length === 0) {
-    return (
-      <Cell span={span} domain="academics">
-        <CellLabel>{t('bento.principal.syllabus')}</CellLabel>
-        <p className="mt-2 text-[12.5px] font-medium leading-snug">
-          {t('bento.principal.syllabus_empty')}
-        </p>
-        {href && <Cue to={href} label={t('bento.principal.cue_syllabus')} />}
-      </Cell>
-    )
-  }
-
-  const head = (
-    <div className="flex min-w-0 items-baseline gap-2">
-      <p className={FIG_CLASS}>{behind}</p>
-      <span className="min-w-0 truncate text-[10.5px] font-semibold uppercase tracking-[0.08em]">
-        {behind > 0
-          ? t('bento.principal.syllabus_behind_of', { total: rows.length })
-          : t('bento.principal.syllabus_on_track')}
-      </span>
-    </div>
+  const spread = (bins: number) => (
+    <Distribution
+      values={histogram(percents, bins, 0, 100)}
+      srLabel={t('bento.principal.syllabus_dist_sr', { count: percents.length })}
+    />
+  )
+  const worst = (n: number) => (
+    <Rows
+      items={lagged(n)}
+      formatValue={pctText}
+      srLabel={t('bento.principal.syllabus_lag_sr', { count: Math.min(n, ranked.length) })}
+    />
   )
 
-  const legend = (
-    <p className="text-[10.5px] leading-tight tabular-nums" style={{ color: HAIR }}>
-      {t('bento.principal.syllabus_legend', {
-        expected: Math.round(expected),
-        actual: Math.round(actual),
-      })}
-    </p>
-  )
-
-  /* 1x1 — the signal and one rail. */
-  if (!wide && !tall) {
-    return (
-      <Cell span={span} domain="academics">
-        <CellLabel>{t('bento.principal.syllabus')}</CellLabel>
-        {head}
-        <div className="mt-2">
-          <GapRail expected={expected} actual={actual} srLabel={railSr} />
-        </div>
-        <p className="mt-0.5 text-[10px] leading-tight tabular-nums">
-          <GapFigure points={lag} className="font-bold" />{' '}
-          {t('bento.principal.syllabus_points_behind')}
-        </p>
-        {href && <Cue to={href} label={t('bento.principal.cue_syllabus')} />}
-      </Cell>
+  const drawing =
+    wide && tall ? (
+      <Pair top={worst(4)} bottom={spread(24)} />
+    ) : tall ? (
+      <Pair top={spread(12)} bottom={worst(3)} />
+    ) : wide ? (
+      worst(3)
+    ) : (
+      spread(10)
     )
-  }
-
-  /* 1x2 — the signal, the distance at full size, and what is behind it. */
-  if (!wide && tall) {
-    return (
-      <Cell span={span} domain="academics">
-        <CellLabel>{t('bento.principal.syllabus')}</CellLabel>
-        {head}
-        <div className="mt-2.5">
-          <GapRail expected={expected} actual={actual} srLabel={railSr} lg />
-        </div>
-        <div className="mt-1">{legend}</div>
-        <p className="mt-2 text-[11px] font-semibold leading-tight tabular-nums">
-          <GapFigure points={lag} /> {t('bento.principal.syllabus_points_behind')}
-        </p>
-        <p className="text-[10.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-          {t('bento.principal.syllabus_units_short', { units: unitsShort, total: units })}
-        </p>
-        <p className="mt-1.5 text-[10.5px] leading-snug tabular-nums">
-          {t('bento.principal.syllabus_contributors', {
-            subjects: subjectsBehind,
-            classes: classesBehind,
-          })}
-        </p>
-        <div className="mt-1.5">
-          <p className="text-[9.5px] font-semibold uppercase tracking-[0.1em]" style={{ color: HAIR }}>
-            {t('bento.principal.syllabus_last_taught')}
-          </p>
-          <div className="mt-1">
-            <AgeBands
-              bands={bandCounts(staleDays, DAY_BANDS)}
-              srLabel={t('bento.principal.syllabus_stale_sr')}
-            />
-          </div>
-          {neverTaught > 0 && (
-            <p className="mt-1 text-[10px] leading-tight tabular-nums" style={{ color: HAIR }}>
-              {t('bento.principal.syllabus_never', { count: neverTaught })}
-            </p>
-          )}
-        </div>
-        {href && <Cue to={href} label={t('bento.principal.cue_syllabus')} />}
-      </Cell>
-    )
-  }
-
-  /* 2x1 — the signal beside the per-class-subject field. */
-  if (wide && !tall) {
-    const shown = ranked.slice(0, 4)
-    return (
-      <Cell span={span} domain="academics">
-        <CellLabel>{t('bento.principal.syllabus')}</CellLabel>
-        <div className="mt-1 flex min-h-0 flex-1 gap-3">
-          <div className="flex w-[132px] shrink-0 flex-col">
-            {head}
-            <div className="mt-1.5">
-              <GapRail expected={expected} actual={actual} srLabel={railSr} />
-            </div>
-            {legend}
-            <p className="mt-0.5 text-[10px] font-semibold leading-tight tabular-nums">
-              <GapFigure points={lag} /> {t('bento.principal.syllabus_points_behind')}
-            </p>
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-start gap-[3px]">
-            {shown.map((c, i) => (
-              <LagRow
-                key={`${c.class_name}-${c.subject}-${i}`}
-                label={`${c.class_name} · ${c.subject}`}
-                expected={expected}
-                actual={c.percent}
-                worst={i === 0 && c.percent < expected}
-                srLabel={t('bento.principal.syllabus_row_sr', {
-                  label: `${c.class_name} ${c.subject}`,
-                  expected: Math.round(expected),
-                  actual: Math.round(c.percent),
-                })}
-              />
-            ))}
-            {rows.length > shown.length && (
-              <p className="text-[9.5px] leading-tight tabular-nums" style={{ color: HAIR }}>
-                {t('bento.principal.syllabus_ranked', { shown: shown.length, total: rows.length })}
-              </p>
-            )}
-          </div>
-        </div>
-        {href && <Cue to={href} label={t('bento.principal.cue_syllabus')} />}
-      </Cell>
-    )
-  }
-
-  /* 2x2 — the whole instrument: distance, matrix, ranking, explanation. */
-  const MATRIX_CLASSES = 9
-  const MATRIX_SUBJECTS = 7
-  const shortOf = (c: CoverageRow) => Math.max(0, expected - c.percent)
-  const rankBy = <K extends string>(key: (c: CoverageRow) => K, take: number) => {
-    const m = new Map<K, number>()
-    for (const c of rows) m.set(key(c), (m.get(key(c)) ?? 0) + shortOf(c))
-    return [...m.entries()]
-      .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
-      .slice(0, take)
-      .map(([k]) => k)
-  }
-  const mClasses = rankBy((c) => c.class_name, MATRIX_CLASSES).sort((a, b) => a.localeCompare(b))
-  const mSubjects = rankBy((c) => c.subject, MATRIX_SUBJECTS)
-  const byPair = new Map(rows.map((c) => [`${c.subject} ${c.class_name}`, c.percent]))
-  const allClasses = new Set(rows.map((c) => c.class_name)).size
-  const allSubjects = new Set(rows.map((c) => c.subject)).size
-  const ranking = ranked.slice(0, 4)
 
   return (
-    <Cell span={span} domain="academics">
-      <CellLabel>{t('bento.principal.syllabus')}</CellLabel>
-      <div className="mt-1 flex min-h-0 flex-1 gap-3.5">
-        <div className="flex w-[178px] shrink-0 flex-col">
-          {head}
-          <div className="mt-2">
-            <GapRail expected={expected} actual={actual} srLabel={railSr} lg />
-          </div>
-          <div className="mt-1">{legend}</div>
-          <p className="mt-1.5 text-[11px] font-semibold leading-tight tabular-nums">
-            <GapFigure points={lag} /> {t('bento.principal.syllabus_points_behind')}
-          </p>
-          <p className="text-[10.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-            {t('bento.principal.syllabus_units_short', { units: unitsShort, total: units })}
-          </p>
-          {worstSubject && (
-            <p className="mt-1.5 text-[10.5px] leading-snug">
-              {t('bento.principal.syllabus_worst_subject', {
-                subject: worstSubject.subject,
-                points: Math.round(worstSubject.avg),
-              })}
-            </p>
-          )}
-          <div className="mt-2 flex flex-col gap-[3px]">
-            <p
-              className="text-[9.5px] font-semibold uppercase tracking-[0.1em]"
-              style={{ color: HAIR }}
-            >
-              {t('bento.principal.syllabus_ranking')}
-            </p>
-            {ranking.map((c, i) => (
-              <LagRow
-                key={`${c.class_name}-${c.subject}-${i}`}
-                label={`${c.class_name} · ${c.subject}`}
-                expected={expected}
-                actual={c.percent}
-                worst={i === 0 && c.percent < expected}
-                srLabel={t('bento.principal.syllabus_row_sr', {
-                  label: `${c.class_name} ${c.subject}`,
-                  expected: Math.round(expected),
-                  actual: Math.round(c.percent),
-                })}
-              />
-            ))}
-          </div>
-          {href && <Cue to={href} label={t('bento.principal.cue_syllabus')} />}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <p
-            className="text-[9.5px] font-semibold uppercase tracking-[0.1em]"
-            style={{ color: HAIR }}
-          >
-            {t('bento.principal.syllabus_matrix')}
-          </p>
-          <div className="mt-1.5 min-w-0">
-            <GapMatrix
-              subjects={mSubjects}
-              classes={mClasses}
-              expected={expected}
-              cell={(s, c) => byPair.get(`${s} ${c}`) ?? null}
-              srLabel={t('bento.principal.syllabus_matrix_sr', {
-                subjects: mSubjects.length,
-                classes: mClasses.length,
-                expected: Math.round(expected),
-              })}
-            />
-          </div>
-          <p className="mt-1.5 text-[9.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-            {t('bento.principal.syllabus_matrix_note', {
-              subjects: mSubjects.length,
-              allSubjects,
-              classes: mClasses.length,
-              allClasses,
-            })}
-          </p>
-          <p className="mt-auto text-[9.5px] leading-snug" style={{ color: HAIR }}>
-            {t('bento.principal.syllabus_no_history')}
-          </p>
-        </div>
-      </div>
-    </Cell>
+    <FeatureCard
+      span={span}
+      domain="academics"
+      title={label}
+      sub={t('bento.principal.syllabus_sub')}
+      value={behind}
+      change={
+        behind > 0
+          ? t('bento.principal.syllabus_change', {
+              total: rows.length,
+              lag: Math.abs(lag),
+              short: unitsShort,
+              units,
+            })
+          : t('bento.principal.syllabus_level', { delivered, units })
+      }
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
 /* ── MODERATION: THE DISTRIBUTION INSTRUMENT ───────────────────────────── */
 
-/** What `/exams/moderation` says about one paper, once the decimals-as-strings
-    have been turned into numbers and the nulls have been kept as nulls.
-
-    A PAPER WITH NO AVERAGE IS NOT A PAPER AT ZERO. `average_pct` is null when
-    a paper has no marks in it, and a null is dropped from every drawing below
-    rather than plotted at the bottom of the axis. */
-interface Paper {
-  label: string
-  avg: number
-  low: number | null
-  high: number | null
-  pass: number | null
-  entered: number
-  failing: number
-  moderated: boolean
-  subject: string
-}
 
 const numOr = (s: string | null | undefined) => {
   if (s == null) return null
@@ -1885,234 +1666,18 @@ const numOr = (s: string | null | undefined) => {
   return Number.isFinite(n) ? n : null
 }
 
-/** A field of marks on a 0-100 axis: one dot per paper at its average, stacked
-    where papers land in the same place, so a column of dots IS the density.
 
-    PER-PAPER, NOT PER-STUDENT. `/exams/moderation` counts in the database and
-    returns each paper's average, highest and lowest; the individual marks are
-    not on the wire. So one dot is one paper, the whisker under the field is
-    the range those papers cover, and the axis is labelled to say so — a dot
-    per student would be a drawing of data this screen does not have.
+/** Mark moderation, on the card.
 
-    FILLED MEANS STILL IN THE QUEUE. Moderated papers are hollow. That is the
-    same distinction the figure above the field counts, drawn as a shape rather
-    than a second colour. */
-function MarkField({
-  papers,
-  mean,
-  med,
-  pass,
-  height,
-  detail,
-  srLabel,
-}: {
-  papers: Paper[]
-  mean: number | null
-  med: number | null
-  pass: { lo: number; hi: number } | null
-  height: number
-  detail: boolean
-  srLabel: string
-}) {
-  const dot = 6
-  const gap = 1.5
-  const step = detail ? 2.5 : 5
-  const rowsMax = Math.max(1, Math.floor(height / (dot + gap)))
-  const stacks = new Map<number, Paper[]>()
-  for (const p of [...papers].sort((a, b) => a.avg - b.avg)) {
-    const k = Math.round(clampPct(p.avg) / step)
-    const cur = stacks.get(k) ?? []
-    cur.push(p)
-    stacks.set(k, cur)
-  }
-  const lows = papers.map((p) => p.low).filter((v): v is number => v !== null)
-  const highs = papers.map((p) => p.high).filter((v): v is number => v !== null)
-  const bLo = lows.length > 0 ? Math.min(...lows) : null
-  const bHi = highs.length > 0 ? Math.max(...highs) : null
+    THE DENOMINATOR IS `rows.length` — every marked paper the response
+    carried, and the moderated share is counted against it. `average_pct` is a
+    nullable string on the wire: a paper with no marks in it has no average,
+    and it is dropped from the spread rather than plotted at zero.
 
-  return (
-    <div role="img" aria-label={srLabel} className="min-w-0">
-      <div className="relative w-full" style={{ height }}>
-        {/* The pass threshold, as a zone when papers disagree about it. */}
-        {pass && (
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0"
-            style={{
-              left: `${clampPct(pass.lo)}%`,
-              width: `${Math.max(0.6, clampPct(pass.hi) - clampPct(pass.lo))}%`,
-              background: hueWash('pink', 22),
-              borderLeft: `1px dashed ${hueMark('pink')}`,
-            }}
-          />
-        )}
-        {/* The median, as a hairline the eye can measure the field against. */}
-        {med !== null && (
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 w-px"
-            style={{ left: `${clampPct(med)}%`, background: HAIR }}
-          />
-        )}
-        {[...stacks.entries()].flatMap(([k, list]) => {
-          const shown = list.slice(0, rowsMax)
-          const extra = list.length - shown.length
-          return [
-            ...shown.map((p, i) => (
-              <span
-                  key={`${k}-${p.label}-${i}`}
-                  aria-hidden="true"
-                  title={`${p.label}: average ${p.avg.toFixed(1)}%${
-                    p.low !== null && p.high !== null
-                      ? `, ${p.low.toFixed(0)}–${p.high.toFixed(0)}%`
-                      : ''
-                  }`}
-                  className="absolute rounded-full"
-                  style={{
-                    width: dot,
-                    height: dot,
-                    left: `${clampPct(k * step)}%`,
-                    bottom: i * (dot + gap),
-                    transform: 'translateX(-50%)',
-                    background: p.moderated ? 'transparent' : hueMark('purple'),
-                    border: p.moderated ? `1.5px solid ${hueMark('purple')}` : 'none',
-                  }}
-                />
-            )),
-            extra > 0 ? (
-              <span
-                key={`${k}-more`}
-                aria-hidden="true"
-                title={`${extra} more papers here`}
-                className="absolute text-[8px] font-bold leading-none"
-                style={{
-                  left: `${clampPct(k * step)}%`,
-                  bottom: rowsMax * (dot + gap),
-                  transform: 'translateX(-50%)',
-                }}
-              >
-                +{extra}
-              </span>
-            ) : null,
-          ]
-        })}
-      </div>
-      {/* The bounds the papers actually cover, under the field. */}
-      <div className="relative mt-0.5 h-[7px] w-full">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-[3px] h-px"
-          style={{ background: RAIL }}
-        />
-        {bLo !== null && bHi !== null && (
-          <div
-            aria-hidden="true"
-            className="absolute top-[2px] h-[3px] rounded-full"
-            style={{
-              left: `${clampPct(bLo)}%`,
-              width: `${Math.max(0.5, clampPct(bHi) - clampPct(bLo))}%`,
-              background: HAIR,
-            }}
-          />
-        )}
-        {mean !== null && (
-          <div
-            aria-hidden="true"
-            title={`mean ${mean.toFixed(1)}%`}
-            className="absolute top-0"
-            style={{
-              left: `${clampPct(mean)}%`,
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '4px solid transparent',
-              borderRight: '4px solid transparent',
-              borderBottom: '6px solid currentColor',
-            }}
-          />
-        )}
-      </div>
-      {detail && (
-        <div
-          className="mt-0.5 flex justify-between text-[9px] leading-none tabular-nums"
-          style={{ color: HAIR }}
-        >
-          <span>{bLo !== null ? `${Math.round(bLo)}%` : '0%'}</span>
-          <span>{bHi !== null ? `${Math.round(bHi)}%` : '100%'}</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** One subject's papers as a range: lowest mark to highest, with the mean on
-    it. The 2x2's answer to "is this one subject or the whole cohort". */
-function SubjectRange({
-  label,
-  lo,
-  hi,
-  mean,
-  caption,
-  srLabel,
-}: {
-  label: string
-  lo: number
-  hi: number
-  mean: number
-  caption: string
-  srLabel: string
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="w-[62px] shrink-0 truncate text-[10px] font-medium leading-tight" title={label}>
-        {label}
-      </span>
-      <div role="img" aria-label={srLabel} className="relative h-[11px] min-w-0 flex-1">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-[5px] h-[3px] rounded-full"
-          style={{ background: RAIL }}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute top-[5px] h-[3px] rounded-full"
-          style={{
-            left: `${clampPct(lo)}%`,
-            width: `${Math.max(0.5, clampPct(hi) - clampPct(lo))}%`,
-            background: hueMark('purple'),
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute top-[1px] h-[11px] w-[2px] rounded-full"
-          style={{ left: `${clampPct(mean)}%`, transform: 'translateX(-50%)', background: 'currentColor' }}
-        />
-      </div>
-      <span className="w-[52px] shrink-0 text-right text-[9.5px] leading-tight tabular-nums" style={{ color: HAIR }}>
-        {caption}
-      </span>
-    </div>
-  )
-}
-
-/** Mark moderation, drawn as a distribution.
-
-    1x1  SIGNAL. Papers still in the queue, the share reviewed, the shape of
-         the marking in one word, and a tiny density field.
-    1x2  + MOVEMENT through the distribution: the field at full height with
-         the pass threshold and the median on it, and mean, median and
-         threshold printed.
-    2x1  + STRUCTURE. The density across the full width at fine resolution,
-         the range the papers cover, the outliers named.
-    2x2  + EXPLANATION. The same field, the per-subject ranges, the share of
-         candidates below pass, the narrowest and the most deviant paper, and
-         the verdict spelled out with the figures it was made from.
-
-    ONE DOT IS ONE PAPER. The spec asks for individual mark density; the
-    endpoint counts in SQL and returns per-paper aggregates, so per-student
-    density cannot be drawn from it and is not faked. What is drawn — a paper
-    at its average, with the range it covers under the field — is the honest
-    form of the same question. */
+    1x1  the spread of paper averages, 0 to 100.
+    2x1  the three weakest papers, named, each at its own average.
+    1x2  the spread, and the three weakest under it.
+    2x2  the four weakest, and the spread at full resolution. */
 function ModerationCell({
   span, rows, status, href,
 }: {
@@ -2125,414 +1690,102 @@ function ModerationCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.moderation')
+  const cue = t('bento.principal.cue_moderation')
+
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="reports" label={label} status={status} />
+  }
 
   const unmoderated = rows.filter((m) => !m.moderated_at).length
   const reviewed = rows.length - unmoderated
-  const reviewedPct = rows.length > 0 ? Math.round((reviewed / rows.length) * 100) : 0
 
-  const papers: Paper[] = rows.flatMap((m) => {
-    const avg = numOr(m.average_pct)
-    if (avg === null) return []
-    const max = numOr(m.max_marks ?? null)
-    const passMarks = numOr(m.pass_marks ?? null)
-    return [
-      {
-        label: `${m.class} ${m.subject}`,
-        subject: m.subject,
-        avg,
-        low: numOr(m.lowest_pct ?? null),
-        high: numOr(m.highest_pct ?? null),
-        pass: max !== null && max > 0 && passMarks !== null ? (passMarks / max) * 100 : null,
-        entered: Number.isFinite(m.entered) ? m.entered : 0,
-        failing: Number.isFinite(m.failing) ? m.failing : 0,
-        moderated: Boolean(m.moderated_at),
-      },
-    ]
-  })
-  const noAverage = rows.length - papers.length
-
-  const avgs = papers.map((p) => p.avg)
-  const sorted = [...avgs].sort((a, b) => a - b)
-  const med = median(avgs)
-  /* The mean every candidate counts once in: each paper's average weighted by
-     the candidates who sat it, both figures from the same row. */
-  const entered = papers.reduce((n, p) => n + p.entered, 0)
-  const mean =
-    entered > 0 ? papers.reduce((n, p) => n + p.avg * p.entered, 0) / entered : median(avgs)
-  const failing = papers.reduce((n, p) => n + p.failing, 0)
-  const failPct = entered > 0 ? (failing / entered) * 100 : null
-
-  const passes = papers.map((p) => p.pass).filter((v): v is number => v !== null)
-  const pass =
-    passes.length > 0 ? { lo: Math.min(...passes), hi: Math.max(...passes) } : null
-
-  /* Outliers by the fence a box plot uses — 1.5 interquartile ranges outside
-     the quartiles — which needs no threshold anybody had to invent. Below four
-     papers there are no quartiles worth the name and nothing is claimed. */
-  const q1 = sorted.length >= 4 ? quantile(sorted, 0.25) : null
-  const q3 = sorted.length >= 4 ? quantile(sorted, 0.75) : null
-  const iqr = q1 !== null && q3 !== null ? q3 - q1 : null
-  const fence =
-    q1 !== null && q3 !== null && iqr !== null ? { lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr } : null
-  const outliers = fence ? papers.filter((p) => p.avg < fence.lo || p.avg > fence.hi) : []
-
-  /* How wide each paper's own marks are spread — the compression reading. */
-  const spreads = papers
-    .filter((p) => p.low !== null && p.high !== null)
-    .map((p) => ({ p, spread: (p.high as number) - (p.low as number) }))
-    .sort((a, b) => a.spread - b.spread)
-  const medSpread = median(spreads.map((s) => s.spread))
-
-  const deviant =
-    med !== null && papers.length > 0
-      ? papers.reduce((best, p) =>
-          Math.abs(p.avg - med) > Math.abs(best.avg - med) ? p : best,
-        )
-      : null
-
-  /* The verdict, and the figures it was made from — which are printed beside
-     it at every size that has room, so the word never stands alone. */
-  const shapeKey: 'anomalous' | 'compressed' | 'inflated' | 'normal' =
-    outliers.length > 0
-      ? 'anomalous'
-      : medSpread !== null && medSpread < 25
-        ? 'compressed'
-        : mean !== null && mean >= 75 && failPct !== null && failPct <= 5
-          ? 'inflated'
-          : 'normal'
-  const shapeWord = t(
-    ({
-      anomalous: 'bento.principal.moderation_shape_anomalous',
-      compressed: 'bento.principal.moderation_shape_compressed',
-      inflated: 'bento.principal.moderation_shape_inflated',
-      normal: 'bento.principal.moderation_shape_normal',
-    } as const)[shapeKey],
-  )
-
-  if (status !== 'ready') {
+  if (rows.length === 0) {
     return (
-      <SourceCell
+      <FeatureCard
         span={span}
         domain="reports"
-        status={status}
-        label={t('bento.principal.moderation')}
-        value={unmoderated}
-        cue={t('bento.principal.cue_moderation')}
-        to={href}
+        title={label}
+        sub={t('bento.principal.moderation_sub')}
+        value="—"
+        change={t('bento.principal.moderation_empty')}
+        href={href}
+        cue={cue}
       />
     )
   }
 
-  if (rows.length === 0) {
-    return (
-      <Cell span={span} domain="reports">
-        <CellLabel>{t('bento.principal.moderation')}</CellLabel>
-        <p className="mt-2 text-[12.5px] font-medium leading-snug">
-          {t('bento.principal.moderation_empty')}
-        </p>
-        {href && <Cue to={href} label={t('bento.principal.cue_moderation')} />}
-      </Cell>
-    )
-  }
-
-  const fieldSr = t('bento.principal.moderation_field_sr', {
-    count: papers.length,
-    mean: mean !== null ? Math.round(mean) : 0,
-    median: med !== null ? Math.round(med) : 0,
+  const papers = rows.flatMap((m) => {
+    const avg = numOr(m.average_pct)
+    return avg === null ? [] : [{ label: `${m.class} ${m.subject}`, avg }]
   })
+  const avgs = papers.map((p) => p.avg)
+  const ranked = [...papers].sort((a, b) => a.avg - b.avg || a.label.localeCompare(b.label))
+  const weakest = (n: number) =>
+    ranked.slice(0, n).map((p) => ({ label: p.label, value: Math.round(p.avg) }))
 
-  const head = (
-    <div className="flex min-w-0 items-baseline gap-2">
-      <p className={FIG_CLASS}>{unmoderated}</p>
-      <span className="min-w-0 truncate text-[10.5px] font-semibold uppercase tracking-[0.08em]">
-        {t('bento.principal.moderation_reviewed', { pct: reviewedPct })}
-      </span>
-    </div>
+  const spread = (bins: number) => (
+    <Distribution
+      values={histogram(avgs, bins, 0, 100)}
+      srLabel={t('bento.principal.moderation_dist_sr', { count: papers.length })}
+    />
+  )
+  const worst = (n: number) => (
+    <Rows
+      items={weakest(n)}
+      formatValue={pctText}
+      srLabel={t('bento.principal.moderation_low_sr', { count: Math.min(n, ranked.length) })}
+    />
   )
 
-  const stats = (
-    <p className="text-[10.5px] leading-tight tabular-nums">
-      {t('bento.principal.moderation_stats', {
-        mean: mean !== null ? Math.round(mean) : 0,
-        median: med !== null ? Math.round(med) : 0,
-        pass:
-          pass === null
-            ? '—'
-            : pass.lo === pass.hi
-              ? `${Math.round(pass.lo)}%`
-              : `${Math.round(pass.lo)}–${Math.round(pass.hi)}%`,
-      })}
-    </p>
-  )
-
-  const legend = (
-    <p className="text-[9.5px] leading-tight" style={{ color: HAIR }}>
-      {t('bento.principal.moderation_legend')}
-    </p>
-  )
-
-  /* No paper carries an average yet: a distribution of nothing is not drawn. */
-  const noField = papers.length === 0
-
-  /* 1x1 — the count, the share reviewed, the verdict, one small field. */
-  if (!wide && !tall) {
-    return (
-      <Cell span={span} domain="reports">
-        <CellLabel>{t('bento.principal.moderation')}</CellLabel>
-        {head}
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]">{shapeWord}</p>
-        <div className="mt-1">
-          {noField ? (
-            <p className="text-[10px] leading-tight" style={{ color: HAIR }}>
-              {t('bento.principal.moderation_no_marks')}
-            </p>
-          ) : (
-            <MarkField
-              papers={papers}
-              mean={mean}
-              med={med}
-              pass={pass}
-              height={22}
-              detail={false}
-              srLabel={fieldSr}
-            />
-          )}
-        </div>
-        {href && <Cue to={href} label={t('bento.principal.cue_moderation')} />}
-      </Cell>
+  const drawing =
+    wide && tall ? (
+      <Pair top={worst(4)} bottom={spread(24)} />
+    ) : tall ? (
+      <Pair top={spread(12)} bottom={worst(3)} />
+    ) : wide ? (
+      worst(3)
+    ) : (
+      spread(10)
     )
-  }
-
-  /* 1x2 — the distribution given height, with its reference marks named. */
-  if (!wide && tall) {
-    return (
-      <Cell span={span} domain="reports">
-        <CellLabel>{t('bento.principal.moderation')}</CellLabel>
-        {head}
-        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]">{shapeWord}</p>
-        <div className="mt-2">
-          {noField ? (
-            <p className="text-[10.5px] leading-snug" style={{ color: HAIR }}>
-              {t('bento.principal.moderation_no_marks')}
-            </p>
-          ) : (
-            <MarkField
-              papers={papers}
-              mean={mean}
-              med={med}
-              pass={pass}
-              height={60}
-              detail
-              srLabel={fieldSr}
-            />
-          )}
-        </div>
-        <div className="mt-1.5">{stats}</div>
-        {legend}
-        <p className="mt-1.5 text-[10.5px] leading-snug tabular-nums">
-          {failPct !== null
-            ? t('bento.principal.moderation_below_pass', {
-                pct: Math.round(failPct),
-                entered,
-              })
-            : t('bento.principal.moderation_no_marks')}
-        </p>
-        {noAverage > 0 && (
-          <p className="text-[9.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-            {t('bento.principal.moderation_no_average', { count: noAverage })}
-          </p>
-        )}
-        {href && <Cue to={href} label={t('bento.principal.cue_moderation')} />}
-      </Cell>
-    )
-  }
-
-  const outlierLine =
-    outliers.length === 0
-      ? t('bento.principal.moderation_no_outliers')
-      : t('bento.principal.moderation_outliers', {
-          count: outliers.length,
-          total: papers.length,
-          worst: outliers
-            .slice()
-            .sort((a, b) => Math.abs(b.avg - (med ?? 0)) - Math.abs(a.avg - (med ?? 0)))[0].label,
-          value: Math.round(
-            outliers
-              .slice()
-              .sort((a, b) => Math.abs(b.avg - (med ?? 0)) - Math.abs(a.avg - (med ?? 0)))[0].avg,
-          ),
-        })
-
-  /* 2x1 — the density across the full width, with its bounds and outliers. */
-  if (wide && !tall) {
-    return (
-      <Cell span={span} domain="reports">
-        <CellLabel>{t('bento.principal.moderation')}</CellLabel>
-        <div className="mt-1 flex min-h-0 flex-1 gap-3">
-          <div className="flex w-[124px] shrink-0 flex-col">
-            {head}
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]">
-              {shapeWord}
-            </p>
-            {stats}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col">
-            {noField ? (
-              <p className="text-[10.5px] leading-snug" style={{ color: HAIR }}>
-                {t('bento.principal.moderation_no_marks')}
-              </p>
-            ) : (
-              <MarkField
-                papers={papers}
-                mean={mean}
-                med={med}
-                pass={pass}
-                height={52}
-                detail
-                srLabel={fieldSr}
-              />
-            )}
-            <p className="mt-0.5 text-[9.5px] leading-snug tabular-nums">{outlierLine}</p>
-            {legend}
-          </div>
-        </div>
-        {href && <Cue to={href} label={t('bento.principal.cue_moderation')} />}
-      </Cell>
-    )
-  }
-
-  /* 2x2 — the distribution, subject by subject, with the verdict explained. */
-  const bySubject = (() => {
-    const m = new Map<string, Paper[]>()
-    for (const p of papers) m.set(p.subject, [...(m.get(p.subject) ?? []), p])
-    return [...m.entries()]
-      .map(([subject, list]) => {
-        const e = list.reduce((n, x) => n + x.entered, 0)
-        const lows = list.map((x) => x.low).filter((v): v is number => v !== null)
-        const highs = list.map((x) => x.high).filter((v): v is number => v !== null)
-        return {
-          subject,
-          papers: list.length,
-          entered: e,
-          mean: e > 0 ? list.reduce((n, x) => n + x.avg * x.entered, 0) / e : list[0].avg,
-          lo: lows.length > 0 ? Math.min(...lows) : Math.min(...list.map((x) => x.avg)),
-          hi: highs.length > 0 ? Math.max(...highs) : Math.max(...list.map((x) => x.avg)),
-        }
-      })
-      .sort((a, b) => b.mean - a.mean)
-  })()
-  const SUBJECT_ROWS = 6
-  const subjectShown = bySubject.slice(0, SUBJECT_ROWS)
 
   return (
-    <Cell span={span} domain="reports">
-      <CellLabel>{t('bento.principal.moderation')}</CellLabel>
-      <div className="mt-1 flex min-h-0 flex-1 gap-3.5">
-        <div className="flex w-[184px] shrink-0 flex-col">
-          {head}
-          <p className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[0.08em]">
-            {shapeWord}
-          </p>
-          <div className="mt-2">
-            {noField ? (
-              <p className="text-[10.5px] leading-snug" style={{ color: HAIR }}>
-                {t('bento.principal.moderation_no_marks')}
-              </p>
-            ) : (
-              <MarkField
-                papers={papers}
-                mean={mean}
-                med={med}
-                pass={pass}
-                height={54}
-                detail
-                srLabel={fieldSr}
-              />
-            )}
-          </div>
-          <div className="mt-1.5">{stats}</div>
-          {legend}
-          <p className="mt-1 text-[10px] leading-snug tabular-nums">
-            {failPct !== null
-              ? t('bento.principal.moderation_below_pass', { pct: Math.round(failPct), entered })
-              : t('bento.principal.moderation_no_marks')}
-          </p>
-          {href && <Cue to={href} label={t('bento.principal.cue_moderation')} />}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <p
-            className="text-[9.5px] font-semibold uppercase tracking-[0.1em]"
-            style={{ color: HAIR }}
-          >
-            {t('bento.principal.moderation_subjects')}
-          </p>
-          <div className="mt-1 flex flex-col gap-[3px]">
-            {subjectShown.map((s) => (
-              <SubjectRange
-                key={s.subject}
-                label={s.subject}
-                lo={s.lo}
-                hi={s.hi}
-                mean={s.mean}
-                caption={`${Math.round(s.lo)}–${Math.round(s.hi)}`}
-                srLabel={t('bento.principal.moderation_subject_sr', {
-                  subject: s.subject,
-                  lo: Math.round(s.lo),
-                  hi: Math.round(s.hi),
-                  mean: Math.round(s.mean),
-                  papers: s.papers,
-                })}
-              />
-            ))}
-          </div>
-          {bySubject.length > subjectShown.length && (
-            <p className="mt-0.5 text-[9.5px] leading-tight tabular-nums" style={{ color: HAIR }}>
-              {t('bento.principal.moderation_subjects_capped', {
-                shown: subjectShown.length,
-                total: bySubject.length,
-              })}
-            </p>
-          )}
-          <p className="mt-1.5 text-[9.5px] leading-snug tabular-nums">{outlierLine}</p>
-          {spreads.length > 0 && medSpread !== null && (
-            <p className="text-[9.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-              {t('bento.principal.moderation_spread', {
-                median: Math.round(medSpread),
-                narrowest: Math.round(spreads[0].spread),
-                paper: spreads[0].p.label,
-              })}
-            </p>
-          )}
-          {deviant !== null && med !== null && (
-            <p className="text-[9.5px] leading-snug tabular-nums" style={{ color: HAIR }}>
-              {t('bento.principal.moderation_deviation', {
-                paper: deviant.label,
-                points: Math.round(Math.abs(deviant.avg - med)),
-              })}
-            </p>
-          )}
-          <p className="mt-auto text-[9.5px] leading-snug" style={{ color: HAIR }}>
-            {t('bento.principal.moderation_per_paper')}
-          </p>
-        </div>
-      </div>
-    </Cell>
+    <FeatureCard
+      span={span}
+      domain="reports"
+      title={label}
+      sub={t('bento.principal.moderation_sub')}
+      value={unmoderated}
+      change={t('bento.principal.moderation_change', {
+        reviewed,
+        total: rows.length,
+        papers: papers.length,
+      })}
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
-/** Board pass rate, drawn to fit.
+/** Board pass rate, on the card.
 
-    1x1  the rate.
-    2x1  the rate over passed against candidates — the response's own
-         population, not the length of any list.
-    1x2  the rail, then how the per-paper pass rates are spread.
-    2x2  the rail over the papers themselves, one cell each.
+    THE ONE HONEST GAUGE ON THIS BOARD. `summary.candidates` is every
+    candidate with marks and `summary.passed` is how many of them passed —
+    both counted by the handler over the same set, neither truncated. The ring
+    divides one by the other and nothing else.
 
-    THE TRUNCATION TRAP. `/exams/board/performance` returns at most fifty
-    at-risk students while `summary.at_risk` counts all of them, so no drawing
-    on this cell or the next is built from that list. Every figure and every
-    mark here comes from `summary` or from `by_subject`, neither of which is
-    cut. */
+    THE TRUNCATION TRAP, AND HOW IT IS AVOIDED. `/exams/board/performance`
+    truncates `at_risk[]` to fifty rows in Go while `summary.at_risk` counts
+    every one of them. Nothing on this cell or the next reads that array: the
+    figure comes from `summary` and the marks come from `by_subject`, which the
+    handler does not cut.
+
+    1x1  the ring: passed of candidates.
+    2x1  the three papers with the lowest pass rate, named.
+    1x2  the ring, and the spread of pass rates across papers.
+    2x2  the ring beside the four weakest papers, and the spread under both. */
 function PassRateCell({
   span, summary, subjects, status, href,
 }: {
@@ -2546,76 +1799,95 @@ function PassRateCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.pass_rate')
+  const cue = t('bento.principal.cue_performance')
+
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="success" label={label} status={status} />
+  }
+
+  const candidates = summary?.candidates ?? 0
+  const passed = summary?.passed ?? 0
+  const rate = summary?.pass_rate
 
   const rates = subjects
     .map((s) => s.pass_rate)
     .filter((v): v is number => v != null && Number.isFinite(v))
-  const shown = subjects.slice(0, STRIP_MAX)
+  const ranked = subjects
+    .filter((s) => s.pass_rate != null && Number.isFinite(s.pass_rate))
+    .sort((a, b) => (a.pass_rate as number) - (b.pass_rate as number))
+  const weakest = (n: number) =>
+    ranked.slice(0, n).map((s) => ({
+      label: `${s.class_name} ${s.subject}`,
+      value: Math.round(s.pass_rate as number),
+    }))
 
-  const rail =
-    summary && summary.candidates > 0 ? (
-      <Meter
-        value={summary.passed}
-        total={summary.candidates}
-        tone="success"
-        srLabel={t('bento.principal.pass_rate_sr')}
-      />
+  const ring =
+    candidates > 0 ? (
+      <Fit>
+        <Gauge
+          value={passed}
+          total={candidates}
+          srLabel={t('bento.principal.pass_rate_gauge_sr', { total: candidates })}
+        />
+      </Fit>
     ) : null
+  const spread = (bins: number) => (
+    <Distribution
+      values={histogram(rates, bins, 0, 100)}
+      srLabel={t('bento.principal.pass_rate_dist_sr', { count: rates.length })}
+    />
+  )
+  const worst = (n: number) => (
+    <Rows
+      items={weakest(n)}
+      formatValue={pctText}
+      srLabel={t('bento.principal.pass_rate_low_sr', { count: Math.min(n, ranked.length) })}
+    />
+  )
 
-  let shape: ReactNode = null
-  if (wide && tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <HeatStrip
-          cells={shown.map((s) => (s.pass_rate != null && Number.isFinite(s.pass_rate) ? s.pass_rate : null))}
-          srLabel={t('bento.principal.pass_rate_strip_sr', { count: shown.length })}
-          formatValue={(v) => `${Math.round(v)}%`}
-        />
-      </Stack>
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split lead left={ring} right={worst(4)} />} bottom={spread(24)} />
+    ) : tall ? (
+      <Pair top={ring} bottom={spread(12)} />
+    ) : wide ? (
+      worst(3)
+    ) : (
+      ring
     )
-  } else if (tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <AgeBands
-          bands={bandCounts(rates, PCT_BANDS)}
-          srLabel={t('bento.principal.pass_rate_bands_sr')}
-        />
-      </Stack>
-    )
-  } else if (wide) {
-    shape = rail
-  }
 
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="success"
-      status={status}
-      label={t('bento.principal.pass_rate')}
-      value={summary?.pass_rate != null ? `${Math.round(summary.pass_rate)}%` : '—'}
-      shape={shape ?? undefined}
-      note={
-        wide && tall && subjects.length > shown.length
-          ? t('bento.principal.strip_capped', { shown: shown.length, total: subjects.length })
-          : t('bento.principal.pass_rate_note', { count: summary?.candidates ?? 0 })
+      title={label}
+      sub={t('bento.principal.pass_rate_sub')}
+      value={rate != null ? `${Math.round(rate)}%` : '—'}
+      change={
+        candidates > 0
+          ? t('bento.principal.pass_rate_change', { passed, total: candidates })
+          : t('bento.principal.pass_rate_none')
       }
-      to={href}
-      cue={t('bento.principal.cue_performance')}
-    />
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
-/** Students at risk, drawn to fit.
+/** Students at risk, on the card.
 
-    1x1  the count.
-    2x1  the count over candidates, both off `summary`.
-    1x2  the rail, then the spread of the papers' own averages.
-    2x2  the rail over how many sat below the pass mark, paper by paper —
-         where the risk is concentrated, which the single count cannot say.
+    The figure is `summary.at_risk`, which counts every one of them. The
+    drawings are `by_subject`, which is not cut either — `below_pass` is a
+    real count of candidates under the pass mark in that paper. The fifty-row
+    `at_risk[]` array is read nowhere here: see `PassRateCell`.
 
-    Nothing here reads the `at_risk` array: see `PassRateCell` for why. */
+    1x1  how many sat below pass in each paper — one bar per paper.
+    2x1  the three papers holding the most of them, named.
+    1x2  the ring — at risk of candidates — over the same per-paper spread.
+    2x2  the ring beside the four worst papers, and the spread under both. */
 function AtRiskCell({
   span, summary, subjects, status, href,
 }: {
@@ -2629,65 +1901,80 @@ function AtRiskCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.at_risk')
+  const cue = t('bento.principal.cue_at_risk')
 
-  const atRisk = summary?.at_risk ?? 0
-  const averages = subjects
-    .map((s) => s.average_percent)
-    .filter((v): v is number => v != null && Number.isFinite(v))
-  const shown = subjects.slice(0, STRIP_MAX)
-
-  const rail =
-    summary && summary.candidates > 0 ? (
-      <Meter
-        value={atRisk}
-        total={summary.candidates}
-        tone="warning"
-        srLabel={t('bento.principal.at_risk_sr')}
-      />
-    ) : null
-
-  let shape: ReactNode = null
-  if (wide && tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <HeatStrip
-          cells={shown.map((s) => (Number.isFinite(s.below_pass) ? s.below_pass : null))}
-          srLabel={t('bento.principal.at_risk_strip_sr', { count: shown.length })}
-        />
-      </Stack>
-    )
-  } else if (tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <AgeBands
-          bands={bandCounts(averages, PCT_BANDS)}
-          srLabel={t('bento.principal.at_risk_bands_sr')}
-        />
-      </Stack>
-    )
-  } else if (wide) {
-    shape = rail
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="students" label={label} status={status} />
   }
 
+  const atRisk = summary?.at_risk ?? 0
+  const candidates = summary?.candidates ?? 0
+
+  const below = subjects
+    .map((s) => (Number.isFinite(s.below_pass) ? s.below_pass : 0))
+    .slice(0, STRIP_MAX)
+  const ranked = [...subjects]
+    .filter((s) => Number.isFinite(s.below_pass) && s.below_pass > 0)
+    .sort((a, b) => b.below_pass - a.below_pass)
+  const worstOf = (n: number) =>
+    ranked.slice(0, n).map((s) => ({
+      label: `${s.class_name} ${s.subject}`,
+      value: s.below_pass,
+    }))
+
+  const ring =
+    candidates > 0 ? (
+      <Fit>
+        <Gauge
+          value={atRisk}
+          total={candidates}
+          srLabel={t('bento.principal.at_risk_gauge_sr', { total: candidates })}
+        />
+      </Fit>
+    ) : null
+  const perPaper = (
+    <Distribution
+      values={below}
+      srLabel={t('bento.principal.at_risk_dist_sr', { count: below.length })}
+    />
+  )
+  const worst = (n: number) => (
+    <Rows
+      items={worstOf(n)}
+      srLabel={t('bento.principal.at_risk_low_sr', { count: Math.min(n, ranked.length) })}
+    />
+  )
+
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split lead left={ring} right={worst(4)} />} bottom={perPaper} />
+    ) : tall ? (
+      <Pair top={ring} bottom={perPaper} />
+    ) : wide ? (
+      worst(3)
+    ) : (
+      perPaper
+    )
+
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="students"
-      status={status}
-      label={t('bento.principal.at_risk')}
-      value={atRisk}
       accent={atRisk > 0 ? 'orange' : undefined}
-      shape={shape ?? undefined}
-      note={
-        wide && tall && subjects.length > shown.length
-          ? t('bento.principal.strip_capped', { shown: shown.length, total: subjects.length })
-          : t('bento.principal.at_risk_note', { count: summary?.candidates ?? 0 })
+      title={label}
+      sub={t('bento.principal.at_risk_sub')}
+      value={atRisk}
+      change={
+        candidates > 0
+          ? t('bento.principal.at_risk_change', { total: candidates })
+          : t('bento.principal.pass_rate_none')
       }
-      to={href}
-      cue={t('bento.principal.cue_at_risk')}
-    />
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
@@ -2715,16 +2002,6 @@ function AtRiskCell({
 /** The mark: a bento hue cast over the ink this cell resolved for itself. A
     null hue is the neutral weight, for the state that means "nothing has
     happened here yet". */
-type Hue = 'mint' | 'purple' | 'pink' | 'orange'
-const inkOf = (hue: Hue | null) =>
-  hue ? `color-mix(in srgb, var(--bento-${hue}) 55%, currentColor)` : 'currentColor'
-/** The same mark, washed back to sit UNDER something — a fill behind a glyph,
-    a chip behind a label. Decoration; the glyph and the word on top carry the
-    reading. */
-const washOf = (hue: Hue | null, pct: number) =>
-  `color-mix(in srgb, ${inkOf(hue)} ${pct}%, transparent)`
-/** Geometry: an axis, a track, a boundary. Never a series. */
-const RULE = 'color-mix(in srgb, currentColor 14%, transparent)'
 
 /** The error and loading faces both cells share with every other cell on this
     board: a fetch that failed draws an error and never a nought, and a fetch
@@ -2765,26 +2042,7 @@ type SetupStepDetail = SetupStep & { count?: number; detail?: string }
                 requirement waiting behind the one in hand.
       pending   not done and not blocking. Real work, but nothing stops the
                 school running while it is outstanding. */
-type StepState = 'done' | 'active' | 'blocked' | 'pending'
 
-const STEP_HUE: Record<StepState, Hue | null> = {
-  done: 'mint',
-  active: 'purple',
-  blocked: 'pink',
-  pending: null,
-}
-const STEP_GLYPH: Record<StepState, string> = {
-  done: '✓',
-  active: '▸',
-  blocked: '!',
-  pending: '·',
-}
-const STEP_WORD = {
-  done: 'bento.principal.setup_state_done',
-  active: 'bento.principal.setup_state_active',
-  blocked: 'bento.principal.setup_state_blocked',
-  pending: 'bento.principal.setup_state_pending',
-} as const satisfies Record<StepState, string>
 
 /** The five domains the spec names for the 2x1. */
 type SetupDomain = 'admin' | 'academic' | 'staff' | 'finance' | 'system'
@@ -2835,45 +2093,18 @@ const DOMAIN_WORD = {
   system: 'bento.principal.setup_dom_system',
 } as const satisfies Record<SetupDomain, string>
 
-/** One step, as a small square: the state's glyph on the state's own wash.
-    Never colour alone — the glyph differs per state, and the `title` names the
-    step and says its state in words. */
-function StepMark({ state, title, px }: { state: StepState; title: string; px: number }) {
-  const hue = STEP_HUE[state]
-  return (
-    <span
-      title={title}
-      aria-hidden="true"
-      className="flex shrink-0 items-center justify-center rounded-[3px] font-bold leading-none"
-      style={{
-        height: `${px}px`,
-        width: `${px}px`,
-        fontSize: `${Math.max(7, Math.round(px * 0.62))}px`,
-        background: washOf(hue, state === 'pending' ? 10 : 22),
-        boxShadow: `inset 0 0 0 1px ${washOf(hue, state === 'pending' ? 26 : 55)}`,
-        color: inkOf(hue),
-      }}
-    >
-      {STEP_GLYPH[state]}
-    </span>
-  )
-}
 
-/** The setup checklist, drawn to fit.
+/** The setup checklist, on the card.
 
-    1x1  done over total, the percentage, all fifteen steps as a field of
-         states, and the step that is blocking now.
-    1x2  the same signal over the fifteen steps THEMSELVES, in the handler's
-         own order, each with its state in words and the count it has already
-         got (17 sections, 240 students) where it has one.
-    2x1  the fifteen grouped into the five domains, each group with its own
-         real denominator, its own rail and its own steps.
-    2x2  all of it: the signal, the five groups, the full named field in two
-         columns, and what is left to do underneath.
+    FIFTEEN STEPS IS A POPULATION, so `Density` draws it literally: one dot per
+    step, weighted by what state that step is in — done, the one in hand, a
+    blocker waiting behind it, or optional work. And fifteen is a real total,
+    so the ring may divide by it.
 
-    NOTHING HERE DIVIDES BY A NUMBER THAT DID NOT ARRIVE. Every denominator is
-    either `total` from the response or the number of steps the response put
-    in that group. */
+    1x1  the fifteen steps as a field.
+    2x1  the field beside what is still to do, area by area.
+    1x2  the ring on the real fifteen, over the field.
+    2x2  the ring beside the areas, and the field at full width. */
 function SetupCell({
   span, data, status, href,
 }: {
@@ -2887,211 +2118,121 @@ function SetupCell({
   const wide = w >= 2
   const tall = h >= 2
   const label = t('bento.principal.setup')
+  const cue = t('bento.principal.cue_setup')
 
-  if (status === 'error') return <InstrumentError span={span} domain="operations" label={label} />
-  if (status === 'loading') {
-    return (
-      <StatCell
-        span={span}
-        domain="operations"
-        label={label}
-        value={t('bento.principal.source_pending')}
-        note={t('bento.principal.source_loading')}
-      />
-    )
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="operations" label={label} status={status} />
   }
 
   const steps = (data?.steps ?? []) as SetupStepDetail[]
   const total = data?.total ?? steps.length
   const done = data?.completed ?? steps.filter((s) => s.done).length
-  const pct = total > 0 ? Math.round((done / total) * 100) : null
-
-  /* The active step: the first outstanding blocker, or — with no blockers
-     left — simply the first thing still to do. Order is the handler's, which
-     is the order a school is meant to work through. */
-  const firstBlocking = steps.findIndex((s) => !s.done && s.blocking)
-  const firstOpen = steps.findIndex((s) => !s.done)
-  const activeIdx = firstBlocking >= 0 ? firstBlocking : firstOpen
-  const stateOfStep = (s: SetupStepDetail, i: number): StepState =>
-    s.done ? 'done' : i === activeIdx ? 'active' : s.blocking ? 'blocked' : 'pending'
-  const states = steps.map(stateOfStep)
-  const next = activeIdx >= 0 ? steps[activeIdx] : undefined
   const blocking = data?.blocking_remaining ?? 0
 
-  const titleOf = (s: SetupStepDetail, i: number) =>
-    `${s.label} — ${t(STEP_WORD[states[i]])}${s.count ? ` (${s.count})` : ''}`
-  const listOf = (st: StepState) =>
-    steps.filter((_, i) => states[i] === st).map((s) => s.label).join(', ') || '—'
-  const fieldSr = t('bento.principal.setup_field_sr2', {
-    total,
-    done: listOf('done'),
-    blocked: [...(next ? [next.label] : []), ...steps.filter((_, i) => states[i] === 'blocked').map((s) => s.label)].join(', ') || '—',
-    pending: listOf('pending'),
-  })
-
-  const groups = SETUP_DOMAINS.map((domain) => {
-    const members = steps
-      .map((s, i) => ({ step: s, state: states[i], i }))
-      .filter((x) => (SETUP_DOMAIN[x.step.key] ?? 'system') === domain)
-    return { domain, members, done: members.filter((m) => m.step.done).length }
-  }).filter((g) => g.members.length > 0)
-
-  /* The sentence under the figure, which says what the number means rather
-     than repeating it: what is blocking, or that nothing is. */
-  const statusLine = blocking > 0
-    ? t('bento.principal.setup_blocking_count', { count: blocking })
-    : data?.ready
-      ? t('bento.principal.setup_ready')
-      : t('bento.principal.setup_optional_left', { count: total - done })
-
-  const header = (
-    <>
-      <CellLabel>{label}</CellLabel>
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-        <p className={FIG_CLASS}>{total > 0 ? `${done}/${total}` : '—'}</p>
-        {pct !== null && (
-          <span className="text-[12px] font-semibold tabular-nums" style={{ color: inkOf('mint') }}>
-            {t('bento.principal.setup_pct', { pct })}
-          </span>
-        )}
-        <span className="truncate text-[11px] leading-tight text-[var(--bento-muted)]">
-          {statusLine}
-        </span>
-      </div>
-    </>
-  )
-
-  /** The fifteen as a wrapped field of marks. The 1x1's whole structure. */
-  const strip = steps.length > 0 && (
-    <div role="img" aria-label={fieldSr} className="flex flex-wrap gap-[2px]">
-      {steps.map((s, i) => (
-        <StepMark key={s.key} state={states[i]} title={titleOf(s, i)} px={wide && tall ? 13 : 12} />
-      ))}
-    </div>
-  )
-
-  /** One named row per step: the mark, the step, and either the count it has
-      already got or the word for its state. */
-  const rows = (cols: 1 | 2) => (
-    <div
-      role="img"
-      aria-label={fieldSr}
-      className={cn('grid gap-x-3', cols === 2 ? 'grid-cols-2 gap-y-[3px]' : 'grid-cols-1 gap-y-[2px]')}
-    >
-      {steps.map((s, i) => (
-        <div key={s.key} className="flex min-w-0 items-center gap-1.5">
-          <StepMark state={states[i]} title={titleOf(s, i)} px={11} />
-          <span
-            className="min-w-0 flex-1 truncate text-[10.5px] leading-tight"
-            style={{ opacity: states[i] === 'pending' ? 0.75 : 1 }}
-          >
-            {s.label}
-          </span>
-          <span className="shrink-0 text-[9.5px] leading-tight tabular-nums text-[var(--bento-muted)]">
-            {s.done && s.count ? s.count : t(STEP_WORD[states[i]])}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-
-  /** The five domains, each with the steps it owns and a rail over its own
-      real denominator. */
-  const groupGrid = (
-    <div className="grid grid-cols-5 gap-x-2">
-      {groups.map((g) => (
-        <div
-          key={g.domain}
-          role="img"
-          aria-label={t('bento.principal.setup_group_sr', {
-            domain: t(DOMAIN_WORD[g.domain]),
-            done: g.done,
-            total: g.members.length,
-          })}
-          className="min-w-0"
-        >
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--bento-muted)]">
-              {t(DOMAIN_WORD[g.domain])}
-            </span>
-            <span className="shrink-0 text-[10px] font-semibold tabular-nums">
-              {g.done}/{g.members.length}
-            </span>
-          </div>
-          <div
-            aria-hidden="true"
-            className="mt-1 h-[4px] w-full overflow-hidden rounded-full"
-            style={{ background: RULE }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${(g.done / g.members.length) * 100}%`,
-                background: `linear-gradient(90deg, ${inkOf('mint')}, ${washOf('mint', 70)})`,
-              }}
-            />
-          </div>
-          <div className="mt-1 flex flex-wrap gap-[2px]">
-            {g.members.map((m) => (
-              <StepMark
-                key={m.step.key}
-                state={m.state}
-                title={titleOf(m.step, m.i)}
-                px={9}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-
-  /** The states, in words, next to the marks that carry them. Four tokens; it
-      is what makes the field readable without colour. */
-  const legend = (
-    <div aria-hidden="true" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-      {(['done', 'active', 'blocked', 'pending'] as StepState[]).map((st) => (
-        <span key={st} className="flex items-center gap-1 text-[9.5px] leading-none text-[var(--bento-muted)]">
-          <StepMark state={st} title={t(STEP_WORD[st])} px={9} />
-          {t(STEP_WORD[st])}
-        </span>
-      ))}
-    </div>
-  )
-
-  let body: ReactNode
-  if (wide && tall) {
-    body = (
-      <div className="mt-2 flex min-h-0 flex-col gap-2">
-        {groupGrid}
-        {rows(2)}
-        {legend}
-      </div>
-    )
-  } else if (tall) {
-    body = <div className="mt-2 flex min-h-0 flex-col gap-1.5">{rows(1)}</div>
-  } else if (wide) {
-    body = <div className="mt-2">{groupGrid}</div>
-  } else {
-    body = (
-      <div className="mt-2 flex min-h-0 flex-col gap-1.5">
-        {strip}
-        <p className="truncate text-[10.5px] leading-tight">
-          {next
-            ? t('bento.principal.setup_next', { label: next.label })
-            : t('bento.principal.setup_next_none')}
-        </p>
-      </div>
+  if (steps.length === 0 && total === 0) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="operations"
+        title={label}
+        sub={t('bento.principal.setup_sub')}
+        value="—"
+        change={t('bento.principal.source_failed')}
+        href={href}
+        cue={cue}
+      />
     )
   }
 
+  /* The step in hand: the first outstanding blocker, or with none left simply
+     the first thing still to do. The handler's order is the order a school is
+     meant to work through it. */
+  const firstBlocking = steps.findIndex((s) => !s.done && s.blocking)
+  const firstOpen = steps.findIndex((s) => !s.done)
+  const activeIdx = firstBlocking >= 0 ? firstBlocking : firstOpen
+  const weightOf = (s: SetupStepDetail, i: number) =>
+    s.done ? 1 : i === activeIdx ? 0.85 : s.blocking ? 0.55 : 0.14
+  const cells = steps.map(weightOf)
+
+  const groups = SETUP_DOMAINS.map((domain) => {
+    const members = steps.filter((s) => (SETUP_DOMAIN[s.key] ?? 'system') === domain)
+    return {
+      domain,
+      left: members.filter((s) => !s.done).length,
+      done: members.filter((s) => s.done).length,
+      n: members.length,
+    }
+  }).filter((g) => g.n > 0)
+  const anyLeft = groups.some((g) => g.left > 0)
+  const areas = (n: number) =>
+    [...groups]
+      .sort((a, b) => (anyLeft ? b.left - a.left : b.done - a.done))
+      .slice(0, n)
+      .map((g) => ({ label: t(DOMAIN_WORD[g.domain]), value: anyLeft ? g.left : g.done }))
+
+  const statusLine =
+    blocking > 0
+      ? t('bento.principal.setup_blocking_count', { count: blocking })
+      : data?.ready
+        ? t('bento.principal.setup_ready')
+        : t('bento.principal.setup_optional_left', { count: Math.max(0, total - done) })
+
+  const field = (columns: number) => (
+    <Density
+      cells={cells}
+      columns={columns}
+      srLabel={t('bento.principal.setup_density_sr', {
+        total: steps.length,
+        done,
+        left: Math.max(0, steps.length - done),
+      })}
+    />
+  )
+  const ring =
+    total > 0 ? (
+      <Fit>
+        <Gauge
+          value={done}
+          total={total}
+          srLabel={t('bento.principal.setup_gauge_sr', { total })}
+        />
+      </Fit>
+    ) : null
+  const byArea = (n: number) => (
+    <Rows
+      items={areas(n)}
+      srLabel={
+        anyLeft
+          ? t('bento.principal.setup_rows_left_sr')
+          : t('bento.principal.setup_rows_done_sr')
+      }
+    />
+  )
+
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split lead left={ring} right={byArea(5)} />} bottom={field(15)} />
+    ) : tall ? (
+      <Pair top={ring} bottom={field(5)} />
+    ) : wide ? (
+      <Split left={field(5)} right={byArea(3)} />
+    ) : (
+      field(5)
+    )
+
   return (
-    <Cell span={span} domain="operations">
-      {header}
-      {body}
-      <span className="sr-only">{fieldSr}</span>
-      {href && <Cue to={href} label={t('bento.principal.cue_setup')} />}
-    </Cell>
+    <FeatureCard
+      span={span}
+      domain="operations"
+      title={label}
+      sub={t('bento.principal.setup_sub')}
+      value={total > 0 ? `${done}/${total}` : '—'}
+      change={statusLine}
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
@@ -3111,19 +2252,6 @@ type CoverPeriod = CoverSlot & {
 /** The three states of a period the board reports, and they are three and not
     two on purpose: a period nobody has covered YET and a period nobody COULD
     cover are the same red on a summary and two entirely different mornings. */
-type CoverState = 'covered' | 'open' | 'stuck'
-
-const COVER_HUE: Record<CoverState, Hue> = {
-  covered: 'mint',
-  open: 'orange',
-  stuck: 'pink',
-}
-const COVER_GLYPH: Record<CoverState, string> = { covered: '✓', open: '○', stuck: '✕' }
-const COVER_WORD = {
-  covered: 'bento.principal.cover_covered',
-  open: 'bento.principal.cover_open',
-  stuck: 'bento.principal.cover_stuck',
-} as const satisfies Record<CoverState, string>
 
 /* THE CLOCK, AND THE TRAP THIS CELL HAS ALREADY FALLEN INTO ONCE.
 
@@ -3150,36 +2278,25 @@ function minuteOfDay(clock: string | undefined): number | null {
 const clockText = (mins: number) =>
   `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(Math.round(mins) % 60).padStart(2, '0')}`
 
-/** Today, as the school's own calendar day rather than as UTC.
 
-    `toISOString().slice(0,10)` is the UTC date, and between midnight and
-    05:30 in India that is yesterday. The now marker is a claim about where the
-    school is in its own day, so it is the local date that decides whether the
-    board being drawn is today's. */
-function localDay(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+/** Today's cover, on the card.
 
-/** Today's cover, drawn to fit — an operational instrument, on the board's own
-    clock times.
+    THE HH:MM TRAP. `starts_at` off the substitution board is
+    `to_char(p.starts_at,'HH24:MI')` — a bare wall-clock time with no date on
+    it. `new Date('09:15')` is Invalid Date in every browser, and the variants
+    that do parse land every period of the day on the same instant in 1970. So
+    no `Date` is built from it here: a period's position is its MINUTE OF THE
+    DAY, an integer, and the day the distribution belongs to is the board's own
+    `on_date`, which is what the axis is labelled with.
 
-    1x1  uncovered count, the state in a word, coverage against the periods the
-         absences left, and the day as a compact strip with a mark per period
-         and the now line on it.
-    1x2  the real time axis, vertically: every period in clock order beside the
-         axis it sits on, its state in words, start and end of the day printed,
-         the now marker where the board is today's.
-    2x1  the day's axis across the top, then the periods as temporal lanes —
-         time, period, class and section, state, and who is covering it.
-    2x2  the full coverage field: one lane per class-section, real clock times
-         across the top, a boundary rule at every period start, all three
-         states, the absent teacher and the cover, and the now marker.
+    THE DENOMINATOR IS `summary.periods` — the periods today's absences left
+    behind, counted by the handler. With nobody away it is zero, and a zero
+    denominator draws no proportion: it draws the sentence that says so.
 
-    THE DENOMINATOR IS THE ENDPOINT'S OWN. `summary.periods` is the number of
-    periods today's absences left behind — not the school's timetable, which
-    this response does not carry — and every proportion below is against that.
-    With no absences it is zero, and a zero denominator draws no percentage and
-    no bar: it draws the sentence that says nobody needed covering. */
+    1x1  the three states, ranked and counted.
+    2x1  the states beside the shape of the day.
+    1x2  the day, and the states under it.
+    2x2  the states beside the classes losing the most periods, over the day. */
 function CoverCell({
   span, summary, slots, onDate, status, href,
 }: {
@@ -3195,503 +2312,114 @@ function CoverCell({
   const wide = w >= 2
   const tall = h >= 2
   const label = t('bento.principal.cover')
+  const cue = t('bento.principal.cue_cover')
 
-  if (status === 'error') return <InstrumentError span={span} domain="academics" label={label} />
-  if (status === 'loading') {
-    return (
-      <StatCell
-        span={span}
-        domain="academics"
-        label={label}
-        value={t('bento.principal.source_pending')}
-        note={t('bento.principal.source_loading')}
-      />
-    )
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="academics" label={label} status={status} />
   }
 
   const periods = summary?.periods ?? slots.length
   const covered = summary?.covered ?? slots.filter((s) => s.covered_by).length
-  const uncovered = summary?.uncovered ?? periods - covered
+  const uncovered = summary?.uncovered ?? Math.max(0, periods - covered)
   const stuck = summary?.no_candidate ?? 0
-  const pct = periods > 0 ? Math.round((covered / periods) * 100) : null
+  const open = Math.max(0, uncovered - stuck)
 
-  /* Per period, the same rule the handler counts by: covered if somebody is
-     on it, stuck if nobody is free for it, open otherwise. */
-  const stateOfSlot = (s: CoverPeriod): CoverState =>
-    s.covered_by ? 'covered' : Array.isArray(s.candidates) && s.candidates.length === 0 ? 'stuck' : 'open'
-
-  const marked = slots
-    .map((s) => ({ slot: s, at: minuteOfDay(s.starts_at), state: stateOfSlot(s) }))
-    .sort(
-      (a, b) =>
-        (a.at ?? Number.MAX_SAFE_INTEGER) - (b.at ?? Number.MAX_SAFE_INTEGER) ||
-        a.slot.period_sequence - b.slot.period_sequence,
-    )
-  const timed = marked.filter((m) => m.at !== null) as { slot: CoverPeriod; at: number; state: CoverState }[]
-
-  const first = timed.length > 0 ? timed[0].at : null
-  const last = timed.length > 0 ? timed[timed.length - 1].at : null
-  /* A day with one period in it has a window of zero width. Rather than
-     dividing by nothing, the axis is opened to half an hour either side of
-     that single time — the mark still sits on its own real clock time, and the
-     times printed at the ends are the period's, not the padding's. */
-  const pad = first !== null && last !== null ? Math.max(10, (last - first) * 0.06) : 0
-  const axisFrom = first !== null ? first - pad : 0
-  const axisTo = last !== null ? last + pad : 0
-  const axisSpan = axisTo - axisFrom
-  const xOf = (at: number) => (axisSpan > 0 ? ((at - axisFrom) / axisSpan) * 100 : 50)
-
-  /* The now marker is drawn only when the board being read IS today's. On any
-     other date a line labelled "now" is a claim about a day that is not the
-     one on the screen. */
-  const now = new Date()
-  const isToday = onDate === localDay(now)
-  const nowMins = now.getHours() * 60 + now.getMinutes()
-  const showNow = isToday && axisSpan > 0 && nowMins >= axisFrom && nowMins <= axisTo
-
-  const dayLine =
-    first === null || last === null
-      ? null
-      : first === last
-        ? t('bento.principal.cover_day_one', { at: clockText(first) })
-        : t('bento.principal.cover_day', { from: clockText(first), to: clockText(last) })
-
-  const stateWord = (st: CoverState) => t(COVER_WORD[st])
-  const coverOf = (s: CoverPeriod) => s.covered_by ?? t('bento.principal.cover_no_cover')
-  const classOf = (s: CoverPeriod) => `${s.class_name}${s.section ? `-${s.section}` : ''}`
-  const titleOf = (m: { slot: CoverPeriod; at: number | null; state: CoverState }) =>
-    `${m.at !== null ? `${clockText(m.at)} · ` : ''}${m.slot.period} · ${classOf(m.slot)} ${
-      m.slot.subject
-    } — ${stateWord(m.state)}${m.slot.covered_by ? `: ${m.slot.covered_by}` : ''}${
-      m.slot.absent_teacher ? ` (${t('bento.principal.cover_for', { teacher: m.slot.absent_teacher })})` : ''
-    }`
-
-  const fieldSr = t('bento.principal.cover_axis_sr', {
-    periods,
-    covered,
-    open: Math.max(0, uncovered - stuck),
-    stuck,
-    list: marked.map((m) => titleOf(m)).join('; ') || '—',
-  })
-
-  const statusWord =
-    periods === 0
-      ? t('bento.principal.cover_nothing')
-      : uncovered === 0
-        ? t('bento.principal.cover_all_covered')
-        : stuck > 0
-          ? t('bento.principal.cover_stuck_count', { count: stuck })
-          : t('bento.principal.cover_open_count', { count: uncovered })
-
-  const header = (
-    <>
-      <CellLabel>{label}</CellLabel>
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-        <p className={FIG_CLASS}>{uncovered}</p>
-        <span
-          className="text-[12px] font-semibold leading-tight"
-          style={{ color: inkOf(uncovered > 0 ? (stuck > 0 ? 'pink' : 'orange') : 'mint') }}
-        >
-          {statusWord}
-        </span>
-        <span className="truncate text-[11px] leading-tight text-[var(--bento-muted)]">
-          {periods > 0
-            ? t('bento.principal.cover_of_periods', { covered, periods, pct: pct ?? 0 })
-            : t('bento.principal.cover_away', { count: summary?.absent_teachers ?? 0 })}
-        </span>
-      </div>
-    </>
-  )
-
-  /** The three states as one bar over the endpoint's own denominator, with the
-      counts printed beside the words. This is the field's legend as well as
-      its summary — the hues here are the hues the marks below use. */
-  const stateBar = periods > 0 && (
-    <div>
-      <div aria-hidden="true" className="flex h-[9px] w-full items-stretch gap-[3px]">
-        {([
-          ['covered', covered],
-          ['open', Math.max(0, uncovered - stuck)],
-          ['stuck', stuck],
-        ] as [CoverState, number][])
-          .filter(([, v]) => v > 0)
-          .map(([st, v]) => (
-            <div
-              key={st}
-              title={`${stateWord(st)}: ${v}`}
-              className="rounded-full"
-              style={{
-                width: `${(v / periods) * 100}%`,
-                minWidth: '5px',
-                background: `linear-gradient(90deg, ${inkOf(COVER_HUE[st])}, ${washOf(COVER_HUE[st], 62)})`,
-              }}
-            />
-          ))}
-      </div>
-      <div aria-hidden="true" className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-        {(['covered', 'open', 'stuck'] as CoverState[]).map((st) => {
-          const v = st === 'covered' ? covered : st === 'stuck' ? stuck : Math.max(0, uncovered - stuck)
-          return (
-            <span key={st} className="flex items-center gap-1 text-[10px] leading-none">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: inkOf(COVER_HUE[st]) }}
-              />
-              <span className="text-[var(--bento-muted)]">{stateWord(st)}</span>
-              <span className="font-semibold tabular-nums">{v}</span>
-            </span>
-          )
-        })}
-      </div>
-    </div>
-  )
-
-  /** The day as one horizontal axis: a mark per period at its own clock time,
-      a boundary at each, the now line where it belongs. */
-  const dayAxis = (height: number, withTimes: boolean) =>
-    timed.length > 0 && (
-      <div role="img" aria-label={fieldSr}>
-        <div className="relative w-full" style={{ height: `${height}px` }}>
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
-            style={{ background: RULE }}
-          />
-          {timed.map((m, i) => (
-            <span
-              key={`${m.slot.timetable_entry_id}-${i}`}
-              title={titleOf(m)}
-              aria-hidden="true"
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{
-                left: `${xOf(m.at)}%`,
-                height: `${height - 2}px`,
-                width: '4px',
-                background: inkOf(COVER_HUE[m.state]),
-              }}
-            />
-          ))}
-          {showNow && (
-            <span
-              aria-hidden="true"
-              title={t('bento.principal.cover_now', { time: clockText(nowMins) })}
-              className="absolute inset-y-0 w-[1.5px] -translate-x-1/2"
-              style={{ left: `${xOf(nowMins)}%`, background: inkOf('purple') }}
-            />
-          )}
-        </div>
-        {withTimes && dayLine && (
-          <div className="mt-0.5 flex items-baseline justify-between text-[9px] leading-none tabular-nums text-[var(--bento-muted)]">
-            <span>{first !== null ? clockText(first) : ''}</span>
-            {showNow && (
-              <span style={{ color: inkOf('purple') }}>
-                {t('bento.principal.cover_now', { time: clockText(nowMins) })}
-              </span>
-            )}
-            <span>{last !== null ? clockText(last) : ''}</span>
-          </div>
-        )}
-      </div>
-    )
-
-  /** Nothing to cover is a finding, not an empty cell. */
-  const calm = (
-    <p className="mt-2 text-[11px] leading-snug">
-      {t('bento.principal.cover_none_needed', { count: summary?.absent_teachers ?? 0 })}
-    </p>
-  )
-
-  let body: ReactNode
-
-  if (wide && tall) {
-    /* THE FULL FIELD. One lane per class-section, the clock across the top,
-       a boundary rule at every period start.
-
-       A PERIOD IS DRAWN AS A TICK AT ITS START TIME, WITH ITS LABEL BESIDE IT,
-       AND NOT AS A BLOCK SPANNING A DURATION. The board returns `starts_at`
-       and nothing else — no end time and no length — so a rectangle whose
-       width was a duration would be a width nobody measured. The tick is the
-       datum; the chip next to it is its label. */
-    const lanesAll = [...new Map(timed.map((m) => [classOf(m.slot), m])).keys()]
-    const shownLanes = lanesAll.slice(0, 6)
-    const laneRows = shownLanes.map((name) => ({
-      name,
-      items: timed.filter((m) => classOf(m.slot) === name),
-    }))
-    const boundaries = [...new Set(timed.map((m) => m.at))].sort((a, b) => a - b)
-    const labelEvery = Math.ceil(boundaries.length / 7)
-
-    body = (
-      <div className="mt-2 flex min-h-0 flex-col gap-2">
-        {stateBar}
-        {timed.length > 0 ? (
-          <div role="img" aria-label={fieldSr} className="flex min-w-0 flex-col">
-            {/* The clock, and the period it belongs to, above the field. */}
-            <div className="flex items-end">
-              <span className="w-[54px] shrink-0" />
-              <div className="relative h-[13px] flex-1">
-                {boundaries.map((b, i) =>
-                  i % labelEvery === 0 ? (
-                    <span
-                      key={b}
-                      aria-hidden="true"
-                      className="absolute bottom-0 -translate-x-1/2 text-[8.5px] leading-none tabular-nums text-[var(--bento-muted)]"
-                      style={{ left: `${xOf(b)}%` }}
-                    >
-                      {clockText(b)}
-                    </span>
-                  ) : null,
-                )}
-                {showNow && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute bottom-0 -translate-x-1/2 text-[8.5px] font-semibold leading-none"
-                    style={{ left: `${xOf(nowMins)}%`, color: inkOf('purple') }}
-                  >
-                    {t('bento.principal.cover_now', { time: clockText(nowMins) })}
-                  </span>
-                )}
-              </div>
-            </div>
-            {laneRows.map((lane) => (
-              <div key={lane.name} className="flex items-center">
-                <span className="w-[54px] shrink-0 truncate pr-1 text-[9.5px] font-semibold leading-none">
-                  {lane.name}
-                </span>
-                <div className="relative h-[24px] flex-1">
-                  {/* The period boundaries, behind everything: real starts, so
-                      a lane's gaps are the school's gaps. */}
-                  {boundaries.map((b) => (
-                    <span
-                      key={b}
-                      aria-hidden="true"
-                      className="absolute inset-y-0 w-px"
-                      style={{ left: `${xOf(b)}%`, background: RULE }}
-                    />
-                  ))}
-                  {showNow && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-y-0 w-[1.5px] -translate-x-1/2"
-                      style={{ left: `${xOf(nowMins)}%`, background: washOf('purple', 70) }}
-                    />
-                  )}
-                  {lane.items.map((m, i) => (
-                    <span
-                      key={`${m.slot.timetable_entry_id}-${i}`}
-                      title={titleOf(m)}
-                      aria-hidden="true"
-                      className="absolute top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-[4px] py-[2px] pl-[3px] pr-1.5"
-                      style={{
-                        left: `${xOf(m.at)}%`,
-                        maxWidth: '112px',
-                        background: washOf(COVER_HUE[m.state], 18),
-                        boxShadow: `inset 0 0 0 1px ${washOf(COVER_HUE[m.state], 55)}`,
-                      }}
-                    >
-                      <span
-                        className="text-[9px] font-bold leading-none"
-                        style={{ color: inkOf(COVER_HUE[m.state]) }}
-                      >
-                        {COVER_GLYPH[m.state]}
-                      </span>
-                      <span className="truncate text-[9px] leading-none">
-                        {m.slot.subject} · {m.slot.covered_by ?? stateWord(m.state)}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          calm
-        )}
-        {timed.length > 0 && (
-          <p className="text-[10px] leading-tight text-[var(--bento-muted)]">
-            {lanesAll.length > shownLanes.length
-              ? t('bento.principal.cover_more_classes', {
-                  count: lanesAll.length - shownLanes.length,
-                  day: dayLine ?? '',
-                })
-              : dayLine}
-            {isToday ? '' : ` · ${t('bento.principal.cover_not_today', { date: onDate })}`}
-          </p>
-        )}
-      </div>
-    )
-  } else if (tall) {
-    /* THE AXIS, VERTICALLY. A narrow cell cannot hold a horizontal clock and
-       a legible label at the same time, so the axis runs down the left edge
-       with each period's mark at its own proportional height, and the reading
-       runs beside it. */
-    const shown = marked.slice(0, 11)
-    body = (
-      <div className="mt-2 flex min-h-0 flex-col gap-1">
-        {periods === 0 ? (
-          calm
-        ) : (
-          <>
-            <div className="flex items-baseline justify-between text-[9.5px] leading-none tabular-nums text-[var(--bento-muted)]">
-              <span>{dayLine}</span>
-              {showNow && (
-                <span style={{ color: inkOf('purple') }}>
-                  {t('bento.principal.cover_now', { time: clockText(nowMins) })}
-                </span>
-              )}
-            </div>
-            <div role="img" aria-label={fieldSr} className="flex min-h-0 flex-1 gap-2">
-              <div className="relative w-[8px] shrink-0">
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded-full"
-                  style={{ background: RULE }}
-                />
-                {timed.map((m, i) => (
-                  <span
-                    key={`${m.slot.timetable_entry_id}-${i}`}
-                    aria-hidden="true"
-                    title={titleOf(m)}
-                    className="absolute left-1/2 h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-                    style={{ top: `${xOf(m.at)}%`, background: inkOf(COVER_HUE[m.state]) }}
-                  />
-                ))}
-                {showNow && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-[-3px] h-[1.5px] -translate-y-1/2"
-                    style={{ top: `${xOf(nowMins)}%`, background: inkOf('purple') }}
-                  />
-                )}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                {shown.map((m, i) => (
-                  <div key={`${m.slot.timetable_entry_id}-${i}`} className="flex min-w-0 items-center gap-1.5">
-                    <span className="w-[30px] shrink-0 text-[9.5px] leading-none tabular-nums text-[var(--bento-muted)]">
-                      {m.at !== null ? clockText(m.at) : m.slot.period}
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      className="h-[9px] w-[9px] shrink-0 rounded-full text-center text-[7px] font-bold leading-[9px]"
-                      style={{
-                        background: washOf(COVER_HUE[m.state], 20),
-                        boxShadow: `inset 0 0 0 1px ${washOf(COVER_HUE[m.state], 55)}`,
-                        color: inkOf(COVER_HUE[m.state]),
-                      }}
-                    >
-                      {COVER_GLYPH[m.state]}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[10px] leading-none">
-                      {classOf(m.slot)} {m.slot.subject}
-                    </span>
-                    <span
-                      className="shrink-0 text-[9px] leading-none"
-                      style={{ color: inkOf(COVER_HUE[m.state]) }}
-                    >
-                      {stateWord(m.state)}
-                    </span>
-                  </div>
-                ))}
-                {marked.length > shown.length && (
-                  <span className="text-[9.5px] leading-none text-[var(--bento-muted)]">
-                    {t('bento.principal.cover_more', { count: marked.length - shown.length })}
-                  </span>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    )
-  } else if (wide) {
-    /* TEMPORAL LANES. The day's axis across the top, then one lane per period
-       carrying the five things the morning is arranged from: the time, the
-       period, the class and section, the state in a word, and who is on it. */
-    const shown = marked.slice(0, 4)
-    body = (
-      <div className="mt-1.5 flex min-h-0 flex-col gap-1">
-        {periods === 0 ? (
-          calm
-        ) : (
-          <>
-            {dayAxis(10, false)}
-            <div className="flex min-w-0 flex-col gap-[2px]">
-              <div
-                aria-hidden="true"
-                className="flex items-center gap-2 text-[8.5px] uppercase leading-none tracking-[0.08em] text-[var(--bento-muted)]"
-              >
-                <span className="w-[32px] shrink-0">{t('bento.principal.cover_h_time')}</span>
-                <span className="w-[26px] shrink-0">{t('bento.principal.cover_h_period')}</span>
-                <span className="min-w-0 flex-1">{t('bento.principal.cover_h_class')}</span>
-                <span className="w-[58px] shrink-0">{t('bento.principal.cover_h_state')}</span>
-                <span className="w-[84px] shrink-0">{t('bento.principal.cover_h_cover')}</span>
-              </div>
-              {shown.map((m, i) => (
-                <div
-                  key={`${m.slot.timetable_entry_id}-${i}`}
-                  title={titleOf(m)}
-                  className="flex min-w-0 items-center gap-2 rounded-[3px] py-[1px] pl-1 pr-1"
-                  style={{ background: washOf(COVER_HUE[m.state], m.state === 'covered' ? 8 : 14) }}
-                >
-                  <span className="w-[32px] shrink-0 text-[10px] leading-none tabular-nums">
-                    {m.at !== null ? clockText(m.at) : '—'}
-                  </span>
-                  <span className="w-[26px] shrink-0 truncate text-[10px] leading-none text-[var(--bento-muted)]">
-                    {m.slot.period}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[10px] leading-none">
-                    {classOf(m.slot)} · {m.slot.subject}
-                  </span>
-                  <span
-                    className="w-[58px] shrink-0 truncate text-[10px] font-semibold leading-none"
-                    style={{ color: inkOf(COVER_HUE[m.state]) }}
-                  >
-                    {stateWord(m.state)}
-                  </span>
-                  <span className="w-[84px] shrink-0 truncate text-[10px] leading-none text-[var(--bento-muted)]">
-                    {coverOf(m.slot)}
-                  </span>
-                </div>
-              ))}
-              {marked.length > shown.length && (
-                <span className="text-[9.5px] leading-none text-[var(--bento-muted)]">
-                  {t('bento.principal.cover_more', { count: marked.length - shown.length })}
-                </span>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    )
-  } else {
-    body = (
-      <div className="mt-2 flex min-h-0 flex-col gap-1">
-        {periods === 0 ? calm : dayAxis(12, true)}
-      </div>
+  if (periods === 0) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="academics"
+        title={label}
+        sub={t('bento.principal.cover_sub')}
+        value="—"
+        change={t('bento.principal.cover_none_needed')}
+        href={href}
+        cue={cue}
+      />
     )
   }
 
+
+  /* Minutes of the day, never dates. A day with one period in it has a window
+     of zero width, so the axis is opened to the hour either side of it. */
+  const mins = slots
+    .map((s) => minuteOfDay(s.starts_at))
+    .filter((m): m is number => m !== null)
+  const lo = mins.length > 0 ? Math.floor(Math.min(...mins) / 60) * 60 : 0
+  const hiRaw = mins.length > 0 ? Math.ceil(Math.max(...mins) / 60) * 60 : 0
+  const hi = hiRaw > lo ? hiRaw : lo + 60
+
+  const states = [
+    { label: t('bento.principal.cover_covered'), value: covered },
+    { label: t('bento.principal.cover_open'), value: open },
+    { label: t('bento.principal.cover_stuck'), value: stuck },
+  ]
+  const byState = (
+    <Rows items={states} srLabel={t('bento.principal.cover_states_sr', { covered, open, stuck })} />
+  )
+  const day = (bins: number) => (
+    <Distribution
+      values={histogram(mins, bins, lo, hi)}
+      srLabel={t('bento.principal.cover_day_sr', {
+        from: clockText(lo),
+        to: clockText(hi),
+        date: onDate,
+      })}
+    />
+  )
+  const uncoveredClasses = topCounts(
+    slots.filter((s) => !s.covered_by),
+    (s) => s.class_name,
+    t('bento.principal.other_slice'),
+  ).slice(0, 4)
+  const byClass = (
+    <Rows items={uncoveredClasses} srLabel={t('bento.principal.cover_class_sr')} />
+  )
+
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split left={byState} right={byClass} />} bottom={day(18)} />
+    ) : tall ? (
+      <Pair top={day(10)} bottom={byState} />
+    ) : wide ? (
+      <Split left={byState} right={day(12)} />
+    ) : (
+      byState
+    )
+
   return (
-    <Cell span={span} domain="academics">
-      {header}
-      {body}
-      <span className="sr-only">{fieldSr}</span>
-      {href && <Cue to={href} label={t('bento.principal.cue_cover')} />}
-    </Cell>
+    <FeatureCard
+      span={span}
+      domain="academics"
+      accent={uncovered > 0 ? (stuck > 0 ? 'pink' : 'orange') : undefined}
+      title={label}
+      sub={t('bento.principal.cover_sub')}
+      value={uncovered}
+      change={t('bento.principal.cover_change', {
+        covered,
+        periods,
+        away: summary?.absent_teachers ?? 0,
+      })}
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
-/** My leave, drawn to fit.
+/** My leave, on the card.
 
-    The one cell on this board with a denominator somebody actually signed:
-    `entitled` is what the school granted, and `remaining` is what is left of
-    it. Both come off `/me/pay` as strings and are read as numbers here.
+    THE DENOMINATOR SOMEBODY SIGNED. `entitled` is what the school granted per
+    leave type and `remaining` is what is left of it — both off `/me/pay`, both
+    strings on the wire and read as numbers here. The primary reading is the
+    per-type composition, not a ring: eleven days left means nothing until you
+    know which eleven.
 
-    1x1  the ring — days left as a share of days granted.
-    2x1  the same as a rail, which reads faster in a wide short cell.
-    1x2  one rail per leave type, each against its own entitlement, because
-         eleven days left means nothing until you know which eleven.
-    2x2  the ring over the per-type rails. */
+    1x1  left against taken, on one scale.
+    2x1  days left, type by type.
+    1x2  left against taken, over the per-type ranking.
+    2x2  the per-type ranking at full height, over left against taken. */
 function MyLeaveCell({
   span, balances, status, href,
 }: {
@@ -3704,74 +2432,97 @@ function MyLeaveCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.my_leave')
+  const cue = t('bento.principal.cue_my_leave')
+
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="staff" label={label} status={status} />
+  }
 
   const num = (v: string | number | undefined) => {
     const n = Number(v ?? 0)
     return Number.isFinite(n) ? n : 0
   }
+  const granted = balances.filter((b) => num(b.entitled) > 0)
   const remaining = balances.reduce((n, b) => n + num(b.remaining), 0)
   const entitled = balances.reduce((n, b) => n + num(b.entitled), 0)
+  const taken = Math.max(0, entitled - remaining)
 
-  const ring = (
-    <Ring value={remaining} total={entitled} srLabel={t('bento.principal.my_leave_sr')} />
-  )
-  const rail =
-    entitled > 0 ? (
-      <Meter
-        value={remaining}
-        total={entitled}
-        tone="success"
-        srLabel={t('bento.principal.my_leave_sr')}
+  if (granted.length === 0) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="staff"
+        title={label}
+        sub={t('bento.principal.my_leave_sub')}
+        value="—"
+        change={t('bento.principal.my_leave_none')}
+        href={href}
+        cue={cue}
       />
-    ) : null
-  const perType = (
-    <RailList
-      rows={balances
-        .filter((b) => num(b.entitled) > 0)
-        .map((b) => ({
-          key: b.leave_type,
-          label: b.leave_type,
-          value: num(b.remaining),
-          total: num(b.entitled),
-          caption: `${num(b.remaining)}/${num(b.entitled)}`,
-          srLabel: t('bento.principal.my_leave_type_sr', { type: b.leave_type }),
-        }))}
+    )
+  }
+
+  const split = (
+    <Compare
+      rows={[
+        { label: t('bento.principal.my_leave_left'), value: remaining },
+        { label: t('bento.principal.my_leave_taken'), value: taken },
+      ]}
+      srLabel={t('bento.principal.my_leave_compare_sr', { entitled })}
+    />
+  )
+  const perType = (n: number) => (
+    <Rows
+      items={[...granted]
+        .sort((a, b) => num(b.remaining) - num(a.remaining))
+        .slice(0, n)
+        .map((b) => ({ label: b.leave_type, value: num(b.remaining) }))}
+      srLabel={t('bento.principal.my_leave_rows_sr', { count: granted.length })}
     />
   )
 
-  let shape: ReactNode
-  if (wide && tall) shape = <Stack>{ring}{perType}</Stack>
-  else if (tall) shape = perType
-  else if (wide) shape = rail
-  else shape = ring
+  const drawing =
+    wide && tall ? (
+      <Pair top={perType(4)} bottom={split} />
+    ) : tall ? (
+      <Pair top={split} bottom={perType(3)} />
+    ) : wide ? (
+      perType(3)
+    ) : (
+      split
+    )
 
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="staff"
-      status={status}
-      label={t('bento.principal.my_leave')}
+      title={label}
+      sub={t('bento.principal.my_leave_sub')}
       value={remaining}
-      shape={shape ?? undefined}
-      note={t('bento.principal.my_leave_note', { count: balances.length })}
-      to={href}
-      cue={t('bento.principal.cue_my_leave')}
-    />
+      change={t('bento.principal.my_leave_change', { entitled, types: granted.length })}
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
-/** My pay, drawn to fit.
+/** My pay, on the card.
 
-    Paise are `bigint` on the wire and are never divided into a float for
-    display — `formatPaise` prints every figure below. The sparkline plots the
-    raw paise, which is a position on a chart and not a printed number.
+    THE POINT IS HOW GROSS BECAME NET. Paise are `bigint` on the wire and are
+    never turned into a float for display: every figure printed here goes
+    through `formatPaise`, and the numbers handed to a drawing are positions on
+    a chart, not printed money.
 
-    1x1  the last net figure.
-    2x1  up to two years of net pay as a line: the one thing a payslip cannot
-         tell you is whether it is normal.
-    1x2  where the last gross went — what was paid and what was withheld,
-         which sum to gross exactly because the response says they do.
-    2x2  both. */
+    `/me/pay` returns at most twenty-four payslips, newest first; they are put
+    back in date order so the line reads left to right in time.
+
+    1x1  net pay, month by month.
+    2x1  each month's gross split into what was paid and what was withheld.
+    1x2  the net trend, over the last payslip's gross, net and deductions.
+    2x2  the split across every month, over the same three figures. */
 function MyPayCell({
   span, payslips, status, href,
 }: {
@@ -3784,61 +2535,93 @@ function MyPayCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.my_pay')
+  const cue = t('bento.principal.cue_my_pay')
 
-  // Oldest first, so the line reads left to right in time. The response's own
-  // order is newest first, which would draw the trend backwards.
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="finance" label={label} status={status} />
+  }
+
   const chrono = [...payslips].sort(
     (a, b) => a.period_year - b.period_year || a.period_month - b.period_month,
   )
   const latest = payslips[0]
 
-  const line =
-    chrono.length > 1 ? (
-      <Sparkline
-        points={chrono.map((p) => Number(p.net_paise))}
-        srLabel={t('bento.principal.my_pay_trend_sr', { count: chrono.length })}
+  if (!latest) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="finance"
+        title={label}
+        sub={t('bento.principal.my_pay_sub')}
+        value="—"
+        change={t('bento.principal.my_pay_none')}
+        href={href}
+        cue={cue}
       />
-    ) : null
-  const split = latest ? (
-    <SegmentBar
-      segments={[
+    )
+  }
+
+  const nets = chrono.map((p) => Number(p.net_paise))
+  const trend = (
+    <Line points={nets} srLabel={t('bento.principal.my_pay_line_sr', { count: nets.length })} />
+  )
+  const wave = (
+    <Area points={nets} srLabel={t('bento.principal.my_pay_line_sr', { count: nets.length })} />
+  )
+  const columns = chrono.map((p) => ({
+    total: Number(p.gross_paise),
+    parts: [Number(p.net_paise), Number(p.deduction_paise)],
+  }))
+  const stacked = (
+    <StackCols
+      columns={columns}
+      srLabel={t('bento.principal.my_pay_stack_sr', { count: columns.length })}
+    />
+  )
+  const split = (
+    <Compare
+      rows={[
+        { label: t('bento.principal.my_pay_gross'), value: Number(latest.gross_paise) },
         { label: t('bento.principal.my_pay_net'), value: Number(latest.net_paise) },
         { label: t('bento.principal.my_pay_deducted'), value: Number(latest.deduction_paise) },
       ]}
+      formatValue={(n) => formatPaise(n)}
       srLabel={t('bento.principal.my_pay_split_sr', {
         gross: formatPaise(Number(latest.gross_paise)),
         deduction: formatPaise(Number(latest.deduction_paise)),
       })}
     />
-  ) : null
+  )
 
-  let shape: ReactNode = null
-  if (wide && tall) shape = <Stack>{line}{split}</Stack>
-  else if (tall) shape = split
-  else if (wide) shape = line
-
-  const note = latest
-    ? tall
-      ? t('bento.principal.my_pay_gross_note', {
-          gross: formatPaise(Number(latest.gross_paise)),
-          month: latest.period_month,
-          year: latest.period_year,
-        })
-      : t('bento.principal.my_pay_note', { month: latest.period_month, year: latest.period_year })
-    : t('bento.principal.my_pay_none')
+  const drawing =
+    wide && tall ? (
+      <Pair top={stacked} bottom={split} />
+    ) : tall ? (
+      <Pair top={wave} bottom={split} />
+    ) : wide ? (
+      stacked
+    ) : (
+      trend
+    )
 
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="finance"
-      status={status}
-      label={t('bento.principal.my_pay')}
-      value={latest ? formatPaise(Number(latest.net_paise)) : '—'}
-      shape={shape ?? undefined}
-      note={note}
-      to={href}
-      cue={t('bento.principal.cue_my_pay')}
-    />
+      title={label}
+      sub={t('bento.principal.my_pay_sub')}
+      value={<Money>{formatPaise(Number(latest.net_paise))}</Money>}
+      change={t('bento.principal.my_pay_change', {
+        month: latest.period_month,
+        year: latest.period_year,
+        gross: formatPaise(Number(latest.gross_paise)),
+      })}
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
@@ -3861,7 +2644,180 @@ function MyPayCell({
     say would be the fourth fabricated denominator this product has had to
     remove. Under two days there is no median worth the name and no rule is
     drawn. */
-function PulseCell({
+/* ─── THE EIGHT KPI CARDS, IN THE CARD VOCABULARY ─────────────────────────
+
+   docs/BENTO_CARD_PATTERNS.md is the contract these eight now keep: a cell is
+   a header, a figure, and a drawing that takes ALL the height left over. The
+   old shape here was a label, a number and a sentence, with the drawing either
+   absent or hiding BEHIND the text as an `art` layer — which is why every one
+   of them read as mostly empty space.
+
+   The drawing now sits in its own row of `CardShell`, never behind the words,
+   and every mark in it is `currentColor`: nothing below names a colour, so a
+   card is correct on paper, on any of the twelve domain grounds and inverted,
+   in both modes and all four palettes, without a branch.
+
+   WHAT EACH SIZE ADDS, and it is a ladder rather than four variations:
+   1x1 the signal, 1x2 the same signal with the figures that make it up, 2x1
+   the structure the width buys, 2x2 both at once.
+
+   WHERE THE RING MAY AND MAY NOT GO. `Gauge` is an aspect-square ring sized
+   off the drawing row's WIDTH, and on a one-row cell that row is about 70px
+   tall — the ring is drawn 104px across and the bottom third of it is cut off
+   by the cell's own `overflow: hidden`. So a ring is only ever drawn where
+   there are two rows of height. On one row the same proportion is drawn as
+   `Compare` or `Rows`, which is two or three tracks against a shared scale and
+   reads at any height a track fits in.
+
+   AND WHAT IS STILL NOT DRAWN. Four of these have no denominator anywhere in
+   `/principal/dashboard` — the roll, open applications, unassigned subjects
+   and pending approvals are counts with no whole in the response to be a share
+   of. They get a UNIT GRID: one dot per unit, the unit stated in the line
+   under the figure and in the screen-reader label. A bigger cell buys a
+   smaller unit, not an invented total. `sections` is not a denominator for
+   students, `staff` is not one for unassigned subjects, and a funnel drawn
+   from a single undecided-application count would be three made-up numbers. */
+
+/** How many dots a drawing of this shape can hold without the grid overflowing
+    its row. Rows are the binding constraint: the row is `minmax(0,1fr)` of
+    whatever is left, roughly 70px on a one-row cell and 240px on two. */
+function gridCapacity(w: number, h: number) {
+  const columns = w >= 2 ? 20 : 10
+  const rows = h >= 2 ? 12 : 4
+  return { columns, rows, capacity: columns * rows }
+}
+
+/** The column count that makes a given number of dots a BLOCK rather than a
+    stripe.
+
+    At capacity this returns the full column count and the grid is solid. Below
+    it — seven leave requests in a cell with room for two hundred and forty
+    dots — laying them across twenty columns draws one thin line adrift in an
+    empty row. Shaping to the cell's own aspect keeps a small count square, so
+    a quantity still reads as a quantity. */
+function gridColumns(n: number, w: number, h: number) {
+  const { columns, rows } = gridCapacity(w, h)
+  if (n >= columns * rows) return columns
+  const shaped = Math.ceil(Math.sqrt(Math.max(1, n) * (columns / rows)))
+  return Math.max(1, Math.min(columns, shaped))
+}
+
+/** A count drawn as itself: one dot per unit, and the unit is whatever the
+    room allows. Under capacity every dot is one thing; over it the unit grows
+    and the last dot is drawn part-weight so the remainder is not rounded away.
+    Returns `unit` so the caller can say what a dot means — a unit chart whose
+    unit is unstated is a decoration. */
+function unitGrid(count: number, capacity: number): { cells: number[]; unit: number } {
+  if (!Number.isFinite(count) || count <= 0) return { cells: [], unit: 1 }
+  if (count <= capacity) return { cells: Array.from({ length: count }, () => 1), unit: 1 }
+  const unit = Math.ceil(count / capacity)
+  const full = Math.floor(count / unit)
+  const rest = (count - full * unit) / unit
+  const cells = Array.from({ length: full }, () => 1)
+  if (rest > 0.001) cells.push(Math.max(0.25, rest))
+  return { cells, unit }
+}
+
+/** Two drawings in one drawing row, stacked on a tall cell and side by side on
+    a wide one — the ring and the figures it was computed from. Only used at
+    1x2 and 2x2, where there is room for both without either being squeezed
+    below the size it reads at. */
+function PairAside({ ring, detail, side }: { ring: ReactNode; detail: ReactNode; side: boolean }) {
+  return side ? (
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,116px)_minmax(0,1fr)] items-center gap-3">
+      <div className="h-full min-h-0">{ring}</div>
+      <div className="h-full min-h-0">{detail}</div>
+    </div>
+  ) : (
+    <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+      <div className="min-h-0">{ring}</div>
+      {detail}
+    </div>
+  )
+}
+
+/** The card frame: the ground and the link on the outside, the three-row shell
+    on the inside.
+
+    The whole card is the link rather than a pill along the bottom edge. The
+    contract's cell is three rows and nothing else, and a fourth row for an
+    action is exactly the 30px the drawing was short of at 1x1 — so the
+    affordance becomes the card itself, which is bigger, needs no room, and
+    still reaches the same screen. Cards with no reachable feature simply are
+    not links; nothing renders a locked door. */
+function CardCell({
+  span, domain, status, title, sub, glyph, value, change, to, cueLabel, children,
+}: {
+  span: CellSpan
+  domain?: string
+  status: CellStatus
+  title: string
+  sub?: string
+  glyph?: ReactNode
+  value: ReactNode
+  change?: ReactNode
+  to?: string
+  cueLabel: string
+  children?: ReactNode
+}) {
+  const t = useT()
+  /* A failed fetch is never a confident zero and never a drawing. The figure
+     becomes a dash — there is no number — and the drawing row carries the
+     error, which is the one thing that row is allowed to say that is not
+     data. */
+  const body =
+    status === 'error' ? (
+      <CardShell title={title} sub={sub} glyph={glyph} value="—" className="h-full">
+        <CellError message={t('bento.principal.source_failed')} />
+      </CardShell>
+    ) : status === 'loading' ? (
+      <CardShell
+        title={title}
+        sub={sub}
+        glyph={glyph}
+        value="—"
+        change={t('bento.principal.source_loading')}
+        className="h-full"
+      />
+    ) : (
+      <CardShell title={title} sub={sub} glyph={glyph} value={value} change={change} className="h-full">
+        {children}
+      </CardShell>
+    )
+
+  return (
+    <Cell span={span} domain={domain}>
+      {to ? (
+        <Link
+          to={to}
+          aria-label={cueLabel}
+          className="block min-h-0 flex-1 rounded-[6px] outline-none focus-visible:ring-2 focus-visible:ring-current"
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="min-h-0 flex-1">{body}</div>
+      )}
+    </Cell>
+  )
+}
+
+/* ── attendance ─────────────────────────────────────────────────────────── */
+
+/** Attendance today, on the thirty-day line it sits on.
+
+    The only cell on this board with a real series behind it, so it is the only
+    one that draws a trend. 1x1 takes the last ten days, which is the shape of
+    the week and a half a line can still be read at that width; 1x2 has the
+    height for the area under all thirty, which is the magnitude as well as the
+    direction; 2x1 has the width for the full line; 2x2 stops smoothing and
+    draws the month a day at a time, with today's bar marked.
+
+    The bars are drawn against the best day of the month rather than against
+    100%, which is what `Bars` does with any series — so the row reads as
+    "today against the month's range", not as a share of a register. The figure
+    above it is the percentage itself. */
+export function PulseCard({
   span, pct, marked, points, days, trendError, href,
 }: {
   span: CellSpan
@@ -3874,74 +2830,402 @@ function PulseCell({
 }) {
   const t = useT()
   const { w, h } = useWidgetSize()
-
-  const sorted = [...points].sort((a, b) => a - b)
-  const median = sorted.length > 1
-    ? sorted.length % 2
-      ? sorted[(sorted.length - 1) / 2]
-      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
-    : null
-  const above = median === null ? null : pct >= median
-
   const wide = w >= 2
   const tall = h >= 2
-  const showLine = (wide || tall) && !trendError && points.length > 1
+  const marked28 = days.filter((d) => d !== null) as number[]
+
+  const drawing = trendError ? (
+    <CellError message={t('bento.principal.trend_failed')} />
+  ) : wide && tall ? (
+    <CardBars
+      values={marked28}
+      activeIndex={marked28.length - 1}
+      srLabel={t('bento.principal.card_pulse_month_sr', { days: marked28.length })}
+    />
+  ) : tall ? (
+    <CardArea points={points} srLabel={t('bento.principal.trend_sr')} />
+  ) : wide ? (
+    <CardLine points={points} srLabel={t('bento.principal.trend_sr')} />
+  ) : (
+    <CardLine points={points.slice(-10)} srLabel={t('bento.principal.card_pulse_short_sr')} />
+  )
 
   return (
-    <Cell
+    <CardCell
       span={span}
       domain="students"
-      /* The calendar earns its keep only at the full 2x2; below that it is
-         texture rather than information. Empty when the trend query failed,
-         because a grid of unmarked days is a statement about the school and
-         not about the request. */
-      art={wide && tall && days.length > 0 ? <CalendarDensityArt slots={days} /> : undefined}
+      status="ready"
+      title={t('bento.principal.card_pulse_title')}
+      sub={t('bento.principal.card_pulse_sub')}
+      glyph="%"
+      value={`${pct}%`}
+      change={t('bento.principal.attendance_marked', { count: marked })}
+      to={href}
+      cueLabel={t('bento.principal.cue_attendance')}
     >
-      <p
-        className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
-                   text-[var(--bento-muted)]"
-      >
-        {t('bento.principal.anchor_label')}
-      </p>
+      {drawing}
+    </CardCell>
+  )
+}
 
-      <div className="mt-2 flex items-baseline gap-2">
-        <p
-          className="font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
-                     text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
-        >
-          {pct}%
-        </p>
-        {/* The small cell's entire chart. A glyph as well as a position, so
-            colour is not the only channel, and the reading is spelled out
-            rather than left to the shape. */}
-        {above !== null && !showLine && (
-          <span className="text-[12px] font-semibold leading-none text-[var(--bento-muted)]">
-            <span aria-hidden="true">{above ? '\u25b2' : '\u25bc'}</span>
-            <span className="sr-only">
-              {t(above ? 'bento.principal.above_median' : 'bento.principal.below_median')}
-            </span>
-          </span>
-        )}
-      </div>
+/* ── money ──────────────────────────────────────────────────────────────── */
 
-      {(wide || tall) && (
-        <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
-          {t('bento.principal.attendance_marked', { count: marked })}
-        </p>
-      )}
+/** Collected against what was billed.
 
-      {trendError && (wide || tall) ? (
-        <div className="mt-3">
-          <CellError message={t('bento.principal.trend_failed')} />
-        </div>
-      ) : showLine ? (
-        <div className="bento-shape mt-3">
-          <Sparkline points={points} srLabel={t('bento.principal.trend_sr')} />
-        </div>
-      ) : null}
+    `billed_paise` is the real denominator and it comes off the handler; it is
+    never derived as collected + outstanding, which is the fabricated total
+    this product has already removed once. When the school's invoices carry no
+    academic year the trio is all zero, there IS no total, and the cell falls
+    back to drawing the two money figures against each other on a shared scale
+    — the longer bar is the larger sum and neither is claimed to be a share of
+    anything. */
+export function CollectedCard({
+  span, yearly, billed, collected, outstanding, collectedPct, rangeLabel, href,
+}: {
+  span: CellSpan
+  yearly: boolean
+  billed: number
+  collected: number
+  outstanding: number
+  collectedPct: number
+  rangeLabel: string
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+  const money = (n: number) => formatPaise(n)
 
-      {href && <Cue to={href} label={t('bento.principal.cue_attendance')} />}
-    </Cell>
+  const pair = (
+    <CardCompare
+      rows={[
+        { label: t('bento.principal.card_billed'), value: billed },
+        { label: t('bento.principal.card_in'), value: collected },
+      ]}
+      formatValue={money}
+      srLabel={t('bento.principal.collected_sr')}
+    />
+  )
+  const three = (
+    <CardRows
+      items={[
+        { label: t('bento.principal.card_billed'), value: billed },
+        { label: t('bento.principal.card_in'), value: collected },
+        { label: t('bento.principal.card_due'), value: outstanding },
+      ]}
+      formatValue={money}
+      srLabel={t('bento.principal.card_money_three_sr')}
+    />
+  )
+  const ring = <CardGauge value={collected} total={billed} srLabel={t('bento.principal.collected_sr')} />
+
+  const drawing = !yearly ? (
+    <CardRows
+      items={[
+        { label: t('bento.principal.card_in'), value: collected },
+        { label: t('bento.principal.card_due'), value: outstanding },
+      ]}
+      formatValue={money}
+      srLabel={t('bento.principal.card_money_pair_sr')}
+    />
+  ) : tall ? (
+    <PairAside ring={ring} detail={wide ? three : pair} side={wide} />
+  ) : wide ? (
+    three
+  ) : (
+    pair
+  )
+
+  return (
+    <CardCell
+      span={span}
+      domain="finance"
+      status="ready"
+      title={t(yearly ? 'bento.principal.collected_label' : 'bento.principal.collected_plain')}
+      sub={yearly ? t('bento.principal.prov_this_year') : rangeLabel}
+      glyph="₹"
+      value={money(collected)}
+      change={
+        yearly
+          ? t('bento.principal.card_of_billed', { pct: collectedPct, billed: money(billed) })
+          : t('bento.principal.card_range_receipts')
+      }
+      to={href}
+      cueLabel={t('bento.principal.cue_fees')}
+    >
+      {drawing}
+    </CardCell>
+  )
+}
+
+/** Arrears.
+
+    The split into this year and earlier years is the one composition the
+    response supports: `outstanding_paise` is every unpaid invoice of every
+    year and `outstanding_year_paise` is this year's rows alone, so the
+    difference is exactly the debt carried in.
+
+    Without the year trio there is no total and no split. The cell then draws
+    the one thing that is still a fact — the students the arrears are spread
+    across, one dot per student — rather than a bar against a number this file
+    made up. */
+export function OutstandingCard({
+  span, yearly, billed, outstanding, outstandingYear, arrears, outstandingPct, defaulters, href,
+}: {
+  span: CellSpan
+  yearly: boolean
+  billed: number
+  outstanding: number
+  outstandingYear: number
+  arrears: number
+  outstandingPct: number
+  defaulters: number
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+  const money = (n: number) => formatPaise(n)
+
+  const pair = (
+    <CardCompare
+      rows={[
+        { label: t('bento.principal.card_billed'), value: billed },
+        { label: t('bento.principal.card_due'), value: outstanding },
+      ]}
+      formatValue={money}
+      srLabel={t('bento.principal.outstanding_sr')}
+    />
+  )
+  const split = (
+    <CardRows
+      items={[
+        { label: t('bento.principal.card_billed'), value: billed },
+        { label: t('bento.principal.card_due'), value: outstanding },
+        { label: t('bento.principal.card_this_year'), value: outstandingYear },
+        { label: t('bento.principal.card_earlier'), value: Math.max(0, arrears) },
+      ]}
+      formatValue={money}
+      srLabel={t('bento.principal.card_arrears_split_sr')}
+    />
+  )
+  const ring = <CardGauge value={outstanding} total={billed} srLabel={t('bento.principal.outstanding_sr')} />
+
+  const { capacity } = gridCapacity(w, h)
+  const owed = unitGrid(defaulters, capacity)
+
+  const drawing = !yearly ? (
+    <CardDensity
+      cells={owed.cells}
+      columns={gridColumns(owed.cells.length, w, h)}
+      srLabel={t('bento.principal.card_owed_by_sr', { count: defaulters, unit: owed.unit })}
+    />
+  ) : tall ? (
+    <PairAside ring={ring} detail={wide ? split : pair} side={wide} />
+  ) : wide ? (
+    split
+  ) : (
+    pair
+  )
+
+  return (
+    <CardCell
+      span={span}
+      domain="finance"
+      status="ready"
+      title={t(yearly ? 'bento.principal.outstanding' : 'bento.principal.outstanding_plain')}
+      sub={t('bento.principal.prov_as_of_now')}
+      glyph="₹"
+      value={money(outstanding)}
+      change={
+        yearly
+          ? t('bento.principal.card_of_billed_due', { pct: outstandingPct, count: defaulters })
+          : t('bento.principal.card_due_plain', { count: defaulters })
+      }
+      to={href}
+      cueLabel={t('bento.principal.cue_fees')}
+    >
+      {drawing}
+    </CardCell>
+  )
+}
+
+/* ── counts with no whole ───────────────────────────────────────────────── */
+
+/** The roll, drawn as itself.
+
+    NO GAUGE AND NO RAIL, at any size. There is no denominator for the roll in
+    this response: `sections` is a count of rooms, not of children, and
+    dividing by it would put a percentage on the card that means nothing. What
+    a bigger cell buys is RESOLUTION — the same roll at a finer unit — plus the
+    shape of the school in the line under the figure, as figures rather than as
+    a bar. */
+export function StudentsCard({
+  span, students, staff, sections, perSection, loadPerTeacher, href,
+}: {
+  span: CellSpan
+  students: number
+  staff: number
+  sections: number
+  perSection: number
+  loadPerTeacher: number
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const { capacity } = gridCapacity(w, h)
+  const { cells, unit } = unitGrid(students, capacity)
+  const wide = w >= 2
+
+  return (
+    <CardCell
+      span={span}
+      domain="operations"
+      status="ready"
+      title={t('bento.principal.students')}
+      sub={t('bento.principal.prov_as_of_now')}
+      glyph="#"
+      value={students}
+      change={
+        wide && perSection > 0 && loadPerTeacher > 0
+          ? t('bento.principal.card_roll_wide', {
+              sections, per: perSection, staff, load: loadPerTeacher,
+            })
+          : t('bento.principal.card_roll', { sections, staff })
+      }
+      to={href}
+      cueLabel={t('bento.principal.cue_students')}
+    >
+      <CardDensity
+        cells={cells}
+        columns={gridColumns(cells.length, w, h)}
+        srLabel={t('bento.principal.card_roll_sr', { count: students, unit })}
+      />
+    </CardCell>
+  )
+}
+
+/** Defaulters against the roll — the one honest proportion on this board.
+
+    A defaulter is a DISTINCT student with an invoice past its due date and the
+    roll is the count of active students: the same population, in the same
+    response, at the same instant. So this cell may have a ring, wherever there
+    is height for one.
+
+    The wide shapes draw the roll itself with the flagged share marked in it,
+    which is the same ratio drawn as people rather than as an arc — and a head
+    reading "sixty-three" gets a sense of how much of the school that is. */
+export function DefaultersCard({
+  span, defaulters, students, defaultersPct, href,
+}: {
+  span: CellSpan
+  defaulters: number
+  students: number
+  defaultersPct: number
+  href?: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+  const { capacity } = gridCapacity(w, h)
+
+  const pair = (
+    <CardCompare
+      rows={[
+        { label: t('bento.principal.card_roll_label'), value: students },
+        { label: t('bento.principal.card_arrears_label'), value: defaulters },
+      ]}
+      srLabel={t('bento.principal.defaulters_sr')}
+    />
+  )
+
+  const unit = Math.max(1, Math.ceil(students / capacity))
+  const dots = Math.max(1, Math.round(students / unit))
+  const flagged = Math.min(dots, Math.round(defaulters / unit))
+  const grid = (
+    <CardDensity
+      cells={Array.from({ length: dots }, (_, i) => (i < flagged ? 1 : 0))}
+      columns={gridColumns(dots, w, h)}
+      srLabel={t('bento.principal.card_defaulters_grid_sr', {
+        flagged: defaulters, roll: students, unit,
+      })}
+    />
+  )
+  const ring = <CardGauge value={defaulters} total={students} srLabel={t('bento.principal.defaulters_sr')} />
+
+  const drawing =
+    students <= 0 ? null
+      : tall ? <PairAside ring={ring} detail={wide ? grid : pair} side={wide} />
+      : wide ? grid
+      : pair
+
+  return (
+    <CardCell
+      span={span}
+      domain="staff"
+      status="ready"
+      title={t('bento.principal.defaulters')}
+      sub={t('bento.principal.prov_as_of_now')}
+      glyph="!"
+      value={defaulters}
+      change={t('bento.principal.card_of_roll', { pct: defaultersPct, roll: students })}
+      to={href}
+      cueLabel={t('bento.principal.cue_defaulters')}
+    >
+      {drawing}
+    </CardCell>
+  )
+}
+
+/** A scalar with no whole, drawn as a unit grid.
+
+    Three cells share this: undecided applications, class-subjects with nobody
+    timetabled, and leave requests waiting on a decision. All three are a
+    single `count(*)` in `getPrincipalDashboard` with no companion total and no
+    breakdown — no stage, no type, no age, no previous value. So no funnel, no
+    ring, no rail: one dot per unit, the unit named, and a bigger cell resolves
+    it finer. Zero draws nothing at all; the line says the queue is clear. */
+export function CountCard({
+  span, domain, title, count, glyph, empty, note, srKey, to, cueLabel,
+}: {
+  span: CellSpan
+  domain: string
+  title: string
+  count: number
+  glyph: ReactNode
+  empty: string
+  note: string
+  srKey: MessageKey
+  to?: string
+  cueLabel: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const { capacity } = gridCapacity(w, h)
+  const { cells, unit } = unitGrid(count, capacity)
+
+  return (
+    <CardCell
+      span={span}
+      domain={domain}
+      status="ready"
+      title={title}
+      sub={t('bento.principal.prov_as_of_now')}
+      glyph={glyph}
+      value={count}
+      change={count > 0 ? (unit > 1 ? t('bento.principal.card_unit', { unit, note }) : note) : empty}
+      to={to}
+      cueLabel={cueLabel}
+    >
+      <CardDensity
+        cells={cells}
+        columns={gridColumns(cells.length, w, h)}
+        srLabel={t(srKey, { count, unit })}
+      />
+    </CardCell>
   )
 }
 
@@ -4012,7 +3296,7 @@ export default function BentoPrincipalDashboard() {
   })
   const plans = useQuery({
     queryKey: ['lesson-plans', 'submitted'],
-    queryFn: () => api.get<List<unknown>>('/api/v1/syllabus/lesson-plans?status=submitted'),
+    queryFn: () => api.get<List<PlanRow>>('/api/v1/syllabus/lesson-plans?status=submitted'),
     enabled: placed('lesson-plans'),
   })
   const papers = useQuery({
@@ -4126,6 +3410,14 @@ export default function BentoPrincipalDashboard() {
   const attentionItems = new Map(
     (attention.data?.items ?? []).map((i) => [i.key, i] as const),
   )
+  /* The biggest queue flagged in this response. A real number, off the same
+     payload, and the only range on this screen that was not invented — see
+     `AttentionDraw`. Undefined when nothing came back, so no cell can place
+     itself against a peak that does not exist. */
+  const attentionPeak = (attention.data?.items ?? []).reduce(
+    (m, i) => Math.max(m, i.count),
+    0,
+  )
   const attentionStatus: 'loading' | 'error' | 'ready' = attention.error
     ? 'error'
     : attention.isLoading
@@ -4185,7 +3477,6 @@ export default function BentoPrincipalDashboard() {
      `moved` is the collected share, which is where the flow stopped; the
      length past the barrier is the outstanding share the card names. */
   const days = trend.error ? [] : calendarSlots(series)
-  const movedShare = yearly ? k.collected_year_paise / billed : 0
   const loadPerTeacher = k.staff > 0 ? Math.round(k.students / k.staff) : 0
   /* THE SUPPORTING FIGURES FOR THE FLAT CELLS.
 
@@ -4234,8 +3525,32 @@ export default function BentoPrincipalDashboard() {
   const coverSummary = cover.data?.summary
   const ttSummary = timetable.data?.summary
   const coverageRows = coverage.data?.items ?? []
+  /* THE PER-ROW FIGURES THESE TEN CELLS WERE THROWING AWAY.
+
+     Each list below arrived in full and was reduced to its own length. Every
+     derivation here is a count of rows that came back, bucketed by a field
+     that came back on those same rows — no ratio of two responses, no total
+     this file decided was reasonable, and nothing drawn for a list whose rows
+     carry no quantity at all. */
+  const planRows = plans.data?.items ?? []
+  const planWaits = planRows.map((r) => r.waiting_days)
+  const longestWait = planWaits.length > 0 ? Math.max(...planWaits) : 0
   const paperRows = papers.data?.items ?? []
   const papersWaiting = paperRows.filter((p) => p.status === 'submitted').length
+  const paperStatusCounts = (st: PaperRow['status']) =>
+    paperRows.filter((p) => p.status === st).length
+  const shortagePcts = shortageRows.map((r) => r.pct)
+  const lowestPct = shortagePcts.length > 0 ? Math.min(...shortagePcts) : 0
+  const workloadPeriods = workloadRows.map((r) => r.weekly_periods)
+  const threadRows = threads.data?.items ?? []
+  /* The busiest conversations first. Only the ones with something unread —
+     a column of height zero for a thread that is fully read is not a reading,
+     and thirty of them beside four real bars is a chart of nothing. */
+  const unreadPerThread = threadRows
+    .map((r) => r.unread)
+    .filter((n) => n > 0)
+    .sort((a, b) => b - a)
+    .slice(0, 28)
   const moderationRows = moderation.data?.items ?? []
   const grievanceRows = grievances.data?.items ?? []
   const grievancesOpen = grievanceRows.filter((g) => !g.resolved_at)
@@ -4248,11 +3563,29 @@ export default function BentoPrincipalDashboard() {
     .filter((e) => e.starts_on >= todayISO)
     .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
   const nextEntry = upcoming[0]
+  /* The next thirty days as thirty marks, one lit where something is on the
+     calendar. Built off the ISO strings for the same reason the filter above
+     is — a Date would move the school's dates by a day outside India. `daysOut`
+     is a difference between two midnight-anchored UTC dates, so it is a whole
+     number of days and not a duration. */
+  const CALENDAR_DAYS = 30
+  const dayMs = 86_400_000
+  const todayMs = Date.parse(`${todayISO}T00:00:00Z`)
+  const daysAway = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - todayMs) / dayMs)
+  const nextInDays = nextEntry ? daysAway(nextEntry.starts_on) : undefined
+  const busyDays = new Set(
+    upcoming.map((e) => daysAway(e.starts_on)).filter((d) => d >= 0 && d < CALENDAR_DAYS),
+  )
+  const calendarCells = Array.from({ length: CALENDAR_DAYS }, (_, i) => (busyDays.has(i) ? 1 : 0))
+  const calendarSoon = busyDays.size
   const examRows = exams.data?.items ?? []
   const examsUpcoming = examRows.filter((e) => e.starts_on && e.starts_on >= todayISO).length
+  const examsSat = examRows.filter((e) => e.starts_on && e.starts_on < todayISO).length
+  const examsUndated = examRows.filter((e) => !e.starts_on).length
+  const examsPublished = examRows.filter((e) => e.is_published).length
   const perf = performance.data?.summary
   const bySubject = performance.data?.by_subject ?? []
-  const unread = (threads.data?.items ?? []).reduce((n, t2) => n + t2.unread, 0)
+  const unread = threadRows.reduce((n, t2) => n + t2.unread, 0)
   const balances = myPay.data?.leave_balances ?? []
   const classCount = classes.data?.items.length ?? 0
 
@@ -4280,7 +3613,7 @@ export default function BentoPrincipalDashboard() {
           shape itself. */}
       <Widget id="pulse" label={t('bento.principal.anchor_label')} size="large" index={0}>
         {(span) => (
-          <PulseCell
+          <PulseCard
             span={span}
             pct={k.attendance_today_pct}
             marked={k.attendance_marked_today}
@@ -4295,48 +3628,16 @@ export default function BentoPrincipalDashboard() {
       {/* Money out — pink, and pink is used for nothing else on this page. */}
       <Widget id="outstanding" label={t('bento.principal.outstanding')} size="small" index={2}>
         {(span) => (
-          <SourceCell
+          <OutstandingCard
             span={span}
-            status="ready"
-            domain="finance"
-            label={t(yearly ? 'bento.principal.outstanding' : 'bento.principal.outstanding_plain')}
-            value={formatPaise(outstanding)}
-            art={<BlockedFlowArt moved={movedShare} />}
-            /* Meter, share and the "this year" wording only when there is a
-               year to measure against. Without one this drew a bar and a
-               sentence about a total that was zero, and the facts below drop
-               to the one that survives without a base: how many students the
-               arrears are spread across. */
-            shape={
-              yearly ? (
-                <Meter
-                  value={outstanding}
-                  total={billed}
-                  tone="destructive"
-                  srLabel={t('bento.principal.outstanding_sr')}
-                />
-              ) : undefined
-            }
-            facts={
-              yearly
-                ? [
-                    { key: 'pct', value: `${outstandingPct}%`, label: t('bento.principal.fact_of_billed') },
-                    { key: 'billed', value: formatPaise(billed), label: t('bento.principal.fact_billed') },
-                    { key: 'def', value: String(k.defaulters), label: t('bento.principal.fact_defaulters') },
-                    ...(arrears > 0
-                      ? [{ key: 'arrears', value: formatPaise(arrears), label: t('bento.principal.fact_earlier_years') }]
-                      : []),
-                  ]
-                : [{ key: 'def', value: String(k.defaulters), label: t('bento.principal.fact_defaulters') }]
-            }
-            provenance={asOfNow}
-            note={
-              yearly
-                ? t('bento.principal.of_billed', { billed: formatPaise(billed) })
-                : t('bento.principal.outstanding_note_plain')
-            }
-            to={feesHref}
-            cue={t('bento.principal.cue_fees')}
+            yearly={yearly}
+            billed={billed}
+            outstanding={outstanding}
+            outstandingYear={k.outstanding_year_paise}
+            arrears={arrears}
+            outstandingPct={outstandingPct}
+            defaulters={k.defaulters}
+            href={feesHref}
           />
         )}
       </Widget>
@@ -4344,33 +3645,12 @@ export default function BentoPrincipalDashboard() {
       {/* A warning, so orange — the hue this palette reserves for one. */}
       <Widget id="defaulters" label={t('bento.principal.defaulters')} size="small" index={4}>
         {(span) => (
-          <SourceCell
+          <DefaultersCard
             span={span}
-            status="ready"
-            domain="staff"
-            label={t('bento.principal.defaulters')}
-            value={k.defaulters}
-            art={<RiskGridArt total={k.students} flagged={k.defaulters} />}
-            /* The one real denominator on this board. A defaulter is a
-               DISTINCT student with an invoice past its due date, and the roll
-               is the count of active students — the same population, in the
-               same response, at the same instant. */
-            shape={
-              <Meter
-                value={k.defaulters}
-                total={k.students}
-                tone="warning"
-                srLabel={t('bento.principal.defaulters_sr')}
-              />
-            }
-            facts={[
-              { key: 'pct', value: `${defaultersPct}%`, label: t('bento.principal.fact_of_roll') },
-              { key: 'roll', value: String(k.students), label: t('bento.principal.fact_on_roll') },
-            ]}
-            provenance={asOfNow}
-            note={t('bento.principal.defaulters_note')}
-            to={defaultersHref}
-            cue={t('bento.principal.cue_defaulters')}
+            defaulters={k.defaulters}
+            students={k.students}
+            defaultersPct={defaultersPct}
+            href={defaultersHref}
           />
         )}
       </Widget>
@@ -4386,50 +3666,15 @@ export default function BentoPrincipalDashboard() {
           renaming one silently drops somebody's arrangement. */}
       <Widget id="trend" label={t('bento.principal.collected_label')} size="medium" index={1}>
         {(span) => (
-          /* Hand-written until now, and so the one money cell that could not
-             shed, could not draw an error and could not say which period its
-             figure covered. It goes through `SourceCell` like the rest; the
-             id, the size and the index are untouched, because those are
-             persisted in somebody's saved layout. */
-          <SourceCell
+          <CollectedCard
             span={span}
-            status="ready"
-            domain="finance"
-            label={t(yearly ? 'bento.principal.collected_label' : 'bento.principal.collected_plain')}
-            value={formatPaise(collected)}
-            shape={
-              yearly ? (
-                <Meter
-                  value={collected}
-                  total={billed}
-                  srLabel={t('bento.principal.collected_sr')}
-                />
-              ) : undefined
-            }
-            facts={
-              yearly
-                ? [
-                    { key: 'pct', value: `${collectedPct}%`, label: t('bento.principal.fact_of_billed') },
-                    { key: 'billed', value: formatPaise(billed), label: t('bento.principal.fact_billed') },
-                  ]
-                : []
-            }
-            /* The whole reason this cell needs a source line. With a year to
-               scope to, the figure is money applied to this year's bills — a
-               level. Without one it falls back to receipts banked inside the
-               range that was asked for — a flow, and meaningless unless the
-               range is named. */
-            provenance={yearly ? t('bento.principal.prov_this_year') : k.range.label}
-            note={
-              yearly
-                ? t('bento.principal.collected_of_billed', {
-                    pct: collectedPct,
-                    billed: formatPaise(billed),
-                  })
-                : t('bento.principal.collected_note_plain')
-            }
-            to={feesHref}
-            cue={t('bento.principal.cue_fees')}
+            yearly={yearly}
+            billed={billed}
+            collected={collected}
+            outstanding={outstanding}
+            collectedPct={collectedPct}
+            rangeLabel={k.range.label}
+            href={feesHref}
           />
         )}
       </Widget>
@@ -4439,33 +3684,14 @@ export default function BentoPrincipalDashboard() {
           do mean something harder to find. */}
       <Widget id="students" label={t('bento.principal.students')} size="medium" index={3}>
         {(span) => (
-          <SourceCell
+          <StudentsCard
             span={span}
-            status="ready"
-            domain="operations"
-            label={t('bento.principal.students')}
-            value={k.students}
-            art={<PopulationArt count={k.students} />}
-            /* NO RING AND NO RAIL. The roll has no denominator in this
-               response and `sections` is not one — a section is not a student.
-               What the extra room buys is the shape of the school beside the
-               size of it: how many sections the roll is spread over, how big
-               the average one comes out, and how many adults there are per
-               child. Four figures, four names, no proportion. */
-            facts={[
-              { key: 'sections', value: String(k.sections), label: t('bento.principal.fact_sections') },
-              ...(perSection > 0
-                ? [{ key: 'per', value: String(perSection), label: t('bento.principal.fact_per_section') }]
-                : []),
-              { key: 'staff', value: String(k.staff), label: t('bento.principal.fact_staff') },
-              ...(loadPerTeacher > 0
-                ? [{ key: 'load', value: String(loadPerTeacher), label: t('bento.principal.fact_per_teacher') }]
-                : []),
-            ]}
-            provenance={asOfNow}
-            note={t('bento.principal.students_note')}
-            to={studentsHref}
-            cue={t('bento.principal.cue_students')}
+            students={k.students}
+            staff={k.staff}
+            sections={k.sections}
+            perSection={perSection}
+            loadPerTeacher={loadPerTeacher}
+            href={studentsHref}
           />
         )}
       </Widget>
@@ -4500,31 +3726,17 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="approvals" label={t('bento.principal.approvals')} size="small" index={7}>
         {(span) => (
-          <SourceCell
+          <CountCard
             span={span}
-            status="ready"
             domain="staff"
-            label={t('bento.principal.approvals')}
-            value={k.pending_leave}
-            /* The emptiest cell on the board, and it stays honest about why.
-               The response carries a count of pending leave requests and
-               nothing else — no age, no type, no previous value — so there is
-               no queue ageing and no type split here however much room the
-               cell is given. What it gets instead is the count drawn as
-               itself, one tick per request, which claims nothing beyond the
-               number already printed above it. */
-            tag={t(k.pending_leave > 0 ? 'bento.principal.tag_waiting' : 'bento.principal.tag_clear')}
-            flat={
-              <TallyField
-                n={k.pending_leave}
-                accent="orange"
-                srLabel={t('bento.principal.approvals_tally_sr', { count: k.pending_leave })}
-              />
-            }
-            provenance={asOfNow}
+            title={t('bento.principal.approvals')}
+            count={k.pending_leave}
+            glyph="!"
             note={t('bento.principal.approvals_note')}
+            empty={t('bento.principal.card_queue_clear')}
+            srKey="bento.principal.card_approvals_sr"
             to={approvalsHref}
-            cue={t('bento.principal.cue_approvals')}
+            cueLabel={t('bento.principal.cue_approvals')}
           />
         )}
       </Widget>
@@ -4536,69 +3748,34 @@ export default function BentoPrincipalDashboard() {
           the bottom right. Below `lg` every wide cell is simply full width. */}
       <Widget id="applications" label={t('bento.principal.applications')} size="medium" index={5}>
         {(span) => (
-          <SourceCell
+          <CountCard
             span={span}
-            status="ready"
             domain="admissions"
-            label={t('bento.principal.applications')}
-            value={k.open_applications}
-            art={<FunnelArt count={k.open_applications} />}
-            /* NO STAGE COMPOSITION. The handler counts applications whose
-               status is not accepted, rejected or withdrawn — one number, with
-               the stages collapsed inside it — so a funnel with three
-               segments would be three invented figures. The funnel behind the
-               card draws its walls as process and only the mouth from data,
-               and the tally in front draws the count as itself. */
-            tag={t(k.open_applications > 0 ? 'bento.principal.tag_undecided' : 'bento.principal.tag_clear')}
-            flat={
-              <TallyField
-                n={k.open_applications}
-                accent="orange"
-                srLabel={t('bento.principal.applications_tally_sr', { count: k.open_applications })}
-              />
-            }
-            provenance={asOfNow}
+            title={t('bento.principal.applications')}
+            count={k.open_applications}
+            glyph="+"
             note={t('bento.principal.applications_note')}
+            empty={t('bento.principal.card_queue_clear')}
+            srKey="bento.principal.card_applications_sr"
             to={applicationsHref}
-            cue={t('bento.principal.cue_applications')}
+            cueLabel={t('bento.principal.cue_applications')}
           />
         )}
       </Widget>
 
       <Widget id="unassigned" label={t('bento.principal.unassigned')} size="medium" index={6}>
         {(span) => (
-          <SourceCell
+          <CountCard
             span={span}
-            status="ready"
             domain="communication"
-            label={t('bento.principal.unassigned')}
-            value={k.unassigned_subjects}
-            /* NO SHARE OF THE TIMETABLE. The response counts the class-subjects
-               with nobody timetabled and does NOT return how many
-               class-subjects there are, so "12 of what" has no answer here and
-               no rail is drawn. The count is drawn as itself, and the staff and
-               sections beside it are the two figures a head reaches for next —
-               named as what they are, not divided into anything. */
-            tag={t(
-              k.unassigned_subjects > 0
-                ? 'bento.principal.needs_attention'
-                : 'bento.principal.tag_all_covered',
-            )}
-            flat={
-              <TallyField
-                n={k.unassigned_subjects}
-                accent="orange"
-                srLabel={t('bento.principal.unassigned_tally_sr', { count: k.unassigned_subjects })}
-              />
-            }
-            facts={[
-              { key: 'staff', value: String(k.staff), label: t('bento.principal.fact_staff') },
-              { key: 'sections', value: String(k.sections), label: t('bento.principal.fact_sections') },
-            ]}
-            provenance={asOfNow}
+            title={t('bento.principal.unassigned')}
+            count={k.unassigned_subjects}
+            glyph="/"
             note={t('bento.principal.unassigned_note')}
+            empty={t('bento.principal.card_all_covered')}
+            srKey="bento.principal.card_unassigned_sr"
             to={subjectsHref}
-            cue={t('bento.principal.cue_unassigned')}
+            cueLabel={t('bento.principal.cue_unassigned')}
           />
         )}
       </Widget>
@@ -4628,6 +3805,7 @@ export default function BentoPrincipalDashboard() {
               to={attentionHrefs[w.target]}
               item={attentionItems.get(w.probe)}
               money={w.money}
+              peak={attentionPeak > 0 ? attentionPeak : undefined}
               status={attentionStatus}
             />
           )}
@@ -4660,6 +3838,38 @@ export default function BentoPrincipalDashboard() {
             label={t('bento.principal.shortage')}
             value={shortageCapped ? '100+' : shortageRows.length}
             accent={shortageRows.length > 0 ? 'orange' : undefined}
+            /* The response carries a percent per child and no population to
+               divide it by, so there is no share to draw — but there IS a
+               spread, and how far below the line they are is the question the
+               count on its own cannot answer. Five bands, each one a count of
+               rows that arrived. */
+            facts={
+              shortagePcts.length > 0
+                ? [
+                    { key: 'low', value: `${lowestPct}%`, label: t('bento.principal.fact_lowest') },
+                    {
+                      key: 'u60',
+                      value: String(shortagePcts.filter((v) => v < 60).length),
+                      label: t('bento.principal.fact_under_60'),
+                    },
+                  ]
+                : undefined
+            }
+            drawNeedsHeight
+            draw={
+              shortagePcts.length > 0 ? (
+                <Rows
+                  items={bandCounts(shortagePcts, [
+                    { label: t('bento.principal.band_lt50'), max: 49 },
+                    { label: t('bento.principal.band_50'), max: 59 },
+                    { label: t('bento.principal.band_60'), max: 64 },
+                    { label: t('bento.principal.band_65'), max: 69 },
+                    { label: t('bento.principal.band_70'), max: 75 },
+                  ])}
+                  srLabel={t('bento.principal.shortage_bands_sr')}
+                />
+              ) : undefined
+            }
             note={t('bento.principal.shortage_note')}
             to={auditHref}
             cue={t('bento.principal.cue_shortage')}
@@ -4688,6 +3898,25 @@ export default function BentoPrincipalDashboard() {
                   total={workloadRows.length}
                   tone="warning"
                   srLabel={t('bento.principal.unallocated_sr')}
+                />
+              ) : undefined
+            }
+            /* The rail above is the share with nothing timetabled, against a
+               real roll. The drawing beside it is the other half of the same
+               response: what the rest of the staff are actually carrying,
+               counted into weekly-period bands. */
+            drawNeedsHeight
+            draw={
+              workloadPeriods.length > 0 ? (
+                <Rows
+                  items={bandCounts(workloadPeriods, [
+                    { label: t('bento.principal.band_none'), max: 0 },
+                    { label: t('bento.principal.band_1_10'), max: 10 },
+                    { label: t('bento.principal.band_11_20'), max: 20 },
+                    { label: t('bento.principal.band_21_30'), max: 30 },
+                    { label: t('bento.principal.band_31_up'), max: Number.MAX_SAFE_INTEGER },
+                  ])}
+                  srLabel={t('bento.principal.workload_bands_sr')}
                 />
               ) : undefined
             }
@@ -4736,6 +3965,25 @@ export default function BentoPrincipalDashboard() {
                 />
               ) : undefined
             }
+            /* One mark per section, the ones without a timetable drawn at
+               full weight. Both numbers are in `summary`, so the grid has
+               exactly as many marks as the school has sections — it is the
+               same fact as the rail, made countable. Past 144 the marks are a
+               texture rather than a count, and the rail says it alone. */
+            draw={
+              ttSummary && ttSummary.sections > 0 && ttSummary.sections <= 144 ? (
+                <Density
+                  cells={Array.from({ length: ttSummary.sections }, (_, i) =>
+                    i < ttSummary.sections_without_timetable ? 1 : 0,
+                  )}
+                  columns={12}
+                  srLabel={t('bento.principal.tt_sections_grid_sr', {
+                    count: ttSummary.sections_without_timetable,
+                    total: ttSummary.sections,
+                  })}
+                />
+              ) : undefined
+            }
             note={t('bento.principal.tt_sections_note', { count: ttSummary?.sections ?? 0 })}
             to={timetableHref}
             cue={t('bento.principal.cue_timetable')}
@@ -4765,6 +4013,28 @@ export default function BentoPrincipalDashboard() {
                   total={ttSummary.live_periods}
                   tone="warning"
                   srLabel={t('bento.principal.tt_unstaffed_sr')}
+                />
+              ) : undefined
+            }
+            /* Two counts off one summary, sharing one scale, both named. The
+               week's live periods really do split into staffed and not, so
+               this is a composition and not a proportion of an invented
+               whole. */
+            drawNeedsHeight
+            draw={
+              ttSummary && ttSummary.live_periods > 0 ? (
+                <Rows
+                  items={[
+                    {
+                      label: t('bento.principal.band_no_teacher'),
+                      value: ttSummary.live_unstaffed,
+                    },
+                    {
+                      label: t('bento.principal.band_staffed'),
+                      value: ttSummary.live_periods - ttSummary.live_unstaffed,
+                    },
+                  ]}
+                  srLabel={t('bento.principal.tt_unstaffed_split_sr')}
                 />
               ) : undefined
             }
@@ -4799,7 +4069,43 @@ export default function BentoPrincipalDashboard() {
             domain="academics"
             status={stateOf(plans)}
             label={t('bento.principal.plans')}
-            value={plans.data?.items.length ?? 0}
+            value={planRows.length}
+            accent={longestWait >= 7 ? 'orange' : undefined}
+            /* `waiting_days` is the field the queue is sorted by on the server
+               and the cell threw it away. A review queue is not a number, it
+               is an age — five plans submitted this morning and five submitted
+               a fortnight ago are the same figure and not the same problem. */
+            facts={
+              planRows.length > 0
+                ? [
+                    {
+                      key: 'oldest',
+                      value: t('bento.principal.days_short', { count: longestWait }),
+                      label: t('bento.principal.fact_longest_wait'),
+                    },
+                    {
+                      key: 'week',
+                      value: String(planWaits.filter((d) => d > 7).length),
+                      label: t('bento.principal.fact_over_a_week'),
+                    },
+                  ]
+                : undefined
+            }
+            drawNeedsHeight
+            draw={
+              planWaits.length > 0 ? (
+                <Rows
+                  items={bandCounts(planWaits, [
+                    { label: t('bento.principal.band_today'), max: 0 },
+                    { label: t('bento.principal.band_1_2d'), max: 2 },
+                    { label: t('bento.principal.band_3_7d'), max: 7 },
+                    { label: t('bento.principal.band_8_14d'), max: 14 },
+                    { label: t('bento.principal.band_15d_up'), max: Number.MAX_SAFE_INTEGER },
+                  ])}
+                  srLabel={t('bento.principal.plans_bands_sr')}
+                />
+              ) : undefined
+            }
             note={t('bento.principal.plans_note')}
             to={lessonPlansHref}
             cue={t('bento.principal.cue_plans')}
@@ -4822,6 +4128,41 @@ export default function BentoPrincipalDashboard() {
             label={t('bento.principal.papers')}
             value={papersWaiting}
             accent={papersWaiting > 0 ? 'orange' : undefined}
+            /* Every paper carries its own status, and the four statuses are a
+               closed set that adds up to the list that arrived. So the queue
+               can be drawn as what it is made of rather than as its length —
+               with no denominator borrowed from anywhere, because the total
+               IS the response. */
+            facts={
+              paperRows.length > 0
+                ? [
+                    {
+                      key: 'changes',
+                      value: String(paperStatusCounts('changes_needed')),
+                      label: t('bento.principal.fact_changes_needed'),
+                    },
+                    {
+                      key: 'approved',
+                      value: String(paperStatusCounts('approved')),
+                      label: t('bento.principal.fact_approved'),
+                    },
+                  ]
+                : undefined
+            }
+            drawNeedsHeight
+            draw={
+              paperRows.length > 0 ? (
+                <Rows
+                  items={[
+                    { label: t('bento.principal.band_submitted'), value: papersWaiting },
+                    { label: t('bento.principal.band_changes'), value: paperStatusCounts('changes_needed') },
+                    { label: t('bento.principal.band_draft'), value: paperStatusCounts('draft') },
+                    { label: t('bento.principal.band_approved'), value: paperStatusCounts('approved') },
+                  ]}
+                  srLabel={t('bento.principal.papers_status_sr')}
+                />
+              ) : undefined
+            }
             note={t('bento.principal.papers_note', { count: paperRows.length })}
             to={questionPapersHref}
             cue={t('bento.principal.cue_papers')}
@@ -4875,6 +4216,7 @@ export default function BentoPrincipalDashboard() {
           <GrievancesOverdueCell
             span={span}
             open={grievancesOpen}
+            queued={grievanceRows.length}
             status={stateOf(grievances)}
             href={grievancesHref}
           />
@@ -4895,6 +4237,35 @@ export default function BentoPrincipalDashboard() {
             status={stateOf(calendar)}
             label={t('bento.principal.calendar')}
             value={upcoming.length}
+            /* Every entry carries the day it falls on, and the cell printed
+               only how many there were. Thirty marks are the next thirty days
+               and the lit ones have something on them — a real calendar, at
+               the size of a postage stamp, with no proportion in it. */
+            facts={
+              upcoming.length > 0
+                ? [
+                    ...(nextInDays !== undefined
+                      ? [
+                          {
+                            key: 'away',
+                            value: t('bento.principal.days_short', { count: nextInDays }),
+                            label: t('bento.principal.fact_days_away'),
+                          },
+                        ]
+                      : []),
+                    { key: 'soon', value: String(calendarSoon), label: t('bento.principal.fact_in_30_days') },
+                  ]
+                : undefined
+            }
+            draw={
+              calendarSoon > 0 ? (
+                <Density
+                  cells={calendarCells}
+                  columns={10}
+                  srLabel={t('bento.principal.calendar_density_sr', { count: calendarSoon })}
+                />
+              ) : undefined
+            }
             note={
               nextEntry
                 ? t('bento.principal.calendar_next', {
@@ -4917,6 +4288,34 @@ export default function BentoPrincipalDashboard() {
             status={stateOf(exams)}
             label={t('bento.principal.exams')}
             value={examsUpcoming}
+            /* The list splits three ways on `starts_on` alone — ahead of
+               today, already sat, and never dated — and those three are the
+               whole response, so they share one scale honestly. `is_published`
+               is a fourth fact about the same rows and is named, not drawn:
+               it cuts across all three and would not be a segment of them. */
+            facts={
+              examRows.length > 0
+                ? [
+                    { key: 'pub', value: String(examsPublished), label: t('bento.principal.fact_published') },
+                    ...(examsUndated > 0
+                      ? [{ key: 'undated', value: String(examsUndated), label: t('bento.principal.fact_undated') }]
+                      : []),
+                  ]
+                : undefined
+            }
+            drawNeedsHeight
+            draw={
+              examRows.length > 0 ? (
+                <Rows
+                  items={[
+                    { label: t('bento.principal.band_ahead'), value: examsUpcoming },
+                    { label: t('bento.principal.band_sat'), value: examsSat },
+                    { label: t('bento.principal.band_undated'), value: examsUndated },
+                  ]}
+                  srLabel={t('bento.principal.exams_split_sr')}
+                />
+              ) : undefined
+            }
             note={t('bento.principal.exams_note', { count: examRows.length })}
             to={examsHref}
             cue={t('bento.principal.cue_exams')}
@@ -4962,7 +4361,33 @@ export default function BentoPrincipalDashboard() {
             status={stateOf(threads)}
             label={t('bento.principal.messages')}
             value={unread}
-            note={t('bento.principal.messages_note', { count: threads.data?.items.length ?? 0 })}
+            accent={unread > 0 ? 'orange' : undefined}
+            /* The endpoint returns the unread count PER conversation and the
+               cell summed them and dropped the rest. One column per
+               conversation with something waiting, busiest first, says whether
+               forty unread is one long argument or forty people — which is the
+               difference between an evening's work and a minute's. */
+            facts={
+              unreadPerThread.length > 0
+                ? [
+                    { key: 'busiest', value: String(unreadPerThread[0]), label: t('bento.principal.fact_busiest') },
+                    {
+                      key: 'convs',
+                      value: String(threadRows.filter((r) => r.unread > 0).length),
+                      label: t('bento.principal.fact_with_unread'),
+                    },
+                  ]
+                : undefined
+            }
+            draw={
+              unreadPerThread.length > 0 ? (
+                <Distribution
+                  values={unreadPerThread}
+                  srLabel={t('bento.principal.messages_spread_sr', { count: unreadPerThread.length })}
+                />
+              ) : undefined
+            }
+            note={t('bento.principal.messages_note', { count: threadRows.length })}
             to={messagesHref}
             cue={t('bento.principal.cue_messages')}
           />
@@ -4999,6 +4424,25 @@ export default function BentoPrincipalDashboard() {
             status={stateOf(classes)}
             label={t('bento.principal.classes')}
             value={classCount}
+            /* NO DRAWING, AND NOT FOR WANT OF ROOM. `/academics/classes`
+               returns names and ids; there is no quantity on a row to bucket,
+               rank or count off, so there is nothing here that a picture could
+               be a picture of. What the extra room buys instead is the two
+               figures beside it that DID arrive, on the KPI response, and the
+               average of the two. */
+            facts={[
+              { key: 'sections', value: String(k.sections), label: t('bento.principal.fact_sections') },
+              ...(classCount > 0
+                ? [
+                    {
+                      key: 'each',
+                      value: String(Math.round(k.sections / classCount)),
+                      label: t('bento.principal.fact_sections_each'),
+                    },
+                  ]
+                : []),
+              { key: 'roll', value: String(k.students), label: t('bento.principal.fact_on_roll') },
+            ]}
             note={t('bento.principal.classes_note', { count: k.sections })}
             to={classSetupHref}
             cue={t('bento.principal.cue_classes')}
@@ -5010,6 +4454,17 @@ export default function BentoPrincipalDashboard() {
   )
 }
 
+/** Open grievances, on the card.
+
+    NO DENOMINATOR EXISTS HERE, SO NO PROPORTION IS DRAWN. The queue is every
+    ticket ever raised — there is no population an open ticket is a share of —
+    so there is no `Gauge` on this cell at any size. What the response does
+    carry is one row per ticket with its age, its category and its department,
+    and a spread needs no whole to be true.
+
+    THE 300-ROW CAP. `/comms/grievances/` ends `LIMIT 300`. When the response
+    comes back full the queue is longer than what is drawn, and the card says
+    so rather than letting a cut series read as the size of the problem. */
 function GrievancesOpenCell({
   span, open, queued, status, href,
 }: {
@@ -5023,75 +4478,94 @@ function GrievancesOpenCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.grievances')
+  const cue = t('bento.principal.cue_grievances')
 
-  const other = t('bento.principal.other_slice')
-  const byCategory = topCounts(open, (g) => g.category, other)
-  const ages = (
-    <AgeBands
-      bands={bandCounts(open.map((g) => g.open_days), DAY_BANDS)}
-      srLabel={t('bento.principal.grievances_age_sr')}
-    />
-  )
-  const categories = (
-    <SegmentBar
-      segments={byCategory}
-      srLabel={t('bento.principal.grievances_cat_sr')}
-    />
-  )
-
-  /* Department against category, as one strip of counts. Only the pairings
-     that actually occur are drawn — a grid of mostly-zero cells reads as a
-     school with a problem in every department. */
-  const pairs: { label: string; value: number }[] = []
-  const seen = new Map<string, number>()
-  for (const g of open) {
-    const key = `${g.department ?? t('bento.principal.no_department')} · ${g.category}`
-    seen.set(key, (seen.get(key) ?? 0) + 1)
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="communication" label={label} status={status} />
   }
-  for (const [label, value] of [...seen.entries()].sort((a, b) => b[1] - a[1])) {
-    pairs.push({ label, value })
-  }
-  const shownPairs = pairs.slice(0, STRIP_MAX)
 
-  let shape: ReactNode = null
-  if (wide && tall) {
-    shape = (
-      <Stack>
-        {categories}
-        <HeatStrip
-          cells={shownPairs.map((p) => p.value)}
-          srLabel={t('bento.principal.grievances_dept_sr', {
-            pairs: shownPairs.map((p) => `${p.label} ${p.value}`).join(', '),
-          })}
-        />
-      </Stack>
+  if (open.length === 0) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="communication"
+        title={label}
+        sub={t('bento.principal.grievances_sub')}
+        value="—"
+        change={t('bento.principal.grievances_none')}
+        href={href}
+        cue={cue}
+      />
     )
-  } else if (tall) {
-    shape = ages
-  } else if (wide) {
-    shape = categories
   }
+
+  const days = open.map((g) => (Number.isFinite(g.open_days) ? g.open_days : 0))
+  const oldest = Math.max(1, ...days)
+  const other = t('bento.principal.other_slice')
+  const ages = (bins: number) => (
+    <Distribution
+      values={histogram(days, bins, 0, oldest)}
+      srLabel={t('bento.principal.grievances_days_sr', { count: open.length, oldest })}
+    />
+  )
+  const byCategory = (n: number) => (
+    <Rows
+      items={topCounts(open, (g) => g.category, other).slice(0, n)}
+      srLabel={t('bento.principal.grievances_cat_rows_sr')}
+    />
+  )
+  const byDepartment = (n: number) => (
+    <Rows
+      items={topCounts(open, (g) => g.department, t('bento.principal.no_department')).slice(0, n)}
+      srLabel={t('bento.principal.grievances_dept_rows_sr')}
+    />
+  )
+
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split left={byCategory(4)} right={byDepartment(4)} />} bottom={ages(18)} />
+    ) : tall ? (
+      <Pair top={ages(10)} bottom={byCategory(3)} />
+    ) : wide ? (
+      byCategory(3)
+    ) : (
+      ages(10)
+    )
 
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="communication"
-      status={status}
-      label={t('bento.principal.grievances')}
+      title={label}
+      sub={t('bento.principal.grievances_sub')}
       value={open.length}
-      shape={shape ?? undefined}
-      note={t('bento.principal.grievances_note', { count: queued })}
-      to={href}
-      cue={t('bento.principal.cue_grievances')}
-    />
+      change={
+        queued >= GRIEVANCE_LIMIT
+          ? t('bento.principal.grievances_capped', { count: GRIEVANCE_LIMIT })
+          : t('bento.principal.grievances_change', { count: queued, oldest })
+      }
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }
 
+/** Grievances past their deadline, on the card.
+
+    `open.length` IS a real denominator for this one figure — every open ticket
+    either is or is not past its own `resolve_due_at`, and both sides of that
+    comparison arrived in the same payload. It is still a comparison of two
+    counts rather than a ring, because the set it counts over is itself cut at
+    three hundred, and the card says so when the cap is reached. */
 function GrievancesOverdueCell({
-  span, open, status, href,
+  span, open, queued, status, href,
 }: {
   span: CellSpan
   open: GrievanceRow[]
+  queued: number
   status: CellStatus
   href?: string
 }) {
@@ -5099,56 +4573,82 @@ function GrievancesOverdueCell({
   const { w, h } = useWidgetSize()
   const wide = w >= 2
   const tall = h >= 2
+  const label = t('bento.principal.grievances_late')
+  const cue = t('bento.principal.cue_grievances')
+
+  if (status !== 'ready') {
+    return <PendingCard span={span} domain="communication" label={label} status={status} />
+  }
 
   const late = open.filter((g) => (g.overdue_hours ?? 0) > 0)
 
-  const rail =
-    open.length > 0 ? (
-      <Meter
-        value={late.length}
-        total={open.length}
-        tone="destructive"
-        srLabel={t('bento.principal.grievances_late_sr')}
+  if (open.length === 0) {
+    return (
+      <FeatureCard
+        span={span}
+        domain="communication"
+        title={label}
+        sub={t('bento.principal.grv_late_sub')}
+        value="—"
+        change={t('bento.principal.grv_none_open')}
+        href={href}
+        cue={cue}
       />
-    ) : null
-
-  let shape: ReactNode = null
-  if (wide && tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <SegmentBar
-          segments={topCounts(late, (g) => g.department, t('bento.principal.no_department'))}
-          srLabel={t('bento.principal.grievances_late_dept_sr')}
-        />
-      </Stack>
     )
-  } else if (tall) {
-    shape = (
-      <Stack>
-        {rail}
-        <AgeBands
-          bands={bandCounts(late.map((g) => g.open_days), DAY_BANDS)}
-          srLabel={t('bento.principal.grievances_late_age_sr')}
-        />
-      </Stack>
-    )
-  } else if (wide) {
-    shape = rail
   }
 
+  const hours = late.map((g) => g.overdue_hours ?? 0)
+  const worst = Math.max(1, ...hours)
+  const against = (
+    <Compare
+      rows={[
+        { label: t('bento.principal.grv_state_open'), value: open.length },
+        { label: t('bento.principal.grv_past_due'), value: late.length },
+      ]}
+      srLabel={t('bento.principal.grv_late_compare_sr', { late: late.length, open: open.length })}
+    />
+  )
+  const spread = (bins: number) => (
+    <Distribution
+      values={histogram(hours, bins, 0, worst)}
+      srLabel={t('bento.principal.grv_late_hours_sr', { count: late.length, worst: Math.round(worst) })}
+    />
+  )
+  const byDepartment = (n: number) => (
+    <Rows
+      items={topCounts(late, (g) => g.department, t('bento.principal.no_department')).slice(0, n)}
+      srLabel={t('bento.principal.grv_late_dept_rows_sr')}
+    />
+  )
+
+  const drawing =
+    wide && tall ? (
+      <Pair top={<Split left={against} right={byDepartment(4)} />} bottom={spread(18)} />
+    ) : tall ? (
+      <Pair top={against} bottom={spread(10)} />
+    ) : wide ? (
+      against
+    ) : (
+      spread(10)
+    )
+
   return (
-    <SourceCell
+    <FeatureCard
       span={span}
       domain="communication"
-      status={status}
-      label={t('bento.principal.grievances_late')}
-      value={late.length}
       accent={late.length > 0 ? 'pink' : undefined}
-      shape={shape ?? undefined}
-      note={t('bento.principal.grievances_late_note', { count: open.length })}
-      to={href}
-      cue={t('bento.principal.cue_grievances')}
-    />
+      title={label}
+      sub={t('bento.principal.grv_late_sub')}
+      value={late.length}
+      change={
+        queued >= GRIEVANCE_LIMIT
+          ? t('bento.principal.grv_late_capped', { open: open.length, count: GRIEVANCE_LIMIT })
+          : t('bento.principal.grv_late_change', { count: open.length })
+      }
+      href={href}
+      cue={cue}
+    >
+      {drawing}
+    </FeatureCard>
   )
 }

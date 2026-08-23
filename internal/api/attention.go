@@ -68,6 +68,25 @@ type AttentionItem struct {
 	Href   string `json:"href,omitempty"`
 	// Amount is set for money items, in paise, so the client formats one way.
 	AmountPaise int64 `json:"amount_paise,omitempty"`
+	// Total is the denominator Count was drawn from: 3 sections unmarked out of
+	// 41 is a different morning from 3 out of 4. It is a pointer because a
+	// probe that has no honest denominator must send nothing at all — a zero
+	// total is indistinguishable on the wire from a real one, and a card that
+	// renders "3 of 0" or divides by it is the bug this shape exists to
+	// prevent.
+	Total *int `json:"total,omitempty"`
+	// Breakdown splits Count into the parts the same query already knew: the
+	// admissions funnel by stage, overdue fees by age. Omitted, never empty,
+	// for the same reason as Total.
+	Breakdown []AttentionBucket `json:"breakdown,omitempty"`
+}
+
+// AttentionBucket is one slice of an item's Count — a funnel stage, an ageing
+// band. The label is rendered server-side because the split is the database's
+// vocabulary and the client should not be maintaining a second copy of it.
+type AttentionBucket struct {
+	Label string `json:"label"`
+	Count int    `json:"count"`
 }
 
 type attentionResponse struct {
@@ -86,18 +105,49 @@ type summaryStat struct {
 	Hint  string `json:"hint,omitempty"`
 }
 
+/*
+probeResult is everything a probe found.
+
+	A probe used to return (count, amount, detail) and nothing else, which is
+	why fifteen cells on the principal's board could only ever print a number:
+	no proportion, no ageing, no funnel. The extra two fields are optional on
+	purpose — Total and Breakdown are filled in only where the probe's own
+	query already scans the rows they describe, so no cell costs a second
+	round trip and no denominator is invented to fill a hole in a layout.
+*/
+type probeResult struct {
+	Count  int
+	Amount int64
+	Detail string
+	// Total is the denominator, nil when the probe has none to give.
+	Total *int
+	// Breakdown is nil unless the query produced a real split.
+	Breakdown []AttentionBucket
+}
+
+// plain wraps the common "just a count" probe so the ones with nothing more to
+// say stay one line: return plain(countQuery(...)).
+func plain(n int, err error) (probeResult, error) {
+	return probeResult{Count: n}, err
+}
+
+// total is a helper for the denominators below; taking the address of a local
+// in each probe would be six identical three-line dances.
+func total(n int) *int { return &n }
+
 // probe is one attention query.
 //
 // Needs is the permission that makes the question meaningful to the caller.
-// Run returns the count, an optional amount, and the detail line; a zero count
-// drops the item before it reaches the response.
+// Run returns the count, an optional amount and detail line, and — where the
+// query already knew them — a denominator and a breakdown; a zero count drops
+// the item before it reaches the response.
 type probe struct {
 	Key      string
 	Needs    string
 	Severity Severity
 	Action   string
 	Href     string
-	Run      func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error)
+	Run      func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error)
 	// Headline renders the count. Kept as a function so plural and singular
 	// read properly — "1 students absent" is the tell of a generated screen.
 	Headline func(n int, amount int64) string
@@ -144,7 +194,7 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "section", "sections") + " without attendance today"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			// Sections the caller can mark, minus the ones already marked. A
 			// section with a holiday row counts as marked; that is what a
 			// holiday is.
@@ -168,7 +218,7 @@ var probes = []probe{
 			} else {
 				n, err = countQuery(ctx, tx, sql, arg)
 			}
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -177,14 +227,14 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "student", "students") + " absent today"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			pred, args := sc.AttendancePredicate("sa", 1)
 			n, err := countQuery(ctx, tx, `
 				SELECT count(*) FROM student_attendance sa
 				 WHERE sa.on_date = CURRENT_DATE
 				   AND sa.status IN ('absent','leave')
 				   AND `+pred, args...)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -193,10 +243,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "attendance correction", "attendance corrections") + " awaiting review"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM attendance_corrections WHERE status = 'pending'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -205,7 +255,7 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "teacher", "teachers") + " absent today"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			// Absent and unsubstituted. A covered absence is not a problem, and
 			// listing it as one is how a panel earns its reputation for crying
 			// wolf.
@@ -218,7 +268,7 @@ var probes = []probe{
 				        JOIN timetable_entries te ON te.id = su.timetable_entry_id
 				        WHERE su.on_date = CURRENT_DATE
 				          AND te.teacher_user_id = sa.user_id)`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 
@@ -229,7 +279,7 @@ var probes = []probe{
 		Headline: func(n int, amount int64) string {
 			return rupees(amount) + " overdue across " + plural(n, "student", "students")
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			pred, args := sc.StudentPredicate("st", 1)
 			var n int
 			var amount *int64
@@ -245,7 +295,7 @@ var probes = []probe{
 			if amount != nil {
 				a = *amount
 			}
-			return n, a, "", err
+			return probeResult{Count: n, Amount: a}, err
 		},
 	},
 	{
@@ -254,12 +304,12 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "payment", "payments") + " failed in the last week"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx, `
 				SELECT count(*) FROM payments
 				 WHERE status = 'failed'
 				   AND created_at >= CURRENT_DATE - INTERVAL '7 days'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -268,10 +318,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "cheque", "cheques") + " bounced"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM payments WHERE status = 'bounced'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -280,10 +330,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "concession request", "concession requests") + " awaiting approval"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM fee_concessions WHERE approved_by IS NULL`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 
@@ -294,11 +344,11 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "admission application", "admission applications") + " waiting on a decision"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx, `
 				SELECT count(*) FROM applications
 				 WHERE status IN ('submitted','under_review','test_scheduled','interviewed')`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -307,10 +357,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "applicant", "applicants") + " stuck on missing documents"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM applications WHERE status = 'documents_pending'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -319,13 +369,13 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "follow-up", "follow-ups") + " overdue"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx, `
 				SELECT count(*) FROM enquiries
 				 WHERE next_follow_up IS NOT NULL
 				   AND next_follow_up <= CURRENT_DATE
 				   AND status NOT IN ('applied','lost')`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 
@@ -336,10 +386,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "leave request", "leave requests") + " pending"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM leave_requests WHERE status = 'pending'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -348,13 +398,13 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "report card", "report cards") + " awaiting publication"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			pred, args := sc.StudentPredicate("st", 1)
 			n, err := countQuery(ctx, tx, `
 				SELECT count(*) FROM report_cards rc
 				  JOIN students st ON st.id = rc.student_id
 				 WHERE NOT rc.is_published AND `+pred, args...)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -363,7 +413,7 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "exam paper", "exam papers") + " without marks"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			// Papers already sat, with nothing entered. A paper mid-exam is not
 			// late; one whose date has passed is.
 			// A paper belongs to a class, not to a section — class_subjects
@@ -390,7 +440,7 @@ var probes = []probe{
 			} else {
 				n, err = countQuery(ctx, tx, sql, arg)
 			}
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 	{
@@ -399,10 +449,10 @@ var probes = []probe{
 		Headline: func(n int, _ int64) string {
 			return plural(n, "certificate request", "certificate requests") + " to issue"
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
 				`SELECT count(*) FROM issued_certificates WHERE status = 'requested'`)
-			return n, 0, "", err
+			return probeResult{Count: n}, err
 		},
 	},
 
@@ -413,9 +463,9 @@ var probes = []probe{
 		Headline: func(_ int, amount int64) string {
 			return fmt.Sprintf("%s due", rupees(amount))
 		},
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			if len(sc.StudentIDs) == 0 {
-				return 0, 0, "", nil
+				return probeResult{}, nil
 			}
 			var n int
 			var amount *int64
@@ -435,7 +485,7 @@ var probes = []probe{
 			if due != nil {
 				detail = "Due by " + *due
 			}
-			return n, a, detail, err
+			return probeResult{Count: n, Amount: a, Detail: detail}, err
 		},
 	},
 	{
@@ -453,9 +503,9 @@ var probes = []probe{
 		   child, which is how a reminders panel comes to be ignored. It also
 		   counted work already handed in, so finishing a piece did not make it
 		   go away. */
-		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (int, int64, string, error) {
+		Run: func(ctx context.Context, tx pgx.Tx, sc *scope.Resolved) (probeResult, error) {
 			if len(sc.StudentIDs) == 0 {
-				return 0, 0, "", nil
+				return probeResult{}, nil
 			}
 			var n int
 			var soonest *string
@@ -475,7 +525,7 @@ var probes = []probe{
 			if soonest != nil {
 				detail = "Soonest due " + *soonest
 			}
-			return n, 0, detail, err
+			return probeResult{Count: n, Detail: detail}, err
 		},
 	},
 }
@@ -501,19 +551,20 @@ func (s *Server) getAttention(w http.ResponseWriter, r *http.Request) {
 			if !id.Can(p.Needs) {
 				continue
 			}
-			n, amount, detail, err := p.Run(r.Context(), tx, sc)
+			res, err := p.Run(r.Context(), tx, sc)
 			if err != nil {
 				// One broken probe must not blank the panel. A school with no
 				// transport module still wants to know its fees are overdue.
 				return fmt.Errorf("attention probe %s: %w", p.Key, err)
 			}
-			if n == 0 {
+			if res.Count == 0 {
 				continue
 			}
 			out.Items = append(out.Items, AttentionItem{
-				Key: p.Key, Severity: p.Severity, Count: n,
-				Headline: p.Headline(n, amount), Detail: detail,
-				Action: p.Action, Href: p.Href, AmountPaise: amount,
+				Key: p.Key, Severity: p.Severity, Count: res.Count,
+				Headline: p.Headline(res.Count, res.Amount), Detail: res.Detail,
+				Action: p.Action, Href: p.Href, AmountPaise: res.Amount,
+				Total: res.Total, Breakdown: res.Breakdown,
 			})
 		}
 		var err error
