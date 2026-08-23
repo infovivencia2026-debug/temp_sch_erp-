@@ -411,7 +411,7 @@ export default function BentoPrincipalDashboard() {
       </Widget>
 
       {/* Money out — pink, and pink is used for nothing else on this page. */}
-      <Widget id="outstanding" label={t('bento.principal.outstanding')} size="small" index={1}>
+      <Widget id="outstanding" label={t('bento.principal.outstanding')} size="small" index={2}>
         {(span) => (
           <StatCell
             span={span}
@@ -436,7 +436,7 @@ export default function BentoPrincipalDashboard() {
       </Widget>
 
       {/* A warning, so orange — the hue this palette reserves for one. */}
-      <Widget id="defaulters" label={t('bento.principal.defaulters')} size="small" index={2}>
+      <Widget id="defaulters" label={t('bento.principal.defaulters')} size="small" index={4}>
         {(span) => (
           <StatCell
             span={span}
@@ -463,7 +463,7 @@ export default function BentoPrincipalDashboard() {
       {/* The bar chart: plain divs, the most recent school day in purple,
           every other day in the muted card tone. Ten rectangles do not justify
           a charting runtime on every page load. */}
-      <Widget id="trend" label={t('bento.principal.trend_label')} size="medium" index={3}>
+      <Widget id="trend" label={t('bento.principal.trend_label')} size="medium" index={1}>
         {(span) => (
           <Cell span={span} domain="academics">
             <p className="text-[12.5px] text-[var(--bento-ink)] opacity-70">{t('bento.principal.bars_label')}</p>
@@ -496,7 +496,7 @@ export default function BentoPrincipalDashboard() {
       {/* No badge and no accent. Four hues, one meaning each, and the roll is
           not one of those meanings — a tint here would only make the two that
           do mean something harder to find. */}
-      <Widget id="students" label={t('bento.principal.students')} size="medium" index={4}>
+      <Widget id="students" label={t('bento.principal.students')} size="medium" index={3}>
         {(span) => (
           <StatCell
             domain="operations"
@@ -511,7 +511,7 @@ export default function BentoPrincipalDashboard() {
         )}
       </Widget>
 
-      <Widget id="staff" label={t('bento.principal.staff')} size="small" index={5}>
+      <Widget id="staff" label={t('bento.principal.staff')} size="small" index={8} optional>
         {(span) => (
           <StatCell
             span={span}
@@ -526,7 +526,7 @@ export default function BentoPrincipalDashboard() {
         )}
       </Widget>
 
-      <Widget id="approvals" label={t('bento.principal.approvals')} size="small" index={6}>
+      <Widget id="approvals" label={t('bento.principal.approvals')} size="small" index={7}>
         {(span) => (
           <StatCell
             span={span}
@@ -546,7 +546,7 @@ export default function BentoPrincipalDashboard() {
           the bar chart under those, then students wide with staff and
           approvals, then these two — sixteen slots, four rows, no hole left at
           the bottom right. Below `lg` every wide cell is simply full width. */}
-      <Widget id="applications" label={t('bento.principal.applications')} size="medium" index={7}>
+      <Widget id="applications" label={t('bento.principal.applications')} size="medium" index={5}>
         {(span) => (
           <StatCell
             span={span}
@@ -561,7 +561,7 @@ export default function BentoPrincipalDashboard() {
         )}
       </Widget>
 
-      <Widget id="unassigned" label={t('bento.principal.unassigned')} size="medium" index={8}>
+      <Widget id="unassigned" label={t('bento.principal.unassigned')} size="medium" index={6}>
         {(span) => (
           <StatCell
             span={span}
@@ -591,6 +591,7 @@ export default function BentoPrincipalDashboard() {
           id={w.id}
           label={t(`bento.principal.attn_${w.slot}`)}
           size="small"
+          optional
           index={9 + i}
         >
           {(span) => (

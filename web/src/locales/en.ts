@@ -1237,6 +1237,7 @@ export const en = {
   'bento.widgets.edit': 'Arrange',
   'bento.widgets.done': 'Done',
   'bento.widgets.add': 'Add:',
+  'bento.widgets.full': 'The board is full — remove a card to make room.',
   'bento.widgets.reset': 'Reset layout',
   'bento.widgets.remove': 'Remove',
   'bento.widgets.hint': 'Drag to reorder · set width and height on each card',

@@ -101,8 +101,28 @@ export function WidgetLayer({
     [],
   )
 
-  const visible = declared.filter((d) => !isRemoved(layout, d.id))
-  const off = declared.filter((d) => isRemoved(layout, d.id))
+  /* On the board, or waiting in the tray.
+
+     An explicit placement always wins: it is a decision this person made, and
+     it outranks both the removed list and the widget's own default. Failing
+     that, a removed widget is off, and an `optional` one has simply never been
+     placed — the board ships full without it. */
+  const isOn = (d: BoardWidget) => {
+    if (layout.placed.some((p) => p.id === d.id)) return true
+    if (isRemoved(layout, d.id)) return false
+    return !d.optional
+  }
+  /* Sorted the way the grid lays them out, not the way they mount.
+
+     The cells render in source order and are positioned by CSS `order`, so
+     simulating the pack against the mount order answered a question about a
+     board nobody sees — and diverged the moment somebody reordered a card.
+     Same order in, same rows out. */
+  const visible = declared
+    .filter(isOn)
+    .slice()
+    .sort((a, b) => orderOf(layout, a.id, a.index) - orderOf(layout, b.id, b.index))
+  const off = declared.filter((d) => !isOn(d))
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
 
   /* Published so Settings can list this board without being inside it, and
@@ -228,18 +248,32 @@ export function WidgetLayer({
           {off.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
               <span className="text-[12px] text-muted-foreground">{t('bento.widgets.add')}</span>
-              {off.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => place(d.id, DIMS[d.size].w, DIMS[d.size].h)}
-                  className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
-                             text-[12px] transition-colors hover:bg-accent"
-                >
-                  <Plus className="size-3" aria-hidden="true" />
-                  {d.label}
-                </button>
-              ))}
+              {off.map((d) => {
+                /* Would the board still be three rows with this card on it?
+                   Simulated against the whole layout, the same way resizing is,
+                   because the board is a fixed fifteen slots and a card that
+                   does not fit does not get a smaller row — it pushes the
+                   bottom row off the screen and squashes the text in the rest. */
+                const room =
+                  rowsNeeded(
+                    [...visible.map((v) => dimsOf(layout, v.id, v.size)), DIMS[d.size]],
+                  ) <= maxRows
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    disabled={!room}
+                    title={room ? undefined : t('bento.widgets.full')}
+                    onClick={() => place(d.id, DIMS[d.size].w, DIMS[d.size].h)}
+                    className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
+                               text-[12px] transition-colors hover:bg-accent
+                               disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                  >
+                    <Plus className="size-3" aria-hidden="true" />
+                    {d.label}
+                  </button>
+                )
+              })}
             </span>
           )}
 
@@ -484,6 +518,7 @@ export function Widget({
   label,
   size: declaredSize,
   index,
+  optional,
   children,
 }: {
   id: string
@@ -491,6 +526,8 @@ export function Widget({
   /** The shape this cell was designed at. The person's choice overrides it. */
   size: WidgetSize
   index: number
+  /** Offered in the add tray rather than placed on the board by default. */
+  optional?: boolean
   /** Given the span to render at, because the cell owns its own <Cell>. */
   children: (span: CellSpan) => ReactNode
 }) {
@@ -509,8 +546,8 @@ export function Widget({
      still reports itself and can still be put back. */
   const declare = layer?.declare
   useEffect(() => {
-    declare?.({ id, label, index, size: declaredSize, w, h })
-  }, [declare, id, label, index, declaredSize, w, h])
+    declare?.({ id, label, index, size: declaredSize, w, h, optional })
+  }, [declare, id, label, index, declaredSize, w, h, optional])
 
   if (isRemoved(layout, id)) return null
 

@@ -493,6 +493,14 @@ export interface BoardWidget {
   size: WidgetSize
   w: number
   h: number
+  /** Declared but NOT placed by default: it waits in the add tray.
+
+      The board is a fixed fifteen slots. A dashboard with more cells worth
+      offering than slots to hold them has to choose, and the honest choice is
+      to ship the core board full and let the rest be added deliberately —
+      rather than placing everything and letting the overflow squash every row
+      until the text inside clips. */
+  optional?: boolean
 }
 
 interface Board {
