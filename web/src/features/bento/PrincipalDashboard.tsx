@@ -1542,8 +1542,17 @@ function Fit({ children }: { children: ReactNode }) {
     about 69px and four lines of this size is 56 plus the leading. */
 function Say({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full min-h-0 items-end overflow-hidden">
-      <p className="line-clamp-3 text-[10.5px] leading-snug opacity-75">{children}</p>
+    /* Centred in the row, not pinned to the foot of it.
+
+       `items-end` put the sentence on the floor of the drawing row, so a cell
+       whose whole content IS that sentence showed a hole above it and a line
+       of small text at the bottom — the dead space this row exists to remove.
+       Centred, and set at the card's own note size so it grows with the cell,
+       the sentence occupies the space it was given. */
+    <div className="flex h-full min-h-0 items-center overflow-hidden">
+      <p className="line-clamp-4 leading-snug opacity-75 text-[length:var(--card-note,10.5px)]">
+        {children}
+      </p>
     </div>
   )
 }
@@ -2909,20 +2918,20 @@ function CardCell({
      data. */
   const body =
     status === 'error' ? (
-      <CardShell title={title} sub={sub} glyph={glyph} value="—" className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
         <CellError message={t('bento.principal.source_failed')} />
       </CardShell>
     ) : status === 'loading' ? (
       <CardShell
         title={title}
         sub={sub}
-        glyph={glyph}
+        glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined}
         value="—"
         change={t('bento.principal.source_loading')}
         className="h-full"
       />
     ) : (
-      <CardShell title={title} sub={sub} glyph={glyph} value={value} change={change} className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value={value} change={change} className="h-full">
         {children}
       </CardShell>
     )

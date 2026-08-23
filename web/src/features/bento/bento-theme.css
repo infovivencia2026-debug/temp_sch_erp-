@@ -1328,3 +1328,43 @@ html[data-layout='bento'] body {
   background: var(--bento-bg);
   color: var(--bento-ink);
 }
+
+/* THE CELL IS A CONTAINER, AND THE TYPE IS MEASURED AGAINST IT.
+
+   Every size in a card was a fixed pixel value, so a 2x2 was a 1x1 with more
+   air around it: the same 11px label and the same 24px figure marooned in four
+   times the space. That is what makes the bigger sizes look wrong — nothing in
+   them grows except the emptiness.
+
+   `container-type: size` lets the card measure itself, and `cqh` units make
+   every step of type a fraction of the cell's own height. A cell twice as tall
+   sets its type twice as large, with no breakpoints and nothing per size to
+   keep in step.
+
+   The floors and ceilings are the honest part: `clamp` keeps a 1x1 readable
+   and stops a 2x2 figure from swallowing its own card. Base sizes are doubled
+   from what they were, which is the ask — what read as 100% now sits at the
+   middle of the range rather than the top of it. */
+[data-layout='bento'] .bento-cell {
+  container-type: size;
+  container-name: cell;
+}
+
+[data-layout='bento'] .bento-cell {
+  --card-title: clamp(13px, 7.5cqh, 26px);
+  --card-sub: clamp(10px, 5.4cqh, 17px);
+  --card-fig: clamp(30px, 24cqh, 84px);
+  --card-change: clamp(11px, 6cqh, 20px);
+  --card-note: clamp(10px, 5.6cqh, 18px);
+  --card-action: clamp(11px, 6cqh, 19px);
+}
+
+/* Multiplied by the text axis, so the slider still moves everything. */
+[data-layout='bento'] .bento-cell {
+  --card-title: calc(clamp(13px, 7.5cqh, 26px) * var(--bento-text, 1));
+  --card-sub: calc(clamp(10px, 5.4cqh, 17px) * var(--bento-text, 1));
+  --card-fig: calc(clamp(30px, 24cqh, 84px) * var(--bento-text, 1));
+  --card-change: calc(clamp(11px, 6cqh, 20px) * var(--bento-text, 1));
+  --card-note: calc(clamp(10px, 5.6cqh, 18px) * var(--bento-text, 1));
+  --card-action: calc(clamp(11px, 6cqh, 19px) * var(--bento-text, 1));
+}

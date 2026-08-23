@@ -48,11 +48,14 @@ const QUIET = ink(38)
     grid child refuses to shrink below its content and the drawing pushes the
     card out of shape. */
 export function CardShell({
-  title, sub, glyph, value, change, children, className,
+  title, sub, glyph, action, value, change, children, className,
 }: {
   title: string
   sub?: string
   glyph?: ReactNode
+  /** The thing this card opens. Rendered as a labelled button in the corner —
+      see the note below on why it is not an icon. */
+  action?: { label: string; onActivate?: () => void }
   value: ReactNode
   change?: ReactNode
   children?: ReactNode
@@ -62,33 +65,58 @@ export function CardShell({
     <div className={cn('grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)]', className)}>
       <div className="flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[11px] font-bold leading-tight">{title}</p>
+          <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
+            {title}
+          </p>
           {sub && (
-            <p className="mt-0.5 truncate text-[8.5px] font-medium uppercase tracking-[0.08em] opacity-60">
+            <p className="mt-0.5 truncate font-medium uppercase tracking-[0.08em] opacity-60
+                          text-[length:var(--card-sub,10px)]">
               {sub}
             </p>
           )}
         </div>
-        {glyph && (
+
+        {/* THE CORNER CARRIES THE ACTION, NOT A DECORATION.
+
+            It was a 22px chip holding a single character — a rupee sign, a
+            hash, an exclamation mark. It named the card's domain, which the
+            title already does, and it was not a control: the thing you could
+            actually press sat somewhere else entirely. A card that opens the
+            fee ledger should say so where the eye already goes.
+
+            The glyph survives only when there is no action to name, so a card
+            that leads nowhere still balances its header. */}
+        {action ? (
           <span
-            /* A rounded rectangle, not a circle. It was the only round thing on
-               a board of rectangles — the cards, the tracks, the bars and the
-               segments all share one corner radius, and a disc in the corner of
-               every card read as a different vocabulary. */
-            className="grid size-[30px] shrink-0 place-items-center rounded-[8px] border text-[12px] font-semibold"
-            style={{ borderColor: ink(35) }}
+            className="inline-flex max-w-[62%] shrink-0 items-center gap-1 rounded-[8px] border
+                       px-2 py-1 font-semibold text-[length:var(--card-action,11px)]"
+            style={{ borderColor: ink(30), background: ink(6) }}
+          >
+            <span className="truncate">{action.label}</span>
+            <span aria-hidden="true" className="opacity-70">↗</span>
+          </span>
+        ) : glyph ? (
+          <span
+            className="grid aspect-square shrink-0 place-items-center rounded-[8px] border
+                       font-semibold text-[length:var(--card-action,11px)]"
+            style={{ borderColor: ink(30), padding: '0.45em' }}
             aria-hidden="true"
           >
             {glyph}
           </span>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-1.5 min-w-0">
-        <p className="truncate text-[length:var(--bento-fig,clamp(24px,3.4vh,38px))] font-semibold leading-[0.9] tracking-[-0.05em] tabular-nums">
+        <p className="truncate font-semibold leading-[0.9] tracking-[-0.05em] tabular-nums
+                      text-[length:var(--card-fig,30px)]">
           {value}
         </p>
-        {change && <p className="mt-1 truncate text-[9.5px] leading-none opacity-65">{change}</p>}
+        {change && (
+          <p className="mt-1 truncate leading-tight opacity-65 text-[length:var(--card-change,11px)]">
+            {change}
+          </p>
+        )}
       </div>
 
       <div className="mt-2 min-h-0 min-w-0 overflow-hidden">{children}</div>

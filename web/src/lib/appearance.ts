@@ -72,7 +72,10 @@ export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step:
      and there would be no way to read the control that undoes it. Every other
      axis bottoms out at 0 because 0 is a look: no gap, no radius, no border,
      no shadow. */
-  text: { min: 0.7, max: 2.4, step: 0.01 },
+  /* The base type doubled, so what used to read at 100% now sits at the MIDDLE
+     of this axis rather than the bottom of it — and the top of the axis is
+     genuinely large rather than merely legible. */
+  text: { min: 0.5, max: 2.0, step: 0.01 },
   density: { min: 0, max: 3, step: 0.01 },
   corners: { min: 0, max: 3.5, step: 0.01 },
   borders: { min: 0, max: 5, step: 0.01 },
