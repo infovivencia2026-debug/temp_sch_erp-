@@ -19,8 +19,8 @@
   --bento-bg: #f5f6f8;
   --bento-card: #ffffff;
   --bento-card-2: #eef0f4;
-  --bento-ink: #16181d;
-  --bento-muted: #68707d;
+  --bento-ink: #000000;
+  --bento-muted: var(--bento-ink);
   --bento-line: #e3e6ea;
 
   --bento-mint: #39FF14;
@@ -34,7 +34,7 @@
 
   --bento-anchor-from: #A8B6B5;
   --bento-anchor-to: #D3D9D9;
-  --bento-anchor-ink: #1A1A1A;
+  --bento-anchor-ink: #000000;
 
   /* The global axes reach in here rather than stopping at the layout.
 
@@ -164,7 +164,7 @@ html.dark[data-layout='bento'] {
   --bento-card: #1c1e26;
   --bento-card-2: #2a2c35;
   --bento-ink: #ffffff;
-  --bento-muted: #8b8d96;          /* 5.03:1 on the card */
+  --bento-muted: var(--bento-ink);          /* 5.03:1 on the card */
   --bento-line: #2a2c35;
 
   --bento-mint: #a8f09b;
@@ -308,8 +308,8 @@ html[data-skin='focus'][data-layout='bento'],
 html[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #f6f7f9;
   --bento-card: #ffffff;
-  --bento-ink: #172033;
-  --bento-muted: #667085;
+  --bento-ink: #000000;
+  --bento-muted: var(--bento-ink);
   --bento-radius: calc(10px * var(--radius-scale, 1));
   --bento-radius-sm: calc(8px * var(--radius-scale, 1));
   --bento-gap: calc(14px * var(--bento-density, 1));
@@ -318,15 +318,15 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-shadow: none;
   --bento-shadow-sm: none;
 
-  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;      --dom-students-text: #ffffff;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;     --dom-academics-text: #ffffff;
-  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #ffffff;
-  --dom-finance: #b45309;       --dom-finance-soft: #fbf4ef;       --dom-finance-text: #ffffff;
-  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #ffffff;
-  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #ffffff;
-  --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2; --dom-communication-text: #ffffff;
-  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #ffffff;
-  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #ffffff;
+  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;      --dom-students-text: #000000;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;     --dom-academics-text: #000000;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #000000;
+  --dom-finance: #b45309;       --dom-finance-soft: #fbf4ef;       --dom-finance-text: #000000;
+  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #000000;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #000000;
+  --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2; --dom-communication-text: #000000;
+  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #000000;
+  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #000000;
 
   --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
   --dom-warning: #b54708;       --dom-warning-soft: #f8eae2;
@@ -342,22 +342,22 @@ html.dark[data-skin='focus'][data-layout='bento'],
 html.dark[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #0e121b;
   --bento-card: #171d29;
-  --bento-ink: #f4f7fb;
-  --bento-muted: #a7b0c0;
+  --bento-ink: #ffffff;
+  --bento-muted: var(--bento-ink);
   --bento-line: #30394a;
 
   /* Deep chromatic surfaces belong to the dark canvas; pale light-mode fills
      do not. Soft tokens stay dark while their foregrounds lift for icons and
      labels, preserving each domain without creating luminous stickers. */
-  --dom-students: #1d4ed8;      --dom-students-soft: #ced8f3;      --dom-students-text: #eff6ff;
-  --dom-academics: #6d28d9;     --dom-academics-soft: #d9caf2;     --dom-academics-text: #f5f3ff;
-  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #f0fdfa;
-  --dom-finance: #a16207;       --dom-finance-soft: #fcf8f3;       --dom-finance-text: #fffbeb;
-  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #fff1f2;
-  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #f0f9ff;
-  --dom-communication: #7e22ce; --dom-communication-soft: #dfcaf2; --dom-communication-text: #faf5ff;
-  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #ecfdf5;
-  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #f8fafc;
+  --dom-students: #1d4ed8;      --dom-students-soft: #ced8f3;      --dom-students-text: #000000;
+  --dom-academics: #6d28d9;     --dom-academics-soft: #d9caf2;     --dom-academics-text: #000000;
+  --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #000000;
+  --dom-finance: #a16207;       --dom-finance-soft: #fcf8f3;       --dom-finance-text: #000000;
+  --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #000000;
+  --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #000000;
+  --dom-communication: #7e22ce; --dom-communication-soft: #dfcaf2; --dom-communication-text: #000000;
+  --dom-operations: #047857;    --dom-operations-soft: #d2f4ea;    --dom-operations-text: #000000;
+  --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #000000;
 
   --dom-critical: #f97066;      --dom-critical-soft: #55160c;
   --dom-warning: #fdb022;       --dom-warning-soft: #624818;
@@ -718,17 +718,17 @@ html[data-shadow='deep'] {
    them. Medium darkens the muted tone; high also separates the card from the
    ground with a real border rather than a shadow. */
 :root[data-contrast='medium'] {
-  --bento-muted: #4b5563;
+  --bento-muted: var(--bento-ink);
   --bento-line: #d0d5dd;
 }
 :root[data-contrast='high'] {
-  --bento-muted: #1f2937;
+  --bento-muted: var(--bento-ink);
   --bento-line: #6b7280;
   --bento-border-w: calc(1.5px * var(--border-scale, 1));
 }
-.dark:root[data-contrast='medium'] { --bento-muted: #c3c9d4; }
+.dark:root[data-contrast='medium'] { --bento-muted: var(--bento-ink); }
 .dark:root[data-contrast='high'] {
-  --bento-muted: #e6e9ef;
+  --bento-muted: var(--bento-ink);
   --bento-line: #8b93a3;
 }
 
@@ -1208,7 +1208,7 @@ html[style*='--shadow-scale'] .dark {
 [data-layout='bento'] .bento-cell[class*="text-[var(--bento-bg)]"],
 [data-layout='bento'] .bento-cell[class*="text-[var(--dom-"],
 [data-layout='bento'] .bento-widget[data-tinted] {
-  --bento-muted: color-mix(in srgb, currentColor 72%, transparent);
+  --bento-muted: var(--bento-ink);
 }
 
 /* 2. THE BADGES, WHICH PUT AN ACCENT ON ITS OWN TINT.

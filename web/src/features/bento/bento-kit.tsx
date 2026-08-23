@@ -166,11 +166,22 @@ export const SPAN: Record<CellSpan, string> = {
     nothing below writes a hex. */
 export type Accent = 'mint' | 'purple' | 'pink' | 'orange'
 
+/* Every accent inks the same: the cell's own black or white.
+
+   Text on this surface is black or white and nothing else, chosen by what it
+   sits on. A badge sat on its accent TINT in the accent's own hue, which is
+   coloured text by definition and measured 2.80-4.30:1 on the shipped
+   palettes. The tint keeps the hue — it is what says which accent this is —
+   and the word on top of it is ink, which follows the theme's polarity exactly
+   as the tint does: black on a pale tint, white on a dark one.
+
+   The map stays keyed by accent so callers do not change and so a future
+   accent that needs its own answer has somewhere to put it. */
 const ACCENT_INK: Record<Accent, string> = {
-  mint: 'text-[var(--bento-mint)]',
-  purple: 'text-[var(--bento-purple)]',
-  pink: 'text-[var(--bento-pink)]',
-  orange: 'text-[var(--bento-orange)]',
+  mint: 'text-[var(--bento-ink)]',
+  purple: 'text-[var(--bento-ink)]',
+  pink: 'text-[var(--bento-ink)]',
+  orange: 'text-[var(--bento-ink)]',
 }
 const ACCENT_TINT: Record<Accent, string> = {
   mint: 'bg-[var(--bento-mint-tint)]',
@@ -681,8 +692,9 @@ export function AnchorAction({ to, label }: { to: string; label: string }) {
 
            An action carries its own contrast. It is the one thing on a card
            that must stay legible whatever ends up behind it. */
-        `inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5
-         text-[12.5px] font-semibold text-[#101114] shadow-sm ring-1 ring-black/5`,
+        `inline-flex items-center gap-1.5 rounded-full bg-[var(--bento-card)] px-4 py-2.5
+         text-[12.5px] font-semibold text-[var(--bento-ink)] shadow-sm
+         ring-1 ring-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]`,
         still ? '' : 'transition-opacity duration-150',
         'opacity-95 hover:opacity-100',
       )}
