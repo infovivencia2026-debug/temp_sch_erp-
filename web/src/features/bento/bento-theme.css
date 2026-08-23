@@ -216,6 +216,62 @@ html.dark[data-layout='bento'] {
   border-color: #b4b4b8;
 }
 
+/* EVERY cell answers the pointer, not just the ones that go somewhere.
+
+   Hover was scoped to `:has(.bento-cue)`, so a card with no action was inert —
+   no acknowledgement that the pointer was on it at all. A dashboard where half
+   the cards respond and half do not reads as half broken rather than as a
+   distinction between them.
+
+   Two strengths, because the distinction is real and worth keeping: every cell
+   lifts and warms a little, and a cell you can actually open lifts further and
+   brightens its edge. The difference says "this one leads somewhere" without
+   the silent ones feeling dead.
+
+   Still no scale and no translate — see above. In a packed grid with tight
+   gutters a card that grows overlaps its neighbour or shoves the row, and
+   either way the thing under the cursor moves while the cursor is on it. The
+   lift comes from the shadow and the ground, which cost no space. */
+[data-layout='bento'] .bento-cell {
+  transition:
+    box-shadow 140ms var(--ease-out, ease),
+    border-color 140ms var(--ease-out, ease),
+    background-color 140ms var(--ease-out, ease);
+}
+
+[data-layout='bento'] .bento-cell:hover {
+  /* A wash of the cell's own ink, so this works the same on a white card, a
+     domain-tinted one and an inverted one without a branch for each. */
+  background-image: linear-gradient(
+    0deg,
+    color-mix(in srgb, currentColor 4%, transparent),
+    color-mix(in srgb, currentColor 4%, transparent)
+  );
+  box-shadow: var(--bento-depth, 0 10px 26px -8px rgb(0 0 0 / 0.18));
+  border-color: color-mix(in srgb, var(--bento-ink) 16%, var(--bento-line));
+}
+
+/* The actionable ones go further. */
+[data-layout='bento'] .bento-cell:has(.bento-cue):hover {
+  box-shadow: var(--bento-depth-lg, 0 20px 44px -12px rgb(0 0 0 / 0.26));
+  border-color: color-mix(in srgb, var(--bento-ink) 30%, var(--bento-line));
+}
+
+/* Keyboard gets the same answer as the pointer. A hover-only affordance is one
+   that does not exist for anybody tabbing through the board. */
+[data-layout='bento'] .bento-cell:focus-within {
+  box-shadow: var(--bento-depth, 0 10px 26px -8px rgb(0 0 0 / 0.18));
+  border-color: color-mix(in srgb, var(--bento-ink) 30%, var(--bento-line));
+}
+
+/* The state change stays; only its animation goes. Somebody who asked for less
+   motion still needs to know what the pointer is on. */
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .bento-cell {
+    transition: none;
+  }
+}
+
 /* Browsers without :has get the hover on every cell rather than none. Better
    to over-signal than to leave the interface inert for them. */
 @supports not selector(:has(*)) {
