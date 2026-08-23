@@ -1314,3 +1314,17 @@ html[style*='--shadow-scale'] .dark {
   --dom-success: #c9f24d; --dom-success-soft: #c9f24d; --dom-success-text: #000000;
   --dom-warning: #f0ea7a; --dom-warning-soft: #f0ea7a; --dom-warning-text: #000000;
 }
+
+/* THE PAGE TAKES THE BOARD'S GROUND.
+
+   `--bento-bg` resolved correctly to the near-black all along — measured on the
+   root — but nothing ever painted the page with it. The body kept the app's own
+   `--background`, so the board's ground colour was a token nobody read, and the
+   whole surface stayed light while every card was drawn for a dark one.
+
+   Scoped to the layout attribute, which lives on <html>, so the classic layout
+   keeps the app's background exactly as it is. */
+html[data-layout='bento'] body {
+  background: var(--bento-bg);
+  color: var(--bento-ink);
+}

@@ -3381,7 +3381,7 @@ export function DefaultersCard({
     ring, no rail: one dot per unit, the unit named, and a bigger cell resolves
     it finer. Zero draws nothing at all; the line says the queue is clear. */
 export function CountCard({
-  span, domain, title, count, glyph, empty, note, srKey, to, cueLabel,
+  span, domain, title, count, glyph, empty, note, to, cueLabel,
 }: {
   span: CellSpan
   domain: string
@@ -3408,21 +3408,19 @@ export function CountCard({
       sub={t('bento.principal.prov_as_of_now')}
       glyph={glyph}
       value={count}
-      change={count > 0 ? (unit > 1 ? t('bento.principal.card_unit', { unit, note }) : note) : empty}
+      /* The sentence lives in the DRAWING ROW, not here. It used to be in
+         both: `change` under the figure and a `Say` below it, so every one of
+         these cells printed "Nothing waiting" or "Every subject has a teacher"
+         twice. And where the count was positive the row held a `Facts` line
+         reading `title: count` — the title from the header and the figure from
+         the row above it, a third copy of things already on the card.
+
+         This cell has one number and one sentence. Saying each once, with the
+         sentence given the row to fill, is the whole of it. */
       to={to}
       cueLabel={cueLabel}
     >
-      {/* A queue of nought is a fact, and `empty` is the sentence this cell
-          was already given for it — "Nothing waiting", "Every subject has a
-          teacher". A single `Facts` row reading 0 says the same thing worse. */}
-      {count > 0 ? (
-        <Facts
-          srLabel={t(srKey, { count, unit })}
-          items={[{ label: title, value: String(count) }]}
-        />
-      ) : (
-        <Say>{empty}</Say>
-      )}
+      <Say>{count > 0 ? (unit > 1 ? t('bento.principal.card_unit', { unit, note }) : note) : empty}</Say>
     </CardCell>
   )
 }
