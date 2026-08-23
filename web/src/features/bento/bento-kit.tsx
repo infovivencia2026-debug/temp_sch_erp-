@@ -303,7 +303,7 @@ export function Cell({
            which would break the `mt-auto` the cue uses to reach the bottom
            edge — and simply sit on top. */
         `bento-cell relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden
-         rounded-[var(--bento-radius)] border p-6 lg:p-4`,
+         rounded-[var(--bento-radius)] border p-4 lg:p-3`,
         SPAN[span],
         TONE[t],
         className,
@@ -1145,7 +1145,7 @@ export function calendarSlots(
     somebody will act on it. */
 export function BentoError({ message }: { message: string }) {
   return (
-    <div className="bento-surface min-h-full bg-[var(--bento-bg)] p-6 sm:p-7">
+    <div className="bento-surface min-h-full bg-[var(--bento-bg)] p-3 sm:p-4">
       <p
         role="alert"
         className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-pink)]"
@@ -1192,7 +1192,7 @@ export function CellError({
 export function BentoLoading({ message }: { message: string }) {
   return (
     <div
-      className="bento-surface min-h-full bg-[var(--bento-bg)] p-6 text-[13.5px] text-[var(--bento-muted)] sm:p-7"
+      className="bento-surface min-h-full bg-[var(--bento-bg)] p-3 text-[13.5px] text-[var(--bento-muted)] sm:p-4"
       aria-busy="true"
     >
       {message}

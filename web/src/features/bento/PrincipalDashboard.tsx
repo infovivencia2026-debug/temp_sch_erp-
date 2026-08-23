@@ -4,7 +4,6 @@ import { useT } from '@/lib/i18n'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { formatPaise } from '@/lib/utils'
 import {
-  AnchorAction,
   Bars,
   BentoError,
   BentoLoading,
@@ -349,7 +348,6 @@ export default function BentoPrincipalDashboard() {
         {(span) => (
           <Cell
             span={span}
-            tone="anchor"
             domain="students"
             /* The month of days behind the day's percentage. Empty — and so
                not drawn at all — when the trend query failed, because a grid
@@ -357,66 +355,65 @@ export default function BentoPrincipalDashboard() {
                the request. */
             art={days.length > 0 ? <CalendarDensityArt slots={days} /> : undefined}
           >
-            <p className="text-[12.5px] font-medium opacity-75 text-[var(--bento-anchor-ink)]">
+            {/* Every class here is the one StatCell uses. This cell was the
+                board's one exception: the mint gradient, a 72px figure against
+                everyone else's clamp, a hand-rolled divider and its own pill
+                component. Two rows could not hold that stack, so the board's
+                `overflow: hidden` cut the bottom off it — and it read as a
+                different kind of object from the fourteen cells around it.
+                It is a 2x2 now, not a genre. */}
+            <p
+              className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                         text-[var(--bento-muted)]"
+            >
               {t('bento.principal.anchor_label')}
             </p>
 
-            <div className="mt-5">
-              {/* The hero figure carries the same rule as the small ones, one step
-                  further: heavier and tighter, because at 72px semibold reads thin
-                  and default tracking reads gappy. */}
-              <p className="text-[72px] font-extrabold leading-[0.88] tracking-[-0.04em] tabular-nums">
-                {k.attendance_today_pct}%
-              </p>
-              <p className="mt-2 text-[12.5px] opacity-75">
-                {t('bento.principal.attendance_marked', { count: k.attendance_marked_today })}
-              </p>
-              {trend.error ? (
-                <div className="mt-3">
-                  <CellError tone="anchor" message={t('bento.principal.trend_failed')} />
-                </div>
-              ) : points.length > 1 ? (
-                <>
-                  <Sparkline
-                    points={points}
-                    srLabel={t('bento.principal.trend_sr')}
-                    className="mt-4 opacity-70"
-                  />
-                  <p className="mt-1 text-[11.5px] opacity-70">{t('bento.principal.trend_caption')}</p>
-                </>
-              ) : null}
-            </div>
-
-            <div
-              className="mt-6 border-t pt-5"
-              style={{ borderColor: 'color-mix(in srgb, var(--bento-anchor-ink) 15%, transparent)' }}
+            <p
+              className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
+                         text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
             >
-              <p className="text-[12.5px] opacity-75">{t('bento.principal.collected_label')}</p>
-              <p className="mt-1.5 text-[30px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+              {k.attendance_today_pct}%
+            </p>
+            <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
+              {t('bento.principal.attendance_marked', { count: k.attendance_marked_today })}
+            </p>
+
+            {trend.error ? (
+              <div className="mt-3">
+                <CellError message={t('bento.principal.trend_failed')} />
+              </div>
+            ) : points.length > 1 ? (
+              <div className="bento-shape mt-3">
+                <Sparkline points={points} srLabel={t('bento.principal.trend_sr')} />
+              </div>
+            ) : null}
+
+            <div className="mt-4 border-t border-[var(--bento-line)] pt-4">
+              <p
+                className="bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em]
+                           text-[var(--bento-muted)]"
+              >
+                {t('bento.principal.collected_label')}
+              </p>
+              <p
+                className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
+                           text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
+              >
                 {formatPaise(k.collected_paise)}
               </p>
-              {/* Track and fill are both the anchor's own ink, one mixed down. No
-                  accent is reached for: all four pastels were measured against the
-                  card, and the mint gradient is not that ground. The sentence
-                  under the bar states the share in words regardless, so colour is
-                  never the only channel carrying it. */}
-              <div
-                role="progressbar"
-                aria-label={t('bento.principal.collected_sr')}
-                aria-valuenow={collectedPct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                className="mt-3.5 h-2 w-full overflow-hidden rounded-full"
-                style={{
-                  backgroundColor: 'color-mix(in srgb, var(--bento-anchor-ink) 18%, transparent)',
-                }}
-              >
-                <div
-                  className="h-full rounded-full bg-[var(--bento-anchor-ink)]"
-                  style={{ width: `${collectedPct}%` }}
+              {/* The same Meter the rest of the board uses, rather than a bar
+                  built here out of the anchor's own ink. The sentence under it
+                  still states the share in words, so colour is never the only
+                  channel carrying it. */}
+              <div className="mt-3">
+                <Meter
+                  value={k.collected_paise}
+                  total={billed}
+                  srLabel={t('bento.principal.collected_sr')}
                 />
               </div>
-              <p className="mt-2.5 text-[12px] opacity-75">
+              <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">
                 {t('bento.principal.collected_of_billed', {
                   pct: collectedPct,
                   billed: formatPaise(billed),
@@ -424,15 +421,15 @@ export default function BentoPrincipalDashboard() {
               </p>
             </div>
 
-            {/* The actions along the bottom edge. Each is checked against the
-                catalogue first: a pill leading somewhere this account cannot open
-                is worse than a shorter row of pills. */}
+            {/* The actions. The same Cue every other cell carries, checked
+                against the catalogue first: a button leading somewhere this
+                account cannot open is worse than a shorter row of buttons. */}
             {(attendanceHref || feesHref) && (
-              <div className="mt-auto flex flex-wrap gap-2.5 pt-6">
+              <div className="mt-auto flex flex-wrap gap-2 pt-4">
                 {attendanceHref && (
-                  <AnchorAction to={attendanceHref} label={t('bento.principal.cue_attendance')} />
+                  <Cue to={attendanceHref} label={t('bento.principal.cue_attendance')} />
                 )}
-                {feesHref && <AnchorAction to={feesHref} label={t('bento.principal.cue_fees')} />}
+                {feesHref && <Cue to={feesHref} label={t('bento.principal.cue_fees')} />}
               </div>
             )}
           </Cell>

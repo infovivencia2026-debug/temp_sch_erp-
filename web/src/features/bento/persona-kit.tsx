@@ -76,7 +76,7 @@ export function PersonaPage({
     </div>
   )
   return (
-    <div className="bento-surface p-6 sm:p-7">
+    <div className="bento-surface p-3 sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
