@@ -58,6 +58,13 @@ interface PrincipalKPIs {
   attendance_marked_today: number
   collected_paise: number
   outstanding_paise: number
+  /* The year-consistent triple. `collected_paise` is receipts banked inside the
+     requested range whatever year's invoice they settle, and
+     `outstanding_paise` is arrears of EVERY year — so the two cannot be added,
+     and neither belongs under a caption that says "this year". */
+  billed_paise: number
+  collected_year_paise: number
+  outstanding_year_paise: number
   defaulters: number
   pending_leave: number
   open_applications: number
@@ -652,9 +659,14 @@ export default function BentoPrincipalDashboard() {
   if (kpis.error) return <BentoError message={t('bento.principal.failed')} />
 
   const k = kpis.data!
-  const billed = k.collected_paise + k.outstanding_paise
-  const collectedPct = billed > 0 ? Math.round((k.collected_paise / billed) * 100) : 0
-  const outstandingPct = billed > 0 ? Math.round((k.outstanding_paise / billed) * 100) : 0
+  /* Billed comes from the handler, which returns it for exactly this reason.
+     It used to be derived as collected + outstanding — a period flow added to
+     an all-years level, which the Go comment at role_principal.go:28-40
+     explicitly warns against. Every figure below is drawn against a base the
+     backend said was wrong, under a caption that says "this year". */
+  const billed = k.billed_paise
+  const collectedPct = billed > 0 ? Math.round((k.collected_year_paise / billed) * 100) : 0
+  const outstandingPct = billed > 0 ? Math.round((k.outstanding_year_paise / billed) * 100) : 0
   const defaultersPct = k.students > 0 ? Math.round((k.defaulters / k.students) * 100) : 0
 
   const series = trend.data?.items ?? []
@@ -675,7 +687,7 @@ export default function BentoPrincipalDashboard() {
      `moved` is the collected share, which is where the flow stopped; the
      length past the barrier is the outstanding share the card names. */
   const days = trend.error ? [] : calendarSlots(series)
-  const movedShare = billed > 0 ? k.collected_paise / billed : 0
+  const movedShare = billed > 0 ? k.collected_year_paise / billed : 0
   const loadPerTeacher = k.staff > 0 ? Math.round(k.students / k.staff) : 0
 
 
@@ -766,13 +778,13 @@ export default function BentoPrincipalDashboard() {
             span={span}
             domain="finance"
             label={t('bento.principal.outstanding')}
-            value={formatPaise(k.outstanding_paise)}
+            value={formatPaise(k.outstanding_year_paise)}
             badge={t('bento.principal.pct_of_billed', { pct: outstandingPct })}
             art={<BlockedFlowArt moved={movedShare} />}
        
             shape={
               <Meter
-                value={k.outstanding_paise}
+                value={k.outstanding_year_paise}
                 total={billed}
                 tone="destructive"
                 srLabel={t('bento.principal.outstanding_sr')}
@@ -833,11 +845,11 @@ export default function BentoPrincipalDashboard() {
               className="mt-2 font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
                          text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
             >
-              {formatPaise(k.collected_paise)}
+              {formatPaise(k.collected_year_paise)}
             </p>
             <div className="mt-3">
               <Meter
-                value={k.collected_paise}
+                value={k.collected_year_paise}
                 total={billed}
                 srLabel={t('bento.principal.collected_sr')}
               />
