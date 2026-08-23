@@ -812,10 +812,15 @@ html[data-appearance-open] .appearance-panel {
   white-space: nowrap;
 }
 
-/* The smallest card gives its padding back to its contents. */
-.bento-widget[data-w='1'][data-h='1'] > * {
-  padding: 14px;
-}
+/* The smallest card gave its padding back to its contents -- and then the
+   contents applied their own on top of it. Every cell already carries 14px one
+   level down, so this second 14px inset the 1x1 to 28px while every other size
+   sat at 14px: the card with the least room to spare had the most taken from
+   it, and it read as a wider margin around the smallest box.
+
+   Left as a deliberate no-op rather than deleted, because the selector is the
+   right hook if the smallest card ever does need its own spacing -- it just
+   must not stack with what is already there. */
 
 /* Whatever remains lays out as a column that is allowed to be short: min-height
    0 is what lets a flex child shrink below its content size instead of
