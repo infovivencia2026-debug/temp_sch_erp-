@@ -533,9 +533,15 @@ export function Cue({
            mt-auto keeps it on the bottom edge; the padding is the button's
            own, so the control has a body rather than being text with space
            above it. */
+        /* The pill inverts against whatever card it sits on: dark on a light
+           card, white on a dark one. Fixed white was invisible in light mode —
+           1.00:1 on the white card and 1.35:1 on the mint anchor — and only
+           worked in dark, which is where it was designed. Inverted it measures
+           17.7:1 and 16.6:1, and in dark mode it is still the white pill with
+           near-black text it was meant to be. */
         `bento-cue mt-auto inline-flex w-fit items-center gap-1.5 rounded-full
-         bg-white px-3 py-1.5 text-[12px] font-semibold text-[#101114]
-         shadow-sm ring-1 ring-black/5`,
+         bg-[var(--bento-ink)] px-3 py-1.5 text-[12px] font-semibold
+         text-[var(--bento-card)] shadow-sm`,
         still ? '' : 'transition-transform duration-150 hover:scale-[1.03]',
       )}
     >
