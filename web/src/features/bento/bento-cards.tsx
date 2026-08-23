@@ -244,18 +244,27 @@ export function Compare({ rows, srLabel, formatValue }: {
   )
 }
 
-/** Population or coverage: a dot grid, one dot per unit, weight per cell. */
+/** Population or coverage: one BLOCK per unit, weight per block.
+
+    Blocks, not dots. A dot field reads as texture at these sizes — the eye
+    gets a grey wash rather than a count — and round marks at 4px lose most of
+    their area to the corners they do not fill. A block of the same footprint
+    carries more ink, so the weight ramp is legible, and a grid of them reads
+    as a tally, which is what this drawing is for.
+
+    The tile sizes itself from the row height rather than a fixed pixel value,
+    so the same field works at 1x1 and at 2x2. */
 export function Density({ cells, columns = 12, srLabel }: {
   cells: number[]; columns?: number; srLabel: string
 }) {
   if (!cells.length) return null
   const hi = Math.max(...cells) || 1
   return (
-    <div className="grid h-full items-center" role="img" aria-label={srLabel}
-         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gridAutoRows: '1fr' }}>
+    <div className="grid h-full items-stretch gap-[2px]" role="img" aria-label={srLabel}
+         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gridAutoRows: 'minmax(0, 1fr)' }}>
       {cells.map((c, i) => (
-        <span key={i} className="m-auto size-[4px] rounded-full"
-              style={{ background: MARK, opacity: 0.15 + (c / hi) * 0.85 }} />
+        <span key={i} className="min-h-0 rounded-[2px]"
+              style={{ background: MARK, opacity: 0.16 + (c / hi) * 0.84 }} />
       ))}
     </div>
   )
