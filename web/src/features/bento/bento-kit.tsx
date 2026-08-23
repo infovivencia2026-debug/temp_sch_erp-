@@ -1414,7 +1414,7 @@ export function BentoError({ message }: { message: string }) {
     <div className="bento-surface min-h-full bg-[var(--bento-bg)] p-3 sm:p-4">
       <p
         role="alert"
-        className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-pink)]"
+        className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-ink)]"
       >
         {message}
       </p>
@@ -1443,8 +1443,12 @@ export function CellError({
       role="alert"
       className={cn(
         'text-[12.5px] font-medium',
+        /* Ink, like every other word here. The failure is carried by the
+           sentence itself — colour was never allowed to be the only channel,
+           and on a tinted card a pink that had to survive twelve different
+           grounds was the least readable text on the board. */
         t === 'plain'
-          ? 'text-[var(--bento-pink)]'
+          ? 'text-[var(--bento-ink)]'
           : t === 'anchor'
             ? 'text-[var(--bento-anchor-ink)]'
             : 'text-[var(--bento-bg)]',

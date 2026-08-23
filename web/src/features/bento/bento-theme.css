@@ -91,6 +91,22 @@
   --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
   --dom-warning: #c2410c;       --dom-warning-soft: #fbf2ef;
   --dom-success: #067647;       --dom-success-soft: #c6f1df;
+
+  /* The word on a domain card: black or white, whichever wins against
+     that card's own panel. Without these the cell fell back to --dom-x,
+     which is the accent HUE — coloured figures on every tinted card. */
+  --dom-students-text: #000000;
+  --dom-academics-text: #000000;
+  --dom-attendance-text: #000000;
+  --dom-finance-text: #000000;
+  --dom-staff-text: #000000;
+  --dom-admissions-text: #000000;
+  --dom-communication-text: #000000;
+  --dom-operations-text: #000000;
+  --dom-reports-text: #000000;
+  --dom-critical-text: #000000;
+  --dom-warning-text: #000000;
+  --dom-success-text: #000000;
 }
 
 /* The card actions, as buttons rather than blue words with an arrow.
@@ -175,6 +191,22 @@ html.dark[data-layout='bento'] {
   --bento-pink-tint: #331f25;
   --bento-orange: #ffb37b;
   --bento-orange-tint: #33261b;
+
+  /* The word on a domain card: black or white, whichever wins against
+     that card's own panel. Without these the cell fell back to --dom-x,
+     which is the accent HUE — coloured figures on every tinted card. */
+  --dom-students-text: #ffffff;
+  --dom-academics-text: #ffffff;
+  --dom-attendance-text: #ffffff;
+  --dom-finance-text: #ffffff;
+  --dom-staff-text: #ffffff;
+  --dom-admissions-text: #ffffff;
+  --dom-communication-text: #ffffff;
+  --dom-operations-text: #ffffff;
+  --dom-reports-text: #ffffff;
+  --dom-critical-text: #ffffff;
+  --dom-warning-text: #ffffff;
+  --dom-success-text: #ffffff;
 }
 
 
@@ -331,6 +363,13 @@ html[data-skin='focus'] [data-layout='bento'] {
   --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
   --dom-warning: #b54708;       --dom-warning-soft: #f8eae2;
   --dom-success: #067647;       --dom-success-soft: #c6f1df;
+
+  /* The word on a domain card: black or white, whichever wins against
+     that card's own panel. Without these the cell fell back to --dom-x,
+     which is the accent HUE — coloured figures on every tinted card. */
+  --dom-critical-text: #000000;
+  --dom-warning-text: #000000;
+  --dom-success-text: #000000;
 }
 
 html[data-skin='focus'] [data-layout='bento']::before,
@@ -362,6 +401,13 @@ html.dark[data-skin='focus'] [data-layout='bento'] {
   --dom-critical: #f97066;      --dom-critical-soft: #55160c;
   --dom-warning: #fdb022;       --dom-warning-soft: #624818;
   --dom-success: #32d583;       --dom-success-soft: #145233;
+
+  /* The word on a domain card: black or white, whichever wins against
+     that card's own panel. Without these the cell fell back to --dom-x,
+     which is the accent HUE — coloured figures on every tinted card. */
+  --dom-critical-text: #ffffff;
+  --dom-warning-text: #ffffff;
+  --dom-success-text: #ffffff;
 }
 
 html[data-skin='focus'] .bento-cell,
