@@ -53,8 +53,7 @@ export function CardShell({
   title: string
   sub?: string
   glyph?: ReactNode
-  /** The thing this card opens. Rendered as a labelled button in the corner —
-      see the note below on why it is not an icon. */
+  /** The thing this card opens. Sits at the foot of the card, on the left. */
   action?: { label: string; onActivate?: () => void }
   value: ReactNode
   change?: ReactNode
@@ -62,7 +61,21 @@ export function CardShell({
   className?: string
 }) {
   return (
-    <div className={cn('grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)]', className)}>
+    /* FOUR rows: header, figure, drawing, action.
+
+       The action was in the top-right corner. It is at the foot of the card
+       now, on the left, and it has a row of its own rather than sitting over
+       the drawing — text and buttons never overlap the stats, and a button
+       floating on top of a chart is exactly that.
+
+       The drawing row is still the only fraction, so it keeps taking whatever
+       height is left; the action row is `auto` and costs only what it needs. */
+    <div
+      className={cn(
+        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]',
+        className,
+      )}
+    >
       <div className="flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
@@ -75,27 +88,7 @@ export function CardShell({
             </p>
           )}
         </div>
-
-        {/* THE CORNER CARRIES THE ACTION, NOT A DECORATION.
-
-            It was a 22px chip holding a single character — a rupee sign, a
-            hash, an exclamation mark. It named the card's domain, which the
-            title already does, and it was not a control: the thing you could
-            actually press sat somewhere else entirely. A card that opens the
-            fee ledger should say so where the eye already goes.
-
-            The glyph survives only when there is no action to name, so a card
-            that leads nowhere still balances its header. */}
-        {action ? (
-          <span
-            className="inline-flex max-w-[62%] shrink-0 items-center gap-1 rounded-[8px] border
-                       px-2 py-1 font-semibold text-[length:var(--card-action,11px)]"
-            style={{ borderColor: ink(30), background: ink(6) }}
-          >
-            <span className="truncate">{action.label}</span>
-            <span aria-hidden="true" className="opacity-70">↗</span>
-          </span>
-        ) : glyph ? (
+        {glyph && (
           <span
             className="grid aspect-square shrink-0 place-items-center rounded-[8px] border
                        font-semibold text-[length:var(--card-action,11px)]"
@@ -104,14 +97,10 @@ export function CardShell({
           >
             {glyph}
           </span>
-        ) : null}
+        )}
       </div>
 
       <div className="mt-1.5 min-w-0">
-        {/* leading-[0.95] with a hair of padding, not 0.9 flush. At 0.9 the
-            line box is shorter than the glyphs it holds, so `overflow: hidden`
-            on the cell silently cut 6-12px off every headline figure on every
-            card. It has not eaten a digit yet; it had no margin at all. */}
         <p className="truncate pb-[0.06em] font-semibold leading-[0.95] tracking-[-0.05em]
                       tabular-nums text-[length:var(--card-fig,30px)]">
           {value}
@@ -124,6 +113,19 @@ export function CardShell({
       </div>
 
       <div className="mt-2 min-h-0 min-w-0 overflow-hidden">{children}</div>
+
+      {action && (
+        <div className="mt-2 flex min-w-0 justify-start">
+          <span
+            className="inline-flex max-w-full items-center gap-1 rounded-[8px] border px-2 py-1
+                       font-semibold text-[length:var(--card-action,11px)]"
+            style={{ borderColor: ink(30), background: ink(6) }}
+          >
+            <span className="truncate">{action.label}</span>
+            <span aria-hidden="true" className="opacity-70">↗</span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }

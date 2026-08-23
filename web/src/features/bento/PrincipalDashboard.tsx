@@ -34,6 +34,7 @@ import {
   Line,
   Line as CardLine,
   Facts,
+  Funnel,
   Rows,
   Rows as CardRows,
   Scale,
@@ -82,8 +83,85 @@ interface PrincipalKPIs {
   pending_leave: number
   open_applications: number
   unassigned_subjects: number
+  /* How many invoice rows the year trio above was summed over. ALWAYS sent,
+     because zero is the answer rather than the absence of one: on a database
+     where no invoice carries an academic year all three of billed, collected
+     and outstanding for the year come back 0, and a cell reading "₹0 billed"
+     under a caption that says "this year" is a confident lie. This is the tell
+     that separates "no year data" from "nothing was billed", and it is what
+     `yearly` below is decided on. */
+  year_invoice_count: number
+
+  /* THE BREAKDOWNS.
+
+     Each is cut from exactly the rows its headline scalar is cut from, so the
+     parts add back to the whole and a cell can draw a proportion without this
+     file inventing the bottom half of one.
+
+     EVERY ONE IS OPTIONAL, and an absent field is NOT a zero. The handler
+     omits each when there is nothing to say — no class-subject offered, no
+     leave pending, nothing outstanding — and a cell that reads an absent
+     field must draw the no-denominator form it drew before these existed. A
+     zero that looks real is the bug the omit-when-absent contract exists to
+     prevent, and this product has already removed four fabricated
+     denominators. */
+
+  /* Every class-subject pairing, of which `unassigned_subjects` is the part
+     nobody is timetabled to teach. Omitted when it is zero: a school that has
+     offered no subject has no denominator, and "9 of 0" is worse than "9". */
+  class_subjects_total?: number
+  /* `open_applications` split by the status column itself, ordered along the
+     admission stages and summing exactly to it. */
+  open_applications_by_status?: AppStatusCount[]
+  /* `pending_leave` split by type and by who asked. Students appear here:
+     `subject_kind` is carried precisely so student leave is not presented as
+     staff leave. */
+  pending_leave_by_type?: PendingLeaveGroup[]
+  /* `students` distributed over the class each is enrolled in, the
+     not-yet-enrolled in their own bucket so it sums to the roll. `class_name`
+     is NOT unique — a tenant can run two classes called "Grade 6" on
+     different campuses — so nothing below keys on it. */
+  students_by_class?: ClassRollGroup[]
+  /* `outstanding_paise` aged by how long each unpaid invoice has been due; the
+     six buckets add back to it. Null when nothing is outstanding at all. */
+  outstanding_ageing?: OutstandingAgeing | null
   range: { period: string; from: string; to: string; label: string }
   as_of_now: string[]
+}
+interface AppStatusCount {
+  status: string
+  applications: number
+}
+interface PendingLeaveGroup {
+  leave_type: string
+  /* 'staff' or 'student'. Both kinds sit in the same table and both are
+     counted by `pending_leave`, so this is read rather than assumed. */
+  subject_kind: string
+  /* Absent for student leave and for staff with no department on file — which
+     are different facts, and neither is the string "None". */
+  department?: string | null
+  requests: number
+  /* Working days asked for. A float: the half-day flag is already priced in. */
+  days: number
+}
+interface ClassRollGroup {
+  /* Null for the not-yet-enrolled bucket, which is a real group of children
+     rather than a class. The stable identity of a row all the same — two
+     classes may share a name, so this is what tells them apart. */
+  class_id?: string | null
+  class_name: string
+  students: number
+}
+interface OutstandingAgeing {
+  not_due_paise: number
+  days_0_30_paise: number
+  days_31_60_paise: number
+  days_61_90_paise: number
+  days_90_plus_paise: number
+  /* Unpaid invoices with no due date. They cannot be aged and they are not
+     zero, so they keep their own bucket rather than leaving the six short of
+     the outstanding figure. */
+  undated_paise: number
 }
 interface TrendPoint {
   date: string
@@ -1327,6 +1405,32 @@ function topCounts<T>(
   if (all.length <= SEGMENT_MAX) return all.map(([label, value]) => ({ label, value }))
   const head = all.slice(0, SEGMENT_MAX).map(([label, value]) => ({ label, value }))
   const rest = all.slice(SEGMENT_MAX).reduce((n, [, v]) => n + v, 0)
+  return [...head, { label: otherLabel, value: rest }]
+}
+
+/** The same gathering, for a breakdown that arrives ALREADY summed.
+
+    `topCounts` counts rows; these breakdowns come off the server with the
+    counting done, so adding them up again by row would be counting the wrong
+    thing. The tail past `SEGMENT_MAX` is gathered into one named remainder
+    rather than dropped, for the same reason. */
+function topSums<T>(
+  rows: T[],
+  key: (r: T) => string | undefined | null,
+  value: (r: T) => number,
+  otherLabel: string,
+  max = SEGMENT_MAX,
+): { label: string; value: number }[] {
+  const m = new Map<string, number>()
+  for (const r of rows) {
+    const k = key(r)
+    if (!k) continue
+    m.set(k, (m.get(k) ?? 0) + Math.max(0, value(r)))
+  }
+  const all = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  if (all.length <= max) return all.map(([label, value]) => ({ label, value }))
+  const head = all.slice(0, max).map(([label, value]) => ({ label, value }))
+  const rest = all.slice(max).reduce((n, [, v]) => n + v, 0)
   return [...head, { label: otherLabel, value: rest }]
 }
 
@@ -3157,7 +3261,8 @@ export function CollectedCard({
     across, one dot per student — rather than a bar against a number this file
     made up. */
 export function OutstandingCard({
-  span, yearly, billed, outstanding, outstandingYear, arrears, outstandingPct, defaulters, href,
+  span, yearly, billed, outstanding, outstandingYear, arrears, outstandingPct, defaulters,
+  ageing, yearInvoices, href,
 }: {
   span: CellSpan
   yearly: boolean
@@ -3167,6 +3272,11 @@ export function OutstandingCard({
   arrears: number
   outstandingPct: number
   defaulters: number
+  ageing?: OutstandingAgeing | null
+  /* How many invoices the year trio was summed over. Zero is why the year
+     figures read nought, and the line under the figure says so instead of
+     implying the school billed nothing. */
+  yearInvoices: number
   href?: string
 }) {
   const t = useT()
@@ -3199,10 +3309,68 @@ export function OutstandingCard({
   )
   const ring = <CardGauge value={outstanding} total={billed} srLabel={t('bento.principal.outstanding_sr')} />
 
+  /* THE AGEING, when the response carries it.
+
+     The six buckets are cut from the same unpaid invoices as the figure above
+     and add back to it exactly, which is why the not-yet-due and the undated
+     are buckets rather than omissions: drop either and the drawing quietly
+     stops summing to the number it sits under. They are drawn in age order,
+     never sorted by size — a ranking of ages is not an ageing.
+
+     Money throughout, so `formatPaise` and never a division. The buckets are
+     paise and are handed to the drawings as the paise they are; only the
+     printed value is formatted.
+
+     Null when nothing is outstanding at all, and null is not six zeroes: the
+     cell then draws exactly what it drew before this field existed. */
+  const buckets = ageing
+    ? [
+        { label: t('bento.principal.age_not_due'), value: ageing.not_due_paise },
+        { label: t('bento.principal.age_0_30'), value: ageing.days_0_30_paise },
+        { label: t('bento.principal.age_31_60'), value: ageing.days_31_60_paise },
+        { label: t('bento.principal.age_61_90'), value: ageing.days_61_90_paise },
+        { label: t('bento.principal.age_90_plus'), value: ageing.days_90_plus_paise },
+        { label: t('bento.principal.age_undated'), value: ageing.undated_paise },
+      ]
+    : []
+  /* The buckets a screen reader is told about are the ones with money in them.
+     Reading six labels of which five are "₹0" is a worse answer than reading
+     the one that is the arrears. */
+  const agedList = buckets
+    .filter((b) => b.value > 0)
+    .map((b) => `${b.label} ${money(b.value)}`)
+    .join(', ')
+  /* The total named here is the buckets' OWN sum, not the figure above them.
+     The two are the same number when the card is showing arrears of every
+     year, and they are NOT when it is showing this year's share: the ageing
+     is cut from every unpaid invoice there is, which is the larger
+     population. Naming the headline as the total would have the drawing claim
+     to be a split of something it does not split. */
+  const agedTotal = buckets.reduce((n, b) => n + b.value, 0)
+  const agedSr = t('bento.principal.card_ageing_sr', {
+    total: money(agedTotal), detail: agedList,
+  })
+  /* Six labelled tracks need six rows of height; one row has space for three.
+     So height gets the labelled ageing and a single row gets its SHAPE — six
+     bars in age order, the tall one being where the debt actually sits. */
+  const agedRows = buckets.length > 0 && (
+    <CardRows items={buckets} formatValue={money} srLabel={agedSr} />
+  )
+  const agedShape = buckets.length > 0 && (
+    <Distribution values={buckets.map((b) => b.value)} srLabel={agedSr} />
+  )
+  const aged = ageing
+    ? tall
+      ? yearly
+        ? <PairAside ring={ring} detail={agedRows} side={wide} />
+        : agedRows || null
+      : agedShape || null
+    : null
+
   const { capacity } = gridCapacity(w, h)
   const owed = unitGrid(defaulters, capacity)
 
-  const drawing = !yearly ? (
+  const drawing = aged ?? (!yearly ? (
     outstanding > 0 || defaulters > 0 ? (
       <Facts
         srLabel={t('bento.principal.card_owed_by_sr', { count: defaulters, unit: owed.unit })}
@@ -3220,7 +3388,7 @@ export function OutstandingCard({
     split
   ) : (
     pair
-  )
+  ))
 
   return (
     <CardCell
@@ -3234,7 +3402,9 @@ export function OutstandingCard({
       change={
         yearly
           ? t('bento.principal.card_of_billed_due', { pct: outstandingPct, count: defaulters })
-          : t('bento.principal.card_due_plain', { count: defaulters })
+          : yearInvoices === 0
+            ? t('bento.principal.card_due_no_year', { count: defaulters })
+            : t('bento.principal.card_due_plain', { count: defaulters })
       }
       to={href}
       cueLabel={t('bento.principal.cue_fees')}
@@ -3246,16 +3416,27 @@ export function OutstandingCard({
 
 /* ── counts with no whole ───────────────────────────────────────────────── */
 
-/** The roll, drawn as itself.
+/** The roll, drawn as the classes it is spread over.
 
-    NO GAUGE AND NO RAIL, at any size. There is no denominator for the roll in
-    this response: `sections` is a count of rooms, not of children, and
-    dividing by it would put a percentage on the card that means nothing. What
-    a bigger cell buys is RESOLUTION — the same roll at a finer unit — plus the
-    shape of the school in the line under the figure, as figures rather than as
-    a bar. */
+    STILL NO GAUGE AND NO RAIL. There is no denominator for the roll:
+    `sections` is a count of rooms, not of children, and dividing by it would
+    put a percentage on the card that means nothing. What the response DOES
+    carry is the roll's composition — `students_by_class`, which sums to the
+    figure above it — so the drawing row shows the SHAPE of the school: one bar
+    per class, in class order, tallest where the school is fullest.
+
+    CLASS NAMES ARE NOT UNIQUE. A tenant runs two classes called "Grade 6" on
+    two campuses, and `Rows` keys each track on its label — so a ranking taken
+    straight off the names would collide two real classes into one React key
+    and draw the school wrong. Rows are therefore identified by `class_id`,
+    which is the only stable identity in the response, and a name that repeats
+    is numbered so the head can see there are two of them. The `Distribution`
+    keys by position and never touches a name at all.
+
+    Without the breakdown the cell is exactly what it was: the figures around
+    the roll, set as facts. */
 export function StudentsCard({
-  span, students, staff, sections, perSection, loadPerTeacher, href,
+  span, students, staff, sections, perSection, loadPerTeacher, classes, href,
 }: {
   span: CellSpan
   students: number
@@ -3263,11 +3444,74 @@ export function StudentsCard({
   sections: number
   perSection: number
   loadPerTeacher: number
+  classes?: ClassRollGroup[]
   href?: string
 }) {
   const t = useT()
-  const { w } = useWidgetSize()
+  const { w, h } = useWidgetSize()
   const wide = w >= 2
+  const tall = h >= 2
+
+  /* Deduplicated on `class_id`, never on the name, and an empty class has no
+     bar to draw. A repeated name is numbered on its second appearance and
+     after — the two Grade 6s are two classes, and one row reading "Grade 6"
+     twice would be a worse answer than one reading "Grade 6 (2)". */
+  const seen = new Set<string>()
+  const names = new Map<string, number>()
+  const roll: { key: string; label: string; value: number }[] = []
+  for (const c of classes ?? []) {
+    const key = c.class_id ?? `unenrolled:${c.class_name}`
+    if (seen.has(key) || c.students <= 0) continue
+    seen.add(key)
+    const n = (names.get(c.class_name) ?? 0) + 1
+    names.set(c.class_name, n)
+    roll.push({
+      key,
+      label: n > 1 ? t('bento.principal.card_class_repeat', { name: c.class_name, n }) : c.class_name,
+      value: c.students,
+    })
+  }
+  const biggest = roll.reduce(
+    (best, c) => (c.value > best.value ? c : best),
+    roll[0] ?? { key: '', label: '', value: 0 },
+  )
+  const rollSr = t('bento.principal.card_roll_classes_sr', {
+    count: students, classes: roll.length, name: biggest.label, largest: biggest.value,
+  })
+  /* Two classes make a spread; one makes a single bar filling the row, which
+     says nothing the figure above has not already said. The strip is cut at
+     the same ceiling every strip on this board is cut at. */
+  const spread =
+    roll.length >= 2 ? (
+      <Distribution values={roll.slice(0, STRIP_MAX).map((c) => c.value)} srLabel={rollSr} />
+    ) : null
+  /* The ranking, with the tail past what the cell can hold gathered into one
+     named remainder — so the tracks still add up to the roll above them. */
+  const ranked =
+    roll.length > 0 ? (
+      <Rows
+        items={topSums(roll, (c) => c.label, (c) => c.value,
+          t('bento.principal.card_other_classes'), tall ? 5 : 3)}
+        srLabel={rollSr}
+      />
+    ) : null
+
+  /* The fallback, for a response with no per-class breakdown in it: the
+     figures around the roll, exactly as this cell drew them before the
+     breakdown existed. A school with no children, no sections and no staff
+     has no figures either, and three rows of nought is not the answer to
+     "how big is the school". */
+  const figures = students > 0 || sections > 0 || staff > 0
+  const facts = (
+    <Facts
+      srLabel={t('bento.principal.card_roll_sr', { count: students, unit: 1 })}
+      items={[
+        { label: t('bento.principal.fact_sections'), value: String(sections) },
+        { label: t('bento.principal.fact_per_section'), value: String(perSection) },
+        { label: t('bento.principal.fact_staff'), value: String(staff) },
+      ]}
+    />
+  )
 
   return (
     <CardCell
@@ -3279,25 +3523,24 @@ export function StudentsCard({
       glyph="#"
       value={students}
       change={
-        wide && perSection > 0 && loadPerTeacher > 0
-          ? t('bento.principal.card_roll_wide', {
-              sections, per: perSection, staff, load: loadPerTeacher,
-            })
-          : t('bento.principal.card_roll', { sections, staff })
+        roll.length > 0
+          ? t('bento.principal.card_roll_classes', { classes: roll.length, sections, staff })
+          : wide && perSection > 0 && loadPerTeacher > 0
+            ? t('bento.principal.card_roll_wide', {
+                sections, per: perSection, staff, load: loadPerTeacher,
+              })
+            : t('bento.principal.card_roll', { sections, staff })
       }
       to={href}
       cueLabel={t('bento.principal.cue_students')}
     >
-      {students > 0 || sections > 0 || staff > 0 ? (
-        <Facts
-          srLabel={t('bento.principal.card_roll_sr', { count: students, unit: 1 })}
-          items={[
-            { label: t('bento.principal.fact_sections'), value: String(sections) },
-            { label: t('bento.principal.fact_per_section'), value: String(perSection) },
-            { label: t('bento.principal.fact_staff'), value: String(staff) },
-          ]}
-        />
-      ) : (
+      {/* Height buys the spread AND the ranking — the shape of the school
+          over the classes that make it — while one row has space for the
+          named tracks alone. Width adds nothing here: a track reads at any
+          width and the binding constraint is how many of them fit. With no
+          breakdown in the response the cell falls back to what it drew before
+          there was one. */}
+      {(tall ? stack(spread, ranked) : (ranked ?? (figures ? facts : null))) ?? (
         <Say>{t('bento.principal.card_roll_empty')}</Say>
       )}
     </CardCell>
@@ -3381,16 +3624,21 @@ export function DefaultersCard({
   )
 }
 
-/** A scalar with no whole, drawn as a unit grid.
+/** A scalar and a sentence — the shape a cell takes when it has NO breakdown.
 
     Three cells share this: undecided applications, class-subjects with nobody
-    timetabled, and leave requests waiting on a decision. All three are a
-    single `count(*)` in `getPrincipalDashboard` with no companion total and no
-    breakdown — no stage, no type, no age, no previous value. So no funnel, no
-    ring, no rail: one dot per unit, the unit named, and a bigger cell resolves
-    it finer. Zero draws nothing at all; the line says the queue is clear. */
+    timetabled, and leave requests waiting on a decision. Each is a single
+    `count(*)` in `getPrincipalDashboard`, and each now has a companion
+    breakdown in the same response — but every one of those is omitted when
+    there is nothing to break down, and this is what the cell falls back to
+    then. Not a proportion of nought, not an empty funnel: the count, and the
+    line that says what it counts.
+
+    `drawing` is that breakdown when it came. Absent, the row holds the
+    sentence and nothing else, which is exactly what these cells drew before
+    the breakdowns shipped. */
 export function CountCard({
-  span, domain, title, count, glyph, empty, note, to, cueLabel,
+  span, domain, title, count, glyph, empty, note, to, cueLabel, change, drawing,
 }: {
   span: CellSpan
   domain: string
@@ -3402,6 +3650,8 @@ export function CountCard({
   srKey: MessageKey
   to?: string
   cueLabel: string
+  change?: ReactNode
+  drawing?: ReactNode
 }) {
   const t = useT()
   const { w, h } = useWidgetSize()
@@ -3417,6 +3667,7 @@ export function CountCard({
       sub={t('bento.principal.prov_as_of_now')}
       glyph={glyph}
       value={count}
+      change={change}
       /* The sentence lives in the DRAWING ROW, not here. It used to be in
          both: `change` under the figure and a `Say` below it, so every one of
          these cells printed "Nothing waiting" or "Every subject has a teacher"
@@ -3429,8 +3680,273 @@ export function CountCard({
       to={to}
       cueLabel={cueLabel}
     >
-      <Say>{count > 0 ? (unit > 1 ? t('bento.principal.card_unit', { unit, note }) : note) : empty}</Say>
+      {drawing ?? (
+        <Say>{count > 0 ? (unit > 1 ? t('bento.principal.card_unit', { unit, note }) : note) : empty}</Say>
+      )}
     </CardCell>
+  )
+}
+
+/** Class-subjects with nobody timetabled, as a share of the subjects offered.
+
+    `class_subjects_total` is the denominator this cell went without: every
+    class-subject pairing, of which the figure above is the untaught part. So
+    "9 of 140" at last, and a ring wherever there is height for one — the same
+    rule the defaulters cell follows, and for the same reason: both halves are
+    counted off the same rows of the same table at the same instant.
+
+    ABSENT IS NOT ZERO. A school that has offered no subject at all has the
+    field omitted, and "9 of 0" is worse than "9" — the cell falls straight
+    back to the count and its sentence. The denominator is also checked to be
+    at least the count before it is used: a total smaller than its own part is
+    not a total, and dividing by it would print a share above 100%. */
+export function UnassignedCard({
+  span, count, total, to, cueLabel,
+}: {
+  span: CellSpan
+  count: number
+  total?: number
+  to?: string
+  cueLabel: string
+}) {
+  const t = useT()
+  const { w, h } = useWidgetSize()
+  const wide = w >= 2
+  const tall = h >= 2
+
+  const denom = typeof total === 'number' && total > 0 && total >= count ? total : undefined
+  const covered = Math.max(0, (denom ?? 0) - count)
+  const sr = t('bento.principal.card_unassigned_of_sr', { count, total: denom ?? 0, covered })
+  const rows = [
+    { label: t('bento.principal.fact_unassigned'), value: count },
+    { label: t('bento.principal.fact_covered'), value: covered },
+  ]
+  /* Nothing untaught is not a proportion worth drawing — it is the good news
+     the sentence already carries, and a ring at 0% is a picture of nought. */
+  const drawing =
+    denom === undefined || count === 0 ? undefined : tall ? (
+      <PairAside
+        ring={<CardGauge value={count} total={denom} srLabel={sr} />}
+        detail={wide ? <CardRows items={rows} srLabel={sr} /> : <CardCompare rows={rows} srLabel={sr} />}
+        side={wide}
+      />
+    ) : wide ? (
+      <CardRows items={rows} srLabel={sr} />
+    ) : (
+      <CardCompare rows={rows} srLabel={sr} />
+    )
+
+  return (
+    <CountCard
+      span={span}
+      domain="communication"
+      title={t('bento.principal.unassigned')}
+      count={count}
+      glyph="/"
+      note={t('bento.principal.unassigned_note')}
+      empty={t('bento.principal.card_all_covered')}
+      srKey="bento.principal.card_unassigned_sr"
+      change={denom !== undefined && count > 0
+        ? t('bento.principal.card_unassigned_of', { count, total: denom })
+        : undefined}
+      drawing={drawing}
+      to={to}
+      cueLabel={cueLabel}
+    />
+  )
+}
+
+/* The admission stages in the words the status column uses. A status this
+   table does not know is printed as itself with the underscores taken out,
+   rather than dropped: an unknown stage is still applications waiting, and a
+   funnel that silently omits one no longer sums to the figure above it. */
+const APP_STAGE: Record<string, MessageKey> = {
+  draft: 'bento.principal.app_stage_draft',
+  submitted: 'bento.principal.app_stage_submitted',
+  under_review: 'bento.principal.app_stage_under_review',
+  documents_pending: 'bento.principal.app_stage_documents_pending',
+  test_scheduled: 'bento.principal.app_stage_test_scheduled',
+  interviewed: 'bento.principal.app_stage_interviewed',
+  waitlisted: 'bento.principal.app_stage_waitlisted',
+  offered: 'bento.principal.app_stage_offered',
+}
+
+/** Undecided applications, along the stages they are stuck at.
+
+    A REAL funnel, and the first one this cell has been allowed: the response
+    now carries `open_applications_by_status`, ordered along the admission
+    stages by the query itself and summing exactly to the figure above. The
+    order is the server's and is never re-sorted by size — a funnel sorted by
+    count is not a funnel.
+
+    A FUNNEL ONLY WHERE THE WHOLE PIPELINE FITS. Its bars are as tall as a
+    track and the drawing row on a one-row cell is about seventy pixels, so
+    four of the eight stages would fit there — and a funnel with half its
+    stages cut off is not a picture of a pipeline, it is a picture of the top
+    of one. Worse, `Funnel` draws no labels (they cannot be set inside the bar
+    without naming a colour), so the four that survived would be four unnamed
+    bars. One row therefore gets the RANKING instead: the fullest stages, each
+    one named, with the rest gathered into a remainder so the tracks still add
+    up to the figure above them. Height gets the funnel, in the server's stage
+    order, whole.
+
+    With the field absent — every application decided, or a school that takes
+    none — there are no stages, and the cell is the count and its sentence. */
+export function ApplicationsCard({
+  span, count, stages, to, cueLabel,
+}: {
+  span: CellSpan
+  count: number
+  stages?: AppStatusCount[]
+  to?: string
+  cueLabel: string
+}) {
+  const t = useT()
+  const { h } = useWidgetSize()
+  const tall = h >= 2
+
+  const all = (stages ?? [])
+    .filter((s) => s.applications > 0)
+    .map((s) => ({
+      label: APP_STAGE[s.status] ? t(APP_STAGE[s.status]) : s.status.replace(/_/g, ' '),
+      value: s.applications,
+    }))
+  const fullest = all.reduce(
+    (best, s) => (s.value > best.value ? s : best),
+    all[0] ?? { label: '', value: 0 },
+  )
+  const ranked = topSums(all, (s) => s.label, (s) => s.value, t('bento.principal.other_slice'), 3)
+  const shown = tall ? all : ranked
+  const sr = t('bento.principal.card_applications_stages_sr', {
+    count,
+    stages: all.length,
+    detail: shown.map((s) => `${s.label} ${s.value}`).join(', '),
+  })
+
+  const drawing =
+    all.length === 0 ? undefined : tall ? (
+      <Funnel stages={all} srLabel={sr} />
+    ) : (
+      <Rows items={ranked} srLabel={sr} />
+    )
+
+  return (
+    <CountCard
+      span={span}
+      domain="admissions"
+      title={t('bento.principal.applications')}
+      count={count}
+      glyph="+"
+      note={t('bento.principal.applications_note')}
+      empty={t('bento.principal.card_queue_clear')}
+      srKey="bento.principal.card_applications_sr"
+      change={
+        all.length === 0
+          ? undefined
+          : t('bento.principal.card_applications_stage_line', {
+              stages: all.length, name: fullest.label, at: fullest.value,
+            })
+      }
+      drawing={drawing}
+      to={to}
+      cueLabel={cueLabel}
+    />
+  )
+}
+
+/** Leave waiting on a decision: what kind, and whose.
+
+    `pending_leave_by_type` sums to the figure above, students included — which
+    is why `subject_kind` is read rather than assumed. Staff leave and student
+    leave are different decisions and this cell never presents one as the
+    other: they are separate tracks, named apart.
+
+    Height decides how many kinds are named before the tail is gathered up;
+    the staff and student totals and the working days asked for go in the line
+    under the figure, which is where a number that is not a proportion belongs.
+
+    Absent — nothing pending — is the empty queue, and it says so in words. */
+export function ApprovalsCard({
+  span, count, groups, to, cueLabel,
+}: {
+  span: CellSpan
+  count: number
+  groups?: PendingLeaveGroup[]
+  to?: string
+  cueLabel: string
+}) {
+  const t = useT()
+  const { h } = useWidgetSize()
+  const tall = h >= 2
+  const rows = groups ?? []
+
+  /* THE ROW IS THE TYPE AND THE KIND TOGETHER — "Casual · staff", "Sick ·
+     students". Grouping on the type alone would fold a child's sick leave in
+     with a teacher's and hand the head one number to approve two different
+     things with. Ranked, with the tail past what the cell can hold gathered
+     into one named remainder rather than dropped: the ranking still adds up
+     to the figure above it. A track is twelve pixels and a one-row drawing is
+     about seventy, so three rows there and five where there is height. */
+  const kindOf = (r: PendingLeaveGroup) =>
+    t(r.subject_kind === 'student'
+      ? 'bento.principal.leave_kind_student'
+      : 'bento.principal.leave_kind_staff')
+  const byType = topSums(
+    rows,
+    (r) => t('bento.principal.card_leave_row', { type: r.leave_type, kind: kindOf(r) }),
+    (r) => r.requests,
+    t('bento.principal.card_other_leave'),
+    tall ? 5 : 3,
+  )
+
+  /* Days asked for, and the staff/student split, summed off the same rows —
+     the line under the figure, where they need no track of their own. A float
+     for the days: the half-day flag is already priced into that column, so it
+     is printed at one decimal and only where it is not whole. */
+  const days = rows.reduce((n, r) => n + (Number.isFinite(r.days) ? r.days : 0), 0)
+  const staffReqs = rows
+    .filter((r) => r.subject_kind !== 'student')
+    .reduce((n, r) => n + r.requests, 0)
+  const studentReqs = rows
+    .filter((r) => r.subject_kind === 'student')
+    .reduce((n, r) => n + r.requests, 0)
+  const daysText = days % 1 === 0 ? String(days) : days.toFixed(1)
+
+  const drawing =
+    byType.length > 0 ? (
+      <Rows
+        items={byType}
+        srLabel={t('bento.principal.card_approvals_split_sr', {
+          count,
+          staff: staffReqs,
+          students: studentReqs,
+          days: daysText,
+          detail: byType.map((i) => `${i.label} ${i.value}`).join(', '),
+        })}
+      />
+    ) : undefined
+
+  return (
+    <CountCard
+      span={span}
+      domain="staff"
+      title={t('bento.principal.approvals')}
+      count={count}
+      glyph="!"
+      note={t('bento.principal.approvals_note')}
+      empty={t('bento.principal.card_queue_clear')}
+      srKey="bento.principal.card_approvals_sr"
+      change={
+        rows.length > 0
+          ? t('bento.principal.card_approvals_line', {
+              staff: staffReqs, students: studentReqs, days: daysText,
+            })
+          : undefined
+      }
+      drawing={drawing}
+      to={to}
+      cueLabel={cueLabel}
+    />
   )
 }
 
@@ -3654,7 +4170,12 @@ export default function BentoPrincipalDashboard() {
      always populated — receipts banked in the range, and arrears of every
      year — drop the "this year" wording, and draw NO rail, because neither has
      a denominator and the old code invented one by adding them together. */
-  const yearly = k.billed_paise > 0
+  /* `year_invoice_count` is the tell, and it is always sent. Zero says the
+     trio had nothing to sum — no invoice carries an academic year — which is
+     a different fact from a school that billed nothing, and the two print
+     identically as ₹0. Both conditions are required: no rows means no year
+     data, and no money means no denominator to divide by. */
+  const yearly = k.year_invoice_count > 0 && k.billed_paise > 0
   const billed = k.billed_paise
   const collected = yearly ? k.collected_year_paise : k.collected_paise
   const outstanding = yearly ? k.outstanding_year_paise : k.outstanding_paise
@@ -3841,6 +4362,10 @@ export default function BentoPrincipalDashboard() {
             arrears={arrears}
             outstandingPct={outstandingPct}
             defaulters={k.defaulters}
+            /* The six ageing buckets, or null when nothing is outstanding.
+               Null is not six zeroes and the card treats it as neither. */
+            ageing={k.outstanding_ageing}
+            yearInvoices={k.year_invoice_count}
             href={feesHref}
           />
         )}
@@ -3895,6 +4420,9 @@ export default function BentoPrincipalDashboard() {
             sections={k.sections}
             perSection={perSection}
             loadPerTeacher={loadPerTeacher}
+            /* The roll's own composition — it sums to `students`, so the
+               drawing and the figure above it cannot disagree. */
+            classes={k.students_by_class}
             href={studentsHref}
           />
         )}
@@ -3930,15 +4458,12 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="approvals" label={t('bento.principal.approvals')} size="small" index={7}>
         {(span) => (
-          <CountCard
+          <ApprovalsCard
             span={span}
-            domain="staff"
-            title={t('bento.principal.approvals')}
             count={k.pending_leave}
-            glyph="!"
-            note={t('bento.principal.approvals_note')}
-            empty={t('bento.principal.card_queue_clear')}
-            srKey="bento.principal.card_approvals_sr"
+            /* Omitted when nothing is pending; the card then says so in words
+               rather than drawing an empty ranking. */
+            groups={k.pending_leave_by_type}
             to={approvalsHref}
             cueLabel={t('bento.principal.cue_approvals')}
           />
@@ -3952,15 +4477,12 @@ export default function BentoPrincipalDashboard() {
           the bottom right. Below `lg` every wide cell is simply full width. */}
       <Widget id="applications" label={t('bento.principal.applications')} size="medium" index={5}>
         {(span) => (
-          <CountCard
+          <ApplicationsCard
             span={span}
-            domain="admissions"
-            title={t('bento.principal.applications')}
             count={k.open_applications}
-            glyph="+"
-            note={t('bento.principal.applications_note')}
-            empty={t('bento.principal.card_queue_clear')}
-            srKey="bento.principal.card_applications_sr"
+            /* The stages, in the server's admission order. They sum to the
+               count beside them; absent, there is no funnel to draw. */
+            stages={k.open_applications_by_status}
             to={applicationsHref}
             cueLabel={t('bento.principal.cue_applications')}
           />
@@ -3969,15 +4491,13 @@ export default function BentoPrincipalDashboard() {
 
       <Widget id="unassigned" label={t('bento.principal.unassigned')} size="medium" index={6}>
         {(span) => (
-          <CountCard
+          <UnassignedCard
             span={span}
-            domain="communication"
-            title={t('bento.principal.unassigned')}
             count={k.unassigned_subjects}
-            glyph="/"
-            note={t('bento.principal.unassigned_note')}
-            empty={t('bento.principal.card_all_covered')}
-            srKey="bento.principal.card_unassigned_sr"
+            /* Every class-subject offered. Omitted when the school offers
+               none, and the card refuses to divide by a number that is not
+               there rather than printing "9 of 0". */
+            total={k.class_subjects_total}
             to={subjectsHref}
             cueLabel={t('bento.principal.cue_unassigned')}
           />

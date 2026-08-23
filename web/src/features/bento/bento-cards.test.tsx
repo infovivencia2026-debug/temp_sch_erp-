@@ -310,20 +310,25 @@ describe('CardShell', () => {
     return m![1].split('_')
   }
 
-  it('is a three-row grid', () => {
-    // Header, figure, drawing. A fourth row means something has been added
-    // that the drawing is now competing with for height.
-    expect(rows()).toHaveLength(3)
+  it('is a four-row grid', () => {
+    // Header, figure, drawing, action. The action moved out of the header and
+    // down to the foot of the card, on the left, and it has a row of its own
+    // rather than sitting over the drawing — a button floating on a chart is
+    // the overlap this layout exists to prevent. A FIFTH row would mean
+    // something new is competing with the drawing for height.
+    expect(rows()).toHaveLength(4)
   })
 
   it('gives the drawing row the FRACTION', () => {
     /* The entire point of the shell: the drawing takes whatever height is
        left, rather than a fixed height that leaves a large cell as a small
        card with dead space under it. */
-    const [header, figure, drawing] = rows()
+    const [header, figure, drawing, action] = rows()
     expect(header).toBe('auto')
     expect(figure).toBe('auto')
     expect(drawing).toMatch(/1fr/)
+    // and the action costs only what it needs, so it cannot eat the drawing
+    expect(action).toBe('auto')
   })
 
   it('lets the drawing row shrink below its content', () => {
