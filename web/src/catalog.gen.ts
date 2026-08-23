@@ -250,7 +250,7 @@ export const ROLES: Role[] = [
         workspace: 'Students',
         features: [
           { key: 'institution_admin.students.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: attendance, marks, fees, conduct and who to ring, on one page. The screen a school opens when a parent is at the desk.' },
-          { key: 'institution_admin.students.enrollment_lifecycle', slug: 'enrollment_lifecycle', name: 'Enrollment lifecycle', scope: 'institution', tier: 'core', summary: 'Enroll, promote/roll over, transfer, withdraw and graduate students.' },
+          { key: 'institution_admin.students.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from.' },
           { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
           { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
         ],

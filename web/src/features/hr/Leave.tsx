@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -59,6 +59,16 @@ export default function Leave() {
   const workspace = useLocation().pathname.split('/')[1]
   const forWhom = workspace === 'hr' ? 'staff' : ''
 
+  /* Which door somebody came through.
+   *
+   * One screen serves two jobs — deciding other people's leave, and taking
+   * your own — and it was always drawing the approver's. So "My Profile →
+   * Leave & self service" opened a page headed "Staff & student leave
+   * approvals", which is somebody else's work under a menu entry that
+   * promised your own. The feature in the URL says which was meant. */
+  const { featureSlug } = useParams()
+  const mine = featureSlug === 'leave_self_service'
+
   const q = useQuery({
     queryKey: ['leave', status, forWhom],
     queryFn: () => {
@@ -115,17 +125,28 @@ export default function Leave() {
   })
   const all = everything.data?.items ?? []
   const items = q.data?.items ?? []
-  const mayDecide = canDecide
+  /* Approving on the self-service screen would be the same confusion the other
+   * way round: this door is "my leave", and deciding somebody else's belongs
+   * behind the entry that says so. */
+  const mayDecide = canDecide && !mine
 
   return (
     <>
       <PageHead
         eyebrow="Attendance & Leave"
-        title={forWhom === 'staff' ? 'Staff leave approvals' : 'Staff & student leave approvals'}
+        title={
+          mine
+            ? 'My leave'
+            : forWhom === 'staff'
+              ? 'Staff leave approvals'
+              : 'Staff & student leave approvals'
+        }
         description={
-          forWhom === 'staff'
-            ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
-            : 'Staff and student leave awaiting a decision, and the history behind it.'
+          mine
+            ? 'Your own leave: what you have applied for, and where each request has got to.'
+            : forWhom === 'staff'
+              ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
+              : 'Staff and student leave awaiting a decision, and the history behind it.'
         }
       actions={<><ExportButton report="leave" /><PrintButton /></>}
         />
