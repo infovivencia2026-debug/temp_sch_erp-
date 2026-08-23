@@ -121,7 +121,7 @@ export function WidgetLayer({
      simulating the pack against the mount order answered a question about a
      board nobody sees — and diverged the moment somebody reordered a card.
      Same order in, same rows out. */
-  const visible = declared
+  const candidates = declared
     .filter(isOn)
     .slice()
     .sort((a, b) => orderOf(layout, a.id, a.index) - orderOf(layout, b.id, b.index))
@@ -143,14 +143,24 @@ export function WidgetLayer({
   const fitted = new Set<string>()
   {
     const packed: { w: number; h: number }[] = []
-    for (const d of visible) {
+    for (const d of candidates) {
       const dim = dimsOf(layout, d.id, d.size)
       if (rowsNeeded([...packed, dim]) > maxRows) continue
       packed.push(dim)
       fitted.add(d.id)
     }
   }
-  const off = declared.filter((d) => !isOn(d) || !fitted.has(d.id))
+  /* Published as `visible`: the widgets that actually PAINT, not the ones that
+     merely qualified.
+
+     These two had drifted apart the moment the ceiling started dropping cards.
+     `Widget` rendered from `fitted` while `fitsAt` simulated the pack against
+     everything that qualified — so a card that lost the pack, and therefore
+     was not on screen, still took up room in the answer to "can this one
+     grow?". The board looked half empty and refused every resize into the gap.
+     One list, so the question and the picture are about the same board. */
+  const visible = candidates.filter((d) => fitted.has(d.id))
+  const off = declared.filter((d) => !fitted.has(d.id))
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
 
   /* Published so Settings can list this board without being inside it, and
