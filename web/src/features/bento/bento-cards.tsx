@@ -244,27 +244,43 @@ export function Compare({ rows, srLabel, formatValue }: {
   )
 }
 
-/** Population or coverage: one BLOCK per unit, weight per block.
+/** Population or coverage, as ONE rail cut into segments.
 
-    Blocks, not dots. A dot field reads as texture at these sizes — the eye
-    gets a grey wash rather than a count — and round marks at 4px lose most of
-    their area to the corners they do not fill. A block of the same footprint
-    carries more ink, so the weight ramp is legible, and a grid of them reads
-    as a tally, which is what this drawing is for.
+    Not a field of marks. A grid of dots reads as texture at these sizes and a
+    grid of blocks reads the same way with harder edges — both give the eye a
+    wash instead of a count, which is the opposite of what this drawing is for.
 
-    The tile sizes itself from the row height rather than a fixed pixel value,
-    so the same field works at 1x1 and at 2x2. */
+    A single rail divided into N segments is a different shape, not a restyled
+    one: it has a length, so it reads as a quantity at a glance, and the
+    divisions are still countable when you look. The segment carries its weight
+    in fill, so "how much" and "how many" are the same picture.
+
+    It wraps to a second and third rail when the count is too high to divide a
+    single line legibly — beyond that the segments would be thinner than the
+    gaps between them and the reading would be back to texture. */
 export function Density({ cells, columns = 12, srLabel }: {
   cells: number[]; columns?: number; srLabel: string
 }) {
   if (!cells.length) return null
   const hi = Math.max(...cells) || 1
+  /* At most `columns` segments to a rail, so a long series becomes a few rails
+     rather than one line of slivers. */
+  const per = Math.max(4, columns)
+  const rails: number[][] = []
+  for (let i = 0; i < cells.length; i += per) rails.push(cells.slice(i, i + per))
   return (
-    <div className="grid h-full items-stretch gap-[2px]" role="img" aria-label={srLabel}
-         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gridAutoRows: 'minmax(0, 1fr)' }}>
-      {cells.map((c, i) => (
-        <span key={i} className="min-h-0 rounded-[2px]"
-              style={{ background: MARK, opacity: 0.16 + (c / hi) * 0.84 }} />
+    <div className="flex h-full flex-col justify-center gap-1.5" role="img" aria-label={srLabel}>
+      {rails.map((rail, r) => (
+        <span key={r} className="flex h-3 overflow-hidden rounded-[3px]" style={{ background: TRACK }}>
+          {rail.map((c, i) => (
+            <span key={i} className="min-w-0 flex-1 border-r-2 last:border-r-0"
+                  style={{
+                    background: MARK,
+                    opacity: 0.14 + (c / hi) * 0.86,
+                    borderColor: 'var(--bento-card)',
+                  }} />
+          ))}
+        </span>
       ))}
     </div>
   )
