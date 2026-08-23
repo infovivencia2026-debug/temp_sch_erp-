@@ -264,7 +264,7 @@ function Card({
         {children}
       </CardShell>
       {room && to && cue && (
-        <div className={cn('shrink-0', tall ? 'mt-2' : 'mt-1.5 [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-[11px]')}>
+        <div className={cn('shrink-0', tall ? 'mt-2' : 'mt-1.5 [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-[length:var(--card-action,11px)]')}>
           <Cue to={to} label={cue} dark={dark} />
         </div>
       )}
@@ -309,7 +309,7 @@ function Part({ grow = 1, children }: { grow?: number; children: ReactNode }) {
 /** A caption above a drawing, at the sizes with room for one. */
 function Head({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-1 truncate text-[8.5px] font-semibold uppercase leading-none tracking-[0.1em] opacity-55">
+    <p className="mb-1 truncate text-[length:var(--card-sub,8.5px)] font-semibold uppercase leading-none tracking-[0.1em] opacity-55">
       {children}
     </p>
   )
@@ -329,7 +329,7 @@ function Titled({ head, children }: { head: string; children: ReactNode }) {
     drawn in. Never a zero: "we could not ask" and "there is none" are
     different sentences and are printed as different sentences. */
 function Say({ children }: { children: ReactNode }) {
-  return <p className="text-[10px] leading-snug opacity-70">{children}</p>
+  return <p className="text-[length:var(--card-note,10px)] leading-snug opacity-70">{children}</p>
 }
 
 // --- the cells ----------------------------------------------------------

@@ -216,7 +216,7 @@ function Part({ grow = 1, children }: { grow?: number; children: ReactNode }) {
 function Titled({ head, children }: { head: string; children: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <p className="mb-1 truncate text-[8.5px] font-semibold uppercase leading-none tracking-[0.1em] opacity-55">
+      <p className="mb-1 truncate text-[length:var(--card-sub,8.5px)] font-semibold uppercase leading-none tracking-[0.1em] opacity-55">
         {head}
       </p>
       <div className="min-h-0 flex-1">{children}</div>
@@ -227,7 +227,7 @@ function Titled({ head, children }: { head: string; children: ReactNode }) {
 /** A sentence in the drawing row — the state a drawing must not be drawn in.
     "Nothing is late" is a fact; an empty chart is not a way of saying it. */
 function Say({ children }: { children: ReactNode }) {
-  return <p className="text-[10.5px] leading-snug opacity-75">{children}</p>
+  return <p className="text-[length:var(--card-note,10.5px)] leading-snug opacity-75">{children}</p>
 }
 
 // --- the three cells ----------------------------------------------------

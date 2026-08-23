@@ -272,10 +272,10 @@ const ATTENTION_WIDGETS = [
    cell is rendered outside a widget. */
 const FIG_CLASS =
   'font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums ' +
-  'text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]'
+  'text-[length:min(var(--card-fig,clamp(26px,3.6vh,40px)),15cqw)]'
 
 const LABEL_CLASS =
-  'bento-label text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] ' +
+  'bento-label text-[length:var(--card-sub,10px)] font-semibold uppercase leading-tight tracking-[0.14em] ' +
   'text-[var(--bento-muted)]'
 
 /** The whisper above the figure. One copy of the markup three cells were
@@ -371,19 +371,25 @@ const SEVERITY_TRACK = 'color-mix(in srgb, currentColor 14%, transparent)'
 
 /* THE FIGURE, capped by how long it is.
 
-   `--bento-fig` is the board's own per-width figure size and is right for a
-   count: four digits at 40px fit a 264px card with room to spare. A rupee
-   figure is not four digits — `₹12,34,56,789` is thirteen glyphs, and at 40px
-   that is 190px of tabular numerals past the edge of a 1x1. So the token is
-   kept, and a ceiling is put over it by string length: the cell still grows
-   with the board, and it can no longer grow off the card. */
+   `--card-fig` is the cell's own figure size — a fraction of its height — and
+   is right for a count: four digits fit a 264px card with room to spare. A
+   rupee figure is not four digits: `₹12,34,56,789` is thirteen glyphs, and at
+   the full figure size that is a line and a half past the edge of a 1x1. So
+   the token is kept and a ceiling is put over it by string length.
+
+   THE CEILINGS ARE IN CONTAINER UNITS, NOT PIXELS. A fixed px ceiling was the
+   whole bug this rewrite is about: it pinned a 2x2's figure to a 1x1's size.
+   `cqw` is the dimension a long numeral actually runs out of, and `cqh` the
+   one the rest of the card is competing for, so the ceilings are stated in
+   both and every one of them grows with the cell. At 264px wide they land on
+   the sizes this card shipped with; at 544 they are twice that. */
 function figureSize(text: string): string {
-  const fig = 'var(--bento-fig,clamp(26px,3.6vh,40px))'
+  const fig = 'var(--card-fig,clamp(26px,3.6vh,40px))'
   const n = text.length
-  if (n <= 5) return fig
-  if (n <= 9) return `min(${fig},32px)`
-  if (n <= 12) return `min(${fig},26px)`
-  return `min(${fig},20px)`
+  if (n <= 5) return `min(${fig}, 15cqw)`
+  if (n <= 9) return `min(${fig}, 12cqw, 18.6cqh)`
+  if (n <= 12) return `min(${fig}, 9.8cqw, 15cqh)`
+  return `min(${fig}, 7.6cqw, 11.6cqh)`
 }
 
 const FIG_BASE = 'font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums whitespace-nowrap'
@@ -421,7 +427,7 @@ function SeverityLadder({
             />
             {showLabels && (
               <p
-                className="mt-1 truncate text-[8.5px] font-semibold uppercase leading-none tracking-[0.1em]"
+                className="mt-1 truncate text-[length:var(--card-note,8.5px)] font-semibold uppercase leading-none tracking-[0.1em]"
                 style={{
                   color: lit ? SEVERITY_MARK[rung] : 'var(--bento-muted)',
                   opacity: lit ? 1 : 0.6,
@@ -454,7 +460,7 @@ function SeverityScale({
 }) {
   return (
     <div aria-hidden="true" className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
-      <p className="text-[9px] font-semibold uppercase leading-none tracking-[0.14em] text-[var(--bento-muted)]">
+      <p className="text-[length:var(--card-sub,9px)] font-semibold uppercase leading-none tracking-[0.14em] text-[var(--bento-muted)]">
         {heading}
       </p>
       {SEVERITY_ORDER.map((rung) => {
@@ -467,7 +473,7 @@ function SeverityScale({
             />
             <div className="min-w-0">
               <p
-                className="text-[9.5px] font-semibold uppercase leading-none tracking-[0.1em]"
+                className="text-[length:var(--card-note,9.5px)] font-semibold uppercase leading-none tracking-[0.1em]"
                 style={{
                   color: lit ? SEVERITY_MARK[rung] : 'var(--bento-muted)',
                   opacity: lit ? 1 : 0.65,
@@ -476,7 +482,7 @@ function SeverityScale({
                 {labels[rung]}
               </p>
               <p
-                className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-[var(--bento-muted)]"
+                className="mt-0.5 line-clamp-2 text-[length:var(--card-note,10px)] leading-tight text-[var(--bento-muted)]"
                 style={{ opacity: lit ? 1 : 0.6 }}
               >
                 {meanings[rung]}
@@ -490,14 +496,19 @@ function SeverityScale({
 }
 
 /** A named number, small. Two of these are the whole of what a money item's
-    count and amount can honestly say about each other. */
+    count and amount can honestly say about each other.
+
+    Both sizes are the card's own tokens under a ceiling. Measured at 2x2:
+    unceilinged, the pair grew tall enough to push the sentence beneath them
+    down onto the drawing, and text over the drawing is the one thing this
+    card may not do. */
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-[8.5px] font-semibold uppercase leading-none tracking-[0.12em] text-[var(--bento-muted)]">
+      <p className="truncate text-[length:min(var(--card-sub,8.5px),12px)] font-semibold uppercase leading-none tracking-[0.12em] text-[var(--bento-muted)]">
         {label}
       </p>
-      <p className="mt-1 truncate text-[12px] font-semibold leading-none tabular-nums">{value}</p>
+      <p className="mt-1 truncate text-[length:min(var(--card-change,12px),16px)] font-semibold leading-none tabular-nums">{value}</p>
     </div>
   )
 }
@@ -554,7 +565,7 @@ function AttentionDraw({
       </div>
       <div
         aria-hidden="true"
-        className="flex items-baseline justify-between gap-2 text-[8px] font-semibold
+        className="flex items-baseline justify-between gap-2 text-[length:min(var(--card-note,8px),12px)] font-semibold
                    uppercase leading-none tracking-[0.1em] text-[var(--bento-muted)]"
       >
         <span>{peakStart}</span>
@@ -721,7 +732,7 @@ function AttentionCell({
       </p>
       <span
         aria-hidden="true"
-        className="rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase
+        className="rounded-full border px-1.5 py-0.5 text-[length:var(--card-sub,9px)] font-semibold uppercase
                    leading-none tracking-[0.1em]"
         style={{
           borderColor: severity ? SEVERITY_MARK[severity] : SEVERITY_TRACK,
@@ -766,7 +777,7 @@ function AttentionCell({
     <p
       aria-hidden="true"
       className={cn(
-        'text-[11px] leading-snug text-[var(--bento-muted)] [overflow-wrap:anywhere]',
+        'text-[length:min(var(--card-change,11px),15px)] leading-snug text-[var(--bento-muted)] [overflow-wrap:anywhere]',
         full ? 'line-clamp-3' : wide ? 'line-clamp-2' : 'line-clamp-3',
       )}
     >
@@ -781,7 +792,7 @@ function AttentionCell({
     (full || tall) && (detail || !item) ? (
       <p
         aria-hidden="true"
-        className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--bento-muted)]
+        className="mt-1 line-clamp-2 text-[length:min(var(--card-change,11px),15px)] leading-snug text-[var(--bento-muted)]
                    opacity-80 [overflow-wrap:anywhere]"
       >
         {detail ?? t('bento.principal.attention_clear_note')}
@@ -796,10 +807,10 @@ function AttentionCell({
   const nextStep = action ? (
     <p
       aria-hidden="true"
-      className="mt-2 truncate text-[10.5px] leading-none"
+      className="mt-2 truncate text-[length:var(--card-action,10.5px)] leading-none"
       title={action}
     >
-      <span className="font-semibold uppercase tracking-[0.12em] text-[var(--bento-muted)] text-[8.5px]">
+      <span className="font-semibold uppercase tracking-[0.12em] text-[var(--bento-muted)] text-[length:var(--card-sub,8.5px)]">
         {t('bento.principal.attention_next_label')}
       </span>{' '}
       <span className="font-semibold">{action}</span>
@@ -1065,11 +1076,11 @@ function FactField({ facts, mode }: { facts: Fact[]; mode: 'row' | 'stacked' | '
             mode === 'stacked' && 'justify-between',
           )}
         >
-          <span className="shrink-0 text-[13px] font-bold leading-none tabular-nums">
+          <span className="shrink-0 text-[length:var(--card-note,13px)] font-bold leading-none tabular-nums">
             {f.value}
           </span>
           <span
-            className="truncate text-[9.5px] font-semibold uppercase leading-none
+            className="truncate text-[length:var(--card-note,9.5px)] font-semibold uppercase leading-none
                        tracking-[0.09em] text-[var(--bento-muted)]"
           >
             {f.label}
@@ -1089,7 +1100,7 @@ function FactField({ facts, mode }: { facts: Fact[]; mode: 'row' | 'stacked' | '
 function Provenance({ children }: { children: ReactNode }) {
   return (
     <p
-      className="mt-1.5 flex items-center gap-1.5 text-[9.5px] font-semibold uppercase
+      className="mt-1.5 flex items-center gap-1.5 text-[length:var(--card-sub,9.5px)] font-semibold uppercase
                  leading-none tracking-[0.12em] text-[var(--bento-muted)]"
     >
       <span
@@ -1110,7 +1121,7 @@ function StateTag({ children }: { children: ReactNode }) {
   return (
     <span
       aria-hidden="true"
-      className="rounded-full border border-[var(--bento-line)] px-1.5 py-0.5 text-[9px]
+      className="rounded-full border border-[var(--bento-line)] px-1.5 py-0.5 text-[length:var(--card-sub,9px)]
                  font-semibold uppercase leading-none tracking-[0.1em] text-[var(--bento-muted)]"
     >
       {children}
@@ -1329,7 +1340,7 @@ function SourceCell({
           aria-hidden="true"
           style={wide ? undefined : UNSHED}
           className={cn(
-            'bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]',
+            'bento-note mt-1.5 text-[length:var(--card-note,11px)] leading-snug text-[var(--bento-muted)]',
             dense && wide && !tall ? 'line-clamp-1' : 'line-clamp-3',
           )}
         >
@@ -1703,7 +1714,7 @@ function histogram(values: number[], bins: number, lo: number, hi: number): numb
     `formatPaise` and never divided; this only stops a nine-character rupee
     figure from being truncated at the card's own figure size. */
 function Money({ children }: { children: ReactNode }) {
-  return <span className="text-[length:min(var(--bento-fig,32px),24px)]">{children}</span>
+  return <span className="text-[length:min(var(--card-fig,32px),9cqw,15cqh)]">{children}</span>
 }
 
 const pctText = (n: number) => `${Math.round(n)}%`

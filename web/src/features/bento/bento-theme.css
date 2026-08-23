@@ -750,7 +750,7 @@ html[data-shadow='deep'] {
   font-size: min(calc(12px * var(--bento-text)), 16px);
 }
 .bento-widget .bento-label {
-  font-size: min(calc(10px * var(--bento-text)), 14px);
+  font-size: var(--card-sub, 10px);
 }
 
 /* CONTRAST — Focus paints its own ground and ink, so the axis has to restate
