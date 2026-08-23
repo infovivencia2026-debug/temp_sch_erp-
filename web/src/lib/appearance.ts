@@ -275,6 +275,13 @@ export function applyAppearance(next: Appearance) {
                      'contrast', 'dockSize', 'iconSize', 'hiddenDockItems'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
+    /* The continuous scales, under the same keys readScales() looks for.
+       They were stamped on the root and never written, so every slider moved
+       on this screen was lost on the next reload while the named axes beside
+       them survived — the one difference between the two being this loop. */
+    for (const k of Object.keys(SCALE_DEFAULTS) as (keyof Scales)[]) {
+      localStorage.setItem(`erp.scale.${k}`, String(next.scales[k]))
+    }
   } catch {
     /* private browsing: the choice lasts the session */
   }

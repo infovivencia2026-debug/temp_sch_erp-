@@ -76,13 +76,19 @@ function serverSnapshot(): Layout {
     already had — writing what the server just told us must not PUT it back. */
 export function applyLayout(next: Layout) {
   document.documentElement.setAttribute('data-layout', next)
-  if (current === next) return
-  current = next
+  /* Written BEFORE the no-op guard, as theme.ts and skin.ts both do. On a
+     device that has never stored a layout, `current` is already the module
+     default, so choosing that same layout used to return here having written
+     nothing at all — the device copy stayed absent and the choice rode on the
+     default agreeing with it. Persisting first makes the stored value say what
+     was chosen rather than what happened to match. */
   try {
     localStorage.setItem(STORAGE_KEY, next)
   } catch {
     /* the account row still carries it to the next sign-in */
   }
+  if (current === next) return
+  current = next
   emit()
 }
 

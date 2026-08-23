@@ -5,11 +5,11 @@ import {
 } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, HEIGHTS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
+  WIDTHS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, PRESETS, BOARD_ROWS,
   type WidgetSize, type BoardWidget,
 } from '@/lib/widgets'
-import { COL, ROW, spanFor, clampSpan, type CellSpan } from './bento-kit'
+import { COL, ROW, spanFor, clampSpan, MAX_SPAN, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas } from './ColourDialog'
 import type { Hsl } from '@/lib/paint'
@@ -60,6 +60,39 @@ const DOMAINS = [
 ] as const
 
 const Ctx = createContext<LayerValue | null>(null)
+
+/* THE SIZES THE BOARD CAN ACTUALLY DRAW.
+
+   `WIDTHS`/`HEIGHTS` in widgets.ts run 1..5 — they are what the STORE accepts,
+   because a layout saved before the 2x2 ceiling existed must still load. They
+   are not what the board can paint: `clampSpan` folds everything above
+   MAX_SPAN back to 2 on the way to `COL`/`ROW`, which only have entries for 1
+   and 2.
+
+   So the steppers walk this list instead. A control that offers a 3 is
+   offering a width the renderer throws away — the card stays two columns wide,
+   the person is told it is three, and every later question about whether the
+   board is full is answered about a board nobody is looking at. */
+const STEPS: readonly number[] = WIDTHS.filter((n) => n <= MAX_SPAN)
+
+/** The size a placement is DRAWN at, which is the only size any of the
+    fit arithmetic below may use.
+
+    `dimsOf` returns what is stored, and what is stored may be a 3 or a 5 —
+    from an older layout, from the `spotlight` preset, or from a stepper that
+    used to let somebody walk there. Packing those raw numbers counts columns
+    the grid never fills: the simulation calls the board full while the screen
+    shows an empty column, and every "make this taller" is refused into
+    visible space. Same clamp as the wrapper's own `COL`/`ROW`, so the answer
+    and the picture are about one board. */
+function drawnDims(
+  layout: Parameters<typeof dimsOf>[0],
+  id: string,
+  fallback: WidgetSize,
+): { w: number; h: number } {
+  const d = dimsOf(layout, id, fallback)
+  return { w: clampSpan(d.w), h: clampSpan(d.h) }
+}
 
 /* Not exported, and that is load-bearing rather than tidiness.
 
@@ -144,7 +177,7 @@ export function WidgetLayer({
   {
     const packed: { w: number; h: number }[] = []
     for (const d of candidates) {
-      const dim = dimsOf(layout, d.id, d.size)
+      const dim = drawnDims(layout, d.id, d.size)
       if (rowsNeeded([...packed, dim]) > maxRows) continue
       packed.push(dim)
       fitted.add(d.id)
@@ -196,7 +229,12 @@ export function WidgetLayer({
     () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows }),
     [
       dashboard, arranging, declare, maxRows,
-      visible.map((d) => d.id).join(','),
+      /* Sizes as well as ids, because `visible` is handed to `move` and
+         `tidy` as the seed for every widget nobody has explicitly placed. A
+         key of ids alone holds the previous render's array — and with it the
+         previous render's w/h — so the first reorder after a resize would
+         quietly seed that card back at its old size. */
+      visible.map((d) => `${d.id}:${d.w}x${d.h}`).join(','),
       [...fitted].join(','),
     ],
   )
@@ -297,7 +335,10 @@ export function WidgetLayer({
                    bottom row off the screen and squashes the text in the rest. */
                 const room =
                   rowsNeeded(
-                    [...visible.map((v) => dimsOf(layout, v.id, v.size)), DIMS[d.size]],
+                    [
+                      ...visible.map((v) => drawnDims(layout, v.id, v.size)),
+                      { w: clampSpan(DIMS[d.size].w), h: clampSpan(DIMS[d.size].h) },
+                    ],
                   ) <= maxRows
                 return (
                   <button
@@ -305,7 +346,9 @@ export function WidgetLayer({
                     type="button"
                     disabled={!room}
                     title={room ? undefined : t('bento.widgets.full')}
-                    onClick={() => place(d.id, DIMS[d.size].w, DIMS[d.size].h)}
+                    onClick={() =>
+                      place(d.id, clampSpan(DIMS[d.size].w), clampSpan(DIMS[d.size].h))
+                    }
                     className="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1
                                text-[12px] transition-colors hover:bg-accent
                                disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
@@ -637,9 +680,16 @@ export function Widget({
      could never shrink out of it. */
   const fitsAt = (nw: number, nh: number) => {
     if (!layer) return true
-    if (nw === w && nh === h) return true
+    const pw = clampSpan(nw)
+    const ph = clampSpan(nh)
+    if (pw === cw && ph === ch) return true
+    /* `layer.visible` is the list that PAINTS — candidates that won the pack,
+       not everything that qualified — and each of them is measured at the size
+       it is drawn at. Both halves matter: simulate against the qualifiers and
+       a card that is not on screen still eats the gap it left; simulate raw
+       dims and a stored 3 eats a column the grid never gave it. */
     const items = layer.visible.map((v) =>
-      v.id === id ? { w: nw, h: nh } : { w: dimsOf(layout, v.id, v.size).w, h: dimsOf(layout, v.id, v.size).h },
+      v.id === id ? { w: pw, h: ph } : drawnDims(layout, v.id, v.size),
     )
     return rowsNeeded(items) <= layer.maxRows
   }
@@ -679,8 +729,8 @@ export function Widget({
          size — see the [data-w]/[data-h] rules in index.css. Doing it in CSS
          from one wrapper means thirty hand-written cells did not each have to
          learn how to be small. */
-      data-w={w}
-      data-h={h}
+      data-w={cw}
+      data-h={ch}
       /* So the few things that keep a FIXED colour — the error sentence's pink
          — can follow the card's derived ink instead once it has been tinted.
          A pink measured against a white card says nothing on a deep navy. */
@@ -715,7 +765,7 @@ export function Widget({
         {/* The cell is told how much room it has, so the few that should draw
             themselves differently at different sizes can. Most ignore it and
             let the CSS shedding rules do the work. */}
-        <WidgetSizeContext.Provider value={{ w, h }}>
+        <WidgetSizeContext.Provider value={{ w: cw, h: ch }}>
           {children(span)}
         </WidgetSizeContext.Provider>
       </div>
@@ -787,18 +837,18 @@ export function Widget({
 
             <Axis
               label={t('bento.widgets.width')}
-              steps={WIDTHS}
-              value={w}
-              onPick={(n) => resize(id, n, h)}
-              blocked={(n) => !fitsAt(n, h)}
+              steps={STEPS}
+              value={cw}
+              onPick={(n) => resize(id, n, ch)}
+              blocked={(n) => !fitsAt(n, ch)}
               blockedHint={t('bento.widgets.wont_fit')}
             />
             <Axis
               label={t('bento.widgets.height')}
-              steps={HEIGHTS}
-              value={h}
-              onPick={(n) => resize(id, w, n)}
-              blocked={(n) => !fitsAt(w, n)}
+              steps={STEPS}
+              value={ch}
+              onPick={(n) => resize(id, cw, n)}
+              blocked={(n) => !fitsAt(cw, n)}
               blockedHint={t('bento.widgets.wont_fit')}
             />
 
@@ -809,7 +859,7 @@ export function Widget({
                 somebody wants is the one that is not there. The starting points
                 below the wheel are exactly that: places to begin, not the
                 choices on offer. */}
-            <ColourPick value={tint} onPick={(c) => recolour(id, c, w, h)} />
+            <ColourPick value={tint} onPick={(c) => recolour(id, c, cw, ch)} />
           </div>
         </div>
       )}
