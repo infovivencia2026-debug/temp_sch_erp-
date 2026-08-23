@@ -164,17 +164,36 @@ export function Rows({ items, srLabel, formatValue }: {
   )
 }
 
-/** One proportion, as a punched ring. Needs a real total. */
+/** One proportion, as a stroked arc. Needs a real total.
+
+    Drawn as an SVG stroke rather than a conic-gradient with a disc punched out
+    of the middle. The punched version had to paint that disc SOME colour, and
+    it painted `--bento-card` — correct on a paper cell and wrong on every
+    other one. On a domain-tinted card it showed a paper-coloured hole; on an
+    inverted cell a pale disc on a dark ground. A stroke has no hole to fill,
+    so the ground shows through whatever the ground happens to be.
+
+    The arc opens at twelve o'clock and runs clockwise. `pathLength` is set to
+    100 so the dash array is literally the percentage — no circumference
+    arithmetic to get wrong when the radius changes. */
 export function Gauge({ value, total, srLabel }: { value: number; total: number; srLabel: string }) {
   if (total <= 0) return null
   const pct = Math.max(0, Math.min(100, Math.round((value / total) * 100)))
   return (
     <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
-      <div className="relative grid aspect-square w-[78%] max-w-[104px] place-items-center rounded-full"
-           style={{ background: `conic-gradient(${MARK} ${pct}%, ${TRACK} 0)` }}>
-        <div className="grid aspect-square w-[68%] place-items-center rounded-full bg-[var(--bento-card)]">
-          <span className="text-[13px] font-semibold tabular-nums">{pct}%</span>
-        </div>
+      <div className="relative grid aspect-square w-[78%] max-w-[104px] place-items-center">
+        <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
+          <circle cx="50" cy="50" r="42" fill="none" stroke={TRACK} strokeWidth={11} />
+          {pct > 0 && (
+            <circle
+              cx="50" cy="50" r="42" fill="none"
+              stroke={MARK} strokeWidth={11} strokeLinecap="round"
+              pathLength={100}
+              strokeDasharray={`${pct} ${100 - pct}`}
+            />
+          )}
+        </svg>
+        <span className="relative text-[13px] font-semibold tabular-nums">{pct}%</span>
       </div>
     </div>
   )
@@ -279,7 +298,14 @@ export function Facts({ items, srLabel }: {
   )
 }
 
-/** Pipeline. Right-aligned bars narrowing downward, each labelled in place. */
+/** Pipeline. Bars narrowing downward, each labelled beside its own bar.
+
+    The label sits OUTSIDE the bar. Inside, it had to be drawn in the cell's
+    background colour to read against the fill, and the only token available
+    for that was `--bento-card` — paper. Correct on a paper cell, wrong on a
+    domain-tinted one and wrong on an inverted one, which is the same mistake
+    the punched gauge made. Outside the bar the label is ordinary ink and needs
+    to know nothing about the ground. */
 export function Funnel({ stages, srLabel, formatValue }: {
   stages: { label: string; value: number }[]
   srLabel: string
@@ -289,16 +315,14 @@ export function Funnel({ stages, srLabel, formatValue }: {
   const hi = Math.max(...stages.map((s) => s.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
-    <div className="flex h-full flex-col items-center justify-end gap-1" role="img" aria-label={srLabel}>
+    <div className="flex h-full flex-col justify-end gap-1" role="img" aria-label={srLabel}>
       {stages.map((s) => (
-        <div key={s.label}
-             className="flex h-3.5 items-center justify-end rounded-[3px] pr-1 text-[7.5px] font-semibold"
-             style={{
-               width: `${Math.max(8, (s.value / hi) * 100)}%`,
-               background: MARK,
-               color: 'var(--bento-card)',
-             }}>
-          {fmt(s.value)}
+        <div key={s.label} className="flex items-center gap-1.5">
+          <span className="h-3 min-w-0 flex-1">
+            <span className="block h-full rounded-[3px]"
+                  style={{ width: `${Math.max(6, (s.value / hi) * 100)}%`, background: MARK }} />
+          </span>
+          <b className="shrink-0 text-[9px] font-bold tabular-nums">{fmt(s.value)}</b>
         </div>
       ))}
     </div>
