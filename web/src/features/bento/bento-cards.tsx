@@ -60,7 +60,7 @@ export function CardShell({
                a board of rectangles — the cards, the tracks, the bars and the
                segments all share one corner radius, and a disc in the corner of
                every card read as a different vocabulary. */
-            className="grid size-[22px] shrink-0 place-items-center rounded-[6px] border text-[9px]"
+            className="grid size-[30px] shrink-0 place-items-center rounded-[8px] border text-[12px] font-semibold"
             style={{ borderColor: ink(35) }}
             aria-hidden="true"
           >
@@ -293,9 +293,14 @@ export function Facts({ items, srLabel }: {
 }) {
   if (!items.length) return null
   return (
-    <dl className="flex h-full flex-col justify-end gap-1" aria-label={srLabel}>
+    /* The rows SHARE the row's height rather than stacking at the bottom of
+       it. Pinned to the end, one fact left the whole drawing row empty above
+       it — the dead space this component exists to remove. `flex-1` on each
+       line means one fact fills the row and four split it. */
+    <dl className="flex h-full flex-col gap-1" aria-label={srLabel}>
       {items.map((f) => (
-        <div key={f.label} className="flex items-baseline justify-between gap-2 border-t pt-1"
+        <div key={f.label}
+             className="flex flex-1 items-center justify-between gap-2 border-t pt-1"
              style={{ borderColor: TRACK }}>
           <dt className="truncate text-[8.5px] font-medium uppercase tracking-[0.07em] opacity-65">
             {f.label}
