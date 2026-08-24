@@ -10,6 +10,7 @@ import { cn, formatPaise } from '@/lib/utils'
 interface Payslip {
   run_status?: string
   published?: boolean
+  left_service?: boolean
   employee_code: string; full_name: string
   paid_days: string; lop_days: string
   gross_paise: number; deduction_paise: number; net_paise: number
@@ -116,6 +117,7 @@ export default function Payroll() {
      publishedNow stays as the immediate answer, because the list is refetched
      after the mutation and the two would otherwise disagree for a moment. */
   const published = rows[0]?.published === true || publishedNow === `${month}-${year}`
+  const left = rows.filter((r) => r.left_service).length
   const locked = status === 'locked' || status === 'paid'
   const gross = rows.reduce((a, r) => a + r.gross_paise, 0)
   const ded = rows.reduce((a, r) => a + r.deduction_paise, 0)
@@ -253,7 +255,15 @@ export default function Payroll() {
         <Card>
           <CardHeader
             title={`Payslips — ${MONTHS[Number(month) - 1]} ${year}`}
-            description="Breakup is frozen at run time so an issued payslip keeps its numbers"
+            description={
+              /* Why this count can differ from the staff headcount.
+                 A payslip records money that moved, so it outlives the person
+                 leaving. HR said 11 and this said 12, both correct, and
+                 nothing on either screen explained the gap. */
+              left
+                ? `Breakup is frozen at run time, so an issued payslip keeps its numbers. ${rows.length} paid this month, including ${left} who ${left === 1 ? 'has' : 'have'} since left — the current staff count will be lower.`
+                : 'Breakup is frozen at run time so an issued payslip keeps its numbers'
+            }
           />
           {slips.isLoading ? <Loading /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
@@ -267,7 +277,14 @@ export default function Payroll() {
                       hard, and without it the browser broke ₹1,800 across
                       three lines rather than let the table scroll. */}
                   <Td className="num font-mono text-[12px]">{p.employee_code}</Td>
-                  <Td className="font-medium">{p.full_name}</Td>
+                  <Td className="font-medium">
+                    {p.full_name}
+                    {p.left_service && (
+                      <span className="ml-2 align-middle">
+                        <Badge tone="neutral">left</Badge>
+                      </span>
+                    )}
+                  </Td>
                   <Td className="num">{p.paid_days}</Td>
                   <Td className="num">
                     {Number(p.lop_days) > 0

@@ -237,8 +237,18 @@ export default function Leave() {
                   />
                 </Field>
               </FormGrid>
+              {/* Required, because the kind of leave is the whole point of
+                  recording it.
+
+                  It was optional and defaulted to nothing, so most
+                  applications were filed against no kind at all and the Type
+                  column read "—" down the whole list. That is not a
+                  cosmetic gap: casual, sick and loss-of-pay are counted
+                  differently, deducted differently, and a leave with no kind
+                  cannot be counted against a balance at all — which is what
+                  the balance tiles beside it are for. */}
               {leaveTypes.length > 0 && (
-                <Field label="Kind of leave" hint="What it is counted against.">
+                <Field label="Kind of leave" required hint="What it is counted against.">
                   <Select
                     value={form.leave_type_id}
                     onChange={(v) => setForm({ ...form, leave_type_id: v })}
@@ -268,7 +278,15 @@ export default function Leave() {
               <FormNotice error={send.error} />
               <Button
                 className="mt-3"
-                disabled={!form.from_date || !form.to_date || !form.reason.trim() || send.isPending}
+                disabled={
+                  !form.from_date ||
+                  !form.to_date ||
+                  !form.reason.trim() ||
+                  // Only when there is something to choose. A school that has
+                  // not set its leave types up must still be able to apply.
+                  (leaveTypes.length > 0 && !form.leave_type_id) ||
+                  send.isPending
+                }
                 onClick={() => send.mutate()}
               >
                 {send.isPending ? 'Sending…' : 'Send the request'}
@@ -319,7 +337,12 @@ export default function Leave() {
                       {l.subject_kind === 'staff' ? 'Staff' : 'Student'}
                     </span>
                   </Td>
-                  <Td className="text-muted-foreground">{l.leave_type ?? '—'}</Td>
+                  {/* Applications filed before the kind was required have
+                      none, and there is no honest way to guess one. "Not
+                      recorded" says that; a dash reads as data we lost. */}
+                  <Td className="text-muted-foreground">
+                    {l.leave_type ?? <span className="italic">Not recorded</span>}
+                  </Td>
                   <Td className="text-muted-foreground">{formatDate(l.from_date)}</Td>
                   <Td className="text-muted-foreground">{formatDate(l.to_date)}</Td>
                   <Td className="tabular-nums">{l.days}</Td>

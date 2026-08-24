@@ -25,6 +25,8 @@ import (
 
 // --- leave --------------------------------------------------------------------
 
+var errLeaveKindMissing = errors.New("leave kind is required")
+
 type leaveApplyRequest struct {
 	LeaveTypeID string `json:"leave_type_id,omitempty"`
 	FromDate    string `json:"from_date"`
@@ -75,6 +77,27 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 
 	var newID string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* Leave has to be leave of some kind.
+
+		   leave_type_id was optional, so most applications carried none and
+		   the Type column read "—" down the whole list. That is not cosmetic:
+		   casual, sick and loss-of-pay are counted differently and deducted
+		   differently, and a leave with no kind cannot be counted against a
+		   balance at all — which is what the balance tiles beside it claim to
+		   show.
+
+		   Only enforced once the school has types to choose from. A school
+		   part-way through setup must still be able to apply for leave, and
+		   refusing it would be a rule of ours standing in for one of theirs. */
+		var haveTypes bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT EXISTS (SELECT 1 FROM leave_types)`).Scan(&haveTypes); err != nil {
+			return err
+		}
+		if haveTypes && strings.TrimSpace(req.LeaveTypeID) == "" {
+			return errLeaveKindMissing
+		}
+
 		var employeeID, studentID any
 
 		if req.StudentID != "" {
@@ -187,6 +210,11 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if errors.Is(err, errLeaveKindMissing) {
+		httpx.BadRequest(w, r,
+			"choose the kind of leave — casual, sick, or whichever it is. It decides what the days are counted against.")
+		return
+	}
 	if errors.Is(err, errNotYourChild) {
 		httpx.NotFound(w, r)
 		return
