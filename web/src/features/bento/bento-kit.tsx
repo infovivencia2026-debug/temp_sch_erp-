@@ -1515,10 +1515,24 @@ export function useBoardHeight() {
          whose content reaches the bottom the last row ran UNDER the floating
          dock — measured at 56px of card covered on four cells. The dock's own
          height is a token, so ask for it rather than guessing. */
-      /* Only a breathing gap. The dock itself is reserved by the scroll
-         container's padding, and adding it here as well is what triple-counted
-         it. */
-      const room = Math.max(240, window.innerHeight - top - 12)
+      /* The dock has to come out of this, and the comment that used to sit
+         here said it did not.
+
+         It claimed the scroll container's padding already reserved the dock —
+         true of the container, irrelevant here, because this measures against
+         window.innerHeight rather than against the container's content box.
+         The padding never entered the arithmetic. So the board was told it
+         could be as tall as the VIEWPORT allows and duly ran under the dock:
+         measured at 888px bottom against a dock starting at 823.
+
+         Asked for from the token the dock is sized from, so the two cannot
+         drift apart, plus a gap so cards stop short of it rather than touching.
+         Fixed reservation, no double counting: the container's padding keeps
+         the SCROLLED content clear, this keeps the board's own height clear. */
+      const dock = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--bento-dock'),
+      ) || 72
+      const room = Math.max(240, window.innerHeight - top - dock - 24)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
     }
 
