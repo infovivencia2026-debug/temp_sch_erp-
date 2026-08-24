@@ -88,6 +88,19 @@ export default function Applications() {
   const mayEnrol = can('students.write')
 
   const [status, setStatus] = useState(OPENS_ON[featureSlug ?? ''] ?? '')
+
+  /* Following the menu between entries, not only into one.
+   *
+   * All five entries render this component, so walking from "Document check"
+   * to "Interviews" changes a route parameter and nothing else — React keeps
+   * it mounted and the initial state above never runs again. The heading said
+   * Interviews over a list still filtered to documents pending. Adjusted
+   * during render so it is right on the first paint. */
+  const [lastSlug, setLastSlug] = useState(featureSlug)
+  if (featureSlug !== lastSlug) {
+    setLastSlug(featureSlug)
+    setStatus(OPENS_ON[featureSlug ?? ''] ?? '')
+  }
   const [open, setOpen] = useState<Application | null>(null)
   const [remarks, setRemarks] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')

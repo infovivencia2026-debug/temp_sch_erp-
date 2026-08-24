@@ -460,6 +460,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/visitors/{id}/out", s.signVisitorOut)
 			r.Get("/blocklist", s.listBlocklist)
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/blocklist", s.addToBlocklist)
+			// The host list on the visitor and appointment forms. Not
+			// /hr/employees, which needs the permission that also opens
+			// payroll — see front_desk_directory.go.
+			r.Get("/staff", s.listDeskStaff)
 			r.Get("/appointments", s.listAppointments)
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/appointments", s.saveAppointment)
 			r.Get("/calls", s.listCalls)

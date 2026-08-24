@@ -133,6 +133,20 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.fee_payment_enrolment': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
   'admissions.admissions.government_ids': screen(() => import('./admissions/Funnel')),
+  /* The receptionist's own workspace.
+   *
+   * front_office is a role a school can actually hand out — it sits in the
+   * "Office staff" preset — and until it had a catalogue of its own, doing so
+   * gave somebody a product with no menu in it. It is deliberately just the
+   * desk: the same screen the admissions clerk uses for it, because it is the
+   * same desk, and none of the admissions decisions, which are not this
+   * person's to make. */
+  'front_office.front_desk.visitors_log': screen(() => import('./admissions/FrontDesk')),
+  'front_office.front_desk.parent_appointments': screen(() => import('./admissions/FrontDesk')),
+  'front_office.front_desk.daily_call_log': screen(() => import('./admissions/FrontDesk')),
+  'front_office.front_desk.dispatch_courier': screen(() => import('./admissions/FrontDesk')),
+  'front_office.my_profile.my_pay': screen(() => import('./me/MyPay')),
+
   'admissions.front_desk.visitors_log': screen(() => import('./admissions/FrontDesk')),
   'admissions.front_desk.parent_appointments': screen(() => import('./admissions/FrontDesk')),
   'admissions.front_desk.daily_call_log': screen(() => import('./admissions/FrontDesk')),

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 322 features.
+// Roles is the catalog: 13 roles, 327 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -826,6 +826,31 @@ var Roles = []Role{
 					{Key: "admissions.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up."},
 					{Key: "admissions.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out with who took them and what was said — the register the front office keeps by the phone."},
 					{Key: "admissions.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "front_office",
+		Name: "Receptionist / Front Office",
+		Sections: []Section{
+			{
+				Slug: "front_desk",
+				Name: "Front Desk",
+				Workspace: "Front Desk",
+				Features: []Feature{
+					{Key: "front_office.front_desk.visitors_log", Slug: "visitors_log", Name: "Visitors log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is on the premises right now and who has been: name, phone, who they are here to see, and the time in. Signing somebody out is a button on their row, and the pass prints from the same place. The block list is checked as the pass is issued."},
+					{Key: "front_office.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: who is expected, when, and who turned up."},
+					{Key: "front_office.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out, who took them and what was said — the register the front office keeps by the phone, and the messages still waiting to be passed on."},
+					{Key: "front_office.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "front_office.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},

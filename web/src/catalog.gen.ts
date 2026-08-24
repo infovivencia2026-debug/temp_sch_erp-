@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 322 features. */
+/** 13 roles, 327 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -779,6 +779,31 @@ export const ROLES: Role[] = [
           { key: 'admissions.front_desk.parent_appointments', slug: 'parent_appointments', name: 'Parent appointments', scope: 'institution', tier: 'core', summary: 'Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up.' },
           { key: 'admissions.front_desk.daily_call_log', slug: 'daily_call_log', name: 'Daily call log', scope: 'institution', tier: 'core', summary: 'Calls in and out with who took them and what was said — the register the front office keeps by the phone.' },
           { key: 'admissions.front_desk.dispatch_courier', slug: 'dispatch_courier', name: 'Dispatch & courier', scope: 'institution', tier: 'core', summary: 'Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'front_office',
+    name: 'Receptionist / Front Office',
+    sections: [
+      {
+        slug: 'front_desk',
+        name: 'Front Desk',
+        workspace: 'Front Desk',
+        features: [
+          { key: 'front_office.front_desk.visitors_log', slug: 'visitors_log', name: 'Visitors log', scope: 'institution', tier: 'core', summary: 'Who is on the premises right now and who has been: name, phone, who they are here to see, and the time in. Signing somebody out is a button on their row, and the pass prints from the same place. The block list is checked as the pass is issued.' },
+          { key: 'front_office.front_desk.parent_appointments', slug: 'parent_appointments', name: 'Parent appointments', scope: 'institution', tier: 'core', summary: 'Meetings booked with a teacher or the office: who is expected, when, and who turned up.' },
+          { key: 'front_office.front_desk.daily_call_log', slug: 'daily_call_log', name: 'Daily call log', scope: 'institution', tier: 'core', summary: 'Calls in and out, who took them and what was said — the register the front office keeps by the phone, and the messages still waiting to be passed on.' },
+          { key: 'front_office.front_desk.dispatch_courier', slug: 'dispatch_courier', name: 'Dispatch & courier', scope: 'institution', tier: 'core', summary: 'Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'front_office.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],
