@@ -48,10 +48,12 @@ const QUIET = ink(38)
     grid child refuses to shrink below its content and the drawing pushes the
     card out of shape. */
 export function CardShell({
-  title, sub, glyph, action, value, change, children, className,
+  title, sub, action, value, change, children, className,
 }: {
   title: string
   sub?: string
+  /** Accepted and ignored: the decorative corner glyph is no longer drawn.
+      Kept so the twenty-odd call sites do not all have to change at once. */
   glyph?: ReactNode
   /** The thing this card opens. Sits at the foot of the card, on the left. */
   action?: { label: string; onActivate?: () => void }
@@ -72,7 +74,13 @@ export function CardShell({
        height is left; the action row is `auto` and costs only what it needs. */
     <div
       className={cn(
-        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]',
+        /* The drawing row has a FLOOR now. Adding the action row left it 28px on a
+           one-row cell — measured — and a two-line breakdown needs 31, so every
+           mini-chart on the board was sliced by `overflow: hidden` into the
+           half-rendered ghosts that look worse than no chart at all. The floor
+           is container-relative so it grows with the cell, and it is well under
+           what a 1x1 can spare: 33 + 57 + 46 + 26 = 162 of 185. */
+        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(clamp(46px,26cqh,220px),1fr)_auto]',
         className,
       )}
     >
@@ -88,16 +96,10 @@ export function CardShell({
             </p>
           )}
         </div>
-        {glyph && (
-          <span
-            className="grid aspect-square shrink-0 place-items-center rounded-[8px] border
-                       font-semibold text-[length:var(--card-action,11px)]"
-            style={{ borderColor: ink(30), padding: '0.45em' }}
-            aria-hidden="true"
-          >
-            {glyph}
-          </span>
-        )}
+        {/* The corner glyph is gone. It was one character — %, Rs, #, !, +, / —
+            that named the card's domain, which the title already does, and it
+            linked nowhere. `/` and `+` meant nothing at all. The prop stays in
+            the signature so no caller breaks; it simply is not drawn. */}
       </div>
 
       <div className="mt-1.5 min-w-0">
@@ -105,8 +107,12 @@ export function CardShell({
                       tabular-nums text-[length:var(--card-fig,30px)]">
           {value}
         </p>
+        {/* Two lines, not an ellipsis. This is the sentence that carries the
+            reading — "12% of billed, owed by 30 students" — and truncating it
+            cut the half that says who. */}
         {change && (
-          <p className="mt-1 truncate leading-tight opacity-65 text-[length:var(--card-change,11px)]">
+          <p className="mt-1 line-clamp-2 leading-tight opacity-65
+                        text-[length:var(--card-change,11px)]">
             {change}
           </p>
         )}
