@@ -122,10 +122,13 @@ export function CardShell({
 
       {action && (
         <div className="mt-2 flex min-w-0 justify-start">
+          {/* A real control, sized to be pressed. It was the smallest text on
+              the card at 11px in a 2px-padded chip — a footnote wearing a
+              border. */}
           <span
-            className="inline-flex max-w-full items-center gap-1 rounded-[8px] border px-2 py-1
-                       font-semibold text-[length:var(--card-action,11px)]"
-            style={{ borderColor: ink(30), background: ink(6) }}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-[9px] border
+                       px-3 py-[0.45em] font-semibold text-[length:var(--card-action,13px)]"
+            style={{ borderColor: ink(34), background: ink(8) }}
           >
             <span className="truncate">{action.label}</span>
             <span aria-hidden="true" className="opacity-70">↗</span>

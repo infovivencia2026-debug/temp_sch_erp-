@@ -794,7 +794,15 @@ export function Widget({
     const bg = cssHsl(tint)
     const ink = inkFor(tint)
     for (const d of DOMAINS) {
+      /* `-soft` as well as the base, and this is the one that actually paints.
+
+         `Cell` draws its background from `--dom-x-soft` — that changed when the
+         domain tokens were corrected, since `--dom-x` is the INK and `-soft` is
+         the PANEL. This loop was still repointing only the base and the text,
+         so picking a colour for a card recoloured a token nothing read and the
+         card stayed exactly as it was. Choosing a colour did nothing at all. */
       paint[`--dom-${d}`] = bg
+      paint[`--dom-${d}-soft`] = bg
       paint[`--dom-${d}-text`] = ink
     }
     // The card's own ink, for the parts that read the bento tokens rather than
