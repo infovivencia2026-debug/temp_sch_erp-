@@ -1416,3 +1416,46 @@ html[data-layout='bento'] body {
   --dom-success: #111316; --dom-success-soft: #111316; --dom-success-text: #ffffff;
   --dom-warning: #111316; --dom-warning-soft: #111316; --dom-warning-text: #ffffff;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FROSTED GLASS, the way an iPhone's App Library sits over the wallpaper.
+
+   All features used to be an opaque sheet in the ground colour, so opening it
+   REPLACED the dashboard. That reads as having navigated somewhere, and closing
+   it reads as coming back — when what actually happened is a drawer opening
+   over the thing you were already looking at.
+
+   Three properties do the work, and the saturation is the one people leave out:
+
+     blur          large, 44px. A small blur looks like a mistake; a large one
+                   reads as material with depth behind it.
+     saturate      180%. Blurring averages colour towards grey, so glass over a
+                   colourful board comes out muddy without this. It is what
+                   makes the board read as COLOUR behind glass rather than as
+                   smudge.
+     tint          partial, and it has to be partial. Opaque is a new screen;
+                   fully clear leaves the feature names sitting on whatever
+                   happens to be under them. Just enough to hold text.
+
+   Tinted from --bento-bg rather than a flat white or black, so the glass
+   belongs to whichever theme and skin is on.
+   ───────────────────────────────────────────────────────────────────────── */
+.bento-frost {
+  background: color-mix(in srgb, var(--bento-bg) 62%, transparent);
+  backdrop-filter: blur(44px) saturate(180%);
+  -webkit-backdrop-filter: blur(44px) saturate(180%);
+}
+
+/* Dark mode wants a heavier tint. Light glass over a dark board goes muddy and
+   the text loses its ground; a deeper tint keeps the same amount of colour
+   showing through while the names stay crisp. */
+.dark .bento-frost,
+:root[data-theme='dark'] .bento-frost {
+  background: color-mix(in srgb, var(--bento-bg) 74%, transparent);
+}
+
+/* No backdrop-filter, no glass — fall back to something readable rather than to
+   transparent text on a live dashboard. */
+@supports not (backdrop-filter: blur(1px)) {
+  .bento-frost { background: var(--bento-bg); }
+}
