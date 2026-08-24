@@ -55,7 +55,7 @@ interface HRKPIs {
  */
 const ACTIONS = [
   { to: '/go/records/staff_records', icon: UserPlus, label: 'Add a staff member' },
-  { to: '/go/attendance/staff_attendance', icon: CalendarCheck, label: 'Mark attendance' },
+  { to: '/go/attendance/staff_register', icon: CalendarCheck, label: 'Mark attendance' },
   { to: '/go/leave/leave', icon: CalendarDays, label: 'Leave & holidays' },
 ]
 

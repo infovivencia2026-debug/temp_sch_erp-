@@ -92,7 +92,17 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 					VALUES (NULL,$1::citext,$2::citext,$3,$4,'active')
 					ON CONFLICT (email) WHERE institution_id IS NULL
 					DO UPDATE SET password_hash = EXCLUDED.password_hash,
-					              username = EXCLUDED.username, status='active'
+					              username = EXCLUDED.username, status='active',
+					              /* The name is refreshed too, and it was not.
+					                 An earlier seeder wrote the role KEY into
+					                 full_name, so every demo account was called
+					                 "Demo institution_admin" — and because the
+					                 upsert only touched the password, re-seeding
+					                 could never correct it. The name is shown to
+					                 users on staff records and in the account
+					                 menu, so a stale one is visible, not
+					                 cosmetic. */
+					              full_name = EXCLUDED.full_name
 					RETURNING id`, email, username, "Demo "+role.Name, hash).Scan(&userID); err != nil {
 					return fmt.Errorf("upsert %s: %w", email, err)
 				}
@@ -103,7 +113,17 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 					VALUES ($1,$2::citext,$3::citext,$4,$5,'active')
 					ON CONFLICT (institution_id, email) WHERE email IS NOT NULL
 					DO UPDATE SET password_hash = EXCLUDED.password_hash,
-					              username = EXCLUDED.username, status='active'
+					              username = EXCLUDED.username, status='active',
+					              /* The name is refreshed too, and it was not.
+					                 An earlier seeder wrote the role KEY into
+					                 full_name, so every demo account was called
+					                 "Demo institution_admin" — and because the
+					                 upsert only touched the password, re-seeding
+					                 could never correct it. The name is shown to
+					                 users on staff records and in the account
+					                 menu, so a stale one is visible, not
+					                 cosmetic. */
+					              full_name = EXCLUDED.full_name
 					RETURNING id`, instID, email, username, "Demo "+role.Name, hash).Scan(&userID); err != nil {
 					return fmt.Errorf("upsert %s: %w", email, err)
 				}
@@ -144,17 +164,18 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 	})
 }
 
-/* Which school the demo is being built in.
+/*
+Which school the demo is being built in.
 
-   Every seeder here took "the oldest institution", which is fine on a fresh
-   installation with one school and destructive on one with nine: the wiring
-   below reassigns the first two sections' class teacher, and pointed at a
-   school that is actually running, it takes those sections away from the
-   people who teach them.
+	Every seeder here took "the oldest institution", which is fine on a fresh
+	installation with one school and destructive on one with nine: the wiring
+	below reassigns the first two sections' class teacher, and pointed at a
+	school that is actually running, it takes those sections away from the
+	people who teach them.
 
-   An empty name keeps the old behaviour so existing invocations are
-   unchanged. A name matches exactly, and a uuid matches by id, because the
-   nine schools on this installation include two called SGHS.
+	An empty name keeps the old behaviour so existing invocations are
+	unchanged. A name matches exactly, and a uuid matches by id, because the
+	nine schools on this installation include two called SGHS.
 */
 func pickInstitution(ctx context.Context, tx pgx.Tx, want string) (uuid.UUID, error) {
 	want = strings.TrimSpace(want)

@@ -80,8 +80,29 @@ export default function GoTo() {
     }
   }, [catalog.roles, sectionSlug, featureSlug, navigate, search])
 
+  /* The first screen this reader can actually open, for the way back. Resolved
+     the same way the resolver above works — from the catalogue rather than from
+     a guess about their role. */
+  const homeHref = (() => {
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        const f = section.features.find(usable)
+        if (f) return `/${role.key}/${section.slug}/${f.slug}`
+      }
+    }
+    return ''
+  })()
+
   if (!catalog.roles.length) return <Loading />
 
+  /* A dead end has to offer a door.
+   *
+   * This said a screen had moved and then stopped, with no controls and no
+   * links — which is worse than a 404, because a 404 at least admits it is the
+   * end of the road. Somebody arriving here has just been told something needs
+   * them, so the two things worth offering are the place they were going
+   * (search, which knows every screen they can open) and the place they can
+   * always get back to. */
   return (
     <>
       <PageHead eyebrow="Not found" title="That screen has moved" />
@@ -90,6 +111,18 @@ export default function GoTo() {
           title="This link points at a screen your workspace does not have"
           body="It may have been renamed since the message was sent, or it may belong to a role you no longer hold."
         />
+        <p className="mt-4 text-center text-[13px] text-muted-foreground">
+          {/* Named, not just linked: somebody who does not know what was meant by
+              the link needs to know what they are being offered instead. */}
+          Press <kbd className="rounded border px-1 font-mono text-[11px]">Ctrl K</kbd> to search
+          everything you can open{homeHref ? ', or ' : '.'}
+          {homeHref && (
+            <button type="button" onClick={() => navigate(homeHref)} className="underline">
+              go to your home screen
+            </button>
+          )}
+          {homeHref ? '.' : ''}
+        </p>
       </PageBody>
     </>
   )
