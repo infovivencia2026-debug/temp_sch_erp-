@@ -6,25 +6,24 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 334 of the catalog's features are implemented.
+// 333 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.all_admissions":                                           true,
-	"admissions.admissions.fee_payment_enrolment":                                    true,
-	"admissions.admissions.government_ids":                                           true,
-	"admissions.admissions.merit_lists_seat_allotment":                               true,
-	"admissions.admissions.rte_admissions":                                           true,
+	"admissions.admissions.fee_enrollment":                                           true,
+	"admissions.admissions.id_compliance":                                            true,
+	"admissions.admissions.rte_quota":                                                true,
+	"admissions.admissions.seat_allotment":                                           true,
 	"admissions.admissions.waitlist":                                                 true,
-	"admissions.applications.all_applications":                                       true,
-	"admissions.applications.approvals_queue":                                        true,
-	"admissions.applications.document_check":                                         true,
-	"admissions.applications.entrance_exams":                                         true,
+	"admissions.applications.application_forms":                                      true,
+	"admissions.applications.document_verification":                                  true,
+	"admissions.applications.entrance_tests":                                         true,
 	"admissions.applications.interviews":                                             true,
+	"admissions.applications.principal_approval":                                     true,
 	"admissions.communication.applicant_communication":                               true,
-	"admissions.enquiries.all_leads":                                                 true,
-	"admissions.enquiries.events_visits":                                             true,
-	"admissions.enquiries.lead_assignment":                                           true,
-	"admissions.enquiries.lead_source_tracking":                                      true,
-	"admissions.enquiries.my_follow_ups":                                             true,
+	"admissions.enquiries.assign_leads":                                              true,
+	"admissions.enquiries.campus_visits":                                             true,
+	"admissions.enquiries.daily_call_log":                                            true,
+	"admissions.enquiries.enquiries":                                                 true,
 	"admissions.front_desk.daily_call_log":                                           true,
 	"admissions.front_desk.dispatch_courier":                                         true,
 	"admissions.front_desk.parent_appointments":                                      true,

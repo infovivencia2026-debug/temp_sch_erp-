@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 328 features.
+// Roles is the catalog: 13 roles, 327 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -758,13 +758,12 @@ var Roles = []Role{
 				Name: "Enquiries",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.enquiries.all_leads", Slug: "all_leads", Name: "All leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every enquiry with where it has got to — new, called, visit booked, applied or lost — who is chasing it, and when they are due to. Add a walk-in from here."},
-					{Key: "admissions.enquiries.lead_source_tracking", Slug: "lead_source_tracking", Name: "Lead Source Tracking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in)."},
-					{Key: "admissions.enquiries.lead_assignment", Slug: "lead_assignment", Name: "Lead assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which counsellor owns which lead, and the ones nobody owns yet. Assign in bulk or one at a time."},
-					{Key: "admissions.enquiries.my_follow_ups", Slug: "my_follow_ups", Name: "My follow-ups", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The calls and visits due today, for whoever is signed in. What a counsellor opens first."},
+					{Key: "admissions.enquiries.enquiries", Slug: "enquiries", Name: "Enquiries", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every enquiry the school has taken — walk-in, telephone, website or referral — with the child, the class sought, the parent's number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there."},
+					{Key: "admissions.enquiries.assign_leads", Slug: "assign_leads", Name: "Assign Leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once — so a Monday morning's forty enquiries are shared out in one action rather than opened one at a time."},
+					{Key: "admissions.enquiries.daily_call_log", Slug: "daily_call_log", Name: "Daily Call Log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The calls you owe parents today: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row."},
 					{Key: "admissions.enquiries.24_7_admission_chatbot", Slug: "24_7_admission_chatbot", Name: "24/7 Admission Chatbot", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads."},
 					{Key: "admissions.enquiries.ai_voice_agent_integration", Slug: "ai_voice_agent_integration", Name: "AI Voice Agent Integration", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up."},
-					{Key: "admissions.enquiries.events_visits", Slug: "events_visits", Name: "Events & visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open days, campus tours and parent visits: the slots on offer, who has booked, and who turned up."},
+					{Key: "admissions.enquiries.campus_visits", Slug: "campus_visits", Name: "Campus Visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice."},
 				},
 			},
 			{
@@ -772,11 +771,11 @@ var Roles = []Role{
 				Name: "Applications",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.applications.all_applications", Slug: "all_applications", Name: "All applications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every application the school has received and where each one has got to on the ladder: submitted, under review, documents pending, tested, interviewed, offered, accepted."},
-					{Key: "admissions.applications.document_check", Slug: "document_check", Name: "Document check", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications waiting on paperwork — which document each is missing, and marking one verified as it arrives."},
-					{Key: "admissions.applications.entrance_exams", Slug: "entrance_exams", Name: "Entrance exams", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due to sit the entrance test: book the date, record the score, and move them on to the interview."},
+					{Key: "admissions.applications.application_forms", Slug: "application_forms", Name: "Application Forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered."},
+					{Key: "admissions.applications.document_verification", Slug: "document_verification", Name: "Document Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told."},
+					{Key: "admissions.applications.entrance_tests", Slug: "entrance_tests", Name: "Entrance & Tests", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due to sit the test: the slot, the hall ticket number, and the marks. A candidate who clears the cut-off moves to the interview round."},
 					{Key: "admissions.applications.interviews", Slug: "interviews", Name: "Interviews", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome."},
-					{Key: "admissions.applications.approvals_queue", Slug: "approvals_queue", Name: "Approvals queue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications sitting at a stage that needs a decision — submitted or under review — oldest first. The work, rather than the archive."},
+					{Key: "admissions.applications.principal_approval", Slug: "principal_approval", Name: "Principal Approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications waiting on the principal's word, oldest first: the child, the scores, the interview note, and one decision. Approving is what opens the fee counter for that family."},
 				},
 			},
 			{
@@ -810,11 +809,11 @@ var Roles = []Role{
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.admissions.all_admissions", Slug: "all_admissions", Name: "All admissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every applicant who has reached a decision stage, and what was decided — accepted, rejected or on hold. The list an admission clerk works from."},
-					{Key: "admissions.admissions.merit_lists_seat_allotment", Slug: "merit_lists_seat_allotment", Name: "Merit lists & seat allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants, see the seats left in each class against the quota, and allot. Merit and seats read together because one decides the other."},
+					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
 					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
-					{Key: "admissions.admissions.rte_admissions", Slug: "rte_admissions", Name: "RTE admissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% quota the Act requires: applicants claiming it, the lottery list imported from the state portal, seats filled against seats mandated, and what the government return will say."},
-					{Key: "admissions.admissions.fee_payment_enrolment", Slug: "fee_payment_enrolment", Name: "Fee payment & enrolment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admission fee, and the step that turns a paid acceptance into an enrolled student with a roll number — without anybody typing the child's details a second time."},
-					{Key: "admissions.admissions.government_ids", Slug: "government_ids", Name: "Government IDs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Aadhaar and APAAR for each admission, and the child-info id UDISE+ asks for. Captured here because a missing one is found at reporting time, when it is too late to ask the parent."},
+					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},
+					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section — without anybody typing the child's details a second time."},
+					{Key: "admissions.admissions.id_compliance", Slug: "id_compliance", Name: "ID & Compliance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Aadhaar, APAAR and the PEN each child needs, checked for shape as they are typed, and the export UDISE+ expects. A missing one found now is not found at reporting time."},
 				},
 			},
 			{
