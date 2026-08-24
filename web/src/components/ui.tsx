@@ -17,7 +17,7 @@ export function Card({ className, children }: { className?: string; children: Re
 
 export function CardHeader({
   title,
-  description,
+  description: _cardDescription,
   action,
 }: {
   title: string
@@ -28,9 +28,18 @@ export function CardHeader({
     <div className="flex flex-wrap items-start justify-between gap-4 border-b px-5 py-4">
       <div className="min-w-0">
         <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
-        {description && (
-          <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
-        )}
+        {/* Card descriptions are no longer drawn either.
+
+            Same reasoning as the page description above: a sentence explaining
+            what a card is — "How long the money has been owed. Every unpaid
+            invoice, including arrears carried in from earlier years…" — is read
+            once and skipped forever, and it sits between the card's title and
+            the numbers somebody opened the card to see.
+
+            The prop is kept so no screen breaks and so the sentence can be
+            moved somewhere it is wanted. Where a caveat genuinely changes how a
+            figure should be read, it belongs next to that figure, not in a
+            paragraph above the whole card. */}
       </div>
       {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
     </div>
