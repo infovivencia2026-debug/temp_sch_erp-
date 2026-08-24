@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { TYPEFACES as FACES, typefaceById, ensureFont } from './typefaces'
+import { typefaceById, ensureFont } from './typefaces'
 
 /* The look preferences that are not the palette.
 
@@ -141,10 +141,6 @@ function readRaw(key: string): string | undefined {
   }
 }
 
-function typefaceIds(): string[] {
-  return FACES.map((f) => f.id)
-}
-
 function one<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
@@ -177,9 +173,13 @@ function read(): Appearance {
     density: one(KEYS.density, DENSITIES, DEFAULTS.density),
     corners: one(KEYS.corners, CORNERS, DEFAULTS.corners),
     text: one(KEYS.text, TEXT_SIZES, DEFAULTS.text),
-    typeface: typefaceIds().includes(readRaw(KEYS.typeface) ?? '')
-      ? (readRaw(KEYS.typeface) as Typeface)
-      : DEFAULTS.typeface,
+    /* Resolved through typefaceById rather than tested against the list.
+
+       A face that is retired keeps its id in localStorage on every device that
+       chose it. Testing membership sent those people to the default — a
+       different typeface from the one they picked, with nothing said about it —
+       and skipped the mapping that says where a retired face should land. */
+    typeface: typefaceById(readRaw(KEYS.typeface) ?? DEFAULTS.typeface).id as Typeface,
     borders: one(KEYS.borders, BORDERS, DEFAULTS.borders),
     shadow: one(KEYS.shadow, SHADOWS, DEFAULTS.shadow),
     pattern: one(KEYS.pattern, PATTERNS, DEFAULTS.pattern),

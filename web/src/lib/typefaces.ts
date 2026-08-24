@@ -70,14 +70,26 @@ export const TYPEFACES: readonly Typeface[] = [
   { id: 'ibmplexmono', name: 'IBM Plex Mono', google: 'IBM+Plex+Mono:wght@400;500;600',
     stack: "'IBM Plex Mono', ui-monospace, Menlo, monospace",
     note: 'Monospaced. IDs, codes, and technical values.' },
-  { id: 'cinzel', name: 'Cinzel', google: 'Cinzel:wght@400;600',
-    stack: "Cinzel, ui-serif, Georgia, serif", note: 'Roman capitals, engraved.' },
 ] as const
 
 export const DEFAULT_TYPEFACE = 'inter'
 
+/* Faces that are no longer offered, and where somebody set to one should land.
+
+   A removed face cannot simply vanish: the choice is stored per device, so
+   anybody who had picked it keeps that id in localStorage and would otherwise
+   be silently dropped back to the default — a different typeface from the one
+   they chose, with nothing said about it.
+
+   Cinzel was engraved Roman capitals, which is a display face; it belonged on
+   a monument rather than on a fee register. Whoever chose it wanted something
+   with more character than the default, so they go to IBM Plex Sans rather
+   than back to Inter. */
+const RETIRED: Record<string, string> = { cinzel: 'plex' }
+
 export function typefaceById(id: string): Typeface {
-  return TYPEFACES.find((t) => t.id === id) ?? TYPEFACES[0]
+  const wanted = RETIRED[id] ?? id
+  return TYPEFACES.find((t) => t.id === wanted) ?? TYPEFACES[0]
 }
 
 const loaded = new Set<string>()
