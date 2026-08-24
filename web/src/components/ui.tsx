@@ -398,6 +398,10 @@ export type Column = string | { label: string; key?: string; align?: 'right' }
  * asking every caller to repeat the header on each cell would only create a
  * second place for them to disagree.
  */
+/* Ten. Enough that a page is worth turning, few enough that the tenth row is
+   still on screen with the header above it on a laptop. */
+const PAGE_SIZE = 10
+
 export function Table({
   head,
   children,
@@ -413,6 +417,40 @@ export function Table({
   sort?: { sortKey: string; dir: SortDir; toggle: (k: string) => void }
 }) {
   const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
+
+  /* TEN ROWS AT A TIME, everywhere, without touching a call site.
+
+     A register that scrolls for six hundred rows has no shape: you cannot tell
+     where you are in it, you cannot get back to what you just read, and the
+     header leaves the screen before the tenth row arrives. A page is a place; a
+     scroll position is not.
+
+     Done here rather than per screen because there are roughly a hundred tables
+     in this product and none of them should have to opt in. Children.toArray
+     flattens whatever the caller mapped and yields one entry per row, so no
+     screen changes shape to gain this.
+
+     Below the page size nothing is drawn at all: a five-row table with a pager
+     under it is furniture, not navigation. */
+  const rows = Children.toArray(children)
+  const [page, setPage] = useState(0)
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+
+  /* Snap back when the rows change underneath.
+
+     Filter a 400-row list down to 12 while sitting on page 9 and the table is
+     empty with a Previous button as the only clue about why. The row COUNT is
+     the signal: a re-sort keeps its length and should keep your place, a filter
+     does not. */
+  const [seen, setSeen] = useState(rows.length)
+  if (seen !== rows.length) {
+    setSeen(rows.length)
+    if (page > 0) setPage(0)
+  }
+
+  const at = Math.min(page, pages - 1)
+  const from = at * PAGE_SIZE
+  const shown = rows.length > PAGE_SIZE ? rows.slice(from, from + PAGE_SIZE) : rows
   return (
     <div className="overflow-x-auto">
       <table className="responsive-table w-full text-[14px]">
@@ -473,10 +511,31 @@ export function Table({
               </td>
             </tr>
           ) : (
-            labelCells(children, labels)
+            labelCells(shown, labels)
           )}
         </tbody>
       </table>
+
+        {rows.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
+            {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
+                arithmetic before it answers "have I passed the Ks yet"; the row
+                numbers answer it directly. */}
+            <p className="text-[12.5px] tabular-nums text-muted-foreground">
+              {from + 1}–{Math.min(from + PAGE_SIZE, rows.length)} of {rows.length}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="secondary" disabled={at === 0}
+                      onClick={() => setPage(at - 1)}>
+                Previous
+              </Button>
+              <Button size="sm" variant="secondary" disabled={at >= pages - 1}
+                      onClick={() => setPage(at + 1)}>
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
     </div>
   )
 }
