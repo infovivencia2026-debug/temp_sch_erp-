@@ -4,7 +4,8 @@ import {
   Check, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Rows3, Sun,
   UserRound, X,
 } from 'lucide-react'
-import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
+import { useCatalog, useActiveRole, featurePath, type ApiSection, type ApiFeature } from '@/lib/catalog'
+import { useRecents } from '@/lib/recents'
 import Notifications from '@/components/Notifications'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
@@ -262,6 +263,31 @@ export function Shell({ children }: { children: ReactNode }) {
      A rail that only ever followed clicks would sit on Home while somebody
      worked in Operations all afternoon. */
   const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced)
+
+  /* What this person actually opens, above the workspace they happen to have
+     selected on the rail.
+
+     58 workspaces across 10 roles is a filing cabinet a returning user has
+     already learned to navigate once; making them re-descend it on every
+     visit is the cost, not a feature. lib/recents tracks the trace across
+     both layouts (see BentoOutlet); this is the first classic-layout reader
+     of it. Capped short and resolved against the active role only — a key
+     from a role this account has since switched away from silently drops
+     rather than dead-linking. */
+  const recentKeys = useRecents()
+  const recentItems = role
+    ? recentKeys
+        .map((key) => {
+          for (const section of role.sections) {
+            const feature = section.features.find((f) => f.key === key)
+            if (feature && feature.in_scope && feature.live) return { section, feature }
+          }
+          return undefined
+        })
+        .filter((x): x is { section: ApiSection; feature: ApiFeature } => !!x)
+        .slice(0, 5)
+    : []
+
   const activeWs =
     railWorkspaces.find((w) => w.slug === railPick) ??
     railWorkspaces.find((w) =>
@@ -476,6 +502,31 @@ export function Shell({ children }: { children: ReactNode }) {
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
         <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 pb-3">
+          {/* Recent, above the selected workspace. A returning user's habits
+              live here rather than three levels down the rail every time. */}
+          {recentItems.length > 0 && (
+            <div className="mb-1 border-b pb-2 pt-1">
+              <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
+                Recent
+              </p>
+              {recentItems.map(({ section, feature }) => (
+                <NavLink
+                  key={`recent-${feature.key}`}
+                  to={featurePath(role!.key, section.slug, feature.slug)}
+                  onClick={() => setNavOpen(false)}
+                  title={feature.summary}
+                  className={({ isActive }) => navItem(isActive, 0)}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && <ActiveMark />}
+                      <span className="truncate">{shortLabel(feature.name)}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          )}
           {(activeWs ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,

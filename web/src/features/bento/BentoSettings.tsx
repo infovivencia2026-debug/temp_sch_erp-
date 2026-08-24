@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
-  Maximize2, Type, Minimize2, LayoutGrid, Sliders,
+  Maximize2, Type, Minimize2, LayoutGrid, Sliders, ChevronLeft, ChevronRight, Palette,
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
@@ -43,6 +43,12 @@ const ICON: Record<Theme, typeof Sun> = {
    the panel opens from, and nothing else. */
 export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
+/* One shared class string for every root-level row and every option row
+   inside a category pane — the drill-down still reads as one menu, not two
+   different components glued together. */
+const ROW = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+             transition-colors ${WASH} ${RING}`
+
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
   const { theme, resolved, setTheme } = useTheme()
   const { layout, setLayout } = useLayout()
@@ -73,6 +79,19 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
+  /* Which category pane is showing, macOS System Settings style: a flat root
+     list of self-contained categories, each opening into its own screen with
+     a back arrow rather than everything living on one scrolling list.
+
+     This used to be a single popover holding theme, three dialog
+     destinations, frame, layout, fullscreen, reset, account and sign out all
+     at once. Finding "Frame" meant scrolling past Theme and three unrelated
+     destinations first, and every category read as equally important because
+     none of them had room of their own. Root now shows a handful of rows;
+     each category opens to just its own controls. Reset to 'root' whenever
+     the menu closes, so it never reopens three levels deep in whatever was
+     last touched. */
+  const [pane, setPane] = useState<'root' | 'appearance' | 'layout'>('root')
   const box = useRef<HTMLDivElement>(null)
   /* The menu is portaled to document.body, so it is NOT a DOM descendant of
      `box` — the trigger's wrapper — even though it is a React child of it. It
@@ -103,6 +122,12 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('mousedown', onDown)
     }
+  }, [open])
+
+  // A closed menu forgets which category it was showing, so reopening it
+  // always starts at the root list rather than wherever it was left.
+  useEffect(() => {
+    if (!open) setPane('root')
   }, [open])
 
   /* A cog, at the far right of the screen.
@@ -216,241 +241,234 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             (placement === 'menubar') ? 'pop-down' : 'pop-up',
           )}
         >
-          {/* The caption is the panel's ink, told apart from the rows by size,
-              weight and letter-spacing rather than by a second tone. */}
-          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-            {t('bento.settings.appearance')}
-          </p>
-          {THEMES.map((option) => {
-            const Icon = ICON[option]
-            const active = theme === option
-            return (
+          {pane === 'root' && (
+            <>
+              {/* Each row is one self-contained destination: a category with its
+                  own pane, or a single direct action. Nothing here is a control
+                  itself — that is the whole point of the drill-down — so this
+                  list stays short no matter how many preferences the categories
+                  behind it grow to hold. */}
+              <button type="button" role="menuitem" onClick={() => setPane('appearance')} className={ROW}>
+                <Palette className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.settings.appearance')}</span>
+                <span className={cn('shrink-0 text-[12px]', INK)}>
+                  {t(`bento.settings.theme.${theme}`)}
+                </span>
+                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+              </button>
+
+              <button type="button" role="menuitem" onClick={() => setPane('layout')} className={ROW}>
+                <PanelLeft className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.settings.layout')}</span>
+                <span className={cn('shrink-0 text-[12px]', INK)}>
+                  {t(`bento.settings.layout.${layout}`)}
+                </span>
+                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+              </button>
+
+              <div
+                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+                role="separator"
+              />
+
+              {/* Dock and Dashboard open the full dialog directly — each is
+                  already a self-contained screen there, so a middle pane here
+                  would only be a detour to the same place. */}
               <button
-                key={option}
                 type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => {
-                  setTheme(option)
-                  setOpen(false)
-                }}
+                role="menuitem"
+                onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
+                className={ROW}
+              >
+                <Type className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.appearance.title')}</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setAppearanceTab('dock'); setShowAppearance(true); setOpen(false) }}
+                className={ROW}
+              >
+                <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">Dock Settings</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setAppearanceTab('dashboard'); setShowAppearance(true); setOpen(false) }}
+                className={ROW}
+              >
+                <Sliders className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">Dashboard Widgets</span>
+              </button>
+
+              <div
+                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+                role="separator"
+              />
+
+              {/* Single-toggle and terminal actions stay flat at the root —
+                  Mac's own Settings does the same with Lock Screen / Log Out:
+                  a category pane exists for a set of related choices, not for
+                  one switch or a one-way door. */}
+              <button type="button" role="menuitem" onClick={toggleFull} className={ROW}>
+                {full
+                  ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
+                  : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
+                <span className="flex-1">
+                  {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
+                </span>
+              </button>
+
+              {/* A way back. Enough axes lived here at once that somebody
+                  ended up somewhere they could not retrace, and a settings
+                  panel with no exit from itself is a trap. */}
+              <button type="button" role="menuitem" onClick={() => resetAppearance()} className={ROW}>
+                <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.settings.reset')}</span>
+              </button>
+
+              {/* The account screen existed and nothing pointed at it.
+
+                  /account sits outside the catalogue on purpose — everybody has a name,
+                  a password and contact details whatever their role — but the only way in
+                  was to type the URL. Ten roles could sign in with no route to their own
+                  profile, which is why it read as a feature that did not exist.
+
+                  Directly above sign out, where every product keeps the account it
+                  belongs to. */}
+              <a href="/account" role="menuitem" className={ROW}>
+                <UserCircle className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.settings.account')}</span>
+              </a>
+
+              <a href="/logout" role="menuitem" className={ROW}>
+                <LogOut className="size-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1">{t('bento.settings.signout')}</span>
+              </a>
+            </>
+          )}
+
+          {pane === 'appearance' && (
+            <>
+              {/* Self-contained: everything about how the surface looks —
+                  theme and frame — and nothing else. Leaving closes the
+                  category, not the menu, so a person comparing themes and
+                  frames stays put instead of reopening from the root each time. */}
+              <button
+                type="button"
+                onClick={() => setPane('root')}
                 className={cn(
-                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors ${WASH} ${RING}`,
-                  active && 'font-medium',
+                  'mb-1 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left',
+                  'text-[12px] font-medium transition-colors', INK, WASH, RING,
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
-                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                <ChevronLeft className="size-3.5 shrink-0" aria-hidden="true" />
+                {t('bento.settings.appearance')}
               </button>
-            )
-          })}
 
-          <div
-            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
-               the panel's own paper it measures 1.38:1, which is a rule that
-               is there in the markup and not on the screen. Mixed from the
-               ink, so it is a rule in both polarities. */
-            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-            role="separator"
-          />
+              <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
+                {t('bento.settings.appearance')}
+              </p>
+              {THEMES.map((option) => {
+                const Icon = ICON[option]
+                const active = theme === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => setTheme(option)}
+                    className={cn(ROW, active && 'font-medium')}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
+                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                  </button>
+                )
+              })}
 
+              <div
+                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+                role="separator"
+              />
 
-          {/* Appearance, Dock, Dashboard — three distinct settings destinations */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <Type className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">{t('bento.appearance.title')}</span>
-          </button>
+              <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
+                {t('bento.settings.frame')}
+              </p>
+              {SKINS.map((option) => {
+                const Icon = option === 'focus' ? Square : Frame
+                const active = skin === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => setSkin(option as Skin)}
+                    className={cn(ROW, active && 'font-medium')}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">{t(`bento.settings.skin.${option}`)}</span>
+                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                  </button>
+                )
+              })}
+            </>
+          )}
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => { setAppearanceTab('dock'); setShowAppearance(true); setOpen(false) }}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">Dock Settings</span>
-          </button>
+          {pane === 'layout' && (
+            <>
+              {/* Layout as a preference, not an exit.
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => { setAppearanceTab('dashboard'); setShowAppearance(true); setOpen(false) }}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <Sliders className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">Dashboard Widgets</span>
-          </button>
+                  This was a "Leave Bento" button, which asked a user to know
+                  that they were inside something called Bento — our word for
+                  it, never theirs. It reads as two choices about how the
+                  screen is arranged now, which is what it always was.
 
-          <div
-            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
-               the panel's own paper it measures 1.38:1, which is a rule that
-               is there in the markup and not on the screen. Mixed from the
-               ink, so it is a rule in both polarities. */
-            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-            role="separator"
-          />
-
-          {/* The frame, beside the palette rather than under a heading of its
-              own. They are the same kind of decision — what this surface looks
-              like — and a person changing one is usually looking at the other. */}
-          {/* The caption is the panel's ink, told apart from the rows by size,
-              weight and letter-spacing rather than by a second tone. */}
-          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-            {t('bento.settings.frame')}
-          </p>
-          {SKINS.map((option) => {
-            const Icon = option === 'focus' ? Square : Frame
-            const active = skin === option
-            return (
+                  It could not simply be deleted. The switch lives nowhere
+                  else: the appearance screen that carries theme and density
+                  is catalogued for students only, so a principal has no other
+                  route to it, and the classic header is hidden by the very
+                  layout they would be trying to leave. */}
               <button
-                key={option}
                 type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => setSkin(option as Skin)}
+                onClick={() => setPane('root')}
                 className={cn(
-                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors ${WASH} ${RING}`,
-                  active && 'font-medium',
+                  'mb-1 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left',
+                  'text-[12px] font-medium transition-colors', INK, WASH, RING,
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t(`bento.settings.skin.${option}`)}</span>
-                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                <ChevronLeft className="size-3.5 shrink-0" aria-hidden="true" />
+                {t('bento.settings.layout')}
               </button>
-            )
-          })}
 
-          <div
-            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
-               the panel's own paper it measures 1.38:1, which is a rule that
-               is there in the markup and not on the screen. Mixed from the
-               ink, so it is a rule in both polarities. */
-            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-            role="separator"
-          />
-
-          {/* Layout as a preference, not an exit.
-
-              This was a "Leave Bento" button, which asked a user to know that
-              they were inside something called Bento — our word for it, never
-              theirs. It reads as two choices about how the screen is arranged
-              now, which is what it always was.
-
-              It could not simply be deleted. The switch lives nowhere else: the
-              appearance screen that carries theme and density is catalogued for
-              students only, so a principal has no other route to it, and the
-              classic header is hidden by the very layout they would be trying
-              to leave. Removing the row would have stranded them — the bug this
-              codebase already fixed once under "give the chrome-less layout its
-              doors back". */}
-          {/* The caption is the panel's ink, told apart from the rows by size,
-              weight and letter-spacing rather than by a second tone. */}
-          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-            {t('bento.settings.layout')}
-          </p>
-          {LAYOUTS.map((option) => {
-            const Icon = option === 'classic' ? PanelLeft : Maximize2
-            const active = layout === option
-            return (
-              <button
-                key={option}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => {
-                  setLayout(option as Layout)
-                  setOpen(false)
-                }}
-                className={cn(
-                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors ${WASH} ${RING}`,
-                  active && 'font-medium',
-                )}
-              >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t(`bento.settings.layout.${option}`)}</span>
-                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-              </button>
-            )
-          })}
-
-          <div
-            /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
-               the panel's own paper it measures 1.38:1, which is a rule that
-               is there in the markup and not on the screen. Mixed from the
-               ink, so it is a rule in both polarities. */
-            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-            role="separator"
-          />
-
-          <button
-            type="button"
-            role="menuitem"
-            onClick={toggleFull}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            {full
-              ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
-              : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
-            <span className="flex-1">
-              {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
-            </span>
-          </button>
-
-          {/* A way back. Nine axes is enough that somebody ends up somewhere
-              they cannot retrace, and a settings panel with no exit from itself
-              is a trap. */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => resetAppearance()}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">{t('bento.settings.reset')}</span>
-          </button>
-
-          {/* The account screen existed and nothing pointed at it.
-
-              /account sits outside the catalogue on purpose — everybody has a name,
-              a password and contact details whatever their role — but the only way in
-              was to type the URL. Ten roles could sign in with no route to their own
-              profile, which is why it read as a feature that did not exist.
-
-              Directly above sign out, where every product keeps the account it
-              belongs to. */}
-          <a
-            href="/account"
-            role="menuitem"
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <UserCircle className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">{t('bento.settings.account')}</span>
-          </a>
-
-          <a
-            href="/logout"
-            role="menuitem"
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                       transition-colors ${WASH} ${RING}`}
-          >
-            <LogOut className="size-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1">{t('bento.settings.signout')}</span>
-          </a>
+              {LAYOUTS.map((option) => {
+                const Icon = option === 'classic' ? PanelLeft : Maximize2
+                const active = layout === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setLayout(option as Layout)
+                      setOpen(false)
+                    }}
+                    className={cn(ROW, active && 'font-medium')}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">{t(`bento.settings.layout.${option}`)}</span>
+                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                  </button>
+                )
+              })}
+            </>
+          )}
         </div>,
         document.body,
       )}

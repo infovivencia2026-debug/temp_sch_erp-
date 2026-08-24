@@ -110,7 +110,8 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
   const { layout } = useLayout()
   const key = useRouteFeatureKey()
 
-  /* Note what was opened, so the launcher can lead with it.
+  /* Note what was opened, so the launcher — and the classic sidebar's Recent
+     row — can lead with it.
 
      Here rather than on the launcher's own click, because most navigation is
      not a click in the launcher: it is the command palette, a card's cue, a
@@ -118,11 +119,16 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
      "recently opened" list that reflected one route in and quietly disagreed
      with what the person had actually been doing.
 
+     Recorded regardless of layout: the trace belongs to the account's usage,
+     not to whichever layout happened to be active when a screen was opened.
+     Bento was the only reader for a while, which is why this used to gate on
+     `layout === 'bento'`; Shell.tsx now reads the same list.
+
      recordRecent is idempotent on the head of the list, so a re-render of the
      same route does not republish and re-render every subscriber. */
   useEffect(() => {
-    if (layout === 'bento' && key) recordRecent(key)
-  }, [layout, key])
+    if (key) recordRecent(key)
+  }, [key])
 
   /* Resolved once, because two things need the answer: what to render, and
      whether what renders is a board. A board is measured to the window and
