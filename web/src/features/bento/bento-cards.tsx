@@ -369,6 +369,62 @@ export function Compare({ rows, srLabel, formatValue }: {
   )
 }
 
+/** A part inside its whole: one track, not two bars.
+
+    Collected is a SUBSET of billed, and Compare drew them as two independent
+    tracks against a shared maximum. That is arithmetically honest and visually
+    useless: at 87.7% collected the two bars differ by an eighth of their length,
+    so a principal sees two near-identical lines and learns nothing the two
+    numbers beside them had not already said.
+
+    A part of a whole is one bar. The fill is what came in, the remainder is what
+    has not — and the remainder is the thing somebody is actually looking for,
+    because it is the money still outside the building. It is drawn, labelled and
+    given its own figure rather than left as the absence of ink. */
+export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatValue, srLabel }: {
+  part: number
+  whole: number
+  partLabel: string
+  wholeLabel: string
+  gapLabel: string
+  formatValue?: (n: number) => string
+  srLabel: string
+}) {
+  const w = num(whole)
+  if (w <= 0) return null
+  const p = Math.max(0, Math.min(num(part), w))
+  const pct = Math.round((p / w) * 100)
+  const fmt = formatValue ?? ((n: number) => String(n))
+  const gap = w - p
+
+  return (
+    <div className="flex h-full flex-col justify-center gap-1.5" role="img" aria-label={srLabel}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+          {partLabel}
+        </span>
+        <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
+      </div>
+
+      <span className="relative block h-3.5 overflow-hidden rounded-[3px]" style={{ background: TRACK }}>
+        <span className="block h-full rounded-[3px]" style={{ width: `${pct}%`, background: MARK }} />
+      </span>
+
+      {/* The shortfall, named. Without this the empty end of the track is just
+          empty, and the one number a principal came for is the one nobody
+          printed. */}
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+          {gap > 0 ? gapLabel : wholeLabel}
+        </span>
+        <b className="text-[9px] font-bold tabular-nums opacity-80">
+          {gap > 0 ? fmt(gap) : fmt(w)}
+        </b>
+      </div>
+    </div>
+  )
+}
+
 /** Facts: the numbers around the headline figure, set as a list.
 
     This replaces the dot field, and replacing it with another PICTURE was the

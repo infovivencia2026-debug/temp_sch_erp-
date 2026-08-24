@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import {
-  Area, Bars, CardShell, Compare, Distribution, Facts, Flow, Funnel, Gauge, Line, Rows, Scale,
+  Area, Bars, CardShell, Compare, Distribution, Facts, Flow, Funnel, Gauge, Line, PartOf, Rows, Scale,
   Stack,
 } from './bento-cards'
 import { code, decl, draw, drewNothing, styleOf } from './bento-test-render'
@@ -67,6 +67,7 @@ describe('empty data draws nothing', () => {
     ['Stack []', <Stack columns={[]} srLabel="l" />],
     ['Distribution []', <Distribution values={[]} srLabel="l" />],
     ['Compare []', <Compare rows={[]} srLabel="l" />],
+    ['PartOf whole 0', <PartOf part={5} whole={0} partLabel="in" wholeLabel="billed" gapLabel="due" srLabel="l" />],
     ['Facts []', <Facts items={[]} srLabel="l" />],
     ['Funnel []', <Funnel stages={[]} srLabel="l" />],
     ['Flow []', <Flow rows={[]} srLabel="l" />],
@@ -435,3 +436,41 @@ describe('degenerate input does not throw', () => {
    assertion about jsdom rather than about the card. The shell's contract is
    checked at the level it is WRITTEN at — the grid template — and the rest
    belongs in the Playwright pass, which has a real engine under it. */
+
+describe('PartOf draws a part inside its whole', () => {
+  const node = (part: number, whole: number) => (
+    <PartOf part={part} whole={whole} partLabel="in" wholeLabel="billed" gapLabel="due"
+            formatValue={(n) => String(n)} srLabel="l" />
+  )
+
+  it('fills the track to the part\'s share of the whole', () => {
+    const host = draw(node(50, 200))
+    expect(decl(styleOf(host, 'span[style*="width"]'), 'width')).toBe('25%')
+  })
+
+  it('names the shortfall rather than leaving it as empty track', () => {
+    // The gap is the number somebody came for. Compare left it as the absence
+    // of ink, which is why two near-equal bars said nothing.
+    const host = draw(node(50, 200))
+    expect(host.textContent).toContain('due')
+    expect(host.textContent).toContain('150')
+  })
+
+  it('shows the whole, not a zero gap, once everything is collected', () => {
+    const host = draw(node(200, 200))
+    expect(host.textContent).toContain('billed')
+    expect(host.textContent).not.toContain('due')
+  })
+
+  /* A part larger than its whole is clamped rather than drawn overflowing: an
+     over-collection is a data question, and a bar running past its own track
+     reads as a rendering fault to everyone who sees it. */
+  it('clamps a part that exceeds the whole', () => {
+    const host = draw(node(300, 200))
+    expect(decl(styleOf(host, 'span[style*="width"]'), 'width')).toBe('100%')
+  })
+
+  it('refuses a whole of zero', () => {
+    expect(drewNothing(node(5, 0))).toBe(true)
+  })
+})

@@ -28,6 +28,7 @@ import {
   CardShell,
   Compare,
   Compare as CardCompare,
+  PartOf as CardPartOf,
   Distribution,
   Gauge,
   Gauge as CardGauge,
@@ -3199,11 +3200,12 @@ export function CollectedCard({
   const money = (n: number) => formatPaise(n)
 
   const pair = (
-    <CardCompare
-      rows={[
-        { label: t('bento.principal.card_billed'), value: billed },
-        { label: t('bento.principal.card_in'), value: collected },
-      ]}
+    <CardPartOf
+      part={collected}
+      whole={billed}
+      partLabel={t('bento.principal.card_in')}
+      wholeLabel={t('bento.principal.card_billed')}
+      gapLabel={t('bento.principal.card_due')}
       formatValue={money}
       srLabel={t('bento.principal.collected_sr')}
     />
