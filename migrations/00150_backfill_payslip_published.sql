@@ -1,16 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
 
-/* Applied, and changed nothing. Superseded by 00150.
-
-   This ran green and updated zero rows: migrations run with no tenant set,
-   payroll_runs FORCEs row level security, and an UPDATE that matches nothing
-   reports the same "0" as one with nothing to do. Left on disk because it is
-   recorded as applied, and a migration whose file has vanished is worse than
-   one that turned out to be a no-op.
-
-   The original intent, carried out properly in 00150: */
-
 /* The months that were already published.
 
    00148 added published_at, which fixes this going forward and leaves every
@@ -25,6 +15,17 @@
 
    Deliberately the earliest rather than the latest: a month published once and
    emailed again later was told on the first occasion. */
+/* Migrations run with no tenant set, and payroll_runs FORCEs row level
+   security — so this UPDATE matched nothing at all and said so by reporting
+   zero rows, which looks exactly like "there was nothing to backfill". The
+   first version of this migration ran green and changed not one row.
+
+   app_is_platform_admin is the switch the policy already reads, so this asks
+   for the same standing the platform has rather than lifting the policy off
+   the table and putting it back. Set LOCAL: it lasts the transaction and no
+   longer. */
+SET LOCAL app.is_platform_admin = 'on';
+
 UPDATE payroll_runs pr
    SET published_at = ev.first_told
   FROM (
@@ -47,6 +48,6 @@ UPDATE payroll_runs pr
 
 -- +goose Down
 -- +goose StatementBegin
--- Nothing to undo: 00148's own down drops the column this filled.
+-- Nothing to undo: 00148 own down drops the column this filled.
 SELECT 1;
 -- +goose StatementEnd
