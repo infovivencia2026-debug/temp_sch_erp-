@@ -149,6 +149,7 @@ Student,Home,Home,Digital Diary & Schedule,"Track personal study schedules, proj
 Student,Home,Home,Custom Theme Selection,"Customize student portal appearance with dark mode, high-contrast mode, or color themes.",Specific student,Must-Have,optional
 Student,Academics,Timetable,Timetable,Daily/weekly class timetable and exam timetable.,Self only,Must-Have,core
 Student,Academics,Attendance,Attendance,"Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",Self only,Must-Have,core
+Student,Attendance,Attendance,Apply for leave,"Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.",Self only,Must-Have,core
 Student,Academics,Homework,Homework & assignments,View due/overdue/submitted work; submit files/text where enabled.,Self only,Must-Have,core
 Student,Academics,Homework,Classmate Homework Help Forum,Moderated discussion board where students can post homework questions and share study hints.,Specific student,Must-Have,optional
 Student,Academics,Learning,Courses / subjects,"Current enrolled courses/subjects, teacher and learning resources.",Self only,Must-Have,core
@@ -173,7 +174,7 @@ Student,School,Campus Life,Lost & Found Photo Board with Claim Verification,View
 Student,School,Campus Life,Digital Locker Combination & Access Log,Manage assigned physical hallway locker numbers and view digital access keycode history.,Specific student,Must-Have,optional
 Student,School,Alumni,Alumni Network Registration,Register for the official school alumni network upon passing out to stay connected with batchmates.,Specific student,Nice-to-Have,optional
 Student,School,Alumni,Alumni Job & Internship Board,Senior students access exclusive internship and entry-level job posts shared by alumni network.,Specific student,Nice-to-Have,optional
-Student,Requests,Requests,Requests,"Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type.",Self only,Must-Have,core
+Student,Requests,Requests,Requests,"Ask the office for a document — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given.",Self only,Must-Have,core
 Student,Profile,Profile,Digital Student ID Card NFC Tap Pass,Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.,Specific student,Must-Have,optional
 Parent / Guardian,Home,Home,Child switcher,Switch between linked children without separate accounts.,Linked child/children only,Must-Have,core
 Parent / Guardian,Home,Home,Child summary,"Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.",Linked child/children only,Must-Have,core
@@ -201,7 +202,7 @@ Parent / Guardian,School,School Life,Parent-Teacher Meeting Booking,Select avail
 Parent / Guardian,School,School Life,PTM Appointment Reminder Alert,Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.,Specific student,Should-Have,core
 Parent / Guardian,School,School Life,School Photo & Video Gallery,"View high-resolution photos and videos from school sports day, annual day, and events.",Specific student,Should-Have,core
 Parent / Guardian,School,School Life,Live Event Seating Pass,Download barcoded digital entry passes with pre-allocated row/seat numbers for school events.,Specific student,Should-Have,optional
-Parent / Guardian,Requests,Leave & Absence,Requests,Submit leave/permission/certificate/help requests on behalf of child where allowed.,Linked child/children only,Must-Have,core
+Parent / Guardian,Documents,Documents,Certificate requests,"Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download.",Linked child/children only,Must-Have,core
 Parent / Guardian,Requests,Leave & Absence,Apply Student Leave,Submit digital student leave applications with reason and medical certificate attachments.,Specific student,Must-Have,core
 Parent / Guardian,Requests,Consent,Consent & acknowledgement,"Acknowledge circulars, permissions, trips and configured consent forms.",Linked child/children only,Must-Have,core
 Parent / Guardian,Requests,Consent,Digital Parent Consent Slips,"Provide digital signature consent for upcoming field trips, sports events, or health camps.",Specific student,Should-Have,core

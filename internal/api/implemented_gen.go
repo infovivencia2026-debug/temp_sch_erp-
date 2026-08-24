@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 333 of the catalog's features are implemented.
+// 334 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.all_admissions":                                           true,
 	"admissions.admissions.fee_payment_enrolment":                                    true,
@@ -214,6 +214,7 @@ var implementedFeatures = map[string]bool{
 	"parent.consent.consent_acknowledgement":                                         true,
 	"parent.consent.digital_parent_consent_slips":                                    true,
 	"parent.consent.parent_delegation_for_emergency_pickup":                          true,
+	"parent.documents.certificate_requests":                                          true,
 	"parent.fees.child_daily_cafeteria_purchase_timeline":                            true,
 	"parent.fees.digital_fee_receipt_pdf_download":                                   true,
 	"parent.fees.fees_payments":                                                      true,
@@ -222,7 +223,6 @@ var implementedFeatures = map[string]bool{
 	"parent.home.needs_attention":                                                    true,
 	"parent.home.real_time_push_notifications":                                       true,
 	"parent.leave_absence.apply_student_leave":                                       true,
-	"parent.leave_absence.requests":                                                  true,
 	"parent.messages.communication":                                                  true,
 	"parent.messages.direct_teacher_messaging":                                       true,
 	"parent.messages.teacher_remarks":                                                true,
@@ -253,6 +253,7 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.usage_health.instance_health":                                      true,
 	"student.alumni.alumni_job_internship_board":                                     true,
 	"student.alumni.alumni_network_registration":                                     true,
+	"student.attendance.apply_for_leave":                                             true,
 	"student.attendance.attendance":                                                  true,
 	"student.campus_life.digital_locker_combination_access_log":                      true,
 	"student.campus_life.lost_found_item_board":                                      true,

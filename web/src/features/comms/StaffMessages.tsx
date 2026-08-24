@@ -41,6 +41,28 @@ interface Message {
   sender_name: string
 }
 
+/* A conversation with a family, which had nowhere to land.
+ *
+ * A parent writes to their child's teacher from the portal, the message is
+ * stored and a notification is raised — and then the teacher has no screen
+ * that reads it. "Messages" was staff-to-staff only; "Communication" is what
+ * the teacher sends out. The message arrived at a room with no door, and the
+ * parent sat waiting for a reply to something nobody could see.
+ *
+ * It belongs here rather than on a menu entry of its own. A teacher opening
+ * "Messages" is asking who has written to me, and answering that with two
+ * separate places to look is how somebody misses one of them for a week. */
+interface ParentThread {
+  student_id: string
+  student_name: string
+  class_name?: string
+  parent_user_id: string
+  parent_name: string
+  last_message?: string
+  last_at?: string
+  unread: number
+}
+
 export default function StaffMessages() {
   const qc = useQueryClient()
   /* Opened on somebody, when the link says so.
@@ -59,6 +81,58 @@ export default function StaffMessages() {
   }
   const [find, setFind] = useState('')
   const [draft, setDraft] = useState('')
+
+  /* Which register is open. In the URL for the same reason `with` is: a
+     notification about a parent's message has to be able to land on it. */
+  const box = params.get('box') === 'parents' ? 'parents' : 'staff'
+  const setBox = (b: 'staff' | 'parents') => {
+    const next = new URLSearchParams(params)
+    if (b === 'parents') next.set('box', 'parents')
+    else next.delete('box')
+    next.delete('with')
+    next.delete('child')
+    setParams(next, { replace: true })
+  }
+  const openChild = params.get('child') ?? ''
+  const setOpenChild = (studentID: string, parentID: string) => {
+    const next = new URLSearchParams(params)
+    next.set('box', 'parents')
+    next.set('child', studentID)
+    next.set('with', parentID)
+    setParams(next)
+  }
+
+  const parentThreads = useQuery({
+    queryKey: ['parent-threads'],
+    queryFn: () => api.get<List<ParentThread>>('/api/v1/teaching/parent-messages'),
+  })
+  const parentMessages = useQuery({
+    queryKey: ['parent-messages', openChild, openWith],
+    queryFn: () =>
+      api.get<List<Message>>(
+        `/api/v1/teaching/parent-messages/thread?student_id=${openChild}&parent_user_id=${openWith}`,
+      ),
+    enabled: box === 'parents' && !!openChild && !!openWith,
+  })
+  const openParent = (parentThreads.data?.items ?? []).find(
+    (t) => t.student_id === openChild && t.parent_user_id === openWith,
+  )
+
+  const replyToParent = useMutation({
+    // The same endpoint the parent writes with: it already had a branch for a
+    // teacher answering, checked against whether they teach that child.
+    mutationFn: () =>
+      api.post('/api/v1/portal/messages', {
+        student_id: openChild,
+        parent_user_id: openWith,
+        body: draft,
+      }),
+    onSuccess: () => {
+      setDraft('')
+      qc.invalidateQueries({ queryKey: ['parent-messages', openChild, openWith] })
+      qc.invalidateQueries({ queryKey: ['parent-threads'] })
+    },
+  })
 
   const threads = useQuery({
     queryKey: ['staff-threads'],
@@ -92,19 +166,177 @@ export default function StaffMessages() {
       )
     : all
   const open = all.find((t) => t.user_id === openWith)
-  const unreadTotal = all.reduce((n, t) => n + t.unread, 0)
+  const parents = parentThreads.data?.items ?? []
+  const staffUnread = all.reduce((n, t) => n + t.unread, 0)
+  const parentUnread = parents.reduce((n, t) => n + t.unread, 0)
+  const unreadTotal = staffUnread + parentUnread
 
   return (
     <>
       <PageHead
         eyebrow="Communication"
-        title="Direct messages"
-        description="One colleague at a time. For something the whole school needs, write a circular instead."
+        title="Messages"
+        description="Colleagues, and the families who have written to you. For something the whole school needs, write a circular instead."
         actions={
           unreadTotal > 0 && <Badge tone="primary">{unreadTotal} unread</Badge>
         }
       />
       <PageBody>
+        {/* Two registers, one question.
+            A teacher opening Messages is asking who has written to me, and
+            answering that in two separate places is how one of them goes
+            unread for a week. */}
+        <div className="flex flex-wrap gap-1 border-b">
+          {([
+            ['staff', 'Colleagues', staffUnread],
+            ['parents', 'Parents', parentUnread],
+          ] as const).map(([k, label, unread]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setBox(k)}
+              aria-current={box === k}
+              className={
+                box === k
+                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
+                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+              }
+            >
+              {label}
+              {unread > 0 && <Badge tone="primary">{unread}</Badge>}
+            </button>
+          ))}
+        </div>
+
+        {box === 'parents' ? (
+          <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+            <Card className="min-w-0">
+              <CardHeader
+                title="Families"
+                description={
+                  parents.length
+                    ? `${parents.length} conversation${parents.length === 1 ? '' : 's'}`
+                    : undefined
+                }
+              />
+              <ul className="max-h-[28rem] divide-y overflow-auto">
+                {parents.map((t) => (
+                  <li key={`${t.student_id}-${t.parent_user_id}`}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenChild(t.student_id, t.parent_user_id)}
+                      className={cn(
+                        'w-full px-4 py-2.5 text-left transition-colors',
+                        t.student_id === openChild && t.parent_user_id === openWith
+                          ? 'bg-accent'
+                          : 'hover:bg-muted/60',
+                      )}
+                    >
+                      <span className="flex items-baseline gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+                          {t.parent_name}
+                        </span>
+                        {t.last_at && (
+                          <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                            {t.last_at.slice(0, 10)}
+                          </span>
+                        )}
+                        {t.unread > 0 && <Badge tone="primary">{t.unread}</Badge>}
+                      </span>
+                      {/* Whose parent, which is the fact a teacher recognises
+                          — twelve surnames mean nothing without the child. */}
+                      <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
+                        {t.student_name}
+                        {t.class_name ? ` · ${t.class_name}` : ''}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
+                        {t.last_message ?? ''}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {parents.length === 0 && (
+                  <li className="px-4 py-3 text-[13px] text-muted-foreground">
+                    No family has written to you yet. A parent starts the conversation from their
+                    own app.
+                  </li>
+                )}
+              </ul>
+            </Card>
+
+            <Card className="flex min-w-0 flex-col">
+              {!openChild || !openWith ? (
+                <div className="p-8">
+                  <EmptyState
+                    title="Choose a conversation"
+                    body="Parents write to you about one child at a time, so each thread is about one of your students."
+                  />
+                </div>
+              ) : (
+                <>
+                  <CardHeader
+                    title={openParent?.parent_name ?? 'Conversation'}
+                    description={
+                      openParent
+                        ? `About ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
+                        : undefined
+                    }
+                  />
+                  <div className="max-h-[24rem] min-h-[12rem] flex-1 space-y-2 overflow-auto px-5 py-4">
+                    {parentMessages.isLoading ? (
+                      <Loading />
+                    ) : (
+                      (parentMessages.data?.items ?? []).map((m) => (
+                        <div
+                          key={m.id}
+                          className={cn(
+                            'max-w-[85%] rounded-lg px-3 py-2 text-[14px]',
+                            m.mine ? 'ml-auto bg-primary text-primary-foreground' : 'bg-muted',
+                          )}
+                        >
+                          <p className="whitespace-pre-wrap">{m.body}</p>
+                          <p
+                            className={cn(
+                              'mt-1 text-[11.5px]',
+                              m.mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                            )}
+                          >
+                            {m.sent_at.replace('T', ' ')}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <form
+                    className="flex items-end gap-2 border-t px-5 py-3"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (draft.trim()) replyToParent.mutate()
+                    }}
+                  >
+                    <Textarea
+                      value={draft}
+                      onChange={setDraft}
+                      rows={2}
+                      placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
+                    />
+                    <Button type="submit" disabled={!draft.trim() || replyToParent.isPending}>
+                      <Send className="h-3.5 w-3.5" />
+                      {replyToParent.isPending ? 'Sending…' : 'Reply'}
+                    </Button>
+                  </form>
+                  {replyToParent.isError && (
+                    <p className="px-5 pb-3 text-[13px] text-destructive">
+                      {replyToParent.error instanceof Error
+                        ? replyToParent.error.message
+                        : 'Could not send that.'}
+                    </p>
+                  )}
+                </>
+              )}
+            </Card>
+          </div>
+        ) : (
         <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <Card className="min-w-0">
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
@@ -222,6 +454,7 @@ export default function StaffMessages() {
             )}
           </Card>
         </div>
+        )}
       </PageBody>
     </>
   )

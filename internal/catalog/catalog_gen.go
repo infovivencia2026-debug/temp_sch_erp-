@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 327 features.
+// Roles is the catalog: 13 roles, 328 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -978,6 +978,7 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
+					{Key: "student.attendance.apply_for_leave", Slug: "apply_for_leave", Name: "Apply for leave", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet."},
 				},
 			},
 			{
@@ -1058,7 +1059,7 @@ var Roles = []Role{
 				Name: "Requests",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type."},
+					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the office for a document — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given."},
 				},
 			},
 			{
@@ -1160,11 +1161,19 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "documents",
+				Name: "Documents",
+				Workspace: "Documents",
+				Features: []Feature{
+					{Key: "parent.documents.certificate_requests", Slug: "certificate_requests", Name: "Certificate requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download."},
+					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
+				},
+			},
+			{
 				Slug: "leave_absence",
 				Name: "Leave & Absence",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.leave_absence.requests", Slug: "requests", Name: "Requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit leave/permission/certificate/help requests on behalf of child where allowed."},
 					{Key: "parent.leave_absence.apply_student_leave", Slug: "apply_student_leave", Name: "Apply Student Leave", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit digital student leave applications with reason and medical certificate attachments."},
 				},
 			},
@@ -1176,14 +1185,6 @@ var Roles = []Role{
 					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
 					{Key: "parent.consent.digital_parent_consent_slips", Slug: "digital_parent_consent_slips", Name: "Digital Parent Consent Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Provide digital signature consent for upcoming field trips, sports events, or health camps."},
 					{Key: "parent.consent.parent_delegation_for_emergency_pickup", Slug: "parent_delegation_for_emergency_pickup", Name: "Parent Delegation for Emergency Pickup", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
-				},
-			},
-			{
-				Slug: "documents",
-				Name: "Documents",
-				Workspace: "Requests",
-				Features: []Feature{
-					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{

@@ -317,6 +317,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/today", s.listTodaysClasses)
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
+			// The teacher's half of the parent conversation — see
+			// teacher_parent_inbox.go. The reply leg already existed; being
+			// told there was something to reply to did not.
+			r.Get("/parent-messages", s.listTeacherParentThreads)
+			r.Get("/parent-messages/thread", s.listTeacherParentMessages)
 			s.mountFacultyComms(r)
 			s.mountTeaching(r)
 			/* What a class teacher knows about each child: the roll-up, the
