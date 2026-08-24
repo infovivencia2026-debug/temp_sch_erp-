@@ -366,6 +366,19 @@
   h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
 
+  /* Money and dates are not words, and must never be broken like one.
+     `overflow-wrap: anywhere` above stops a long email address from pushing a
+     table sideways, and it was also splitting ₹1,800 across three lines — as
+     "₹1," then "8" then "0" then "0" — in a payslip column squeezed by having
+     a dozen salary components beside it. A figure broken mid-number is not a
+     figure any more; the payroll table is exactly where a school reads down a
+     column of them. So numeric cells opt out and let the table scroll. */
+  .responsive-table :where(td, th).num {
+    overflow-wrap: normal;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Horizontal separators only. Vertical rules between every column turn a
      table into a spreadsheet grid and make it harder to read across a row. */
   table { border-collapse: collapse; }

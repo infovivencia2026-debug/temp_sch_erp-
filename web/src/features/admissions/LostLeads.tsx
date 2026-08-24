@@ -100,7 +100,7 @@ export default function LostLeads() {
   const optOut = useMutation({
     mutationFn: (id: string) => api.post(`${A}/leads/${id}/opt-out`, {}),
     onSuccess: () => {
-      toast.ok('Recorded — every sequence for this family has stopped')
+      toast.ok('Recorded — every sequence for this parent has stopped')
       invalidate()
     },
     onError: (e) => toast.error(errText(e)),
@@ -267,7 +267,7 @@ export default function LostLeads() {
           ) : (
             <Table
               head={[
-                'Family', 'Class sought', 'Source', 'Counsellor', 'Reason', 'Note',
+                'Parent', 'Class sought', 'Source', 'Counsellor', 'Reason', 'Note',
                 { label: 'Worked for', align: 'right' }, 'Lost on', '',
               ]}
               empty={!lost.isLoading && lostRows.length === 0}

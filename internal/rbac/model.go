@@ -196,7 +196,7 @@ var Groups = []Group{
 		Approve:   []string{RefundsWrite},
 		Export:    []string{FinanceExport},
 		Scopes:    fixed("institution"),
-		ScopeNote: "The fee ledger is school-wide. Families see only their own through the portal.",
+		ScopeNote: "The fee ledger is school-wide. Parents see only their own through the portal.",
 	},
 	{
 		Key: "staff", Name: "Staff & leave", Band: BandCore,

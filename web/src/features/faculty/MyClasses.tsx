@@ -505,7 +505,7 @@ function NoteForm({ studentId }: { studentId: string }) {
         <Checkbox
           checked={shared}
           onChange={setShared}
-          label="Family can see this"
+          label="Parent can see this"
         />
         <Checkbox
           checked={notified}

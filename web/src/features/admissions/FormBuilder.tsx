@@ -212,7 +212,7 @@ export default function FormBuilder() {
       <PageHead
         eyebrow="Admissions"
         title="Online application form builder"
-        description="Design the form families fill in. A published version is frozen so applications already submitted keep rendering as they were answered."
+        description="Design the form parents fill in. A published version is frozen so applications already submitted keep rendering as they were answered."
       />
       <PageBody width="wide">
         <CellGrid cols={4}>
@@ -315,7 +315,7 @@ export default function FormBuilder() {
                 <div className="flex items-start gap-3 p-5">
                   <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <p className="text-[14px] leading-relaxed text-muted-foreground">
-                    Version {d.version} is {d.status} and cannot be edited. Families who applied
+                    Version {d.version} is {d.status} and cannot be edited. Parents who applied
                     under it must keep seeing the form they answered. Take a draft from it to make
                     changes — that becomes version {d.version + 1} and goes live only when you
                     publish it.

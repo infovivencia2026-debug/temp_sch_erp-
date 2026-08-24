@@ -43,7 +43,7 @@ export default function DriverCall() {
       <PageHead
         eyebrow="My child's bus"
         title="Call the bus driver"
-        description="The driver's number is published to families only while a run is open. Outside those hours it is not shown here at all, by design — the transport office takes the call instead."
+        description="The driver's number is published to parents only while a run is open. Outside those hours it is not shown here at all, by design — the transport office takes the call instead."
       />
       <PageBody>
         {rows.length === 0 ? (

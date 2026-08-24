@@ -512,7 +512,7 @@ func (s *Server) cancelSettled(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 			                  AND lr.status IN ('pending','approved')
 			                  AND split_part(p.occurrence_key, ':', 2)::date
 			                      BETWEEN lr.from_date AND lr.to_date)`,
-			inst, p.ID, "withdrawn: the family explained this absence before the alert went out")
+			inst, p.ID, "withdrawn: the parent explained this absence before the alert went out")
 		if err != nil {
 			return 0, err
 		}

@@ -147,7 +147,7 @@ export default function Applications() {
     onSuccess: (_r, d) => {
       setNote(
         d === 'offered'
-          ? 'Offer issued. The family can be told to pay the admission fee.'
+          ? 'Offer issued. The parent can be told to pay the admission fee.'
           : d === 'waitlisted' ? 'Waitlisted.' : 'Rejected.',
       )
       after()
@@ -185,7 +185,7 @@ export default function Applications() {
         <CellGrid cols={4}>
           <Stat label="Live applications" value={live.length} />
           <Stat label="Awaiting documents" value={count('documents_pending')} />
-          <Stat label="Offered" value={count('offered')} hint="Waiting on the family" />
+          <Stat label="Offered" value={count('offered')} hint="Waiting on the parent" />
           <Stat label="Accepted" value={count('accepted')} hint={count('accepted') ? 'Ready to enrol' : undefined} />
         </CellGrid>
 
@@ -340,7 +340,7 @@ export default function Applications() {
                   </div>
                 )}
 
-                {/* Enrol — only once the family has accepted. Turning an
+                {/* Enrol — only once the parent has accepted. Turning an
                     applicant into a student is the one irreversible step here,
                     so it appears only when it is actually the next one. */}
                 {open.status === 'accepted' && mayEnrol && (
@@ -372,7 +372,7 @@ export default function Applications() {
 
                 {open.status === 'offered' && (
                   <p className="text-[13.5px] text-muted-foreground">
-                    An offer is out. The family accepts by paying the admission fee — once the
+                    An offer is out. The parent accepts by paying the admission fee — once the
                     payment is recorded, this application becomes enrollable.
                   </p>
                 )}

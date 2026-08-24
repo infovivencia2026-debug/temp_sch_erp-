@@ -79,7 +79,7 @@ var lostReasons = []option{
 	{"distance", "Distance from home"},
 	{"seat_unavailable", "No seat available"},
 	{"chose_another_school", "Chose another school"},
-	{"no_response", "No response from family"},
+	{"no_response", "No response from parent"},
 }
 
 // --- mount --------------------------------------------------------------------
@@ -2505,9 +2505,9 @@ func (s *Server) runCampaigns(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (c
 func stopReasonFor(leadStatus string, optOut, converted bool) string {
 	switch {
 	case optOut:
-		return "the family asked not to be contacted"
+		return "the parent asked not to be contacted"
 	case converted:
-		return "the family has been offered a seat or accepted one"
+		return "the parent has been offered a seat or accepted one"
 	case leadStatus == "applied":
 		return "the lead converted — an application was made"
 	case leadStatus == "lost":
@@ -2690,7 +2690,7 @@ func (s *Server) optLeadOut(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 		return stopEnrolmentsForLead(r.Context(), tx, leadID,
-			"the family asked not to be contacted")
+			"the parent asked not to be contacted")
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

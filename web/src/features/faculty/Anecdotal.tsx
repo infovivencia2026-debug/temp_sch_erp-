@@ -14,7 +14,7 @@ export default function Anecdotal() {
       anecdotal
       eyebrow="Teaching workspace"
       title="Anecdotal records"
-      description="Private observations on how a child is growing. Kept for the staff who teach them and never shown to the family."
+      description="Private observations on how a child is growing. Kept for the staff who teach them and never shown to the parent."
     />
   )
 }

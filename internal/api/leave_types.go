@@ -51,7 +51,7 @@ var starterLeaveTypes = []leaveType{
 	{Code: "ML", Name: "Maternity leave", AppliesTo: "staff", AnnualQuota: quota(180), IsPaid: true},
 	{Code: "LOP", Name: "Leave without pay", AppliesTo: "staff", IsPaid: false},
 	{Code: "SICK", Name: "Sick leave", AppliesTo: "student", IsPaid: true},
-	{Code: "FUNC", Name: "Family function", AppliesTo: "student", IsPaid: true},
+	{Code: "FUNC", Name: "Parent function", AppliesTo: "student", IsPaid: true},
 }
 
 func (s *Server) listLeaveTypes(w http.ResponseWriter, r *http.Request) {

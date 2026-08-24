@@ -715,7 +715,7 @@ export const en = {
   'portal.report_absence.reason_cold': 'Cold and cough',
   'portal.report_absence.reason_stomach': 'Stomach upset',
   'portal.report_absence.reason_doctor': 'Doctor’s appointment',
-  'portal.report_absence.reason_family': 'Family emergency',
+  'portal.report_absence.reason_family': 'Parent emergency',
   'portal.report_absence.reason_other': 'Other',
   'portal.report_absence.field_day': 'Which day',
   'portal.report_absence.field_day_hint': 'Leave blank for today.',
@@ -743,7 +743,7 @@ export const en = {
   'portal.gallery.album_empty_title': 'Nothing published yet',
   'portal.gallery.album_empty_body': 'The school has not released photographs from this event.',
   'portal.gallery.media_title': 'Media',
-  'portal.gallery.media_description': '{count} items the school has published to families.',
+  'portal.gallery.media_description': '{count} items the school has published to parents.',
   'portal.gallery.media_meta': '{name} · {size} · published {date}',
   'portal.gallery.stat_albums': 'Albums',
   'portal.gallery.stat_photographs': 'Photographs',
@@ -814,7 +814,7 @@ export const en = {
   'portal.event_passes.stat_attended': 'Events attended',
   'portal.event_passes.claim_title': 'Claim seats',
   'portal.event_passes.claim_description':
-    'Seats are given out in the order families claim them.',
+    'Seats are given out in the order parents claim them.',
   'portal.event_passes.field_child': 'Child',
   'portal.event_passes.child_placeholder': 'Which child…',
   'portal.event_passes.field_event': 'Event',
@@ -877,7 +877,7 @@ export const en = {
   'portal.concerns.raise_ok': 'Raised. The office can see it now.',
   'portal.concerns.list_title': 'Your concerns',
   'portal.concerns.list_description':
-    'Only yours — not those raised by anyone else in the family.',
+    'Only yours — not those raised by anyone else in the parent.',
   'portal.concerns.empty_title': 'Nothing raised',
   'portal.concerns.empty_body':
     "When you raise something, it stays here with the school's answer.",

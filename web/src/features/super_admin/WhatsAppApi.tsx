@@ -111,7 +111,7 @@ function RecipientGuard({ policy }: { policy: RecipientPolicy }) {
   return (
     <Card className={guarded ? 'border-warning/50' : 'border-destructive/50'}>
       <CardHeader
-        title={guarded ? 'Testing — outbound messages are restricted' : 'Live — every family will be messaged'}
+        title={guarded ? 'Testing — outbound messages are restricted' : 'Live — every parent will be messaged'}
         description={policy.explanation}
         action={
           <Badge tone={guarded ? 'warning' : 'danger'}>

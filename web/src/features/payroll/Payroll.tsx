@@ -5,7 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState, ExportButton, PrintButton,
 } from '@/components/ui'
-import { formatPaise } from '@/lib/utils'
+import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
   run_status?: string
@@ -263,22 +263,25 @@ export default function Payroll() {
             >
               {rows.map((p) => (
                 <tr key={p.employee_code}>
-                  <Td className="font-mono text-[12px]">{p.employee_code}</Td>
+                  {/* .num: a dozen salary components squeeze these columns
+                      hard, and without it the browser broke ₹1,800 across
+                      three lines rather than let the table scroll. */}
+                  <Td className="num font-mono text-[12px]">{p.employee_code}</Td>
                   <Td className="font-medium">{p.full_name}</Td>
-                  <Td>{p.paid_days}</Td>
-                  <Td>
+                  <Td className="num">{p.paid_days}</Td>
+                  <Td className="num">
                     {Number(p.lop_days) > 0
                       ? <Badge tone="warning">{p.lop_days}</Badge>
                       : '—'}
                   </Td>
                   {components.map((c) => (
-                    <Td key={c} className={(p.breakup?.[c] ?? 0) < 0 ? 'text-destructive' : undefined}>
+                    <Td key={c} className={cn('num', (p.breakup?.[c] ?? 0) < 0 && 'text-destructive')}>
                       {p.breakup?.[c] != null ? formatPaise(Math.abs(p.breakup[c])) : '—'}
                     </Td>
                   ))}
-                  <Td>{formatPaise(p.gross_paise)}</Td>
-                  <Td className="text-destructive">{formatPaise(p.deduction_paise)}</Td>
-                  <Td className="font-medium">{formatPaise(p.net_paise)}</Td>
+                  <Td className="num">{formatPaise(p.gross_paise)}</Td>
+                  <Td className="num text-destructive">{formatPaise(p.deduction_paise)}</Td>
+                  <Td className="num font-medium">{formatPaise(p.net_paise)}</Td>
                 </tr>
               ))}
             </Table>

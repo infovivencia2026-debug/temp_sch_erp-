@@ -234,7 +234,7 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out.Password = password
-	out.Note = "Shown once and not stored. Hand it to the child or their family; " +
+	out.Note = "Shown once and not stored. Hand it to the child or their parent; " +
 		"if it is lost, reset it rather than looking this one up."
 	httpx.JSON(w, http.StatusOK, out)
 }
@@ -366,7 +366,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Password = password
 	out.Note = "Shown once and not stored. One login reaches every child this " +
-		"person is a guardian of, so a family with three children needs one, not three."
+		"person is a guardian of, so a parent with three children needs one, not three."
 	httpx.JSON(w, http.StatusOK, out)
 }
 

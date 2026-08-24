@@ -38,7 +38,7 @@ export default function Broadcasts() {
       <PageHead
         eyebrow="Teaching workspace"
         title="Classroom communication"
-        description="Notices to the parents of a whole class, or of one child. They appear in the family's circulars, and you can ask for an acknowledgement."
+        description="Notices to the parents of a whole class, or of one child. They appear in the parent's circulars, and you can ask for an acknowledgement."
         actions={
           <Button onClick={() => setComposing((c) => !c)}>
             <Send className="h-3.5 w-3.5" />
@@ -67,7 +67,7 @@ export default function Broadcasts() {
           {rows.length === 0 ? (
             <EmptyState
               title="Nothing sent yet"
-              body="A notice you send appears here with a running count of how many families have acknowledged it."
+              body="A notice you send appears here with a running count of how many parents have acknowledged it."
             />
           ) : (
             <ul className="divide-y">
@@ -152,7 +152,7 @@ function Compose({ onClose }: { onClose: () => void }) {
 
   return (
     <Card>
-      <CardHeader title="New notice" description="Goes to the family's circulars straight away." />
+      <CardHeader title="New notice" description="Goes to the parent's circulars straight away." />
       <form
         className="space-y-4 px-5 py-5"
         onSubmit={(e) => {
@@ -167,7 +167,7 @@ function Compose({ onClose }: { onClose: () => void }) {
               onChange={(v) => setTarget(v as 'class' | 'child')}
               options={[
                 { value: 'class', label: 'A whole class' },
-                { value: 'child', label: 'One child’s family' },
+                { value: 'child', label: 'One child’s parent' },
               ]}
             />
           </Field>
@@ -212,7 +212,7 @@ function Compose({ onClose }: { onClose: () => void }) {
           checked={f.requires_ack}
           onChange={(v) => setF({ ...f, requires_ack: v })}
           label="Ask for an acknowledgement"
-          hint="Use it when you need to know the family read it — consent, money, a deadline."
+          hint="Use it when you need to know the parent read it — consent, money, a deadline."
         />
 
         {/* The same three the principal's circular offers. A notice that only

@@ -140,7 +140,7 @@ export default function TrackerPairing() {
             hint={
               policy.data?.policy.parents_may_watch
                 ? 'Guardians on a route see the bus during its run'
-                : 'Families see nothing; the office still does'
+                : 'Parents see nothing; the office still does'
             }
           />
         </CellGrid>
@@ -531,7 +531,7 @@ function PolicyForm() {
               : 'rounded-[10px] border border-border p-5'
           }
         >
-          <p className="text-[14px] font-medium">Let families watch their child's bus</p>
+          <p className="text-[14px] font-medium">Let parents watch their child's bus</p>
           <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
             {/* Served by the server so the sentence a school reads when it
                 flips this cannot be edited out of the UI alone. */}
@@ -539,7 +539,7 @@ function PolicyForm() {
           </p>
           <p className="mt-2.5 text-[13px] text-muted-foreground">
             This is off until a school turns it on. Turning it on publishes the live position of a
-            school bus to every family allocated to that route — tell them first.
+            school bus to every parent allocated to that route — tell them first.
           </p>
           <div className="mt-3">
             <Checkbox
@@ -552,8 +552,8 @@ function PolicyForm() {
 
         <FormGrid>
           <Field
-            label="Map opens to a family"
-            hint="Minutes before the scheduled pickup, so watching starts when it is useful rather than all day. Only used when families may watch."
+            label="Map opens to a parent"
+            hint="Minutes before the scheduled pickup, so watching starts when it is useful rather than all day. Only used when parents may watch."
           >
             <Input
               value={String(draft.watch_window_mins)}

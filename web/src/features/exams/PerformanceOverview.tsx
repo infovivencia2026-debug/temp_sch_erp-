@@ -204,7 +204,7 @@ export default function PerformanceOverview() {
                 <Stat
                   label="Against our own papers"
                   value={gap != null ? `${gap > 0 ? '+' : ''}${gap} pts` : '—'}
-                  hint={board.published_on ? `published ${formatDate(board.published_on)}` : 'not published to families yet'}
+                  hint={board.published_on ? `published ${formatDate(board.published_on)}` : 'not published to parents yet'}
                 />
               </CellGrid>
             </div>

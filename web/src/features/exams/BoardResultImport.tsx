@@ -233,7 +233,7 @@ export default function BoardResultImport() {
                 label="Ours, not in the file"
                 value={missing.length}
                 icon={TriangleAlert}
-                hint="These families hear nothing unless somebody acts"
+                hint="These parents hear nothing unless somebody acts"
               />
             </CellGrid>
 
@@ -314,7 +314,7 @@ export default function BoardResultImport() {
                         disabled={publish.isPending || (unreconciled > 0 && !ack)}
                         onClick={() => publish.mutate(report.import_id!)}
                       >
-                        Publish to families
+                        Publish to parents
                       </Button>
                     </div>
                   ) : report.published ? (

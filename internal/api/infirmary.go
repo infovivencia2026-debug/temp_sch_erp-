@@ -194,7 +194,7 @@ var visitOutcomes = []string{
 }
 
 var errParentNotTold = errors.New(
-	"a child who leaves the premises cannot be signed out until the family has been told")
+	"a child who leaves the premises cannot be signed out until the parent has been told")
 
 func (s *Server) recordInfirmaryVisit(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -353,7 +353,7 @@ var (
 	errNoAuthority       = errors.New("say who authorised this dose — a parent by name or the prescribing doctor")
 	errNoPrescriptProof  = errors.New("a prescription needs its number or a scan attached; 'the doctor said so' is not a record")
 	errEmergencyNoReason = errors.New("an emergency dose given without anyone's permission must say in the notes why it could not wait")
-	errNotToldOfIncident = errors.New("a refusal or a reaction has to be told to the family before it is filed")
+	errNotToldOfIncident = errors.New("a refusal or a reaction has to be told to the parent before it is filed")
 )
 
 /*
@@ -1121,7 +1121,7 @@ type roomCheckRequest struct {
 var (
 	roomCheckKinds  = []string{"check_in", "check_out", "routine"}
 	itemConditions  = []string{"good", "worn", "damaged", "missing"}
-	errChargeNoNote = errors.New("a charge needs a line saying what was broken; a family cannot be billed for a number")
+	errChargeNoNote = errors.New("a charge needs a line saying what was broken; a parent cannot be billed for a number")
 )
 
 /*

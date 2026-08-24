@@ -180,7 +180,7 @@ const CONTROLS: { key: string; label: string; hint: string; types: string[] }[] 
   { key: 'cash_account_id', label: 'Cash in hand', hint: 'Counter receipts and cash payments', types: ['asset'] },
   { key: 'bank_account_id', label: 'Bank', hint: 'Transfers, cheques and vendor payments', types: ['asset'] },
   { key: 'petty_cash_account_id', label: 'Petty cash', hint: 'The tin the small slips come out of', types: ['asset'] },
-  { key: 'fee_receivable_account_id', label: 'Fee receivable', hint: 'What families owe, raised when an invoice is issued', types: ['asset'] },
+  { key: 'fee_receivable_account_id', label: 'Fee receivable', hint: 'What parents owe, raised when an invoice is issued', types: ['asset'] },
   { key: 'fee_income_account_id', label: 'Fee income', hint: 'Where tuition revenue is recognised', types: ['income'] },
   { key: 'payable_account_id', label: 'Sundry creditors', hint: 'What the school owes its vendors', types: ['liability'] },
   { key: 'depreciation_expense_account_id', label: 'Depreciation', hint: 'The annual charge against the surplus', types: ['expense'] },

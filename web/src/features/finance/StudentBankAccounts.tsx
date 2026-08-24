@@ -450,7 +450,7 @@ function AddAccount() {
               checked={seeded}
               onChange={setSeeded}
               label="Aadhaar-seeded"
-              hint="What the family told you. DBT refuses an unseeded account, and this is the warning before the credit fails."
+              hint="What the parent told you. DBT refuses an unseeded account, and this is the warning before the credit fails."
             />
             <Checkbox
               checked={primary}

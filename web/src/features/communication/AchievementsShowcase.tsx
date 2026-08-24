@@ -63,7 +63,7 @@ const LEVELS = ['class', 'school', 'district', 'state', 'national', 'internation
 const CONSENT_BASES = [
   { value: 'signed_consent_form', label: 'Signed consent form on file' },
   { value: 'admission_form', label: 'Agreed at admission' },
-  { value: 'portal_confirmation', label: 'Confirmed by the family in the portal' },
+  { value: 'portal_confirmation', label: 'Confirmed by the parent in the portal' },
   { value: 'recorded_verbal', label: 'Agreed by phone, minuted' },
   { value: 'staff_child', label: "A member of staff's own child" },
 ]
@@ -214,7 +214,7 @@ export default function AchievementsShowcase() {
       <PageHead
         eyebrow="Communication"
         title="School achievements"
-        description="Awards, sporting wins and academic honours — recorded here, and published to families only once the school has confirmed the family agreed."
+        description="Awards, sporting wins and academic honours — recorded here, and published to parents only once the school has confirmed the parent agreed."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -317,7 +317,7 @@ export default function AchievementsShowcase() {
                 <Field
                   label="Showcase note"
                   wide
-                  hint="The sentence families read. The description below stays on the child's record."
+                  hint="The sentence parents read. The description below stays on the child's record."
                 >
                   <Textarea
                     value={form.showcase_note}
@@ -436,7 +436,7 @@ export default function AchievementsShowcase() {
                             title={
                               a.consent_confirmed_at
                                 ? undefined
-                                : "Record the family's confirmation first"
+                                : "Record the parent's confirmation first"
                             }
                             onClick={() => publish.mutate(a.id)}
                           >
@@ -494,7 +494,7 @@ export default function AchievementsShowcase() {
                   <>
                     <p className="mt-1 text-[13px] text-muted-foreground">
                       This school holds no photograph-consent register, so permission is
-                      confirmed here, against this achievement. Say where the family&apos;s
+                      confirmed here, against this achievement. Say where the parent&apos;s
                       agreement came from — it is what has to be produced if they object.
                     </p>
                     {mayEdit && (

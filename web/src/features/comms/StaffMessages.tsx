@@ -176,7 +176,7 @@ export default function StaffMessages() {
       <PageHead
         eyebrow="Communication"
         title="Messages"
-        description="Colleagues, and the families who have written to you. For something the whole school needs, write a circular instead."
+        description="Colleagues, and the parents who have written to you. For something the whole school needs, write a circular instead."
         actions={
           unreadTotal > 0 && <Badge tone="primary">{unreadTotal} unread</Badge>
         }

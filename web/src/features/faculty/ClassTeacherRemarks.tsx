@@ -57,7 +57,7 @@ export default function ClassTeacherRemarks() {
       <PageHead
         eyebrow="Teaching workspace"
         title="Class teacher remarks"
-        description="The qualitative line printed on each report card, plus the principal's summary comment. Nothing here is visible to a family until the card is published."
+        description="The qualitative line printed on each report card, plus the principal's summary comment. Nothing here is visible to a parent until the card is published."
       />
       <PageBody>
         <Card>
@@ -107,7 +107,7 @@ export default function ClassTeacherRemarks() {
               <Stat
                 label="Cards published"
                 value={rows.filter((r) => r.is_published).length}
-                hint="A published card is one the family can already read"
+                hint="A published card is one the parent can already read"
               />
             </CellGrid>
 

@@ -58,7 +58,7 @@ export default function SupportTickets() {
         <Card>
           <CardHeader
             title="Queue"
-            description="Grievances a family raised with their school are not in this table and cannot be put in it"
+            description="Grievances a parent raised with their school are not in this table and cannot be put in it"
             action={
               <Select
                 value={status}

@@ -72,7 +72,7 @@ const COPY: Record<PlanKind, Copy> = {
     eyebrow: 'Attendance',
     title: 'Absence alerts to guardians',
     description:
-      'Tell a guardian their child is marked absent today — once, after the register is taken, and not if the family already explained it.',
+      'Tell a guardian their child is marked absent today — once, after the register is taken, and not if the parent already explained it.',
     emptyTitle: 'No absence alerts set up',
     emptyBody:
       'An alert plan tells guardians about today’s absences. Nothing goes out until you create one, and you can see exactly who it would reach before switching it on.',
@@ -109,9 +109,9 @@ function promises(p: ReminderPlan): string[] {
       : 'Looks at the register as soon as the sweep runs',
     'One message per child per day, however many periods they miss',
     p.skip_explained
-      ? 'Silent when the family has already explained the absence, and withdraws an alert if they explain it late'
-      : 'Sends even when the family has already explained the absence',
-    'Today’s absences only — a sweep on Monday does not tell forty families about Friday',
+      ? 'Silent when the parent has already explained the absence, and withdraws an alert if they explain it late'
+      : 'Sends even when the parent has already explained the absence',
+    'Today’s absences only — a sweep on Monday does not tell forty parents about Friday',
   ]
 }
 
@@ -171,7 +171,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
             hint={
               kind === 'fee_reminder'
                 ? 'Pulled back because the invoice was settled'
-                : 'Pulled back because the family explained it'
+                : 'Pulled back because the parent explained it'
             }
           />
         </CellGrid>
@@ -596,7 +596,7 @@ function PlanForm({
               <Field
                 label="First reminder, days after the due date"
                 required
-                hint="Do not leave this blank — a blank saved as zero would chase every family on the due date itself."
+                hint="Do not leave this blank — a blank saved as zero would chase every parent on the due date itself."
               >
                 <Input value={firstAfter} onChange={setFirstAfter} type="number" placeholder="7" />
               </Field>
@@ -630,7 +630,7 @@ function PlanForm({
                   srLabel="Do not look before"
                 />
               </Field>
-              <Field label="Absences the family explained" wide>
+              <Field label="Absences the parent explained" wide>
                 <Checkbox
                   checked={skipExplained}
                   onChange={setSkipExplained}
@@ -669,7 +669,7 @@ function PlanForm({
         {blankRequired && (
           <p className="text-[13px] text-warning">
             Fill in both the first-reminder day and the cap. A blank is not zero here, and saving
-            it as zero would chase every family on the due date.
+            it as zero would chase every parent on the due date.
           </p>
         )}
 

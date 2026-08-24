@@ -339,7 +339,7 @@ func validateTrackingPolicy(b trackingPolicyBody) string {
 			"below 5 the handset is flat by two o'clock; above 300 the map is " +
 				"five minutes behind the bus"},
 		{b.WatchWindowMins, 5, 240, "watch_window_mins",
-			"how long before the scheduled pickup the map opens to a family"},
+			"how long before the scheduled pickup the map opens to a parent"},
 		{b.RetainDays, 7, 3650, "retain_days",
 			"how long the breadcrumb trail is kept; an incident enquiry needs weeks"},
 	} {

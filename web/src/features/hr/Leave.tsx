@@ -254,7 +254,7 @@ export default function Leave() {
                 <Input
                   value={form.reason}
                   onChange={(v) => setForm({ ...form, reason: v })}
-                  placeholder="Medical, family function, examination duty…"
+                  placeholder="Medical, parent function, examination duty…"
                 />
               </Field>
               <label className="mt-2 flex items-center gap-2 text-[13.5px]">

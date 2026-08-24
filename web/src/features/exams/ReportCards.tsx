@@ -108,7 +108,7 @@ export default function ReportCards() {
     onSuccess: (r, publish) => {
       setOutcome(
         `${r.report_cards} report ${r.report_cards === 1 ? 'card' : 'cards'} ` +
-          (publish ? 'generated and published — the families have been told.' : 'generated. Nobody has been told yet; publish when you are ready.'),
+          (publish ? 'generated and published — the parents have been told.' : 'generated. Nobody has been told yet; publish when you are ready.'),
       )
       qc.invalidateQueries({ queryKey: ['report-cards', sectionId, examId] })
       qc.invalidateQueries({ queryKey: ['report-readiness', sectionId, examId] })
@@ -150,7 +150,7 @@ export default function ReportCards() {
       <PageHead
         eyebrow={nav.section?.name ?? 'Examinations'}
         title={nav.feature?.name ?? 'Report cards'}
-        description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the family."
+        description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the parent."
         actions={
           <>
             {/* The search leads, because finding one child is what this screen
@@ -183,7 +183,7 @@ export default function ReportCards() {
               onClick={() => generate.mutate(true)}
               title={
                 ready
-                  ? 'Publish to the families and the students'
+                  ? 'Publish to the parents and the students'
                   : 'Some papers are still unmarked — publishing now prints them as zero'
               }
             >

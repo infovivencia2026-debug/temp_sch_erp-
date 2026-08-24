@@ -122,7 +122,7 @@ export default function DemandGeneration() {
           )}
 
           <div className="flex items-center gap-3 border-t px-5 py-4">
-            {/* This raises real invoices against real families, in bulk, and
+            {/* This raises real invoices against real parents, in bulk, and
                 nothing unraises them in bulk. "Generate demand" does not tell
                 anybody what they are about to bill, so the question does. */}
             <ConfirmButton

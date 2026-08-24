@@ -693,7 +693,7 @@ function NewAward() {
     <Card>
       <CardHeader
         title="Record an application"
-        description="What the family told the school they applied for. The portal is the authority on the outcome; this is the expectation the reconciliation compares against."
+        description="What the parent told the school they applied for. The portal is the authority on the outcome; this is the expectation the reconciliation compares against."
       />
       <div className="space-y-5 px-5 py-5">
         <FormGrid>
@@ -730,7 +730,7 @@ function NewAward() {
           <Field label="Application reference" hint="From the portal's acknowledgement slip.">
             <Input value={ref} onChange={setRef} />
           </Field>
-          <Field label="Expected amount (₹)" hint="What the family believes the scheme pays.">
+          <Field label="Expected amount (₹)" hint="What the parent believes the scheme pays.">
             <Input value={expected} onChange={setExpected} />
           </Field>
           <Field label="Notes" wide>
@@ -742,7 +742,7 @@ function NewAward() {
           checked={offsets}
           onChange={setOffsets}
           label="This scheme is meant to discharge the school's fee"
-          hint="Only tick this where the scheme pays fees rather than reaching the family as cash. It lets the credit be posted against the child's dues once it arrives."
+          hint="Only tick this where the scheme pays fees rather than reaching the parent as cash. It lets the credit be posted against the child's dues once it arrives."
         />
 
         <Button

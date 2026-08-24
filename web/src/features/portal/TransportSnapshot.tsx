@@ -135,7 +135,7 @@ function SnapshotCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: numbe
 function line(row: ChildBusRow, staleAfter: number): string {
   switch (row.state) {
     case 'not_published':
-      return 'Your school does not publish live bus positions to families, so there is no distance or arrival time on this card. The route, bus and stop above are still today’s.'
+      return 'Your school does not publish live bus positions to parents, so there is no distance or arrival time on this card. The route, bus and stop above are still today’s.'
     case 'not_running':
       return 'No run is open on this bus right now. Positions exist only while the driver has a trip running; outside those hours the phone reports nothing at all, by design.'
     case 'no_signal':

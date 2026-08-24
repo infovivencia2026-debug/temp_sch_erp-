@@ -72,7 +72,7 @@ export default function WhiteLabel() {
           <Table
             head={['Applies to', 'Domain', 'Status', 'Login headline', 'Sender name', '']}
             empty={!withDomain.length}
-            emptyLabel="No custom domain configured. Families reach the school on the installation's own address."
+            emptyLabel="No custom domain configured. Parents reach the school on the installation's own address."
           >
             {withDomain.map((p) => (
               <tr key={p.id}>

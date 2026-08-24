@@ -33,7 +33,7 @@ const REASONS = [
   'Cold and cough',
   'Stomach upset',
   'Doctor’s appointment',
-  'Family emergency',
+  'Parent emergency',
   'Other',
 ]
 
@@ -44,7 +44,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   'Cold and cough': 'portal.report_absence.reason_cold',
   'Stomach upset': 'portal.report_absence.reason_stomach',
   'Doctor’s appointment': 'portal.report_absence.reason_doctor',
-  'Family emergency': 'portal.report_absence.reason_family',
+  'Parent emergency': 'portal.report_absence.reason_family',
   Other: 'portal.report_absence.reason_other',
 }
 

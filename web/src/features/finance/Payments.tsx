@@ -90,7 +90,7 @@ export default function Payments() {
           <Stat label="Unreconciled" value={unreconciled.length}
             hint={unreconciled.length ? 'Not matched to a statement' : 'All matched'} />
           <Stat label="Failed" value={failed.length} />
-          <Stat label="Bounced" value={bounced.length} hint={bounced.length ? 'Recover from the family' : undefined} />
+          <Stat label="Bounced" value={bounced.length} hint={bounced.length ? 'Recover from the parent' : undefined} />
         </CellGrid>
 
         {byMode.length > 0 && (
