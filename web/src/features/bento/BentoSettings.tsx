@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
+  Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
   Maximize2, Type, Minimize2, LayoutGrid, Sliders, ChevronLeft, ChevronRight, Palette,
   Contrast as RotateCcw, } from 'lucide-react'
-import { useTheme, THEMES, type Theme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { resetAppearance } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
@@ -28,11 +28,6 @@ import { INK, EDGE, WASH, RING, SURFACE } from './ColourDialog'
    contrast are the obvious next two, and both already live on the same
    preferences row this writes to. */
 
-const ICON: Record<Theme, typeof Sun> = {
-  system: Monitor,
-  light: Sun,
-  dark: Moon,
-}
 
 /* Where the menu hangs from.
 
@@ -50,7 +45,9 @@ const ROW = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left
              transition-colors ${WASH} ${RING}`
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
-  const { theme, resolved, setTheme } = useTheme()
+  /* `resolved` is still read: the panel picks its own ink from the theme in
+     force, whether or not anybody can choose it here. */
+  const { resolved } = useTheme()
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
 
@@ -157,16 +154,24 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
     const place = () => {
       const b = box.current?.querySelector('button')?.getBoundingClientRect()
       if (!b) return
-      const W = 256, GAP = 8
+      /* Wider from the dock: every row is a label with its value on the right
+         — "Appearance … Dark" — and at 256 the two halves fought for the line. */
+      const W = placement === 'dock' ? 312 : 256
+      const GAP = 8
       const room = b.top - GAP
       const height = Math.min(window.innerHeight * 0.7, 420)
       const above = room > height
       const left =
         placement === 'rail'
           ? b.right + GAP
-          : placement === 'menubar' || placement === 'dock'
-            ? b.right - W
-            : b.left
+          : placement === 'dock'
+            /* Centred on the trigger. It hung off the dock's right-hand end, so
+               a menu belonging to the whole bar looked like it belonged to the
+               last button in it. */
+            ? b.left + b.width / 2 - W / 2
+            : placement === 'menubar'
+              ? b.right - W
+              : b.left
       return setAt({
         left: Math.max(GAP, Math.min(left, window.innerWidth - W - GAP)),
         top: above ? Math.max(GAP, b.top - GAP - height) : Math.min(b.bottom + GAP, window.innerHeight - GAP - height),
@@ -220,6 +225,20 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         />
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
+
+      {/* A frosted scrim, the same glass All features uses.
+
+          The menu opened straight onto a live dashboard, so a list of settings
+          sat on moving figures and coloured cards and competed with them.
+          Clicking it closes, which is what everybody tries first. */}
+      {open && createPortal(
+        <div
+          className="fade-in bento-frost fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />,
+        document.body,
+      )}
 
       {open && at && createPortal(
         <div
@@ -369,27 +388,12 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                 {t('bento.settings.appearance')}
               </button>
 
-              <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-                {t('bento.settings.appearance')}
-              </p>
-              {THEMES.map((option) => {
-                const Icon = ICON[option]
-                const active = theme === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => setTheme(option)}
-                    className={cn(ROW, active && 'font-medium')}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
-                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-                  </button>
-                )
-              })}
+              {/* The theme rows are gone.
+              
+                  Light, Dark and Match system sat above the things people open this
+                  menu for. The theme STORE is untouched: the app still follows the
+                  operating system and every token that answers to dark mode still
+                  answers. What has gone is the manual override, not the capability. */}
 
               <div
                 className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
