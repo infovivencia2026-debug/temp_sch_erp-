@@ -2077,6 +2077,13 @@ type subjectPerformance struct {
 	Average   *float64 `json:"average_percent,omitempty"`
 	BelowPass int      `json:"below_pass"`
 	PassRate  *float64 `json:"pass_rate,omitempty"`
+	// Marks entered above the paper's own maximum. Until validateMark there
+	// was nothing stopping 50 being stored against a paper out of 20, and the
+	// average above is then over 100% — arithmetically right, physically
+	// impossible. Sent so the screen can decline to print the percentage and
+	// name the fault rather than clamping a number a person actually typed.
+	// Omitted when nought.
+	OverMax int `json:"marks_above_max,omitempty"`
 }
 
 type atRiskStudent struct {
@@ -2120,7 +2127,9 @@ func (s *Server) getBoardPerformance(w http.ResponseWriter, r *http.Request) {
 			SELECT sub.name, c.name, ex.name, count(*)::int,
 			       round(100 * sum(m.marks_obtained + m.grace_marks)
 			             / NULLIF(sum(es.max_marks),0), 1)::float8,
-			       count(*) FILTER (WHERE m.marks_obtained + m.grace_marks < es.pass_marks)::int
+			       count(*) FILTER (WHERE m.marks_obtained + m.grace_marks < es.pass_marks)::int,
+			       count(*) FILTER (WHERE es.max_marks > 0
+			                          AND m.marks_obtained + m.grace_marks > es.max_marks)::int
 			  FROM marks m
 			  JOIN exam_subjects es ON es.id = m.exam_subject_id
 			  JOIN exams        ex ON ex.id = es.exam_id
@@ -2139,7 +2148,7 @@ func (s *Server) getBoardPerformance(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var v subjectPerformance
 			if err := rows.Scan(&v.Subject, &v.ClassName, &v.ExamName, &v.Entered,
-				&v.Average, &v.BelowPass); err != nil {
+				&v.Average, &v.BelowPass, &v.OverMax); err != nil {
 				rows.Close()
 				return err
 			}
@@ -2206,6 +2215,19 @@ func (s *Server) getBoardPerformance(w http.ResponseWriter, r *http.Request) {
 		prows.Close()
 		if err := prows.Err(); err != nil {
 			return err
+		}
+
+		/* How many marks in this whole cut are above their paper's maximum.
+		   Summed from the by-subject rows, which are cut from the same marks,
+		   so the screen's headline average and its table agree about whether
+		   they can be trusted. Set only when there are some: a zero here would
+		   have every screen render a warning about nothing. */
+		overMax := 0
+		for _, v := range bySubject {
+			overMax += v.OverMax
+		}
+		if overMax > 0 {
+			summary["marks_above_max"] = overMax
 		}
 
 		summary["candidates"] = candidates

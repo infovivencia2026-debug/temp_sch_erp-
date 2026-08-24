@@ -700,8 +700,13 @@ func (s *Server) getFeeOverview(w http.ResponseWriter, r *http.Request) {
 				&out.Totals.FinePaise, &out.Totals.Students, &out.Totals.Defaulters); err != nil {
 			return fmt.Errorf("fee totals: %w", err)
 		}
+		// Rounded to one decimal, the way every other percentage on the
+		// roll-up endpoints is rounded in SQL. Unrounded, this printed
+		// 87.66325536062378% on the screen — fourteen digits of precision on a
+		// ratio of two sums, which reads as a machine leaking rather than a
+		// figure a school quotes.
 		if out.Totals.DemandedPaise > 0 {
-			v := 100 * float64(out.Totals.CollectedPaise) / float64(out.Totals.DemandedPaise)
+			v := round1(100 * float64(out.Totals.CollectedPaise) / float64(out.Totals.DemandedPaise))
 			out.Totals.CollectedPct = &v
 		}
 
@@ -730,7 +735,7 @@ func (s *Server) getFeeOverview(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			if v.DemandedPaise > 0 {
-				p := 100 * float64(v.CollectedPaise) / float64(v.DemandedPaise)
+				p := round1(100 * float64(v.CollectedPaise) / float64(v.DemandedPaise))
 				v.CollectedPct = &p
 			}
 			out.ByClass = append(out.ByClass, v)
@@ -1213,7 +1218,7 @@ func (s *Server) getDeptAcademics(w http.ResponseWriter, r *http.Request) {
 				&v.Subjects, &v.Sections, &v.Periods, &v.UnitsPlanned, &v.UnitsDone,
 				&v.AvgScorePct, &v.PassPct)
 			if err == nil && v.UnitsPlanned > 0 {
-				p := 100 * float64(v.UnitsDone) / float64(v.UnitsPlanned)
+				p := round1(100 * float64(v.UnitsDone) / float64(v.UnitsPlanned))
 				v.CoveragePct = &p
 			}
 			return v, err

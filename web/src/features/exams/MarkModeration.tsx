@@ -34,6 +34,13 @@ interface Row {
   average_pct: string | null
   highest_pct: string | null
   lowest_pct: string | null
+  /* Marks on this paper above the paper's own maximum. Absent when there are
+     none, which is every paper that has not got the fault. While it is set,
+     the three percentages above are arithmetically correct and physically
+     impossible — 50 on a paper out of 20 is an honest 250% — so they are not
+     printed. They are not clamped either: a mark somebody actually typed is
+     evidence, and 100% in its place is a number nobody would ever question. */
+  marks_above_max?: number
   adjustment: string | null
   reason: string | null
   moderated_by: string | null
@@ -100,6 +107,7 @@ export default function MarkModeration() {
             >
               {d.items.map((r) => {
                 const moderated = r.adjustment !== null
+                const overMax = r.marks_above_max ?? 0
                 return (
                   <tr key={r.exam_subject_id}>
                     <Td>
@@ -116,9 +124,25 @@ export default function MarkModeration() {
                         </span>
                       )}
                     </Td>
-                    <Td>{r.average_pct ? `${r.average_pct}%` : '—'}</Td>
                     <Td>
-                      {r.lowest_pct && r.highest_pct ? `${r.lowest_pct}–${r.highest_pct}%` : '—'}
+                      {overMax > 0
+                        ? '—'
+                        : r.average_pct
+                          ? `${r.average_pct}%`
+                          : '—'}
+                    </Td>
+                    <Td>
+                      {overMax > 0 ? (
+                        <Badge tone="danger">
+                          {overMax === 1
+                            ? '1 mark above the paper maximum'
+                            : `${overMax} marks above the paper maximum`}
+                        </Badge>
+                      ) : r.lowest_pct && r.highest_pct ? (
+                        `${r.lowest_pct}–${r.highest_pct}%`
+                      ) : (
+                        '—'
+                      )}
                     </Td>
                     <Td>
                       {/* Failures are the number somebody acts on, so they are

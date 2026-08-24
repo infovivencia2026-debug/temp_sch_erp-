@@ -83,14 +83,19 @@ export default function FeeOverview() {
       <PageBody>
         <CellGrid cols={4}>
           <Stat label="Demanded" value={formatPaise(t.demanded_paise)} period={d.academic_year} />
+          {/* "Collected" alone is the word the executive dashboard uses for
+              receipts banked in a period, and a month's receipts can exceed a
+              year's applied collection — which is exactly how "this month
+              ₹45,04,625" came to sit beside "the year ₹44,97,125" and read as
+              nonsense. Both figures were right. Only one of them was named. */}
           <Stat
-            label="Collected"
+            label="Collected against this year's bills"
             value={formatPaise(t.collected_paise)}
-            hint={pct(t.collected_pct)}
+            hint={`${pct(t.collected_pct)} of demanded`}
             period={d.academic_year}
           />
           <Stat
-            label="Outstanding"
+            label="Outstanding this year"
             value={formatPaise(t.outstanding_paise)}
             hint={`${t.defaulters} past due · this year's bills only`}
             period="As of now"

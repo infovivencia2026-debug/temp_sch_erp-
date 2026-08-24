@@ -4,7 +4,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Loading, ErrorState, PrintButton,
 } from '@/components/ui'
-import { CsvButton, pct, goodPct } from './shared'
+import { CsvButton, pct, goodPct, impossiblePct, RefusedPctNotice } from './shared'
 
 /**
  * Performance analytics — how classes and children move across exams.
@@ -64,6 +64,16 @@ export default function PerformanceAnalytics() {
   const strongest = subjectRows[subjectRows.length - 1]
   const risky = atRisk.data?.items ?? []
 
+  /* Every average on this page that `pct` will refuse, counted so the notice
+     below can say how many and why. Averages only: a pass rate and a band
+     share are bounded by their own construction, an average taken against a
+     paper's maximum is only bounded if the marks respect that maximum. */
+  const refused = [
+    ...(trend.data?.items ?? []).map((t) => t.avg_pct),
+    ...subjectRows.map((s) => s.avg_pct),
+    ...risky.map((s) => s.avg_pct),
+  ].filter(impossiblePct).length
+
   return (
     <>
       <PageHead
@@ -87,6 +97,8 @@ export default function PerformanceAnalytics() {
           />
           <Stat label="Students at risk" value={risky.length} hint="Below threshold or failing" />
         </CellGrid>
+
+        <RefusedPctNotice count={refused} />
 
         <Card>
           <CardHeader

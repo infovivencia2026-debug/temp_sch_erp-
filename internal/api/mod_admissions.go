@@ -636,13 +636,25 @@ type funnelStage struct {
 	Count int    `json:"count"`
 }
 
-// getAdmissionsFunnel is the conversion report: enquiries → enrolled.
+/*
+getAdmissionsFunnel is the conversion report: enquiries → enrolled.
+
+	EVERY STAGE HERE IS CUMULATIVE — every application ever raised, not the
+	ones still waiting on somebody. The dashboard's open_applications is the
+	live queue (status not accepted, rejected or withdrawn) and the attention
+	panel's admissions probe is narrower still (waiting on a decision:
+	submitted, under review, test scheduled, interviewed). Three different
+	questions, three different numbers, and the second stage below was called
+	"Applications" flat — the same word the dashboard used for a smaller set.
+	It says "received" now, because that is the difference: this counts arrivals
+	and the other two count work outstanding.
+*/
 func (s *Server) getAdmissionsFunnel(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT 'Enquiries', count(*)::int FROM enquiries
-		UNION ALL SELECT 'Applications', count(*)::int FROM applications
+		UNION ALL SELECT 'Applications received', count(*)::int FROM applications
 		UNION ALL SELECT 'Assessed', count(DISTINCT application_id)::int FROM admission_assessments
-		UNION ALL SELECT 'Offered', count(*)::int FROM applications WHERE status IN ('offered','accepted')
+		UNION ALL SELECT 'Offered or accepted', count(*)::int FROM applications WHERE status IN ('offered','accepted')
 		UNION ALL SELECT 'Enrolled', count(*)::int FROM applications WHERE student_id IS NOT NULL`, nil,
 		func(rows pgx.Rows) (funnelStage, error) {
 			var v funnelStage

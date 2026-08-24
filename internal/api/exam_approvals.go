@@ -428,6 +428,20 @@ type moderationRow struct {
 	HighestPct    *string `json:"highest_pct"`
 	LowestPct     *string `json:"lowest_pct"`
 
+	/* Marks on this paper that are above the paper's own maximum.
+
+	   Nothing tied a mark to its exam subject's max_marks until validateMark,
+	   so papers marked out of 20 with 50s entered against them are still in
+	   the table, and the three percentages above are then arithmetically
+	   correct and physically impossible — 250% of a paper out of 20. The count
+	   is sent so the screen can refuse to print those percentages and say why
+	   instead. It is never used to clamp them: somebody typed a real number
+	   into a real box and the only useful answer names the paper and asks for
+	   it to be corrected, whereas a clamp to 100% erases the evidence.
+
+	   Omitted when nought, which is every paper that has not got the fault. */
+	OverMax int32 `json:"marks_above_max,omitempty"`
+
 	Adjustment  *string `json:"adjustment"`
 	Reason      *string `json:"reason"`
 	ModeratedBy *string `json:"moderated_by"`
@@ -478,6 +492,12 @@ func (s *Server) listMarkModeration(w http.ResponseWriter, r *http.Request) {
 			             / nullif(es.max_marks, 0) * 100, 1)::text,
 			       round(min(m.marks_obtained) FILTER (WHERE NOT m.is_absent)
 			             / nullif(es.max_marks, 0) * 100, 1)::text,
+			       -- Marks above the paper's own ceiling. Same rows as the
+			       -- three percentages above, so a non-zero count here names
+			       -- exactly which of them cannot be believed.
+			       count(m.id) FILTER (WHERE NOT m.is_absent
+			                             AND es.max_marks > 0
+			                             AND m.marks_obtained > es.max_marks)::int,
 			       mm.adjustment::text, mm.reason, mu.full_name, mm.moderated_at::text
 			  FROM exam_subjects es
 			  JOIN exams ex          ON ex.id = es.exam_id
@@ -501,7 +521,7 @@ func (s *Server) listMarkModeration(w http.ResponseWriter, r *http.Request) {
 			var v moderationRow
 			if err := rows.Scan(&v.ExamSubjectID, &v.ExamName, &v.Class, &v.Subject,
 				&v.MaxMarks, &v.PassMarks, &v.Entered, &v.Absent, &v.Failing,
-				&v.AveragePct, &v.HighestPct, &v.LowestPct,
+				&v.AveragePct, &v.HighestPct, &v.LowestPct, &v.OverMax,
 				&v.Adjustment, &v.Reason, &v.ModeratedBy, &v.ModeratedAt); err != nil {
 				return err
 			}

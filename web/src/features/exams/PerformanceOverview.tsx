@@ -30,6 +30,10 @@ interface SubjectRow {
   average_percent?: number
   below_pass: number
   pass_rate?: number
+  /* Marks entered above this paper's own maximum. Absent when there are none.
+     While it is set, `average_percent` is honest arithmetic over dishonest
+     data — 50 on a paper out of 20 gives 250% — and is not printed. */
+  marks_above_max?: number
 }
 
 interface AtRisk {
@@ -52,6 +56,10 @@ interface Overview {
     backlogs: number
     at_risk: number
     papers: number
+    /* Marks above their paper's maximum anywhere in this cut, summed from the
+       by-subject rows so the headline and the table agree about whether they
+       can be believed. Absent when there are none. */
+    marks_above_max?: number
   }
   by_subject: SubjectRow[]
   at_risk: AtRisk[]
@@ -99,6 +107,12 @@ export default function PerformanceOverview() {
       ? Math.round((board.pass_rate - s.pass_rate) * 10) / 10
       : undefined
 
+  /* Marks above their paper's maximum in this cut. The server sends the count
+     when there are any; the `> 100` tests below stand on their own as well,
+     because a share of a paper above 100% is impossible on its own evidence
+     and needs no second opinion from the server to be refused. */
+  const overMax = s?.marks_above_max ?? 0
+
   return (
     <>
       <PageHead
@@ -123,6 +137,27 @@ export default function PerformanceOverview() {
         }
       />
       <PageBody width="wide">
+        {/* AN AVERAGE OVER 100% IS NOT A GOOD RESULT.
+          *
+          * This page read "Average 169%" while the papers behind it were
+          * marked out of 20 and carried marks up to 50. The percentage is the
+          * arithmetic working correctly on data that is wrong. It is withheld
+          * and the fault is named — never clamped to 100, which would turn a
+          * fixable typing error into a plausible number nobody questions. */}
+        {overMax > 0 && (
+          <p className="rounded-md border border-danger/40 bg-danger/5 p-3 text-[13px] text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {overMax === 1
+                ? 'One mark is above the maximum printed on its paper.'
+                : `${overMax} marks are above the maximum printed on their papers.`}
+            </span>{' '}
+            Percentages taken against that maximum come out above 100%, so they
+            are not shown. Nothing has been rounded down to hide it: correct the
+            marks, or the paper&rsquo;s maximum, in mark entry, and the averages
+            come back on their own.
+          </p>
+        )}
+
         <CellGrid cols={4}>
           <Stat
             label="Pass rate"
@@ -134,7 +169,18 @@ export default function PerformanceOverview() {
                 : undefined
             }
           />
-          <Stat label="Average" value={s?.average_percent != null ? `${s.average_percent}%` : '—'} icon={Users} hint={`${s?.papers ?? 0} papers`} />
+          <Stat
+            label="Average"
+            value={
+              overMax > 0 || (s?.average_percent ?? 0) > 100
+                ? '—'
+                : s?.average_percent != null
+                  ? `${s.average_percent}%`
+                  : '—'
+            }
+            icon={Users}
+            hint={overMax > 0 ? 'Withheld — marks above the paper maximum' : `${s?.papers ?? 0} papers`}
+          />
           <Stat label="Distinctions" value={s?.distinctions ?? 0} icon={Award} hint="75% and above" />
           <Stat
             label="Children at risk"
@@ -180,7 +226,13 @@ export default function PerformanceOverview() {
                   <Td className="font-medium">{r.subject}</Td>
                   <Td className="text-muted-foreground">{r.exam_name}</Td>
                   <Td className="tabular-nums">{r.entered}</Td>
-                  <Td className="tabular-nums">{r.average_percent ?? '—'}%</Td>
+                  <Td className="tabular-nums">
+                    {(r.marks_above_max ?? 0) > 0 || (r.average_percent ?? 0) > 100
+                      ? '—'
+                      : r.average_percent != null
+                        ? `${r.average_percent}%`
+                        : '—'}
+                  </Td>
                   <Td>
                     <Badge tone={(r.pass_rate ?? 0) >= 90 ? 'success' : (r.pass_rate ?? 0) >= 70 ? 'warning' : 'danger'}>
                       {r.pass_rate ?? '—'}%
@@ -209,7 +261,13 @@ export default function PerformanceOverview() {
                   <Td>{a.class_name}</Td>
                   <Td className="tabular-nums">{a.papers}</Td>
                   <Td><Badge tone={a.backlogs > 2 ? 'danger' : 'warning'}>{a.backlogs}</Badge></Td>
-                  <Td className="tabular-nums">{a.percent ?? '—'}%</Td>
+                  <Td className="tabular-nums">
+                    {(a.percent ?? 0) > 100
+                      ? '—'
+                      : a.percent != null
+                        ? `${a.percent}%`
+                        : '—'}
+                  </Td>
                 </tr>
               ))}
             </Table>

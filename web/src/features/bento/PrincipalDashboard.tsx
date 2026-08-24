@@ -3151,8 +3151,16 @@ export function PulseCard({
       title={t('bento.principal.card_pulse_title')}
       sub={t('bento.principal.card_pulse_sub')}
       glyph="%"
-      value={`${pct}%`}
-      change={t('bento.principal.attendance_marked', { count: marked })}
+      /* `attendance_today_pct` is COALESCEd to 0 on the wire, so a morning
+         nobody marked and a morning everybody was absent are the same number.
+         `marked` is the tell — it is what the fallback below already tests —
+         so the headline follows it rather than printing a confident 0%. */
+      value={marked > 0 ? `${pct}%` : '—'}
+      change={
+        marked > 0
+          ? t('bento.principal.attendance_marked', { count: marked })
+          : t('bento.principal.card_pulse_empty')
+      }
       to={href}
       cueLabel={t('bento.principal.cue_attendance')}
     >

@@ -52,7 +52,7 @@ export default function Defaulters() {
       <PageHead
         eyebrow="Fee Workspace"
         title="Defaulters & aging"
-        description="Overdue balances bucketed by age, with the guardian to contact."
+        description="Balances past their due date, bucketed by age, with the guardian to contact. Not the same figure as the fee overview's outstanding, which is this year's bills whether due yet or not."
         actions={
           <>
             <ExportButton report="defaulters" />
@@ -77,10 +77,16 @@ export default function Defaulters() {
           ))}
         </CellGrid>
 
+        {/* "Overdue", not "outstanding". This list is invoices past their due
+            date and nothing else; the fee overview's outstanding is this
+            year's bills whether due or not, and the executive dashboard's is
+            every unpaid invoice of every year. Calling all three "outstanding"
+            is what made one screen say ₹6,66,625 while another said ₹6,32,875
+            about what looked like the same money. */}
         <Card>
           <CardHeader
             title="Overdue accounts"
-            description={`${rows.length} of ${all.length} · ${formatPaise(rows.reduce((a, d) => a + d.balance_paise, 0))} outstanding`}
+            description={`${rows.length} of ${all.length} · ${formatPaise(rows.reduce((a, d) => a + d.balance_paise, 0))} overdue`}
           />
           {isLoading ? (
             <Loading />

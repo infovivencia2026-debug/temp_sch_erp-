@@ -21,10 +21,21 @@ export default function AttendanceMonitoring() {
    * "Every student is above the threshold" is a reassurance, and it was being
    * shown to a school that has never marked a register — where the truth is
    * that nobody knows. Reassuring somebody with an absence of data is how a
-   * problem stays invisible until the board asks for the register. */
+   * problem stays invisible until the board asks for the register.
+   *
+   * THE PROBE HAS TO ASK THE QUESTION THE LIST ANSWERS. It asked
+   * `/api/v1/attendance`, which defaults to CURRENT_DATE and returns one day's
+   * rows — so a school with two thousand marked registers, none of them dated
+   * today, was told "no attendance has been marked yet" while the dashboard
+   * next door reported a month's worth. The shortage list below is computed
+   * over every register ever marked, so the right question is whether any
+   * exist at all, and the thirty-day trend is the endpoint that can answer it
+   * without a date of its own being passed in. Its emptiness is now reported
+   * as what it is — no register in the last thirty days — rather than as a
+   * claim about all of history. */
   const marked = useQuery({
-    queryKey: ['attendance-marked-any'],
-    queryFn: () => api.get<{ items: unknown[] }>('/api/v1/attendance?limit=1'),
+    queryKey: ['attendance-trend'],
+    queryFn: () => api.get<{ items: unknown[] }>('/api/v1/principal/attendance-trend'),
     retry: false,
   })
   const noRegisterYet = !marked.isLoading && (marked.data?.items?.length ?? 0) === 0
@@ -60,7 +71,7 @@ export default function AttendanceMonitoring() {
           <Stat
             label="Below threshold"
             value={noRegisterYet ? '—' : rows.length}
-            hint={noRegisterYet ? 'No register marked yet' : `Under ${threshold}%`}
+            hint={noRegisterYet ? 'No register in the last 30 days' : `Under ${threshold}%`}
           />
           <Stat label="Critical" value={critical} hint="Under 60%" />
           <Stat
@@ -81,7 +92,7 @@ export default function AttendanceMonitoring() {
               empty={!rows.length}
               emptyLabel={
                 noRegisterYet
-                  ? 'No attendance has been marked yet, so nobody can be counted as short. This is not a clean bill of health.'
+                  ? 'No register has been marked in the last thirty days, so nobody can be counted as short. This is not a clean bill of health.'
                   : 'Every student is above the threshold.'
               }
             >

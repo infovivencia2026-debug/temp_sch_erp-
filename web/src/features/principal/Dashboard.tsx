@@ -14,7 +14,12 @@ import { useCan } from '@/lib/session'
 
 interface PrincipalKPIs {
   students: number; staff: number; sections: number
+  /* Today's register, and the range's. The first pair is CURRENT_DATE however
+     the picker moves — the same day the attention panel counts unmarked
+     sections for. The second is the range and is absent, not zero, when no
+     register was marked in it. */
   attendance_today_pct: number; attendance_marked_today: number
+  attendance_range_pct?: number; attendance_range_marked?: number
   collected_paise: number; outstanding_paise: number; defaulters: number
   pending_leave: number; open_applications: number; unassigned_subjects: number
   range: { period: string; from: string; to: string; label: string }
@@ -75,12 +80,33 @@ export default function PrincipalDashboard() {
           <Stat label="Students" value={k.students} icon={GraduationCap}
             hint={`${k.sections} sections`} period={asOf} />
           <Stat label="Staff" value={k.staff} icon={Users} period={asOf} />
+          {/* TODAY, and said so.
+            *
+            * This tile carried the range's attendance under the word "today"
+            * — 96% and 1,612 marked, from the month behind it, on a morning
+            * nobody had marked a register. The setup checklist beside it was
+            * meanwhile counting eight sections unmarked today, and both were
+            * right about different days. The headline is today; the range
+            * figure keeps its own sentence, and is absent rather than nought
+            * when the range holds no register at all. */}
           <Stat
-            label="Attendance"
-            value={`${k.attendance_today_pct}%`}
+            label="Attendance today"
+            value={k.attendance_marked_today > 0 ? `${k.attendance_today_pct}%` : '—'}
             icon={ClipboardCheck}
-            hint={`${k.attendance_marked_today} marked`}
-            period={k.range?.label}
+            hint={
+              k.attendance_marked_today > 0
+                ? `${k.attendance_marked_today} marked today`
+                : 'No register marked today'
+            }
+            delta={
+              k.attendance_range_marked
+                ? {
+                    value: `${k.attendance_range_pct}% over ${k.range?.label ?? 'the range'}`,
+                    positive: (k.attendance_range_pct ?? 0) >= 90,
+                  }
+                : undefined
+            }
+            period={asOf}
           />
           {/* Money, only for whoever is answerable for it.
            *
@@ -89,13 +115,31 @@ export default function PrincipalDashboard() {
            * this dashboard, which after the role fix is the principal — but
            * the tile should not depend on which workspace somebody landed in.
            * A head of department has no more business with the school's
-           * arrears than a teacher does. */}
+           * arrears than a teacher does.
+           *
+           * THE TWO WORDS THAT WERE THE SAME WORD.
+           *
+           * `collected_paise` is receipts banked inside the range, whatever
+           * year's bill they settle and whether or not they have been applied
+           * to one. The fee overview's "Collected" is money applied to THIS
+           * YEAR'S bills. Under one label, a month's receipts (₹45,04,625)
+           * sat above a year's applied collection (₹44,97,125) and a month
+           * appeared to beat its own year.
+           *
+           * `outstanding_paise` is every unpaid invoice of every year — the
+           * arrears the school is actually owed — and is larger than the fee
+           * overview's outstanding by the debt carried in from earlier years.
+           * Both are true; neither is "outstanding" unqualified. */}
           {canSeeMoney && (
             <Stat
-              label="Collected"
+              label="Receipts banked"
               value={formatPaise(k.collected_paise)}
               icon={Wallet}
-              delta={{ value: `${formatPaise(k.outstanding_paise)} outstanding now`, positive: false }}
+              hint="Whatever year's bill they settle"
+              delta={{
+                value: `${formatPaise(k.outstanding_paise)} unpaid, all years, as of today`,
+                positive: false,
+              }}
               period={k.range?.label}
             />
           )}
@@ -108,7 +152,12 @@ export default function PrincipalDashboard() {
             {canSeeMoney && (
               <Stat period={asOf} label="Fee defaulters" value={k.defaulters} hint="Past due date" />
             )}
-            <Stat period={asOf} label="Open applications" value={k.open_applications} hint="Not yet decided" />
+            {/* Not the funnel's "Applications received", which counts every
+                application ever raised, and not the attention panel's, which
+                is narrower still — only the ones waiting on a decision. The
+                hint says which of the three this is. */}
+            <Stat period={asOf} label="Open applications" value={k.open_applications}
+              hint="Not accepted, rejected or withdrawn" />
             <Stat period={asOf} label="Unassigned subjects" value={k.unassigned_subjects} hint="No teacher timetabled" />
           </CellGrid>
         </Card>

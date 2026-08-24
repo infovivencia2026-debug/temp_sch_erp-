@@ -4,7 +4,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Loading, ErrorState, PrintButton,
 } from '@/components/ui'
-import { CsvButton, pct, goodPct } from './shared'
+import { CsvButton, pct, goodPct, impossiblePct, RefusedPctNotice } from './shared'
 
 /**
  * Department academics — what each department owns and how it is doing.
@@ -41,6 +41,8 @@ export default function DepartmentAcademics() {
   const planned = rows.reduce((a, r) => a + r.syllabus_units_planned, 0)
   const done = rows.reduce((a, r) => a + r.syllabus_units_delivered, 0)
   const coverage = planned ? Math.round((1000 * done) / planned) / 10 : undefined
+  // Department averages `pct` will refuse, so the notice can explain the dash.
+  const refused = rows.map((r) => r.avg_score_pct).filter(impossiblePct).length
 
   return (
     <>
@@ -66,6 +68,8 @@ export default function DepartmentAcademics() {
             hint={`${done} of ${planned} units delivered`}
           />
         </CellGrid>
+
+        <RefusedPctNotice count={refused} />
 
         <Card>
           <CardHeader

@@ -271,6 +271,28 @@ func (s *Server) getMasterTimetableOverview(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
+	/* THE REQUIREMENT IS A DENOMINATOR AND ZERO IS NOT A DENOMINATOR.
+
+	   `required` is the sum of class_subjects.periods_per_week over every
+	   section's class. A school that has offered subjects but never said how
+	   many periods a week each one needs sums to nought, and the screen then
+	   printed "200 of 0 periods in use" — a numerator against a bottom half
+	   that does not exist. Omitted rather than sent as zero, so the client
+	   prints the periods it can count and says the requirement is unset; a
+	   client that ignores the field still reads `required_periods ?? 0` and
+	   still finds the "set the weekly periods first" stage it always found. */
+	summary := map[string]any{
+		"sections":                   len(sections),
+		"sections_without_timetable": noGrid,
+		"live_periods":               live,
+		"live_unstaffed":             unstaffed,
+		"draft_periods":              draftPlaced,
+		"open_drafts":                len(drafts),
+	}
+	if required > 0 {
+		summary["required_periods"] = required
+	}
+
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"academic_year_id": yearID.String(),
 		"academic_year":    yearName,
@@ -280,15 +302,7 @@ func (s *Server) getMasterTimetableOverview(w http.ResponseWriter, r *http.Reque
 		"open_drafts":      drafts,
 		"may_edit":         id.Can(rbac.TimetableWrite),
 		"cells_a_week":     teaching * len(teachingWeekdays),
-		"summary": map[string]any{
-			"sections":                   len(sections),
-			"sections_without_timetable": noGrid,
-			"required_periods":           required,
-			"live_periods":               live,
-			"live_unstaffed":             unstaffed,
-			"draft_periods":              draftPlaced,
-			"open_drafts":                len(drafts),
-		},
+		"summary": summary,
 	})
 }
 

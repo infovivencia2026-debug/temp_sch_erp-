@@ -77,7 +77,7 @@ export default function Pipeline() {
       <PageHead
         eyebrow="Admissions Workspace"
         title="Admissions pipeline"
-        description="Merit ranking, seat availability against RTE quota, and the offer-to-enrolment handoff."
+        description="Merit ranking, seat availability against RTE quota, and the offer-to-enrolment handoff. The stages below are cumulative totals — every application ever raised, not the ones still waiting on somebody, which is the dashboard's smaller 'open applications'."
         actions={
           <>
           {/* The applicant list, for the trustee who wants it in Excel. */}

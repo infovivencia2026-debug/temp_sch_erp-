@@ -80,7 +80,11 @@ interface Overview {
   summary: {
     sections: number
     sections_without_timetable: number
-    required_periods: number
+    /* Absent when no class-subject carries a weekly period count — there is
+       then no requirement to place periods against, which is not the same as
+       a requirement of nought. `?? 0` below still reaches the "set the weekly
+       periods first" stage; what it must not do is print a denominator. */
+    required_periods?: number
     live_periods: number
     live_unstaffed: number
     draft_periods: number
@@ -241,10 +245,25 @@ export default function MasterTimetable() {
               <p className="mt-1 text-[13.5px] text-muted-foreground">{stage.body}</p>
               <p className="mt-2 text-[12.5px] text-muted-foreground">
                 {d?.academic_year} · {s?.sections ?? 0} sections ·{' '}
-                <span className="tabular-nums">
-                  {s?.live_periods ?? 0} of {s?.required_periods ?? 0}
-                </span>{' '}
-                periods in use
+                {/* "200 of 0 periods in use" was a numerator over a
+                    denominator that does not exist: nothing has said how many
+                    periods a week each subject needs, so there is no total to
+                    be a fraction of. The periods placed are still a fact and
+                    are still printed; the missing half says it is missing. */}
+                {needsRequirements ? (
+                  <>
+                    <span className="tabular-nums">{s?.live_periods ?? 0}</span> periods in
+                    use · no weekly periods set for any subject, so there is
+                    nothing to count them against
+                  </>
+                ) : (
+                  <>
+                    <span className="tabular-nums">
+                      {s?.live_periods ?? 0} of {s?.required_periods}
+                    </span>{' '}
+                    periods in use
+                  </>
+                )}
                 {(s?.live_unstaffed ?? 0) > 0 && ` · ${s?.live_unstaffed} with no teacher`}
               </p>
             </div>

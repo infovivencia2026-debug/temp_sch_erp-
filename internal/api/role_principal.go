@@ -13,11 +13,31 @@ import (
    whole tenant, so no narrower scope filter applies. */
 
 type principalKPIs struct {
-	Students         int   `json:"students"`
-	Staff            int   `json:"staff"`
-	Sections         int   `json:"sections"`
-	AttendanceToday  int   `json:"attendance_today_pct"`
-	MarkedToday      int   `json:"attendance_marked_today"`
+	Students int `json:"students"`
+	Staff    int `json:"staff"`
+	Sections int `json:"sections"`
+
+	/* The register, today and over the range.
+
+	   AttendanceToday and MarkedToday are TODAY, which is what their names
+	   have always said and what every other screen means by the word: the
+	   attention panel's "8 sections without attendance today" counts sections
+	   with no row dated CURRENT_DATE, and the school-setup checklist reads the
+	   same probe. They were being computed over the requested range instead,
+	   so a dashboard opened on a morning nobody had marked reported "96% ·
+	   1,612 marked today" from the month behind it while the panel beside it
+	   said eight sections were unmarked. Both were true of different windows
+	   and only one of them was labelled.
+
+	   The range figures did not stop being useful when they stopped being
+	   called today, so they are kept under their own names. Both are omitted
+	   when the range holds no register at all: nought percent of nothing is
+	   not nought percent, and a client that finds the field missing falls back
+	   to saying nobody marked rather than printing a confident zero. */
+	AttendanceToday int  `json:"attendance_today_pct"`
+	MarkedToday     int  `json:"attendance_marked_today"`
+	RangePct        *int `json:"attendance_range_pct,omitempty"`
+	RangeMarked     *int `json:"attendance_range_marked,omitempty"`
 	CollectedPaise   int64 `json:"collected_paise"`
 	OutstandingPaise int64 `json:"outstanding_paise"`
 	Defaulters       int   `json:"defaulters"`
@@ -150,14 +170,18 @@ func (s *Server) getPrincipalDashboard(w http.ResponseWriter, r *http.Request) {
 
 	/* Flows take the range, levels do not.
 
-	   Attendance and collection are flows and are reported for the period
-	   asked for. Outstanding balance, defaulters, pending leave and open
+	   Collection is a flow and is reported for the period asked for, and so
+	   is the range pair of attendance figures. Today's register is not: it is
+	   named for today, it is read beside a panel that counts unmarked sections
+	   today, and it stays on CURRENT_DATE however the range moves.
+	   Outstanding balance, defaulters, pending leave and open
 	   applications are levels — true at an instant — and "outstanding between
 	   June and August" is not a smaller number, it is a meaningless one. They
 	   stay as-of-now and the response says so, so the client can label them. */
 	rng := resolveRange(r)
 	k.Range = rng
-	k.AsOf = []string{"outstanding_paise", "defaulters", "pending_leave",
+	k.AsOf = []string{"attendance_today_pct", "attendance_marked_today",
+		"outstanding_paise", "defaulters", "pending_leave",
 		"open_applications", "unassigned_subjects", "students", "staff", "sections",
 		// The breakdowns are levels too: they are cut from the same rows as the
 		// scalars above and carry the same as-of-now label.
@@ -170,12 +194,25 @@ func (s *Server) getPrincipalDashboard(w http.ResponseWriter, r *http.Request) {
 			  (SELECT count(*) FROM students  WHERE status = 'active'),
 			  (SELECT count(*) FROM employees WHERE status = 'active'),
 			  (SELECT count(*) FROM sections),
-			  -- Percentage of today's marked register that is present-or-late.
+			  -- Percentage of TODAY'S marked register that is present-or-late,
+			  -- and how many children are on it. CURRENT_DATE and not the
+			  -- range: "marked today" is the same question the attention
+			  -- panel's unmarked-sections probe asks, and the two have to be
+			  -- answers about the same day or they contradict each other.
 			  COALESCE((SELECT round(100.0 * count(*) FILTER (WHERE status IN ('present','late'))
 			                         / NULLIF(count(*), 0))
 			              FROM student_attendance
-			             WHERE on_date BETWEEN $1::date AND $2::date), 0),
+			             WHERE on_date = CURRENT_DATE), 0),
 			  (SELECT count(*) FROM student_attendance
+			    WHERE on_date = CURRENT_DATE),
+			  -- The same two over the requested range, under their own names.
+			  -- NULL rather than 0 when the range holds no register: the
+			  -- percentage of an empty register is not nought.
+			  (SELECT round(100.0 * count(*) FILTER (WHERE status IN ('present','late'))
+			                / NULLIF(count(*), 0))::int
+			     FROM student_attendance
+			    WHERE on_date BETWEEN $1::date AND $2::date),
+			  (SELECT NULLIF(count(*), 0)::int FROM student_attendance
 			    WHERE on_date BETWEEN $1::date AND $2::date),
 			  -- Adjustments are excluded: a write-off is an accounting entry,
 			  -- not a rupee that arrived. The day book (getCollectionSummary)
@@ -303,6 +340,7 @@ func (s *Server) getPrincipalDashboard(w http.ResponseWriter, r *http.Request) {
 			     FROM invoices i
 			    WHERE i.status IN ('unpaid','partial','overdue'))
 		`, rng.FromS, rng.ToS).Scan(&k.Students, &k.Staff, &k.Sections, &k.AttendanceToday, &k.MarkedToday,
+			&k.RangePct, &k.RangeMarked,
 			&k.CollectedPaise, &k.OutstandingPaise, &k.Defaulters,
 			&k.PendingLeave, &k.OpenApplications, &k.UnassignedSubj,
 			&k.BilledPaise, &k.CollectedYearPais, &k.OutstandingYearP, &k.YearInvoices,

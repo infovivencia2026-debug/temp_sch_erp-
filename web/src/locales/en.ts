@@ -2091,7 +2091,10 @@ export const en = {
   'bento.parent_week.never_missed': '{name} has not missed a marked day.',
   'bento.parent_week.no_invoices': 'No bill has been raised for {name} yet.',
   'bento.parent_week.ledger_unread': '{name}’s bills could not be read just now.',
-  'bento.principal.card_pulse_empty': 'No register has been marked yet',
+  // Today, not ever: the two figures behind this cell are CURRENT_DATE, the
+  // same day the unmarked-sections probe counts for. "Yet" claimed a school
+  // had never marked a register when it had simply not marked one this morning.
+  'bento.principal.card_pulse_empty': 'No register marked today',
   'bento.principal.card_pulse_facts_sr': '{pct} percent present today, marked over {count} children. No earlier day to compare with',
   'bento.principal.fact_marked_today': 'Marked today',
   'bento.principal.fact_present': 'Present',
