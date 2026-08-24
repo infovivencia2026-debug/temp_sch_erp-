@@ -719,9 +719,16 @@ export function Shell({ children }: { children: ReactNode }) {
             you cannot reach. Desktop only, and it returns null with fewer than
             two tabs: one tab is not a strip, it is a line of chrome restating
             the title. */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* min-h-0 is load-bearing, not tidying.
+        
+            A flex item defaults to min-height:auto and refuses to shrink below
+            its content. Without it this wrapper grew to the height of the page,
+            <main>'s overflow-y-auto never engaged, and the scroll escaped to the
+            outer container — so scrolling a long register scrolled the SIDEBAR
+            with it. Introduced when this wrapper was added for the tab strip. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <TabStrip />
-          <main data-paint="workarea" className="min-w-0 flex-1 overflow-y-auto">
+          <main data-paint="workarea" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
             <BentoOutlet>{children}</BentoOutlet>
             <BentoDock />
           </main>
