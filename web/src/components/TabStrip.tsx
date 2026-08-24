@@ -40,7 +40,16 @@ export default function TabStrip() {
      inside screens, which is where most navigation in this product happens. */
   useEffect(() => {
     if (!catalog.roles.length) return
-    if (here === '/' || here.startsWith('/go/')) return
+    /* Only real screens get a tab.
+     *
+     * "/" and "/go/…" both redirect, and "/institution_admin" is the role index
+     * — it bounces to that role's first feature. Each of them opened a tab that
+     * existed for one paint and then pointed at a page nobody can return to,
+     * which is how a strip fills up with entries that do nothing when pressed.
+     * A screen is role/section/feature: three segments. */
+    const segments = here.split('?')[0].split('/').filter(Boolean)
+    if (here.startsWith('/go/')) return
+    if (segments.length !== 3 && here !== '/account') return
     open(here, titleFor(here), here)
   }, [here, catalog.roles.length])
 
