@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 334 features. */
+/** 12 roles, 322 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -733,56 +733,6 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'admissions',
-        name: 'Admissions',
-        workspace: 'Admissions',
-        features: [
-          { key: 'admissions.admissions.offers_admission_decisions', slug: 'offers_admission_decisions', name: 'Offers / admission decisions', scope: 'institution', tier: 'core', summary: 'Issue offers/admission decisions based on configured workflow.' },
-          { key: 'admissions.admissions.merit_list_generation', slug: 'merit_list_generation', name: 'Merit List Generation', scope: 'institution', tier: 'advanced', summary: 'Calculate weighted scores based on prior marks, entrance exam, and interview to publish merit lists.' },
-          { key: 'admissions.admissions.seat_allocation_management', slug: 'seat_allocation_management', name: 'Seat Allocation Management', scope: 'institution', tier: 'advanced', summary: 'Manage class/section seat quotas (General, RTE, Management, Sports, Sibling) and availability.' },
-          { key: 'admissions.admissions.provisional_offer_letters', slug: 'provisional_offer_letters', name: 'Provisional Offer Letters', scope: 'institution', tier: 'core', summary: 'Generate and email/SMS provisional admission offer letters with payment deadline links.' },
-          { key: 'admissions.admissions.admission_waitlist_management', slug: 'admission_waitlist_management', name: 'Admission Waitlist Management', scope: 'institution', tier: 'advanced', summary: 'Maintain real-time waitlists per class, auto-promoting candidates as seats open up.' },
-          { key: 'admissions.admissions.admission_fee_collection', slug: 'admission_fee_collection', name: 'Admission Fee Collection', scope: 'institution', tier: 'core', summary: 'Collect prospectus and application form fees via cash, POS, or integrated payment gateway.' },
-          { key: 'admissions.admissions.enrollment_handoff', slug: 'enrollment_handoff', name: 'Enrollment handoff', scope: 'institution', tier: 'core', summary: 'Convert admitted applicant to student/enrollment without duplicate data entry.' },
-          { key: 'admissions.admissions.sibling_priority_auto_matching', slug: 'sibling_priority_auto_matching', name: 'Sibling Priority Auto-Matching', scope: 'institution', tier: 'core', summary: 'Auto-detect existing enrolled siblings during inquiry to apply sibling priority quota.' },
-          { key: 'admissions.admissions.alumni_child_quota_allocation', slug: 'alumni_child_quota_allocation', name: 'Alumni Child Quota Allocation', scope: 'institution', tier: 'core', summary: 'Identify children of alumni applicants and apply institutional alumni quota benefits.' },
-          { key: 'admissions.admissions.rte_right_to_education_quota_tracking', slug: 'rte_right_to_education_quota_tracking', name: 'RTE (Right to Education) Quota Tracking', scope: 'institution', tier: 'advanced', summary: 'Manage government RTE quota applications, lottery selection results, and document verification.' },
-          { key: 'admissions.admissions.rte_online_lottery_import', slug: 'rte_online_lottery_import', name: 'RTE Online Lottery Import', scope: 'institution', tier: 'advanced', summary: 'Import the state RTE 25% lottery allotment list and convert allotted candidates into applications.' },
-          { key: 'admissions.admissions.aadhaar_apaar_capture_at_admission', slug: 'aadhaar_apaar_capture_at_admission', name: 'Aadhaar & APAAR Capture at Admission', scope: 'institution', tier: 'advanced', summary: 'Capture Aadhaar consent, APAAR ID and prior-school UDISE code during the admission form.' },
-          { key: 'admissions.admissions.transfer_certificate_intake', slug: 'transfer_certificate_intake', name: 'Transfer Certificate Intake', scope: 'institution', tier: 'core', summary: 'Record the previous school\'s TC number, board and issue date, and verify against the prior UDISE record.' },
-          { key: 'admissions.admissions.medium_of_instruction_selection', slug: 'medium_of_instruction_selection', name: 'Medium of Instruction Selection', scope: 'institution', tier: 'core', summary: 'Capture the medium the applicant is admitted into and the language combination chosen.' },
-          { key: 'admissions.admissions.child_info_id_capture', slug: 'child_info_id_capture', name: 'Child Info ID Capture', scope: 'institution', tier: 'core', summary: 'Record the Telangana Child Info ID at admission and verify it against the state register.' },
-        ],
-      },
-      {
-        slug: 'visitors',
-        name: 'Visitors',
-        workspace: 'Front Desk',
-        features: [
-          { key: 'admissions.visitors.visitor_gate_pass_generation', slug: 'visitor_gate_pass_generation', name: 'Visitor Gate Pass Generation', scope: 'institution', tier: 'core', summary: 'Log guest photo, phone number, host staff member, visit reason, and print paper/digital badge.' },
-          { key: 'admissions.visitors.visitor_checkout_tracking', slug: 'visitor_checkout_tracking', name: 'Visitor Checkout Tracking', scope: 'institution', tier: 'core', summary: 'Scan visitor barcode or log exit time to ensure no unauthorized visitors remain on campus.' },
-          { key: 'admissions.visitors.parent_appointment_booking', slug: 'parent_appointment_booking', name: 'Parent Appointment Booking', scope: 'institution', tier: 'core', summary: 'Schedule formal parent meetings with staff/admin to prevent unscheduled office crowding.' },
-        ],
-      },
-      {
-        slug: 'gate_security',
-        name: 'Gate Security',
-        workspace: 'Front Desk',
-        features: [
-          { key: 'admissions.gate_security.gate_rfid_entry_management', slug: 'gate_rfid_entry_management', name: 'Gate RFID Entry Management', scope: 'institution', tier: 'optional', summary: 'Monitor real-time student/staff gate scans for late arrivals or early departures.' },
-          { key: 'admissions.gate_security.emergency_gate_lockout', slug: 'emergency_gate_lockout', name: 'Emergency Gate Lockout', scope: 'institution', tier: 'optional', summary: 'Trigger gate security alerts for unapproved exits or blacklisted visitors.' },
-        ],
-      },
-      {
-        slug: 'office_log',
-        name: 'Office Log',
-        workspace: 'Front Desk',
-        features: [
-          { key: 'admissions.office_log.front_office_calls_register', slug: 'front_office_calls_register', name: 'Front Office Calls Register', scope: 'institution', tier: 'core', summary: 'Maintain daily telephone call logs, caller identity, inquiry nature, and message forwarding.' },
-          { key: 'admissions.office_log.postal_courier_log', slug: 'postal_courier_log', name: 'Postal & Courier Log', scope: 'institution', tier: 'core', summary: 'Record inbound and outbound official mail, courier tracking numbers, recipient, and handover status.' },
-        ],
-      },
-      {
         slug: 'communication',
         name: 'Communication',
         workspace: 'Communication',
@@ -795,8 +745,8 @@ export const ROLES: Role[] = [
         name: 'Reports',
         workspace: 'Reports',
         features: [
-          { key: 'admissions.reports.admission_conversion_reports', slug: 'admission_conversion_reports', name: 'Admission Conversion Reports', scope: 'institution', tier: 'core', summary: 'View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled.' },
-          { key: 'admissions.reports.lost_lead_reason_analysis', slug: 'lost_lead_reason_analysis', name: 'Lost Lead Reason Analysis', scope: 'institution', tier: 'core', summary: 'Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school).' },
+          { key: 'admissions.reports.admission_reports', slug: 'admission_reports', name: 'Admission reports', scope: 'institution', tier: 'core', summary: 'Enquiries, applications and admissions with the conversion between them — the numbers a management committee asks for. Exports to a spreadsheet.' },
+          { key: 'admissions.reports.dropped_leads', slug: 'dropped_leads', name: 'Dropped leads', scope: 'institution', tier: 'core', summary: 'Why parents did not join, counted: fees, distance, chose another school. The reason is asked for when an enquiry is marked lost, so this is built from what was actually recorded.' },
         ],
       },
       {
@@ -805,6 +755,30 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'admissions.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+      {
+        slug: 'admissions',
+        name: 'Admissions',
+        workspace: 'Admissions',
+        features: [
+          { key: 'admissions.admissions.all_admissions', slug: 'all_admissions', name: 'All admissions', scope: 'institution', tier: 'core', summary: 'Every applicant who has reached a decision stage, and what was decided — accepted, rejected or on hold. The list an admission clerk works from.' },
+          { key: 'admissions.admissions.merit_lists_seat_allotment', slug: 'merit_lists_seat_allotment', name: 'Merit lists & seat allotment', scope: 'institution', tier: 'core', summary: 'Rank the applicants, see the seats left in each class against the quota, and allot. Merit and seats read together because one decides the other.' },
+          { key: 'admissions.admissions.waitlist', slug: 'waitlist', name: 'Waitlist', scope: 'institution', tier: 'core', summary: 'Who is next if a seat is given up, in order, with the date they went on.' },
+          { key: 'admissions.admissions.rte_admissions', slug: 'rte_admissions', name: 'RTE admissions', scope: 'institution', tier: 'core', summary: 'The 25% quota the Act requires: applicants claiming it, the lottery list imported from the state portal, seats filled against seats mandated, and what the government return will say.' },
+          { key: 'admissions.admissions.fee_payment_enrolment', slug: 'fee_payment_enrolment', name: 'Fee payment & enrolment', scope: 'institution', tier: 'core', summary: 'The admission fee, and the step that turns a paid acceptance into an enrolled student with a roll number — without anybody typing the child\'s details a second time.' },
+          { key: 'admissions.admissions.government_ids', slug: 'government_ids', name: 'Government IDs', scope: 'institution', tier: 'core', summary: 'Aadhaar and APAAR for each admission, and the child-info id UDISE+ asks for. Captured here because a missing one is found at reporting time, when it is too late to ask the parent.' },
+        ],
+      },
+      {
+        slug: 'front_desk',
+        name: 'Front Desk',
+        workspace: 'Front Desk',
+        features: [
+          { key: 'admissions.front_desk.visitors_log', slug: 'visitors_log', name: 'Visitors log', scope: 'institution', tier: 'core', summary: 'Who is on campus right now and who has been: name, phone, who they are here to see, and the time in. Checking somebody out is a button on their row, and a pass prints from the same place.' },
+          { key: 'admissions.front_desk.parent_appointments', slug: 'parent_appointments', name: 'Parent appointments', scope: 'institution', tier: 'core', summary: 'Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up.' },
+          { key: 'admissions.front_desk.daily_call_log', slug: 'daily_call_log', name: 'Daily call log', scope: 'institution', tier: 'core', summary: 'Calls in and out with who took them and what was said — the register the front office keeps by the phone.' },
+          { key: 'admissions.front_desk.dispatch_courier', slug: 'dispatch_courier', name: 'Dispatch & courier', scope: 'institution', tier: 'core', summary: 'Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over.' },
         ],
       },
     ],

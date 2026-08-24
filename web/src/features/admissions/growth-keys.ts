@@ -25,7 +25,7 @@ import { lazy } from 'react'
    and is the same code a scheduler will invoke; it does not start one. */
 
 export const admissionsGrowthKeys = {
-  'admissions.reports.lost_lead_reason_analysis': lazy(
+  'admissions.reports.dropped_leads': lazy(
     () => import('./LostLeads'),
   ),
 }
