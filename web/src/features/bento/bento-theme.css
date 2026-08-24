@@ -573,8 +573,43 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
 [data-layout='bento'] {
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-fast: 140ms;
-  --dur: 220ms;
+  /* Slower, and eased so the slowness reads as weight rather than lag.
+
+     140/220ms is the timing of an interface that wants to get out of the way.
+     Asked for something calmer, the mistake would be to raise the numbers and
+     stop there: a longer linear-ish move does not feel smoother, it feels
+     late. So the curve changes with the duration — a gentler start and a long
+     settle, which is what makes a slower move read as deliberate.
+
+     260/420ms is about the ceiling before a menu starts to feel like it is
+     waiting for permission to open. */
+  --dur-fast: 260ms;
+  --dur: 420ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.16, 1);
+
+  /* Tailwind's duration-100/150/300 utilities are scattered through the
+     components and do not read these tokens. Rather than chase 39 class names
+     across 30 files, the transition DURATION is overridden for anything inside
+     the layout that declares one — the class still says which properties
+     animate, this decides how long they take. */
+}
+
+[data-layout='bento'] [class*='transition'] {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Somebody who has asked their system for less motion gets it, whatever this
+   file would prefer. Slower animation is a preference; ignoring that setting is
+   an accessibility failure. */
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] {
+    --dur-fast: 1ms;
+    --dur: 1ms;
+  }
+  [data-layout='bento'] [class*='transition'] {
+    transition-duration: 1ms;
+  }
 }
 
 /* Panels and menus arrive from their own origin rather than fading in place,
