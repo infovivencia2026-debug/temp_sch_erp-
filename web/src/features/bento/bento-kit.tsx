@@ -1515,12 +1515,10 @@ export function useBoardHeight() {
          whose content reaches the bottom the last row ran UNDER the floating
          dock — measured at 56px of card covered on four cells. The dock's own
          height is a token, so ask for it rather than guessing. */
-      const dock = parseInt(
-        getComputedStyle(document.documentElement).getPropertyValue('--bento-dock'),
-        10,
-      )
-      const reserve = Number.isFinite(dock) ? dock + 32 : 104
-      const room = Math.max(240, window.innerHeight - top - reserve)
+      /* Only a breathing gap. The dock itself is reserved by the scroll
+         container's padding, and adding it here as well is what triple-counted
+         it. */
+      const room = Math.max(240, window.innerHeight - top - 12)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
     }
 
@@ -1585,7 +1583,11 @@ export function BentoPage({
            differed from each other. The background pattern, keyed to the same
            class, was only ever painting on loading screens for the same
            reason. */
-        'bento-surface h-full w-full text-[var(--bento-ink)] flex flex-col pb-[calc(var(--bento-dock)+2rem)]',
+        /* No dock padding here. `BentoOutlet` already reserves it on the scroll
+           container, and this reserved it AGAIN — so between the two of them and
+           the measuring hook the dock's 56px was held back three times over,
+           leaving 130px of black between the last card and the dock. */
+        'bento-surface h-full w-full text-[var(--bento-ink)] flex flex-col',
         still ? '' : 'transition-opacity duration-300',
         shown ? 'opacity-100' : 'opacity-0',
       )}
