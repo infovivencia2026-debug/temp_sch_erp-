@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
+import TabStrip from '@/components/TabStrip'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
@@ -662,10 +663,18 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
         )}
 
-        <main data-paint="workarea" className="min-w-0 flex-1 overflow-y-auto">
-          <BentoOutlet>{children}</BentoOutlet>
-          <BentoDock />
-        </main>
+        {/* Several screens open at once, above the work area and OUTSIDE the
+            scroller — a tab strip that scrolls away with the page is a tab strip
+            you cannot reach. Desktop only, and it returns null with fewer than
+            two tabs: one tab is not a strip, it is a line of chrome restating
+            the title. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TabStrip />
+          <main data-paint="workarea" className="min-w-0 flex-1 overflow-y-auto">
+            <BentoOutlet>{children}</BentoOutlet>
+            <BentoDock />
+          </main>
+        </div>
       </div>
     </div>
   )
