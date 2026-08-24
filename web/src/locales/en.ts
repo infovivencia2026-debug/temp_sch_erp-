@@ -1931,6 +1931,7 @@ export const en = {
   'bento.dock.apps': 'Apps',
   'bento.settings.label': 'Settings',
   'bento.settings.appearance': 'Appearance',
+  'bento.settings.account': 'My profile',
   'bento.settings.signout': 'Sign out',
   'bento.settings.frame': 'Frame',
   'bento.settings.density': 'Density',

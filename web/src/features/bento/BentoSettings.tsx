@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft,
+  Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
   Maximize2, Type, Minimize2, LayoutGrid, Sliders,
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme, THEMES, type Theme } from '@/lib/theme'
@@ -422,6 +422,25 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{t('bento.settings.reset')}</span>
           </button>
+
+          {/* The account screen existed and nothing pointed at it.
+
+              /account sits outside the catalogue on purpose — everybody has a name,
+              a password and contact details whatever their role — but the only way in
+              was to type the URL. Ten roles could sign in with no route to their own
+              profile, which is why it read as a feature that did not exist.
+
+              Directly above sign out, where every product keeps the account it
+              belongs to. */}
+          <a
+            href="/account"
+            role="menuitem"
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+                       transition-colors ${WASH} ${RING}`}
+          >
+            <UserCircle className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.account')}</span>
+          </a>
 
           <a
             href="/logout"

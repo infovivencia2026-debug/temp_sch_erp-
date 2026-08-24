@@ -137,6 +137,20 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		// Platform staff are not customers and have nothing to buy.
+		//
+		// This block had no such guard, so a vendor or platform administrator
+		// got a subscription resolved against an institution they do not belong
+		// to, it came back inactive, and the SPA's session gate showed them
+		// "This school does not have a subscription" instead of their console.
+		// The people whose job is selling subscriptions could not sign in past
+		// the absence of one — and the client type has said "absent for
+		// platform staff" the whole time, so the contract was right and only
+		// this was wrong.
+		if id.PlatformAdmin {
+			return nil
+		}
+
 		// The commercial standing, from the same transaction so it cannot
 		// disagree with the modules read a few lines above.
 		st, err := entitlement.Resolve(r.Context(), tx, id.InstitutionID)
