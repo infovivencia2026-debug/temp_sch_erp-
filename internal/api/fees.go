@@ -572,6 +572,10 @@ type generateInvoicesRequest struct {
 // Runs inline rather than on the queue: a term run for one class is a few
 // hundred rows and the cashier is waiting to see the count. A whole-school run
 // across every class belongs on the bulk queue via /api/v1/jobs.
+// A draft fee structure must not bill anybody: the gate was drawn on the screen,
+// read by the person using it, and enforced nowhere.
+var errNoLiveFeeVersion = errors.New("no live fee structure version")
+
 func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 
@@ -604,6 +608,33 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			  FROM fee_structures WHERE id = $1 AND is_active`, structureID).
 			Scan(&instID, &campusID, &yearID, &classID); err != nil {
 			return err
+		}
+
+		/* A draft must not bill anybody.
+
+		   The structure's own is_active flag was checked and the version's
+		   status was not, so a structure showing "No live version" on its own
+		   screen could still raise sixty invoices. That is the worst kind of
+		   gate: it is drawn, it is read, and it does nothing. A parent who
+		   receives a demand built from a draft has been asked for a figure the
+		   school had not agreed, and the school finds out when they pay it.
+
+		   Only enforced where versioning is in use. A school that has never
+		   opened that screen has no version rows at all, and refusing to bill
+		   them would break every school that bills the simple way. */
+		var versions, live int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*)::int,
+			       count(*) FILTER (
+			         WHERE status = 'active'
+			           AND effective_from <= CURRENT_DATE
+			           AND (effective_to IS NULL OR effective_to >= CURRENT_DATE))::int
+			  FROM fee_structure_versions WHERE fee_structure_id = $1`,
+			structureID).Scan(&versions, &live); err != nil {
+			return err
+		}
+		if versions > 0 && live == 0 {
+			return errNoLiveFeeVersion
 		}
 
 		// Students enrolled in this year, optionally limited to the structure's
@@ -696,6 +727,11 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.BadRequest(w, r, "no active fee structure with that id")
+		return
+	}
+	if errors.Is(err, errNoLiveFeeVersion) {
+		httpx.Error(w, r, http.StatusConflict, "no_live_fee_version",
+			"cannot generate invoices: this fee structure has no live version. Activate a version first, or a parent will be billed a figure the school has not agreed.")
 		return
 	}
 	if err != nil {

@@ -100,6 +100,46 @@ func (s *Server) listClasses(w http.ResponseWriter, r *http.Request) {
 // full?" is the question every section list is actually asked.
 func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
 	yearID := nullString(r.URL.Query().Get("academic_year_id"))
+
+	/* mine=true: only the sections this person may actually write to.
+
+	   This is the reference list of every section in the school, which is
+	   right for the office and wrong for a form. A teacher setting homework
+	   was offered all six grades, filled the whole form, and was refused with
+	   "missing permission" on submit — the dropdown promising something the
+	   server was always going to refuse. Offering a choice that cannot be
+	   taken is worse than not offering it: the person has already done the
+	   work by the time they find out.
+
+	   The same predicate the write path checks, not a second opinion about
+	   what a teacher reaches: teach it, or be its class teacher. */
+	mine := "TRUE"
+	args := []any{yearID}
+	if q := r.URL.Query().Get("mine"); q == "true" || q == "class_teacher" {
+		res, err := s.resolveScope(r)
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		// mine=class_teacher for the screens only a class teacher may use — the
+		// report card is theirs alone. mine=true for the wider set a subject
+		// teacher legitimately writes to.
+		ids := res.SectionIDs
+		if q == "class_teacher" {
+			ids = res.ClassTeacherOf
+		}
+		if !res.AnySection {
+			if len(ids) == 0 {
+				// No sections at all is a real answer, and an empty dropdown
+				// with an honest empty state beats one full of refusals.
+				mine = "FALSE"
+			} else {
+				args = append(args, ids)
+				mine = "sec.id = ANY($" + itoa(len(args)) + ")"
+			}
+		}
+	}
+
 	items, err := collect(s, r, `
 		SELECT sec.id::text, sec.class_id::text, c.name, sec.academic_year_id::text,
 		       sec.name, sec.capacity, sec.room, u.full_name,
@@ -109,7 +149,8 @@ func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
 		  JOIN classes c ON c.id = sec.class_id
 		  LEFT JOIN users u ON u.id = sec.class_teacher_id
 		 WHERE ($1::uuid IS NULL OR sec.academic_year_id = $1)
-		 ORDER BY c.level, sec.name`, []any{yearID},
+		   AND `+mine+`
+		 ORDER BY c.level, sec.name`, args,
 		func(rows pgx.Rows) (section, error) {
 			var v section
 			return v, rows.Scan(&v.ID, &v.ClassID, &v.ClassName, &v.AcademicYearID,

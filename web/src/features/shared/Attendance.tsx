@@ -39,7 +39,7 @@ export default function Attendance() {
 
   const sections = useQuery({
     queryKey: ['sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
   })
 
   // The register needs every student in the section, not only those already

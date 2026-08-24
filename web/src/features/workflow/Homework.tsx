@@ -238,7 +238,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
   // and keeps a future refactor from quietly issuing a 403 on a child's screen.
   const { data: sections } = useQuery({
     queryKey: ['sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
     enabled: canPublish,
   })
   const { data: subjects } = useQuery({
@@ -377,7 +377,7 @@ function FilterBar({
 }) {
   const { data: sections } = useQuery({
     queryKey: ['sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
     enabled: canPublish,
   })
   const { data: subjects } = useQuery({

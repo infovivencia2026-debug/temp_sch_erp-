@@ -525,7 +525,7 @@ function NewLessonPlan() {
 
   const sections = useQuery({
     queryKey: ['sections'],
-    queryFn: () => api.get<List<{ id: string; name: string; class_name: string }>>('/api/v1/academics/sections'),
+    queryFn: () => api.get<List<{ id: string; name: string; class_name: string }>>('/api/v1/academics/sections?mine=true'),
   })
 
   const save = useMutation({

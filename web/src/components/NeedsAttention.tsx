@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, CircleAlert, Info, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -76,6 +77,32 @@ export default function NeedsAttention({ name }: { name?: string }) {
      "fees" — and the concrete route depends on which workspace this role keeps
      that in. Resolving it here rather than server-side keeps the engine from
      having to know the shape of seventeen navigation trees. */
+  /* One reminder per teacher, naming their own sections.
+   *
+   * Not a broadcast: the class teacher of 6-B has no use for a reminder about
+   * 8-A, and a notification that is usually not about you is one people stop
+   * opening. A section with no class teacher is reported back rather than
+   * silently skipped — a register nobody owns is a staffing gap, and sending
+   * it again tomorrow will not fix that. */
+  const [nudged, setNudged] = useState('')
+  const nudge = useMutation({
+    mutationFn: () =>
+      api.post<{ sections: number; notified: number; sections_without_a_class_teacher: string[] }>(
+        '/api/v1/attendance/nudge',
+        {},
+      ),
+    onSuccess: (r) => {
+      const unowned = r.sections_without_a_class_teacher
+      setNudged(
+        `${r.notified} ${r.notified === 1 ? 'teacher' : 'teachers'} reminded about ` +
+          `${r.sections} unmarked ${r.sections === 1 ? 'register' : 'registers'}.` +
+          (unowned.length
+            ? ` ${unowned.join(', ')} ${unowned.length === 1 ? 'has' : 'have'} no class teacher, so nobody could be told.`
+            : ''),
+      )
+    },
+  })
+
   function hrefFor(target?: string) {
     if (!target || !role) return null
     for (const section of role.sections) {
@@ -105,6 +132,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
       {items.length > 0 && (
         <section>
           <p className="eyebrow mb-2">Needs your attention</p>
+          {nudged && <p className="mb-2 text-[13px] text-success">{nudged}</p>}
           <ul className="divide-y rounded-md border bg-card">
             {items.map((item) => {
               const Icon = ICON[item.severity]
@@ -146,6 +174,24 @@ export default function NeedsAttention({ name }: { name?: string }) {
                       </span>
                     )}
                   </button>
+                  {/* An unmarked register is the one warning the reader cannot
+                      act on themselves: a principal does not mark registers and
+                      should not. Sending it to Attendance monitoring named a
+                      real problem and then offered a read-only report. What
+                      they actually do at that moment is chase somebody, so
+                      that is the button. */}
+                  {item.key === 'attendance.unmarked' && (
+                    <div className="border-t px-4 py-2">
+                      <button
+                        type="button"
+                        disabled={nudge.isPending}
+                        onClick={() => nudge.mutate()}
+                        className="text-[13px] font-medium text-primary hover:underline disabled:opacity-60"
+                      >
+                        {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
+                      </button>
+                    </div>
+                  )}
                 </li>
               )
             })}

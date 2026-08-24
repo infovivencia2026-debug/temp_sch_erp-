@@ -140,6 +140,14 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		r.Route("/attendance", func(r chi.Router) {
+			/* Chasing the people who can mark it.
+
+			   The principal's dashboard named a real problem — six registers
+			   unmarked — and offered a button that landed on a read-only
+			   report, because a principal cannot mark a register and should
+			   not. What they actually do at that moment is chase somebody. */
+			r.With(httpx.RequirePermission(rbac.AttendanceReadAll)).
+				Post("/nudge", s.nudgeRegister)
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/", s.listAttendance)
 			r.With(httpx.RequirePermission(rbac.AttendanceWrite)).Post("/", s.markAttendance)
 		})

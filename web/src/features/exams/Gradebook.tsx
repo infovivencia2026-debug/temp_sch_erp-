@@ -241,13 +241,13 @@ export default function Gradebook() {
             {entered === 0 && (
               <Card>
                 <CardHeader
-                  title="Before you enter marks"
-                  description={`This paper is out of ${max}. Change it now if that is wrong — once a single mark is in it is fixed, because 45 out of 50 is a distinction and 45 out of 100 is a fail.`}
+                  title="Set up this paper"
+                  description={`Out of ${max} at the moment. Change it before you start — it locks once the first mark is saved.`}
                 />
                 {setupNote && <FormNotice ok={setupNote} />}
                 {setup.error && <FormNotice error={setup.error} />}
                 <FormGrid>
-                  <Field label="Out of" hint="20 for a formative, 80 for a summative, 100 for a term paper.">
+                  <Field label="Out of" hint="Usually 20, 80 or 100.">
                     <Input
                       type="number"
                       value={outOf}
@@ -255,10 +255,7 @@ export default function Gradebook() {
                       placeholder={String(max)}
                     />
                   </Field>
-                  <Field
-                    label="Grade scale"
-                    hint="Applies to every paper in this exam, so one report card does not mix two scales."
-                  >
+                  <Field label="Grade scale" hint="Applies to every paper in this exam.">
                     <Select
                       value={scaleID}
                       onChange={setScaleID}
@@ -274,7 +271,7 @@ export default function Gradebook() {
                   onClick={() => setup.mutate()}
                   disabled={setup.isPending || (!outOf && !scaleID)}
                 >
-                  Save the paper's setup
+                  Save
                 </Button>
               </Card>
             )}
