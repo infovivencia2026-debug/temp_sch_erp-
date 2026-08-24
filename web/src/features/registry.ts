@@ -355,7 +355,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries': screen(() => import('./admissions/Enquiries')),
-  'admissions.enquiries.daily_call_log': screen(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.follow_up_calls': screen(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': screen(() => import('./hr/Leave')),
