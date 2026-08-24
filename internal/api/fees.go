@@ -640,12 +640,30 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		// Students enrolled in this year, optionally limited to the structure's
 		// class. Skipping those already invoiced for this instalment makes the
 		// whole operation safe to re-run after a partial failure.
+		/* The most specific structure wins.
+
+		   A school charges Grade 8 more than Grade 6, so it writes a Grade 8
+		   structure and keeps a general one for the rest. Billing from the
+		   general one then billed Grade 8 as well — every child got the
+		   all-classes figure, and the Grade 8 structure sat there looking
+		   authoritative while charging nobody. Worse, running both left Grade 8
+		   families with two demands for the same instalment.
+
+		   So a general structure skips any class that has one of its own, and a
+		   class structure bills only its class. Nobody has to remember the
+		   order to run them in, which is the kind of rule a school discovers it
+		   got wrong when a parent brings in two bills. */
 		rows, err := tx.Query(r.Context(), `
 			SELECT e.student_id
 			  FROM enrollments e
 			 WHERE e.academic_year_id = $1
 			   AND e.status = 'active'
 			   AND ($2::uuid IS NULL OR e.class_id = $2)
+			   AND ($2::uuid IS NOT NULL OR NOT EXISTS (
+			       SELECT 1 FROM fee_structures fs
+			        WHERE fs.class_id = e.class_id
+			          AND fs.is_active
+			          AND fs.academic_year_id = e.academic_year_id))
 			   AND NOT EXISTS (
 			       SELECT 1 FROM invoices i
 			        WHERE i.student_id = e.student_id

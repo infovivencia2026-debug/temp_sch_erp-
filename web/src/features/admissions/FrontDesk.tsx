@@ -86,6 +86,22 @@ interface Named {
   id: string
   full_name?: string
   name?: string
+  /* What tells two children of the same name apart.
+   *
+   * This school's roll has three "Rahul Iyer" and six "Ganesh Gupta", which is
+   * ordinary — a picker showing only the name asks somebody to guess, and a
+   * visitor logged against the wrong child is a safeguarding record that
+   * points at the wrong family. The admission number is the thing a school
+   * already uses to settle it. */
+  admission_no?: string
+  employee_code?: string
+}
+
+/** A name, plus whatever makes it unambiguous. */
+function pickerLabel(n: Named): string {
+  const id = n.admission_no ?? n.employee_code
+  const name = n.full_name ?? n.name ?? n.id
+  return id ? `${name} · ${id}` : name
 }
 
 const TABS = [
@@ -242,7 +258,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                 placeholder="A staff member"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>
@@ -253,7 +269,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -387,7 +403,7 @@ function Appointments() {
                 placeholder="A staff member"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>
@@ -398,7 +414,7 @@ function Appointments() {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -585,7 +601,7 @@ function Calls({ rows }: { rows: Call[] }) {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -596,7 +612,7 @@ function Calls({ rows }: { rows: Call[] }) {
                 placeholder="Nobody in particular"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>

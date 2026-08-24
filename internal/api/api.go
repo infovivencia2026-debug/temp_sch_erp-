@@ -233,6 +233,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/exams", s.createExam)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads", s.listFeeHeads)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
+			// Pricing a class means naming one. Accounts holds fees.write and
+			// not academics.read, so without this the class dropdown on the
+			// fee-structure form was empty for exactly the people who use it.
+			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-classes", s.listClasses)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
 			// Fees are re-set every year; a price list you cannot remove is

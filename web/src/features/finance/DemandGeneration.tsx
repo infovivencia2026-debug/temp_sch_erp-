@@ -26,7 +26,10 @@ interface FeeStructure {
   class_name?: string
   academic_year?: string
   total_paise: number
-  items: number
+  /* The server calls this "lines" — the number of fee heads in the structure.
+     Reading it as "items" gave undefined, so the card sat blank next to a
+     total that was clearly built from something. */
+  lines: number
 }
 
 interface GenerateResult {
@@ -112,7 +115,7 @@ export default function DemandGeneration() {
             <div className="border-t px-5 py-4">
               <CellGrid cols={3}>
                 <Stat label="Structure total" value={formatPaise(chosen.total_paise)} />
-                <Stat label="Fee heads" value={chosen.items} />
+                <Stat label="Fee heads" value={chosen.lines} />
                 <Stat label="Applies to" value={chosen.class_name ?? 'All classes'} />
               </CellGrid>
             </div>
@@ -155,7 +158,7 @@ export default function DemandGeneration() {
                   <Td className="font-medium">{s.name}</Td>
                   <Td>{s.class_name ?? 'All'}</Td>
                   <Td className="text-muted-foreground">{s.academic_year ?? '—'}</Td>
-                  <Td className="tabular-nums">{s.items}</Td>
+                  <Td className="tabular-nums">{s.lines}</Td>
                   <Td className="tabular-nums">{formatPaise(s.total_paise)}</Td>
                 </tr>
               ))}
