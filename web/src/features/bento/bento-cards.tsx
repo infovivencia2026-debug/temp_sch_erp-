@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { useWidgetSize } from '@/lib/widget-size'
 
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
 
@@ -80,7 +81,12 @@ export function CardShell({
            half-rendered ghosts that look worse than no chart at all. The floor
            is container-relative so it grows with the cell, and it is well under
            what a 1x1 can spare: 33 + 57 + 46 + 26 = 162 of 185. */
-        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(clamp(46px,26cqh,220px),1fr)_auto]',
+        /* The drawing yields, not the button. A control has to be readable at
+           every size, and the figure has to be legible — so on a short cell the
+           chart is what shrinks. Its floor is 30px: enough for two compressed
+           rows, and below that a drawing is a ghost anyway and says less than
+           the sentence it displaced. */
+        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(clamp(30px,22cqh,220px),1fr)_auto]',
         className,
       )}
     >
@@ -129,16 +135,16 @@ export function CardShell({
         )}
       </div>
 
-      <div className="mt-2 min-h-0 min-w-0 overflow-hidden">{children}</div>
+      <div className="mt-1.5 min-h-0 min-w-0 overflow-hidden">{children}</div>
 
       {action && (
-        <div className="mt-2 flex min-w-0 justify-start">
+        <div className="mt-1.5 flex min-w-0 shrink-0 justify-start">
           {/* A real control, sized to be pressed. It was the smallest text on
               the card at 11px in a 2px-padded chip — a footnote wearing a
               border. */}
           <span
-            className="inline-flex max-w-full items-center gap-1.5 rounded-[9px] border
-                       px-3 py-[0.45em] font-semibold text-[length:var(--card-action,13px)]"
+            className="inline-flex max-w-full items-center gap-1.5 rounded-[10px] border
+                       px-3.5 py-[0.6em] font-semibold text-[length:var(--card-action,15px)]"
             style={{ borderColor: ink(34), background: ink(8) }}
           >
             <span className="truncate">{action.label}</span>
@@ -216,7 +222,18 @@ export function Rows({ items, srLabel, formatValue }: {
   srLabel: string
   formatValue?: (n: number) => string
 }) {
+  const { h } = useWidgetSize()
   if (!items.length || !hasSignal(items.map((i) => i.value))) return null
+  /* FEWER ROWS ON A SHORT CELL, not all of them squeezed.
+
+     Four rows in a one-row cell gave each about seven pixels: the labels
+     collided with their own values and the whole thing read as a smear. A
+     drawing that cannot be read is not a smaller drawing, it is a worse one —
+     so a short cell shows the top two and a tall one shows five. The rows are
+     already ranked, so what survives is what matters most, and the tail is
+     gathered by the caller rather than silently dropped here. */
+  const room = h >= 2 ? 5 : 2
+  const shown = items.slice(0, room)
   const hi = Math.max(...items.map((i) => i.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
@@ -226,7 +243,7 @@ export function Rows({ items, srLabel, formatValue }: {
        white rule that appeared to slice through the card's own sentence.
        `flex-1 min-h-0` on each row makes them compress evenly instead. */
     <div className="flex h-full min-h-0 flex-col justify-end gap-0.5" role="img" aria-label={srLabel}>
-      {items.map((it) => (
+      {shown.map((it) => (
         <div key={it.label}
              className="grid min-h-0 flex-1 grid-cols-[minmax(38px,auto)_minmax(0,1fr)_auto]
                         items-center gap-1.5">
