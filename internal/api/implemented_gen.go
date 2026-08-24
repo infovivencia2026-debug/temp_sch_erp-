@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 344 of the catalog's features are implemented.
+// 341 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -31,14 +31,11 @@ var implementedFeatures = map[string]bool{
 	"admissions.applications.interview_interaction_scheduler":                        true,
 	"admissions.applications.online_application_form_builder":                        true,
 	"admissions.communication.applicant_communication":                               true,
-	"admissions.enquiries.admissions_open_day_scheduler":                             true,
-	"admissions.enquiries.counselor_activity_follow_ups":                             true,
-	"admissions.enquiries.counselor_lead_assignment":                                 true,
-	"admissions.enquiries.enquiries_leads":                                           true,
+	"admissions.enquiries.all_leads":                                                 true,
+	"admissions.enquiries.events_visits":                                             true,
+	"admissions.enquiries.lead_assignment":                                           true,
 	"admissions.enquiries.lead_source_tracking":                                      true,
-	"admissions.enquiries.multi_touch_campaign_sequences":                            true,
-	"admissions.enquiries.prospectus_kit_sales_log":                                  true,
-	"admissions.enquiries.utm_tracking_digital_campaign_attribution":                 true,
+	"admissions.enquiries.my_follow_ups":                                             true,
 	"admissions.gate_security.emergency_gate_lockout":                                true,
 	"admissions.home.dashboard":                                                      true,
 	"admissions.my_profile.my_pay":                                                   true,

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 339 features. */
+/** 12 roles, 336 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -711,16 +711,13 @@ export const ROLES: Role[] = [
         name: 'Enquiries',
         workspace: 'Admissions',
         features: [
-          { key: 'admissions.enquiries.enquiries_leads', slug: 'enquiries_leads', name: 'Enquiries / leads', scope: 'institution', tier: 'core', summary: 'Capture prospective student enquiries and source/campaign.' },
+          { key: 'admissions.enquiries.all_leads', slug: 'all_leads', name: 'All leads', scope: 'institution', tier: 'core', summary: 'Every enquiry with where it has got to — new, called, visit booked, applied or lost — who is chasing it, and when they are due to. Add a walk-in from here.' },
           { key: 'admissions.enquiries.lead_source_tracking', slug: 'lead_source_tracking', name: 'Lead Source Tracking', scope: 'institution', tier: 'core', summary: 'Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in).' },
-          { key: 'admissions.enquiries.counselor_lead_assignment', slug: 'counselor_lead_assignment', name: 'Counselor Lead Assignment', scope: 'institution', tier: 'core', summary: 'Automatically or manually route incoming admission inquiries to specific admission counselors.' },
-          { key: 'admissions.enquiries.counselor_activity_follow_ups', slug: 'counselor_activity_follow_ups', name: 'Counselor Activity & Follow-ups', scope: 'institution', tier: 'core', summary: 'Log call notes, schedule follow-up reminders, and log candidate visit outcomes.' },
-          { key: 'admissions.enquiries.multi_touch_campaign_sequences', slug: 'multi_touch_campaign_sequences', name: 'Multi-Touch Campaign Sequences', scope: 'institution', tier: 'advanced', summary: 'Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads.' },
-          { key: 'admissions.enquiries.utm_tracking_digital_campaign_attribution', slug: 'utm_tracking_digital_campaign_attribution', name: 'UTM Tracking & Digital Campaign attribution', scope: 'institution', tier: 'advanced', summary: 'Attribute web inquiries to specific Facebook, Google Ads, or email UTM campaign tags.' },
+          { key: 'admissions.enquiries.lead_assignment', slug: 'lead_assignment', name: 'Lead assignment', scope: 'institution', tier: 'core', summary: 'Which counsellor owns which lead, and the ones nobody owns yet. Assign in bulk or one at a time.' },
+          { key: 'admissions.enquiries.my_follow_ups', slug: 'my_follow_ups', name: 'My follow-ups', scope: 'institution', tier: 'core', summary: 'The calls and visits due today, for whoever is signed in. What a counsellor opens first.' },
           { key: 'admissions.enquiries.24_7_admission_chatbot', slug: '24_7_admission_chatbot', name: '24/7 Admission Chatbot', scope: 'institution', tier: 'optional', summary: 'Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads.' },
           { key: 'admissions.enquiries.ai_voice_agent_integration', slug: 'ai_voice_agent_integration', name: 'AI Voice Agent Integration', scope: 'institution', tier: 'optional', summary: 'Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up.' },
-          { key: 'admissions.enquiries.admissions_open_day_scheduler', slug: 'admissions_open_day_scheduler', name: 'Admissions Open Day Scheduler', scope: 'institution', tier: 'core', summary: 'Organize school open house events, manage online slot booking, and check in attending parents.' },
-          { key: 'admissions.enquiries.prospectus_kit_sales_log', slug: 'prospectus_kit_sales_log', name: 'Prospectus & Kit Sales Log', scope: 'institution', tier: 'core', summary: 'Track inventory, unit sales, and receipt generation for physical school prospectuses.' },
+          { key: 'admissions.enquiries.events_visits', slug: 'events_visits', name: 'Events & visits', scope: 'institution', tier: 'core', summary: 'Open days, campus tours and parent visits: the slots on offer, who has booked, and who turned up.' },
         ],
       },
       {

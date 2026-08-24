@@ -28,9 +28,6 @@ export const admissionsGrowthKeys = {
   'admissions.applications.online_application_form_builder': lazy(
     () => import('./FormBuilder'),
   ),
-  'admissions.enquiries.multi_touch_campaign_sequences': lazy(
-    () => import('./CampaignSequences'),
-  ),
   'admissions.reports.lost_lead_reason_analysis': lazy(
     () => import('./LostLeads'),
   ),

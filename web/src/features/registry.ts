@@ -156,10 +156,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      quota register an inspection reads, the waiting list, open days and the
      prospectus cash book. */
   'admissions.enquiries.lead_source_tracking': lazy(() => import('./admissions/Funnel')),
-  'admissions.enquiries.counselor_lead_assignment': lazy(() => import('./admissions/Funnel')),
-  'admissions.enquiries.utm_tracking_digital_campaign_attribution': lazy(() => import('./admissions/Funnel')),
-  'admissions.enquiries.admissions_open_day_scheduler': lazy(() => import('./admissions/Funnel')),
-  'admissions.enquiries.prospectus_kit_sales_log': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.lead_assignment': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.events_visits': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.admission_waitlist_management': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.sibling_priority_auto_matching': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.alumni_child_quota_allocation': lazy(() => import('./admissions/Funnel')),
@@ -355,8 +353,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.child_info_id_capture': lazy(() => import('./admissions/Applications')),
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
-  'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Enquiries')),
-  'admissions.enquiries.counselor_activity_follow_ups': lazy(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.all_leads': lazy(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.my_follow_ups': lazy(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': lazy(() => import('./hr/Leave')),

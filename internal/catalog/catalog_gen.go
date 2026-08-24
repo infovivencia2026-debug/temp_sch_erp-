@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 339 features.
+// Roles is the catalog: 12 roles, 336 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -758,16 +758,13 @@ var Roles = []Role{
 				Name: "Enquiries",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.enquiries.enquiries_leads", Slug: "enquiries_leads", Name: "Enquiries / leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Capture prospective student enquiries and source/campaign."},
+					{Key: "admissions.enquiries.all_leads", Slug: "all_leads", Name: "All leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every enquiry with where it has got to — new, called, visit booked, applied or lost — who is chasing it, and when they are due to. Add a walk-in from here."},
 					{Key: "admissions.enquiries.lead_source_tracking", Slug: "lead_source_tracking", Name: "Lead Source Tracking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in)."},
-					{Key: "admissions.enquiries.counselor_lead_assignment", Slug: "counselor_lead_assignment", Name: "Counselor Lead Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Automatically or manually route incoming admission inquiries to specific admission counselors."},
-					{Key: "admissions.enquiries.counselor_activity_follow_ups", Slug: "counselor_activity_follow_ups", Name: "Counselor Activity & Follow-ups", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Log call notes, schedule follow-up reminders, and log candidate visit outcomes."},
-					{Key: "admissions.enquiries.multi_touch_campaign_sequences", Slug: "multi_touch_campaign_sequences", Name: "Multi-Touch Campaign Sequences", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads."},
-					{Key: "admissions.enquiries.utm_tracking_digital_campaign_attribution", Slug: "utm_tracking_digital_campaign_attribution", Name: "UTM Tracking & Digital Campaign attribution", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Attribute web inquiries to specific Facebook, Google Ads, or email UTM campaign tags."},
+					{Key: "admissions.enquiries.lead_assignment", Slug: "lead_assignment", Name: "Lead assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which counsellor owns which lead, and the ones nobody owns yet. Assign in bulk or one at a time."},
+					{Key: "admissions.enquiries.my_follow_ups", Slug: "my_follow_ups", Name: "My follow-ups", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The calls and visits due today, for whoever is signed in. What a counsellor opens first."},
 					{Key: "admissions.enquiries.24_7_admission_chatbot", Slug: "24_7_admission_chatbot", Name: "24/7 Admission Chatbot", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads."},
 					{Key: "admissions.enquiries.ai_voice_agent_integration", Slug: "ai_voice_agent_integration", Name: "AI Voice Agent Integration", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up."},
-					{Key: "admissions.enquiries.admissions_open_day_scheduler", Slug: "admissions_open_day_scheduler", Name: "Admissions Open Day Scheduler", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Organize school open house events, manage online slot booking, and check in attending parents."},
-					{Key: "admissions.enquiries.prospectus_kit_sales_log", Slug: "prospectus_kit_sales_log", Name: "Prospectus & Kit Sales Log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Track inventory, unit sales, and receipt generation for physical school prospectuses."},
+					{Key: "admissions.enquiries.events_visits", Slug: "events_visits", Name: "Events & visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open days, campus tours and parent visits: the slots on offer, who has booked, and who turned up."},
 				},
 			},
 			{

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Phone, Plus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -39,6 +40,16 @@ export default function Enquiries() {
   const qc = useQueryClient()
   const [status, setStatus] = useState('')
   const [adding, setAdding] = useState(false)
+  /* Which of the two doors somebody came through.
+   *
+   * "All leads" and "My follow-ups" both read the same enquiries, and they are
+   * not the same question: one is the whole pipeline, the other is what a
+   * counsellor has to do before this evening. Opening both on the same
+   * unfiltered list made the second entry pointless, which is how a menu
+   * accumulates names that lead nowhere new. */
+  const { featureSlug } = useParams()
+  const mine = featureSlug === 'my_follow_ups'
+
   const [form, setForm] = useState({ student_name: '', parent_name: '', phone: '', source: 'walk_in' })
   const [note, setNote] = useState('')
 
@@ -84,8 +95,16 @@ export default function Enquiries() {
     },
   })
 
-  const items = q.data?.items ?? []
   const today = new Date().toISOString().slice(0, 10)
+  const all = q.data?.items ?? []
+  /* On the follow-ups door, show the work rather than the archive: what is
+     overdue or due today. The whole pipeline is one click away under All
+     leads, which is the entry that promises it. */
+  const items = mine
+    ? all.filter((e) => e.next_follow_up && e.next_follow_up <= today
+                        && !['applied', 'lost'].includes(e.status))
+    : all
+
   const overdue = items.filter(
     (e) => e.next_follow_up && e.next_follow_up < today && !['applied', 'lost'].includes(e.status),
   )
@@ -99,11 +118,18 @@ export default function Enquiries() {
     <>
       <PageHead
         eyebrow="Admissions"
-        title="Enquiries & follow-ups"
-        description="Every enquiry that has not become a student yet, and who needs calling back today."
+        title={mine ? 'My follow-ups' : 'All leads'}
+        description={
+          mine
+            ? 'The calls and visits due today, for whoever is signed in. What a counsellor opens first.'
+            : 'Every lead that has not become a student yet, with where it has got to and who is chasing it.'
+        }
         actions={
+          /* A walk-in is typed the moment somebody is standing at the desk, so
+             the control that starts it sits in the corner every screen puts its
+             primary action in — not buried under the table it will appear in. */
           <Button onClick={() => setAdding((v) => !v)}>
-            <Plus className="h-3.5 w-3.5" /> Add enquiry
+            <Plus className="h-3.5 w-3.5" /> Add lead
           </Button>
         }
       />
