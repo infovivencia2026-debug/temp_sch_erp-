@@ -107,13 +107,40 @@ export default function Leave() {
    *
    * Everyone gets the form. Approving is the part that needs a right. */
   const [apply, setApply] = useState(false)
-  const [form, setForm] = useState({ from_date: '', to_date: '', reason: '', is_half_day: false })
+  const [form, setForm] = useState({
+    from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
+  })
+
+  /* Which kind of leave this is.
+   *
+   * The Type column has been on this screen since the start and was always
+   * blank, because nothing in the product could create a leave type and the
+   * form never asked for one. Without it "how many sick days do I have left"
+   * has nothing to answer from, and an approver cannot see that somebody has
+   * already used their casual leave.
+   *
+   * Offered when the school has set any up, and quietly absent when it has
+   * not — a required dropdown with nothing in it stops somebody applying for
+   * leave, which is worse than an unlabelled request. */
+  const types = useQuery({
+    queryKey: ['leave-types', 'staff'],
+    queryFn: () =>
+      api.get<{ items: { id: string; name: string; annual_quota?: number }[] }>(
+        '/api/v1/hr/leave-types?applies_to=staff',
+      ),
+    retry: false,
+  })
+  const leaveTypes = types.data?.items ?? []
   const [applied, setApplied] = useState('')
   const send = useMutation({
-    mutationFn: () => api.post('/api/v1/workflow/leave', form),
+    mutationFn: () =>
+      api.post('/api/v1/workflow/leave', {
+        ...form,
+        leave_type_id: form.leave_type_id || undefined,
+      }),
     onSuccess: () => {
       setApplied('Sent. Whoever approves leave here will see it — the head of department or the principal, whichever gets there first.')
-      setForm({ from_date: '', to_date: '', reason: '', is_half_day: false })
+      setForm({ from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '' })
       setApply(false)
       qc.invalidateQueries({ queryKey: ['leave'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
@@ -199,6 +226,19 @@ export default function Leave() {
                   />
                 </Field>
               </FormGrid>
+              {leaveTypes.length > 0 && (
+                <Field label="Kind of leave" hint="What it is counted against.">
+                  <Select
+                    value={form.leave_type_id}
+                    onChange={(v) => setForm({ ...form, leave_type_id: v })}
+                    placeholder="Choose"
+                    options={leaveTypes.map((t) => ({
+                      value: t.id,
+                      label: t.annual_quota ? `${t.name} (${t.annual_quota} a year)` : t.name,
+                    }))}
+                  />
+                </Field>
+              )}
               <Field label="Reason" required>
                 <Input
                   value={form.reason}
@@ -262,7 +302,10 @@ export default function Leave() {
                   <Td className="font-medium">
                     {l.who}
                     <span className="block text-[12px] font-normal text-muted-foreground">
-                      {l.subject_kind === 'employee' ? 'Staff' : 'Student'}
+                      {/* The column spells it 'staff'. Comparing against
+                          'employee' meant every teacher's own leave was
+                          labelled "Student" on their own screen. */}
+                      {l.subject_kind === 'staff' ? 'Staff' : 'Student'}
                     </span>
                   </Td>
                   <Td className="text-muted-foreground">{l.leave_type ?? '—'}</Td>

@@ -76,6 +76,13 @@ func (s *Server) mountHRLifecycle(r chi.Router) {
 	r.Get("/recognitions", s.listRecognitions)
 	r.With(write).Post("/recognitions", s.recordRecognition)
 
+	/* The kinds of leave a school gives. leave_types has existed since the
+	   first migration and nothing could ever create one, so the Type column
+	   was empty in every school and "how many sick days do I have" had
+	   nothing to answer from. */
+	r.Get("/leave-types", s.listLeaveTypes)
+	r.With(write).Post("/leave-types", s.saveLeaveType)
+
 	r.Get("/leave-policy", s.getLeavePolicy)
 	r.With(write).Post("/leave-policy", s.saveLeavePolicy)
 	r.Get("/lop", s.getLOPRegister)

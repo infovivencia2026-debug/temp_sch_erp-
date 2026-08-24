@@ -58,9 +58,25 @@ export default function Enquiries() {
     },
   })
 
+  /* The id goes in the path, not the body.
+   *
+   * The whole object was being sent as the body, id included, and the server
+   * rejects unknown fields — so a perfectly valid request came back "malformed
+   * JSON body" and no enquiry could ever be advanced. The id was never a field
+   * of the request: it is the thing being addressed, and it is already in the
+   * URL.
+   *
+   * Losing an enquiry needs a reason, which the server has always required and
+   * the screen never asked for. "Fee too high" and "moved city" lead to
+   * completely different actions, and a funnel report that cannot tell them
+   * apart is a report nobody can act on. */
   const update = useMutation({
-    mutationFn: (v: { id: string; status?: string; next_follow_up?: string }) =>
-      api.put(`/api/v1/admissions/workflow/enquiries/${v.id}`, v),
+    mutationFn: ({ id, ...body }: {
+      id: string
+      status?: string
+      next_follow_up?: string
+      lost_reason?: string
+    }) => api.put(`/api/v1/admissions/workflow/enquiries/${id}`, body),
     onSuccess: () => {
       setNote('Updated.')
       qc.invalidateQueries({ queryKey: ['enquiries'] })
@@ -215,7 +231,12 @@ export default function Enquiries() {
                               variant="ghost"
                               tone="danger"
                               disabled={update.isPending}
-                              onClick={() => update.mutate({ id: e.id, status: 'lost' })}
+                              onClick={() => {
+                                const why = prompt(
+                                  'Why was this enquiry lost? (fee too high, moved city, chose another school…)',
+                                )?.trim()
+                                if (why) update.mutate({ id: e.id, status: 'lost', lost_reason: why })
+                              }}
                             >
                               Lost
                             </Button>
