@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, Input, Loading, ErrorState, FormNotice,
+  ConfirmButton, Select, Input, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
@@ -119,12 +119,17 @@ export default function DemandGeneration() {
           )}
 
           <div className="flex items-center gap-3 border-t px-5 py-4">
-            <Button
+            {/* This raises real invoices against real families, in bulk, and
+                nothing unraises them in bulk. "Generate demand" does not tell
+                anybody what they are about to bill, so the question does. */}
+            <ConfirmButton
               disabled={!structure || generate.isPending}
-              onClick={() => generate.mutate()}
+              confirmLabel="Raise invoices"
+              question="Raise invoices for everyone in this selection? Invoices cannot be withdrawn in bulk."
+              onConfirm={() => generate.mutate()}
             >
               {generate.isPending ? 'Raising invoices…' : 'Generate demand'}
-            </Button>
+            </ConfirmButton>
             <span className="text-[12.5px] text-muted-foreground">
               A term run for one class is a few hundred invoices and completes here. A
               whole-school run belongs on the background queue.

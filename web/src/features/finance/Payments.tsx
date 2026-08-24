@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, Loading, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -169,15 +169,21 @@ export default function Payments() {
                         >
                           Cleared
                         </Button>
-                        <Button
+                        {/* Bouncing reverses money that has already been
+                            applied against a bill, and the family is holding a
+                            receipt for it. One stray click on a row of a table
+                            is not a decision. */}
+                        <ConfirmButton
                           size="sm"
                           variant="secondary"
                           tone="danger"
                           disabled={cheque.isPending}
-                          onClick={() => cheque.mutate({ id: p.id, action: 'bounce' })}
+                          confirmLabel="Mark bounced"
+                          question="Mark this cheque bounced? The payment is reversed and the bill goes back to unpaid."
+                          onConfirm={() => cheque.mutate({ id: p.id, action: 'bounce' })}
                         >
                           Bounced
-                        </Button>
+                        </ConfirmButton>
                       </span>
                     )}
                   </Td>

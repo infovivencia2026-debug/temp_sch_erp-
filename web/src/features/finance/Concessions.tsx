@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, Loading, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -177,15 +177,17 @@ export default function Concessions() {
                         >
                           Approve
                         </Button>
-                        <Button
+                        <ConfirmButton
                           size="sm"
                           variant="secondary"
                           tone="danger"
                           disabled={decide.isPending}
-                          onClick={() => decide.mutate({ id: c.id, decision: 'rejected' })}
+                            confirmLabel="Reject"
+                            question="Reject this concession request? The decision cannot be undone here."
+                          onConfirm={() => decide.mutate({ id: c.id, decision: 'rejected' })}
                         >
                           Reject
-                        </Button>
+                        </ConfirmButton>
                       </span>
                     )}
                   </Td>

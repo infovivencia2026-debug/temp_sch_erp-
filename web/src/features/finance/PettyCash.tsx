@@ -4,7 +4,7 @@ import { Coins, ShieldCheck, ReceiptText } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
+  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState,
 } from '@/components/ui'
 import {
@@ -157,10 +157,18 @@ function VoucherRow({ voucher }: { voucher: PettyVoucher }) {
               <Button size="sm" variant="secondary" onClick={() => setRefusing(!refusing)}>
                 Refuse
               </Button>
-              <Button size="sm" disabled={decide.isPending}
-                onClick={() => decide.mutate({ approve: true })}>
+              {/* Approving pays cash out of the box, and refusing already asks
+                  for a reason — so approving was the one irreversible half of
+                  this pair that took a single click. */}
+              <ConfirmButton
+                size="sm"
+                disabled={decide.isPending}
+                confirmLabel="Approve"
+                question="Approve this voucher? It records the cash as paid out."
+                onConfirm={() => decide.mutate({ approve: true })}
+              >
                 Approve
-              </Button>
+              </ConfirmButton>
             </div>
           )}
         </Td>
