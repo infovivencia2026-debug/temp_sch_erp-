@@ -144,11 +144,6 @@ export default function Rostering() {
     queryFn: () => api.get<List<Clash>>(`/api/v1/hr-growth/roster/conflicts${q}`),
   })
 
-  if (shifts.isLoading) return <Loading label="Reading the duty shifts…" />
-  if (shifts.error) return <ErrorState error={shifts.error} />
-
-  const duties = roster.data?.items ?? []
-  const clashes = conflicts.data?.items ?? []
   /* "Nothing clashes" means two different things, and the check is only as
    * good as the timetable behind it. Somebody with no timetabled periods
    * cannot clash with a lesson — six of this school's twelve teachers — so a
@@ -158,6 +153,12 @@ export default function Rostering() {
     queryFn: () => api.get<List<Teacher>>('/api/v1/hr/employees?status=active'),
     retry: false,
   })
+
+  if (shifts.isLoading) return <Loading label="Reading the duty shifts…" />
+  if (shifts.error) return <ErrorState error={shifts.error} />
+
+  const duties = roster.data?.items ?? []
+  const clashes = conflicts.data?.items ?? []
   const untimetabled = (staff.data?.items ?? []).filter((t) => !t.periods_this_week).length
   const onLeave = clashes.filter((c) => c.kind === 'leave')
   const onerous = duties.filter((d) => d.is_onerous).length

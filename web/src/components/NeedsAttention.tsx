@@ -53,30 +53,6 @@ export default function NeedsAttention({ name }: { name?: string }) {
   const role = useActiveRole()
   const catalog = useCatalog()
 
-  const q = useQuery({
-    queryKey: ['attention', role?.key],
-    queryFn: () => api.get<AttentionResponse>(`/api/v1/attention?role=${role?.key ?? ''}`),
-    // A school day moves; a panel that answers "what needs me now" should not
-    // be answering it from ten minutes ago.
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-  })
-
-  if (q.isLoading || q.error || !q.data) return null
-  /* Defaulted at the point of use as well as on the server.
-
-     The server now always sends arrays, but this panel renders on every
-     role's Home and is the first thing drawn after sign-in: if it throws,
-     the route blanks with no error boundary to catch it. A missing list is
-     worth rendering nothing over, not worth taking the page down. */
-  const { greeting } = q.data
-  const items = q.data.items ?? []
-  const summary = q.data.summary ?? []
-
-  /* An attention item names a destination in the abstract — "attendance",
-     "fees" — and the concrete route depends on which workspace this role keeps
-     that in. Resolving it here rather than server-side keeps the engine from
-     having to know the shape of seventeen navigation trees. */
   /* One reminder per teacher, naming their own sections.
    *
    * Not a broadcast: the class teacher of 6-B has no use for a reminder about
@@ -103,6 +79,30 @@ export default function NeedsAttention({ name }: { name?: string }) {
     },
   })
 
+  const q = useQuery({
+    queryKey: ['attention', role?.key],
+    queryFn: () => api.get<AttentionResponse>(`/api/v1/attention?role=${role?.key ?? ''}`),
+    // A school day moves; a panel that answers "what needs me now" should not
+    // be answering it from ten minutes ago.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  })
+
+  if (q.isLoading || q.error || !q.data) return null
+  /* Defaulted at the point of use as well as on the server.
+
+     The server now always sends arrays, but this panel renders on every
+     role's Home and is the first thing drawn after sign-in: if it throws,
+     the route blanks with no error boundary to catch it. A missing list is
+     worth rendering nothing over, not worth taking the page down. */
+  const { greeting } = q.data
+  const items = q.data.items ?? []
+  const summary = q.data.summary ?? []
+
+  /* An attention item names a destination in the abstract — "attendance",
+     "fees" — and the concrete route depends on which workspace this role keeps
+     that in. Resolving it here rather than server-side keeps the engine from
+     having to know the shape of seventeen navigation trees. */
   function hrefFor(target?: string) {
     if (!target || !role) return null
     for (const section of role.sections) {

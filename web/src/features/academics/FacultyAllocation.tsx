@@ -90,6 +90,22 @@ export default function FacultyAllocation() {
     [teachers.data],
   )
 
+  const apply = useMutation({
+    mutationFn: () =>
+      api.post<{ periods_reassigned: number; allocations_with_no_period: number }>(
+        '/api/v1/academics/admin/faculty-allocation/apply', {},
+      ),
+    onSuccess: (r) => {
+      setApplied(
+        `${r.periods_reassigned} periods now name the allocated teacher.` +
+          (r.allocations_with_no_period
+            ? ` ${r.allocations_with_no_period} allocations have no period to attach to — the timetable was never generated for those subjects.`
+            : ''),
+      )
+      qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
+    },
+  })
+
   if (alloc.isLoading) return <Loading label="Working out who teaches what…" />
   if (alloc.error) return <ErrorState error={alloc.error} />
 
@@ -108,22 +124,6 @@ export default function FacultyAllocation() {
     )
 
   const differs = rows.filter((r) => r.timetable_differs).length
-  const apply = useMutation({
-    mutationFn: () =>
-      api.post<{ periods_reassigned: number; allocations_with_no_period: number }>(
-        '/api/v1/academics/admin/faculty-allocation/apply', {},
-      ),
-    onSuccess: (r) => {
-      setApplied(
-        `${r.periods_reassigned} periods now name the allocated teacher.` +
-          (r.allocations_with_no_period
-            ? ` ${r.allocations_with_no_period} allocations have no period to attach to — the timetable was never generated for those subjects.`
-            : ''),
-      )
-      qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
-    },
-  })
-
   return (
     <>
       <PageHead
