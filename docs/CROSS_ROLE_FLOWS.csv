@@ -1,311 +1,343 @@
-flow,chain,step,does,role,role_key,feature,feature_key,workspace
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,Faculty / Teacher,faculty,Leave & self service,faculty.my_profile.leave_self_service,My Work
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,Faculty / Teacher,faculty,Student leave requests,faculty.my_profile.student_leave_requests,My Work
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,HOD / Department Head,hod,Leave & self service,hod.my_profile.leave_self_service,My Work
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,Institution Admin / Principal,institution_admin,Leave & self service,institution_admin.my_profile.leave_self_service,My Profile
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,Parent / Guardian,parent,Requests,parent.leave_absence.requests,Requests
-Leave,faculty -> hod -> institution_admin -> parent -> hr,1,raises,Parent / Guardian,parent,Apply Student Leave,parent.leave_absence.apply_student_leave,Requests
-Leave,faculty -> hod -> institution_admin -> parent -> hr,3,oversees,HR & Payroll,hr,Leave Policy Configuration,hr.leave.leave_policy_configuration,Attendance & Leave
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,HOD / Department Head,hod,Leaves & Subs,hod.staff.leaves_subs,Staff
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,HR & Payroll,hr,Leave,hr.leave.leave,Attendance & Leave
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,HR & Payroll,hr,Late Arrival & Loss of Pay (LOP),hr.leave.late_arrival_loss_of_pay_lop,Attendance & Leave
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,HR & Payroll,hr,Half-Day Leave Deduction Calculation,hr.leave.half_day_leave_deduction_calculation,Attendance & Leave
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,Institution Admin / Principal,institution_admin,Outpass & leave,institution_admin.hostel.outpass_leave,Operations
-Leave,faculty -> hod -> institution_admin -> parent -> hr,4,sees,Institution Admin / Principal,institution_admin,Leaves & Subs,institution_admin.staff.leaves_subs,Staff
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,2,acts on,Admissions & Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,Admissions
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,2,acts on,Faculty / Teacher,faculty,Assignments & submissions,faculty.teaching.assignments_submissions,Teaching
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,2,acts on,Institution Admin / Principal,institution_admin,Teacher Assignment,institution_admin.academics.teacher_assignment,Academics
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,2,acts on,Student,student,Homework & assignments,student.homework.homework_assignments,Academics
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,2,acts on,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,Transport
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,4,sees,Faculty / Teacher,faculty,Homework / classwork,faculty.teaching.homework_classwork,Teaching
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,4,sees,Parent / Guardian,parent,Homework & academics,parent.academics.homework_academics,My Child
-Homework,admissions -> faculty -> institution_admin -> student -> transport_manager -> parent,4,sees,Student,student,Classmate Homework Help Forum,student.homework.classmate_homework_help_forum,Academics
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Admissions & Front Office,admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,Admissions
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Collect payment,finance.collections.collect_payment,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Receipts,finance.collections.receipts,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Online payments,finance.collections.online_payments,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Partial & advance payments,finance.collections.partial_advance_payments,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,GST Compliant Receipt Numbering,finance.collections.gst_compliant_receipt_numbering,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Demand / invoice generation,finance.fee_structure.demand_invoice_generation,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Multi-Level Concession Approvals,finance.concessions_refunds.multi_level_concession_approvals,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,NSP Scholarship Reconciliation,finance.concessions_refunds.nsp_scholarship_reconciliation,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Accounts & Finance,finance,Payment Gateway Reconciliation,finance.reconciliation.payment_gateway_reconciliation,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,2,acts on,Institution Admin / Principal,institution_admin,Fee Collection,institution_admin.standard.fee_collection,Reports
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,3,oversees,Accounts & Finance,finance,Late Fine Rules Engine,finance.student_dues.late_fine_rules_engine,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,3,oversees,Accounts & Finance,finance,Fee Head & Group Setup,finance.fee_structure.fee_head_group_setup,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,3,oversees,Accounts & Finance,finance,Class-Wise Fee Structure Configuration,finance.fee_structure.class_wise_fee_structure_configuration,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,3,oversees,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,Transport
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Student ledger,finance.student_dues.student_ledger,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Defaulters & reminders,finance.student_dues.defaulters_reminders,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Automated Fee Reminders,finance.student_dues.automated_fee_reminders,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Post-Dated Cheques (PDC) Registry,finance.student_dues.post_dated_cheques_pdc_registry,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Cheque Bounce Fine Engine,finance.student_dues.cheque_bounce_fine_engine,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Fee Structure Versioning,finance.fee_structure.fee_structure_versioning,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Discounts / scholarships,finance.concessions_refunds.discounts_scholarships,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Refunds,finance.concessions_refunds.refunds,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Student Loan Assistance Portal,finance.concessions_refunds.student_loan_assistance_portal,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Government Reimbursement Claims,finance.concessions_refunds.government_reimbursement_claims,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Accounts & Finance,finance,Grant-in-Aid Accounting,finance.concessions_refunds.grant_in_aid_accounting,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Fee Dashboard,institution_admin.fees.fee_dashboard,Finance
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Fee Default,institution_admin.fees.fee_default,Finance
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Fees & payments,parent.fees.fees_payments,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Digital Fee Receipt PDF Download,parent.fees.digital_fee_receipt_pdf_download,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Child Daily Cafeteria Purchase Timeline,parent.fees.child_daily_cafeteria_purchase_timeline,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Real-time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,Transport
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Student,student,Fees,student.fees.fees,Fees
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Payment Gateway Connectors,super_admin.payments_devices.payment_gateway_connectors,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Biometric Device Integration,super_admin.payments_devices.biometric_device_integration,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,GPS Hardware Integration,super_admin.payments_devices.gps_hardware_integration,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Virtual Classroom Integration,super_admin.payments_devices.virtual_classroom_integration,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Tally ERP / Prime Connector,super_admin.payments_devices.tally_erp_prime_connector,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Meritto / LeadSquared Sync,super_admin.payments_devices.meritto_leadsquared_sync,Platform Setup
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,AI Sentiment Analysis on Feedback,super_admin.ai_automation.ai_sentiment_analysis_on_feedback,AI & Automation
-Fees & payment,admissions -> finance -> institution_admin -> transport_manager -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Smart Fee Cash Flow Predictor,super_admin.ai_automation.smart_fee_cash_flow_predictor,AI & Automation
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,Offline Attendance & Diary Capture,faculty.attendance.offline_attendance_diary_capture,My Classes
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,3,oversees,Institution Admin / Principal,institution_admin,Attendance Audit,institution_admin.academics.attendance_audit,Academics
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,3,oversees,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,Transport
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,3,oversees,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,Transport
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Faculty / Teacher,faculty,Take attendance,faculty.attendance.take_attendance,My Classes
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Faculty / Teacher,faculty,Attendance correction,faculty.attendance.attendance_correction,My Classes
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,HR & Payroll,hr,Staff attendance,hr.attendance.staff_attendance,Attendance & Leave
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,HR & Payroll,hr,Biometric Machine Attendance Sync,hr.attendance.biometric_machine_attendance_sync,Attendance & Leave
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,HR & Payroll,hr,Biometric Punch In/Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,Attendance & Leave
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,HR & Payroll,hr,Staff Shift & Rostering,hr.attendance.staff_shift_rostering,Attendance & Leave
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Attendance Overview,institution_admin.standard.attendance_overview,Reports
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Hostel Roll-Call Attendance,institution_admin.hostel.hostel_roll_call_attendance,Operations
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Night Study Room Attendance,institution_admin.hostel.night_study_room_attendance,Operations
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Attendance,parent.attendance.attendance,My Child
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Child Absence Reporting Button,parent.attendance.child_absence_reporting_button,My Child
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Student,student,Attendance,student.attendance.attendance,Academics
-Attendance,faculty -> institution_admin -> transport_manager -> hr -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Global Attendance Heatmap,super_admin.dashboard.global_attendance_heatmap,Dashboard
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Enquiries / leads,admissions.enquiries.enquiries_leads,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Lead Source Tracking,admissions.enquiries.lead_source_tracking,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Multi-Touch Campaign Sequences,admissions.enquiries.multi_touch_campaign_sequences,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,UTM Tracking & Digital Campaign attribution,admissions.enquiries.utm_tracking_digital_campaign_attribution,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,24/7 Admission Chatbot,admissions.enquiries.24_7_admission_chatbot,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,AI Voice Agent Integration,admissions.enquiries.ai_voice_agent_integration,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Admissions Open Day Scheduler,admissions.enquiries.admissions_open_day_scheduler,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Applications,admissions.applications.applications,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Online Application Form Builder,admissions.applications.online_application_form_builder,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Applicant documents,admissions.applications.applicant_documents,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Interview & Interaction Scheduler,admissions.applications.interview_interaction_scheduler,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Foreign / NRI Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,Admissions
-Admissions,admissions -> institution_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Prospectus & Kit Sales Log,admissions.enquiries.prospectus_kit_sales_log,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Merit List Generation,admissions.admissions.merit_list_generation,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Seat Allocation Management,admissions.admissions.seat_allocation_management,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Alumni Child Quota Allocation,admissions.admissions.alumni_child_quota_allocation,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Aadhaar & APAAR Capture at Admission,admissions.admissions.aadhaar_apaar_capture_at_admission,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Child Info ID Capture,admissions.admissions.child_info_id_capture,Admissions
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Visitor Gate Pass Generation,admissions.visitors.visitor_gate_pass_generation,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Gate RFID Entry Management,admissions.gate_security.gate_rfid_entry_management,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Front Office Calls Register,admissions.office_log.front_office_calls_register,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,2,acts on,Admissions & Front Office,admissions,Postal & Courier Log,admissions.office_log.postal_courier_log,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,3,oversees,Admissions & Front Office,admissions,Admission Waitlist Management,admissions.admissions.admission_waitlist_management,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Admissions KPIs,admissions.home.admissions_kpis,Home
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Follow-ups,admissions.home.follow_ups,Home
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Offers / admission decisions,admissions.admissions.offers_admission_decisions,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Enrollment handoff,admissions.admissions.enrollment_handoff,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Sibling Priority Auto-Matching,admissions.admissions.sibling_priority_auto_matching,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,RTE (Right to Education) Quota Tracking,admissions.admissions.rte_right_to_education_quota_tracking,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,RTE Online Lottery Import,admissions.admissions.rte_online_lottery_import,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Medium of Instruction Selection,admissions.admissions.medium_of_instruction_selection,Admissions
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Visitor Checkout Tracking,admissions.visitors.visitor_checkout_tracking,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Emergency Gate Lockout,admissions.gate_security.emergency_gate_lockout,Front Desk
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Applicant communication,admissions.communication.applicant_communication,Communication
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Admission Conversion Reports,admissions.reports.admission_conversion_reports,Reports
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Admissions & Front Office,admissions,Lost Lead Reason Analysis,admissions.reports.lost_lead_reason_analysis,Reports
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Enrollment lifecycle,institution_admin.students.enrollment_lifecycle,Students
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Admissions Pipeline,institution_admin.admissions.admissions_pipeline,Students
-Admissions,admissions -> institution_admin -> super_admin,4,sees,Super Admin,super_admin,Central Admission Funnel KPI,super_admin.dashboard.central_admission_funnel_kpi,Dashboard
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,1,raises,Admissions & Front Office,admissions,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,Admissions
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,Marks entry,faculty.marks_report_cards.marks_entry,Assessments
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,Report cards,faculty.marks_report_cards.report_cards,Assessments
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,AI Examcell Paper Generator,faculty.question_papers_online_tests.ai_examcell_paper_generator,Assessments
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,Remarks,faculty.communication.remarks,Communication
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Faculty / Teacher,faculty,Remarks about me,faculty.my_profile.remarks_about_me,My Work
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,HOD / Department Head,hod,Teacher remarks,hod.staff.teacher_remarks,Staff
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Institution Admin / Principal,institution_admin,Hall Ticket Issue,institution_admin.examinations.hall_ticket_issue,Academics
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Parent / Guardian,parent,Child remarks,parent.academics.child_remarks,My Child
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Parent / Guardian,parent,Teacher remarks,parent.messages.teacher_remarks,School
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,2,acts on,Student,student,Academic record,student.exams_results.academic_record,Academics
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Performance overview,institution_admin.examinations.performance_overview,Academics
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Exams & results,institution_admin.examinations.exams_results,Academics
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,4,sees,Parent / Guardian,parent,Results & report cards,parent.academics.results_report_cards,My Child
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,4,sees,Student,student,Exams & grades,student.exams_results.exams_grades,Academics
-Exams & results,admissions -> faculty -> hod -> institution_admin -> parent -> student -> super_admin,4,sees,Super Admin,super_admin,Automated Exam Question Translation,super_admin.ai_automation.automated_exam_question_translation,AI & Automation
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,1,raises,Faculty / Teacher,faculty,Substitution Request Submission,faculty.timetable.substitution_request_submission,Teaching
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,1,raises,HOD / Department Head,hod,Substitution requests,hod.timetable.substitution_requests,Timetable
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,3,oversees,Institution Admin / Principal,institution_admin,Master Timetable,institution_admin.academics.master_timetable,Academics
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Faculty / Teacher,faculty,My timetable,faculty.timetable.my_timetable,Teaching
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,HOD / Department Head,hod,Class timetable,hod.timetable.class_timetable,Timetable
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,HOD / Department Head,hod,Staff timetable,hod.timetable.staff_timetable,Timetable
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,HOD / Department Head,hod,Department timetable,hod.timetable.department_timetable,Timetable
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,HR & Payroll,hr,Biometric Punch In/Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,Attendance & Leave
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,HR & Payroll,hr,Substitute Workload Allowance,hr.payroll.substitute_workload_allowance,Payroll
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Substitutions,institution_admin.academics.substitutions,Academics
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Teacher Workload & Timetable Overview,institution_admin.directory_workload.teacher_workload_timetable_overview,Staff
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Department timetable,institution_admin.department.department_timetable,Staff
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Student,student,Timetable,student.timetable.timetable,Academics
-Timetable,faculty -> hod -> institution_admin -> hr -> student -> super_admin,4,sees,Super Admin,super_admin,Automated Timetable Optimizer,super_admin.ai_automation.automated_timetable_optimizer,AI & Automation
-Announcements,student -> parent -> faculty -> institution_admin,1,raises,Student,student,Library Book Hold Request,student.notices_calendar.library_book_hold_request,School
-Announcements,student -> parent -> faculty -> institution_admin,2,acts on,Parent / Guardian,parent,Teacher remarks,parent.messages.teacher_remarks,School
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Faculty / Teacher,faculty,Messages,faculty.communication.messages,Communication
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Institution Admin / Principal,institution_admin,Circulars,institution_admin.communication.circulars,Communication
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Institution Admin / Principal,institution_admin,Messages,institution_admin.communication.messages,Communication
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Parent / Guardian,parent,Communication,parent.messages.communication,School
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Parent / Guardian,parent,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,School
-Announcements,student -> parent -> faculty -> institution_admin,4,sees,Student,student,Calendar,student.notices_calendar.calendar,School
-Meetings & PTM,admissions -> parent,1,raises,Admissions & Front Office,admissions,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,Front Desk
-Meetings & PTM,admissions -> parent,1,raises,Parent / Guardian,parent,Parent-Teacher Meeting Booking,parent.school_life.parent_teacher_meeting_booking,School
-Meetings & PTM,admissions -> parent,4,sees,Parent / Guardian,parent,Calendar & PTM,parent.school_life.calendar_ptm,School
-Meetings & PTM,admissions -> parent,4,sees,Parent / Guardian,parent,PTM Appointment Reminder Alert,parent.school_life.ptm_appointment_reminder_alert,School
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,1,raises,Admissions & Front Office,admissions,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,Admissions
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,2,acts on,HR & Payroll,hr,Medical Fitness Certificate Registry,hr.verification.medical_fitness_certificate_registry,Employees
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,4,sees,Seller Admin,seller_admin,Adoption Metrics,seller_admin.usage_health.adoption_metrics,Usage & Health
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,4,sees,Seller Admin,seller_admin,Instance Health,seller_admin.usage_health.instance_health,Usage & Health
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,4,sees,Super Admin,super_admin,System health,super_admin.dashboard.system_health,Dashboard
-Health & infirmary,admissions -> hr -> seller_admin -> super_admin,4,sees,Super Admin,super_admin,System Health & Integration Alerts,super_admin.operations.system_health_integration_alerts,Platform Setup
-Library,institution_admin -> librarian -> student,1,raises,Institution Admin / Principal,institution_admin,New Session Textbook Orders,institution_admin.library.new_session_textbook_orders,Operations
-Library,institution_admin -> librarian -> student,1,raises,Librarian,librarian,Book Reservation Queue,librarian.library.book_reservation_queue,Library
-Library,institution_admin -> librarian -> student,1,raises,Librarian,librarian,OPAC Digital Book Search,librarian.library.opac_digital_book_search,Library
-Library,institution_admin -> librarian -> student,1,raises,Librarian,librarian,New Session Textbook Orders,librarian.library.new_session_textbook_orders,Library
-Library,institution_admin -> librarian -> student,1,raises,Librarian,librarian,Books & copies,librarian.library.books_copies,Library
-Library,institution_admin -> librarian -> student,1,raises,Librarian,librarian,Accession register,librarian.library.accession_register,Library
-Library,institution_admin -> librarian -> student,1,raises,Student,student,Library Book Hold Request,student.notices_calendar.library_book_hold_request,School
-Library,institution_admin -> librarian -> student,2,acts on,Institution Admin / Principal,institution_admin,Annual Book Stock Verification,institution_admin.library.annual_book_stock_verification,Operations
-Library,institution_admin -> librarian -> student,2,acts on,Librarian,librarian,Book Cataloging & Accession Register,librarian.library.book_cataloging_accession_register,Library
-Library,institution_admin -> librarian -> student,2,acts on,Librarian,librarian,Book Issue & Return Terminal,librarian.library.book_issue_return_terminal,Library
-Library,institution_admin -> librarian -> student,2,acts on,Librarian,librarian,Annual Book Stock Verification,librarian.library.annual_book_stock_verification,Library
-Library,institution_admin -> librarian -> student,2,acts on,Librarian,librarian,Issue & return,librarian.library.issue_return,Library
-Library,institution_admin -> librarian -> student,4,sees,Institution Admin / Principal,institution_admin,Fine & Penalty Summary,institution_admin.library.fine_penalty_summary,Operations
-Library,institution_admin -> librarian -> student,4,sees,Institution Admin / Principal,institution_admin,Digital Library Usage,institution_admin.library.digital_library_usage,Operations
-Library,institution_admin -> librarian -> student,4,sees,Librarian,librarian,Barcode & Spine Label Printing,librarian.library.barcode_spine_label_printing,Library
-Library,institution_admin -> librarian -> student,4,sees,Librarian,librarian,Fine & Penalty Summary,librarian.library.fine_penalty_summary,Library
-Library,institution_admin -> librarian -> student,4,sees,Librarian,librarian,Digital Library Usage,librarian.library.digital_library_usage,Library
-Library,institution_admin -> librarian -> student,4,sees,Librarian,librarian,Reservations,librarian.library.reservations,Library
-Library,institution_admin -> librarian -> student,4,sees,Librarian,librarian,Fines,librarian.library.fines,Library
-Transport,transport_manager -> institution_admin -> parent,2,acts on,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,Transport
-Transport,transport_manager -> institution_admin -> parent,2,acts on,Transport Manager,transport_manager,Vehicle Fuel & Maintenance Log,transport_manager.transport.vehicle_fuel_maintenance_log,Transport
-Transport,transport_manager -> institution_admin -> parent,2,acts on,Transport Manager,transport_manager,Bus Breakdown Emergency Dispatch,transport_manager.transport.bus_breakdown_emergency_dispatch,Transport
-Transport,transport_manager -> institution_admin -> parent,2,acts on,Transport Manager,transport_manager,Student allocation,transport_manager.transport.student_allocation,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Vehicle Master Registry,transport_manager.transport.vehicle_master_registry,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Driver & Attendant Profiles,transport_manager.transport.driver_attendant_profiles,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Route & Pickup Stop Mapping,transport_manager.transport.route_pickup_stop_mapping,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Real-time Vehicle Tracking (VTS),transport_manager.transport.real_time_vehicle_tracking_vts,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Geo-fenced Bus Stop Alerts,transport_manager.transport.geo_fenced_bus_stop_alerts,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Bus Speeding & Rash Driving Alerts,transport_manager.transport.bus_speeding_rash_driving_alerts,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Fuel Sensor & Mileage Telematics,transport_manager.transport.fuel_sensor_mileage_telematics,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Driver Sobriety & Safety Checklist,transport_manager.transport.driver_sobriety_safety_checklist,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Seatbelt & CCTV Video Streaming,transport_manager.transport.seatbelt_cctv_video_streaming,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,AIS-140 Telematics & VAHAN Compliance,transport_manager.transport.ais_140_telematics_vahan_compliance,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Vehicles,transport_manager.transport.vehicles,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Drivers & attendants,transport_manager.transport.drivers_attendants,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Routes & stops,transport_manager.transport.routes_stops,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Delays & exceptions,transport_manager.transport.delays_exceptions,Transport
-Transport,transport_manager -> institution_admin -> parent,3,oversees,Transport Manager,transport_manager,Live vehicle tracking,transport_manager.transport.live_vehicle_tracking,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Institution Admin / Principal,institution_admin,Syllabus Progress,institution_admin.academics.syllabus_progress,Academics
-Transport,transport_manager -> institution_admin -> parent,4,sees,Institution Admin / Principal,institution_admin,Compliance & Expiry Alerts,institution_admin.transport.compliance_expiry_alerts,Operations
-Transport,transport_manager -> institution_admin -> parent,4,sees,Institution Admin / Principal,institution_admin,"Delays, Breakdowns & Emergency Alerts",institution_admin.transport.delays_breakdowns_emergency_alerts,Operations
-Transport,transport_manager -> institution_admin -> parent,4,sees,Institution Admin / Principal,institution_admin,Live Vehicle Tracking,institution_admin.transport.live_vehicle_tracking,Operations
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,Transport snapshot,parent.my_childs_bus.transport_snapshot,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,Live Bus Tracking Map,parent.my_childs_bus.live_bus_tracking_map,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,Parent Bus Proximity Radius Customizer,parent.alerts_preferences.parent_bus_proximity_radius_customizer,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,Real-time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,Transport
-Transport,transport_manager -> institution_admin -> parent,4,sees,Parent / Guardian,parent,Parent App Live Bus Tracking Refresh Rate Customizer,parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer,Transport
-Hostel,institution_admin -> parent -> super_admin -> faculty,2,acts on,Institution Admin / Principal,institution_admin,Room Allocation Engine,institution_admin.hostel.room_allocation_engine,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,2,acts on,Institution Admin / Principal,institution_admin,Digital Outpass Approval,institution_admin.hostel.digital_outpass_approval,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,2,acts on,Institution Admin / Principal,institution_admin,Hostel Visitor Log,institution_admin.hostel.hostel_visitor_log,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,2,acts on,Institution Admin / Principal,institution_admin,Room allocation,institution_admin.hostel.room_allocation,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,2,acts on,Parent / Guardian,parent,Teacher remarks,parent.messages.teacher_remarks,School
-Hostel,institution_admin -> parent -> super_admin -> faculty,3,oversees,Institution Admin / Principal,institution_admin,Hostel Building & Room Setup,institution_admin.hostel.hostel_building_room_setup,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,3,oversees,Institution Admin / Principal,institution_admin,Mess Menu & Meal Management,institution_admin.hostel.mess_menu_meal_management,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,3,oversees,Super Admin,super_admin,Automated Trigger Rules,super_admin.messaging.automated_trigger_rules,Platform Setup
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Faculty / Teacher,faculty,Messages,faculty.communication.messages,Communication
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Messages,institution_admin.communication.messages,Communication
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Room Inventory Checklists,institution_admin.hostel.room_inventory_checklists,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Hostel Roll-Call Attendance,institution_admin.hostel.hostel_roll_call_attendance,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Night Study Room Attendance,institution_admin.hostel.night_study_room_attendance,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Boarder Laundry Tracking,institution_admin.hostel.boarder_laundry_tracking,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Hostel Complaint Ticketing,institution_admin.hostel.hostel_complaint_ticketing,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Buildings & rooms,institution_admin.hostel.buildings_rooms,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Roll call,institution_admin.hostel.roll_call,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Outpass & leave,institution_admin.hostel.outpass_leave,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Institution Admin / Principal,institution_admin,Complaints,institution_admin.hostel.complaints,Operations
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Parent / Guardian,parent,Communication,parent.messages.communication,School
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Parent / Guardian,parent,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,School
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Super Admin,super_admin,SMS Gateway Integration,super_admin.messaging.sms_gateway_integration,Platform Setup
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Super Admin,super_admin,WhatsApp API Integration,super_admin.messaging.whatsapp_api_integration,Platform Setup
-Hostel,institution_admin -> parent -> super_admin -> faculty,4,sees,Super Admin,super_admin,Email Server (SMTP) Integration,super_admin.messaging.email_server_smtp_integration,Platform Setup
-Grievances,hr -> institution_admin -> super_admin,4,sees,HR & Payroll,hr,Staff Grievance Cell,hr.welfare.staff_grievance_cell,People
-Grievances,hr -> institution_admin -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Grievances,institution_admin.communication.grievances,Communication
-Grievances,hr -> institution_admin -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Hostel Complaint Ticketing,institution_admin.hostel.hostel_complaint_ticketing,Operations
-Grievances,hr -> institution_admin -> super_admin,4,sees,Institution Admin / Principal,institution_admin,Complaints,institution_admin.hostel.complaints,Operations
-Grievances,hr -> institution_admin -> super_admin,4,sees,Super Admin,super_admin,AI Sentiment Analysis on Feedback,super_admin.ai_automation.ai_sentiment_analysis_on_feedback,AI & Automation
-Documents & certificates,admissions -> hr -> parent,1,raises,Admissions & Front Office,admissions,Applicant documents,admissions.applications.applicant_documents,Admissions
-Documents & certificates,admissions -> hr -> parent,1,raises,Admissions & Front Office,admissions,Foreign / NRI Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,Admissions
-Documents & certificates,admissions -> hr -> parent,1,raises,Admissions & Front Office,admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,Admissions
-Documents & certificates,admissions -> hr -> parent,2,acts on,HR & Payroll,hr,Employee documents,hr.records.employee_documents,Employees
-Documents & certificates,admissions -> hr -> parent,2,acts on,HR & Payroll,hr,Employee Document Expiry Alerts,hr.records.employee_document_expiry_alerts,Employees
-Documents & certificates,admissions -> hr -> parent,2,acts on,HR & Payroll,hr,Medical Fitness Certificate Registry,hr.verification.medical_fitness_certificate_registry,Employees
-Documents & certificates,admissions -> hr -> parent,4,sees,Parent / Guardian,parent,DigiLocker Document Pull,parent.documents.digilocker_document_pull,Requests
-Counselling,admissions -> parent -> student,1,raises,Admissions & Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,Admissions
-Counselling,admissions -> parent -> student,2,acts on,Admissions & Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,Admissions
-Counselling,admissions -> parent -> student,4,sees,Parent / Guardian,parent,IEP Progress Goal Tracker,parent.academics.iep_progress_goal_tracker,My Child
-Counselling,admissions -> parent -> student,4,sees,Student,student,Global University Guidance Counselor,student.learning.global_university_guidance_counselor,Academics
-Staff & payroll,hr -> institution_admin,2,acts on,HR & Payroll,hr,Employee master,hr.records.employee_master,Employees
-Staff & payroll,hr -> institution_admin,2,acts on,HR & Payroll,hr,Employee documents,hr.records.employee_documents,Employees
-Staff & payroll,hr -> institution_admin,2,acts on,HR & Payroll,hr,Employee Document Expiry Alerts,hr.records.employee_document_expiry_alerts,Employees
-Staff & payroll,hr -> institution_admin,2,acts on,HR & Payroll,hr,Payslip Generation & Email Dispatch,hr.payroll.payslip_generation_email_dispatch,Payroll
-Staff & payroll,hr -> institution_admin,3,oversees,HR & Payroll,hr,Overtime (OT) Rate Setup,hr.payroll.overtime_ot_rate_setup,Payroll
-Staff & payroll,hr -> institution_admin,3,oversees,HR & Payroll,hr,Staff Loan & Advance Management,hr.payroll.staff_loan_advance_management,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Payroll,hr.payroll.payroll,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Salary Structure Builder,hr.payroll.salary_structure_builder,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Direct Bank Payroll Transfer File,hr.payroll.direct_bank_payroll_transfer_file,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Employee CTC Breakup Calculator,hr.payroll.employee_ctc_breakup_calculator,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Substitute Workload Allowance,hr.payroll.substitute_workload_allowance,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,PF Encashment & Loan Deduction,hr.payroll.pf_encashment_loan_deduction,Payroll
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Recruitment,hr.hiring_growth.recruitment,People
-Staff & payroll,hr -> institution_admin,4,sees,HR & Payroll,hr,Annual Performance Appraisal (KPI),hr.hiring_growth.annual_performance_appraisal_kpi,People
-Staff & payroll,hr -> institution_admin,4,sees,Institution Admin / Principal,institution_admin,Appraisals,institution_admin.evaluation.appraisals,Staff
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,1,raises,Admissions & Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,Admissions
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,2,acts on,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,2,acts on,Transport Manager,transport_manager,Vehicle Fuel & Maintenance Log,transport_manager.transport.vehicle_fuel_maintenance_log,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,2,acts on,Transport Manager,transport_manager,Bus Breakdown Emergency Dispatch,transport_manager.transport.bus_breakdown_emergency_dispatch,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,2,acts on,Transport Manager,transport_manager,Student allocation,transport_manager.transport.student_allocation,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Vehicle Master Registry,transport_manager.transport.vehicle_master_registry,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Driver & Attendant Profiles,transport_manager.transport.driver_attendant_profiles,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Route & Pickup Stop Mapping,transport_manager.transport.route_pickup_stop_mapping,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Real-time Vehicle Tracking (VTS),transport_manager.transport.real_time_vehicle_tracking_vts,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Geo-fenced Bus Stop Alerts,transport_manager.transport.geo_fenced_bus_stop_alerts,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Bus Speeding & Rash Driving Alerts,transport_manager.transport.bus_speeding_rash_driving_alerts,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Fuel Sensor & Mileage Telematics,transport_manager.transport.fuel_sensor_mileage_telematics,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Driver Sobriety & Safety Checklist,transport_manager.transport.driver_sobriety_safety_checklist,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Seatbelt & CCTV Video Streaming,transport_manager.transport.seatbelt_cctv_video_streaming,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,AIS-140 Telematics & VAHAN Compliance,transport_manager.transport.ais_140_telematics_vahan_compliance,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Vehicles,transport_manager.transport.vehicles,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Drivers & attendants,transport_manager.transport.drivers_attendants,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Routes & stops,transport_manager.transport.routes_stops,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Delays & exceptions,transport_manager.transport.delays_exceptions,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,3,oversees,Transport Manager,transport_manager,Live vehicle tracking,transport_manager.transport.live_vehicle_tracking,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Institution Admin / Principal,institution_admin,Compliance & Expiry Alerts,institution_admin.transport.compliance_expiry_alerts,Operations
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Institution Admin / Principal,institution_admin,"Delays, Breakdowns & Emergency Alerts",institution_admin.transport.delays_breakdowns_emergency_alerts,Operations
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Institution Admin / Principal,institution_admin,Live Vehicle Tracking,institution_admin.transport.live_vehicle_tracking,Operations
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Parent / Guardian,parent,Transport snapshot,parent.my_childs_bus.transport_snapshot,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Parent / Guardian,parent,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,Transport
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Parent / Guardian,parent,Live Event Seating Pass,parent.school_life.live_event_seating_pass,School
-Activities & events,admissions -> transport_manager -> institution_admin -> parent -> student,4,sees,Student,student,Student Club Event Ticketing & QR Check-In,student.campus_life.student_club_event_ticketing_qr_check_in,School
+flow,chain,step,role,role_key,feature,feature_key,workspace,built
+Admissions,Management -> Principal -> Teacher -> Front Office,1,Management,super_admin,Central Admission Funnel KPI,super_admin.dashboard.central_admission_funnel_kpi,dashboard,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,2,Management,super_admin,Meritto / LeadSquared Sync,super_admin.payments_devices.meritto_leadsquared_sync,payments_devices,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,3,Principal,institution_admin,Admissions Pipeline,institution_admin.admissions.admissions_pipeline,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,4,Teacher,faculty,Student Behavior & Demerits,faculty.my_classes.student_behavior_demerits,my_classes,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,5,Front Office,admissions,Admissions KPIs,admissions.home.admissions_kpis,home,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,6,Front Office,admissions,Follow-ups,admissions.home.follow_ups,home,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,7,Front Office,admissions,Enquiries / leads,admissions.enquiries.enquiries_leads,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,8,Front Office,admissions,Lead Source Tracking,admissions.enquiries.lead_source_tracking,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,9,Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,10,Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,11,Front Office,admissions,Multi-Touch Campaign Sequences,admissions.enquiries.multi_touch_campaign_sequences,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,12,Front Office,admissions,UTM Tracking & Digital Campaign attribution,admissions.enquiries.utm_tracking_digital_campaign_attribution,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,13,Front Office,admissions,24/7 Admission Chatbot,admissions.enquiries.24_7_admission_chatbot,enquiries,no
+Admissions,Management -> Principal -> Teacher -> Front Office,14,Front Office,admissions,AI Voice Agent Integration,admissions.enquiries.ai_voice_agent_integration,enquiries,no
+Admissions,Management -> Principal -> Teacher -> Front Office,15,Front Office,admissions,Admissions Open Day Scheduler,admissions.enquiries.admissions_open_day_scheduler,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,16,Front Office,admissions,Prospectus & Kit Sales Log,admissions.enquiries.prospectus_kit_sales_log,enquiries,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,17,Front Office,admissions,Applications,admissions.applications.applications,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,18,Front Office,admissions,Online Application Form Builder,admissions.applications.online_application_form_builder,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,19,Front Office,admissions,Applicant documents,admissions.applications.applicant_documents,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,20,Front Office,admissions,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,21,Front Office,admissions,Interview & Interaction Scheduler,admissions.applications.interview_interaction_scheduler,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,22,Front Office,admissions,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,23,Front Office,admissions,Foreign / NRI Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,applications,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,24,Front Office,admissions,Offers / admission decisions,admissions.admissions.offers_admission_decisions,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,25,Front Office,admissions,Merit List Generation,admissions.admissions.merit_list_generation,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,26,Front Office,admissions,Seat Allocation Management,admissions.admissions.seat_allocation_management,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,27,Front Office,admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,28,Front Office,admissions,Admission Waitlist Management,admissions.admissions.admission_waitlist_management,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,29,Front Office,admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,30,Front Office,admissions,Enrollment handoff,admissions.admissions.enrollment_handoff,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,31,Front Office,admissions,Sibling Priority Auto-Matching,admissions.admissions.sibling_priority_auto_matching,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,32,Front Office,admissions,Alumni Child Quota Allocation,admissions.admissions.alumni_child_quota_allocation,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,33,Front Office,admissions,RTE (Right to Education) Quota Tracking,admissions.admissions.rte_right_to_education_quota_tracking,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,34,Front Office,admissions,RTE Online Lottery Import,admissions.admissions.rte_online_lottery_import,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,35,Front Office,admissions,Aadhaar & APAAR Capture at Admission,admissions.admissions.aadhaar_apaar_capture_at_admission,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,36,Front Office,admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,37,Front Office,admissions,Medium of Instruction Selection,admissions.admissions.medium_of_instruction_selection,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,38,Front Office,admissions,Child Info ID Capture,admissions.admissions.child_info_id_capture,admissions,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,39,Front Office,admissions,Visitor Gate Pass Generation,admissions.visitors.visitor_gate_pass_generation,visitors,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,40,Front Office,admissions,Visitor Checkout Tracking,admissions.visitors.visitor_checkout_tracking,visitors,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,41,Front Office,admissions,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,visitors,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,42,Front Office,admissions,Gate RFID Entry Management,admissions.gate_security.gate_rfid_entry_management,gate_security,no
+Admissions,Management -> Principal -> Teacher -> Front Office,43,Front Office,admissions,Emergency Gate Lockout,admissions.gate_security.emergency_gate_lockout,gate_security,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,44,Front Office,admissions,Front Office Calls Register,admissions.office_log.front_office_calls_register,office_log,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,45,Front Office,admissions,Postal & Courier Log,admissions.office_log.postal_courier_log,office_log,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,46,Front Office,admissions,Applicant communication,admissions.communication.applicant_communication,communication,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,47,Front Office,admissions,Admission Conversion Reports,admissions.reports.admission_conversion_reports,reports,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,48,Front Office,admissions,Lost Lead Reason Analysis,admissions.reports.lost_lead_reason_analysis,reports,yes
+Admissions,Management -> Principal -> Teacher -> Front Office,49,Front Office,admissions,My pay,admissions.my_profile.my_pay,my_profile,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,1,Management,super_admin,SMS Gateway Integration,super_admin.messaging.sms_gateway_integration,messaging,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,2,Management,super_admin,WhatsApp API Integration,super_admin.messaging.whatsapp_api_integration,messaging,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,3,Management,super_admin,Email Server (SMTP) Integration,super_admin.messaging.email_server_smtp_integration,messaging,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,4,Management,super_admin,Automated Trigger Rules,super_admin.messaging.automated_trigger_rules,messaging,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,5,Management,super_admin,Payment Gateway Connectors,super_admin.payments_devices.payment_gateway_connectors,payments_devices,no
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,6,Management,super_admin,Biometric Device Integration,super_admin.payments_devices.biometric_device_integration,payments_devices,no
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,7,Management,super_admin,GPS Hardware Integration,super_admin.payments_devices.gps_hardware_integration,payments_devices,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,8,Management,super_admin,Virtual Classroom Integration,super_admin.payments_devices.virtual_classroom_integration,payments_devices,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,9,Management,super_admin,Tally ERP / Prime Connector,super_admin.payments_devices.tally_erp_prime_connector,payments_devices,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,10,Management,super_admin,Meritto / LeadSquared Sync,super_admin.payments_devices.meritto_leadsquared_sync,payments_devices,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,11,Management,super_admin,AI Sentiment Analysis on Feedback,super_admin.ai_automation.ai_sentiment_analysis_on_feedback,ai_automation,no
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,12,Management,super_admin,Smart Fee Cash Flow Predictor,super_admin.ai_automation.smart_fee_cash_flow_predictor,ai_automation,no
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,13,Principal,institution_admin,Fee Dashboard,institution_admin.fees.fee_dashboard,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,14,Principal,institution_admin,Fee Default,institution_admin.fees.fee_default,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,15,Principal,institution_admin,Fee Collection,institution_admin.standard.fee_collection,standard,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,16,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,transport,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,17,Fee Counter,finance,Take fee payment,finance.fees.take_fee_payment,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,18,Fee Counter,finance,Online fee portal,finance.fees.online_fee_portal,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,19,Fee Counter,finance,Unpaid fees & reminders,finance.fees.unpaid_fees_reminders,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,20,Fee Counter,finance,Class & transport fee setup,finance.fees.class_transport_fee_setup,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,21,Front Office,admissions,Admission Fee Collection,admissions.admissions.admission_fee_collection,admissions,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,22,Student,student,Fees,student.fees.fees,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,23,Parent,parent,Fees & payments,parent.fees.fees_payments,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,24,Parent,parent,Digital Fee Receipt PDF Download,parent.fees.digital_fee_receipt_pdf_download,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,25,Parent,parent,Child Daily Cafeteria Purchase Timeline,parent.fees.child_daily_cafeteria_purchase_timeline,fees,yes
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,26,Parent,parent,Real-time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,alerts_preferences,no
+Fees & payment,Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,27,Parent,parent,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,messages,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,1,Management,super_admin,Global Attendance Heatmap,super_admin.dashboard.global_attendance_heatmap,dashboard,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,2,Management,super_admin,Biometric Device Integration,super_admin.payments_devices.biometric_device_integration,payments_devices,no
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,3,Principal,institution_admin,Attendance Audit,institution_admin.academics.attendance_audit,academics,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,4,Principal,institution_admin,Attendance Overview,institution_admin.standard.attendance_overview,standard,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,5,HOD,hod,Take attendance,hod.attendance.take_attendance,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,6,Teacher,faculty,Take attendance,faculty.attendance.take_attendance,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,7,Teacher,faculty,Attendance correction,faculty.attendance.attendance_correction,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,8,Teacher,faculty,Offline Attendance & Diary Capture,faculty.attendance.offline_attendance_diary_capture,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,9,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,transport,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,10,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,transport,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,11,Office Clerk,hr,Staff register,hr.attendance.staff_register,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,12,Office Clerk,hr,Biometric Machine Attendance Sync,hr.attendance.biometric_machine_attendance_sync,attendance,no
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,13,Office Clerk,hr,Biometric Punch In/Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,attendance,no
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,14,Office Clerk,hr,Staff duty roster,hr.attendance.staff_duty_roster,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,15,Student,student,Attendance,student.attendance.attendance,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,16,Parent,parent,Attendance,parent.attendance.attendance,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,17,Parent,parent,Child Absence Reporting Button,parent.attendance.child_absence_reporting_button,attendance,yes
+Attendance,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Office Clerk -> Student -> Parent,18,Parent,parent,Parent App Biometric Lock (Face ID / Fingerprint),parent.profile.parent_app_biometric_lock_face_id_fingerprint,profile,no
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,1,Management,super_admin,Automated Exam Question Translation,super_admin.ai_automation.automated_exam_question_translation,ai_automation,no
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,2,Principal,institution_admin,Performance overview,institution_admin.examinations.performance_overview,examinations,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,3,Principal,institution_admin,Hall Ticket Issue,institution_admin.examinations.hall_ticket_issue,examinations,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,4,Principal,institution_admin,Exams & results,institution_admin.examinations.exams_results,examinations,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,5,Principal,institution_admin,Exams & papers,institution_admin.examinations.exams_papers,examinations,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,6,Principal,institution_admin,Question paper approval,institution_admin.exams.question_paper_approval,exams,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,7,Principal,institution_admin,Mark moderation,institution_admin.exams.mark_moderation,exams,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,8,HOD,hod,Teacher remarks,hod.staff.teacher_remarks,staff,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,9,HOD,hod,Marks entry,hod.marks_report_cards.marks_entry,marks_report_cards,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,10,HOD,hod,Report cards,hod.marks_report_cards.report_cards,marks_report_cards,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,11,HOD,hod,Question paper approval,hod.exams.question_paper_approval,exams,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,12,HOD,hod,Mark moderation,hod.exams.mark_moderation,exams,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,13,Teacher,faculty,Marks entry,faculty.marks_report_cards.marks_entry,marks_report_cards,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,14,Teacher,faculty,Report cards,faculty.marks_report_cards.report_cards,marks_report_cards,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,15,Teacher,faculty,Question Bank Management,faculty.question_papers_online_tests.question_bank_management,question_papers_online_tests,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,16,Teacher,faculty,AI Examcell Paper Generator,faculty.question_papers_online_tests.ai_examcell_paper_generator,question_papers_online_tests,no
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,17,Teacher,faculty,Ved AI Assessment Assistant,faculty.question_papers_online_tests.ved_ai_assessment_assistant,question_papers_online_tests,no
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,18,Teacher,faculty,Objective Online Test Creation,faculty.question_papers_online_tests.objective_online_test_creation,question_papers_online_tests,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,19,Teacher,faculty,Remarks,faculty.communication.remarks,communication,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,20,Teacher,faculty,Remarks about me,faculty.my_profile.remarks_about_me,my_profile,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,21,Teacher,faculty,Question papers,faculty.exams.question_papers,exams,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,22,Front Office,admissions,Entrance Exam Scheduling,admissions.applications.entrance_exam_scheduling,applications,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,23,Student,student,Exams & grades,student.exams_results.exams_grades,exams_results,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,24,Student,student,Academic record,student.exams_results.academic_record,exams_results,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,25,Parent,parent,Results & report cards,parent.academics.results_report_cards,academics,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,26,Parent,parent,Child remarks,parent.academics.child_remarks,academics,yes
+Exams & results,Management -> Principal -> HOD -> Teacher -> Front Office -> Student -> Parent,27,Parent,parent,Teacher remarks,parent.messages.teacher_remarks,messages,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,1,Software Vendor,seller_admin,Onboarding Progress,seller_admin.customers.onboarding_progress,customers,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,2,Management,super_admin,Campus cards,super_admin.dashboard.campus_cards,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,3,Management,super_admin,All campuses summary,super_admin.dashboard.all_campuses_summary,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,4,Management,super_admin,Alerts,super_admin.dashboard.alerts,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,5,Management,super_admin,Multi-Branch Revenue Analytics,super_admin.dashboard.multi_branch_revenue_analytics,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,6,Management,super_admin,Central Admission Funnel KPI,super_admin.dashboard.central_admission_funnel_kpi,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,7,Management,super_admin,Global Attendance Heatmap,super_admin.dashboard.global_attendance_heatmap,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,8,Management,super_admin,Executive System Alerts,super_admin.dashboard.executive_system_alerts,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,9,Management,super_admin,System health,super_admin.dashboard.system_health,dashboard,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,10,Management,super_admin,SQAA Framework Management,super_admin.statutory_boards.sqaa_framework_management,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,11,Management,super_admin,UDISE+ Data Sync,super_admin.statutory_boards.udise_data_sync,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,12,Management,super_admin,APAAR ID Provisioning,super_admin.statutory_boards.apaar_id_provisioning,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,13,Management,super_admin,DigiLocker Issuer Integration,super_admin.statutory_boards.digilocker_issuer_integration,statutory_boards,no
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,14,Management,super_admin,Board Affiliation & Disclosure,super_admin.statutory_boards.board_affiliation_disclosure,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,15,Management,super_admin,State Board Configuration,super_admin.statutory_boards.state_board_configuration,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,16,Management,super_admin,School Management Type,super_admin.statutory_boards.school_management_type,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,17,Management,super_admin,District & Mandal Master,super_admin.statutory_boards.district_mandal_master,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,18,Management,super_admin,Child Info Portal Sync,super_admin.statutory_boards.child_info_portal_sync,statutory_boards,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,19,Principal,institution_admin,Dashboard,institution_admin.home.dashboard,home,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,20,Principal,institution_admin,Fee Dashboard,institution_admin.fees.fee_dashboard,fees,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,21,Transport Manager,transport_manager,AIS-140 Telematics & VAHAN Compliance,transport_manager.transport.ais_140_telematics_vahan_compliance,transport,no
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,22,Fee Counter,finance,Dashboard,finance.home.dashboard,home,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,23,Front Office,admissions,Aadhaar & APAAR Capture at Admission,admissions.admissions.aadhaar_apaar_capture_at_admission,admissions,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,24,Office Clerk,hr,Dashboard,hr.home.dashboard,home,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,25,Office Clerk,hr,Staff joinings & exits,hr.onboarding_exit.staff_joinings_exits,onboarding_exit,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,26,Office Clerk,hr,Taxes & statutory,hr.payroll.taxes_statutory,payroll,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,27,Student,student,Lost & Found Item Board,student.campus_life.lost_found_item_board,campus_life,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,28,Student,student,Lost & Found Photo Board with Claim Verification,student.campus_life.lost_found_photo_board_with_claim_verification,campus_life,yes
+Board exams & statutory,Software Vendor -> Management -> Principal -> Transport Manager -> Fee Counter -> Front Office -> Office Clerk -> Student,29,Student,student,Alumni Job & Internship Board,student.alumni.alumni_job_internship_board,alumni,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,1,Management,super_admin,Automated Timetable Optimizer,super_admin.ai_automation.automated_timetable_optimizer,ai_automation,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,2,Principal,institution_admin,Master Timetable,institution_admin.academics.master_timetable,academics,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,3,Principal,institution_admin,Substitutions,institution_admin.academics.substitutions,academics,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,4,HOD,hod,Class timetable,hod.timetable.class_timetable,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,5,HOD,hod,Staff timetable,hod.timetable.staff_timetable,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,6,HOD,hod,Department timetable,hod.timetable.department_timetable,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,7,HOD,hod,Substitution requests,hod.timetable.substitution_requests,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,8,HOD,hod,My timetable,hod.timetable.my_timetable,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,9,HOD,hod,Language subject allocation,hod.academics.language_subject_allocation,academics,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,10,HOD,hod,Faculty allocation,hod.academics.faculty_allocation,academics,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,11,Teacher,faculty,My timetable,faculty.timetable.my_timetable,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,12,Teacher,faculty,Substitution Request Submission,faculty.timetable.substitution_request_submission,timetable,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,13,Transport Manager,transport_manager,Student allocation,transport_manager.transport.student_allocation,transport,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,14,Front Office,admissions,Seat Allocation Management,admissions.admissions.seat_allocation_management,admissions,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,15,Front Office,admissions,Alumni Child Quota Allocation,admissions.admissions.alumni_child_quota_allocation,admissions,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,16,Office Clerk,hr,Biometric Punch In/Out Grace Period,hr.attendance.biometric_punch_in_out_grace_period,attendance,no
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,17,Office Clerk,hr,Staff duty roster,hr.attendance.staff_duty_roster,attendance,yes
+Timetable,Management -> Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Office Clerk -> Student,18,Student,student,Timetable,student.timetable.timetable,timetable,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,1,Principal,institution_admin,Curriculum Roadmap,institution_admin.academics.curriculum_roadmap,academics,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,2,Principal,institution_admin,Lesson Plans,institution_admin.academics.lesson_plans,academics,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,3,Principal,institution_admin,Syllabus Progress,institution_admin.academics.syllabus_progress,academics,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,4,Principal,institution_admin,Teacher Assignment,institution_admin.academics.teacher_assignment,academics,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,5,HOD,hod,Homework / classwork,hod.teaching.homework_classwork,teaching,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,6,HOD,hod,Lesson plans / content,hod.teaching.lesson_plans_content,teaching,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,7,Teacher,faculty,Homework / classwork,faculty.teaching.homework_classwork,teaching,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,8,Teacher,faculty,Assignments & submissions,faculty.teaching.assignments_submissions,teaching,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,9,Teacher,faculty,Lesson plans / content,faculty.teaching.lesson_plans_content,teaching,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,10,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,transport,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,11,Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,enquiries,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,12,Student,student,Homework & assignments,student.homework.homework_assignments,homework,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,13,Student,student,Classmate Homework Help Forum,student.homework.classmate_homework_help_forum,homework,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,14,Student,student,Courses / subjects,student.learning.courses_subjects,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,15,Student,student,E-Learning Resource Hub,student.learning.e_learning_resource_hub,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,16,Student,student,AI Personal Learning Companion,student.learning.ai_personal_learning_companion,learning,no
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,17,Student,student,Peer Tutoring & Study Groups,student.learning.peer_tutoring_study_groups,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,18,Student,student,Gamified Learning Streak Counter,student.learning.gamified_learning_streak_counter,learning,no
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,19,Student,student,Gamified Learning Badge Showcase,student.learning.gamified_learning_badge_showcase,learning,no
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,20,Student,student,Virtual Classroom Hand-Raise Telemetry,student.learning.virtual_classroom_hand_raise_telemetry,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,21,Student,student,Global University Guidance Counselor,student.learning.global_university_guidance_counselor,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,22,Student,student,Student Portfolio Management,student.learning.student_portfolio_management,learning,yes
+Homework & learning,Principal -> HOD -> Teacher -> Transport Manager -> Front Office -> Student -> Parent,23,Parent,parent,Homework & academics,parent.academics.homework_academics,academics,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,1,Principal,institution_admin,Leaves & Subs,institution_admin.staff.leaves_subs,staff,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,2,Principal,institution_admin,Leave & self service,institution_admin.my_profile.leave_self_service,my_profile,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,3,HOD,hod,Leaves & Subs,hod.staff.leaves_subs,staff,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,4,HOD,hod,Leave & self service,hod.my_profile.leave_self_service,my_profile,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,5,Teacher,faculty,Leave & self service,faculty.my_profile.leave_self_service,my_profile,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,6,Teacher,faculty,Student leave requests,faculty.my_profile.student_leave_requests,my_profile,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,7,Office Clerk,hr,Leave,hr.leave.leave,leave,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,8,Office Clerk,hr,Leave rules,hr.leave.leave_rules,leave,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,9,Office Clerk,hr,Staff training & development,hr.hiring_training.staff_training_development,hiring_training,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,10,Parent,parent,Requests,parent.leave_absence.requests,leave_absence,yes
+Leave,Principal -> HOD -> Teacher -> Office Clerk -> Parent,11,Parent,parent,Apply Student Leave,parent.leave_absence.apply_student_leave,leave_absence,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,1,Software Vendor,seller_admin,Onboarding Progress,seller_admin.customers.onboarding_progress,customers,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,2,Fee Counter,finance,Approve & pay salaries,finance.accounts.approve_pay_salaries,accounts,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,3,Office Clerk,hr,Staff hiring,hr.hiring_training.staff_hiring,hiring_training,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,4,Office Clerk,hr,Staff performance reviews,hr.hiring_training.staff_performance_reviews,hiring_training,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,5,Office Clerk,hr,Staff training & development,hr.hiring_training.staff_training_development,hiring_training,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,6,Office Clerk,hr,Staff records,hr.records.staff_records,records,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,7,Office Clerk,hr,Staff joinings & exits,hr.onboarding_exit.staff_joinings_exits,onboarding_exit,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,8,Office Clerk,hr,Monthly payroll,hr.payroll.monthly_payroll,payroll,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,9,Office Clerk,hr,Salary setup,hr.payroll.salary_setup,payroll,yes
+Staff & payroll,Software Vendor -> Fee Counter -> Office Clerk,10,Office Clerk,hr,Taxes & statutory,hr.payroll.taxes_statutory,payroll,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,1,Principal,institution_admin,Circulars,institution_admin.communication.circulars,communication,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,2,Principal,institution_admin,Messages,institution_admin.communication.messages,communication,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,3,HOD,hod,Messages,hod.communication.messages,communication,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,4,Teacher,faculty,Messages,faculty.communication.messages,communication,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,5,Student,student,Calendar,student.notices_calendar.calendar,notices_calendar,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,6,Student,student,Library Book Hold Request,student.notices_calendar.library_book_hold_request,notices_calendar,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,7,Parent,parent,Real-Time Push Notifications,parent.home.real_time_push_notifications,home,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,8,Parent,parent,Communication,parent.messages.communication,messages,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,9,Parent,parent,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,messages,yes
+Announcements,Principal -> HOD -> Teacher -> Student -> Parent,10,Parent,parent,Teacher remarks,parent.messages.teacher_remarks,messages,yes
+Meetings & PTM,Front Office -> Parent,1,Front Office,admissions,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,visitors,yes
+Meetings & PTM,Front Office -> Parent,2,Parent,parent,Calendar & PTM,parent.school_life.calendar_ptm,school_life,yes
+Meetings & PTM,Front Office -> Parent,3,Parent,parent,Parent-Teacher Meeting Booking,parent.school_life.parent_teacher_meeting_booking,school_life,yes
+Meetings & PTM,Front Office -> Parent,4,Parent,parent,PTM Appointment Reminder Alert,parent.school_life.ptm_appointment_reminder_alert,school_life,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,1,Principal,institution_admin,Certificates & transfers,institution_admin.students.certificates_transfers,students,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,2,Front Office,admissions,Applicant documents,admissions.applications.applicant_documents,applications,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,3,Front Office,admissions,Foreign / NRI Student Visa Documentation,admissions.applications.foreign_nri_student_visa_documentation,applications,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,4,Front Office,admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,admissions,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,5,Front Office,admissions,Transfer Certificate Intake,admissions.admissions.transfer_certificate_intake,admissions,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,6,Student,student,Digital Student ID Card NFC Tap Pass,student.profile.digital_student_id_card_nfc_tap_pass,profile,no
+Documents & certificates,Principal -> Front Office -> Student -> Parent,7,Parent,parent,DigiLocker Document Pull,parent.documents.digilocker_document_pull,documents,no
+Documents & certificates,Principal -> Front Office -> Student -> Parent,8,Parent,parent,Digital Student ID Card View,parent.profile.digital_student_id_card_view,profile,yes
+Documents & certificates,Principal -> Front Office -> Student -> Parent,9,Parent,parent,Digital Parent ID Card for Campus Entry,parent.profile.digital_parent_id_card_for_campus_entry,profile,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,1,Management,super_admin,Predictive Dropout Risk Engine,super_admin.ai_automation.predictive_dropout_risk_engine,ai_automation,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,2,Principal,institution_admin,Syllabus Progress,institution_admin.academics.syllabus_progress,academics,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,3,Transport Manager,transport_manager,Vehicle Master Registry,transport_manager.transport.vehicle_master_registry,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,4,Transport Manager,transport_manager,Driver & Attendant Profiles,transport_manager.transport.driver_attendant_profiles,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,5,Transport Manager,transport_manager,Route & Pickup Stop Mapping,transport_manager.transport.route_pickup_stop_mapping,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,6,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,7,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,8,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,9,Transport Manager,transport_manager,Real-time Vehicle Tracking (VTS),transport_manager.transport.real_time_vehicle_tracking_vts,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,10,Transport Manager,transport_manager,Geo-fenced Bus Stop Alerts,transport_manager.transport.geo_fenced_bus_stop_alerts,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,11,Transport Manager,transport_manager,Bus Speeding & Rash Driving Alerts,transport_manager.transport.bus_speeding_rash_driving_alerts,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,12,Transport Manager,transport_manager,Vehicle Fuel & Maintenance Log,transport_manager.transport.vehicle_fuel_maintenance_log,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,13,Transport Manager,transport_manager,Fuel Sensor & Mileage Telematics,transport_manager.transport.fuel_sensor_mileage_telematics,transport,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,14,Transport Manager,transport_manager,Driver Sobriety & Safety Checklist,transport_manager.transport.driver_sobriety_safety_checklist,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,15,Transport Manager,transport_manager,Bus Breakdown Emergency Dispatch,transport_manager.transport.bus_breakdown_emergency_dispatch,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,16,Transport Manager,transport_manager,Seatbelt & CCTV Video Streaming,transport_manager.transport.seatbelt_cctv_video_streaming,transport,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,17,Transport Manager,transport_manager,AIS-140 Telematics & VAHAN Compliance,transport_manager.transport.ais_140_telematics_vahan_compliance,transport,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,18,Transport Manager,transport_manager,Vehicles,transport_manager.transport.vehicles,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,19,Transport Manager,transport_manager,Drivers & attendants,transport_manager.transport.drivers_attendants,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,20,Transport Manager,transport_manager,Routes & stops,transport_manager.transport.routes_stops,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,21,Transport Manager,transport_manager,Student allocation,transport_manager.transport.student_allocation,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,22,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,23,Transport Manager,transport_manager,Delays & exceptions,transport_manager.transport.delays_exceptions,transport,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,24,Transport Manager,transport_manager,Live vehicle tracking,transport_manager.transport.live_vehicle_tracking,transport,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,25,Transport Manager,transport_manager,My pay,transport_manager.my_profile.my_pay,my_profile,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,26,Fee Counter,finance,Class & transport fee setup,finance.fees.class_transport_fee_setup,fees,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,27,Parent,parent,Transport snapshot,parent.my_childs_bus.transport_snapshot,my_childs_bus,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,28,Parent,parent,Live Bus Tracking Map,parent.my_childs_bus.live_bus_tracking_map,my_childs_bus,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,29,Parent,parent,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,my_childs_bus,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,30,Parent,parent,Parent Bus Proximity Radius Customizer,parent.alerts_preferences.parent_bus_proximity_radius_customizer,alerts_preferences,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,31,Parent,parent,Real-time School Bus Live Video Feed Access,parent.alerts_preferences.real_time_school_bus_live_video_feed_access,alerts_preferences,no
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,32,Parent,parent,Parent App Live Bus Tracking Refresh Rate Customizer,parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer,alerts_preferences,yes
+Transport,Management -> Principal -> Transport Manager -> Fee Counter -> Parent,33,Parent,parent,Parent Delegation for Emergency Pickup,parent.consent.parent_delegation_for_emergency_pickup,consent,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,1,Management,super_admin,SMS Gateway Integration,super_admin.messaging.sms_gateway_integration,messaging,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,2,Management,super_admin,WhatsApp API Integration,super_admin.messaging.whatsapp_api_integration,messaging,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,3,Management,super_admin,Email Server (SMTP) Integration,super_admin.messaging.email_server_smtp_integration,messaging,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,4,Management,super_admin,Automated Trigger Rules,super_admin.messaging.automated_trigger_rules,messaging,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,5,Principal,institution_admin,Messages,institution_admin.communication.messages,communication,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,6,HOD,hod,Messages,hod.communication.messages,communication,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,7,Teacher,faculty,Messages,faculty.communication.messages,communication,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,8,Parent,parent,Communication,parent.messages.communication,messages,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,9,Parent,parent,Direct Teacher Messaging,parent.messages.direct_teacher_messaging,messages,yes
+Hostel,Management -> Principal -> HOD -> Teacher -> Parent,10,Parent,parent,Teacher remarks,parent.messages.teacher_remarks,messages,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,1,Librarian,librarian,Book Cataloging & Accession Register,librarian.library.book_cataloging_accession_register,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,2,Librarian,librarian,Barcode & Spine Label Printing,librarian.library.barcode_spine_label_printing,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,3,Librarian,librarian,Book Issue & Return Terminal,librarian.library.book_issue_return_terminal,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,4,Librarian,librarian,Book Reservation Queue,librarian.library.book_reservation_queue,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,5,Librarian,librarian,Fine & Penalty Summary,librarian.library.fine_penalty_summary,library,no
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,6,Librarian,librarian,OPAC Digital Book Search,librarian.library.opac_digital_book_search,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,7,Librarian,librarian,Digital Library Usage,librarian.library.digital_library_usage,library,no
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,8,Librarian,librarian,Annual Book Stock Verification,librarian.library.annual_book_stock_verification,library,no
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,9,Librarian,librarian,New Session Textbook Orders,librarian.library.new_session_textbook_orders,library,no
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,10,Librarian,librarian,Books & copies,librarian.library.books_copies,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,11,Librarian,librarian,Accession register,librarian.library.accession_register,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,12,Librarian,librarian,Issue & return,librarian.library.issue_return,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,13,Librarian,librarian,Reservations,librarian.library.reservations,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,14,Librarian,librarian,Fines,librarian.library.fines,library,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,15,Front Office,admissions,Parent Appointment Booking,admissions.visitors.parent_appointment_booking,visitors,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,16,Office Clerk,hr,Service book & qualifications,hr.records.service_book_qualifications,records,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,17,Student,student,Library Book Hold Request,student.notices_calendar.library_book_hold_request,notices_calendar,yes
+Library,Librarian -> Front Office -> Office Clerk -> Student -> Parent,18,Parent,parent,Parent-Teacher Meeting Booking,parent.school_life.parent_teacher_meeting_booking,school_life,yes
+Health & infirmary,Software Vendor -> Management -> Front Office,1,Software Vendor,seller_admin,Adoption Metrics,seller_admin.usage_health.adoption_metrics,usage_health,yes
+Health & infirmary,Software Vendor -> Management -> Front Office,2,Software Vendor,seller_admin,Instance Health,seller_admin.usage_health.instance_health,usage_health,yes
+Health & infirmary,Software Vendor -> Management -> Front Office,3,Management,super_admin,System health,super_admin.dashboard.system_health,dashboard,yes
+Health & infirmary,Software Vendor -> Management -> Front Office,4,Management,super_admin,System Health & Integration Alerts,super_admin.operations.system_health_integration_alerts,operations,yes
+Health & infirmary,Software Vendor -> Management -> Front Office,5,Front Office,admissions,Applicant Medical Fitness Declaration,admissions.applications.applicant_medical_fitness_declaration,applications,yes
+Counselling,Front Office -> Student,1,Front Office,admissions,Counselor Lead Assignment,admissions.enquiries.counselor_lead_assignment,enquiries,yes
+Counselling,Front Office -> Student,2,Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,enquiries,yes
+Counselling,Front Office -> Student,3,Student,student,Global University Guidance Counselor,student.learning.global_university_guidance_counselor,learning,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,1,Transport Manager,transport_manager,Vehicle Master Registry,transport_manager.transport.vehicle_master_registry,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,2,Transport Manager,transport_manager,Driver & Attendant Profiles,transport_manager.transport.driver_attendant_profiles,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,3,Transport Manager,transport_manager,Route & Pickup Stop Mapping,transport_manager.transport.route_pickup_stop_mapping,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,4,Transport Manager,transport_manager,Student Route Assignment,transport_manager.transport.student_route_assignment,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,5,Transport Manager,transport_manager,Route Distance Fee Slabs,transport_manager.transport.route_distance_fee_slabs,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,6,Transport Manager,transport_manager,Transport Attendance Scans,transport_manager.transport.transport_attendance_scans,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,7,Transport Manager,transport_manager,Real-time Vehicle Tracking (VTS),transport_manager.transport.real_time_vehicle_tracking_vts,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,8,Transport Manager,transport_manager,Geo-fenced Bus Stop Alerts,transport_manager.transport.geo_fenced_bus_stop_alerts,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,9,Transport Manager,transport_manager,Bus Speeding & Rash Driving Alerts,transport_manager.transport.bus_speeding_rash_driving_alerts,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,10,Transport Manager,transport_manager,Vehicle Fuel & Maintenance Log,transport_manager.transport.vehicle_fuel_maintenance_log,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,11,Transport Manager,transport_manager,Fuel Sensor & Mileage Telematics,transport_manager.transport.fuel_sensor_mileage_telematics,transport,no
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,12,Transport Manager,transport_manager,Driver Sobriety & Safety Checklist,transport_manager.transport.driver_sobriety_safety_checklist,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,13,Transport Manager,transport_manager,Bus Breakdown Emergency Dispatch,transport_manager.transport.bus_breakdown_emergency_dispatch,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,14,Transport Manager,transport_manager,Seatbelt & CCTV Video Streaming,transport_manager.transport.seatbelt_cctv_video_streaming,transport,no
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,15,Transport Manager,transport_manager,AIS-140 Telematics & VAHAN Compliance,transport_manager.transport.ais_140_telematics_vahan_compliance,transport,no
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,16,Transport Manager,transport_manager,Vehicles,transport_manager.transport.vehicles,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,17,Transport Manager,transport_manager,Drivers & attendants,transport_manager.transport.drivers_attendants,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,18,Transport Manager,transport_manager,Routes & stops,transport_manager.transport.routes_stops,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,19,Transport Manager,transport_manager,Student allocation,transport_manager.transport.student_allocation,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,20,Transport Manager,transport_manager,Route attendance,transport_manager.transport.route_attendance,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,21,Transport Manager,transport_manager,Delays & exceptions,transport_manager.transport.delays_exceptions,transport,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,22,Transport Manager,transport_manager,Live vehicle tracking,transport_manager.transport.live_vehicle_tracking,transport,no
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,23,Transport Manager,transport_manager,My pay,transport_manager.my_profile.my_pay,my_profile,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,24,Fee Counter,finance,Class & transport fee setup,finance.fees.class_transport_fee_setup,fees,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,25,Front Office,admissions,Counselor Activity & Follow-ups,admissions.enquiries.counselor_activity_follow_ups,enquiries,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,26,Student,student,Student Club Event Ticketing & QR Check-In,student.campus_life.student_club_event_ticketing_qr_check_in,campus_life,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,27,Parent,parent,Transport snapshot,parent.my_childs_bus.transport_snapshot,my_childs_bus,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,28,Parent,parent,School Transport Driver Call Button,parent.my_childs_bus.school_transport_driver_call_button,my_childs_bus,yes
+Activities & events,Transport Manager -> Fee Counter -> Front Office -> Student -> Parent,29,Parent,parent,Live Event Seating Pass,parent.school_life.live_event_seating_pass,school_life,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,1,Software Vendor,seller_admin,Tenant Directory,seller_admin.customers.tenant_directory,customers,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,2,Software Vendor,seller_admin,Provision New School,seller_admin.customers.provision_new_school,customers,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,3,Software Vendor,seller_admin,Plans & Pricing,seller_admin.subscriptions_billing.plans_pricing,subscriptions_billing,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,4,Software Vendor,seller_admin,Subscription Ledger,seller_admin.subscriptions_billing.subscription_ledger,subscriptions_billing,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,5,Software Vendor,seller_admin,Seat Overage & Renewals,seller_admin.subscriptions_billing.seat_overage_renewals,subscriptions_billing,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,6,Management,super_admin,White-Label Branding,super_admin.campuses_academic_year.white_label_branding,campuses_academic_year,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,7,Management,super_admin,APAAR ID Provisioning,super_admin.statutory_boards.apaar_id_provisioning,statutory_boards,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,8,Principal,institution_admin,School setup,institution_admin.getting_started.school_setup,getting_started,yes
+Onboarding a school,Software Vendor -> Management -> Principal -> Front Office,9,Front Office,admissions,Provisional Offer Letters,admissions.admissions.provisional_offer_letters,admissions,yes
