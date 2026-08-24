@@ -574,6 +574,8 @@ type generateInvoicesRequest struct {
 // across every class belongs on the bulk queue via /api/v1/jobs.
 // A draft fee structure must not bill anybody: the gate was drawn on the screen,
 // read by the person using it, and enforced nowhere.
+var errNoSuchInstalment = errors.New("no lines under that instalment")
+
 var errNoLiveFeeVersion = errors.New("no live fee structure version")
 
 func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
@@ -635,6 +637,29 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		}
 		if versions > 0 && live == 0 {
 			return errNoLiveFeeVersion
+		}
+
+		/* An instalment the structure does not have.
+
+		   Most schools price the year in one instalment and collect it in one
+		   go; some split it into three. Nothing stopped a clerk asking for
+		   instalment 2 of a structure whose lines are all instalment 1 — and
+		   because the lines are copied by instalment number, every child got
+		   an invoice with no lines on it. Sixty demands for zero rupees,
+		   numbered, dated, and indistinguishable from real ones in the ledger,
+		   with the school's own invoice sequence spent on them.
+
+		   The clerk's mistake is a typo in one field. The remedy is to say so
+		   before anything is written, not to hand back "created: 60". */
+		var lines int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*)::int FROM fee_structure_items
+			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
+			structureID, req.InstalmentNo).Scan(&lines); err != nil {
+			return err
+		}
+		if lines == 0 {
+			return errNoSuchInstalment
 		}
 
 		// Students enrolled in this year, optionally limited to the structure's
@@ -745,6 +770,11 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.BadRequest(w, r, "no active fee structure with that id")
+		return
+	}
+	if errors.Is(err, errNoSuchInstalment) {
+		httpx.Error(w, r, http.StatusConflict, "no_such_instalment",
+			fmt.Sprintf("this fee structure has nothing priced under instalment %d, so every invoice would come to zero. Check the instalment number, or add the lines to the structure first.", req.InstalmentNo))
 		return
 	}
 	if errors.Is(err, errNoLiveFeeVersion) {
