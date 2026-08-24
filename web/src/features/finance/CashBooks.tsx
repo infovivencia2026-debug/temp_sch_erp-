@@ -143,6 +143,13 @@ export default function CashBooks() {
           />
           {daybook.isLoading ? (
             <Loading />
+          ) : daybook.error ? (
+            /* A failed query is not an empty day.
+          
+               Without this branch the fetch fell through to the empty state and
+               the screen told an inspector "Nothing was written on <date>" — a
+               statement about the books, made because a request failed. */
+            <ErrorState error={daybook.error} />
           ) : (d?.items ?? []).length === 0 ? (
             <EmptyState title={`Nothing was written on ${on}`}
               body="Choose another date, or post a voucher." />

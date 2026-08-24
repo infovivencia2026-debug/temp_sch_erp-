@@ -15,6 +15,7 @@ import { StatusPill } from '@/components/NeedsAttention'
 import { useActiveRole } from '@/lib/catalog'
 import { useSession } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -137,15 +138,28 @@ export default function StudentProfile() {
      clicking Open ran fifteen, which is error #310 and a blank screen. A hook
      cannot live behind a condition; the early returns stay, and every hook
      now runs before them. */
+  const toast = useToast()
   const [issued, setIssued] = useState<IssuedLogin | null>(null)
+  /* Both of these had onSuccess and nothing else.
+
+     Issuing a login is a one-shot act — the server does not keep the password —
+     so a failure that says nothing is the worst possible outcome: the clerk
+     sees no panel, assumes the click missed, and presses again. The error is
+     named rather than generic, because "could not issue a login" and "this
+     guardian already has one" need different next steps from whoever is
+     standing at the desk. */
   const studentLogin = useMutation({
     mutationFn: () => api.post<IssuedLogin>(`/api/v1/setup/students/${selected}/login`, {}),
     onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : 'Could not issue a login for this student'),
   })
   const guardianLogin = useMutation({
     mutationFn: (g: Profile['guardians'][number]) =>
       api.post<IssuedLogin>(`/api/v1/setup/guardians/${g.id}/login`, {}),
     onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : 'Could not issue a login for this guardian'),
   })
 
   const role = useActiveRole()
