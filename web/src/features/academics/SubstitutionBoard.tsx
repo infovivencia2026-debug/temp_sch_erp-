@@ -39,6 +39,14 @@ interface Slot {
   subject: string
   covered_by?: string
   covered_by_user_id?: string
+  /* The proxy who is themselves not in.
+   *
+   * A substitution stands once made; the board is a morning's decisions and
+   * re-shuffling them under the office's feet would be worse than staleness.
+   * The one thing that must reopen a settled period is the substitute going
+   * absent — leave approved at 8:40 for a proxy given at 8:20. Until now that
+   * period still read "covered", and the class got nobody. */
+  cover_absent?: boolean
   candidates: Candidate[]
 }
 
@@ -193,9 +201,18 @@ export default function SubstitutionBoard() {
                         {r.absent_teacher} is{' '}
                         {r.reason === 'leave' ? 'on leave' : 'marked absent'}
                       </p>
+                      {/* Said, not silently un-covered. A period that goes
+                          back on the list without explanation looks like the
+                          board losing the morning's work. */}
+                      {r.cover_absent && r.covered_by && (
+                        <p className="mt-0.5 text-[13.5px] text-destructive">
+                          {r.covered_by} was covering this and is now absent too — it needs
+                          somebody else.
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {r.covered_by ? (
+                      {r.covered_by && !r.cover_absent ? (
                         <Badge tone="success">covered by {r.covered_by}</Badge>
                       ) : (
                         /* A dropdown rather than four buttons.

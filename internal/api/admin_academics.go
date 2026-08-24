@@ -783,6 +783,19 @@ type substitutionRow struct {
 	Subject          string           `json:"subject"`
 	CoveredBy        *string          `json:"covered_by,omitempty"`
 	CoveredByID      *string          `json:"covered_by_user_id,omitempty"`
+	/* Cover that has itself fallen through.
+
+	   A substitution is settled once made — the board is a morning's decisions
+	   and re-shuffling them under the office's feet would be worse than any
+	   staleness. The one thing that must reopen it is the substitute going
+	   absent: leave approved at 8:40 for somebody who was given a proxy at
+	   8:20, or simply not turning up.
+
+	   Nothing noticed. The period belongs to the absent teacher, and it had a
+	   substitution against it, so it read as covered and dropped out of the
+	   morning's work — a class with nobody in front of it, and a board saying
+	   every period was handled. */
+	CoverAbsent bool `json:"cover_absent"`
 	Candidates       []proxyCandidate `json:"candidates"`
 }
 
@@ -822,6 +835,8 @@ func (s *Server) getSubstitutionBoard(w http.ResponseWriter, r *http.Request) {
 		       p.name, p.sequence, to_char(p.starts_at,'HH24:MI'),
 		       c.name, sec.name, sub.name,
 		       sb.substitute_user_id::text, su.full_name,
+		       (sb.substitute_user_id IS NOT NULL
+		        AND EXISTS (SELECT 1 FROM absent a3 WHERE a3.user_id = sb.substitute_user_id)),
 		       COALESCE((
 		         SELECT jsonb_agg(x)
 		           FROM (SELECT u2.id::text AS user_id, u2.full_name,
@@ -866,7 +881,8 @@ func (s *Server) getSubstitutionBoard(w http.ResponseWriter, r *http.Request) {
 			var raw []byte
 			if err := rows.Scan(&v.TimetableEntryID, &v.AbsentUserID, &v.AbsentTeacher,
 				&v.Reason, &v.Period, &v.PeriodSeq, &v.StartsAt, &v.ClassName,
-				&v.SectionName, &v.Subject, &v.CoveredByID, &v.CoveredBy, &raw); err != nil {
+				&v.SectionName, &v.Subject, &v.CoveredByID, &v.CoveredBy,
+				&v.CoverAbsent, &raw); err != nil {
 				return v, err
 			}
 			v.Candidates = []proxyCandidate{}
@@ -894,7 +910,7 @@ func (s *Server) getSubstitutionBoard(w http.ResponseWriter, r *http.Request) {
 	absentees := map[string]struct{}{}
 	for _, it := range items {
 		absentees[it.AbsentUserID] = struct{}{}
-		if it.CoveredByID != nil {
+		if it.CoveredByID != nil && !it.CoverAbsent {
 			covered++
 		} else if len(it.Candidates) == 0 {
 			uncoverable++

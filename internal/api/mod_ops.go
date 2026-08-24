@@ -530,7 +530,15 @@ func (s *Server) createSubstitution(w http.ResponseWriter, r *http.Request) {
 		_, err := tx.Exec(r.Context(), `
 			INSERT INTO substitutions (institution_id, timetable_entry_id, on_date,
 			                           substitute_user_id, reason, created_by)
-			VALUES ($1,$2,$3::date,$4,$5,$6)`,
+			VALUES ($1,$2,$3::date,$4,$5,$6)
+			-- Changing one's mind about a proxy is ordinary. The first choice
+			-- goes absent too, or is needed for an invigilation, and the
+			-- office picks somebody else — which failed outright on the unique
+			-- index and surfaced as "something went wrong" on the one screen
+			-- that is worked at eight in the morning.
+			ON CONFLICT (timetable_entry_id, on_date) DO UPDATE
+			   SET substitute_user_id = EXCLUDED.substitute_user_id,
+			       reason = EXCLUDED.reason, created_by = EXCLUDED.created_by`,
 			id.InstitutionID, entryID, req.OnDate, subID, nullString(req.Reason), id.UserID)
 		return err
 	})
