@@ -61,30 +61,65 @@ has far more than one. Widening this is the next improvement to the probe.
 
 ---
 
+## Audit of built screens — 24 Aug
+
+Six agents read **84 screens** and proposed **109 enhancements to features that
+already exist**. No new features, no new endpoints; the constraint was the point.
+
+By kind: confirmation 23, feedback 18, validation 15, error 15, formatting 11,
+filtering 7, empty-state 5, loading 4, accessibility 3, keyboard 3, copy 2,
+navigation 2, bulk-action 1. By effort: 87 small, 21 medium, 1 large.
+
+The filter stage of that workflow died on API 529s, so the list is unfiltered —
+treat each item as a claim to check, not a verdict. Three claims were already
+wrong when checked by hand: the Student 360 tab lag does not reproduce (the
+indicator and the body read the same search param), Class setup opening on
+"Classes" is deliberate and commented, and the "200 of 0 periods" case is
+already special-cased.
+
+### Fixed from that audit
+
+| What | Where |
+|---|---|
+| A teacher's day was hardcoded fiction — "Math (10th Grade)", "Room 304", a roll of Alex/Ben/Chloe — at two menu entries | `faculty/TodaysClasses.tsx`, rewritten against `/timetable/entries?teacher_id=me` |
+| Marking a cheque bounced reversed an applied payment on one click | `finance/Payments.tsx` |
+| Approving a petty cash voucher paid out cash on one click | `finance/PettyCash.tsx` |
+| Rejecting a concession, with no un-reject on the API | `finance/Concessions.tsx` |
+| Raising invoices for a whole selection, with no bulk withdrawal | `finance/DemandGeneration.tsx` |
+| The fee counter's Collect button went dead with no reason given | `finance/FeeCounter.tsx` |
+
+### Still to do from that audit
+
+~100 items, the bulk of them small. The clusters worth taking next, in order:
+
+1. **Mutations whose error path is swallowed** — a save fails and the screen says
+   nothing. Concentrated in admissions.
+2. **Successful mutations with no confirmation** — the row changes and nothing
+   says it worked.
+3. **Search text in a react-query key**, so the whole page falls back to a
+   full-page `<Loading />` on every keystroke.
+4. **Sub-lists silently truncated with `slice()`** — no "and 12 more".
+5. **Raw ISO dates in the ledger screens** where the rest of the product uses
+   "16 Aug 2026".
+
+---
+
 ## Open defects
 
 Ranked by what a school notices first.
 
 ### 1. A raw event key is shown to parents
-`/parent/home/real_time_push_notifications` renders `leave_decided` — an
-internal event name — where a sentence belongs.
+`/parent/home/real_time_push_notifications` renders `leave_decided` — the
+notification's internal *kind* — where a sentence belongs. The title and body
+the server sends are proper prose; something is rendering the kind instead.
 
-### 2. A role key is shown on staff records
-`/go/records/staff_records` renders `institution_admin` in the page body.
-
-### 3. `/go/…` paths are dead ends
-`/go/attendance/staff_attendance` renders "That screen has moved", 243
-characters, **no controls and no link onward**. A screen that says something
-moved and does not say where is worse than a 404, which at least admits it.
-Two `/go/` paths are reachable from HR's navigation.
-
-### 4. Attendance reads as empty for a parent and a student
+### 2. Attendance reads as empty for a parent and a student
 `/parent/attendance/attendance` and `/student/attendance/attendance` render
 ~350 characters and **zero controls** — a name and little else. Whether that is
 an empty state or a broken query needs checking against a child who has
 attendance recorded.
 
-### 5. Still open from the 22 Aug sweeps
+### 3. Still open from the 22 Aug sweeps
 - The sidebar layout switch blanks the page for ~2s, then silently reverts; the
   second attempt works. A race, not polish.
 - "Reset appearance" is unguarded and incomplete: no confirmation, and it does
@@ -104,6 +139,10 @@ attendance recorded.
 | Unrounded percentages ("87.66325536062378%") | probe checks every screen for `\d+\.\d{4,}%` — 0 found |
 | The settings menu did nothing | dismiss handler now tests the portaled menu as well as its trigger |
 | Cards clipped or overflowing the board | 0 clipped cells measured; board bottom 793px inside a 900px viewport |
+| A teacher's screen showed invented data | probed live: 608 chars, "5 lessons on your timetable today", no fiction strings |
+| HR's "Mark attendance" landed on "That screen has moved" | the feature was renamed to `staff_register`; all 19 `/go/` links now resolve against the catalogue |
+| Demo accounts were all named "Demo institution_admin" | the seeder's upsert refreshed the password but never the name |
+| `/go/` dead end offered no way onward | now names search and the reader's own home screen |
 
 ---
 

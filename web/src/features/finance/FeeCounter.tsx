@@ -113,7 +113,20 @@ export default function FeeCounter() {
 
   const isCheque = mode === 'cheque' || mode === 'dd'
   const amountPaise = Math.round(parseFloat(amount || '0') * 100)
-  const canCollect = !!studentId && amountPaise > 0 && (!isCheque || reference.trim() !== '')
+  /* Why the button is dead, not merely that it is.
+
+     Three separate conditions disabled Collect and the clerk was told none of
+     them. At a fee counter that is a queue forming while somebody clicks a grey
+     button — and the likeliest cause is a cheque with no number typed, which
+     nothing on screen mentioned. */
+  const blocker = !studentId
+    ? 'Find a student first.'
+    : amountPaise <= 0
+      ? 'Enter an amount to collect.'
+      : isCheque && reference.trim() === ''
+        ? 'A cheque needs its number before it can be collected.'
+        : ''
+  const canCollect = blocker === ''
 
   return (
     <>
@@ -274,7 +287,15 @@ export default function FeeCounter() {
                     </p>
                   )}
 
-                  <Button type="submit" disabled={!canCollect || collect.isPending}>
+                  {blocker && (
+                    <p id="collect-blocker" className="text-[12.5px] text-muted-foreground">{blocker}</p>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={!canCollect || collect.isPending}
+                    aria-describedby={blocker ? 'collect-blocker' : undefined}
+                    title={blocker || undefined}
+                  >
                     <Banknote className="h-4 w-4" />
                     {collect.isPending ? 'Collecting…' : `Collect ${amountPaise ? formatPaise(amountPaise) : ''}`}
                   </Button>
