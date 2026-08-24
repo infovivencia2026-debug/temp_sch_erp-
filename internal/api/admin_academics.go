@@ -78,6 +78,13 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	// --- faculty allocation -------------------------------------------------
 	r.With(academics).Get("/admin/faculty-allocation", s.getFacultyAllocation)
 	r.With(academics).Post("/admin/faculty-allocation", s.setFacultyAllocation)
+	/* Make the published timetable agree with the allocation.
+
+	   The two tables drift, the allocation screen has a flag saying so, and
+	   nothing could act on it — leaving a teacher allocated three subjects but
+	   invisible to the substitution board and the clash checker, both of which
+	   read periods rather than allocations. */
+	r.With(academics).Post("/admin/faculty-allocation/apply", s.applyAllocationToTimetable)
 
 	// --- the substitution board ---------------------------------------------
 	r.With(timetable).Get("/admin/substitution-board", s.getSubstitutionBoard)

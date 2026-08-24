@@ -45,6 +45,7 @@ interface AllocationResponse {
 
 export default function FacultyAllocation() {
   const qc = useQueryClient()
+  const [applied, setApplied] = useState('')
   const [classId, setClassId] = useState('')
   const [gapsOnly, setGapsOnly] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>({})
@@ -106,6 +107,23 @@ export default function FacultyAllocation() {
       }),
     )
 
+  const differs = rows.filter((r) => r.timetable_differs).length
+  const apply = useMutation({
+    mutationFn: () =>
+      api.post<{ periods_reassigned: number; allocations_with_no_period: number }>(
+        '/api/v1/academics/admin/faculty-allocation/apply', {},
+      ),
+    onSuccess: (r) => {
+      setApplied(
+        `${r.periods_reassigned} periods now name the allocated teacher.` +
+          (r.allocations_with_no_period
+            ? ` ${r.allocations_with_no_period} allocations have no period to attach to — the timetable was never generated for those subjects.`
+            : ''),
+      )
+      qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
+    },
+  })
+
   return (
     <>
       <PageHead
@@ -117,10 +135,20 @@ export default function FacultyAllocation() {
             <Button disabled={save.isPending} onClick={commit}>
               Save {pending} change{pending === 1 ? '' : 's'}
             </Button>
+          ) : differs > 0 ? (
+            /* The flag existed and nothing could act on it, so a teacher
+               allocated a subject but never written into the timetable stayed
+               invisible to the substitution board and the clash checker —
+               both read periods, not allocations. */
+            <Button disabled={apply.isPending} onClick={() => apply.mutate()}>
+              {apply.isPending ? 'Updating…' : `Put these ${differs} on the timetable`}
+            </Button>
           ) : undefined
         }
       />
       <PageBody>
+        {applied && <FormNotice ok={applied} />}
+        {apply.error && <FormNotice error={apply.error} />}
         <CellGrid cols={4}>
           <Stat label="Subject slots" value={s?.slots ?? 0} icon={GraduationCap} />
           <Stat label="Allocated" value={s?.assigned ?? 0} icon={UserCheck} />
