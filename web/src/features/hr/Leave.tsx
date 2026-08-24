@@ -38,15 +38,31 @@ interface LeaveRow {
 export default function Leave() {
   const qc = useQueryClient()
   const can = useCan()
+  /* Which door somebody came through.
+   *
+   * One screen serves two jobs — deciding other people's leave, and taking
+   * your own — and it was always drawing the approver's. So "My Profile →
+   * Leave & self service" opened a page headed "Staff & student leave
+   * approvals", which is somebody else's work under a menu entry that
+   * promised your own. The feature in the URL says which was meant. */
+  const { featureSlug } = useParams()
+  const mine = featureSlug === 'leave_self_service'
+
   /* What you open on depends on why you are here.
    *
    * "Pending" is the right default for somebody who decides leave — the queue
    * is the job. It is the wrong default for everybody else: your own request
    * disappears from this screen the moment it is answered, which is exactly
    * when you came to look at it. An applicant opens on all statuses and sees
-   * their own history, decided or not. */
+   * their own history, decided or not.
+   *
+   * The test used to be the permission alone, and a principal holds it. So
+   * the principal's own "My leave" — the one screen on this route that is
+   * explicitly about them — opened filtered to Pending and showed an empty
+   * table, with "Approved 14" counted in a tile directly above it. The route
+   * decides it too now: your own record opens on your whole record. */
   const canDecide = can('hr.leave.approve')
-  const [status, setStatus] = useState(canDecide ? 'pending' : '')
+  const [status, setStatus] = useState(canDecide && !mine ? 'pending' : '')
   const [done, setDone] = useState('')
 
   /* Whose leave this screen is about.
@@ -58,16 +74,6 @@ export default function Leave() {
    * because they genuinely decide both from the same desk. */
   const workspace = useLocation().pathname.split('/')[1]
   const forWhom = workspace === 'hr' ? 'staff' : ''
-
-  /* Which door somebody came through.
-   *
-   * One screen serves two jobs — deciding other people's leave, and taking
-   * your own — and it was always drawing the approver's. So "My Profile →
-   * Leave & self service" opened a page headed "Staff & student leave
-   * approvals", which is somebody else's work under a menu entry that
-   * promised your own. The feature in the URL says which was meant. */
-  const { featureSlug } = useParams()
-  const mine = featureSlug === 'leave_self_service'
 
   const q = useQuery({
     queryKey: ['leave', status, forWhom],

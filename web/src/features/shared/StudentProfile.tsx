@@ -236,10 +236,12 @@ export default function StudentProfile() {
      the certificates screen and search for the child again is how an ERP
      turns a thirty-second job into a three-minute one.
 
-     The ones that are not built yet are shown disabled with the reason, rather
-     than hidden. A disabled control that explains itself tells you the product
-     knows what it is missing; an absent one just looks like you cannot get
-     there from here. */
+     Two different things used to be greyed out here and they are not the
+     same thing. An action this account lacks the permission for stays,
+     disabled, with the permission named beside it — somebody has to be able
+     to see what to ask for. An action nobody can perform because it is not
+     written yet is gone; "Not built yet" in a menu is our roadmap, printed
+     where a person was looking for a control. */
   const mayIssue = can('students.write')
   const issueGuardian = (g: Profile['guardians'][number]) => guardianLogin.mutate(g)
 
@@ -255,8 +257,10 @@ export default function StudentProfile() {
       disabledReason: 'Needs the certificates permission' },
     { label: 'Send message', onClick: () => go('announcements'),
       disabled: !can('comms.messages.send'), disabledReason: 'Needs the messaging permission' },
-    { label: 'Change section', onClick: () => go('promotion'),
-      disabled: true, disabledReason: 'Not built yet' },
+    /* "Change section" was here, permanently disabled with "Not built yet"
+       for its reason. A menu item that can never be clicked is not a control,
+       it is an announcement; it comes back when moving a child between
+       sections is something this screen can actually do. */
     /* The child's own way in. Nothing outside the demo seeder had ever given
        a student an account, so the whole student workspace was unreachable in
        a real school. The admission number becomes the username. */
@@ -449,34 +453,15 @@ export default function StudentProfile() {
         </Card>
       ),
     },
-    {
-      key: 'transport', label: 'Transport',
-      render: () => (
-        <Card>
-          <CardHeader title="Transport" />
-          <div className="p-6">
-            <EmptyState
-              title="Route allocation is not on this screen yet"
-              body="Transport allocations are held against the student, but the record tab that shows the route, stop and fee slab is not built."
-            />
-          </div>
-        </Card>
-      ),
-    },
-    {
-      key: 'communication', label: 'Communication',
-      render: () => (
-        <Card>
-          <CardHeader title="Messages and circulars" />
-          <div className="p-6">
-            <EmptyState
-              title="Not built yet"
-              body="What was sent to this family, and whether they acknowledged it, will appear here."
-            />
-          </div>
-        </Card>
-      ),
-    },
+    /* Transport and Communication used to be here, each one a tab that
+       opened on the words "Not built yet".
+
+       A tab is a promise that there is something behind it. Two of the eight
+       on the most-opened record in the product paid out an apology, so a
+       teacher checking which bus a child takes clicked, read that we had not
+       written it, and learned nothing about the child. Absent is honest;
+       present-and-empty is the screen wasting their click. They come back
+       when there is a route and a stop to put in them. */
     {
       key: 'history', label: 'History',
       render: () => (
@@ -487,12 +472,10 @@ export default function StudentProfile() {
             <Field k="Current status" v={p.status} />
             <Field k="Current class" v={cls} />
           </dl>
-          <div className="border-t px-5 py-4">
-            <p className="text-[13px] text-muted-foreground">
-              Year-on-year promotion history is recorded in <code>enrollments</code> but is not
-              surfaced here yet.
-            </p>
-          </div>
+          {/* The note that used to sit here named the `enrollments` table and
+              told the reader it was not surfaced yet. That is a line from our
+              backlog printed on a child's record; whoever needs it can read
+              this file. */}
         </Card>
       ),
     },
@@ -573,9 +556,26 @@ function Guardians({ p, onIssue }: { p: Profile; onIssue?: (g: Profile['guardian
             .sort((a, b) => rankRelation(a.relation) - rankRelation(b.relation))
             .map((g) => (
             <li key={g.full_name + g.phone} className="px-5 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[14px] font-medium">
+              {/* The name gets a floor, and the row is allowed to wrap.
+
+                  It was `min-w-0` with no basis, beside a `shrink-0` cluster
+                  holding a button, a phone number and an email address. In
+                  the two-column overview that cluster is wider than the card,
+                  so the name was left about eleven pixels and "Guardian of
+                  Aarav ADM0001" came down the card a letter at a time.
+
+                  flex-1 alone does not fix it — what is left over is still
+                  almost nothing. The name claims a 12rem basis and the row
+                  wraps, so when the two do not fit side by side the contacts
+                  drop to their own line instead of crushing the name. A
+                  viewport breakpoint would be the wrong instrument: this card
+                  is narrow because it is in a two-up grid, not because the
+                  window is. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                <div className="min-w-0 flex-1 basis-48">
+                  {/* gap-1.5 rather than nothing: the badge butted straight
+                      against the last character of the name. */}
+                  <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium">
                     {g.full_name}
                     {g.is_primary && <Badge tone="primary">primary</Badge>}
                   </p>
@@ -592,10 +592,19 @@ function Guardians({ p, onIssue }: { p: Profile; onIssue?: (g: Profile['guardian
                       <Phone className="h-3 w-3" />{g.phone}
                     </a>
                   )}
+                  {/* The address is the longest thing in the row and the
+                      least urgent, so it is the one that gives way: capped
+                      and truncated rather than pushing the name off the
+                      card. The full address is still on the link, and
+                      copying it copies all of it. */}
                   {g.email && (
-                    <a href={`mailto:${g.email}`} className="inline-flex items-center gap-1 text-primary">
-                      <Mail className="h-3 w-3" />
-                      {g.email}
+                    <a
+                      href={`mailto:${g.email}`}
+                      title={g.email}
+                      className="inline-flex min-w-0 max-w-[15rem] items-center gap-1 text-primary"
+                    >
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{g.email}</span>
                     </a>
                   )}
                 </div>

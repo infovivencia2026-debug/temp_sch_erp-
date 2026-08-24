@@ -130,6 +130,19 @@ export function RecordShell({
                         )}
                       >
                         {a.label}
+                        {/* The reason, printed rather than left on `title`.
+
+                            Four items, three of them greyed out and silent,
+                            reads as a broken menu; the explanation existed
+                            all along but only a mouse that hovered and
+                            waited ever saw it, and a keyboard never did. It
+                            stays on `title` as well, because a truncated
+                            reason is still worth a tooltip. */}
+                        {a.disabled && a.disabledReason && (
+                          <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground/70">
+                            {a.disabledReason}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

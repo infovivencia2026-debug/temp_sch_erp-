@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Klass, type Subject, type AcademicYear } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Loading, ErrorState } from '@/components/ui'
+import {
+  PageHead, PageBody, Card, Table, Td, Badge, Loading, ErrorState,
+} from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, cn } from '@/lib/utils'
 
 /* The academics reference tables are reached from several roles, so the tab is
@@ -20,6 +23,7 @@ const TAB_FOR: Record<string, string> = {
 
 export default function Academics() {
   const { featureSlug } = useParams()
+  const nav = useRouteFeature()
   const [tab, setTab] = useState<string | null>(null)
   const tabId = tab ?? TAB_FOR[featureSlug ?? ''] ?? 'sections'
   const tabs = [
@@ -29,28 +33,44 @@ export default function Academics() {
     { id: 'years', label: 'Academic years' },
   ]
 
+  /* The page band every other screen has, and this one did not.
+
+     Reached from five catalogue entries across four roles — Class Setup,
+     Academic structure, Sections, Subjects, Academic years — so the heading
+     is whatever the person actually clicked rather than one name that is
+     right on one route and wrong on the other four. Without it the screen
+     opened straight onto a card with no breadcrumb, no title and nothing
+     saying where in the product you had landed. */
   return (
-    <Card>
-      <CardHeader title="Academics" description="Reference data the rest of the system hangs off" />
-      <div className="flex gap-1 border-b px-3 pt-2">
-        {tabs.map((t: { id: string; label: string }) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'rounded-t-md px-3 py-1.5 text-sm',
-              t.id === tabId ? 'border-b-2 border-primary font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {tabId === 'sections' && <Sections />}
-      {tabId === 'classes' && <Classes />}
-      {tabId === 'subjects' && <Subjects />}
-      {tabId === 'years' && <Years />}
-    </Card>
+    <>
+      <PageHead
+        eyebrow={nav.section?.name}
+        title={nav.feature?.name ?? 'Academics'}
+        description="Reference data the rest of the system hangs off: sections, classes, subjects and the academic year."
+      />
+      <PageBody>
+        <Card>
+          <div className="flex gap-1 border-b px-3 pt-2">
+            {tabs.map((t: { id: string; label: string }) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'rounded-t-md px-3 py-1.5 text-sm',
+                  t.id === tabId ? 'border-b-2 border-primary font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tabId === 'sections' && <Sections />}
+          {tabId === 'classes' && <Classes />}
+          {tabId === 'subjects' && <Subjects />}
+          {tabId === 'years' && <Years />}
+        </Card>
+      </PageBody>
+    </>
   )
 }
 

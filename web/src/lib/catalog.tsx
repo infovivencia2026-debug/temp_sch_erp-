@@ -128,6 +128,34 @@ export function firstUsable(role: ApiRole | undefined) {
   return undefined
 }
 
+/* What the navigation called the thing you are looking at.
+
+   Screens name themselves in their own PageHead, and those names drifted from
+   the menu: a principal clicked "Certificates & transfers" under Students and
+   landed on a page whose breadcrumb read "Administration / Certificates".
+   Three different names for one screen — the one in the menu, the one in the
+   heading, and the one search matches on — and only the catalogue's is used by
+   anything other than the eye.
+
+   So a screen can ask what it was called. Deliberately exact and silent: no
+   falling back to the first feature of the section the way `useFeature` does,
+   because a wrong name confidently displayed is worse than the screen's own
+   hard-coded one. A component reached from several catalogue entries — and
+   most of these are — gets the right name for the entry that was opened,
+   which is something a literal string in the file cannot do.
+
+   Returns undefineds off a catalogue route (/account, an unknown role); the
+   caller keeps its own words for that case. */
+export function useRouteFeature(): { section?: ApiSection; feature?: ApiFeature } {
+  const { sectionSlug, featureSlug } = useParams()
+  const role = useActiveRole()
+  return useMemo(() => {
+    const section = role?.sections.find((s) => s.slug === sectionSlug)
+    const feature = section?.features.find((f) => f.slug === featureSlug)
+    return { section, feature }
+  }, [role, sectionSlug, featureSlug])
+}
+
 /** Looks up a feature across the active role by section + feature slug. */
 export function useFeature(sectionSlug?: string, featureSlug?: string) {
   const role = useActiveRole()

@@ -4,6 +4,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 import { formatPaise } from '@/lib/utils'
 
 /* Your own pay, without asking the office.
@@ -85,6 +86,7 @@ const label = (k: string) =>
 const TAX_WORDS = /\b(tax|tds|professional)\b/i
 
 export default function MyPay() {
+  const nav = useRouteFeature()
   const q = useQuery({ queryKey: ['my-pay'], queryFn: () => api.get<MyPay>('/api/v1/me/pay') })
 
   if (q.isLoading) return <Loading />
@@ -113,13 +115,18 @@ export default function MyPay() {
 
   return (
     <>
+      {/* A breadcrumb, and no employee code.
+
+          The subtitle used to end "· INSTITUTION_ADMIN-DEMO", which is a seed
+          identifier and reads to the person whose payslip this is as though
+          the school files them under a role name. Nobody checking their own
+          pay needs to be told which record they are; the one time the code
+          matters is when they are quoting it to the office, and it is on the
+          payslip itself. */}
       <PageHead
-        title="My pay"
-        description={
-          d.employee_code
-            ? `Your payslips, tax and attendance · ${d.employee_code}`
-            : 'Your payslips, tax and attendance'
-        }
+        eyebrow={nav.section?.name}
+        title={nav.feature?.name ?? 'My pay'}
+        description="Your payslips, tax and attendance. Only ever your own."
       />
       <PageBody>
         {d.note && <EmptyState title={d.note} />}
@@ -158,16 +165,22 @@ export default function MyPay() {
               title="Why your pay was reduced"
               description="Said in full, because a payslip that is short and does not say why is why people walk to the office."
             />
-            <ul className="space-y-2">
+            {/* Inset to the card's own gutter. The list carried no
+                horizontal padding at all, so the bullet in front of "2 late
+                arrivals recorded this month" sat outside the left border and
+                the sentence ran past the right one — the one paragraph on the
+                screen that is about money going missing, printed as though it
+                had fallen out of the card. */}
+            <ul className="space-y-2 px-5 py-4">
               {(d.deduction_reasons ?? []).map((r) => (
                 <li key={r.text} className="flex gap-2 text-[14px]">
                   <span className="text-muted-foreground">·</span>
-                  {r.text}
+                  <span className="min-w-0">{r.text}</span>
                 </li>
               ))}
             </ul>
             {latestLOP > 0 && (
-              <p className="mt-3 text-[13px] text-muted-foreground">
+              <p className="-mt-1 px-5 pb-4 text-[13px] text-muted-foreground">
                 That is {latestLOP} unpaid {latestLOP === 1 ? 'day' : 'days'} out of{' '}
                 {latest?.paid_days} paid. If you think a day is wrong, the register is what it
                 is taken from — ask HR to check that date rather than the payslip.

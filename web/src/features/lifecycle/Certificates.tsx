@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, Loading, ErrorState,
 } from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
 
 interface Cert {
@@ -22,6 +23,7 @@ const TYPES = [
 /** Certificates freeze a snapshot of the student at issue time, so an old TC
     keeps showing the class and dues it was issued with. */
 export default function Certificates() {
+  const nav = useRouteFeature()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [studentId, setStudentId] = useState('')
@@ -51,9 +53,18 @@ export default function Certificates() {
 
   return (
     <>
+      {/* The name in the menu, not a second name invented here.
+
+          A principal clicked "Certificates & transfers" under Students and
+          arrived at "Administration / Certificates" — a different section and
+          a different title, so nothing on the page confirmed they had landed
+          where they aimed. The catalogue is what the menu, the command
+          palette and search all read, which makes it the name that has to
+          win. Read per route rather than hard-coded, because this screen is
+          also reached from the registrar's own section under another name. */}
       <PageHead
-        eyebrow="Administration"
-        title="Certificates"
+        eyebrow={nav.section?.name ?? 'Students'}
+        title={nav.feature?.name ?? 'Certificates & transfers'}
         description="Issue bonafide, character and transfer certificates with a numbered serial and a frozen record snapshot."
       />
       <PageBody>

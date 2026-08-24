@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
   FormNotice, Input, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 
 /* The first job of the morning in every Indian school.
 
@@ -54,9 +55,36 @@ interface BoardResponse {
   }
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+/* Today where the school is, not today in Greenwich.
+
+   This was `new Date().toISOString().slice(0, 10)`, which is the UTC date.
+   Every browser west of Greenwich crosses into the next UTC day during the
+   working evening, so the screen a head teacher opens to see who is away
+   opened on tomorrow — a board with nobody absent on it, because tomorrow's
+   register has not been marked. Built from the local parts instead, which is
+   the same date the person is standing in. */
+const today = () => {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/* The date said in words beside the picker.
+
+   `<input type="date">` prints in the browser's locale and nothing on the
+   page can change that, so an Indian school on a browser set to US English
+   reads 08/24/2026 and has to work out which half is the month. The input
+   keeps the native picker and its keyboard; the words say which day it is. */
+const spellDate = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return ''
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  })
+}
 
 export default function SubstitutionBoard() {
+  const nav = useRouteFeature()
   const qc = useQueryClient()
   const [onDate, setOnDate] = useState(today())
 
@@ -93,11 +121,20 @@ export default function SubstitutionBoard() {
   return (
     <>
       <PageHead
-        eyebrow="Academics"
-        title="Substitution board"
+        eyebrow={nav.section?.name ?? 'Academics'}
+        title={nav.feature?.name ?? 'Substitutions'}
         description="Who is absent, the periods that leaves open, and the staff actually free to take them."
         actions={
-          <Input type="date" value={onDate} onChange={setOnDate} className="w-44" />
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={onDate}
+              onChange={setOnDate}
+              aria-label="Board date"
+              className="w-44"
+            />
+            <span className="text-[13px] text-muted-foreground">{spellDate(onDate)}</span>
+          </div>
         }
       />
       <PageBody>

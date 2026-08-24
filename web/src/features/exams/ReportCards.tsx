@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 
 /* One report card, for everybody who has to look at one.
  *
@@ -55,6 +56,7 @@ interface Readiness {
 }
 
 export default function ReportCards() {
+  const nav = useRouteFeature()
   const qc = useQueryClient()
   const [sectionId, setSectionId] = useState('')
   const [examId, setExamId] = useState('')
@@ -139,9 +141,15 @@ export default function ReportCards() {
 
   return (
     <>
+      {/* Two catalogue entries open this screen — "Academic Performance"
+          under Students, and "Exams & results" under Examinations — and it
+          announced itself as "Examinations / Report cards" whichever one you
+          came through. Whoever clicked from Students had every word on the
+          band disagree with the word they clicked. The catalogue answers per
+          route, so both are right now. */}
       <PageHead
-        eyebrow="Examinations"
-        title="Report cards"
+        eyebrow={nav.section?.name ?? 'Examinations'}
+        title={nav.feature?.name ?? 'Report cards'}
         description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the family."
         actions={
           <>

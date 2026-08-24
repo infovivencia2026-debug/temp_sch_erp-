@@ -191,29 +191,93 @@ export function UnavailableState({
    showed a fourth, empty, lit cell that looked like a card that had failed to
    load.
 
-   So the count of real children decides the width. Three stats make three
-   columns and the row ends where the content ends; four still make four. The
-   ceiling is kept because a row of six should wrap rather than shrink to six
-   unreadable columns.
+   Counting the children fixed that for a short row and not for a long one:
+   five stats in a four-track grid still left three unlit boxes on the second
+   row, and four stats at tablet width — three tracks — left one. Every page
+   in the product with four or five figures on it was shipping that hole.
 
-   Children are counted with Children.count rather than by asking the caller,
-   because callers pass conditionals — {money && <Stat/>} — and the honest
-   number is the one after those have resolved. toArray drops the nulls and
-   booleans those produce, which count() alone would include. */
+   So the track count is now chosen per breakpoint as a divisor of the number
+   of cells, and where the count is prime the last cell is widened to close
+   the row instead. Either way the grid ends on a full row and there is never
+   a lit track with nothing in it.
+
+   Children are counted with Children.toArray rather than by asking the
+   caller, because callers pass conditionals — {money && <Stat/>} — and the
+   honest number is the one after those have resolved. toArray drops the nulls
+   and booleans those produce, which count() alone would include. */
+
+type Bp = 'sm' | 'md' | 'xl'
+
+/* Written out rather than composed, because Tailwind reads this file as text:
+   a class name assembled at runtime is a class name that never gets built. */
+const TRACKS: Record<Bp, Record<number, string>> = {
+  sm: { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5', 6: 'sm:grid-cols-6' },
+  md: { 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-5', 6: 'md:grid-cols-6' },
+  xl: { 1: 'xl:grid-cols-1', 2: 'xl:grid-cols-2', 3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6' },
+}
+/* Every breakpoint states its span, including a span of one.
+
+   Breakpoints are min-widths, so a `sm:col-span-2` written for the tablet row
+   is still in force on a desktop unless a wider rule says otherwise. Leaving
+   the wide breakpoints silent left the last cell double-width in a row that
+   no longer needed closing — which is how a five-track row came out with four
+   tiles in it and a lit gap on the end, the exact defect this is here to
+   remove. Each breakpoint overrides the one below it. */
+const SPAN: Record<Bp, Record<number, string>> = {
+  sm: { 1: 'sm:col-span-1', 2: 'sm:col-span-2', 3: 'sm:col-span-3', 4: 'sm:col-span-4', 5: 'sm:col-span-5', 6: 'sm:col-span-6' },
+  md: { 1: 'md:col-span-1', 2: 'md:col-span-2', 3: 'md:col-span-3', 4: 'md:col-span-4', 5: 'md:col-span-5', 6: 'md:col-span-6' },
+  xl: { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 3: 'xl:col-span-3', 4: 'xl:col-span-4', 5: 'xl:col-span-5', 6: 'xl:col-span-6' },
+}
+
+/* How many tracks to open at one breakpoint.
+
+   A divisor of the cell count first, widest one that fits, because a row that
+   divides is a grid with no seam in it. Failing that — five cells, four
+   tracks — one row of everything, but only where the tracks stay wide enough
+   to hold a 28px number, which is the widest breakpoint and nowhere else.
+   Otherwise the ceiling stands and the last cell is widened to close the row. */
+function tracksFor(filled: number, ceiling: number, oneRowOk: boolean) {
+  const top = Math.min(ceiling, filled)
+  for (let n = top; n >= 2; n--) if (filled % n === 0) return n
+  if (oneRowOk && filled <= ceiling + 1) return filled
+  return Math.max(1, top)
+}
+
 export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: ReactNode }) {
-  const filled = Children.toArray(children).length
-  const wide = Math.min(cols, Math.max(1, filled))
+  const kids = Children.toArray(children)
+  const filled = kids.length
+  if (filled === 0) return null
+
+  const grid: string[] = []
+  const span: string[] = []
+  let widest = 1
+  const plan: [Bp, number, boolean][] = [
+    ['sm', 2, false],
+    ['md', 3, false],
+    ['xl', cols, true],
+  ]
+  for (const [bp, ceiling, oneRowOk] of plan) {
+    const n = tracksFor(filled, ceiling, oneRowOk)
+    grid.push(TRACKS[bp][n])
+    // The remainder is what the last row is short by; widening the final cell
+    // by that much lands it exactly on the right-hand edge.
+    const rest = filled % n
+    const wide = rest === 0 ? 1 : n - rest + 1
+    widest = Math.max(widest, wide)
+    span.push(SPAN[bp][wide])
+  }
+
+  const last = kids[filled - 1]
+  const closes = widest > 1
+
   return (
-    <div
-      className={cn(
-        'cell-grid reveal grid-cols-1 sm:grid-cols-2',
-        wide === 1 && 'sm:grid-cols-1',
-        wide === 2 && 'md:grid-cols-2',
-        wide === 3 && 'md:grid-cols-3',
-        wide >= 4 && 'md:grid-cols-3 xl:grid-cols-4',
+    <div className={cn('cell-grid reveal grid-cols-1', ...grid)}>
+      {closes ? kids.slice(0, -1) : kids}
+      {closes && (
+        /* A grid wrapper, not a plain one: the cell inside has to stretch to
+           the row's height or the widened tile comes out short. */
+        <div className={cn('grid', ...span)}>{last}</div>
       )}
-    >
-      {children}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Image, ShieldCheck, Trophy } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -94,6 +94,25 @@ export default function AchievementsShowcase() {
   const [consent, setConsent] = useState('signed_consent_form')
   const [media, setMedia] = useState({ external_url: '', caption: '' })
 
+  /* The child the entry is about, found by name.
+
+     Two letters before anything is asked of the server, and the same
+     /api/v1/students search the certificate counter uses, so the two screens
+     that identify a child identify them the same way. */
+  const [studentSearch, setStudentSearch] = useState('')
+  const studentHits = useQuery({
+    queryKey: ['achievement-student-search', studentSearch],
+    queryFn: () =>
+      api.get<Page<Student>>(
+        `/api/v1/students?q=${encodeURIComponent(studentSearch)}&limit=10`,
+      ),
+    enabled: studentSearch.trim().length >= 2,
+  })
+  /* Held rather than looked back up: choosing a child rewrites the search box
+     to their name, which changes the query key, so the list that contained
+     them is not necessarily the list in hand a moment later. */
+  const [picked, setPicked] = useState<Student | null>(null)
+
   /* Opening another achievement resets the consent basis and the media box.
 
      Both were held here against an id, so the basis chosen for one child —
@@ -140,6 +159,11 @@ export default function AchievementsShowcase() {
       }),
     onSuccess: (r) => {
       setForm(blank)
+      // The search box holds the last child's name; blank resets the id under
+      // it, and leaving the two disagreeing is how the next entry gets filed
+      // against the wrong child.
+      setStudentSearch('')
+      setPicked(null)
       openEntry(r.id)
       refresh()
     },
@@ -212,11 +236,47 @@ export default function AchievementsShowcase() {
             />
             <div className="space-y-4 p-5">
               <FormGrid>
-                <Field label="Student id" required hint="The child's uuid from the students register">
+                {/* The child, chosen by name.
+
+                    This asked for "Student id — the child's uuid from the
+                    students register". Nobody in a school office knows a
+                    uuid, and there is no screen in the product that shows
+                    one, so recording that a child won the 400m meant a
+                    database query first. Same search-and-pick the certificate
+                    counter uses: type two letters of the name or the
+                    admission number, click the child. The id still goes to
+                    the API; it just stops being the clerk's problem. */}
+                <Field
+                  label="Student"
+                  required
+                  hint={picked ? `${picked.full_name} · ${picked.admission_no}` : 'Search by name or admission number'}
+                >
                   <Input
-                    value={form.student_id}
-                    onChange={(v) => setForm({ ...form, student_id: v })}
+                    value={studentSearch}
+                    onChange={(v) => { setStudentSearch(v); setPicked(null); setForm({ ...form, student_id: '' }) }}
+                    placeholder="Search by name or admission no."
                   />
+                  {studentSearch.trim().length >= 2 && !form.student_id && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(studentHits.data?.items ?? []).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setForm({ ...form, student_id: s.id })
+                            setPicked(s)
+                            setStudentSearch(`${s.full_name} · ${s.admission_no}`)
+                          }}
+                          className="rounded-md border px-2 py-1 text-[13px] hover:bg-accent"
+                        >
+                          {s.full_name} · {s.admission_no}
+                        </button>
+                      ))}
+                      {studentHits.isFetched && !(studentHits.data?.items ?? []).length && (
+                        <p className="text-[13px] text-muted-foreground">Nobody by that name.</p>
+                      )}
+                    </div>
+                  )}
                 </Field>
                 <Field label="Title" required>
                   <Input

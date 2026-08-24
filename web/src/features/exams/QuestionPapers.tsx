@@ -6,6 +6,7 @@ import {
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import { useRouteFeature } from '@/lib/catalog'
 import { formatDate } from '@/lib/utils'
 
 /* The paper, read before it is printed.
@@ -60,6 +61,7 @@ const STATUS: Record<Paper['status'], { label: string; tone: 'neutral' | 'warnin
 }
 
 export default function QuestionPapers() {
+  const nav = useRouteFeature()
   const qc = useQueryClient()
   const [done, setDone] = useState('')
   const [returning, setReturning] = useState<string | null>(null)
@@ -126,8 +128,14 @@ export default function QuestionPapers() {
 
   return (
     <>
+      {/* The breadcrumb the rest of the product has. Every other screen opens
+          with "section / page" above its title; this one opened with the
+          title alone, so the one screen a head of department reaches from
+          two different menus never said which menu it was under. Taken from
+          the catalogue, which is also what the menu and the search read. */}
       <PageHead
-        title="Question papers"
+        eyebrow={nav.section?.name}
+        title={nav.feature?.name ?? 'Question papers'}
         description={
           d.decides
             ? d.whole_school

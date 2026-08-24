@@ -4,6 +4,7 @@ import { useCatalog, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { bentoComponentFor } from './bento-registry'
 import { recordRecent } from '@/lib/recents'
+import { cn } from '@/lib/utils'
 
 /* The routing seam.
    ─────────────────────────────────────────────────────────────────────────
@@ -123,12 +124,15 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
     if (layout === 'bento' && key) recordRecent(key)
   }, [layout, key])
 
+  /* Resolved once, because two things need the answer: what to render, and
+     whether what renders is a board. A board is measured to the window and
+     must not scroll; a classic screen is as tall as its table and must. */
+  const Screen = layout === 'bento' && key ? bentoComponentFor(key) : undefined
+
   const inner = (() => {
-    if (layout !== 'bento' || !key) return <>{children}</>
-    const Screen = bentoComponentFor(key)
     if (!Screen) return <>{children}</>
     return (
-      <BentoBoundary resetKey={key} fallback={<>{children}</>}>
+      <BentoBoundary resetKey={key ?? ''} fallback={<>{children}</>}>
         {/* A quiet placeholder while the Bento chunk loads — not the classic
             screen, which would mount every one of its queries only to be
             thrown away a frame later. */}
@@ -162,8 +166,19 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
          padding, made visible.
 
          min-h-dvh so a short screen is one colour to the bottom of the window
-         rather than to the bottom of its content. */
-      className="bento-ground h-dvh flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed overflow-hidden"
+         rather than to the bottom of its content.
+
+         A board is pinned to the window — h-dvh, nothing spilling — because
+         its rows are sized against that height. A classic screen falling
+         through here is not: it is a page-head and a table of whatever length
+         the school has, and holding it to one screen with overflow hidden
+         simply cut it off. The defaulters list stopped at the eleventh row
+         with no way to reach the twelfth. So it gets a floor, not a ceiling,
+         and scrolls in the shell's own work area. */
+      className={cn(
+        'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
+        Screen ? 'h-dvh overflow-hidden' : 'min-h-dvh',
+      )}
     >
       {/* The room around the board.
 
@@ -175,8 +190,14 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
 
           The board is measured for its height AFTER this padding is applied,
           so giving it more room here costs card height rather than pushing
-          anything off screen. */}
-      <div className="flex-1 w-full pt-6 pb-[72px] px-3 sm:px-4 lg:px-5 flex flex-col">
+          anything off screen.
+
+          The bottom allowance was the dock's own height written out as 72px,
+          which is the number the dock would need if it sat on the floor. It
+          floats 24px above it, so the last row of every table ended up under
+          the pill. Taken from --bento-dock — the token the dock is sized from,
+          so the two cannot drift — plus the clearance it floats by. */}
+      <div className="flex-1 w-full pt-6 pb-[calc(var(--bento-dock)+2.5rem)] px-3 sm:px-4 lg:px-5 flex flex-col">
         {inner}
       </div>
     </div>

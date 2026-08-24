@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
   Input, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useRouteFeature } from '@/lib/catalog'
 import { formatDate } from '@/lib/utils'
 
 /* Marks, read a paper at a time.
@@ -48,6 +49,7 @@ interface Row {
 }
 
 export default function MarkModeration() {
+  const nav = useRouteFeature()
   const qc = useQueryClient()
   const [openRow, setOpenRow] = useState<string | null>(null)
   const [adjustment, setAdjustment] = useState('0')
@@ -82,8 +84,11 @@ export default function MarkModeration() {
 
   return (
     <>
+      {/* The breadcrumb every other screen carries, from the catalogue —
+          which is also the name in the menu and the name search matches. */}
       <PageHead
-        title="Mark moderation"
+        eyebrow={nav.section?.name}
+        title={nav.feature?.name ?? 'Mark moderation'}
         description={
           d.whole_school
             ? 'Every paper in the school that has marks entered.'
