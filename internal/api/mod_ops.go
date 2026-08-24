@@ -1035,6 +1035,10 @@ type payslipRow struct {
 	Net          int64  `json:"net_paise"`
 	Breakup      any    `json:"breakup"`
 	RunStatus    string `json:"run_status"`
+	// Whether the staff have been told, which "paid" does not say. Without it
+	// the screen offered "Publish payslips" on a month already published, and
+	// twelve people get notified twice.
+	Published bool `json:"published"`
 }
 
 func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
@@ -1044,7 +1048,7 @@ func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 		       ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup,
 		       -- The month's state travels with the rows so the screen can
 		       -- offer the right next step rather than every step at once.
-		       pr.status
+		       pr.status, pr.published_at IS NOT NULL
 		  FROM payslips ps
 		  JOIN employees e ON e.id = ps.employee_id
 		  JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
@@ -1055,7 +1059,7 @@ func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (payslipRow, error) {
 			var v payslipRow
 			return v, rows.Scan(&v.EmployeeCode, &v.FullName, &v.PaidDays, &v.LOPDays,
-				&v.Gross, &v.Deduction, &v.Net, &v.Breakup, &v.RunStatus)
+				&v.Gross, &v.Deduction, &v.Net, &v.Breakup, &v.RunStatus, &v.Published)
 		})
 	respond(w, r, items, err)
 }

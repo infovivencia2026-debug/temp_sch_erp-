@@ -9,6 +9,7 @@ import { formatPaise } from '@/lib/utils'
 
 interface Payslip {
   run_status?: string
+  published?: boolean
   employee_code: string; full_name: string
   paid_days: string; lop_days: string
   gross_paise: number; deduction_paise: number; net_paise: number
@@ -41,14 +42,14 @@ export default function Payroll() {
    * Only the next step is offered. A row of four buttons where three are wrong
    * is a row of three chances to do the wrong one. */
   const [note, setNote] = useState('')
-  /* Published is not a state the run carries.
+  /* The immediate answer, until the refetch brings the recorded one.
    *
-   * There are four statuses and 'published' is not one of them — publishing is
-   * an act, not a stage, so the row stays 'paid' afterwards. That left the card
-   * still headed "Paid" and still offering Publish, which invites somebody to
-   * send every teacher a second notification about the same payslip. The act
-   * is remembered here for the rest of the visit, which is as long as the
-   * question "did I already publish this?" is being asked. */
+   * Publishing is an act rather than a stage — the run stays 'paid', because
+   * paying is what happened to the money and publishing is what happened to
+   * the people. Remembering it only here was the bug: reload the page and a
+   * month whose staff had all been notified and emailed read "Paid" again,
+   * over a Publish button. payroll_runs.published_at now records it, and this
+   * only covers the moment between the click and the list coming back. */
   const [publishedNow, setPublishedNow] = useState('')
   const state = useMutation({
     mutationFn: (to: 'locked' | 'paid' | 'published' | 'draft') =>
@@ -102,6 +103,19 @@ export default function Payroll() {
 
   const rows = slips.data?.items ?? []
   const status = rows[0]?.run_status ?? ''
+
+  /* Whether the staff have been told, asked of the server rather than
+     remembered.
+
+     publishedNow was local state, so it knew only about a publish that had
+     happened in this tab since it loaded. Reload the page and August — twelve
+     people already notified and emailed — read "Paid" again, over a "Publish
+     payslips" button. The only way to know it was done was to remember doing
+     it, and the cost of forgetting is telling twelve people twice.
+
+     publishedNow stays as the immediate answer, because the list is refetched
+     after the mutation and the two would otherwise disagree for a moment. */
+  const published = rows[0]?.published === true || publishedNow === `${month}-${year}`
   const locked = status === 'locked' || status === 'paid'
   const gross = rows.reduce((a, r) => a + r.gross_paise, 0)
   const ded = rows.reduce((a, r) => a + r.deduction_paise, 0)
@@ -170,7 +184,7 @@ export default function Payroll() {
           <Card>
             <CardHeader
               title={
-                publishedNow === `${month}-${year}`
+                published
                   ? 'Published'
                   : status === 'paid'
                     ? 'Paid'
@@ -179,7 +193,7 @@ export default function Payroll() {
                     : 'Draft — nobody has approved these figures yet'
               }
               description={
-                publishedNow === `${month}-${year}`
+                published
                   ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
                   : status === 'paid'
                   ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
@@ -214,12 +228,12 @@ export default function Payroll() {
                       </Button>
                     </>
                   )}
-                  {status === 'paid' && publishedNow !== `${month}-${year}` && (
+                  {status === 'paid' && !published && (
                     <Button disabled={state.isPending} onClick={() => state.mutate('published')}>
                       Publish payslips
                     </Button>
                   )}
-                  {publishedNow === `${month}-${year}` && (
+                  {published && (
                     <span className="text-[13px] text-success">Payslips published.</span>
                   )}
                 </div>
