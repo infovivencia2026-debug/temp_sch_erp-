@@ -3,7 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
-  CornerDownLeft, LayoutGrid, House,
+  CornerDownLeft, House,
+  Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard,
+  FileCheck2, FolderTree, Handshake, Inbox, KeyRound, Landmark,
+  LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
+  Wrench,
 } from 'lucide-react'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
@@ -55,11 +59,59 @@ const WORKSPACE_ICON: Record<string, typeof Home> = {
   Transport: Bus,
   Timetable: CalendarDays,
   Stores: Boxes,
+
+  /* THE OTHER THIRTY-TWO.
+
+     Everything absent from this map fell through to LayoutGrid — the same
+     glyph the "All features" button uses — so 32 of the catalogue's 41
+     workspaces drew the identical icon, and My Profile was indistinguishable
+     from All features sitting next to it in the dock. A row of identical marks
+     is not an icon set; it is decoration that costs a click to disambiguate.
+
+     Each of these is the thing the workspace is ABOUT rather than a shape that
+     happened to be free — a reader learns "money is a banknote" once and it
+     holds across Accounts, Payroll and Campus Money. */
+  Admissions: Handshake,
+  'Front Desk': Handshake,
+  Assessments: FileCheck2,
+  'Attendance & Leave': CalendarCheck,
+  Accounts: Landmark,
+  'Banking & Reports': Landmark,
+  'Campus Money': Banknote,
+  Payroll: Banknote,
+  'Subscriptions & Billing': CreditCard,
+  Entitlements: KeyRound,
+  'Access & Security': KeyRound,
+  'AI & Automation': Bot,
+  Customers: Building2,
+  Dashboard: BarChart3,
+  'Department Workspace': FolderTree,
+  Employees: Users,
+  People: Users,
+  Library: LibraryBig,
+  'My Child': GraduationCap,
+  School: Building2,
+  'My Classes': Presentation,
+  Teaching: Presentation,
+  'My Profile': CircleUser,
+  Profile: CircleUser,
+  'My Work': Inbox,
+  Requests: ListChecks,
+  'Institution Setup': Wrench,
+  'Platform Setup': Server,
+  'Platform Configuration': Server,
+  Support: LifeBuoy,
+  'Usage & Health': Activity,
   Setup: Settings2,
 }
 
 export function markFor(workspace: string) {
-  return WORKSPACE_ICON[workspace] ?? LayoutGrid
+  /* The fallback is deliberately NOT LayoutGrid.
+
+     That is the All-features glyph, so anything unmapped used to be a perfect
+     copy of the button beside it. A workspace nobody has thought about should
+     look unremarkable, not look like something else. */
+  return WORKSPACE_ICON[workspace] ?? Sparkle
 }
 
 /* Colour by ERP domain, not by launcher category.
