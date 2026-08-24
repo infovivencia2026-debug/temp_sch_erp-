@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 336 features. */
+/** 12 roles, 334 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -725,13 +725,11 @@ export const ROLES: Role[] = [
         name: 'Applications',
         workspace: 'Admissions',
         features: [
-          { key: 'admissions.applications.applications', slug: 'applications', name: 'Applications', scope: 'institution', tier: 'core', summary: 'Create/review applications and track status.' },
-          { key: 'admissions.applications.online_application_form_builder', slug: 'online_application_form_builder', name: 'Online Application Form Builder', scope: 'institution', tier: 'core', summary: 'Configure custom digital admission application forms with file upload rules and field validation.' },
-          { key: 'admissions.applications.applicant_documents', slug: 'applicant_documents', name: 'Applicant documents', scope: 'institution', tier: 'core', summary: 'Collect and verify required admission documents.' },
-          { key: 'admissions.applications.entrance_exam_scheduling', slug: 'entrance_exam_scheduling', name: 'Entrance Exam Scheduling', scope: 'institution', tier: 'core', summary: 'Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks.' },
-          { key: 'admissions.applications.interview_interaction_scheduler', slug: 'interview_interaction_scheduler', name: 'Interview & Interaction Scheduler', scope: 'institution', tier: 'core', summary: 'Book interview slots for parents/students with principal/management and record scores.' },
-          { key: 'admissions.applications.applicant_medical_fitness_declaration', slug: 'applicant_medical_fitness_declaration', name: 'Applicant Medical Fitness Declaration', scope: 'institution', tier: 'advanced', summary: 'Collect applicant medical history, vaccination certificates, and physical fitness approvals.' },
-          { key: 'admissions.applications.foreign_nri_student_visa_documentation', slug: 'foreign_nri_student_visa_documentation', name: 'Foreign / NRI Student Visa Documentation', scope: 'institution', tier: 'advanced', summary: 'Track passport details, student visa status, and embassy NOCs for international applicants.' },
+          { key: 'admissions.applications.all_applications', slug: 'all_applications', name: 'All applications', scope: 'institution', tier: 'core', summary: 'Every application the school has received and where each one has got to on the ladder: submitted, under review, documents pending, tested, interviewed, offered, accepted.' },
+          { key: 'admissions.applications.document_check', slug: 'document_check', name: 'Document check', scope: 'institution', tier: 'core', summary: 'Applications waiting on paperwork — which document each is missing, and marking one verified as it arrives.' },
+          { key: 'admissions.applications.entrance_exams', slug: 'entrance_exams', name: 'Entrance exams', scope: 'institution', tier: 'core', summary: 'Applicants due to sit the entrance test: book the date, record the score, and move them on to the interview.' },
+          { key: 'admissions.applications.interviews', slug: 'interviews', name: 'Interviews', scope: 'institution', tier: 'core', summary: 'Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome.' },
+          { key: 'admissions.applications.approvals_queue', slug: 'approvals_queue', name: 'Approvals queue', scope: 'institution', tier: 'core', summary: 'Applications sitting at a stage that needs a decision — submitted or under review — oldest first. The work, rather than the archive.' },
         ],
       },
       {

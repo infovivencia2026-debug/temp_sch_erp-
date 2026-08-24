@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 336 features.
+// Roles is the catalog: 12 roles, 334 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -772,13 +772,11 @@ var Roles = []Role{
 				Name: "Applications",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.applications.applications", Slug: "applications", Name: "Applications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Create/review applications and track status."},
-					{Key: "admissions.applications.online_application_form_builder", Slug: "online_application_form_builder", Name: "Online Application Form Builder", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Configure custom digital admission application forms with file upload rules and field validation."},
-					{Key: "admissions.applications.applicant_documents", Slug: "applicant_documents", Name: "Applicant documents", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collect and verify required admission documents."},
-					{Key: "admissions.applications.entrance_exam_scheduling", Slug: "entrance_exam_scheduling", Name: "Entrance Exam Scheduling", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks."},
-					{Key: "admissions.applications.interview_interaction_scheduler", Slug: "interview_interaction_scheduler", Name: "Interview & Interaction Scheduler", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Book interview slots for parents/students with principal/management and record scores."},
-					{Key: "admissions.applications.applicant_medical_fitness_declaration", Slug: "applicant_medical_fitness_declaration", Name: "Applicant Medical Fitness Declaration", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Collect applicant medical history, vaccination certificates, and physical fitness approvals."},
-					{Key: "admissions.applications.foreign_nri_student_visa_documentation", Slug: "foreign_nri_student_visa_documentation", Name: "Foreign / NRI Student Visa Documentation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Track passport details, student visa status, and embassy NOCs for international applicants."},
+					{Key: "admissions.applications.all_applications", Slug: "all_applications", Name: "All applications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every application the school has received and where each one has got to on the ladder: submitted, under review, documents pending, tested, interviewed, offered, accepted."},
+					{Key: "admissions.applications.document_check", Slug: "document_check", Name: "Document check", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications waiting on paperwork — which document each is missing, and marking one verified as it arrives."},
+					{Key: "admissions.applications.entrance_exams", Slug: "entrance_exams", Name: "Entrance exams", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due to sit the entrance test: book the date, record the score, and move them on to the interview."},
+					{Key: "admissions.applications.interviews", Slug: "interviews", Name: "Interviews", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome."},
+					{Key: "admissions.applications.approvals_queue", Slug: "approvals_queue", Name: "Approvals queue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications sitting at a stage that needs a decision — submitted or under review — oldest first. The work, rather than the archive."},
 				},
 			},
 			{

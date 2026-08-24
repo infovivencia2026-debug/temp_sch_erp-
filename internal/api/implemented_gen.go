@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 341 of the catalog's features are implemented.
+// 339 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.aadhaar_apaar_capture_at_admission":                       true,
 	"admissions.admissions.admission_fee_collection":                                 true,
@@ -23,13 +23,11 @@ var implementedFeatures = map[string]bool{
 	"admissions.admissions.seat_allocation_management":                               true,
 	"admissions.admissions.sibling_priority_auto_matching":                           true,
 	"admissions.admissions.transfer_certificate_intake":                              true,
-	"admissions.applications.applicant_documents":                                    true,
-	"admissions.applications.applicant_medical_fitness_declaration":                  true,
-	"admissions.applications.applications":                                           true,
-	"admissions.applications.entrance_exam_scheduling":                               true,
-	"admissions.applications.foreign_nri_student_visa_documentation":                 true,
-	"admissions.applications.interview_interaction_scheduler":                        true,
-	"admissions.applications.online_application_form_builder":                        true,
+	"admissions.applications.all_applications":                                       true,
+	"admissions.applications.approvals_queue":                                        true,
+	"admissions.applications.document_check":                                         true,
+	"admissions.applications.entrance_exams":                                         true,
+	"admissions.applications.interviews":                                             true,
 	"admissions.communication.applicant_communication":                               true,
 	"admissions.enquiries.all_leads":                                                 true,
 	"admissions.enquiries.events_visits":                                             true,

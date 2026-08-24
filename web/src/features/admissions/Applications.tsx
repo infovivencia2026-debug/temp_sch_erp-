@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section } from '@/lib/api'
 import {
@@ -44,13 +45,49 @@ function stageIndex(status: string) {
   return LADDER.indexOf(status)
 }
 
+/* Five entries, five stages of one ladder.
+ *
+ * All applications, Document check, Entrance exams, Interviews and the
+ * approvals queue are the same screen — because an application is one thing
+ * that moves, and splitting it into five screens would mean five copies of the
+ * same row and a decision button on each. What differs is where each entry
+ * lands: the stage that entry is about.
+ *
+ * Without that they were five names for one unfiltered list, which is how a
+ * menu grows entries that lead nowhere new. A person who clicks "Document
+ * check" has already told you what they want to see.
+ */
+const OPENS_ON: Record<string, string> = {
+  document_check: 'documents_pending',
+  entrance_exams: 'test_scheduled',
+  interviews: 'interviewed',
+  approvals_queue: 'under_review',
+}
+
+const TITLES: Record<string, [string, string]> = {
+  document_check: ['Document check',
+    'Applications waiting on paperwork. Mark a document verified as it arrives.'],
+  entrance_exams: ['Entrance exams',
+    'Applicants due to sit the test: book the date, then record the score.'],
+  interviews: ['Interviews',
+    'Applicants due an interview: book the slot, then record what was said.'],
+  approvals_queue: ['Approvals queue',
+    'Applications sitting at a stage that needs a decision. The work, rather than the archive.'],
+}
+
 export default function Applications() {
+  const { featureSlug } = useParams()
+  const [title, description] = TITLES[featureSlug ?? ''] ?? [
+    'Applications',
+    'Every application and where it has got to on the ladder.',
+  ]
+
   const qc = useQueryClient()
   const can = useCan()
   const mayWrite = can('admissions.write')
   const mayEnrol = can('students.write')
 
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(OPENS_ON[featureSlug ?? ''] ?? '')
   const [open, setOpen] = useState<Application | null>(null)
   const [remarks, setRemarks] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
@@ -128,8 +165,8 @@ export default function Applications() {
     <>
       <PageHead
         eyebrow="Admissions"
-        title="Applications"
-        description="Every applicant, where they have got to, and the one step that comes next."
+        title={title}
+        description={description}
       />
       <PageBody>
         <CellGrid cols={4}>

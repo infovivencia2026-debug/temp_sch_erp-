@@ -165,8 +165,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.aadhaar_apaar_capture_at_admission': lazy(() => import('./admissions/Funnel')),
   'admissions.admissions.admission_fee_collection': lazy(() => import('./admissions/Funnel')),
   'admissions.communication.applicant_communication': lazy(() => import('./admissions/Funnel')),
-  'admissions.applications.applicant_medical_fitness_declaration': lazy(() => import('./admissions/Funnel')),
-  'admissions.applications.foreign_nri_student_visa_documentation': lazy(() => import('./admissions/Funnel')),
 
   'admissions.visitors.visitor_gate_pass_generation': lazy(() => import('./admissions/FrontDesk')),
   'admissions.visitors.visitor_checkout_tracking': lazy(() => import('./admissions/FrontDesk')),
@@ -343,10 +341,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      existed for this and only the list had a caller, so an application could
      be taken and never moved. Distinct from Pipeline, which is merit ranking
      and seat matrix -- a different question about the same applicants. */
-  'admissions.applications.applications': lazy(() => import('./admissions/Applications')),
-  'admissions.applications.applicant_documents': lazy(() => import('./admissions/Applications')),
-  'admissions.applications.entrance_exam_scheduling': lazy(() => import('./admissions/Applications')),
-  'admissions.applications.interview_interaction_scheduler': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.all_applications': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.approvals_queue': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.document_check': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.entrance_exams': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.interviews': lazy(() => import('./admissions/Applications')),
   'admissions.admissions.provisional_offer_letters': lazy(() => import('./admissions/Applications')),
   'admissions.admissions.transfer_certificate_intake': lazy(() => import('./admissions/Applications')),
   'admissions.admissions.medium_of_instruction_selection': lazy(() => import('./admissions/Applications')),
