@@ -500,8 +500,10 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={t('bento.launcher.title')}
-      className="fade-in fixed inset-0 z-[60] overflow-y-auto bg-[var(--bento-bg)]"
+      /* Frosted glass over the board, the way an iPhone's App Library sits
+         over the wallpaper — see .bento-frost in bento-theme.css for why the
+         saturation matters as much as the blur. */
+      className="fade-in bento-frost fixed inset-0 z-[60] overflow-y-auto"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
          This panel is the one place in the layout whose ground is the PAGE and
