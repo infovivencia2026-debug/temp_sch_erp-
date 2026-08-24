@@ -46,6 +46,11 @@ const SPECIMEN = 'Aa Bb 12,482 · ₹8.42Cr'
     Committing on every input event rather than on release is deliberate: the
     whole point of a continuous scale is watching the page answer as you drag
     it, and the write is one custom property and one localStorage line. */
+const STEP =
+  'grid size-7 shrink-0 place-items-center rounded-full border transition-colors ' +
+  'hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
 function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
   const { appearance, setScale } = useAppearance()
   const r = SCALE_RANGE[axis]
@@ -55,6 +60,23 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
       <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
       <div className="flex min-w-[240px] flex-1 items-center gap-3">
+        {/* Minus and plus either side of the track.
+
+            A slider is good at "somewhere around here" and bad at "one step
+            more" — the thumb is 16px and a 1% change is a pixel of travel. The
+            buttons give the same axis a precise gesture without taking the coarse
+            one away, which is why they flank the track rather than replace it. 5%
+            a press: visible, and not so large that three presses cross the whole
+            range. */}
+        <button
+          type="button"
+          onClick={() => setScale(axis, Math.max(r.min, Math.round((v - 0.05) * 100) / 100))}
+          disabled={v <= r.min}
+          aria-label={`${label} smaller`}
+          className={cn(STEP, INK)}
+        >
+          <Minus className="size-3.5" aria-hidden="true" />
+        </button>
         <input
           type="range"
           min={r.min}
@@ -69,6 +91,15 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
              handle. */
           className={cn('h-1.5 flex-1 cursor-pointer appearance-none rounded-full', TRACK, SLIDER, RING)}
         />
+        <button
+          type="button"
+          onClick={() => setScale(axis, Math.min(r.max, Math.round((v + 0.05) * 100) / 100))}
+          disabled={v >= r.max}
+          aria-label={`${label} bigger`}
+          className={cn(STEP, INK)}
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+        </button>
         <span className={cn('w-[52px] shrink-0 text-right text-[12.5px] font-medium tabular-nums', INK)}>
           {Math.round(v * 100)}%
         </span>
@@ -335,7 +366,7 @@ export function AppearanceDialog({
            <body>; the outer `border` was `--bento-line` at 1.38:1, which is
            not enough to separate a floating dialog from the page behind it. */
         className={cn(
-          `appearance-panel pop-down flex max-h-[min(88vh,760px)] w-full max-w-[980px] flex-col
+          `appearance-panel pop-down flex max-h-[min(80vh,660px)] w-full max-w-[860px] flex-col
            overflow-hidden rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,

@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Sun, Moon, Monitor, Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
+  Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
   Maximize2, Type, Minimize2, LayoutGrid, Sliders,
   Contrast as RotateCcw, } from 'lucide-react'
-import { useTheme, THEMES, type Theme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { resetAppearance } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
@@ -28,11 +28,6 @@ import { INK, EDGE, WASH, RING, SURFACE } from './ColourDialog'
    contrast are the obvious next two, and both already live on the same
    preferences row this writes to. */
 
-const ICON: Record<Theme, typeof Sun> = {
-  system: Monitor,
-  light: Sun,
-  dark: Moon,
-}
 
 /* Where the menu hangs from.
 
@@ -44,7 +39,9 @@ const ICON: Record<Theme, typeof Sun> = {
 export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
-  const { theme, resolved, setTheme } = useTheme()
+  /* `resolved` is still read — the panel picks its own ink from the theme
+     that is in force, whether or not anybody can choose it here. */
+  const { resolved } = useTheme()
   const { layout, setLayout } = useLayout()
   const { skin, setSkin } = useSkin()
 
@@ -126,23 +123,37 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
      own rectangle: no ancestor's overflow can reach it. It opens upward when
      there is room above and downward when there is not, and is nudged back
      inside the viewport rather than being allowed to run off the edge. */
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  const [at, setAt] = useState<{ left: number; top: number; width: number } | null>(null)
   useLayoutEffect(() => {
     if (!open) return setAt(null)
     const place = () => {
       const b = box.current?.querySelector('button')?.getBoundingClientRect()
       if (!b) return
-      const W = 256, GAP = 8
+      /* Wider, because every row in it is a label with a value on the right —
+         "Appearance … Dark", "Layout … Focus" — and at 256 those two halves
+         were fighting for the same line. */
+      const W = placement === 'dock' ? 312 : 256
+      const GAP = 8
       const room = b.top - GAP
       const height = Math.min(window.innerHeight * 0.7, 420)
       const above = room > height
+      /* From the dock, and centred on it.
+       *
+       * The dock is a centred pill, and this hung off its right-hand end — so a
+       * menu belonging to the whole bar appeared to belong to the last button
+       * in it, and sat off-centre on the screen with nothing under it. Anchored
+       * to the middle of the trigger and centred, it reads as coming out of the
+       * dock rather than out of one corner of it. */
       const left =
         placement === 'rail'
           ? b.right + GAP
-          : placement === 'menubar' || placement === 'dock'
-            ? b.right - W
-            : b.left
+          : placement === 'dock'
+            ? b.left + b.width / 2 - W / 2
+            : placement === 'menubar'
+              ? b.right - W
+              : b.left
       return setAt({
+        width: W,
         left: Math.max(GAP, Math.min(left, window.innerWidth - W - GAP)),
         top: above ? Math.max(GAP, b.top - GAP - height) : Math.min(b.bottom + GAP, window.innerHeight - GAP - height),
       })
@@ -196,11 +207,28 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
 
+      {/* A blurred scrim behind the menu.
+       *
+       * The popover used to open straight onto a live dashboard, so a list of
+       * settings sat on top of moving figures and coloured cards and had to
+       * fight them for attention. The blur puts the board a layer back without
+       * hiding it — the same frosted material All features uses, so the two
+       * read as the same kind of surface. Clicking it closes, which is what
+       * everybody tries first. */}
+      {open && createPortal(
+        <div
+          className="fade-in bento-frost fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />,
+        document.body,
+      )}
+
       {open && at && createPortal(
         <div
           role="menu"
           ref={menu}
-          style={{ position: 'fixed', left: at.left, top: at.top, width: 256,
+          style={{ position: 'fixed', left: at.left, top: at.top, width: at.width,
                    maxHeight: 'min(70vh, 420px)' }}
           /* A panel that states both halves of its pair.
 
@@ -216,36 +244,13 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             (placement === 'menubar') ? 'pop-down' : 'pop-up',
           )}
         >
-          {/* The caption is the panel's ink, told apart from the rows by size,
-              weight and letter-spacing rather than by a second tone. */}
-          <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-            {t('bento.settings.appearance')}
-          </p>
-          {THEMES.map((option) => {
-            const Icon = ICON[option]
-            const active = theme === option
-            return (
-              <button
-                key={option}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => {
-                  setTheme(option)
-                  setOpen(false)
-                }}
-                className={cn(
-                  `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
-                   transition-colors ${WASH} ${RING}`,
-                  active && 'font-medium',
-                )}
-              >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t(`bento.settings.theme.${option}`)}</span>
-                {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-              </button>
-            )
-          })}
+        {/* The theme rows are gone.
+        
+            Light, Dark and Match system sat at the top of this menu, above the
+            things people actually open it for. Removed on request; the theme
+            store is untouched, so the app still follows the operating system's
+            setting and every token that answers to dark mode still does. What
+            has gone is the manual override, not the capability. */}
 
           <div
             /* `bg-border` is `--bento-line`, the hairline BETWEEN cards: on
