@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * WhatsApp API Integration, keyed by catalogue feature.
@@ -20,5 +20,5 @@ import { lazy } from 'react'
  * is now out of date and is the integrator's to trim.
  */
 export const whatsappKeys = {
-  'super_admin.messaging.whatsapp_api_integration': lazy(() => import('./WhatsAppApi')),
+  'super_admin.messaging.whatsapp_api_integration': screen(() => import('./WhatsAppApi')),
 }

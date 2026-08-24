@@ -1,4 +1,5 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
+import { screen } from '@/lib/screen'
+import { type ComponentType, type LazyExoticComponent } from 'react'
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
  *      feature key the classic screen is registered under in
  *      `web/src/features/registry.ts`:
  *
- *          'faculty.home.my_work': lazy(() => import('./MyWork')),
+ *          'faculty.home.my_work': screen(() => import('./MyWork')),
  *
  * That is the entire contract. You do not touch registry.ts, App.tsx,
  * Shell.tsx, ui.tsx, or the classic screen — the classic file is not opened.
@@ -42,14 +43,14 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
   /* The smoke test, and for now the only entry: proof that the switch reaches
      a screen end to end and that every other key falls through. A later
      worker replaces this with the real thing. */
-  'faculty.home.my_work': lazy(() => import('./MyWork')),
+  'faculty.home.my_work': screen(() => import('./MyWork')),
 
   /* The two money-and-oversight roles. Keyed by the catalogue key the classic
      screen is registered under in registry.ts — `institution_admin.home.dashboard`,
      not `institution_admin.home.executive_kpis`, which is not a key this
      catalogue holds. */
-  'institution_admin.home.dashboard': lazy(() => import('./PrincipalDashboard')),
-  'finance.home.dashboard': lazy(() => import('./FinanceDashboard')),
+  'institution_admin.home.dashboard': screen(() => import('./PrincipalDashboard')),
+  'finance.home.dashboard': screen(() => import('./FinanceDashboard')),
 
   /* The three people who use this product every day, on the screen each of
      them lands on. Keyed by the catalogue key the classic screen is registered
@@ -62,9 +63,9 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      parent who navigates to the summary still meets the classic screen rather
      than two Bento renderings of the same thing; adding the second key is one
      more line if that is wanted. */
-  'student.home.my_day': lazy(() => import('./StudentDay')),
-  'parent.home.child_switcher': lazy(() => import('./ParentWeek')),
-  'faculty.home.todays_classes': lazy(() => import('./FacultyToday')),
+  'student.home.my_day': screen(() => import('./StudentDay')),
+  'parent.home.child_switcher': screen(() => import('./ParentWeek')),
+  'faculty.home.todays_classes': screen(() => import('./FacultyToday')),
 }
 
 /** The Bento rendering of a feature key, or undefined — which means "render

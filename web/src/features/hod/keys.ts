@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* The head of department's workspace.
  *
@@ -18,11 +18,11 @@ import { lazy } from 'react'
  */
 export const hodKeys = {
   // The editable whole-school grid, reached by whoever actually edits it.
-  'hod.timetable.class_timetable': lazy(() => import('../academics/MasterTimetable')),
+  'hod.timetable.class_timetable': screen(() => import('../academics/MasterTimetable')),
   // Loads, free periods, and the subject requirements the live grid does not
   // meet — the three things you need before moving anybody.
-  'hod.timetable.staff_timetable': lazy(() => import('./DepartmentTimetable')),
-  'hod.timetable.department_timetable': lazy(() => import('./DepartmentTimetable')),
+  'hod.timetable.staff_timetable': screen(() => import('./DepartmentTimetable')),
+  'hod.timetable.department_timetable': screen(() => import('./DepartmentTimetable')),
   /* The approver's board, reached by the person who approves.
    *
    * Cover requests were routed to whoever holds TimetableWrite, which has
@@ -31,10 +31,10 @@ export const hodKeys = {
    * principal's desk. The engine, the free-teacher candidate list and the
    * notification to whoever picks up the period all already existed; what was
    * missing was a door into them from the department. */
-  'hod.timetable.substitution_requests': lazy(() => import('../academics/SubstitutionBoard')),
-  'hod.academics.faculty_allocation': lazy(() => import('../academics/FacultyAllocation')),
-  'hod.academics.language_subject_allocation': lazy(() => import('../faculty/LanguageAllocation')),
-  'hod.staff.teacher_remarks': lazy(() => import('../shared/StaffRemarks')),
-  'hod.staff.leaves_subs': lazy(() => import('../hr/Leave')),
-  'hod.my_profile.profile': lazy(() => import('../shared/Profile')),
+  'hod.timetable.substitution_requests': screen(() => import('../academics/SubstitutionBoard')),
+  'hod.academics.faculty_allocation': screen(() => import('../academics/FacultyAllocation')),
+  'hod.academics.language_subject_allocation': screen(() => import('../faculty/LanguageAllocation')),
+  'hod.staff.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
+  'hod.staff.leaves_subs': screen(() => import('../hr/Leave')),
+  'hod.my_profile.profile': screen(() => import('../shared/Profile')),
 }

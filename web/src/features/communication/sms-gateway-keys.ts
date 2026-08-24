@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The phone SMS gateway screen, keyed by catalogue feature.
@@ -42,5 +42,5 @@ import { lazy } from 'react'
  * the key below and nothing else — the screen and its hooks do not care.
  */
 export const smsGatewayKeys = {
-  'super_admin.messaging.sms_gateway_integration': lazy(() => import('./SmsGateway')),
+  'super_admin.messaging.sms_gateway_integration': screen(() => import('./SmsGateway')),
 }

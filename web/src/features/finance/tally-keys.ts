@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The Tally bridge, keyed by catalogue feature.
@@ -25,8 +25,8 @@ import { lazy } from 'react'
 export const tallyKeys = {
   // Platform Setup — Payments & Devices. The vendor sets this up with the
   // school, once, against the Tally company the auditor already reads.
-  'super_admin.payments_devices.tally_erp_prime_connector': lazy(() => import('./TallyConnector')),
+  'super_admin.payments_devices.tally_erp_prime_connector': screen(() => import('./TallyConnector')),
 
   // Accounting — Export. The accountant's quarterly half hour.
-  'finance.export.tally_prime_xml_export': lazy(() => import('./TallyExport')),
+  'finance.export.tally_prime_xml_export': screen(() => import('./TallyExport')),
 }

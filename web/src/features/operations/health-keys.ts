@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* The infirmary and the rest of the boarding house.
 
@@ -10,8 +10,8 @@ import { lazy } from 'react'
    same trolley, and an annual card and the camp that filled it in are the same
    piece of paper. */
 export const healthKeys = {
-  'institution_admin.hostel.night_study_room_attendance': lazy(() => import('./HostelNightStudy')),
-  'institution_admin.hostel.room_inventory_checklists': lazy(() => import('./HostelRoomChecks')),
-  'institution_admin.hostel.hostel_visitor_log': lazy(() => import('./HostelVisitors')),
-  'institution_admin.hostel.boarder_laundry_tracking': lazy(() => import('./HostelLaundry')),
+  'institution_admin.hostel.night_study_room_attendance': screen(() => import('./HostelNightStudy')),
+  'institution_admin.hostel.room_inventory_checklists': screen(() => import('./HostelRoomChecks')),
+  'institution_admin.hostel.hostel_visitor_log': screen(() => import('./HostelVisitors')),
+  'institution_admin.hostel.boarder_laundry_tracking': screen(() => import('./HostelLaundry')),
 }

@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* Geo-fenced bus stop alerts, for the transport office.
 
@@ -9,5 +9,5 @@ import { lazy } from 'react'
    written; a key the catalogue does not carry renders the placeholder
    silently. */
 export const geofenceKeys = {
-  'transport_manager.transport.geo_fenced_bus_stop_alerts': lazy(() => import('./StopAlerts')),
+  'transport_manager.transport.geo_fenced_bus_stop_alerts': screen(() => import('./StopAlerts')),
 }

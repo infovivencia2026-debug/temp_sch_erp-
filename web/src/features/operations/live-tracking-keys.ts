@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /* The transport office's live map.
@@ -15,7 +16,7 @@ import { lazy } from 'react'
    twice — where is the bus now — and splitting them would give the transport
    office two menu items that must never disagree. */
 export const liveTrackingKeys = {
-  'institution_admin.transport.live_vehicle_tracking': lazy(() => import('./LiveVehicleMap')),
+  'institution_admin.transport.live_vehicle_tracking': screen(() => import('./LiveVehicleMap')),
   'transport_manager.transport.real_time_vehicle_tracking_vts': lazy(
     () => import('./LiveVehicleMap'),
   ),

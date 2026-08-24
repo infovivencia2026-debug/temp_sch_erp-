@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* The family's request, consent and message screens, keyed by catalogue entry.
 
@@ -13,13 +13,13 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs `make
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const parentKeys = {
-  'parent.leave_absence.requests': lazy(() => import('./LeaveRequests')),
-  'parent.leave_absence.apply_student_leave': lazy(() => import('./LeaveRequests')),
-  'parent.attendance.child_absence_reporting_button': lazy(() => import('./ReportAbsence')),
-  'parent.consent.parent_delegation_for_emergency_pickup': lazy(() => import('./Pickup')),
-  'parent.messages.direct_teacher_messaging': lazy(() => import('./TeacherMessages')),
-  'parent.messages.teacher_remarks': lazy(() => import('../shared/StaffRemarks')),
-  'parent.academics.child_remarks': lazy(() => import('./ChildRemarks')),
-  'parent.fees.digital_fee_receipt_pdf_download': lazy(() => import('./Receipts')),
-  'student.requests.requests': lazy(() => import('./Requests')),
+  'parent.leave_absence.requests': screen(() => import('./LeaveRequests')),
+  'parent.leave_absence.apply_student_leave': screen(() => import('./LeaveRequests')),
+  'parent.attendance.child_absence_reporting_button': screen(() => import('./ReportAbsence')),
+  'parent.consent.parent_delegation_for_emergency_pickup': screen(() => import('./Pickup')),
+  'parent.messages.direct_teacher_messaging': screen(() => import('./TeacherMessages')),
+  'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
+  'parent.academics.child_remarks': screen(() => import('./ChildRemarks')),
+  'parent.fees.digital_fee_receipt_pdf_download': screen(() => import('./Receipts')),
+  'student.requests.requests': screen(() => import('./Requests')),
 }

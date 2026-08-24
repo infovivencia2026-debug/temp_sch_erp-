@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The custom report builder, keyed by catalogue feature.
@@ -27,5 +27,5 @@ import { lazy } from 'react'
  * already reading, rather than a second, unscoped extract.
  */
 export const reportBuilderKeys = {
-  'institution_admin.analysis.custom_report_builder': lazy(() => import('./ReportBuilder')),
+  'institution_admin.analysis.custom_report_builder': screen(() => import('./ReportBuilder')),
 }

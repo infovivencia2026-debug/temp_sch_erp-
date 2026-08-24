@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /**
@@ -19,7 +20,7 @@ import { lazy } from 'react'
  * two together would put somebody's work on a page they never open.
  */
 export const adminOpsKeys = {
-  'institution_admin.stores.purchase_order_workflow': lazy(() => import('./PurchaseOrders')),
+  'institution_admin.stores.purchase_order_workflow': screen(() => import('./PurchaseOrders')),
   'institution_admin.evaluation.appraisals': lazy(
     () => import('./EvaluationOversight'),
   ),

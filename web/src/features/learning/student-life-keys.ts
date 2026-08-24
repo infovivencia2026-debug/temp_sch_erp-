@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /* The six student-life screens, keyed by catalogue entry.
@@ -27,9 +28,9 @@ export const studentLifeKeys = {
   'student.campus_life.lost_found_photo_board_with_claim_verification': lazy(
     () => import('./LostFoundClaims'),
   ),
-  'student.campus_life.student_wall_peer_recognition': lazy(() => import('./StudentWall')),
-  'student.home.digital_diary_schedule': lazy(() => import('./Diary')),
-  'student.home.custom_theme_selection': lazy(() => import('./ThemeSelection')),
-  'student.homework.classmate_homework_help_forum': lazy(() => import('./HomeworkForum')),
-  'student.learning.virtual_classroom_hand_raise_telemetry': lazy(() => import('./HandRaise')),
+  'student.campus_life.student_wall_peer_recognition': screen(() => import('./StudentWall')),
+  'student.home.digital_diary_schedule': screen(() => import('./Diary')),
+  'student.home.custom_theme_selection': screen(() => import('./ThemeSelection')),
+  'student.homework.classmate_homework_help_forum': screen(() => import('./HomeworkForum')),
+  'student.learning.virtual_classroom_hand_raise_telemetry': screen(() => import('./HandRaise')),
 }

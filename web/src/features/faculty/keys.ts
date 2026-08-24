@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* The faculty communication screens, keyed by catalogue entry.
 
@@ -12,6 +12,6 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs `make
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const facultyCommsKeys = {
-  'faculty.communication.remarks': lazy(() => import('./Remarks')),
-  'faculty.communication.communication': lazy(() => import('./Communication')),
+  'faculty.communication.remarks': screen(() => import('./Remarks')),
+  'faculty.communication.communication': screen(() => import('./Communication')),
 }

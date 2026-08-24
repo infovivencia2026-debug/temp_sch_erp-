@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /**
@@ -21,7 +22,7 @@ import { lazy } from 'react'
  */
 export const connectorsKeys = {
   // Platform Setup — Payments & Devices. The admissions CRM bridge.
-  'super_admin.payments_devices.meritto_leadsquared_sync': lazy(() => import('./CrmSync')),
+  'super_admin.payments_devices.meritto_leadsquared_sync': screen(() => import('./CrmSync')),
 
   // Platform Setup — Payments & Devices. The platform half of a live-class
   // model that already exists (virtual_class_sessions, and the faculty

@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 import Bundle from '@/components/Bundle'
 
 /* The finance workspace, grouped by the job rather than by the screen.
@@ -12,42 +12,42 @@ import Bundle from '@/components/Bundle'
  * costs one screen to look at.
  */
 
-const Defaulters = lazy(() => import('./Defaulters'))
-const LateFineRules = lazy(() => import('./LateFineRules'))
-const PDCRegister = lazy(() => import('./PDCRegister'))
+const Defaulters = screen(() => import('./Defaulters'))
+const LateFineRules = screen(() => import('./LateFineRules'))
+const PDCRegister = screen(() => import('./PDCRegister'))
 
-const FeeStructureVersions = lazy(() => import('./FeeStructureVersions'))
-const DemandGeneration = lazy(() => import('./DemandGeneration'))
-const Concessions = lazy(() => import('./Concessions'))
-const ReceiptSeries = lazy(() => import('./ReceiptSeries'))
+const FeeStructureVersions = screen(() => import('./FeeStructureVersions'))
+const DemandGeneration = screen(() => import('./DemandGeneration'))
+const Concessions = screen(() => import('./Concessions'))
+const ReceiptSeries = screen(() => import('./ReceiptSeries'))
 
-const CanteenTerminal = lazy(() => import('./CanteenTerminal'))
-const SchoolStore = lazy(() => import('./SchoolStore'))
+const CanteenTerminal = screen(() => import('./CanteenTerminal'))
+const SchoolStore = screen(() => import('./SchoolStore'))
 
-const GrantInAid = lazy(() => import('./GrantInAid'))
-const ScholarshipReconciliation = lazy(() => import('./ScholarshipReconciliation'))
-const GovernmentClaims = lazy(() => import('./GovernmentClaims'))
-const LoanAssistance = lazy(() => import('./LoanAssistance'))
+const GrantInAid = screen(() => import('./GrantInAid'))
+const ScholarshipReconciliation = screen(() => import('./ScholarshipReconciliation'))
+const GovernmentClaims = screen(() => import('./GovernmentClaims'))
+const LoanAssistance = screen(() => import('./LoanAssistance'))
 
-const Payroll = lazy(() => import('../payroll/Payroll'))
-const BankingPayouts = lazy(() => import('./BankingPayouts'))
+const Payroll = screen(() => import('../payroll/Payroll'))
+const BankingPayouts = screen(() => import('./BankingPayouts'))
 
-const Payables = lazy(() => import('./Payables'))
-const PettyCash = lazy(() => import('./PettyCash'))
-const Expenses = lazy(() => import('./Expenses'))
+const Payables = screen(() => import('./Payables'))
+const PettyCash = screen(() => import('./PettyCash'))
+const Expenses = screen(() => import('./Expenses'))
 
-const Budgets = lazy(() => import('./Budgets'))
-const FixedAssets = lazy(() => import('./FixedAssets'))
+const Budgets = screen(() => import('./Budgets'))
+const FixedAssets = screen(() => import('./FixedAssets'))
 
-const BankReconciliation = lazy(() => import('./BankReconciliation'))
-const StudentBankAccounts = lazy(() => import('./StudentBankAccounts'))
+const BankReconciliation = screen(() => import('./BankReconciliation'))
+const StudentBankAccounts = screen(() => import('./StudentBankAccounts'))
 
-const CashBooks = lazy(() => import('./CashBooks'))
-const GeneralLedger = lazy(() => import('./GeneralLedger'))
-const ChartOfAccounts = lazy(() => import('./ChartOfAccounts'))
-const TaxAudit = lazy(() => import('./TaxAudit'))
-const YearClosing = lazy(() => import('./YearClosing'))
-const TallyExport = lazy(() => import('./TallyExport'))
+const CashBooks = screen(() => import('./CashBooks'))
+const GeneralLedger = screen(() => import('./GeneralLedger'))
+const ChartOfAccounts = screen(() => import('./ChartOfAccounts'))
+const TaxAudit = screen(() => import('./TaxAudit'))
+const YearClosing = screen(() => import('./YearClosing'))
+const TallyExport = screen(() => import('./TallyExport'))
 
 // Late payers first: this entry is opened to chase somebody, and the fine rules
 // and the cheque register are what you set up once so the chasing works.

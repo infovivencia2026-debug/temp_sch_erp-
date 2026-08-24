@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * Tracker pairing and tracking policy, keyed by catalogue feature.
@@ -16,5 +16,5 @@ import { lazy } from 'react'
  * device protocol it does not speak.
  */
 export const trackerKeys = {
-  'super_admin.payments_devices.gps_hardware_integration': lazy(() => import('./TrackerPairing')),
+  'super_admin.payments_devices.gps_hardware_integration': screen(() => import('./TrackerPairing')),
 }
