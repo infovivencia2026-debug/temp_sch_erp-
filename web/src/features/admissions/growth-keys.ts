@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 
 /* The three admissions-growth screens, keyed by catalogue entry.
 
@@ -24,4 +25,13 @@
    and is the same code a scheduler will invoke; it does not start one. */
 
 export const admissionsGrowthKeys = {
+  'admissions.applications.online_application_form_builder': lazy(
+    () => import('./FormBuilder'),
+  ),
+  'admissions.enquiries.multi_touch_campaign_sequences': lazy(
+    () => import('./CampaignSequences'),
+  ),
+  'admissions.reports.lost_lead_reason_analysis': lazy(
+    () => import('./LostLeads'),
+  ),
 }

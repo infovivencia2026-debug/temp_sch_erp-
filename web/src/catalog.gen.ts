@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 12 roles, 302 features. */
+/** 12 roles, 339 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -703,7 +703,38 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'admissions.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'New enquiries, applications received, interviews today, offers pending and enrolments — with the follow-ups due today underneath.' },
+          { key: 'admissions.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'New enquiries, applications received, offers pending and enrolment conversion, with the follow-ups due today underneath.' },
+        ],
+      },
+      {
+        slug: 'enquiries',
+        name: 'Enquiries',
+        workspace: 'Admissions',
+        features: [
+          { key: 'admissions.enquiries.enquiries_leads', slug: 'enquiries_leads', name: 'Enquiries / leads', scope: 'institution', tier: 'core', summary: 'Capture prospective student enquiries and source/campaign.' },
+          { key: 'admissions.enquiries.lead_source_tracking', slug: 'lead_source_tracking', name: 'Lead Source Tracking', scope: 'institution', tier: 'core', summary: 'Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in).' },
+          { key: 'admissions.enquiries.counselor_lead_assignment', slug: 'counselor_lead_assignment', name: 'Counselor Lead Assignment', scope: 'institution', tier: 'core', summary: 'Automatically or manually route incoming admission inquiries to specific admission counselors.' },
+          { key: 'admissions.enquiries.counselor_activity_follow_ups', slug: 'counselor_activity_follow_ups', name: 'Counselor Activity & Follow-ups', scope: 'institution', tier: 'core', summary: 'Log call notes, schedule follow-up reminders, and log candidate visit outcomes.' },
+          { key: 'admissions.enquiries.multi_touch_campaign_sequences', slug: 'multi_touch_campaign_sequences', name: 'Multi-Touch Campaign Sequences', scope: 'institution', tier: 'advanced', summary: 'Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads.' },
+          { key: 'admissions.enquiries.utm_tracking_digital_campaign_attribution', slug: 'utm_tracking_digital_campaign_attribution', name: 'UTM Tracking & Digital Campaign attribution', scope: 'institution', tier: 'advanced', summary: 'Attribute web inquiries to specific Facebook, Google Ads, or email UTM campaign tags.' },
+          { key: 'admissions.enquiries.24_7_admission_chatbot', slug: '24_7_admission_chatbot', name: '24/7 Admission Chatbot', scope: 'institution', tier: 'optional', summary: 'Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads.' },
+          { key: 'admissions.enquiries.ai_voice_agent_integration', slug: 'ai_voice_agent_integration', name: 'AI Voice Agent Integration', scope: 'institution', tier: 'optional', summary: 'Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up.' },
+          { key: 'admissions.enquiries.admissions_open_day_scheduler', slug: 'admissions_open_day_scheduler', name: 'Admissions Open Day Scheduler', scope: 'institution', tier: 'core', summary: 'Organize school open house events, manage online slot booking, and check in attending parents.' },
+          { key: 'admissions.enquiries.prospectus_kit_sales_log', slug: 'prospectus_kit_sales_log', name: 'Prospectus & Kit Sales Log', scope: 'institution', tier: 'core', summary: 'Track inventory, unit sales, and receipt generation for physical school prospectuses.' },
+        ],
+      },
+      {
+        slug: 'applications',
+        name: 'Applications',
+        workspace: 'Admissions',
+        features: [
+          { key: 'admissions.applications.applications', slug: 'applications', name: 'Applications', scope: 'institution', tier: 'core', summary: 'Create/review applications and track status.' },
+          { key: 'admissions.applications.online_application_form_builder', slug: 'online_application_form_builder', name: 'Online Application Form Builder', scope: 'institution', tier: 'core', summary: 'Configure custom digital admission application forms with file upload rules and field validation.' },
+          { key: 'admissions.applications.applicant_documents', slug: 'applicant_documents', name: 'Applicant documents', scope: 'institution', tier: 'core', summary: 'Collect and verify required admission documents.' },
+          { key: 'admissions.applications.entrance_exam_scheduling', slug: 'entrance_exam_scheduling', name: 'Entrance Exam Scheduling', scope: 'institution', tier: 'core', summary: 'Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks.' },
+          { key: 'admissions.applications.interview_interaction_scheduler', slug: 'interview_interaction_scheduler', name: 'Interview & Interaction Scheduler', scope: 'institution', tier: 'core', summary: 'Book interview slots for parents/students with principal/management and record scores.' },
+          { key: 'admissions.applications.applicant_medical_fitness_declaration', slug: 'applicant_medical_fitness_declaration', name: 'Applicant Medical Fitness Declaration', scope: 'institution', tier: 'advanced', summary: 'Collect applicant medical history, vaccination certificates, and physical fitness approvals.' },
+          { key: 'admissions.applications.foreign_nri_student_visa_documentation', slug: 'foreign_nri_student_visa_documentation', name: 'Foreign / NRI Student Visa Documentation', scope: 'institution', tier: 'advanced', summary: 'Track passport details, student visa status, and embassy NOCs for international applicants.' },
         ],
       },
       {
@@ -711,18 +742,66 @@ export const ROLES: Role[] = [
         name: 'Admissions',
         workspace: 'Admissions',
         features: [
-          { key: 'admissions.admissions.enquiries_follow_ups', slug: 'enquiries_follow_ups', name: 'Enquiries & follow-ups', scope: 'institution', tier: 'core', summary: 'Every enquiry with where it has got to — new, called, visit booked, applied or lost — and whose turn it is to chase it. Losing one asks why, because "fee too high" and "moved city" lead to different actions.' },
-          { key: 'admissions.admissions.applications', slug: 'applications', name: 'Applications', scope: 'institution', tier: 'core', summary: 'Applications received, the documents each is missing, entrance tests and interviews scheduled, provisional offers, transfer certificates coming in, and the identity fields the board asks for.' },
-          { key: 'admissions.admissions.merit_seats', slug: 'merit_seats', name: 'Merit & seats', scope: 'institution', tier: 'core', summary: 'The merit list, seats against the RTE quota, offers and their decisions, and the handoff that turns an accepted offer into an enrolled student without anybody retyping it.' },
-          { key: 'admissions.admissions.leads_campaigns', slug: 'leads_campaigns', name: 'Leads & campaigns', scope: 'institution', tier: 'core', summary: 'Where enquiries come from and what it costs to get them: lead sources and campaign attribution, the quota register for siblings and alumni children, the waiting list, open days, and prospectus sales.' },
+          { key: 'admissions.admissions.offers_admission_decisions', slug: 'offers_admission_decisions', name: 'Offers / admission decisions', scope: 'institution', tier: 'core', summary: 'Issue offers/admission decisions based on configured workflow.' },
+          { key: 'admissions.admissions.merit_list_generation', slug: 'merit_list_generation', name: 'Merit List Generation', scope: 'institution', tier: 'advanced', summary: 'Calculate weighted scores based on prior marks, entrance exam, and interview to publish merit lists.' },
+          { key: 'admissions.admissions.seat_allocation_management', slug: 'seat_allocation_management', name: 'Seat Allocation Management', scope: 'institution', tier: 'advanced', summary: 'Manage class/section seat quotas (General, RTE, Management, Sports, Sibling) and availability.' },
+          { key: 'admissions.admissions.provisional_offer_letters', slug: 'provisional_offer_letters', name: 'Provisional Offer Letters', scope: 'institution', tier: 'core', summary: 'Generate and email/SMS provisional admission offer letters with payment deadline links.' },
+          { key: 'admissions.admissions.admission_waitlist_management', slug: 'admission_waitlist_management', name: 'Admission Waitlist Management', scope: 'institution', tier: 'advanced', summary: 'Maintain real-time waitlists per class, auto-promoting candidates as seats open up.' },
+          { key: 'admissions.admissions.admission_fee_collection', slug: 'admission_fee_collection', name: 'Admission Fee Collection', scope: 'institution', tier: 'core', summary: 'Collect prospectus and application form fees via cash, POS, or integrated payment gateway.' },
+          { key: 'admissions.admissions.enrollment_handoff', slug: 'enrollment_handoff', name: 'Enrollment handoff', scope: 'institution', tier: 'core', summary: 'Convert admitted applicant to student/enrollment without duplicate data entry.' },
+          { key: 'admissions.admissions.sibling_priority_auto_matching', slug: 'sibling_priority_auto_matching', name: 'Sibling Priority Auto-Matching', scope: 'institution', tier: 'core', summary: 'Auto-detect existing enrolled siblings during inquiry to apply sibling priority quota.' },
+          { key: 'admissions.admissions.alumni_child_quota_allocation', slug: 'alumni_child_quota_allocation', name: 'Alumni Child Quota Allocation', scope: 'institution', tier: 'core', summary: 'Identify children of alumni applicants and apply institutional alumni quota benefits.' },
+          { key: 'admissions.admissions.rte_right_to_education_quota_tracking', slug: 'rte_right_to_education_quota_tracking', name: 'RTE (Right to Education) Quota Tracking', scope: 'institution', tier: 'advanced', summary: 'Manage government RTE quota applications, lottery selection results, and document verification.' },
+          { key: 'admissions.admissions.rte_online_lottery_import', slug: 'rte_online_lottery_import', name: 'RTE Online Lottery Import', scope: 'institution', tier: 'advanced', summary: 'Import the state RTE 25% lottery allotment list and convert allotted candidates into applications.' },
+          { key: 'admissions.admissions.aadhaar_apaar_capture_at_admission', slug: 'aadhaar_apaar_capture_at_admission', name: 'Aadhaar & APAAR Capture at Admission', scope: 'institution', tier: 'advanced', summary: 'Capture Aadhaar consent, APAAR ID and prior-school UDISE code during the admission form.' },
+          { key: 'admissions.admissions.transfer_certificate_intake', slug: 'transfer_certificate_intake', name: 'Transfer Certificate Intake', scope: 'institution', tier: 'core', summary: 'Record the previous school\'s TC number, board and issue date, and verify against the prior UDISE record.' },
+          { key: 'admissions.admissions.medium_of_instruction_selection', slug: 'medium_of_instruction_selection', name: 'Medium of Instruction Selection', scope: 'institution', tier: 'core', summary: 'Capture the medium the applicant is admitted into and the language combination chosen.' },
+          { key: 'admissions.admissions.child_info_id_capture', slug: 'child_info_id_capture', name: 'Child Info ID Capture', scope: 'institution', tier: 'core', summary: 'Record the Telangana Child Info ID at admission and verify it against the state register.' },
         ],
       },
       {
-        slug: 'front_desk',
-        name: 'Front Desk',
+        slug: 'visitors',
+        name: 'Visitors',
         workspace: 'Front Desk',
         features: [
-          { key: 'admissions.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'The gate and the front office: visitors and their passes, parent appointments, the calls register, post and courier, and the block list.' },
+          { key: 'admissions.visitors.visitor_gate_pass_generation', slug: 'visitor_gate_pass_generation', name: 'Visitor Gate Pass Generation', scope: 'institution', tier: 'core', summary: 'Log guest photo, phone number, host staff member, visit reason, and print paper/digital badge.' },
+          { key: 'admissions.visitors.visitor_checkout_tracking', slug: 'visitor_checkout_tracking', name: 'Visitor Checkout Tracking', scope: 'institution', tier: 'core', summary: 'Scan visitor barcode or log exit time to ensure no unauthorized visitors remain on campus.' },
+          { key: 'admissions.visitors.parent_appointment_booking', slug: 'parent_appointment_booking', name: 'Parent Appointment Booking', scope: 'institution', tier: 'core', summary: 'Schedule formal parent meetings with staff/admin to prevent unscheduled office crowding.' },
+        ],
+      },
+      {
+        slug: 'gate_security',
+        name: 'Gate Security',
+        workspace: 'Front Desk',
+        features: [
+          { key: 'admissions.gate_security.gate_rfid_entry_management', slug: 'gate_rfid_entry_management', name: 'Gate RFID Entry Management', scope: 'institution', tier: 'optional', summary: 'Monitor real-time student/staff gate scans for late arrivals or early departures.' },
+          { key: 'admissions.gate_security.emergency_gate_lockout', slug: 'emergency_gate_lockout', name: 'Emergency Gate Lockout', scope: 'institution', tier: 'optional', summary: 'Trigger gate security alerts for unapproved exits or blacklisted visitors.' },
+        ],
+      },
+      {
+        slug: 'office_log',
+        name: 'Office Log',
+        workspace: 'Front Desk',
+        features: [
+          { key: 'admissions.office_log.front_office_calls_register', slug: 'front_office_calls_register', name: 'Front Office Calls Register', scope: 'institution', tier: 'core', summary: 'Maintain daily telephone call logs, caller identity, inquiry nature, and message forwarding.' },
+          { key: 'admissions.office_log.postal_courier_log', slug: 'postal_courier_log', name: 'Postal & Courier Log', scope: 'institution', tier: 'core', summary: 'Record inbound and outbound official mail, courier tracking numbers, recipient, and handover status.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Send status updates, reminders and admission instructions.' },
+        ],
+      },
+      {
+        slug: 'reports',
+        name: 'Reports',
+        workspace: 'Reports',
+        features: [
+          { key: 'admissions.reports.admission_conversion_reports', slug: 'admission_conversion_reports', name: 'Admission Conversion Reports', scope: 'institution', tier: 'core', summary: 'View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled.' },
+          { key: 'admissions.reports.lost_lead_reason_analysis', slug: 'lost_lead_reason_analysis', name: 'Lost Lead Reason Analysis', scope: 'institution', tier: 'core', summary: 'Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school).' },
         ],
       },
       {

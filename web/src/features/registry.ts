@@ -126,6 +126,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.timetable.my_timetable': lazy(() => import('./shared/Timetable')),
   'parent.fees.fees_payments': lazy(() => import('./portal/Fees')),
   'student.fees.fees': lazy(() => import('./portal/Fees')),
+  'admissions.home.dashboard': lazy(() => import('./admissions/Dashboard')),
   'student.home.my_day': lazy(() => import('./portal/Portal')),
   'student.attendance.attendance': lazy(() => import('./portal/Portal')),
   'student.timetable.timetable': lazy(() => import('./shared/Timetable')),
@@ -133,6 +134,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.home.child_summary': lazy(() => import('./portal/Portal')),
   'parent.home.needs_attention': lazy(() => import('./portal/Reminders')),
   'parent.attendance.attendance': lazy(() => import('./portal/Portal')),
+  'admissions.admissions.merit_list_generation': lazy(() => import('./admissions/Pipeline')),
+  'admissions.admissions.seat_allocation_management': lazy(() => import('./admissions/Pipeline')),
+  'admissions.admissions.offers_admission_decisions': lazy(() => import('./admissions/Pipeline')),
+  'admissions.admissions.enrollment_handoff': lazy(() => import('./admissions/Pipeline')),
+  'admissions.reports.admission_conversion_reports': lazy(() => import('./admissions/Pipeline')),
+  'admissions.admissions.rte_right_to_education_quota_tracking': lazy(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.admissions_pipeline': lazy(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': lazy(() => import('./exams/Gradebook')),
   'institution_admin.students.academic_performance': lazy(() => import('./exams/ReportCards')),
@@ -148,6 +155,27 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* The admissions funnel: where leads came from, who is chasing them, the
      quota register an inspection reads, the waiting list, open days and the
      prospectus cash book. */
+  'admissions.enquiries.lead_source_tracking': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.counselor_lead_assignment': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.utm_tracking_digital_campaign_attribution': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.admissions_open_day_scheduler': lazy(() => import('./admissions/Funnel')),
+  'admissions.enquiries.prospectus_kit_sales_log': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.admission_waitlist_management': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.sibling_priority_auto_matching': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.alumni_child_quota_allocation': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.rte_online_lottery_import': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.aadhaar_apaar_capture_at_admission': lazy(() => import('./admissions/Funnel')),
+  'admissions.admissions.admission_fee_collection': lazy(() => import('./admissions/Funnel')),
+  'admissions.communication.applicant_communication': lazy(() => import('./admissions/Funnel')),
+  'admissions.applications.applicant_medical_fitness_declaration': lazy(() => import('./admissions/Funnel')),
+  'admissions.applications.foreign_nri_student_visa_documentation': lazy(() => import('./admissions/Funnel')),
+
+  'admissions.visitors.visitor_gate_pass_generation': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.visitors.visitor_checkout_tracking': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.visitors.parent_appointment_booking': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.gate_security.emergency_gate_lockout': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.office_log.front_office_calls_register': lazy(() => import('./admissions/FrontDesk')),
+  'admissions.office_log.postal_courier_log': lazy(() => import('./admissions/FrontDesk')),
 
   'parent.consent.consent_acknowledgement': lazy(() => import('./portal/Consent')),
   'parent.consent.digital_parent_consent_slips': lazy(() => import('./portal/Consent')),
@@ -317,8 +345,18 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      existed for this and only the list had a caller, so an application could
      be taken and never moved. Distinct from Pipeline, which is merit ranking
      and seat matrix -- a different question about the same applicants. */
+  'admissions.applications.applications': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.applicant_documents': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.entrance_exam_scheduling': lazy(() => import('./admissions/Applications')),
+  'admissions.applications.interview_interaction_scheduler': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.provisional_offer_letters': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.transfer_certificate_intake': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.medium_of_instruction_selection': lazy(() => import('./admissions/Applications')),
+  'admissions.admissions.child_info_id_capture': lazy(() => import('./admissions/Applications')),
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
+  'admissions.enquiries.enquiries_leads': lazy(() => import('./admissions/Enquiries')),
+  'admissions.enquiries.counselor_activity_follow_ups': lazy(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': lazy(() => import('./hr/Leave')),
@@ -340,6 +378,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'faculty.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'hr.my_profile.my_pay': lazy(() => import('./me/MyPay')),
+  'admissions.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'librarian.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'transport_manager.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   'faculty.exams.question_papers': lazy(() => import('./exams/QuestionPapers')),
@@ -410,13 +449,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.welfare.staff_welfare': lazy(() => import('./hr/Welfare')),
   'hr.records.staff_records': lazy(() => import('./hr/Employees')),
   'hr.records.service_book_qualifications': lazy(() => import('./hr/ServiceRecords')),
-  'admissions.home.dashboard': lazy(() => import('./admissions/Dashboard')),
-  'admissions.admissions.enquiries_follow_ups': lazy(() => import('./admissions/Enquiries')),
-  'admissions.admissions.applications': lazy(() => import('./admissions/Applications')),
-  'admissions.admissions.merit_seats': lazy(() => import('./admissions/Pipeline')),
-  'admissions.admissions.leads_campaigns': lazy(() => import('./admissions/Funnel')),
-  'admissions.front_desk.front_desk': lazy(() => import('./admissions/FrontDesk')),
-  'admissions.my_profile.my_pay': lazy(() => import('./me/MyPay')),
   ...financeKeys,
 
   ...facultyCommsKeys,
