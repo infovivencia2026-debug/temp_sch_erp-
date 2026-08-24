@@ -244,6 +244,24 @@ export function AppearanceDialog({
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
+  /* One page at a time, not one long scroll.
+
+     Everything lived on a single 76vh scroller: typeface specimens, seven
+     appearance axes, the colour wheel, dock sizing and widget controls. Finding
+     the dock's icon size meant scrolling past fifteen font previews, and the
+     panel was tall enough that centring it pushed its own header off the top of
+     the screen.
+
+     The menu items that open this dialog already say which part somebody
+     wanted, so that choice seeds the page rather than being thrown away and
+     replaced with a scroll-into-view. */
+  type Tab = 'appearance' | 'colour' | 'dock' | 'dashboard'
+  const [tab, setTab] = useState<Tab>(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
+  useEffect(() => {
+    if (!open) return
+    setTab(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
+  }, [open, initialTab])
+
   const dockRef = useRef<HTMLElement>(null)
   const dashRef = useRef<HTMLElement>(null)
 
@@ -300,7 +318,7 @@ export function AppearanceDialog({
          rather than closing: closing would lose the channel and colour already
          chosen, and the point of aiming is to come back and keep working. */
       className={cn(
-        'fixed inset-0 z-[70] grid place-items-start justify-items-center overflow-y-auto p-4 pt-[6vh]',
+        'fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4 sm:p-6',
         picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
       )}
       onClick={picking ? undefined : onClose}
@@ -317,7 +335,8 @@ export function AppearanceDialog({
            <body>; the outer `border` was `--bento-line` at 1.38:1, which is
            not enough to separate a floating dialog from the page behind it. */
         className={cn(
-          `appearance-panel pop-down w-full max-w-[1100px] overflow-hidden rounded-[16px] border
+          `appearance-panel pop-down flex max-h-[min(88vh,760px)] w-full max-w-[980px] flex-col
+           overflow-hidden rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,
           // Still clickable while aiming, so the dialog can be used to cancel.
@@ -345,7 +364,34 @@ export function AppearanceDialog({
           </button>
         </header>
 
-        <div className="max-h-[76vh] overflow-y-auto px-7 py-6">
+          {/* The four pages, named. A dialog that opens on one of them with no
+              way to see the others is a dialog people think is broken. */}
+          <nav className={cn('flex shrink-0 gap-1 border-b px-7 pt-3', SEAM)} aria-label="Settings sections">
+            {([
+              ['appearance', t('bento.appearance.title')],
+              ['colour', 'Colour'],
+              ['dock', 'Dock'],
+              ['dashboard', 'Dashboard'],
+            ] as [Tab, string][]).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                aria-current={tab === id}
+                className={cn(
+                  'rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
+                  tab === id
+                    ? 'border-primary font-medium text-foreground'
+                    : cn('border-transparent', INK, WASH),
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6">
+          {tab === 'appearance' && (<div>
           <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
             <Type className="size-4" aria-hidden="true" />
             {t('bento.settings.typeface')}
@@ -429,6 +475,8 @@ export function AppearanceDialog({
               Typeface, density and colour are three answers to one question —
               how should this look — and splitting them across two windows made
               somebody close one to reach the other. */}
+          </div>)}
+          {tab === 'colour' && (
           <section className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
               <Palette className="size-4" aria-hidden="true" />
@@ -436,8 +484,8 @@ export function AppearanceDialog({
             </h3>
             <ColourPanel onPickingChange={onPickingChange} />
           </section>
-
-          {/* Dock settings — size and per-category visibility */}
+          )}
+          {tab === 'dock' && (
           <section ref={dockRef} className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-4 flex items-center gap-2 text-[13px] font-semibold">
               <LayoutGrid className="size-4" aria-hidden="true" />
@@ -464,8 +512,8 @@ export function AppearanceDialog({
             </div>
             <DockItemsToggle />
           </section>
-
-          {/* Dashboard widget shortcuts — focus mode cells */}
+          )}
+          {tab === 'dashboard' && (
           <section ref={dashRef} className={cn('mt-8 border-t pt-6', SEAM)}>
             <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
               <Sliders className="size-4" aria-hidden="true" />
@@ -476,6 +524,7 @@ export function AppearanceDialog({
             </p>
             <DashboardWidgets onArrange={onClose} />
           </section>
+          )}
         </div>
       </div>
     </div>,

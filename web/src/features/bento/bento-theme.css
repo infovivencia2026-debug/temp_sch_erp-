@@ -47,7 +47,11 @@
   --bento-radius-sm: calc(4px * var(--radius-scale, 1));
   --bento-gap: calc(6px * var(--bento-density, 1));
   --bento-dock: 72px;
-  --bento-border-w: calc(1px * var(--border-scale, 1));
+  /* A hairline. At 1px a card is outlined; at 0.5 it is edged, which is what
+     separates cards on a board without drawing a grid over the whole screen.
+     Still multiplied by the Borders axis, so anybody who wants the heavier line
+     can have it. */
+  --bento-border-w: calc(0.5px * var(--border-scale, 1));
 
   --bento-depth-sm: 0 2px 10px rgba(0,0,0,0.03);
   --bento-depth: 0 4px 20px rgba(0,0,0,0.04);
@@ -338,7 +342,9 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-radius: calc(10px * var(--radius-scale, 1));
   --bento-radius-sm: calc(8px * var(--radius-scale, 1));
   --bento-gap: calc(14px * var(--bento-density, 1));
-  --bento-border-w: 1px;
+  /* Hairline here too. This block set 1px flat, which also dropped the Borders
+     axis on the floor: whatever the slider said, this frame drew one pixel. */
+  --bento-border-w: calc(0.5px * var(--border-scale, 1));
   --bento-line: #d8dee8;
   --bento-shadow: none;
   --bento-shadow-sm: none;

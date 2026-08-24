@@ -909,3 +909,71 @@
 /* Given real room, the supporting matter is allowed to breathe again. */
 .bento-widget[data-w='4'] .bento-note,
 .bento-widget[data-w='5'] .bento-note { font-size: 12.5px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOTION, EVERYWHERE — one setting, not a per-component decision.
+
+   The earlier pass slowed the Focus layout only, which left the classic
+   sidebar, every dialog, every menu and every hover on the old timings. Half a
+   product moving at one speed and half at another is worse than either speed
+   on its own.
+
+   These are deliberately slow. The instinct with "smoother" is to raise the
+   duration and stop, and that produces something that feels LATE rather than
+   calm — the movement still starts abruptly, it just takes longer to finish.
+   What makes a slow move read as deliberate is the curve: almost no
+   acceleration at the start, and a long settle at the end. That is what
+   cubic-bezier(0.22, 0.61, 0.16, 1) does.
+
+   Applied by attribute selector rather than by editing 39 Tailwind duration
+   classes across 30 files. The class still declares WHICH properties move; this
+   decides how long they take and how they get there. !important because
+   Tailwind's duration-100/150/300 utilities are equally specific and would
+   otherwise win at random depending on stylesheet order.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --motion-quick: 320ms;   /* hovers, colour changes, small state flips */
+  --motion: 520ms;         /* panels, menus, dialogs, anything that travels */
+  --motion-ease: cubic-bezier(0.22, 0.61, 0.16, 1);
+}
+
+[class*='transition'] {
+  transition-duration: var(--motion-quick) !important;
+  transition-timing-function: var(--motion-ease) !important;
+}
+
+/* Things that MOVE rather than merely change get the longer time: a menu
+   arriving from its own origin, a panel sliding, a dialog rising. */
+[class*='transition-transform'],
+[class*='transition-all'],
+[class*='animate-'],
+.pop-up,
+.pop-down,
+dialog,
+[role='dialog'],
+[role='menu'] {
+  transition-duration: var(--motion) !important;
+  animation-duration: var(--motion) !important;
+  transition-timing-function: var(--motion-ease) !important;
+  animation-timing-function: var(--motion-ease) !important;
+}
+
+/* Somebody who has asked their system for less motion gets it, whatever this
+   file would prefer. Slower animation is a preference; overriding that setting
+   is an accessibility failure. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-quick: 1ms;
+    --motion: 1ms;
+  }
+  [class*='transition'],
+  [class*='animate-'],
+  .pop-up,
+  .pop-down,
+  dialog,
+  [role='dialog'],
+  [role='menu'] {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}
