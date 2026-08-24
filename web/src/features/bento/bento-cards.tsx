@@ -206,13 +206,21 @@ export function Rows({ items, srLabel, formatValue }: {
   const hi = Math.max(...items.map((i) => i.value)) || 1
   const fmt = formatValue ?? ((n: number) => String(n))
   return (
-    <div className="flex h-full flex-col justify-end gap-1.5" role="img" aria-label={srLabel}>
+    /* The rows SHARE the height rather than each taking a fixed 12px and the
+       first one falling off the top. Three fixed rows need ~54px and the
+       drawing row can be 46, so the top row was silently cut — which is the
+       white rule that appeared to slice through the card's own sentence.
+       `flex-1 min-h-0` on each row makes them compress evenly instead. */
+    <div className="flex h-full min-h-0 flex-col justify-end gap-1" role="img" aria-label={srLabel}>
       {items.map((it) => (
-        <div key={it.label} className="grid grid-cols-[minmax(38px,auto)_minmax(0,1fr)_auto] items-center gap-1.5">
+        <div key={it.label}
+             className="grid min-h-0 flex-1 grid-cols-[minmax(38px,auto)_minmax(0,1fr)_auto]
+                        items-center gap-1.5">
           <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
             {it.label}
           </span>
-          <span className="h-3 overflow-hidden rounded-[3px]" style={{ background: TRACK }}>
+          <span className="h-[min(12px,100%)] overflow-hidden rounded-[3px]"
+                style={{ background: TRACK }}>
             <span className="block h-full rounded-[3px]"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>

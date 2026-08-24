@@ -1281,96 +1281,43 @@ html[style*='--shadow-scale'] .dark {
   color: color-mix(in srgb, var(--bento-orange) 60%, var(--bento-ink));
 }
 
-/* ── THE DEFAULT PALETTE ────────────────────────────────────────────────
-   A black page carrying vivid cards, from the supplied reference. The card is
-   the colour; the ink on it is black or white, whichever wins.
+/* ── THE DEFAULT PALETTE — one material, one accent ─────────────────────
+   Seven saturated card hues carried no meaning: crimson was BOTH 'fee
+   defaulters: 30' (act on this) and 'pending approvals: 0' (nothing to do).
+   Colour that says two opposite things says nothing.
 
-   Measured, not chosen. Worst ink-on-card pair is 7.47:1 on the orange;
-   everything else clears 9.7:1 and most clear 16:1. Two of the twelve grounds
-   are the near-black card, which takes white — that is the reference's own
-   arrangement, where a dark card sits among the bright ones rather than every
-   card being bright.
+   So: one surface for every card, and colour reserved for status. All twelve
+   domain grounds are the same card; the accent is used for the value that
+   needs attention, amber for watch, red for act.
 
-   `-soft` equals the ground because these ARE the card colours, not tints to
-   be derived from an accent. */
+   Measured: white on card 18.61:1, accent 12.54:1, amber 11.83:1, red 6.67:1.
+   The muted tone is white at 45%, which is 4.52:1 — it recedes without
+   dropping below what body text needs. The reference said 40%; that measures
+   3.81:1, and a zero-state still has to be readable to say it is a zero. */
 [data-layout='bento'] {
-  --bento-bg: #0a0a0b;
-  --bento-card: #ffffff;
-  --bento-card-2: #ededed;
-  --bento-ink: #000000;
-  --bento-muted: var(--bento-ink);
-  --bento-line: color-mix(in srgb, #000000 14%, transparent);
-  --bento-mint: #c9f24d;   --bento-mint-tint: #c9f24d;
-  --bento-purple: #b9a5f2; --bento-purple-tint: #b9a5f2;
-  --bento-pink: #f4762a;   --bento-pink-tint: #f4762a;
-  --bento-orange: #f0ea7a; --bento-orange-tint: #f0ea7a;
-  --bento-anchor-from: #161618; --bento-anchor-to: #161618;
+  --bento-bg: #0a0b0d;
+  --bento-card: #111316;
+  --bento-card-2: #171a1e;
+  --bento-ink: #ffffff;
+  --bento-muted: #7c7d7f;
+  --bento-line: rgba(255,255,255,0.07);
+  --bento-mint: #7fe3f0;   --bento-mint-tint: #171a1e;
+  --bento-purple: #7fe3f0; --bento-purple-tint: #171a1e;
+  --bento-pink: #f2756b;      --bento-pink-tint: #171a1e;
+  --bento-orange: #f5c86b;  --bento-orange-tint: #171a1e;
+  --bento-anchor-from: #111316; --bento-anchor-to: #111316;
   --bento-anchor-ink: #ffffff;
-  --bento-dock-bg: #161618; --bento-dock-ink: #ffffff;
-  --dom-students: #a9c2f0; --dom-students-soft: #a9c2f0; --dom-students-text: #000000;
-  --dom-academics: #b9a5f2; --dom-academics-soft: #b9a5f2; --dom-academics-text: #000000;
-  --dom-attendance: #c9f24d; --dom-attendance-soft: #c9f24d; --dom-attendance-text: #000000;
-  --dom-finance: #f0ea7a; --dom-finance-soft: #f0ea7a; --dom-finance-text: #000000;
-  --dom-staff: #161618; --dom-staff-soft: #161618; --dom-staff-text: #ffffff;
-  --dom-admissions: #a9c2f0; --dom-admissions-soft: #a9c2f0; --dom-admissions-text: #000000;
-  --dom-communication: #b9a5f2; --dom-communication-soft: #b9a5f2; --dom-communication-text: #000000;
-  --dom-operations: #ededed; --dom-operations-soft: #ededed; --dom-operations-text: #000000;
-  --dom-reports: #161618; --dom-reports-soft: #161618; --dom-reports-text: #ffffff;
-  --dom-critical: #f4762a; --dom-critical-soft: #f4762a; --dom-critical-text: #000000;
-  --dom-success: #c9f24d; --dom-success-soft: #c9f24d; --dom-success-text: #000000;
-  --dom-warning: #f0ea7a; --dom-warning-soft: #f0ea7a; --dom-warning-text: #000000;
-}
-
-/* THE PAGE TAKES THE BOARD'S GROUND.
-
-   `--bento-bg` resolved correctly to the near-black all along — measured on the
-   root — but nothing ever painted the page with it. The body kept the app's own
-   `--background`, so the board's ground colour was a token nobody read, and the
-   whole surface stayed light while every card was drawn for a dark one.
-
-   Scoped to the layout attribute, which lives on <html>, so the classic layout
-   keeps the app's background exactly as it is. */
-html[data-layout='bento'] body {
-  background: var(--bento-bg);
-  color: var(--bento-ink);
-}
-
-/* THE CELL IS A CONTAINER, AND THE TYPE IS MEASURED AGAINST IT.
-
-   Every size in a card was a fixed pixel value, so a 2x2 was a 1x1 with more
-   air around it: the same 11px label and the same 24px figure marooned in four
-   times the space. That is what makes the bigger sizes look wrong — nothing in
-   them grows except the emptiness.
-
-   `container-type: size` lets the card measure itself, and `cqh` units make
-   every step of type a fraction of the cell's own height. A cell twice as tall
-   sets its type twice as large, with no breakpoints and nothing per size to
-   keep in step.
-
-   The floors and ceilings are the honest part: `clamp` keeps a 1x1 readable
-   and stops a 2x2 figure from swallowing its own card. Base sizes are doubled
-   from what they were, which is the ask — what read as 100% now sits at the
-   middle of the range rather than the top of it. */
-[data-layout='bento'] .bento-cell {
-  container-type: size;
-  container-name: cell;
-}
-
-[data-layout='bento'] .bento-cell {
-  --card-title: clamp(13px, 7.5cqh, 26px);
-  --card-sub: clamp(10px, 5.4cqh, 17px);
-  --card-fig: clamp(30px, 24cqh, 84px);
-  --card-change: clamp(11px, 6cqh, 20px);
-  --card-note: clamp(10px, 5.6cqh, 18px);
-  --card-action: clamp(11px, 6cqh, 19px);
-}
-
-/* Multiplied by the text axis, so the slider still moves everything. */
-[data-layout='bento'] .bento-cell {
-  --card-title: calc(clamp(13px, 7.5cqh, 26px) * var(--bento-text, 1));
-  --card-sub: calc(clamp(10px, 5.4cqh, 17px) * var(--bento-text, 1));
-  --card-fig: calc(clamp(30px, 24cqh, 84px) * var(--bento-text, 1));
-  --card-change: calc(clamp(11px, 6cqh, 20px) * var(--bento-text, 1));
-  --card-note: calc(clamp(10px, 5.6cqh, 18px) * var(--bento-text, 1));
-  --card-action: calc(clamp(11px, 6cqh, 19px) * var(--bento-text, 1));
+  --bento-dock-bg: rgba(17,19,22,0.72); --bento-dock-ink: #ffffff;
+  --dom-students: #111316; --dom-students-soft: #111316; --dom-students-text: #ffffff;
+  --dom-academics: #111316; --dom-academics-soft: #111316; --dom-academics-text: #ffffff;
+  --dom-attendance: #111316; --dom-attendance-soft: #111316; --dom-attendance-text: #ffffff;
+  --dom-finance: #111316; --dom-finance-soft: #111316; --dom-finance-text: #ffffff;
+  --dom-staff: #111316; --dom-staff-soft: #111316; --dom-staff-text: #ffffff;
+  --dom-admissions: #111316; --dom-admissions-soft: #111316; --dom-admissions-text: #ffffff;
+  --dom-communication: #111316; --dom-communication-soft: #111316; --dom-communication-text: #ffffff;
+  --dom-operations: #111316; --dom-operations-soft: #111316; --dom-operations-text: #ffffff;
+  --dom-reports: #111316; --dom-reports-soft: #111316; --dom-reports-text: #ffffff;
+  --dom-critical: #111316; --dom-critical-soft: #111316; --dom-critical-text: #ffffff;
+  --dom-success: #111316; --dom-success-soft: #111316; --dom-success-text: #ffffff;
+  --dom-warning: #111316; --dom-warning-soft: #111316; --dom-warning-text: #ffffff;
 }
