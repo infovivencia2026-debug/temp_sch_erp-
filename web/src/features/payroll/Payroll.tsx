@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List } from '@/lib/api'
+import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState, ExportButton, PrintButton,
@@ -74,11 +74,30 @@ export default function Payroll() {
     },
   })
 
+  /* A month nobody marked pays everybody in full.
+   *
+   * Loss of pay comes from the staff register, so an unmarked month and a month
+   * where everybody genuinely attended produce identical payslips — and the
+   * second is the common case, which is how a school finds out in March that
+   * loss of pay has never once deducted. The run stops, says how big the gap
+   * is, and goes ahead only when somebody says they know. */
+  const [unmarked, setUnmarked] = useState<{ staff_with_no_marks: number; unmarked_days: number } | null>(null)
   const run = useMutation({
-    mutationFn: () => api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
-      month: Number(month), year: Number(year),
-    }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['payslips'] }),
+    mutationFn: (acknowledge: boolean) =>
+      api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
+        month: Number(month), year: Number(year),
+        acknowledge_unmarked_attendance: acknowledge,
+      }),
+    onSuccess: () => {
+      setUnmarked(null)
+      qc.invalidateQueries({ queryKey: ['payslips'] })
+    },
+    onError: (e: unknown) => {
+      const body = (e as ApiError).body as
+        | { unmarked?: { staff_with_no_marks: number; unmarked_days: number } }
+        | undefined
+      if (body?.unmarked) setUnmarked(body.unmarked)
+    },
   })
 
   const rows = slips.data?.items ?? []
@@ -107,7 +126,7 @@ export default function Payroll() {
             {/* Re-running a locked month would overwrite figures somebody has
                 already signed off, so it is not offered until it is unlocked. */}
             {!locked && (
-              <Button disabled={run.isPending} onClick={() => run.mutate()}>
+              <Button disabled={run.isPending} onClick={() => run.mutate(false)}>
                 {run.isPending ? 'Running…' : 'Run payroll'}
               </Button>
             )}
@@ -122,6 +141,28 @@ export default function Payroll() {
           <Stat label="Net payable" value={formatPaise(net)} />
         </CellGrid>
 
+        {unmarked && (
+          <Card>
+            <CardHeader
+              title="Nobody marked the register for this month"
+              description={
+                `${unmarked.staff_with_no_marks} staff have no attendance at all, and ` +
+                `${unmarked.unmarked_days} working days are unaccounted for. Their days will be ` +
+                'paid in full, and loss of pay will deduct nothing. That may be exactly right — ' +
+                'a school that keeps its register on paper still pays people on the 30th — but ' +
+                'it should be a decision, not an accident.'
+              }
+            />
+            <label className="flex items-start gap-2 text-[14px]">
+              <input
+                type="checkbox"
+                onChange={(e) => { if (e.target.checked) run.mutate(true) }}
+                className="mt-1"
+              />
+              <span>I acknowledge this, and want to run payroll anyway.</span>
+            </label>
+          </Card>
+        )}
         {note && <FormNotice ok={note} />}
         {state.isError && <FormNotice error={state.error} />}
 

@@ -11,6 +11,14 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly requestId?: string,
+    /* The rest of the refusal.
+     *
+     * Some rejections carry the facts a person needs to act: which periods
+     * clashed, how many staff have no attendance marked. Throwing away
+     * everything but the message forced each screen to ask a second time for
+     * something the server had already said, so they mostly did not ask and
+     * showed a sentence where a list belonged. */
+    readonly body?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -67,7 +75,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const e = body?.error
-    throw new ApiError(res.status, e?.code ?? 'unknown', e?.message ?? res.statusText, e?.request_id)
+    throw new ApiError(res.status, e?.code ?? 'unknown', e?.message ?? res.statusText,
+      e?.request_id, body)
   }
   return body as T
 }

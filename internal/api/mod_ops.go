@@ -649,6 +649,35 @@ func (s *Server) setAPAARID(w http.ResponseWriter, r *http.Request) {
 type payrollRunRequest struct {
 	Month int `json:"month"`
 	Year  int `json:"year"`
+	/* Somebody has read the warning and still wants the run.
+
+	   Loss of pay is derived from the staff register, so a month nobody
+	   marked pays everybody in full — silently, and identically to a month
+	   where everybody genuinely attended. The two are indistinguishable on the
+	   payslip and the second is the common case, which is how a school
+	   discovers in March that loss of pay has never once deducted.
+
+	   Not blocked, because a school that keeps its register on paper still has
+	   to pay people on the 30th. Acknowledged instead: the run stops, says how
+	   many days nobody marked, and goes ahead only when a person says they
+	   know. A warning that can be clicked past without a second act is a
+	   warning nobody reads twice. */
+	Acknowledged bool `json:"acknowledge_unmarked_attendance"`
+}
+
+// unmarkedAttendance counts what the register does not know about a month:
+// how many staff have no marks at all, and how many working days are missing
+// across everybody. Both, because "45 staff" and "3 days" are different sizes
+// of problem and the person deciding needs to tell them apart.
+type unmarkedAttendance struct {
+	Staff int `json:"staff_with_no_marks"`
+	Days  int `json:"unmarked_days"`
+}
+
+// daysInMonth is the calendar length, which is as precise as the warning needs
+// to be: it says how big the gap is, not what anybody is owed.
+func daysInMonth(year, month int) int {
+	return time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
 // runPayroll computes a month's salaries from each employee's structure.
@@ -666,6 +695,50 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 	if req.Month < 1 || req.Month > 12 || req.Year < 2000 {
 		httpx.BadRequest(w, r, "month must be 1-12 and year must be valid")
 		return
+	}
+
+	/* Ask before paying a month nobody marked.
+
+	   Checked before any payslip is written, so the answer is "not yet" rather
+	   than "here are twelve payslips, by the way". */
+	if !req.Acknowledged {
+		var gap unmarkedAttendance
+		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(), `
+				SELECT count(*)::int,
+				       COALESCE(sum(GREATEST(0, $3::int - marked))::int, 0)
+				  FROM (
+				    SELECT e.id,
+				           (SELECT count(*) FROM staff_attendance sa
+				             WHERE sa.user_id = e.user_id
+				               AND extract(month FROM sa.on_date) = $1
+				               AND extract(year  FROM sa.on_date) = $2) AS marked
+				      FROM employees e
+				     WHERE e.status = 'active' AND e.user_id IS NOT NULL
+				  ) t
+				 WHERE marked = 0`,
+				req.Month, req.Year,
+				// Working days, approximated as the month's length. The exact
+				// figure is the school calendar's business; this number only
+				// has to be honest about the size of the gap.
+				daysInMonth(req.Year, req.Month)).Scan(&gap.Staff, &gap.Days)
+		}); err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if gap.Staff > 0 {
+			httpx.JSON(w, http.StatusConflict, map[string]any{
+				"error": map[string]any{
+					"code": "attendance_unmarked",
+					"message": fmt.Sprintf(
+						"%d staff have no attendance marked for this month. Their days will be paid in full, and loss of pay will deduct nothing. Acknowledge to run anyway.",
+						gap.Staff),
+					"request_id": httpx.RequestIDFrom(r.Context()),
+				},
+				"unmarked": gap,
+			})
+			return
+		}
 	}
 
 	var runID uuid.UUID
