@@ -94,6 +94,17 @@ export default function Leave() {
       qc.invalidateQueries({ queryKey: ['leave'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
     },
+    /* Losing the race is also news about the list.
+     *
+     * A teacher's leave is answerable by their HOD and by the principal at
+     * once, deliberately — leave should not wait behind whoever is
+     * travelling. So both can have it open, and one clicks second. The server
+     * refuses that click and names who got there first, but the row
+     * underneath still read "pending", which is the one thing it is not. */
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ['leave'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    },
   })
 
   /* Applying, which nothing could do.

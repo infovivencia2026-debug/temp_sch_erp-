@@ -319,8 +319,59 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 			*employeeID, *leaveTypeID, days)
 		return err
 	})
+	/* Two people answering the same request.
+
+	   A teacher's leave sits in the HOD's queue and the principal's at the
+	   same time, on purpose — either may answer it, and a school where one is
+	   travelling should not have leave stuck behind them. So both open it, and
+	   one of them clicks second.
+
+	   The UPDATE is guarded on status = 'pending', so the second click changes
+	   nothing and nobody is overruled. But it matched no row, and the sentence
+	   for that was "no pending leave request with that id" — which reads as the
+	   request having vanished. The HOD refreshes, sees it approved, and cannot
+	   tell whether their own click did that or somebody else's; the honest
+	   answer is a name and a time, and the system knows both.
+
+	   Which is also why this is a 409 rather than a 404. Nothing is missing.
+	   Somebody got there first. */
 	if errors.Is(err, pgx.ErrNoRows) {
-		httpx.Error(w, r, http.StatusNotFound, "not_found", "no pending leave request with that id")
+		var status, decider string
+		var decidedAt *time.Time
+		lookupErr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(), `
+				SELECT lr.status, COALESCE(u.full_name, ''), lr.decided_at
+				  FROM leave_requests lr
+				  LEFT JOIN users u ON u.id = lr.decided_by
+				 WHERE lr.id = $1`, lid).Scan(&status, &decider, &decidedAt)
+		})
+		switch {
+		case lookupErr != nil:
+			// Genuinely absent, or not visible under this tenant.
+			httpx.Error(w, r, http.StatusNotFound, "not_found", "no leave request with that id")
+		case status != "pending":
+			answer := "answered"
+			switch status {
+			case "approved":
+				answer = "approved"
+			case "rejected":
+				answer = "rejected"
+			}
+			msg := "this request was already " + answer
+			if decider != "" {
+				msg += " by " + decider
+			}
+			if decidedAt != nil {
+				msg += " at " + decidedAt.Local().Format("3:04 pm on 2 Jan")
+			}
+			msg += ". Nothing was changed."
+			httpx.Error(w, r, http.StatusConflict, "already_decided", msg)
+		default:
+			// Still pending, so the guard is what refused: it is somebody
+			// else's to answer.
+			httpx.Error(w, r, http.StatusForbidden, "not_your_request",
+				"this request is not yours to answer — it belongs to that student's class teacher.")
+		}
 		return
 	}
 	if err != nil {
