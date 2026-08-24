@@ -49,7 +49,7 @@ export function CardHeader({
 export function PageHead({
   eyebrow,
   title,
-  description,
+  description: _unusedDescription,
   actions,
   width = 'operational',
 }: {
@@ -72,15 +72,40 @@ export function PageHead({
             <nav className="mb-1 flex items-center gap-1 text-[12.5px] text-muted-foreground">
               <span>{eyebrow}</span>
               <span aria-hidden className="text-muted-foreground/50">/</span>
-              <span className="text-secondary-foreground">{title}</span>
+              {/* Now the only visible name for the screen, so it carries the
+                  weight the h1 used to. Still on the breadcrumb's line — the
+                  point is one label, not a smaller version of two. */}
+              <span className="text-[15px] font-semibold text-foreground">{title}</span>
             </nav>
           )}
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
-          {description && (
-            <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
-              {description}
-            </p>
+          {/* The breadcrumb already ends in the screen's name, so the 26px
+              heading underneath it said the same words twice — "Academics /
+              Lesson plans" followed by "Lesson plans". Two sizes of the same
+              label is not emphasis, it is repetition, and it pushed the actual
+              content further down every screen in the product.
+
+              The heading is kept for assistive technology and for document
+              structure: a page with no h1 is worse than a page with a
+              duplicated one. It is the VISIBLE duplicate that goes.
+
+              Where there is no eyebrow nothing else names the screen, so the
+              heading stays as it was. */}
+          {eyebrow ? (
+            <h1 className="sr-only">{title}</h1>
+          ) : (
+            <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
           )}
+          {/* The description is no longer drawn.
+
+              It was a paragraph of explanation under every page title — "The
+              whole school's week. Making one only suggests it…" — read once by
+              somebody learning the product and skipped forever after by the
+              people who use it daily. It cost two lines at the top of every
+              screen, which is the space the actual work needed.
+
+              The prop is kept in the signature so no screen breaks, and so the
+              text is still there to move somewhere it earns its place: a hint
+              on an empty state, or beside the control it is about. */}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
