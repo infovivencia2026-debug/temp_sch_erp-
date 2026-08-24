@@ -211,8 +211,10 @@ export default function StaffMessages() {
         {box === 'parents' ? (
           <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
             <Card className="min-w-0">
+              {/* "Parents", matching the tab above it. The two said different
+                  words for the same list, which reads as two different lists. */}
               <CardHeader
-                title="Families"
+                title="Parents"
                 description={
                   parents.length
                     ? `${parents.length} conversation${parents.length === 1 ? '' : 's'}`
@@ -257,8 +259,8 @@ export default function StaffMessages() {
                 ))}
                 {parents.length === 0 && (
                   <li className="px-4 py-3 text-[13px] text-muted-foreground">
-                    No family has written to you yet. A parent starts the conversation from their
-                    own app.
+                    No parent has written to you yet. A parent starts the conversation from
+                    their own app.
                   </li>
                 )}
               </ul>
