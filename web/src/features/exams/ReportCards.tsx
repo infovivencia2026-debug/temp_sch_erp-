@@ -4,7 +4,7 @@ import { Printer, TriangleAlert } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice,
+  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 
@@ -201,12 +201,24 @@ export default function ReportCards() {
       <PageBody>
         {generate.error && <FormNotice error={generate.error} />}
         {outcome && <FormNotice ok={outcome} />}
-        <CellGrid cols={4}>
-          <Stat label="Report cards" value={all.length} />
-          <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
-          <Stat label="Section average" value={avg !== '—' ? `${avg}%` : '—'} />
-          <Stat label="Topper" value={all.find((r) => r.rank_in_section === 1)?.full_name ?? '—'} />
-        </CellGrid>
+        {/* Nothing is claimed until an exam is chosen.
+        
+            These four read 0, 0, — and — before anybody picks one: a confident
+            row of figures about an exam that has not been named. "Report cards
+            0" is indistinguishable from a real exam with no cards generated. */}
+        {!examId ? (
+          <EmptyState
+            title="Choose an exam"
+            body="Report cards, averages and the topper are per exam. Pick one above to see where this section stands."
+          />
+        ) : (
+          <CellGrid cols={4}>
+            <Stat label="Report cards" value={all.length} />
+            <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
+            <Stat label="Section average" value={avg !== '—' ? `${avg}%` : '—'} />
+            <Stat label="Topper" value={all.find((r) => r.rank_in_section === 1)?.full_name ?? '—'} />
+          </CellGrid>
+        )}
 
         {examId && papers.length > 0 && (
           <Card className={outstanding.length ? 'border-warning' : undefined}>

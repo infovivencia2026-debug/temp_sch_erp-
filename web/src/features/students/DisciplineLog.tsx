@@ -202,7 +202,14 @@ export default function DisciplineLog() {
           )}
         </Card>
 
-        {open && (
+        {/* `open` is an id, and the row it names can leave the list while the
+            panel is up — change the status filter and the incident being
+            handled is no longer in `rows`. find() then returns undefined, the
+            `!` said otherwise, and the panel dereferenced nothing and took the
+            page down with it.
+        
+            If the row has gone, so has the reason for the panel to be open. */}
+        {open && rows.some((r) => r.id === open) && (
           <Handle
             incident={rows.find((r) => r.id === open)!}
             onDone={() => {
