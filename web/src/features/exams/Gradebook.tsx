@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, ExportButton, PrintButton,
+  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, ExportButton, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 
@@ -41,6 +41,45 @@ export default function Gradebook() {
     queryKey: ['exam-subjects'],
     queryFn: () => api.get<List<Paper>>('/api/v1/exams/subjects'),
   })
+  /* What the paper is out of, and which scale grades it — before any mark.
+   *
+   * Both were decided invisibly when the exam was created: every paper took the
+   * same maximum and the grade came from whichever scale happened to be the
+   * default. A formative is out of 20 and a term paper out of 80, in the same
+   * exam, in every school in the country.
+   *
+   * Only before marks exist. Moving the maximum afterwards re-grades every
+   * child in silence — 45 out of 50 is a distinction and 45 out of 100 is a
+   * fail — so the server refuses it and this hides the control rather than
+   * offering something that will be rejected.
+   */
+  const [outOf, setOutOf] = useState('')
+  const [scaleID, setScaleID] = useState('')
+  const [setupNote, setSetupNote] = useState('')
+
+  const scales = useQuery({
+    queryKey: ['grading-scales'],
+    queryFn: () => api.get<List<{ id: string; name: string; is_default: boolean }>>(
+      '/api/v1/academics/grading-scales',
+    ),
+    retry: false,
+  })
+
+  const setup = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/exams/subjects/${esID}/setup`, {
+        ...(outOf ? { max_marks: Number(outOf) } : {}),
+        ...(scaleID ? { grading_scale_id: scaleID } : {}),
+      }),
+    onSuccess: () => {
+      setSetupNote('Saved. Marks entered below are out of this figure and graded on this scale.')
+      setOutOf('')
+      qc.invalidateQueries({ queryKey: ['exam-subjects'] })
+      qc.invalidateQueries({ queryKey: ['gradebook', esID] })
+    },
+    onError: () => setSetupNote(''),
+  })
+
   const [draft, setDraft] = useState<Record<string, string>>({})
   /* Absence is an override, not a set of names.
      A Set can only say "the teacher ticked this one", which is not the same
@@ -198,6 +237,47 @@ export default function Gradebook() {
               <Stat label="Class average" value={entered ? `${avg}/${max}` : '—'} />
               <Stat label="Pending" value={rows.length - entered} />
             </CellGrid>
+
+            {entered === 0 && (
+              <Card>
+                <CardHeader
+                  title="Before you enter marks"
+                  description={`This paper is out of ${max}. Change it now if that is wrong — once a single mark is in it is fixed, because 45 out of 50 is a distinction and 45 out of 100 is a fail.`}
+                />
+                {setupNote && <FormNotice ok={setupNote} />}
+                {setup.error && <FormNotice error={setup.error} />}
+                <FormGrid>
+                  <Field label="Out of" hint="20 for a formative, 80 for a summative, 100 for a term paper.">
+                    <Input
+                      type="number"
+                      value={outOf}
+                      onChange={setOutOf}
+                      placeholder={String(max)}
+                    />
+                  </Field>
+                  <Field
+                    label="Grade scale"
+                    hint="Applies to every paper in this exam, so one report card does not mix two scales."
+                  >
+                    <Select
+                      value={scaleID}
+                      onChange={setScaleID}
+                      placeholder="Leave as it is"
+                      options={(scales.data?.items ?? []).map((g) => ({
+                        value: g.id,
+                        label: g.is_default ? `${g.name} (school default)` : g.name,
+                      }))}
+                    />
+                  </Field>
+                </FormGrid>
+                <Button
+                  onClick={() => setup.mutate()}
+                  disabled={setup.isPending || (!outOf && !scaleID)}
+                >
+                  Save the paper's setup
+                </Button>
+              </Card>
+            )}
 
             <Card>
               <CardHeader

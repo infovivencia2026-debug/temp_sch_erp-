@@ -500,6 +500,12 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).
 				Post("/{id}/papers", s.addExamPapers)
 			r.Get("/subjects", s.listExamSubjects)
+			/* What a paper is out of, and which scale grades it — set before
+			   marks are entered, which is the only safe moment. Both used to
+			   be decided invisibly when the exam was created and could never
+			   be changed. */
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).
+				Put("/subjects/{id}/setup", s.setPaperSetup)
 			r.Get("/gradebook", s.getGradebook)
 			r.Get("/report-cards", s.listReportCards)
 			// Whether every subject teacher has finished. A card generated

@@ -44,6 +44,15 @@ type Resolved struct {
 	CampusIDs     []uuid.UUID
 	DepartmentIDs []uuid.UUID
 	SectionIDs    []uuid.UUID // taught or class-teacher-of, plus departments headed
+	/* Sections this person is class teacher of, and nothing else.
+
+	   Deliberately narrower than SectionIDs. A subject teacher enters the
+	   marks for the subject they teach; the class teacher is the one who reads
+	   every subject for their own section and builds its report cards, because
+	   they are the person a parent asks and the one who answers for the whole
+	   child. Using the wider set for either would let anybody timetabled into
+	   a room decide what goes on somebody else's report. */
+	ClassTeacherOf []uuid.UUID
 	StudentIDs    []uuid.UUID // own record, or linked children
 
 	// Capability overrides. A back-office role legitimately reads the whole
@@ -120,6 +129,11 @@ func Resolve(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolve
 			SELECT id         FROM sections               WHERE class_teacher_id = $1`,
 			id.UserID); err != nil {
 			return fmt.Errorf("sections: %w", err)
+		}
+
+		if r.ClassTeacherOf, err = collectIDs(ctx, tx,
+			`SELECT id FROM sections WHERE class_teacher_id = $1`, id.UserID); err != nil {
+			return fmt.Errorf("class teacher of: %w", err)
 		}
 
 		// A department head reaches the sections their department teaches. They
@@ -380,6 +394,29 @@ func (r *Resolved) CanMarkSection(sectionID uuid.UUID) bool {
 		return true
 	}
 	for _, id := range r.SectionIDs {
+		if id == sectionID {
+			return true
+		}
+	}
+	return false
+}
+
+/* Whether this person is the class teacher of a section.
+
+   The class teacher reads every subject's marks for their own section and
+   builds its report cards. A subject teacher does neither: they enter the
+   marks for their own paper, which is a different question answered by
+   TeachesPaper.
+
+   Office roles that may amend any register keep the right, because approving a
+   correction for a class nobody in the room teaches is exactly what
+   academics.attendance.write.any exists for.
+*/
+func (r *Resolved) IsClassTeacherOf(sectionID uuid.UUID) bool {
+	if r.AnySection || r.PlatformAdmin {
+		return true
+	}
+	for _, id := range r.ClassTeacherOf {
 		if id == sectionID {
 			return true
 		}

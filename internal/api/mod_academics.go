@@ -256,6 +256,17 @@ type marksEntryRequest struct {
 // enterMarks records marks for a whole class in one transaction, computing the
 // grade from the exam's grading scale.
 //
+// studentIDsOf collects the ids being marked, so the authorisation check can ask
+// about the sections those particular children sit in rather than about the
+// paper's class as a whole.
+func studentIDsOf(req marksEntryRequest) []string {
+	out := make([]string, 0, len(req.Entries))
+	for _, e := range req.Entries {
+		out = append(out, e.StudentID)
+	}
+	return out
+}
+
 // Marks above the paper's maximum are rejected outright rather than clamped: a
 // typo of 950 for 95 must not silently become a pass.
 func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
@@ -272,6 +283,68 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	if len(req.Entries) == 0 {
 		httpx.BadRequest(w, r, "entries must not be empty")
 		return
+	}
+
+	/* Who may write on this paper.
+
+	   There was no check at all. The route asked for academics.marks.write and
+	   nothing else, so any teacher holding it could enter marks for any paper
+	   in the school — a Grade 6 Telugu teacher could have written the Grade 8
+	   Mathematics sheet, and nothing in the product would have noticed or
+	   recorded it.
+
+	   Two people legitimately write here, and they are different people:
+
+	     the subject teacher, for the paper they teach, in the sections they
+	     are allocated to;
+	     the class teacher, for any subject of their own section, because they
+	     are the one who answers for the whole child and has to be able to fix
+	     a gap the subject teacher left.
+
+	   Anybody else is refused. Checked against the section each student is
+	   actually enrolled in rather than against the paper's class, because a
+	   paper belongs to a class and a class has several sections — a teacher
+	   allocated to 6-A must not be able to write 6-B's marks. */
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !res.AnySection && !res.PlatformAdmin {
+		var mayWrite bool
+		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(), `
+				SELECT EXISTS (
+				  -- the subject teacher of this paper, in a section holding
+				  -- one of the students being marked
+				  SELECT 1
+				    FROM exam_subjects es
+				    JOIN section_subject_teachers t
+				      ON t.class_subject_id = es.class_subject_id
+				     AND t.teacher_user_id  = $2
+				    JOIN enrollments en
+				      ON en.section_id = t.section_id
+				     AND en.status = 'active'
+				     AND en.student_id = ANY($3::uuid[])
+				   WHERE es.id = $1
+				) OR EXISTS (
+				  -- or the class teacher of a section holding one of them
+				  SELECT 1
+				    FROM enrollments en
+				    JOIN sections sec ON sec.id = en.section_id
+				   WHERE en.status = 'active'
+				     AND en.student_id = ANY($3::uuid[])
+				     AND sec.class_teacher_id = $2
+				)`, esID, id.UserID, studentIDsOf(req)).Scan(&mayWrite)
+		}); err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if !mayWrite {
+			httpx.Forbidden(w, r,
+				"academics.marks.write for this paper — you are neither its subject teacher nor the class teacher of these students")
+			return
+		}
 	}
 
 	written := 0
@@ -423,6 +496,24 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 	sectionID, err := uuid.Parse(req.SectionID)
 	if err != nil {
 		httpx.BadRequest(w, r, "section_id must be a uuid")
+		return
+	}
+
+	/* The report card belongs to the class teacher.
+
+	   This had no scope check either: anybody holding
+	   academics.reportcards.generate could build and publish cards for any
+	   section in the school, including sections they have never taught. A
+	   report card is the document a family keeps, and the person who stands
+	   behind it is the one who answers for the whole child. */
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !res.IsClassTeacherOf(sectionID) {
+		httpx.Forbidden(w, r,
+			"academics.reportcards.generate for this section — report cards are built by its class teacher")
 		return
 	}
 
