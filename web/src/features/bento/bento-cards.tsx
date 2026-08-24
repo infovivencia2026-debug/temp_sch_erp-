@@ -103,8 +103,19 @@ export function CardShell({
       </div>
 
       <div className="mt-1.5 min-w-0">
-        <p className="truncate pb-[0.06em] font-semibold leading-[0.95] tracking-[-0.05em]
-                      tabular-nums text-[length:var(--card-fig,30px)]">
+        {/* A placeholder is not a figure. When there is no number the cell
+            passes an em dash, and at the figure's own size that renders as a
+            wide white bar — which reads as a broken chart rather than as "no
+            data". It is set down to the supporting size and muted, so the
+            sentence beneath it becomes the thing you read. */}
+        <p
+          className={cn(
+            'truncate pb-[0.06em] font-semibold tracking-[-0.05em] tabular-nums',
+            value === '—'
+              ? 'leading-tight opacity-45 text-[length:var(--card-change,13px)]'
+              : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
+          )}
+        >
           {value}
         </p>
         {/* Two lines, not an ellipsis. This is the sentence that carries the
@@ -214,20 +225,22 @@ export function Rows({ items, srLabel, formatValue }: {
        drawing row can be 46, so the top row was silently cut — which is the
        white rule that appeared to slice through the card's own sentence.
        `flex-1 min-h-0` on each row makes them compress evenly instead. */
-    <div className="flex h-full min-h-0 flex-col justify-end gap-1" role="img" aria-label={srLabel}>
+    <div className="flex h-full min-h-0 flex-col justify-end gap-0.5" role="img" aria-label={srLabel}>
       {items.map((it) => (
         <div key={it.label}
              className="grid min-h-0 flex-1 grid-cols-[minmax(38px,auto)_minmax(0,1fr)_auto]
                         items-center gap-1.5">
-          <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+          <span className="truncate text-[length:min(9px,var(--card-note,9px))] font-medium
+                           uppercase leading-none tracking-[0.05em] opacity-70">
             {it.label}
           </span>
-          <span className="h-[min(12px,100%)] overflow-hidden rounded-[3px]"
+          <span className="h-[min(10px,100%)] overflow-hidden rounded-[3px]"
                 style={{ background: TRACK }}>
             <span className="block h-full rounded-[3px]"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
-          <b className="text-[9px] font-bold tabular-nums">{fmt(it.value)}</b>
+          <b className="text-[length:min(10px,var(--card-note,10px))] font-bold leading-none
+                        tabular-nums">{fmt(it.value)}</b>
         </div>
       ))}
     </div>

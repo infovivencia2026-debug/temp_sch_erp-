@@ -1319,20 +1319,20 @@ html[data-layout='bento'] body {
 [data-layout='bento'] .bento-cell {
   --card-title: clamp(13px, 7.5cqh, 26px);
   --card-sub: clamp(10px, 5.4cqh, 17px);
-  --card-fig: clamp(30px, 24cqh, 84px);
+  --card-fig: clamp(28px, 20cqh, 76px);
   --card-change: clamp(11px, 6cqh, 20px);
   --card-note: clamp(10px, 5.6cqh, 18px);
-  --card-action: clamp(13px, 7cqh, 22px);
+  --card-action: clamp(12.5px, 3.2cqh, 15px);
 }
 
 /* Multiplied by the text axis, so the slider still moves everything. */
 [data-layout='bento'] .bento-cell {
   --card-title: calc(clamp(13px, 7.5cqh, 26px) * var(--bento-text, 1));
   --card-sub: calc(clamp(10px, 5.4cqh, 17px) * var(--bento-text, 1));
-  --card-fig: calc(clamp(30px, 24cqh, 84px) * var(--bento-text, 1));
+  --card-fig: calc(clamp(28px, 20cqh, 76px) * var(--bento-text, 1));
   --card-change: calc(clamp(11px, 6cqh, 20px) * var(--bento-text, 1));
   --card-note: calc(clamp(10px, 5.6cqh, 18px) * var(--bento-text, 1));
-  --card-action: calc(clamp(13px, 7cqh, 22px) * var(--bento-text, 1));
+  --card-action: calc(clamp(12.5px, 3.2cqh, 15px) * var(--bento-text, 1));
 }
 
 /* ── THE DEFAULT PALETTE — one material, one accent ─────────────────────
