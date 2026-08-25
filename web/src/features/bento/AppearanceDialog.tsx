@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, LayoutGrid, Minus, Palette, Plus, Sliders, Type, X } from 'lucide-react'
+import {
+  Check, LayoutGrid, LogOut, Maximize2, Minimize2, Minus, Palette, Plus,
+  Sliders, Type, UserCircle, X, Contrast as RotateCcw,
+} from 'lucide-react'
+import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
@@ -616,9 +620,98 @@ export function AppearanceDialog({
           </section>
           )}
         </div>
+
+        <DialogActions onClose={onClose} />
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* The four things that were left in the settings menu.
+
+   Pressing the cog used to open a popover, and every substantive row in it
+   opened this dialog. That made the menu a waiting room: two surfaces where
+   one was wanted, and the answer to "where do I change the font" was one press
+   further away than it looked.
+
+   The cog opens this window directly now, so these came with it. They sit in a
+   footer rather than becoming a fifth tab because they are not a category of
+   preference -- they are three one-way doors and a switch, and a tab implies a
+   page of settings behind it. In the footer they are reachable from every tab,
+   which is better than where they were.
+
+   Full screen and Reset appearance are about the window and how it looks, so
+   they lead. My profile and Sign out are the account, so they are pushed to
+   the far end -- nobody signs out by accident from across a dialog. */
+function DialogActions({ onClose }: { onClose: () => void }) {
+  const t = useT()
+
+  /* Full screen, tracked rather than assumed.
+
+     The control has to say which way it goes, and the state can change without
+     it -- Escape and F11 both leave full screen without touching this dialog --
+     so it listens rather than remembering what it last asked for. */
+  const [full, setFull] = useState(
+    () => typeof document !== 'undefined' && !!document.fullscreenElement,
+  )
+  useEffect(() => {
+    const onChange = () => setFull(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const toggleFull = () => {
+    /* Both calls reject rather than throw -- a browser may refuse full screen
+       when the gesture is not trusted -- so the rejection is swallowed and the
+       listener above keeps the label truthful either way.
+
+       The dialog closes on the way in: going full screen to look at the
+       dashboard and finding a settings window over it is not what anybody
+       meant by the button. */
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    else {
+      void document.documentElement.requestFullscreen().catch(() => {})
+      onClose()
+    }
+  }
+
+  const ACTION = cn(
+    'flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-[12.5px] transition-colors',
+    INK, WASH, RING,
+  )
+
+  return (
+    <footer className={cn('flex shrink-0 flex-wrap items-center gap-1 border-t px-5 py-2.5', SEAM)}>
+      <button type="button" onClick={toggleFull} className={ACTION}>
+        {full
+          ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
+          : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
+        {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
+      </button>
+
+      {/* A way back. Enough axes live in this dialog at once that somebody
+          ends up somewhere they cannot retrace, and a settings window with no
+          exit from itself is a trap. */}
+      <button type="button" onClick={() => resetAppearance()} className={ACTION}>
+        <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+        {t('bento.settings.reset')}
+      </button>
+
+      <span className="flex-1" />
+
+      {/* /account sits outside the catalogue on purpose -- everybody has a
+          name, a password and contact details whatever their role -- which
+          once meant the only way in was to type the URL. */}
+      <a href="/account" className={ACTION}>
+        <UserCircle className="size-4 shrink-0" aria-hidden="true" />
+        {t('bento.settings.account')}
+      </a>
+      <a href="/logout" className={ACTION}>
+        <LogOut className="size-4 shrink-0" aria-hidden="true" />
+        {t('bento.settings.signout')}
+      </a>
+    </footer>
   )
 }
 
