@@ -59,17 +59,37 @@ func ActingInstitution(db *database.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Verified against the table rather than trusted: an unchecked id
-			// would set the tenant GUC to a value no row matches, and every
-			// query would quietly return nothing instead of saying why.
-			var exists bool
+			/* Verified against the table rather than trusted: an unchecked id
+			   would set the tenant GUC to a value no row matches, and every
+			   query would quietly return nothing instead of saying why.
+
+			   Any school that exists, not only an active one. Suspending is a
+			   thing the vendor DOES to a school, and they have to be able to
+			   work inside it afterwards — to read what it owes, to look at
+			   what it holds, and above all to switch it back on. Requiring
+			   'active' here meant suspending a school you were acting on
+			   locked you out of the whole product: this middleware runs in
+			   front of /api/v1/catalog too, so the menu itself came back 404
+			   and there was no screen left to clear the selection from.
+
+			   The suspension still bites where it is meant to. The school's
+			   own people are refused at sign-in; this is the vendor, who is
+			   the one who suspended them. */
+			var status string
 			if err := db.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 				return tx.QueryRow(r.Context(),
-					`SELECT true FROM institutions WHERE id = $1 AND status = 'active'`,
-					want).Scan(&exists)
+					`SELECT status FROM institutions WHERE id = $1`, want).Scan(&status)
 			}); err != nil {
 				if err == pgx.ErrNoRows {
-					httpx.NotFound(w, r)
+					/* Say which id, and that clearing it is the way out.
+
+					   "resource not found" was the whole message, on every
+					   request including the catalogue, so the screen showed an
+					   error with no menu and no hint that a stale selection in
+					   this tab was the cause. */
+					httpx.Error(w, r, http.StatusNotFound, "no_such_school",
+						"there is no school with id "+want.String()+
+							". Pick a school again — this tab is holding one that no longer exists.")
 					return
 				}
 				httpx.Internal(w, r, err)

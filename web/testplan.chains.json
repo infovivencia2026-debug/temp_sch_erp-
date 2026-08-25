@@ -1,5 +1,77 @@
 [
  {
+  "name": "A teacher gains a subject, and the menu follows",
+  "why": "The switch the whole term turns on. Nobody edits a role: the school allocates a subject, and five screens appear on that person's next sign-in \u2014 which is how a head of department who starts teaching in January needs no role change at all.",
+  "steps": [
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/teacher_assignment",
+    "do": "Look at a teacher who is allocated nothing, then allocate them one subject in one section.",
+    "expect": "Saved. This screen was read-only until today \u2014 it showed who taught what and gave no way to change it."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/marks_entry",
+    "do": "Sign in as that teacher and open marks entry.",
+    "expect": "The paper dropdown offers that subject and nothing else in the school. Before the allocation the entry was not even in their menu."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/teacher_assignment",
+    "do": "Take the allocation away again.",
+    "expect": "Marks entry, homework, lesson plans, the register and report cards leave that person's menu on their next refresh. Marks already entered are untouched."
+   }
+  ]
+ },
+ {
+  "name": "Class teacher is a name on a section, not a role",
+  "why": "A subject teacher marks their own subject; a class teacher collates the whole section. The difference is one field on the section, and it decides three different powers.",
+  "steps": [
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/class_setup",
+    "do": "Name a teacher as class teacher of one section.",
+    "expect": "Saved against the section \u2014 not against the person."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/report_cards",
+    "do": "As that teacher, generate report cards for the section.",
+    "expect": "Generated. A teacher who is not its class teacher is refused, naming why."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/student_leave_requests",
+    "do": "Open student leave requests.",
+    "expect": "Their section's children are there to decide. Another section's are not."
+   }
+  ]
+ },
+ {
+  "name": "Two roles a person may hold, and two they may not",
+  "why": "A role is a workspace; a capability is a job. Two roles that draw the same screens are one workspace listed twice, and the person has to learn which copy to use.",
+  "steps": [
+   {
+    "role": "Super Admin",
+    "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/users",
+    "do": "Give somebody the \u201cTeacher & librarian\u201d preset.",
+    "expect": "Both granted. Two icons on their left rail, nothing shared between them \u2014 and the librarian role installs itself if this school has never used it."
+   },
+   {
+    "role": "Super Admin",
+    "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/users",
+    "do": "Now try to give one person both HOD and Faculty.",
+    "expect": "Refused, and told what to do instead: allocate them a subject, and the hod role gives those screens by itself."
+   },
+   {
+    "role": "Super Admin",
+    "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/users",
+    "do": "Try Admissions together with Receptionist.",
+    "expect": "Refused. All five of the receptionist's entries are inside admissions, so it would be the front desk twice."
+   }
+  ]
+ },
+ {
   "name": "Attendance reaches the parent and the principal",
   "why": "One register mark is the school's whole absence story: the family is told, the principal's day-count moves, and the child's percentage changes.",
   "steps": [

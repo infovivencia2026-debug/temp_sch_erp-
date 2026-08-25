@@ -149,14 +149,30 @@ mv "$APP_DIR/migrate.new" "$APP_DIR/migrate"
 install -o root -g root -m 0755 "$BUILD/web"    "$APP_DIR/web"
 install -o root -g root -m 0755 "$BUILD/worker" "$APP_DIR/worker"
 # the trap removes $BUILD; nothing to clean up by hand
+# The API comes up BEFORE the new page is served.
+#
+# This was the other way round, and the two seconds between them were a real
+# fault rather than a theoretical one: the new bundle was already being served
+# while the old binary was still answering, so a page loaded in that window
+# asked for endpoints that did not exist yet and showed "resource not found".
+# Somebody opening the seller dashboard mid-deploy saw exactly that.
+#
+# Restarting first inverts the overlap into the safe direction. A new API
+# serving an old page is fine — releases add endpoints far more often than they
+# remove them, and an old page asks only for what already existed. The reverse
+# is never fine.
+systemctl restart "${SERVICE}-web" "${SERVICE}-worker"
+
 mkdir -p "$WEBROOT"
 # --delete keeps the webroot honest: a bundle removed from the build should
 # disappear from the server too. /download needs no exception any more -- the
 # APK and the SMS test page live in web/public and Vite copies them into dist,
 # so they arrive with every build. An --exclude here would now do the opposite
 # of what it was added for and keep them OUT.
+#
+# A tab held open across this loses the chunks it has not fetched yet, which is
+# what ChunkBoundary reloads once for -- see web/src/components/ChunkBoundary.
 rsync -a --delete "$SRC/web/dist/" "$WEBROOT/"
-systemctl restart "${SERVICE}-web" "${SERVICE}-worker"
 sleep 2
 systemctl is-active "${SERVICE}-web" "${SERVICE}-worker"
 

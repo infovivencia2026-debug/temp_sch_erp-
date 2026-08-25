@@ -6,48 +6,64 @@
    "name": "Seller Admin",
    "sections": [
     {
-     "slug": "customers",
-     "name": "Customers",
+     "slug": "home",
+     "name": "Home",
      "features": [
       {
-       "key": "seller_admin.customers.tenant_directory",
-       "slug": "tenant_directory",
-       "name": "Tenant Directory",
+       "key": "seller_admin.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
        "scope": "platform",
        "tier": "core",
-       "expect": "Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support.",
+       "expect": "The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used \u2014 with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/tenant_directory"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/home/dashboard"
+      }
+     ]
+    },
+    {
+     "slug": "schools",
+     "name": "Schools",
+     "features": [
+      {
+       "key": "seller_admin.schools.schools",
+       "slug": "schools",
+       "name": "Schools",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/schools/schools"
       },
       {
-       "key": "seller_admin.customers.provision_new_school",
-       "slug": "provision_new_school",
-       "name": "Provision New School",
+       "key": "seller_admin.schools.add_school",
+       "slug": "add_school",
+       "name": "Add School",
        "scope": "platform",
        "tier": "core",
-       "expect": "Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials.",
+       "expect": "Create a school, its first campus and its first administrator in one step, and hand over the credentials.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/provision_new_school"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/schools/add_school"
       },
       {
-       "key": "seller_admin.customers.suspend_reactivate",
-       "slug": "suspend_reactivate",
-       "name": "Suspend & Reactivate",
+       "key": "seller_admin.schools.access",
+       "slug": "access",
+       "name": "Access",
        "scope": "platform",
        "tier": "core",
-       "expect": "Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement.",
+       "expect": "Who may sign in and who may not: suspend a school for non-payment or at the end of a contract \u2014 blocking sign-in while keeping every record \u2014 and let them back in on settlement. The suspension takes effect on the next request, not the next restart.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/suspend_reactivate"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/schools/access"
       },
       {
-       "key": "seller_admin.customers.onboarding_progress",
-       "slug": "onboarding_progress",
-       "name": "Onboarding Progress",
+       "key": "seller_admin.schools.setup",
+       "slug": "setup",
+       "name": "Setup",
        "scope": "platform",
        "tier": "core",
-       "expect": "How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation.",
+       "expect": "How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/onboarding_progress"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/schools/setup"
       }
      ]
     },
@@ -76,14 +92,14 @@
        "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/subscription_ledger"
       },
       {
-       "key": "seller_admin.subscriptions_billing.seat_overage_renewals",
-       "slug": "seat_overage_renewals",
-       "name": "Seat Overage & Renewals",
+       "key": "seller_admin.subscriptions_billing.license_capacity",
+       "slug": "license_capacity",
+       "name": "License & Capacity",
        "scope": "platform",
        "tier": "core",
-       "expect": "Schools past their student cap or inside the renewal window, with the revenue at risk.",
+       "expect": "Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/seat_overage_renewals"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/license_capacity"
       }
      ]
     },
@@ -126,6 +142,16 @@
        "expect": "Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.",
        "built": true,
        "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/usage_health/instance_health"
+      },
+      {
+       "key": "seller_admin.usage_health.usage_cost",
+       "slug": "usage_cost",
+       "name": "Usage & Cost",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "What each school actually uses \u2014 files stored, records held, messages sent \u2014 against what the installation costs to run. Enter the monthly bill once and every school's share is read against what it pays, so a customer's price can be seen next to its cost.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/usage_health/usage_cost"
       }
      ]
     },
@@ -134,24 +160,24 @@
      "name": "Support",
      "features": [
       {
-       "key": "seller_admin.support.support_tickets",
-       "slug": "support_tickets",
-       "name": "Support Tickets",
+       "key": "seller_admin.support.support",
+       "slug": "support",
+       "name": "Support",
        "scope": "platform",
        "tier": "core",
        "expect": "Tickets raised by schools, with the tenant, severity, owner and time open.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/support_tickets"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/support"
       },
       {
-       "key": "seller_admin.support.impersonation_audit",
-       "slug": "impersonation_audit",
-       "name": "Impersonation & Audit",
+       "key": "seller_admin.support.audit",
+       "slug": "audit",
+       "name": "Audit",
        "scope": "platform",
        "tier": "core",
        "expect": "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/impersonation_audit"
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/audit"
       }
      ]
     }
@@ -166,74 +192,14 @@
      "name": "Dashboard",
      "features": [
       {
-       "key": "super_admin.dashboard.campus_cards",
-       "slug": "campus_cards",
-       "name": "Campus cards",
+       "key": "super_admin.dashboard.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
        "scope": "platform",
        "tier": "core",
-       "expect": "Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.",
+       "expect": "Every campus on one page \u2014 roll, staff, attendance taken today, fees collected and outstanding \u2014 ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/campus_cards"
-      },
-      {
-       "key": "super_admin.dashboard.all_campuses_summary",
-       "slug": "all_campuses_summary",
-       "name": "All campuses summary",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/all_campuses_summary"
-      },
-      {
-       "key": "super_admin.dashboard.alerts",
-       "slug": "alerts",
-       "name": "Alerts",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/alerts"
-      },
-      {
-       "key": "super_admin.dashboard.multi_branch_revenue_analytics",
-       "slug": "multi_branch_revenue_analytics",
-       "name": "Multi-Branch Revenue Analytics",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "View aggregate fee collection, outstanding balances, and comparative revenue across branches.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/multi_branch_revenue_analytics"
-      },
-      {
-       "key": "super_admin.dashboard.central_admission_funnel_kpi",
-       "slug": "central_admission_funnel_kpi",
-       "name": "Central Admission Funnel KPI",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/central_admission_funnel_kpi"
-      },
-      {
-       "key": "super_admin.dashboard.global_attendance_heatmap",
-       "slug": "global_attendance_heatmap",
-       "name": "Global Attendance Heatmap",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "Monitor real-time student and staff attendance percentages across all campus locations.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/global_attendance_heatmap"
-      },
-      {
-       "key": "super_admin.dashboard.executive_system_alerts",
-       "slug": "executive_system_alerts",
-       "name": "Executive System Alerts",
-       "scope": "platform",
-       "tier": "core",
-       "expect": "Display system-critical alerts including integration downtime, security breaches, and pending audits.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/executive_system_alerts"
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/dashboard"
       },
       {
        "key": "super_admin.dashboard.system_health",
@@ -947,7 +913,7 @@
        "name": "Teacher Assignment",
        "scope": "institution",
        "tier": "core",
-       "expect": "Which teacher takes which subject in which class, reviewed and signed off before the timetable is built on top of it.",
+       "expect": "Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated \u2014 and push the result into the published timetable so the two agree.",
        "built": true,
        "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/teacher_assignment"
       }
@@ -1181,6 +1147,22 @@
    "key": "hod",
    "name": "HOD / Department Head",
    "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "hod.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Your department before nine o'clock: who is out and how many of their periods nobody is covering, what is waiting on your decision, and which of your registers have not been taken.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/home/dashboard"
+      }
+     ]
+    },
     {
      "slug": "timetable",
      "name": "Timetable",
