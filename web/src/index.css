@@ -881,6 +881,44 @@
      same colour wherever they appear — so it overrides the primary tokens
      rather than belonging to a region. */
   :root { --primary: var(--paint-workarea-accent, var(--primary-base, 217 91% 60%)); }
+
+  /* A painted region has to OUT-SPECIFY the utility that dressed it.
+
+     The four rules above are attribute selectors — one specificity point —
+     and every one of those regions also carries a Tailwind class doing the
+     same job: the sidebar is `bg-sidebar`, the topbar is `.chrome`. Equal
+     specificity is settled by order, and utilities are emitted after base, so
+     the paint lost every time. Choosing a sidebar colour changed the token and
+     nothing on screen, which is exactly what was reported.
+
+     `html[data-painted~=…]` adds the point that settles it, and asks about the
+     one region/channel pair being dressed — so an unpainted sidebar still
+     follows the theme through `bg-sidebar` rather than being frozen to a
+     fallback. paint.ts writes the attribute; see repaint().
+
+     Text descends to the whole region rather than to the box, because the
+     labels inside set their own colour (`text-secondary-foreground` and the
+     rest) and would otherwise sit unchanged on a repainted ground — a sidebar
+     painted dark with dark grey type on it. The active item keeps its own
+     weight and its mark; only the colour is taken over. */
+  html[data-painted~='sidebar-bg'] [data-paint='sidebar'] {
+    background-color: hsl(var(--paint-sidebar-bg));
+  }
+  html[data-painted~='topbar-bg'] [data-paint='topbar'] {
+    background-color: hsl(var(--paint-topbar-bg));
+  }
+  html[data-painted~='workarea-bg'] [data-paint='workarea'] {
+    background-color: hsl(var(--paint-workarea-bg));
+  }
+  html[data-painted~='bottombar-bg'] [data-paint='bottombar'] {
+    background-color: hsl(var(--paint-bottombar-bg));
+  }
+  html[data-painted~='sidebar-text'] [data-paint='sidebar'] :where(a, button, span, p, h1, h2, h3, svg) {
+    color: hsl(var(--paint-sidebar-text));
+  }
+  html[data-painted~='topbar-text'] [data-paint='topbar'] :where(a, button, span, p, h1, h2, h3, svg) {
+    color: hsl(var(--paint-topbar-text));
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

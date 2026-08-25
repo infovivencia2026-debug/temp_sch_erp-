@@ -934,8 +934,16 @@ html[data-appearance-open] .bento-dock {
 /* Room at the bottom of the dialog so a tall panel cannot scroll under the
    dock and hide it again. Generous, because the dock grows with its own
    settings — icon size and padding are two of the things being changed. */
-html[data-appearance-open] .appearance-panel {
-  margin-bottom: 132px;
+/* On the OVERLAY, as padding, rather than on the panel as a margin.
+
+   A margin on the panel made the panel 132px taller than its own max-height as
+   far as the centring grid was concerned; the grid centred that taller box in
+   the window, and everything above the midpoint — the title, the tabs — went
+   off the top edge, unreachable. Padding on the container takes the room out
+   of the box the panel is centred in instead, so the panel simply gets
+   shorter and stays wholly on screen. */
+html[data-appearance-open] .appearance-overlay {
+  padding-bottom: 132px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

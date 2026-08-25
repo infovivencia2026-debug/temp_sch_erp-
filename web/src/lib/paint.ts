@@ -175,12 +175,33 @@ function repaint() {
   const shipped = paletteByName(activePalette)
   if (shipped) for (const [k, v] of Object.entries(shipped.tokens)) set(k, v)
 
+  /* WHICH REGIONS ARE ACTUALLY PAINTED, said out loud on the root.
+
+     The rules in index.css read `--paint-sidebar-bg` with the shipped token as
+     a fallback, which is correct and was not enough: the sidebar also carries
+     Tailwind's `bg-sidebar`, and a class utility and an attribute selector have
+     the same specificity, so the one that wins is the one that comes later —
+     always the utilities layer. The paint was being written, and the sidebar
+     was ignoring it.
+
+     Raising the specificity needs something to raise it WITH, and it has to be
+     conditional: `html [data-paint='sidebar']` unconditionally would beat
+     bg-sidebar even when nobody has painted anything, which would make the
+     fallback the permanent answer and the theme's own sidebar shade
+     unreachable. So the root lists the region/channel pairs that have a value,
+     and the stylesheet asks for the one it is about. */
+  const painted: string[] = []
   for (const r of REGIONS) {
     for (const c of CHANNELS) {
       const v = paint[`${r}.${c}`]
-      if (v) set(varName(r, c), hslString(v))
+      if (v) {
+        set(varName(r, c), hslString(v))
+        painted.push(`${r}-${c}`)
+      }
     }
   }
+  if (painted.length) root.dataset.painted = painted.join(' ')
+  else delete root.dataset.painted
   for (const [key, token] of BENTO_MAP) {
     const v = paint[key]
     if (v) set(token, hslCss(v))

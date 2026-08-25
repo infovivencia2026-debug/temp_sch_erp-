@@ -349,7 +349,7 @@ export function AppearanceDialog({
          rather than closing: closing would lose the channel and colour already
          chosen, and the point of aiming is to come back and keep working. */
       className={cn(
-        'fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4 sm:p-6',
+        'appearance-overlay fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4 sm:p-6',
         picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
       )}
       onClick={picking ? undefined : onClose}
@@ -366,8 +366,22 @@ export function AppearanceDialog({
            <body>; the outer `border` was `--bento-line` at 1.38:1, which is
            not enough to separate a floating dialog from the page behind it. */
         className={cn(
-          `appearance-panel pop-down flex max-h-[min(88vh,760px)] w-full max-w-[980px] flex-col
-           overflow-hidden rounded-[16px] border
+          /* A HEIGHT, not a maximum, and `max-h-full` under it.
+
+             Two things came out of `max-h`. The dialog resized every time
+             somebody moved between its four pages — Colour is a wheel and two
+             sliders, Dashboard is a list — so the tabs moved under the cursor
+             and the whole panel jumped on each switch. And the panel was 88vh
+             plus the dock's 132px of clearance, which is taller than the
+             window: a centred grid item that overflows its container overflows
+             it at BOTH ends, so the top of the dialog, its title and its tabs
+             went off the top of the screen with no way to scroll back up.
+
+             Fixed height fixes the first. `max-h-full` fixes the second by
+             letting the panel give way to the clearance, which the overlay now
+             carries as padding rather than the panel as a margin. */
+          `appearance-panel pop-down flex h-[min(88vh,760px)] max-h-full w-full max-w-[980px]
+           flex-col overflow-hidden rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,
           // Still clickable while aiming, so the dialog can be used to cancel.

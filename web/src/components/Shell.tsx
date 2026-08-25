@@ -96,9 +96,24 @@ function workspacesFor(
    Parent 10px, child 28px. Indentation carries the hierarchy that a connector
    spine used to draw -- the spine made the sidebar read as a file explorer,
    and a file explorer is a thing you browse rather than a place you work. */
+/* Chrome type answers the text-size slider, like everything else.
+
+   The slider moves `--font-scale`, which reaches the product through
+   `html { font-size }` — and therefore reaches rem, and nothing else. The
+   sidebar, the topbar and the workspace names are all written in exact pixels
+   on purpose (a nav label is chrome; it should not reflow when a table decides
+   it wants larger figures), so the one place in the product somebody looks
+   first was the one place the setting did nothing.
+
+   calc against the same variable rather than a switch to rem: the sizes stay
+   the considered values they are, and they move when asked. */
 function navItem(active: boolean, depth: 0 | 1, dim = false) {
   return cn(
-    'relative flex h-[36px] items-center gap-2 rounded-[7px] pr-2 text-[13.5px]',
+    // The row grows with its type, or larger text is set in a 36px box and
+    // clipped by it. min-height rather than height for the same reason: a
+    // two-line label at 116% has to be allowed to be two lines.
+    'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-[7px] pr-2',
+    'py-1 text-[calc(13.5px*var(--font-scale,1))]',
     'transition-colors duration-100',
     depth === 0 ? 'pl-2.5' : 'pl-7',
     active
@@ -421,12 +436,12 @@ export function Shell({
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[7px] bg-primary text-[13px] font-semibold text-primary-foreground">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[7px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground">
               {session.institution?.short_name?.[0] ?? 'E'}
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-1">
-                <span className="truncate text-[14px] font-semibold">
+                <span className="truncate text-[calc(14px*var(--font-scale,1))] font-semibold">
                   {role?.name ?? 'Workspace'}
                 </span>
                 {catalog.roles.length > 1 && (
@@ -438,7 +453,7 @@ export function Shell({
                   />
                 )}
               </span>
-              <span className="block truncate text-[12px] text-muted-foreground">
+              <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">
                 {session.institution?.name ?? 'EDU CLOUD'}
               </span>
             </span>
@@ -465,7 +480,7 @@ export function Shell({
                       navigate(`/${r.key}`)
                     }}
                     className={cn(
-                      'flex w-full items-center gap-2 px-3 py-2 text-left text-[13.5px]',
+                      'flex w-full items-center gap-2 px-3 py-2 text-left text-[calc(13.5px*var(--font-scale,1))]',
                       'transition-colors duration-100',
                       r.key === role?.key
                         ? 'bg-nav-active font-[550] text-foreground shadow-[var(--lift-panel)]'
@@ -539,7 +554,7 @@ export function Shell({
                   return (
                     <div key={section.slug} className={labelled ? 'mt-2 first:mt-0' : undefined}>
                       {labelled && (
-                        <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
+                        <p className="px-2.5 pb-1 pt-1 text-[calc(11px*var(--font-scale,1))] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
                           {section.name}
                         </p>
                       )}
@@ -630,7 +645,7 @@ export function Shell({
               means anything, and the sidebar answers "where am I" rather than
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
-          <p className="min-w-0 truncate text-[13.5px]">
+          <p className="min-w-0 truncate text-[calc(13.5px*var(--font-scale,1))]">
             <span className="font-medium">{session.institution?.name ?? 'EDU CLOUD'}</span>
             {scopeLine && <span className="text-muted-foreground"> · {scopeLine}</span>}
           </p>

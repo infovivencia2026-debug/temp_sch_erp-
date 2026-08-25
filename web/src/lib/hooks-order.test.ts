@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /* No hook below an early return.
@@ -21,7 +21,15 @@ import { describe, expect, it } from 'vitest'
  * further and are not the bug being hunted.
  */
 
-const SRC = new URL('..', import.meta.url).pathname
+/* From the runner's root, not from import.meta.url.
+
+   These tests run in a browser-like environment, where import.meta.url is an
+   http: URL rather than a file: one — so `new URL('..', …).pathname` came out
+   as the bare "/src", an absolute path that does not exist. readdirSync threw,
+   and because the throw happened while collecting the file rather than inside
+   the assertion, the whole check reported as one failure and had never
+   actually walked a single component. */
+const SRC = resolve(process.cwd(), 'src')
 const HOOK = /^ {2}(?:const|let)\s[^=]*=\s*use[A-Z]\w*\(/
 const EARLY_RETURN = /^ {2}if \(.*\)\s*return\s/
 // Anything declared at column 0 opens a fresh hook scope. Without this the
