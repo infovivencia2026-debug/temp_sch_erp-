@@ -493,9 +493,11 @@ export function Shell({
                     }}
                     className={cn(
                       'flex w-full items-center gap-2 px-3 py-2 text-left text-[calc(13.5px*var(--font-scale,1))]',
-                      'transition-colors duration-100',
+                      'transition-colors',
+                      // Same rule as the rail: the check says which one, so
+                      // the row does not also have to be a filled card.
                       r.key === role?.key
-                        ? 'bg-nav-active font-[550] text-foreground shadow-[var(--lift-panel)]'
+                        ? 'font-[560] text-foreground hover:bg-surface-hover'
                         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     )}
                   >
