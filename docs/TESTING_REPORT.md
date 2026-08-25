@@ -653,3 +653,54 @@ workspace, or is folded into an existing one, is a product decision per role —
 `class_teacher` is plainly faculty's screens with a narrower scope, while
 `operations` has eleven features credited to it in FEATURES_BY_ROLE.txt and
 nowhere to put them.
+
+---
+
+## Re-check — 25 Aug 2026, transport: the platform count is not a doubling join
+
+The transport_manager run reads: *"super_admin's GPS screen said '6 buses have
+no phone paired' and listed TS07UB5678 and TS07UB9012 twice… The platform-side
+count is reading a join that doubles rows; the school-side one is right."*
+
+**There is no doubling join.** There are six buses.
+
+```
+TS07UB1234    Demo School                       active
+TS07UB1234    Vivencia High School, Kompally    active
+TS07UB5678    Demo School                       active
+TS07UB5678    Vivencia High School, Kompally    active
+TS07UB9012    Demo School                       active
+TS07UB9012    Vivencia High School, Kompally    active
+TS09 UB 4412  JSM                               active
+```
+
+Two tenants were seeded with the same three registration numbers. A platform
+operator sees both schools' fleets, so the same plate appears twice — correctly,
+because they are different vehicles at different schools. `/transport/trackers`
+signed in as the school returns exactly 3 rows for 3 vehicles: no duplication
+anywhere.
+
+The screen's real failing is that it prints a registration number with no school
+beside it. On a platform view, a plate is not a unique name — **"TS07UB5678"
+twice is not a bug in the query, it is a column missing from the table.** That is
+a smaller fix than hunting a join, and a different one.
+
+### A note on how this keeps happening
+
+This is the third finding in this file whose diagnosis was a phantom, and all
+three share a shape: **a number was read at one scope and compared against a
+number read at another.**
+
+- "11 staff have no documents against a staff of 9" — did not reproduce; both
+  are 9 when read through the API.
+- "The two dashboards disagree about the same money" — they agree exactly; one
+  screen renders the year figures and the other the range figures.
+- "Every demo employee exists twice" — my own, and the count was taken as the
+  postgres superuser, which bypasses RLS and sees every tenant.
+- This one — six buses across two tenants, read as three doubled.
+
+The observations were all correct. Every diagnosis was wrong in the same
+direction: an assumed single scope where there were two. **Before filing a
+count as a defect, name the tenant it was counted in** — and if a platform
+screen and a school screen disagree, that is the first thing to rule out rather
+than the last.
