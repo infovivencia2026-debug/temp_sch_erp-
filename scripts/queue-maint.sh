@@ -135,7 +135,12 @@ cmd_failed() {
             [ -n "$id" ] || continue
             local msg; msg="$(r --no-raw hget "$(k "$q" t:"$id")" msg 2>/dev/null || true)"
             printf '  %s\n' "$id"
-            printf '%s' "$msg" | grep -oE '[a-z]+:[a-z_]+' | head -1 | sed 's/^/      type: /'
+            # Matched against the known type names rather than a shape like
+            # "word:word": the field is length-prefixed protobuf, so a loose
+            # pattern picks the length byte up with it and prints "cmessage:send".
+            printf '%s' "$msg" \
+                | grep -oE 'reportcard:generate|invoice:generate|fee:reminder_fanout|message:send|message:dispatch|message:plans|bulk:import|export:build|attendance:rollup|session:prune' \
+                | head -1 | sed 's/^/      type: /'
             printf '%s' "$msg" | grep -oE '[A-Za-z ][A-Za-z0-9 :._/-]{15,120}' | tail -1 | sed 's/^/      err:  /'
         done < <(r zrange "$(k "$q" archived)" 0 "$((limit - 1))")
     done
