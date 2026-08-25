@@ -128,6 +128,58 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
   )
 }
 
+/* A toggle, for the one choice that is not a scale.
+
+   Axis below renders minus / value / plus, which is right for text size,
+   density, corners, borders and shadow: those are ORDERED, and "a bit more" is
+   the thing people want to express. Layout is not ordered. Sidebar and Focus
+   are two different shapes of screen, and stepping between two states with a
+   plus and a minus reads as a value with more of it available -- somebody
+   pressing + on a two-position control is looking for a third position that
+   does not exist.
+
+   Both states are shown and the chosen one is filled. With two options that
+   costs one extra word of width and removes the question entirely. */
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  onPick,
+  name,
+}: {
+  label: string
+  value: T
+  options: readonly T[]
+  onPick: (v: T) => void
+  name: (v: T) => string
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
+      <div className={cn('flex items-center gap-1 rounded-full border p-1', EDGE)}>
+        {options.map((o) => {
+          const on = o === value
+          return (
+            <button
+              key={o}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(o)}
+              className={cn(
+                'rounded-full px-3.5 py-1 text-[12.5px] transition-colors',
+                RING,
+                on ? `${CHOSEN} font-medium` : cn(WASH, INK),
+              )}
+            >
+              {name(o)}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Axis<T extends string>({
   label,
   value,
@@ -451,6 +503,24 @@ export function AppearanceDialog({
             more below the fold. See index.css. */}
         <div className="scroll-y min-h-0 flex-1 px-7 py-6">
           {tab === 'appearance' && (<div>
+          {/* LAYOUT FIRST, ABOVE THE TYPEFACE CARDS.
+
+              It sat at the foot of the axis stack, below fifteen typeface
+              specimens and five scales -- past the fold on most windows, for
+              the one control here that changes the shape of the whole screen
+              rather than its finish. Everything else on this page is a matter
+              of degree; this is the frame they are all applied to, so it is
+              asked first and the rest follows. */}
+          <div className={cn('mb-6 border-b pb-2', SEAM)}>
+            <Choice<Layout>
+              label={t('bento.settings.layout')}
+              value={frame}
+              options={LAYOUTS}
+              onPick={setFrame}
+              name={(v) => t(`bento.settings.layout.${v}`)}
+            />
+          </div>
+
           <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
             <Type className="size-4" aria-hidden="true" />
             {t('bento.settings.typeface')}
@@ -537,25 +607,11 @@ export function AppearanceDialog({
                 a hierarchy, it is a coin toss. Whether the screen is framed or
                 bare is an answer to the same question the axes above answer,
                 so it is asked in the same place. */}
-            {/* Layout, which used to be a drill-down pane in the settings
-                menu with its chosen value printed on the row.
-
-                It was the fourth separate door into this one dialog: Layout
-                opened a pane, and Appearance, Dock Settings and Dashboard
-                Widgets each opened a different tab of this window. Four
-                gateways to one place is not a menu, it is a guessing game
-                about which word means the thing you want. Sidebar-or-focus is
-                an answer to the same question every axis below it answers --
-                how should this look -- so it is asked here, and the menu now
-                has one row. */}
-            <Axis<Layout>
-              label={t('bento.settings.layout')}
-              value={frame}
-              options={LAYOUTS}
-              onPick={setFrame}
-              name={(v) => t(`bento.settings.layout.${v}`)}
-            />
-            <Axis<Skin>
+            {/* Frame is two states as well -- premium or focus -- so it takes
+                the toggle for the same reason layout did. Contrast above it
+                stays an axis: normal, medium, high is a scale, and "a bit
+                more" is exactly what somebody adjusting it means. */}
+            <Choice<Skin>
               label={t('bento.settings.frame')}
               value={skin}
               options={SKINS}
