@@ -598,3 +598,58 @@ Across ten roles the metric has flagged roughly a hundred screens and produced
 **no defect on its own**. It remains useful as a place to look; it has never
 once been a finding by itself, and this file should stop reporting the raw
 count as though it were one.
+
+---
+
+## Re-check — 25 Aug 2026, operations: it is eleven roles, not one
+
+The operations run found that role signing in to "No workspace — Your account
+holds no feature grants yet", with a healthy session and fifteen permissions.
+Confirmed, and it is not specific to operations. **Half the roles this product
+defines cannot reach a single screen.**
+
+Two lists that were never checked against each other:
+
+- `internal/rbac/rbac.go` defines **21** roles, each with a permission set.
+- `internal/catalog/catalog_gen.go`, generated from `docs/edu_features.csv`,
+  carries features for **10** of them.
+
+The eleven with no catalogue at all:
+
+```
+vice_principal    it_admin       operations        class_teacher
+exam_controller   hostel_warden  driver            counsellor
+nurse             discipline_officer               activity_coord
+```
+
+Each can be granted, each signs in, each holds real permissions — `operations`
+holds fifteen, including hostel, inventory, library and transport read/write —
+and each lands on "No workspace". The API would serve them: every hostel,
+inventory and library screen exists and is registered under
+`institution_admin.*`. Nothing routes them there.
+
+### Why this was invisible until somebody signed in as one
+
+Nine of the eleven are in `optionalRoles`, so a freshly provisioned school does
+not create them and nobody meets them by accident. `class_teacher` and
+`driver` are the exceptions worth noticing: **driver is the role the bus
+tracker's own enrolment flow issues a PIN against**, so a school that follows
+the transport instructions creates an account that can sign in to the web app
+and see nothing at all.
+
+### What it is not
+
+It is not a permission bug — the permissions are there and correct. It is not
+the ~131-tiles-to-73-screens registry finding either; that is tiles pointing at
+the wrong screen, and this is roles pointing at no tiles. **A role in
+rbac.go with no rows in edu_features.csv is a role that exists everywhere
+except in the navigation**, and nothing regenerates one from the other or fails
+when they disagree.
+
+The cheapest guard is a test asserting that every role in `rbac.SystemRoles`
+has at least one feature in the generated catalogue. It would have failed the
+day the first of these eleven was added. Whether each of them then gets its own
+workspace, or is folded into an existing one, is a product decision per role —
+`class_teacher` is plainly faculty's screens with a narrower scope, while
+`operations` has eleven features credited to it in FEATURES_BY_ROLE.txt and
+nowhere to put them.
