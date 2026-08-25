@@ -326,7 +326,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus Progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam."},
 					{Key: "institution_admin.academics.attendance_audit", Slug: "attendance_audit", Name: "Attendance Audit", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact."},
 					{Key: "institution_admin.academics.class_setup", Slug: "class_setup", Name: "Class Setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it."},
-					{Key: "institution_admin.academics.teacher_assignment", Slug: "teacher_assignment", Name: "Teacher Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which teacher takes which subject in which class, reviewed and signed off before the timetable is built on top of it."},
+					{Key: "institution_admin.academics.teacher_assignment", Slug: "teacher_assignment", Name: "Teacher Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated — and push the result into the published timetable so the two agree."},
 				},
 			},
 			{

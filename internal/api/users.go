@@ -398,18 +398,63 @@ type assignableRole struct {
 // platformOnlyRoles may be granted only by an existing platform operator.
 var platformOnlyRoles = map[string]bool{"super_admin": true}
 
-// derivedRoles come from a record link rather than from this screen.
-var derivedRoles = map[string]bool{"student": true, "parent": true}
+/* derivedRoles are facts about a person, not workspaces to hand out.
+
+   student and parent come from a record link. class_teacher comes from naming
+   somebody on a section — the same fact that decides whose report cards they
+   may generate — and granting it here would put that in two places, so the day
+   the two disagree the menu is wrong and nobody knows which half to believe.
+
+   Each says where the fact actually lives, because "you cannot do that" without
+   "here is where you can" is how somebody ends up editing the database. */
+var derivedRoles = map[string]bool{
+	"student": true, "parent": true, "class_teacher": true,
+}
+
+var derivedFrom = map[string]string{
+	"student":       "linking the person to a student record",
+	"parent":        "linking the person to a child as their guardian",
+	"class_teacher": "naming them class teacher on the section itself",
+}
+
+/* Roles that draw the same screens.
+
+   A HOD who teaches gets marks entry, homework, lesson plans, the register and
+   report cards from their own role, the moment somebody allocates them a
+   subject — the same switch every other teacher is turned on by. Adding faculty
+   on top gives a second workspace holding the same five entries, and the person
+   has to learn which copy to use.
+
+   Stated as a pair rather than a list of forbidden roles, because the objection
+   is to the combination and not to either half: both are perfectly good roles
+   on their own. */
+var overlappingRoles = [][2]string{{"hod", "faculty"}}
 
 // checkGrantable rejects a role list a caller is not entitled to hand out.
 func checkGrantable(keys []string, platformAdmin bool) error {
+	held := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		held[k] = true
+	}
+	for _, pair := range overlappingRoles {
+		if held[pair[0]] && held[pair[1]] {
+			return errors.New("a person cannot hold both " + pair[0] + " and " + pair[1] +
+				" — they draw the same screens. A head of department who teaches gets " +
+				"marks entry, homework and the register from the hod role as soon as " +
+				"somebody allocates them a subject in Faculty allocation.")
+		}
+	}
 	for _, k := range keys {
 		if platformOnlyRoles[k] && !platformAdmin {
 			return errors.New("only a platform operator can grant the " + k + " role")
 		}
 		if derivedRoles[k] {
-			return errors.New("the " + k + " role is granted by linking the person to a " +
-				"student record, not from this screen")
+			where := derivedFrom[k]
+			if where == "" {
+				where = "the record it belongs to"
+			}
+			return errors.New("the " + k + " role is granted by " + where +
+				", not from this screen")
 		}
 	}
 	return nil
@@ -487,7 +532,11 @@ type rolePreset struct {
 // self-service portals (which belong to students and guardians, not staff) and
 // the platform operator (which spans tenants).
 var AllOperationalRoles = []string{
-	"institution_admin", "it_admin", "hod", "faculty",
+	/* No faculty beside hod: the two draw the same classroom screens, so a
+	   person holding both gets one workspace listed twice. Somebody running the
+	   whole school single-handed still teaches — they get those screens from
+	   hod as soon as they are allocated a subject, like anybody else. */
+	"institution_admin", "it_admin", "hod",
 	"finance", "admissions", "front_office", "hr", "operations",
 	"exam_controller", "librarian", "transport_manager", "hostel_warden",
 }
@@ -526,10 +575,19 @@ var rolePresets = []rolePreset{
 		RoleKeys:    []string{"faculty"},
 	},
 	{
+		/* hod alone, and not hod+faculty.
+
+		   The two draw the same five classroom screens, so granting both gives
+		   one workspace listed twice. A head of department who teaches gets
+		   marks entry, homework, lesson plans, the register and report cards
+		   from the hod role itself, the moment somebody allocates them a
+		   subject — the same switch every other teacher is turned on by, and
+		   the one that turns them off again next term. */
 		Key:         "academic_head",
 		Name:        "Head of department",
-		Description: "A department's staff and classes, plus their own teaching.",
-		RoleKeys:    []string{"hod", "faculty"},
+		Description: "A department's staff, classes and approvals. Allocate them a subject in " +
+			"Faculty allocation and their own teaching screens appear too.",
+		RoleKeys:    []string{"hod"},
 	},
 	{
 		Key:         "hr_payroll",

@@ -212,7 +212,20 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * its own door under Getting Started. This one shows the grades, their
    * sections and the rooms, which is what the entry says it does. */
   'institution_admin.academics.class_setup': screen(() => import('./shared/Academics')),
-  'institution_admin.academics.teacher_assignment': screen(() => import('./principal/StaffWorkload')),
+  /* The principal allocates, rather than only watching.
+
+     "Teacher Assignment" opened a read-only workload table: it showed who
+     teaches what and gave no way to change it, which is the one thing its own
+     name promises. Only a HOD could allocate — and a HOD allocates inside
+     their department, so a school with no departments defined had nobody who
+     could assign a teacher to a subject at all.
+
+     The same screen the HOD uses. It narrows itself by the caller's scope, so
+     a principal gets the whole school and a HOD gets their department, from
+     one component rather than two that would drift. The workload view it
+     replaced is still in principal/StaffWorkload.tsx if it earns a menu entry
+     of its own later; today it was standing where the work should have been. */
+  'institution_admin.academics.teacher_assignment': screen(() => import('./academics/FacultyAllocation')),
   'institution_admin.examinations.exams_results': screen(() => import('./exams/ReportCards')),
   /* The principal's report card is the class teacher's report card.
      It pointed at HolisticCard — the NEP progress card, a different document

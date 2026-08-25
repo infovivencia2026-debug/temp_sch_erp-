@@ -279,7 +279,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.academics.syllabus_progress', slug: 'syllabus_progress', name: 'Syllabus Progress', scope: 'institution', tier: 'core', summary: 'How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam.' },
           { key: 'institution_admin.academics.attendance_audit', slug: 'attendance_audit', name: 'Attendance Audit', scope: 'institution', tier: 'core', summary: 'School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact.' },
           { key: 'institution_admin.academics.class_setup', slug: 'class_setup', name: 'Class Setup', scope: 'institution', tier: 'core', summary: 'Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it.' },
-          { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Which teacher takes which subject in which class, reviewed and signed off before the timetable is built on top of it.' },
+          { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated — and push the result into the published timetable so the two agree.' },
         ],
       },
       {
