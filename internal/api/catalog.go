@@ -156,6 +156,39 @@ catalogRoleKeys is the set of workspaces the caller was actually granted.
 	setup gate — a super admin looking into a school is the person who has to
 	see everything.
 */
+/* heldRoleKeys is every role key on this user, unfiltered.
+
+   catalogRoleKeys below answers "which workspaces may this person be shown",
+   and returns nothing at all for platform staff so the caller shows them all.
+   That is the right answer to that question and the wrong one for "which of
+   these is theirs" — which is what deciding where to land needs. Two
+   questions, two functions, rather than one that means different things to
+   different callers. */
+func (s *Server) heldRoleKeys(r *http.Request) (map[string]bool, error) {
+	id := httpx.IdentityFrom(r.Context())
+	held := map[string]bool{}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT r.key
+			  FROM user_roles ur
+			  JOIN roles r ON r.id = ur.role_id
+			 WHERE ur.user_id = $1`, id.UserID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var k string
+			if err := rows.Scan(&k); err != nil {
+				return err
+			}
+			held[k] = true
+		}
+		return rows.Err()
+	})
+	return held, err
+}
+
 func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
 	id := httpx.IdentityFrom(r.Context())
 	if id.PlatformAdmin {
@@ -262,7 +295,37 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* Your own workspace first.
+
+	   Platform staff are exempt from the filter above so a super admin can
+	   reach every workspace to support a school — which is right, and had one
+	   consequence nobody looked at: the list then came back in catalogue
+	   order, the client lands on the first entry, and the first entry is
+	   Seller Admin. So signing in as the platform operator opened the vendor's
+	   billing workspace: tenants, plans, support tickets. Not their job, and
+	   not what they asked for.
+
+	   Ordering rather than filtering, because the exemption is deliberate. The
+	   workspaces this person actually holds lead; everything else follows in
+	   the order it always had, one switcher click away. */
+	mine, err := s.heldRoleKeys(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	ordered := make([]catalog.Role, 0, len(catalog.Roles))
 	for _, role := range catalog.Roles {
+		if mine[role.Key] {
+			ordered = append(ordered, role)
+		}
+	}
+	for _, role := range catalog.Roles {
+		if !mine[role.Key] {
+			ordered = append(ordered, role)
+		}
+	}
+
+	for _, role := range ordered {
 		if len(held) > 0 && !held[role.Key] {
 			continue
 		}
