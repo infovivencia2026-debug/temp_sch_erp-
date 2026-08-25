@@ -14,6 +14,7 @@ import {
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { useActiveRole } from '@/lib/catalog'
+import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
 
 /* Choosing a typeface by looking at it.
@@ -272,6 +273,7 @@ export function AppearanceDialog({
   initialTab?: 'appearance' | 'dock' | 'dashboard'
 }) {
   const { appearance, set } = useAppearance()
+  const { skin, setSkin } = useSkin()
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
@@ -512,6 +514,23 @@ export function AppearanceDialog({
               options={CONTRASTS}
               onPick={(v) => set('contrast', v)}
               name={(v) => t(`bento.settings.contrast.${v}`)}
+            />
+            {/* The frame, which used to be a pane of its own behind the
+                settings menu.
+
+                It was the only thing left in that pane once the theme rows
+                went, so the menu carried a row called Appearance that led to a
+                single choice — and a second row, also called Appearance, that
+                led here. Two identical labels going to different places is not
+                a hierarchy, it is a coin toss. Whether the screen is framed or
+                bare is an answer to the same question the axes above answer,
+                so it is asked in the same place. */}
+            <Axis<Skin>
+              label={t('bento.settings.frame')}
+              value={skin}
+              options={SKINS}
+              onPick={setSkin}
+              name={(v) => t(`bento.settings.skin.${v}`)}
             />
           </div>
 

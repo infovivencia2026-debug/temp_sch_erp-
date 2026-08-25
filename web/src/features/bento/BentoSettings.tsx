@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Check, LogOut, Square, Frame, Settings, PanelLeft, UserCircle,
-  Maximize2, Type, Minimize2, LayoutGrid, Sliders, ChevronLeft, ChevronRight, Palette,
+  Check, LogOut, Settings, PanelLeft, UserCircle,
+  Maximize2, Type, Minimize2, LayoutGrid, Sliders, ChevronLeft, ChevronRight,
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
-import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { resetAppearance } from '@/lib/appearance'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
@@ -41,7 +40,7 @@ export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 /* One shared class string for every root-level row and every option row
    inside a category pane — the drill-down still reads as one menu, not two
    different components glued together. */
-const ROW = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px]
+const ROW = `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[14px]
              transition-colors ${WASH} ${RING}`
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
@@ -49,7 +48,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
      force, whether or not anybody can choose it here. */
   const { resolved } = useTheme()
   const { layout, setLayout } = useLayout()
-  const { skin, setSkin } = useSkin()
 
   /* Full screen, tracked rather than assumed.
 
@@ -88,7 +86,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
      each category opens to just its own controls. Reset to 'root' whenever
      the menu closes, so it never reopens three levels deep in whatever was
      last touched. */
-  const [pane, setPane] = useState<'root' | 'appearance' | 'layout'>('root')
+  const [pane, setPane] = useState<'root' | 'layout'>('root')
   const box = useRef<HTMLDivElement>(null)
   /* The menu is portaled to document.body, so it is NOT a DOM descendant of
      `box` — the trigger's wrapper — even though it is a React child of it. It
@@ -154,12 +152,19 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
     const place = () => {
       const b = box.current?.querySelector('button')?.getBoundingClientRect()
       if (!b) return
-      /* Wider from the dock: every row is a label with its value on the right
-         — "Appearance … Dark" — and at 256 the two halves fought for the line. */
-      const W = placement === 'dock' ? 312 : 256
+      /* Sized for a hand and a glance, not for the shortest label.
+
+         This was 256, then 312 from the dock, and both were set by what the
+         text needed rather than by what the menu is: a small number of
+         destinations somebody picks from once and closes. At those widths the
+         rows were 28px tall and the labels 13px — a dense list, which is the
+         right shape for a menu of forty things and the wrong one for a menu of
+         nine, where every row is a place to go and none of them is a repeat
+         visit. */
+      const W = placement === 'dock' ? 360 : 320
       const GAP = 8
       const room = b.top - GAP
-      const height = Math.min(window.innerHeight * 0.7, 420)
+      const height = Math.min(window.innerHeight * 0.8, 560)
       const above = room > height
       const left =
         placement === 'rail'
@@ -267,12 +272,14 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                   itself — that is the whole point of the drill-down — so this
                   list stays short no matter how many preferences the categories
                   behind it grow to hold. */}
-              <button type="button" role="menuitem" onClick={() => setPane('appearance')} className={ROW}>
-                <Palette className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.settings.appearance')}</span>
-                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
-              </button>
+              {/* Appearance is NOT a row here.
 
+                  It was, and so was a second row with the same word on it
+                  lower down — one opening a pane that held a single choice,
+                  the other opening the dialog where everything else about how
+                  the product looks already lives. Two rows, one label, two
+                  destinations. The pane's one remaining choice (the frame)
+                  moved into that dialog, and the row went with it. */}
               <button type="button" role="menuitem" onClick={() => setPane('layout')} className={ROW}>
                 <PanelLeft className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t('bento.settings.layout')}</span>
@@ -364,60 +371,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
                 <LogOut className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t('bento.settings.signout')}</span>
               </a>
-            </>
-          )}
-
-          {pane === 'appearance' && (
-            <>
-              {/* Self-contained: everything about how the surface looks —
-                  theme and frame — and nothing else. Leaving closes the
-                  category, not the menu, so a person comparing themes and
-                  frames stays put instead of reopening from the root each time. */}
-              <button
-                type="button"
-                onClick={() => setPane('root')}
-                className={cn(
-                  'mb-1 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left',
-                  'text-[12px] font-medium transition-colors', INK, WASH, RING,
-                )}
-              >
-                <ChevronLeft className="size-3.5 shrink-0" aria-hidden="true" />
-                {t('bento.settings.appearance')}
-              </button>
-
-              {/* The theme rows are gone.
-              
-                  Light, Dark and Match system sat above the things people open this
-                  menu for. The theme STORE is untouched: the app still follows the
-                  operating system and every token that answers to dark mode still
-                  answers. What has gone is the manual override, not the capability. */}
-
-              <div
-                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-                role="separator"
-              />
-
-              <p className={cn('px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider', INK)}>
-                {t('bento.settings.frame')}
-              </p>
-              {SKINS.map((option) => {
-                const Icon = option === 'focus' ? Square : Frame
-                const active = skin === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => setSkin(option as Skin)}
-                    className={cn(ROW, active && 'font-medium')}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="flex-1">{t(`bento.settings.skin.${option}`)}</span>
-                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-                  </button>
-                )
-              })}
             </>
           )}
 
