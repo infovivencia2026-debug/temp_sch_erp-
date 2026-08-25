@@ -3668,7 +3668,28 @@ func (s *Server) getInstanceHealth(w http.ResponseWriter, r *http.Request) {
 			if v.PaymentsFailed24 > 0 {
 				v.Concerns++
 			}
-			if v.OpenTickets > 0 {
+			/* AND THE REGISTER, WHICH THIS COUNT USED TO LEAVE OUT.
+
+			   Concerns is documented twelve lines above as "a simple count of
+			   the things above that are wrong", and it counted four of the
+			   five. The one it skipped is the one the struct's own comment
+			   calls "the signal that reliably precedes a support call" — so
+			   the vendor console reported "With something wrong: 0" while
+			   every school on the list showed "Register not taken today".
+			   A headline that disagrees with every row beneath it is worse
+			   than no headline: it is read first and believed.
+
+			   Only after mid-morning, which is what that comment says and what
+			   makes this usable. A school at 08:00 has not marked the register
+			   because the day has not started; flagging all nine every morning
+			   would train an operator to ignore the number, which is the same
+			   failure in the other direction.
+
+			   11:00 in the school's own timezone. IST for every school on this
+			   installation, and indiaTZ() falls back to a fixed offset rather
+			   than silently drifting five and a half hours in a container
+			   without tzdata. */
+			if v.AttendanceMarkedToday == 0 && time.Now().In(indiaTZ()).Hour() >= 11 {
 				v.Concerns++
 			}
 			out.Items = append(out.Items, v)
