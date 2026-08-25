@@ -18,7 +18,7 @@ const TAU = Math.PI * 2
 
 export function AssistantOrb({
   state,
-  size = 34,
+  size = 40,
   awake = false,
 }: {
   state: OrbState
@@ -62,7 +62,15 @@ export function AssistantOrb({
 
     const aim = () => {
       const s = target.current
-      if (s === 'idle') { amp.to = 1; speed.to = 0.35; glow.to = 0.25 }
+      /* IDLE USED TO BE ALMOST INVISIBLE, AND THAT WAS THE WRONG BET.
+
+         0.35 speed at 0.25 glow is a rate you have to already be watching to
+         notice, chosen for something that sits in a corner all day. But this
+         orb is the only thing on the screen that says the assistant is there
+         at all, and a control nobody sees is not restrained -- it is missing.
+         Faster and brighter at rest, still well short of the thinking state,
+         so the three remain distinguishable from across a desk. */
+      if (s === 'idle') { amp.to = 1; speed.to = 0.9; glow.to = 0.5 }
       if (s === 'thinking') { amp.to = 0.62; speed.to = 2.6; glow.to = 0.9 }
       if (s === 'answering') { amp.to = 1.22; speed.to = 1.1; glow.to = 0.6 }
       /* Waking is applied on top of whatever it was doing, rather than as a
@@ -96,7 +104,9 @@ export function AssistantOrb({
       ctx.clearRect(0, 0, size, size)
 
       const halo = ctx.createRadialGradient(c, c, base * 0.2, c, c, base * 2.1)
-      halo.addColorStop(0, `rgba(96,165,250,${0.32 * glow.v})`)
+      // 0.32 was tuned against a 30px orb; the halo is the part that carries
+      // at a distance, and it did not scale with the larger one.
+      halo.addColorStop(0, `rgba(96,165,250,${0.42 * glow.v})`)
       halo.addColorStop(1, 'rgba(96,165,250,0)')
       ctx.fillStyle = halo
       ctx.fillRect(0, 0, size, size)

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Mic, Square, X } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useDictation } from '@/lib/speech'
+import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 /* A small tab, and a small panel. Never the whole screen.
@@ -27,13 +28,38 @@ function draftWith(existing: string, spoken: string): string {
   return existing ? `${existing} ${spoken}` : spoken
 }
 
+/* The same question means different things to different people.
+
+   "How do I collect a fee" has one answer for the accounts clerk who raises the
+   receipt and another for the parent who pays it, and the help corpus is
+   already split that way -- role-finance.md, role-parent.md, role-faculty.md,
+   one per role, beside the common pages.
+
+   Retrieval is similarity against the question, so naming the role in the
+   question is what pulls that role's page up and pushes the other eight down.
+   It is a prefix rather than a system prompt because the service takes one
+   field: this steers the search itself, not just the wording of the answer,
+   and the search is where a wrong-role answer is actually decided.
+
+   The role never reaches the reader. It is prepended to what is sent and the
+   panel still shows what they typed.
+
+   A user with several roles gets all of them named; a user with none -- which
+   is a signed-out session, or platform staff -- gets the question unchanged
+   and the common pages, which is the right answer for somebody with no role to
+   be answered as. */
+function withRole(message: string, roles: string[] | undefined): string {
+  if (!roles || roles.length === 0) return message
+  return `[Asked by: ${roles.join(', ')}] ${message}`
+}
+
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
-  sources?: string[]
 }
 
 export function AssistantTab() {
+  const session = useSession()
   const [open, setOpen] = useState(false)
   const [hover, setHover] = useState(false)
   const [state, setState] = useState<OrbState>('idle')
@@ -101,7 +127,13 @@ export function AssistantTab() {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, conversation_id: conversation.current }),
+        body: JSON.stringify({
+          message: withRole(message, session.user?.roles),
+          conversation_id: conversation.current,
+          // Sent as a field as well, for the day the service filters on it
+          // rather than being steered by the question text. Ignored today.
+          roles: session.user?.roles ?? [],
+        }),
       })
       if (!res.ok) throw new Error(`The assistant returned ${res.status}.`)
       const data = await res.json()
@@ -110,13 +142,18 @@ export function AssistantTab() {
         localStorage.setItem(STORAGE_KEY, data.conversation_id)
       }
       setState('answering')
-      setTurns((t) => [...t, {
-        role: 'bot',
-        text: data.answer ?? '',
-        // Filenames only. A similarity score means something to whoever tuned
-        // the threshold and nothing to a clerk.
-        sources: [...new Set(((data.sources ?? []) as { filename: string }[]).map((s) => s.filename))],
-      }])
+      /* The answer, and not where it came from.
+
+         Every reply used to carry "Sources: common-tasks.md, FEATURES.md,
+         role-finance.md" under it. Those filenames are ours, not the
+         reader's: a clerk asking how to collect a fee learns nothing from
+         being told which markdown file the sentence was assembled out of, and
+         the line was longer than some of the answers. It also leaked the shape
+         of the corpus to anybody who could open the panel.
+
+         The server still returns them and the field is still in its schema,
+         because retrieval is worth debugging. It is simply not shown. */
+      setTurns((t) => [...t, { role: 'bot', text: data.answer ?? '' }])
       // Long enough for the answering state to be seen; the orb is the only
       // thing that says the turn finished cleanly.
       await new Promise((r) => setTimeout(r, 450))
@@ -154,22 +191,31 @@ export function AssistantTab() {
         aria-expanded={open}
         aria-label="Assistant"
         className={cn(
-          /* transition-transform, not transition-colors: the tint alone was
-             the entire hover response, and against a card background at the
-             corner of a busy screen it is close to invisible. It lifts and
-             deepens its shadow now — the tab reads as something that can be
-             pressed, and the orb inside it wakes at the same moment. Keyboard
-             focus wakes it too, or the effect would exist only for a mouse. */
-          `fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border
-           bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg
+          /* SIZED TO BE FOUND, NOT TO BE TIDY.
+
+             It was a 30px orb in a pill with 12.5px type, which is the size of
+             a status chip. Sitting in the corner of a dashboard that is itself
+             made of large coloured cards, it read as one more label rather than
+             as the one control on the screen that answers questions -- people
+             looked straight past it. The orb is half again as large, the pill
+             is taller than it is dense, and the word is set at 14px.
+
+             transition-transform, not transition-colors: the tint alone was the
+             entire hover response, and against a card background at the corner
+             of a busy screen it was close to invisible. It lifts and deepens
+             its shadow now, and the orb inside it wakes at the same moment.
+             Keyboard focus wakes it too, or the effect would exist only for a
+             mouse. */
+          `fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full border
+           bg-card py-2 pl-2 pr-4 text-[14px] font-medium shadow-xl
            transition-[transform,box-shadow,background-color]
-           hover:-translate-y-0.5 hover:bg-accent hover:shadow-xl
+           hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
            focus-visible:-translate-y-0.5 focus-visible:outline-none
            focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',
         )}
       >
-        <AssistantOrb state={state} size={30} awake={hover} />
+        <AssistantOrb state={state} size={44} awake={hover} />
         <span>Ask</span>
       </button>
 
@@ -177,11 +223,11 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-24 right-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
+          className="fixed bottom-28 right-6 z-40 flex h-[min(520px,calc(100vh-9rem))] w-[min(380px,calc(100vw-3rem))]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
-            <AssistantOrb state={state} size={30} />
+            <AssistantOrb state={state} size={36} />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold leading-tight">Assistant</p>
               <p className="text-[11.5px] text-muted-foreground">
@@ -204,8 +250,8 @@ export function AssistantTab() {
           <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
             {turns.length === 0 && (
               <p className="px-1 text-[12.5px] text-muted-foreground">
-                Ask about anything in your documents. Answers cite the file they came from,
-                and it says so when it does not know.
+                Ask about anything in the app. Answers come from the help for your
+                role, and it says so when it does not know.
               </p>
             )}
             {turns.map((turn, i) => (
@@ -238,11 +284,6 @@ export function AssistantTab() {
                 >
                   {turn.text}
                 </p>
-                {turn.sources && turn.sources.length > 0 && (
-                  <p className="mt-1 px-1 text-[11px] text-muted-foreground">
-                    Sources: {turn.sources.join(', ')}
-                  </p>
-                )}
               </div>
             ))}
           </div>
