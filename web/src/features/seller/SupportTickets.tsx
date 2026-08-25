@@ -34,7 +34,17 @@ export default function SupportTickets() {
 
   const items = data?.items ?? []
   const urgent = items.filter((t) => t.priority === 'urgent' || t.priority === 'high').length
-  const stale = items.filter((t) => t.open_days >= 7).length
+  /* Breached, not stale.
+
+     "Open 7 days or more" was the only alarm, and it is the wrong one: an
+     Enterprise school that cannot take fees is failed after four hours, and a
+     trial school's cosmetic question is not failed after five days. The
+     promise comes from the plan the school actually pays for, so the number
+     that matters is how many of those promises are broken right now. */
+  const breached = items.filter((t) => t.breached).length
+  const nearly = items.filter(
+    (t) => !t.breached && t.promised_hours > 0 && t.open_hours >= t.promised_hours * 0.75,
+  ).length
   const unassigned = items.filter((t) => !t.assigned_to).length
 
   const tone = (p: string) =>
@@ -51,7 +61,17 @@ export default function SupportTickets() {
         <CellGrid cols={4}>
           <Stat label="Open" value={items.length} />
           <Stat label="High or urgent" value={urgent} />
-          <Stat label="Open a week or more" value={stale} />
+          <Stat
+            label="Past what we promised"
+            value={breached}
+            delta={
+              breached
+                ? { value: 'Owed an answer already', positive: false }
+                : nearly
+                  ? { value: `${nearly} close to the limit`, positive: false }
+                  : { value: 'Every promise being kept', positive: true }
+            }
+          />
           <Stat label="Unassigned" value={unassigned} />
         </CellGrid>
 
@@ -94,7 +114,22 @@ export default function SupportTickets() {
                 <Td>
                   <Badge tone={tone(t.priority)}>{t.priority}</Badge>
                 </Td>
-                <Td>{t.open_days} days</Td>
+                {/* The clock against the promise, in one cell. Two numbers
+                    side by side say more than either alone: 30h against a
+                    promise of 8h is a different conversation from 30h against
+                    72h, and the queue could not tell them apart. */}
+                <Td className="num">
+                  <span className={t.breached ? 'font-medium text-destructive' : undefined}>
+                    {t.open_hours < 48 ? `${t.open_hours}h` : `${t.open_days}d`}
+                  </span>
+                  {t.promised_hours > 0 && (
+                    <span className="block text-[12px] text-muted-foreground">
+                      {t.breached ? 'past ' : 'of '}
+                      {t.promised_hours}h
+                      {t.plan_name ? ` · ${t.plan_name}` : ' · no plan'}
+                    </span>
+                  )}
+                </Td>
                 <Td>{t.assigned_to ?? <span className="text-muted-foreground">Nobody</span>}</Td>
                 <Td>{t.status}</Td>
                 <Td>
