@@ -61,6 +61,14 @@ func (s *Server) Routes() http.Handler {
 		// The SPA's whole navigation comes from here; see internal/catalog.
 		r.Get("/catalog", s.getCatalog)
 
+		/* The assistant's fast path, in front of the RAG service.
+
+		   Authenticated, which the RAG service is not: it answers anybody who
+		   can reach the origin. That is what makes the role scoping real --
+		   the roles come from the session cookie, so a parent cannot be
+		   answered with the staff screen by editing a request body. */
+		r.Post("/assistant/ask", s.assistantAsk)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)

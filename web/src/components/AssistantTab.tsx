@@ -19,6 +19,18 @@ import { cn } from '@/lib/utils'
    nothing configured the panel says so before they type. */
 
 const ENDPOINT = (import.meta as { env?: Record<string, string> }).env?.VITE_ASSISTANT_URL ?? ''
+
+/* The fast path, tried first and answered from the catalogue.
+
+   Measured on the production box: a live model answer costs 88 seconds, because
+   one vCPU processes a RAG prompt at about 50 tokens per second and the prompt
+   is around 2,400 of them. Most questions do not need a model at all -- "how do
+   I collect a fee" is answered by the catalogue entry for the screen that
+   collects fees, and that lookup is a millisecond.
+
+   Always tried, never skipped: it declines quietly when the question is not one
+   it can answer, and the slow path picks it up. */
+const FAST = '/api/v1/assistant/ask'
 const STORAGE_KEY = 'erp.assistant.conversation'
 
 /** What the draft becomes once a spoken phrase is settled: the two joined by a
@@ -124,6 +136,31 @@ export function AssistantTab() {
 
     setState('thinking')
     try {
+      /* The catalogue first.
+
+         Role scoping happens here rather than in the question text: this
+         endpoint reads the session cookie, so a parent cannot be answered with
+         a staff screen by editing a request body. A failure is not reported --
+         if the fast path is unreachable the slow one still works, and saying
+         so twice helps nobody. */
+      try {
+        const quick = await fetch(FAST, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ message }),
+        })
+        if (quick.ok) {
+          const hit = await quick.json()
+          if (hit.answered && hit.answer) {
+            setState('answering')
+            setTurns((t) => [...t, { role: 'bot', text: hit.answer }])
+            await new Promise((r) => setTimeout(r, 250))
+            return
+          }
+        }
+      } catch { /* the slow path is the fallback, and it is right below */ }
+
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
