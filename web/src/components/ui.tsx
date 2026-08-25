@@ -512,7 +512,12 @@ export function Table({
        the scroll affordance exists to announce. */
     <div className="scroll-x">
       <table
-        className={cn('responsive-table text-[14px]', wide ? 'w-max min-w-full' : 'w-full')}
+        className={cn(
+          'responsive-table text-[14px]',
+          // is-wide also freezes the first column — see index.css. A table
+          // scrolled sideways must not carry away the column naming the row.
+          wide ? 'is-wide w-max min-w-full' : 'w-full',
+        )}
       >
         <thead>
           <tr>

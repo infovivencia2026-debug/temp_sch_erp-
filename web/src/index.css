@@ -373,6 +373,32 @@
      a dozen salary components beside it. A figure broken mid-number is not a
      figure any more; the payroll table is exactly where a school reads down a
      column of them. So numeric cells opt out and let the table scroll. */
+  /* A wide table keeps its first column on screen.
+
+     Scrolling a fifteen-column matrix sideways takes the one column that says
+     WHICH ROW this is out of view, so the reader is left with ten identical
+     "Who got it" buttons and no way to tell which circular each belongs to.
+     The identifying column is the one thing that must never scroll away.
+
+     Only on .is-wide, because a table narrow enough to fit needs no sticky
+     anything and the extra stacking context would be pure cost. Paired with a
+     background, or the scrolling cells show through it. */
+  .responsive-table.is-wide :where(thead th, tbody td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: hsl(var(--card));
+  }
+  .responsive-table.is-wide thead th:first-child {
+    z-index: 3;
+    background: hsl(var(--surface-subtle));
+  }
+  /* The hover tint has to reach the frozen cell too, or the row looks broken
+     in half as the pointer crosses it. */
+  .responsive-table.is-wide tbody tr:hover td:first-child {
+    background: hsl(var(--surface-hover));
+  }
+
   .responsive-table :where(td, th).num {
     overflow-wrap: normal;
     white-space: nowrap;

@@ -251,11 +251,16 @@ export default function Circulars() {
         <Card>
           <CardHeader title="Published" description="Most recent first" />
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
-            <Table head={['Title', 'Kind', 'Audience', 'Sections', 'Acknowledged', 'Published', '']}
+            /* Seven columns: without `wide` they were divided equally and
+               crushed, and scrolling sideways carried the title out of view —
+               leaving a column of identical "Who got it" buttons with nothing
+               to say which circular each belonged to. */
+            <Table wide
+              head={['Title', 'Kind', 'Audience', 'Sections', 'Acknowledged', 'Published', '']}
               empty={!rows.length} emptyLabel="Nothing published yet.">
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <Td className="font-medium">{c.title}</Td>
+                  <Td className="whitespace-nowrap font-medium">{c.title}</Td>
                   <Td><Badge>{c.kind}</Badge></Td>
                   <Td>{c.audience_role}</Td>
                   <Td>{c.sections || 'all'}</Td>
