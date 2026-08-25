@@ -317,10 +317,47 @@ html.dark[data-layout='bento'] {
   }
 }
 
+/* THE DOCK IS GLASS, WHICH IT WAS NOT.
+
+   It carried `bg-[var(--bento-dock-bg)]` and nothing else: a solid slab
+   floating over the board. The only backdrop-filter in this stylesheet was
+   .bento-frost, used by All features, so the dock had never been frosted at
+   all despite reading as the one element most obviously sitting ON something.
+
+   It matters more here than anywhere. The dock is fixed over a live dashboard
+   and overlaps whatever is under it, and an opaque bar reads as a hole cut in
+   the page. Glass says the board continues underneath, which it does.
+
+   The tint is a mix rather than a fixed rgba so it follows whatever palette is
+   on -- the ten built-in ones and any colour somebody paints -- instead of
+   only the two that happened to define a translucent --bento-dock-bg. 78%
+   rather than the frost's 62%: this is a strip a few pixels tall carrying
+   small icons, not a full sheet, and it needs more ground to keep them legible
+   against a board of coloured cards.
+
+   Blur is 28px, not the frost's 44px. A dock is close to the surface it floats
+   over; the full sheet is meant to read as a layer above everything, and using
+   the same depth for both makes them look like the same object. Saturation
+   stays at 180% for the reason the frost comment gives -- blurring averages
+   colour towards grey, and without it the board behind reads as smudge rather
+   than as colour. */
 [data-layout='bento'] .bento-dock {
   border-width: var(--bento-border-w);
   border-color: var(--bento-line);
   box-shadow: var(--bento-shadow);
+  background-color: color-mix(
+    in srgb, var(--bento-dock-bg, var(--bento-card)) 78%, transparent);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+
+/* Without backdrop-filter there is no glass, and a translucent bar over a live
+   board is worse than a solid one -- the icons sit on whatever moves beneath
+   them. Fall back to the opaque colour. */
+@supports not (backdrop-filter: blur(1px)) {
+  [data-layout='bento'] .bento-dock {
+    background-color: var(--bento-dock-bg, var(--bento-card));
+  }
 }
 
 /* The cue is styled once, above. A second definition here used to override it
@@ -411,9 +448,21 @@ html.dark[data-skin='focus'] [data-layout='bento'] {
 
 html[data-skin='focus'] .bento-cell,
 html[data-skin='focus'] .launcher-tile,
-html[data-skin='focus'] .launcher-app,
-html[data-skin='focus'] .bento-dock {
+html[data-skin='focus'] .launcher-app {
   background-color: var(--bento-card);
+  box-shadow: none;
+  border-color: var(--bento-line);
+}
+
+/* The dock keeps its glass in Focus, and this rule is why it did not.
+
+   Focus flattens surfaces on purpose -- no shadow, a hairline, one radius --
+   and the dock was swept up with the cells, which set it to a flat opaque
+   card. But a cell IS the page; the dock FLOATS OVER it, and that is not a
+   depth effect competing with the figures, it is the one true statement about
+   where the thing is. Focus is the default skin, so this rule is why the dock
+   looked solid for everybody. */
+html[data-skin='focus'] .bento-dock {
   box-shadow: none;
   border-color: var(--bento-line);
 }
