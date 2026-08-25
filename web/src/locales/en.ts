@@ -309,7 +309,16 @@ export const en = {
   'portal.receipts.detail_loading': 'Rendering the receipt…',
   'portal.receipts.detail_title': 'Receipt {number}',
   'portal.receipts.detail_description': '{institution} · financial year {year}',
-  'portal.receipts.action_download': 'Download PDF',
+  /* Says what the button does.
+
+     It read "Download PDF" and opened the browser's print dialogue, so a
+     parent tapping it on a phone got a print preview and concluded the
+     download was broken. The dialogue does produce a real PDF — "Save as PDF"
+     is the first option on both Android and iOS — but a button has to name the
+     thing that happens when you press it, not the thing two taps later. */
+  'portal.receipts.action_download': 'Save as PDF',
+  'portal.receipts.download_hint':
+    'Opens your device’s print sheet — choose “Save as PDF” to keep a copy.',
   'portal.receipts.detail_received_from': 'Received from',
   'portal.receipts.detail_admission_no': 'Admission number',
   'portal.receipts.detail_class': 'Class',

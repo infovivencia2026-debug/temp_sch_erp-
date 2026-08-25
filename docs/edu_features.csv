@@ -178,7 +178,7 @@ Parent / Guardian,My Child,Academics,Results & report cards,"Exam schedule, mark
 Parent / Guardian,My Child,Academics,AI Child Performance Summary Audio,Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.,Specific student,Nice-to-Have,optional
 Parent / Guardian,My Child,Academics,IEP Progress Goal Tracker,View real-time progress bars towards child's specific IEP milestones and therapy goals.,Specific student,Should-Have,advanced
 Parent / Guardian,Fees,Fees,Fees & payments,"Dues, installments, online payment, payment history and receipts.",Linked child/children only,Must-Have,core
-Parent / Guardian,Fees,Fees,Digital Fee Receipt PDF Download,Download official stamped PDF fee receipts directly to parent smartphone storage.,Specific student,Must-Have,core
+Parent / Guardian,Fees,Fees,Fee receipts,"Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it — it carries the school's own letterhead.",Specific student,Must-Have,core
 Parent / Guardian,Fees,Fees,Child Daily Cafeteria Purchase Timeline,"View exact timestamped items, prices, and nutritional content bought by child in canteen.",Specific student,Should-Have,optional
 Parent / Guardian,Transport,My Child's Bus,Transport snapshot,Bus route/stop/tracking only when transport module is enabled.,Linked child/children only,Should-Have,core
 Parent / Guardian,Transport,My Child's Bus,Live Bus Tracking Map,View real-time movement of child's bus on an interactive map with estimated time of arrival.,Specific student,Should-Have,core

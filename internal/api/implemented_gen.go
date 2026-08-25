@@ -215,7 +215,7 @@ var implementedFeatures = map[string]bool{
 	"parent.consent.parent_delegation_for_emergency_pickup":                          true,
 	"parent.documents.certificate_requests":                                          true,
 	"parent.fees.child_daily_cafeteria_purchase_timeline":                            true,
-	"parent.fees.digital_fee_receipt_pdf_download":                                   true,
+	"parent.fees.fee_receipts":                                                       true,
 	"parent.fees.fees_payments":                                                      true,
 	"parent.home.dashboard":                                                          true,
 	"parent.leave_absence.apply_student_leave":                                       true,

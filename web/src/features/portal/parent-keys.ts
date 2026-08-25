@@ -28,7 +28,7 @@ export const parentKeys = {
   'parent.messages.direct_teacher_messaging': screen(() => import('./TeacherMessages')),
   'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
   'parent.academics.child_remarks': screen(() => import('./ChildRemarks')),
-  'parent.fees.digital_fee_receipt_pdf_download': screen(() => import('./Receipts')),
+  'parent.fees.fee_receipts': screen(() => import('./Receipts')),
   /* A student applying for their own leave.
    *
    * This existed only on the parent's menu, so a sixteen-year-old had to ask a

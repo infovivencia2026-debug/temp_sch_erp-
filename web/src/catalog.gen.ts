@@ -1074,7 +1074,7 @@ export const ROLES: Role[] = [
         workspace: 'Fees',
         features: [
           { key: 'parent.fees.fees_payments', slug: 'fees_payments', name: 'Fees & payments', scope: 'children', tier: 'core', summary: 'Dues, installments, online payment, payment history and receipts.' },
-          { key: 'parent.fees.digital_fee_receipt_pdf_download', slug: 'digital_fee_receipt_pdf_download', name: 'Digital Fee Receipt PDF Download', scope: 'children', tier: 'core', summary: 'Download official stamped PDF fee receipts directly to parent smartphone storage.' },
+          { key: 'parent.fees.fee_receipts', slug: 'fee_receipts', name: 'Fee receipts', scope: 'children', tier: 'core', summary: 'Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it — it carries the school\'s own letterhead.' },
           { key: 'parent.fees.child_daily_cafeteria_purchase_timeline', slug: 'child_daily_cafeteria_purchase_timeline', name: 'Child Daily Cafeteria Purchase Timeline', scope: 'children', tier: 'optional', summary: 'View exact timestamped items, prices, and nutritional content bought by child in canteen.' },
         ],
       },

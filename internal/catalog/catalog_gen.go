@@ -1121,7 +1121,7 @@ var Roles = []Role{
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "parent.fees.fees_payments", Slug: "fees_payments", Name: "Fees & payments", Scope: Scope("children"), Tier: Tier("core"), Summary: "Dues, installments, online payment, payment history and receipts."},
-					{Key: "parent.fees.digital_fee_receipt_pdf_download", Slug: "digital_fee_receipt_pdf_download", Name: "Digital Fee Receipt PDF Download", Scope: Scope("children"), Tier: Tier("core"), Summary: "Download official stamped PDF fee receipts directly to parent smartphone storage."},
+					{Key: "parent.fees.fee_receipts", Slug: "fee_receipts", Name: "Fee receipts", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it — it carries the school's own letterhead."},
 					{Key: "parent.fees.child_daily_cafeteria_purchase_timeline", Slug: "child_daily_cafeteria_purchase_timeline", Name: "Child Daily Cafeteria Purchase Timeline", Scope: Scope("children"), Tier: Tier("optional"), Summary: "View exact timestamped items, prices, and nutritional content bought by child in canteen."},
 				},
 			},

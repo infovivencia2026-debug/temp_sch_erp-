@@ -146,6 +146,16 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
         description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
         action={<PrintButton label={t('portal.receipts.action_download')} />}
       />
+      {/* Said once, next to the button.
+
+          A parent tapping "Download" and getting a print sheet concludes the
+          download is broken and rings the office. The sheet does produce a
+          real PDF — "Save as PDF" is the first option on both Android and iOS
+          — so the fix is to say which option to pick, not to pretend the
+          button does something else. */}
+      <p className="px-5 pt-3 text-[12.5px] text-muted-foreground">
+        {t('portal.receipts.download_hint')}
+      </p>
       <div className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Detail label={t('portal.receipts.detail_received_from')} value={d.student_name} />
