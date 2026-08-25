@@ -861,3 +861,254 @@ func temporaryPIN() (string, error) {
 	}
 	return string(out), nil
 }
+
+// --- the driver enrols their own bus tracker ---------------------------------
+
+type trackerEnrolRequest struct {
+	Phone          string `json:"phone"`
+	PIN            string `json:"pin"`
+	Registration   string `json:"registration_no"`
+	DeviceModel    string `json:"device_model"`
+	AndroidVersion string `json:"android_version"`
+	AppVersion     string `json:"app_version"`
+}
+
+type trackerEnrolResponse struct {
+	DeviceID     string `json:"device_id"`
+	DeviceToken  string `json:"device_token"`
+	SessionToken string `json:"session_token"`
+	Institution  string `json:"institution"`
+	Vehicle      string `json:"vehicle"`
+	Name         string `json:"name"`
+	PingSeconds  int    `json:"ping_seconds"`
+	// Approved is false until the principal lets it in. The app shows
+	// "waiting for the school to approve this phone" rather than a map with
+	// nothing on it, which is what it would otherwise look like.
+	Approved bool `json:"approved"`
+}
+
+// normaliseRegistration reduces a number plate to the characters that identify
+// it. A driver types what they can read off the side of the bus, and they will
+// type it with spaces, without them, and in either case.
+func normaliseRegistration(s string) string {
+	out := make([]rune, 0, len(s))
+	for _, r := range strings.ToUpper(strings.TrimSpace(s)) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			out = append(out, r)
+		}
+	}
+	return string(out)
+}
+
+/*
+enrolBusTracker attaches a driver's own phone to the bus they are standing next to.
+
+	The pair-code flow it replaces needed somebody with transport.write to
+	generate a code in the console and somebody else to type it into a handset
+	within ten minutes. That is two people and a stopwatch, for a driver beside
+	their bus at six in the morning whose office opens at nine.
+
+	The vehicle comes from the registration number painted on the bus rather
+	than from a dropdown. A driver knows which bus they are driving and can
+	read its plate; they do not know its UUID, and a list of forty registration
+	numbers on a cracked screen at dawn is a list somebody picks the wrong line
+	from -- which puts the wrong bus on every parent's map.
+
+	IT REPORTS NOTHING UNTIL IT IS APPROVED. A tracker is a live map of where
+	children are. Anybody holding a staff PIN could otherwise attach a phone to
+	a school's bus and watch it, so unlike the gateway there is no
+	approve-yourself shortcut here: the enrolment is always pending, and the
+	approval is the principal's or the platform's.
+*/
+func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
+	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
+		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
+			"too many attempts from this network — wait a few minutes and try again")
+		return
+	}
+
+	var req trackerEnrolRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	reg := normaliseRegistration(req.Registration)
+	if reg == "" {
+		httpx.Error(w, r, http.StatusBadRequest, "no_registration",
+			"type the number painted on the bus you are driving")
+		return
+	}
+
+	who, err := s.authenticatePIN(r.Context(), req.Phone, req.PIN)
+	if err != nil {
+		deviceLoginRejected(w, r, err)
+		return
+	}
+
+	var out trackerEnrolResponse
+	device := uuid.New()
+	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		var vehicle uuid.UUID
+		var plate string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT id, registration_no FROM vehicles
+			 WHERE institution_id = $1
+			   AND upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2
+			   AND status <> 'retired'
+			 LIMIT 1`, who.Institution, reg).Scan(&vehicle, &plate); err != nil {
+			return err
+		}
+
+		/* One live tracker per bus, and the newest wins.
+
+		   A driver's handset is lost, broken or swapped, and the replacement
+		   enrols. The unique index permits exactly one live tracker per
+		   vehicle, so the old one is retired here rather than the enrolment
+		   failing with a constraint error a driver cannot act on. */
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE vehicle_trackers
+			   SET revoked_at = now(),
+			       revoked_reason = 'replaced by a newly enrolled phone'
+			 WHERE vehicle_id = $1 AND revoked_at IS NULL`, vehicle); err != nil {
+			return err
+		}
+
+		policy, err := trackingPolicyFor(r.Context(), tx, who.Institution)
+		if err != nil {
+			return err
+		}
+
+		token, secret, err := newBusTrackerToken(device)
+		if err != nil {
+			return err
+		}
+		sealed, err := sealSecret(secret)
+		if err != nil {
+			return err
+		}
+
+		// approved_at stays NULL. There is no self-approval on this app, for
+		// the reason in migration 00156: this is a live map of children.
+		if _, err := tx.Exec(r.Context(), `
+			INSERT INTO vehicle_trackers (id, institution_id, vehicle_id, name,
+			    device_model, android_version, app_version, token_sealed,
+			    enrolled_by, ping_seconds)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			device, who.Institution, vehicle, truncate(who.Name+" — "+plate, 80),
+			nullIfBlank(req.DeviceModel), nullIfBlank(req.AndroidVersion),
+			nullIfBlank(req.AppVersion), sealed, who.UserID,
+			policy.PingSeconds); err != nil {
+			return err
+		}
+
+		session, _, _, err := s.openStaffSession(r.Context(), tx, who, "bus_tracker", device)
+		if err != nil {
+			return err
+		}
+
+		var instName string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT name FROM institutions WHERE id = $1`, who.Institution).
+			Scan(&instName); err != nil {
+			return err
+		}
+
+		out = trackerEnrolResponse{
+			DeviceID:     device.String(),
+			DeviceToken:  token,
+			SessionToken: session,
+			Institution:  instName,
+			Vehicle:      plate,
+			Name:         who.Name,
+			PingSeconds:  policy.PingSeconds,
+			Approved:     false,
+		}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Named plainly. Unlike a pair code, a registration number is not a
+		// secret and getting it wrong is the likeliest thing a tired driver
+		// does; "no such bus" is what lets them look again at the plate.
+		httpx.Error(w, r, http.StatusNotFound, "no_such_vehicle",
+			"no bus with that number at your school — check the plate and type it again")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+/*
+approveBusTracker lets an enrolled handset start reporting.
+
+	Narrower than the pairing it replaces, deliberately. transport.write is
+	held by the transport manager and the office; letting a phone watch where a
+	school's children are during the day is the principal's decision or the
+	platform's, and this checks the ROLE rather than only the permission.
+
+	That is unusual in this codebase, where authorisation is permissions
+	everywhere and roles nowhere. It is written this way because the product
+	owner asked for these two people by name, and because a permission that
+	means "may approve a child-tracking device" does not exist and inventing
+	one would put it in the permissions grid where a school could grant it to
+	anybody -- which is the thing being avoided.
+
+	Idempotent: approving twice answers 200, because an office on a slow
+	connection presses it again and a 409 reads as a failure.
+*/
+func (s *Server) approveBusTracker(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	trackerID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "that is not a tracker id")
+		return
+	}
+
+	allowed := false
+	if err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			  SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+			   WHERE ur.user_id = $1
+			     AND r.key IN ('institution_admin','super_admin'))`,
+			id.UserID).Scan(&allowed)
+	}); err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !allowed {
+		httpx.Error(w, r, http.StatusForbidden, "not_an_approver",
+			"only the principal or a platform administrator can let a bus tracker start reporting")
+		return
+	}
+
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		ct, err := tx.Exec(r.Context(), `
+			UPDATE vehicle_trackers
+			   SET approved_at = COALESCE(approved_at, now()),
+			       approved_by = COALESCE(approved_by, $3)
+			 WHERE institution_id = $1 AND id = $2 AND revoked_at IS NULL`,
+			id.InstitutionID, trackerID, id.UserID)
+		if err != nil {
+			return err
+		}
+		if ct.RowsAffected() == 0 {
+			// No such tracker, or one already revoked. A revoked handset is
+			// not approvable back into service: revocation is how a school
+			// says a phone is gone, and undoing it silently would put a phone
+			// somebody wrote off back on the children's map.
+			return pgx.ErrNoRows
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			httpx.NotFound(w, r)
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"approved": true})
+}

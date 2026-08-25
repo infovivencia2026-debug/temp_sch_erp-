@@ -244,7 +244,15 @@ func TestBusTrackerDeviceRoutesRefuseAnUnauthenticatedCaller(t *testing.T) {
 	walked := 0
 	err := chi.Walk(probe, func(method, route string, _ http.Handler,
 		_ ...func(http.Handler) http.Handler) error {
-		if route == "/public/bus-tracker/claim" {
+		/* The two public doors, and they are public because they are the
+		   only way a phone can ever get a token in the first place.
+
+		   /claim carries a pair code and /enrol carries a phone number and a
+		   PIN. Both authenticate, just not with a device token they do not yet
+		   have, and both are rate limited per address in the handler. Every
+		   OTHER route on this mount must refuse an unauthenticated caller, and
+		   that is what the walk below is for. */
+		if route == "/public/bus-tracker/claim" || route == "/public/bus-tracker/enrol" {
 			return nil
 		}
 		walked++

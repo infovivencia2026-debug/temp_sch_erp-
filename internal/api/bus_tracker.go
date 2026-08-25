@@ -237,17 +237,18 @@ func (s *Server) requireBusTracker(next http.Handler) http.Handler {
 		}
 
 		var (
-			dev     busTracker
-			sealed  []byte
-			revoked *time.Time
+			dev      busTracker
+			sealed   []byte
+			revoked  *time.Time
+			approved *time.Time
 		)
 		err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 			return tx.QueryRow(r.Context(), `
 				SELECT id, institution_id, vehicle_id, name, token_sealed,
-				       revoked_at, ping_seconds, paused
+				       revoked_at, approved_at, ping_seconds, paused
 				  FROM vehicle_trackers WHERE id = $1`, id).
 				Scan(&dev.ID, &dev.Institution, &dev.Vehicle, &dev.Name, &sealed,
-					&revoked, &dev.PingSeconds, &dev.Paused)
+					&revoked, &approved, &dev.PingSeconds, &dev.Paused)
 		})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -261,6 +262,22 @@ func (s *Server) requireBusTracker(next http.Handler) http.Handler {
 		}
 		if revoked != nil {
 			busTrackerUnauthorized(w, r)
+			return
+		}
+
+		/* Enrolled is not the same as allowed to report.
+
+		   A handset the driver signed in on holds a real credential and sends
+		   nothing until the principal lets it in. Said plainly rather than as
+		   a generic refusal, unlike every other rejection here: this one is
+		   not adversarial. The phone is ours, we know exactly which driver
+		   enrolled it, and the person holding it needs to be told to go and
+		   ask rather than left staring at a screen that says it is not
+		   paired. */
+		if approved == nil {
+			httpx.Error(w, r, http.StatusForbidden, "awaiting_approval",
+				"this phone is registered but not yet approved — ask the principal "+
+					"to approve it on the transport screen")
 			return
 		}
 
@@ -1214,6 +1231,11 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 func (s *Server) mountBusTrackerDevice(r chi.Router) {
 	r.Post("/public/bus-tracker/claim", s.claimBusTrackerPairCode)
 
+	// The driver enrols their own handset against the number painted on the
+	// bus. The claim above stays: a school midway through printed
+	// instructions should not find that they stopped working.
+	r.Post("/public/bus-tracker/enrol", s.enrolBusTracker)
+
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireBusTracker)
 
@@ -1240,4 +1262,12 @@ func (s *Server) mountBusTrackerDevice(r chi.Router) {
 func (s *Server) mountBusTrackerAdmin(r chi.Router) {
 	write := httpx.RequirePermission(rbac.TransportWrite)
 	r.With(write).Post("/transport/trackers/pair", s.pairBusTracker)
+
+	/* Letting an enrolled handset start reporting.
+
+	   Gated on transport.write like everything else here, and then narrowed
+	   again inside the handler to the principal and the platform. A tracker is
+	   a live map of where children are during the day, and that is not the
+	   same decision as editing a route. */
+	r.With(write).Post("/transport/trackers/{id}/approve", s.approveBusTracker)
 }
