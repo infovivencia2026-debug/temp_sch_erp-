@@ -197,19 +197,19 @@
   "steps": [
    {
     "role": "Admissions & Front Office",
-    "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/all_leads",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/enquiries",
     "do": "Add a lead, then convert it to an application.",
     "expect": "The application appears at the first stage."
    },
    {
     "role": "Admissions & Front Office",
-    "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/approvals_queue",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/principal_approval",
     "do": "Take it through to accepted.",
     "expect": "Status accepted."
    },
    {
     "role": "Admissions & Front Office",
-    "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/fee_payment_enrolment",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/fee_enrollment",
     "do": "Enrol the accepted applicant into a class and section.",
     "expect": "A student record and admission number are created \u2014 without retyping the child's details."
    },
