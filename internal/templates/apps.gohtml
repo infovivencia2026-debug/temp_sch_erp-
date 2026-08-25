@@ -1,0 +1,117 @@
+{{define "apps.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School ERP — staff apps</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
+</head>
+<body class="marketing apps">
+
+<header class="topbar">
+  <span class="wordmark">School ERP</span>
+  <span class="spacer"></span>
+  {{template "themebtn"}}
+  <a class="quiet" href="/login">Sign in</a>
+</header>
+
+<main>
+  <section class="apps-hero">
+    <h1>Staff apps for Android</h1>
+    <p class="lede">
+      Two apps run on school handsets rather than in a browser. They are not on
+      Google Play yet, so they are installed from here. Open this page
+      <strong>on the phone the app will live on</strong> and tap Download.
+    </p>
+  </section>
+
+  {{if not .AnyAvailable}}
+  <p class="apps-none" role="status">
+    No build has been published to this server yet. Nothing to install today —
+    check back, or ask the school's supplier.
+  </p>
+  {{end}}
+
+  <section class="apps-list" aria-label="Available apps">
+    {{range .Apps}}
+    <article class="app-card{{if not .Available}} unbuilt{{end}}">
+      <div class="app-head">
+        <h2>{{.Name}}</h2>
+        {{if .Available}}<span class="app-version">v{{.Version}}</span>{{end}}
+      </div>
+      <p class="app-tagline">{{.Tagline}}</p>
+
+      <p class="app-who"><span class="app-label">Goes on</span> {{.Who}}</p>
+      <ul class="app-needs">
+        {{range .Needs}}<li>{{.}}</li>{{end}}
+      </ul>
+
+      {{if .Available}}
+      <a class="app-dl" href="/apps/{{.Slug}}.apk" rel="nofollow">
+        Download {{.Size}}
+      </a>
+      <dl class="app-facts">
+        <dt>Built</dt><dd>{{.Built}}</dd>
+        <dt>File</dt><dd>{{.File}}</dd>
+        {{if .SHA256}}<dt>SHA-256</dt><dd class="app-sum">{{.SHA256}}</dd>{{end}}
+      </dl>
+      {{else}}
+      <p class="app-pending">Not published to this server yet.</p>
+      {{end}}
+    </article>
+    {{end}}
+  </section>
+
+  <section class="apps-howto">
+    <h2>Installing it</h2>
+    <ol>
+      <li>Tap <strong>Download</strong> above on the phone itself.</li>
+      <li>Open the downloaded file. Android will say it cannot install apps from
+          this source — that is expected, and it says it for everything that did
+          not come from Play.</li>
+      <li>Tap <strong>Settings</strong> on that message and turn on
+          <strong>Allow from this source</strong> for your browser. Turn it back
+          off afterwards if you like; the app keeps working.</li>
+      <li>Go back and tap <strong>Install</strong>.</li>
+      <li>Open the app. It will ask for a <strong>pair code</strong>.</li>
+    </ol>
+
+    <h2 id="pairing">The pair code</h2>
+    <p>
+      Neither app does anything at all until it is paired. An administrator
+      generates an eight-character code in the school's console — SMS gateway or
+      transport screen — and it expires in ten minutes. Type it into the handset
+      within that window and the phone is joined to that school and no other.
+    </p>
+    <p class="apps-note">
+      That is why this page needs no password. The file on its own is inert: it
+      cannot reach any school's data without a code an administrator issued.
+      Guard the code, not the download.
+    </p>
+
+    <h2>Checking what you downloaded</h2>
+    <p>
+      Sideloaded apps get no store check on the way in, so the SHA-256 above is
+      the only proof the file is ours. Anyone who wants to verify it can, on a
+      computer:
+    </p>
+    <pre class="apps-code">sha256sum bus-tracker-1.0.0.apk</pre>
+    <p>
+      If it does not match the figure on this page character for character, do
+      not install it.
+    </p>
+
+    <h2>When these reach Google Play</h2>
+    <p>
+      This page stays. A school that has already installed from here keeps
+      working, and Play becomes the easier of two routes rather than a migration
+      anyone has to perform.
+    </p>
+  </section>
+</main>
+
+{{template "themejs"}}
+</body>
+</html>{{end}}

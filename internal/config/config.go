@@ -49,6 +49,14 @@ type Config struct {
 	// replication. It is the difference between a feature that works and one
 	// that explains why it cannot.
 	FileStoreDir string
+
+	// APKDir holds the published Android builds served by /apps.
+	//
+	// On disk rather than embedded: an APK is tens of megabytes and ships on
+	// its own schedule, so embedding one would mean rebuilding and redeploying
+	// the server to fix a bug in the driver's app. `make deploy-server` builds
+	// Go and the SPA; it does not build Android and should not start.
+	APKDir string
 }
 
 type R2Config struct {
@@ -90,6 +98,7 @@ func Load() (*Config, error) {
 		CredentialKey:  os.Getenv("CREDENTIAL_KEY"),
 		GatewaySecret:  os.Getenv("PAYMENT_GATEWAY_SECRET"),
 		FileStoreDir:   env("FILE_STORE_DIR", "/var/lib/temperp/files"),
+		APKDir:         env("APK_DIR", "/var/lib/temperp/apk"),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),

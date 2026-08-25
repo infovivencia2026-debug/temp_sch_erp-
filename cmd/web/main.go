@@ -114,6 +114,14 @@ func run() error {
 	r.Get("/buy", buyPage.Show)
 	r.Post("/buy", buyPage.Submit)
 
+	// The staff Android apps, until they are on Google Play. Public by
+	// necessity: the driver has no ERP account and the gateway handset lives
+	// in a drawer. Safe to be public because both APKs are inert until an
+	// administrator issues a pair code -- see internal/api/apps.go.
+	appsPage := &api.AppsPage{Tpl: tpl, Dir: cfg.APKDir}
+	r.Get("/apps", appsPage.Show)
+	r.Get("/apps/{slug}.apk", appsPage.Download)
+
 	// Self-service purchase. The enquiry form above is for schools that want
 	// to talk to somebody; this is for schools that have finished deciding.
 	// The gateway is simulated until real credentials are configured — see

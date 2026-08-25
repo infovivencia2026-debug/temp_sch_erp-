@@ -640,3 +640,79 @@ select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
+
+/* --- the staff app download page -------------------------------------------
+
+   Read on a phone far more often than on a desk: it is the page a driver opens
+   standing beside a bus. So it is a single column at every width, the download
+   control is a full-width target rather than an inline link, and the SHA-256
+   wraps instead of forcing the page sideways. */
+
+body.apps main { max-width: 680px; margin: 0 auto; padding: 0 20px 72px; }
+.apps-hero { padding: 40px 0 28px; }
+.apps-hero h1 { margin: 0 0 12px; font-size: 30px; letter-spacing: -.02em; }
+body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-height: 1.6; }
+
+.apps-none {
+  margin: 0 0 28px; padding: 14px 16px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surface); color: var(--secondary);
+  font-size: 14px;
+}
+
+.apps-list { display: grid; gap: 18px; }
+.app-card {
+  border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+  padding: 22px;
+}
+.app-card.unbuilt { opacity: .7; }
+.app-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.app-head h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.app-version {
+  font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 9px;
+}
+.app-tagline { margin: 10px 0 16px; font-size: 14.5px; color: var(--secondary); line-height: 1.6; }
+.app-label { color: var(--muted); }
+.app-who { margin: 0 0 10px; font-size: 14px; color: var(--fg); }
+.app-needs { margin: 0 0 18px; padding-left: 20px; display: grid; gap: 6px; }
+.app-needs li { font-size: 13.5px; color: var(--secondary); }
+
+/* Full width and 48px tall: this is tapped with a thumb, outdoors. */
+.app-dl {
+  display: block; text-align: center; padding: 14px 18px; border-radius: 10px;
+  background: var(--accent); color: #fff; text-decoration: none;
+  font-size: 15px; font-weight: 600;
+}
+.app-dl:hover { filter: brightness(1.07); }
+.app-dl:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.app-pending { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+.app-facts {
+  margin: 16px 0 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 6px 14px; font-size: 12.5px;
+}
+.app-facts dt { color: var(--muted); }
+.app-facts dd { margin: 0; color: var(--secondary); }
+/* The digest is 64 characters and must break anywhere; letting it set the
+   page's minimum width is how this page scrolls sideways on a handset. */
+.app-sum {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px; overflow-wrap: anywhere; line-height: 1.5;
+}
+
+.apps-howto { margin-top: 44px; }
+.apps-howto h2 { margin: 30px 0 10px; font-size: 17px; letter-spacing: -.01em; }
+.apps-howto p { margin: 0 0 12px; font-size: 14.5px; color: var(--secondary); line-height: 1.65; }
+.apps-howto ol { margin: 0; padding-left: 22px; display: grid; gap: 9px; }
+.apps-howto li { font-size: 14.5px; color: var(--secondary); line-height: 1.6; }
+.apps-howto strong { color: var(--fg); font-weight: 600; }
+.apps-note {
+  padding: 13px 15px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+  background: var(--surface);
+}
+.apps-code {
+  margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+  color: var(--secondary);
+}

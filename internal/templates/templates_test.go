@@ -16,6 +16,7 @@ func TestAllTemplatesParse(t *testing.T) {
 	for _, name := range []string{
 		"login.gohtml", "buy.gohtml",
 		"signup.gohtml", "pay.gohtml", "welcome.gohtml",
+		"apps.gohtml",
 	} {
 		if tpl.Lookup(name) == nil {
 			t.Errorf("%s is not defined", name)

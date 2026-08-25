@@ -12,6 +12,7 @@ FQDN        ?= temperp.187-127-178-100.sslip.io
 REMOTE_DIR  ?= /opt/temperp
 SERVICE     ?= temperp
 WEBROOT     ?= /var/www/temperp
+APKDIR      ?= /var/lib/temperp/apk
 DIST        := dist
 
 # Static binaries: the target box should need no libc compatibility, and
@@ -109,7 +110,7 @@ clean: ## Remove build output
 
 ## --- deploy ---------------------------------------------------------------
 
-.PHONY: deploy deploy-app deploy-ui logs status
+.PHONY: deploy deploy-app deploy-ui publish-apk logs status
 deploy: dist deploy-app deploy-ui ## Full deploy to $(FQDN)
 	@echo "deployed: https://$(FQDN)"
 
@@ -130,6 +131,22 @@ deploy-server: ## Build and deploy ON the server from git (no local toolchain ne
 deploy-ui: ## Upload the SPA bundle
 	ssh $(HOST) 'mkdir -p $(WEBROOT)'
 	rsync -az --delete web/dist/ $(HOST):$(WEBROOT)/
+
+publish-apk: ## Upload one Android build: make publish-apk APK=path/to/bus-tracker-1.0.0.apk
+	@# The APK is not built here and is not built on the server -- Android needs
+	@# a toolchain neither box carries. It is built wherever Android Studio is,
+	@# and this target only puts a finished file where /apps can serve it.
+	@#
+	@# The name is the contract: "<slug>-<version>.apk", slug being bus-tracker
+	@# or sms-gateway. internal/api/apps.go reads the version out of it, and a
+	@# file named anything else is ignored rather than served as version "".
+	@test -n "$(APK)" || { echo "set APK=path/to/<slug>-<version>.apk"; exit 1; }
+	@echo "$$(basename $(APK))" | grep -Eq '^(bus-tracker|sms-gateway)-v?[0-9]+(\.[0-9]+)*\.apk$$' \
+		|| { echo "name must be <slug>-<version>.apk, e.g. bus-tracker-1.0.0.apk"; exit 1; }
+	ssh $(HOST) 'mkdir -p $(APKDIR)'
+	rsync -az --progress $(APK) $(HOST):$(APKDIR)/
+	@echo "published — https://$(FQDN)/apps"
+	@echo "sha256 (local): $$(sha256sum $(APK) | cut -d' ' -f1)"
 
 logs: ## Tail remote logs
 	ssh $(HOST) 'journalctl -u $(SERVICE)-web -u $(SERVICE)-worker -f -n 50'
