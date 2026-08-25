@@ -1,11 +1,5 @@
 Role,Workspace,Section,Feature,What User Sees & Does,Data Scope,Priority,Tier
-Super Admin,Dashboard,Dashboard,Campus cards,"Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.",All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,All campuses summary,"A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.",All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,Alerts,"Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.",All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,Multi-Branch Revenue Analytics,"View aggregate fee collection, outstanding balances, and comparative revenue across branches.",All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,Central Admission Funnel KPI,"Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.",All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,Global Attendance Heatmap,Monitor real-time student and staff attendance percentages across all campus locations.,All institutions / all campuses,Must-Have,core
-Super Admin,Dashboard,Dashboard,Executive System Alerts,"Display system-critical alerts including integration downtime, security breaches, and pending audits.",All institutions / all campuses,Must-Have,core
+Super Admin,Dashboard,Dashboard,Dashboard,"Every campus on one page — roll, staff, attendance taken today, fees collected and outstanding — ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it.",All schools / all branches,Must-Have,core
 Super Admin,Dashboard,Dashboard,System health,"Background jobs, queue depth, failed integrations and recent errors.",Assigned institution/campus,Must-Have,core
 Super Admin,Institution Setup,Institution Setup,Institutions & campuses,"Create/edit institution and campuses; address, timezone, academic model, contact details and status.",All institutions / all campuses,Should-Have,core
 Super Admin,Institution Setup,Institution Setup,Academic year defaults,Set active academic year/term defaults per campus; actual academic structure remains with institution admins.,All institutions / all campuses,Should-Have,core

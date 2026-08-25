@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 328 features. */
+/** 13 roles, 322 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -105,13 +105,7 @@ export const ROLES: Role[] = [
         name: 'Dashboard',
         workspace: 'Dashboard',
         features: [
-          { key: 'super_admin.dashboard.campus_cards', slug: 'campus_cards', name: 'Campus cards', scope: 'platform', tier: 'core', summary: 'Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.' },
-          { key: 'super_admin.dashboard.all_campuses_summary', slug: 'all_campuses_summary', name: 'All campuses summary', scope: 'platform', tier: 'core', summary: 'A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.' },
-          { key: 'super_admin.dashboard.alerts', slug: 'alerts', name: 'Alerts', scope: 'platform', tier: 'core', summary: 'Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.' },
-          { key: 'super_admin.dashboard.multi_branch_revenue_analytics', slug: 'multi_branch_revenue_analytics', name: 'Multi-Branch Revenue Analytics', scope: 'platform', tier: 'core', summary: 'View aggregate fee collection, outstanding balances, and comparative revenue across branches.' },
-          { key: 'super_admin.dashboard.central_admission_funnel_kpi', slug: 'central_admission_funnel_kpi', name: 'Central Admission Funnel KPI', scope: 'platform', tier: 'core', summary: 'Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.' },
-          { key: 'super_admin.dashboard.global_attendance_heatmap', slug: 'global_attendance_heatmap', name: 'Global Attendance Heatmap', scope: 'platform', tier: 'core', summary: 'Monitor real-time student and staff attendance percentages across all campus locations.' },
-          { key: 'super_admin.dashboard.executive_system_alerts', slug: 'executive_system_alerts', name: 'Executive System Alerts', scope: 'platform', tier: 'core', summary: 'Display system-critical alerts including integration downtime, security breaches, and pending audits.' },
+          { key: 'super_admin.dashboard.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'Every campus on one page — roll, staff, attendance taken today, fees collected and outstanding — ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it.' },
           { key: 'super_admin.dashboard.system_health', slug: 'system_health', name: 'System health', scope: 'institution', tier: 'core', summary: 'Background jobs, queue depth, failed integrations and recent errors.' },
         ],
       },

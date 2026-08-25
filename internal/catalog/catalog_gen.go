@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 328 features.
+// Roles is the catalog: 13 roles, 322 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -152,13 +152,7 @@ var Roles = []Role{
 				Name: "Dashboard",
 				Workspace: "Dashboard",
 				Features: []Feature{
-					{Key: "super_admin.dashboard.campus_cards", Slug: "campus_cards", Name: "Campus cards", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action."},
-					{Key: "super_admin.dashboard.all_campuses_summary", Slug: "all_campuses_summary", Name: "All campuses summary", Scope: Scope("platform"), Tier: Tier("core"), Summary: "A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards."},
-					{Key: "super_admin.dashboard.alerts", Slug: "alerts", Name: "Alerts", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts."},
-					{Key: "super_admin.dashboard.multi_branch_revenue_analytics", Slug: "multi_branch_revenue_analytics", Name: "Multi-Branch Revenue Analytics", Scope: Scope("platform"), Tier: Tier("core"), Summary: "View aggregate fee collection, outstanding balances, and comparative revenue across branches."},
-					{Key: "super_admin.dashboard.central_admission_funnel_kpi", Slug: "central_admission_funnel_kpi", Name: "Central Admission Funnel KPI", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Track total inquiries, applications, admissions finalized, and conversion rate across all campuses."},
-					{Key: "super_admin.dashboard.global_attendance_heatmap", Slug: "global_attendance_heatmap", Name: "Global Attendance Heatmap", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Monitor real-time student and staff attendance percentages across all campus locations."},
-					{Key: "super_admin.dashboard.executive_system_alerts", Slug: "executive_system_alerts", Name: "Executive System Alerts", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Display system-critical alerts including integration downtime, security breaches, and pending audits."},
+					{Key: "super_admin.dashboard.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every campus on one page — roll, staff, attendance taken today, fees collected and outstanding — ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it."},
 					{Key: "super_admin.dashboard.system_health", Slug: "system_health", Name: "System health", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Background jobs, queue depth, failed integrations and recent errors."},
 				},
 			},

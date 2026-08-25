@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, Building2, IndianRupee, Users } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Building2, IndianRupee, Users, X } from 'lucide-react'
 import { api, setActingInstitution } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Loading, ErrorState, EmptyState,
+  Badge, Button, Loading, ErrorState, EmptyState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
@@ -61,7 +62,11 @@ const SEVERITY: Record<string, 'danger' | 'warning' | 'neutral'> = {
 }
 
 export default function PlatformDashboard() {
-  const qc = useQueryClient()
+  /* Which campus is open, if any. State rather than a route: the panel is read
+     and dismissed in about four seconds, and a page you have to navigate back
+     from is a page you stop opening. */
+  const [openCampus, setOpenCampus] = useState<CampusCard | null>(null)
+
   const [range, setRange] = useRange()
   const presets = useQuery({
     queryKey: ['date-ranges'],
@@ -160,74 +165,213 @@ export default function PlatformDashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="Campuses" description={`${d.campuses_detail.length} across the group`} />
+          <CardHeader
+            title="Campuses"
+            description="Ordered by what is outstanding — the campus needing attention first. Open one for its own totals."
+          />
           {d.campuses_detail.length === 0 ? (
             <EmptyState title="No campuses yet" />
           ) : (
-            <Table
-              head={['Campus', 'Students', 'Staff', 'Attendance today', 'Collected', 'Outstanding', '']}
-            >
-              {d.campuses_detail.map((c) => (
-                <tr key={c.institution_id + c.campus}>
-                  <Td className="font-medium">
-                    {c.school}
-                    <span className="block text-[12px] font-normal text-muted-foreground">
-                      {c.campus}
-                      {c.district && ` · ${c.district}`}
-                    </span>
-                  </Td>
-                  <Td className="tabular-nums">{c.students}</Td>
-                  <Td className="tabular-nums">{c.staff}</Td>
-                  <Td>
-                    {/* Null and zero are different emergencies: "nobody came"
-                        versus "nobody has taken the register". */}
-                    {c.attendance_pct == null ? (
-                      <span className="text-muted-foreground">
-                        {c.students > 0 ? 'not marked' : '—'}
-                      </span>
-                    ) : (
-                      <span
-                        className={cn(
-                          'tabular-nums',
-                          c.attendance_pct < 75 && 'text-destructive',
-                        )}
-                      >
-                        {c.attendance_pct}%
-                        <span className="ml-1.5 text-[12px] text-muted-foreground">
-                          of {c.marked_today}
-                        </span>
-                      </span>
-                    )}
-                  </Td>
-                  <Td className="tabular-nums">{formatPaise(c.collected_paise)}</Td>
-                  <Td className="tabular-nums">
-                    {formatPaise(c.outstanding_paise)}
-                    {c.defaulters > 0 && (
-                      <span className="ml-1.5 text-[12px] text-muted-foreground">
-                        {c.defaulters} owing
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      title="Work inside this school"
-                      onClick={() => {
-                        setActingInstitution(c.institution_id)
-                        qc.invalidateQueries()
-                      }}
+            /* Cards, not a table.
+
+               A table gives every column equal weight, which is right for a
+               register and wrong for six campuses: the question here is which
+               one needs somebody today, and a row of seven equal cells does
+               not answer it. The two figures that decide it are set at the
+               size the eye reads first, and the order does the rest — most
+               outstanding at the front. */
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+              {[...d.campuses_detail]
+                .sort((a, b) => b.outstanding_paise - a.outstanding_paise)
+                .map((c) => {
+                  const billed = c.collected_paise + c.outstanding_paise
+                  const owedPct = billed > 0 ? Math.round((c.outstanding_paise / billed) * 100) : 0
+                  /* "Watch" is a quarter of the year's billing still owed. A
+                     threshold rather than a ranking, because the campus at the
+                     front of the list is always first — that says nothing
+                     about whether it is a problem. */
+                  const watch = owedPct >= 25
+                  return (
+                    <button
+                      key={c.institution_id + c.campus}
+                      type="button"
+                      onClick={() => setOpenCampus(c)}
+                      className={cn(
+                        'rounded-lg border bg-card p-5 text-left transition-colors',
+                        'hover:border-primary/40 hover:bg-accent/40',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
                     >
-                      <Building2 className="h-3.5 w-3.5" />
-                      Open
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-[15px] font-semibold">{c.campus}</div>
+                          <div className="truncate text-[12.5px] text-muted-foreground">
+                            {c.school}
+                            {c.district && ` · ${c.district}`}
+                          </div>
+                          <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+                            {c.students} students · {c.staff} staff
+                          </div>
+                        </div>
+                        {watch && <Badge tone="warning">watch</Badge>}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-4 border-y py-3">
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                            Fee collected
+                          </div>
+                          <div className="num mt-1 text-[19px] font-semibold">
+                            {formatPaise(c.collected_paise)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                            Outstanding
+                          </div>
+                          <div
+                            className={cn(
+                              'num mt-1 text-[19px] font-semibold',
+                              watch && 'text-destructive',
+                            )}
+                          >
+                            {formatPaise(c.outstanding_paise)}
+                          </div>
+                          <div className="text-[12px] text-muted-foreground">
+                            {billed > 0 ? `${owedPct}% of billed` : 'nothing billed yet'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between text-[13px]">
+                        <span className="text-muted-foreground">
+                          {/* Null and zero are different emergencies: "nobody
+                              came" versus "nobody has taken the register". */}
+                          {c.attendance_pct == null
+                            ? c.students > 0
+                              ? 'Register not taken'
+                              : '—'
+                            : `${c.attendance_pct}% present today`}
+                        </span>
+                        <span className="font-medium text-primary">Open →</span>
+                      </div>
+                    </button>
+                  )
+                })}
+            </div>
           )}
         </Card>
+
+        {openCampus && (
+          <CampusDetail c={openCampus} onClose={() => setOpenCampus(null)} />
+        )}
       </PageBody>
     </>
+  )
+}
+
+/* What one campus adds up to.
+
+   The card carries the two figures that decide where to look; this carries the
+   rest, and only when it is asked for. A panel rather than another screen
+   because the answer to "how big is Hyderabad" is read and dismissed in about
+   four seconds, and a page you have to navigate back from is a page you stop
+   opening. */
+function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
+  const billed = c.collected_paise + c.outstanding_paise
+  const owedPct = billed > 0 ? Math.round((c.outstanding_paise / billed) * 100) : 0
+  const qc = useQueryClient()
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${c.campus}, ${c.school}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="w-full max-w-lg rounded-xl border bg-card shadow-lg">
+        <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-[17px] font-semibold">{c.campus}</h2>
+            <p className="truncate text-[13px] text-muted-foreground">
+              {c.school}
+              {c.district && ` · ${c.district}`}
+            </p>
+          </div>
+          <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 p-5">
+          <div className="rounded-lg border bg-surface-subtle p-4">
+            <div className="text-[12px] font-medium text-muted-foreground">Total students</div>
+            <div className="num mt-1 text-[22px] font-semibold">{c.students}</div>
+          </div>
+          <div className="rounded-lg border bg-surface-subtle p-4">
+            <div className="text-[12px] font-medium text-muted-foreground">Total staff</div>
+            <div className="num mt-1 text-[22px] font-semibold">{c.staff}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 px-5 pb-2">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              Fee collected
+            </div>
+            <div className="num mt-1 text-[19px] font-semibold">
+              {formatPaise(c.collected_paise)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              Outstanding
+            </div>
+            <div className="num mt-1 text-[19px] font-semibold text-destructive">
+              {formatPaise(c.outstanding_paise)}
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              {billed > 0 ? `${owedPct}% of ${formatPaise(billed)} billed` : 'nothing billed yet'}
+              {c.defaulters > 0 && ` · ${c.defaulters} owing`}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-3 text-[13px] text-muted-foreground">
+          {c.attendance_pct == null
+            ? c.students > 0
+              ? 'The register has not been taken today.'
+              : 'No students enrolled yet.'
+            : `${c.attendance_pct}% present today, from ${c.marked_today} marked.`}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t px-5 py-3">
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              setActingInstitution(c.institution_id)
+              qc.invalidateQueries()
+              onClose()
+            }}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Work inside this school
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }

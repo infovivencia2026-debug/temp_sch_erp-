@@ -412,13 +412,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // school by RLS rather than by a second implementation.
   /* The cockpit: every campus on the installation, side by side. The
      principal's dashboard is one school by design; this is the row above. */
-  'super_admin.dashboard.campus_cards': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.all_campuses_summary': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.alerts': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.multi_branch_revenue_analytics': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.central_admission_funnel_kpi': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.global_attendance_heatmap': screen(() => import('./super_admin/PlatformDashboard')),
-  'super_admin.dashboard.executive_system_alerts': screen(() => import('./super_admin/PlatformDashboard')),
+  /* One dashboard. Seven entries opened this identical screen — campus
+     cards, the summary, alerts, revenue, the funnel, the heatmap and system
+     alerts — so the section listed seven doors into one room. */
+  'super_admin.dashboard.dashboard': screen(() => import('./super_admin/PlatformDashboard')),
   'super_admin.dashboard.system_health': screen(() => import('./shared/Jobs')),
   'super_admin.access_security.user_directory': screen(() => import('./super_admin/Users')),
   'super_admin.institution_setup.school_settings': screen(() => import('./setup/Wizard')),

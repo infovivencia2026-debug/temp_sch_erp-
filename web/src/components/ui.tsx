@@ -727,6 +727,13 @@ export function Button({
   disabled?: boolean
   variant?: 'primary' | 'secondary' | 'ghost' | 'ink' | 'outline'
   type?: 'button' | 'submit'
+  /* The tooltip, and the accessible name that has to go with it.
+
+     A button whose only child is an icon has no name at all: the mouse gets
+     nothing on hover and a screen reader announces "button". `title` gives
+     the first, and is invisible to the second — so when a caller supplies one
+     it becomes the aria-label too, rather than leaving an icon-only control
+     unnamed in the one place it matters most. */
   title?: string
   size?: 'sm' | 'md'
   /** Destructive actions borrow the semantic red rather than the accent. */
@@ -744,6 +751,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
       className={cn(
         'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-sm font-medium',
         'transition-colors duration-150',
@@ -791,6 +799,7 @@ export function ConfirmButton({
   variant = 'secondary',
   size = 'sm',
   tone,
+  label,
 }: {
   children: ReactNode
   /** What the confirming button says — a verb, not "OK". */
@@ -802,12 +811,24 @@ export function ConfirmButton({
   variant?: 'primary' | 'secondary' | 'ghost'
   size?: 'sm' | 'md'
   tone?: 'danger'
+  /* What the control is, for a caller whose children are an icon.
+
+     The question below only appears after the click, so an icon-only trigger
+     said nothing at all until somebody had already pressed it — which is the
+     wrong order for a control that resets a password. */
+  label?: string
 }) {
   const [asking, setAsking] = useState(false)
 
   if (!asking) {
     return (
-      <Button variant={variant} size={size} disabled={disabled} onClick={() => setAsking(true)}>
+      <Button
+        variant={variant}
+        size={size}
+        disabled={disabled}
+        title={label}
+        onClick={() => setAsking(true)}
+      >
         {children}
       </Button>
     )

@@ -243,7 +243,12 @@ export default function Tenants() {
           {rows.length === 0 ? (
             <EmptyState title="No customers yet" body="Provision the first school to get started." />
           ) : (
+            /* Seven columns and three buttons in the last one: without `wide`
+               the browser divided the width equally and broke school names
+               character by character — "Gate Chec k Scho ol" — while clipping
+               the actions off the right edge of the card. */
             <Table
+              wide
               head={[
                 { label: 'School', key: 'name' },
                 { label: 'Plan', key: 'plan_name' },
@@ -257,7 +262,10 @@ export default function Tenants() {
             >
               {sort.sorted.map((t) => (
                 <tr key={t.id}>
-                  <Td className="font-medium">
+                  {/* A school's name is not a paragraph, and neither is a
+                      date: both were breaking mid-word once the columns were
+                      squeezed. */}
+                  <Td className="whitespace-nowrap font-medium">
                     {t.name}
                     <span className="block text-[12px] font-normal text-muted-foreground">
                       {t.district ?? t.short_name} · since {formatDate(t.created_on)}
@@ -272,7 +280,7 @@ export default function Tenants() {
                       <span className="text-muted-foreground">no subscription</span>
                     )}
                   </Td>
-                  <Td className="tabular-nums">
+                  <Td className="num">
                     {t.students}
                     {t.licensed_students != null && (
                       <span
@@ -289,8 +297,8 @@ export default function Tenants() {
                   <Td>
                     {/* The number that predicts a cancellation better than any
                         other: a school three weeks in and still at 20%. */}
-                    <div className="flex items-center gap-2">
-                      <div className="h-1 w-16 overflow-hidden rounded-full bg-muted">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
                         <div
                           className={cn(
                             'h-full rounded-full',
@@ -304,8 +312,8 @@ export default function Tenants() {
                       </span>
                     </div>
                   </Td>
-                  <Td className="text-muted-foreground">{formatDate(t.renews_on)}</Td>
-                  <Td className="text-muted-foreground">
+                  <Td className="num text-muted-foreground">{formatDate(t.renews_on)}</Td>
+                  <Td className="num text-muted-foreground">
                     {t.last_sign_in ? formatDate(t.last_sign_in) : 'never'}
                   </Td>
                   <Td className="whitespace-nowrap">
@@ -322,6 +330,7 @@ export default function Tenants() {
                         Open
                       </Button>
                       <ConfirmButton
+                        label="Reset the administrator's password"
                         question={`Issue a new password for ${t.name}'s administrator?`}
                         confirmLabel="Reset"
                         disabled={resetAdmin.isPending}
