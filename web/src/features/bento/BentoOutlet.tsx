@@ -113,10 +113,6 @@ function BentoChunkPending() {
 export function BentoOutlet({ children, path }: { children: ReactNode; path?: string }) {
   const { layout } = useLayout()
   const key = useRouteFeatureKey(path)
-  // Inside a split, a pane is the frame — not the window. The board below is
-  // measured against its container rather than the viewport, or four boards
-  // would each claim the full height of the screen.
-  const paned = path !== undefined
 
   /* Note what was opened, so the launcher — and the classic sidebar's Recent
      row — can lead with it.
@@ -179,21 +175,32 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          every Bento page, exactly where the eye starts. The strip was the
          padding, made visible.
 
-         min-h-dvh so a short screen is one colour to the bottom of the window
-         rather than to the bottom of its content.
+         A BOARD IS MEASURED AGAINST ITS CONTAINER, NOT AGAINST THE WINDOW.
 
-         A board is pinned to the window — h-dvh, nothing spilling — because
-         its rows are sized against that height. A classic screen falling
-         through here is not: it is a page-head and a table of whatever length
-         the school has, and holding it to one screen with overflow hidden
-         simply cut it off. The defaulters list stopped at the eleventh row
-         with no way to reach the twelfth. So it gets a floor, not a ceiling,
-         and scrolls in the shell's own work area. */
+         It was h-dvh, which is the full height of the viewport — and the board
+         does not get the full height of the viewport. The tab strip sits above
+         it inside the work area, and on a role that keeps the classic chrome
+         the topbar does too. So the board was reliably one strip taller than
+         the room it had, the work area scrolled to make up the difference, and
+         the bottom row of cards was cut off at the fold. A board that scrolls
+         is not a board: its rows are sized to fit a fixed height, and the
+         whole arrangement is a claim that everything is visible at once.
+
+         h-full instead, which resolves against the work area — the height the
+         board is actually given. The shell's <main> is a flex child with
+         min-h-0 and therefore a definite height, so the percentage has
+         something real to resolve against; that is the load-bearing part.
+
+         A classic screen falling through here is the opposite case: a
+         page-head and a table of whatever length the school has, which holding
+         to one screen with overflow hidden simply cut off — the defaulters
+         list stopped at the eleventh row with no way to reach the twelfth. So
+         it gets a floor and not a ceiling, and scrolls in the work area as it
+         always did. min-h-full rather than min-h-dvh for the same reason as
+         above: the floor is the room available, not the window. */
       className={cn(
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
-        paned
-          ? (Screen ? 'h-full overflow-hidden' : 'min-h-full')
-          : (Screen ? 'h-dvh overflow-hidden' : 'min-h-dvh'),
+        Screen ? 'h-full overflow-hidden' : 'min-h-full',
       )}
     >
       {/* The room around the board.

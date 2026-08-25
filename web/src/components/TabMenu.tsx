@@ -28,6 +28,7 @@ const SIDES: { side: Side; label: string; icon: typeof PanelRight }[] = [
 export default function TabMenu({
   target,
   paneCount,
+  refuse,
   onSplit,
   onUnsplit,
   onClose,
@@ -35,6 +36,10 @@ export default function TabMenu({
 }: {
   target: MenuTarget
   paneCount: number
+  /** Why this particular tab cannot be split, if it cannot. Shown on the four
+      directions rather than hiding them: a menu that silently loses half its
+      items on one tab reads as a bug. */
+  refuse?: string
   onSplit: (side: Side) => void
   onUnsplit: () => void
   onClose: () => void
@@ -63,6 +68,7 @@ export default function TabMenu({
   }, [onDismiss])
 
   const full = paneCount >= MAX_PANES
+  const blocked = refuse ?? (full ? `${MAX_PANES} max` : undefined)
 
   return (
     <>
@@ -105,8 +111,8 @@ export default function TabMenu({
             key={side}
             icon={Icon}
             label={label}
-            hint={full ? `${MAX_PANES} max` : undefined}
-            disabled={full}
+            hint={blocked}
+            disabled={!!blocked}
             onSelect={() => onSplit(side)}
           />
         ))}

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useCatalog, screenTitle } from '@/lib/catalog'
 import { useTabs, neighbourOf, MAX_TABS } from '@/lib/tabs'
-import { usePanes, type Side } from '@/lib/panes'
+import { usePanes, isHomeBoard, type Side } from '@/lib/panes'
 import TabMenu, { type MenuTarget } from '@/components/TabMenu'
 import { cn } from '@/lib/utils'
 
@@ -121,6 +121,7 @@ export default function TabStrip() {
         <TabMenu
           target={menu}
           paneCount={Math.max(paths.length, 1)}
+          refuse={isHomeBoard(menu.path) ? 'Home board' : undefined}
           onSplit={(side) => { doSplit(side, menu.path); setMenu(null) }}
           onUnsplit={() => { closeSplit(); setMenu(null) }}
           onClose={() => {
