@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -68,6 +68,7 @@ export default function Library() {
     queryKey: ['library-titles', search],
     queryFn: () =>
       api.get<List<Title>>(`/api/v1/ops/library/titles?q=${encodeURIComponent(search)}`),
+    placeholderData: keepPreviousData,
   })
 
   const copies = useQuery({

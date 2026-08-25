@@ -3474,44 +3474,14 @@
      "name": "Home",
      "features": [
       {
-       "key": "parent.home.child_switcher",
-       "slug": "child_switcher",
-       "name": "Child switcher",
+       "key": "parent.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
        "scope": "children",
        "tier": "core",
-       "expect": "Switch between linked children without separate accounts.",
+       "expect": "Your child's day on one page: attendance, fees, homework and what the school has said \u2014 with anything waiting on you at the top. Switch children from the same page if you have more than one.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/child_switcher"
-      },
-      {
-       "key": "parent.home.child_summary",
-       "slug": "child_summary",
-       "name": "Child summary",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/child_summary"
-      },
-      {
-       "key": "parent.home.needs_attention",
-       "slug": "needs_attention",
-       "name": "Needs attention",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/needs_attention"
-      },
-      {
-       "key": "parent.home.real_time_push_notifications",
-       "slug": "real_time_push_notifications",
-       "name": "Real-Time Push Notifications",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Receive instant app push alerts for homework, circulars, fee dues, and attendance.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/real_time_push_notifications"
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/dashboard"
       }
      ]
     },
@@ -3612,14 +3582,14 @@
        "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/fees_payments"
       },
       {
-       "key": "parent.fees.digital_fee_receipt_pdf_download",
-       "slug": "digital_fee_receipt_pdf_download",
-       "name": "Digital Fee Receipt PDF Download",
+       "key": "parent.fees.fee_receipts",
+       "slug": "fee_receipts",
+       "name": "Fee receipts",
        "scope": "children",
        "tier": "core",
-       "expect": "Download official stamped PDF fee receipts directly to parent smartphone storage.",
+       "expect": "Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it \u2014 it carries the school's own letterhead.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/digital_fee_receipt_pdf_download"
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/fee_receipts"
       },
       {
        "key": "parent.fees.child_daily_cafeteria_purchase_timeline",
@@ -3638,34 +3608,14 @@
      "name": "My Child's Bus",
      "features": [
       {
-       "key": "parent.my_childs_bus.transport_snapshot",
-       "slug": "transport_snapshot",
-       "name": "Transport snapshot",
+       "key": "parent.my_childs_bus.live_bus_tracking",
+       "slug": "live_bus_tracking",
+       "name": "Live bus tracking",
        "scope": "children",
        "tier": "core",
-       "expect": "Bus route/stop/tracking only when transport module is enabled.",
+       "expect": "Your child's bus: the route, the vehicle, their stop and when it is due \u2014 and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/transport_snapshot"
-      },
-      {
-       "key": "parent.my_childs_bus.live_bus_tracking_map",
-       "slug": "live_bus_tracking_map",
-       "name": "Live Bus Tracking Map",
-       "scope": "children",
-       "tier": "core",
-       "expect": "View real-time movement of child's bus on an interactive map with estimated time of arrival.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/live_bus_tracking_map"
-      },
-      {
-       "key": "parent.my_childs_bus.school_transport_driver_call_button",
-       "slug": "school_transport_driver_call_button",
-       "name": "School Transport Driver Call Button",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Direct masked call connection to bus attendant/driver during bus transit hours.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/school_transport_driver_call_button"
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/live_bus_tracking"
       }
      ]
     },
@@ -3761,19 +3711,9 @@
        "name": "Parent-Teacher Meeting Booking",
        "scope": "children",
        "tier": "core",
-       "expect": "Select available PTM time slots to meet subject teachers without queueing.",
+       "expect": "The slots the school has opened for parent-teacher meetings, and the one you have booked \u2014 with a reminder before it, so a meeting agreed three weeks ago is not missed on the morning.",
        "built": true,
        "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/parent_teacher_meeting_booking"
-      },
-      {
-       "key": "parent.school_life.ptm_appointment_reminder_alert",
-       "slug": "ptm_appointment_reminder_alert",
-       "name": "PTM Appointment Reminder Alert",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/ptm_appointment_reminder_alert"
       },
       {
        "key": "parent.school_life.school_photo_video_gallery",
@@ -3849,19 +3789,9 @@
        "name": "Consent & acknowledgement",
        "scope": "children",
        "tier": "core",
-       "expect": "Acknowledge circulars, permissions, trips and configured consent forms.",
+       "expect": "Every slip the school needs signed \u2014 trips, medical, photography, data \u2014 with what you have already agreed to and when. Signing is one tap and the record is kept.",
        "built": true,
        "url": "https://temperp.187-127-178-100.sslip.io/parent/consent/consent_acknowledgement"
-      },
-      {
-       "key": "parent.consent.digital_parent_consent_slips",
-       "slug": "digital_parent_consent_slips",
-       "name": "Digital Parent Consent Slips",
-       "scope": "children",
-       "tier": "core",
-       "expect": "Provide digital signature consent for upcoming field trips, sports events, or health camps.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/consent/digital_parent_consent_slips"
       },
       {
        "key": "parent.consent.parent_delegation_for_emergency_pickup",
@@ -3910,24 +3840,14 @@
        "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/parent_app_biometric_lock_face_id_fingerprint"
       },
       {
-       "key": "parent.profile.multi_language_app_interface_toggle",
-       "slug": "multi_language_app_interface_toggle",
-       "name": "Multi-Language App Interface Toggle",
+       "key": "parent.profile.language",
+       "slug": "language",
+       "name": "Language",
        "scope": "children",
        "tier": "core",
-       "expect": "Switch complete parent mobile app UI between English, Hindi, Telugu, Tamil, Marathi, and regional languages.",
+       "expect": "Read the app in English or Telugu. The choice is yours alone \u2014 it does not change what anybody else sees.",
        "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/multi_language_app_interface_toggle"
-      },
-      {
-       "key": "parent.profile.telugu_language_interface",
-       "slug": "telugu_language_interface",
-       "name": "Telugu Language Interface",
-       "scope": "children",
-       "tier": "advanced",
-       "expect": "Use the parent app entirely in Telugu, including circulars, fee notices and report cards.",
-       "built": true,
-       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/telugu_language_interface"
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/language"
       },
       {
        "key": "parent.profile.parent_app_dark_mode_high_contrast_accessibility",

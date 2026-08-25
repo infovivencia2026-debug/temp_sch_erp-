@@ -29,6 +29,12 @@ const (
 	TypeFeeReminderFanout  = "fee:reminder_fanout"
 	TypeMessageSend        = "message:send"
 	TypeMessageDispatch    = "message:dispatch"
+	/* Diary reminders that have come due.
+
+	   Swept rather than queued per note: a job per reminder would mean a job to
+	   cancel when a note is edited or ticked off, and a queue holding thousands
+	   of pending tasks most of which will be done before they fire. */
+	TypeDiaryReminders = "diary:reminders"
 	TypeMessagePlans       = "message:plans"
 	TypeBulkImport         = "bulk:import"
 	TypeExportBuild        = "export:build"

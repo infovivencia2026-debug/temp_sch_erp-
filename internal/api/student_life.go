@@ -1151,6 +1151,12 @@ type diaryNoteRequest struct {
 	OnDate    string `json:"on_date,omitempty"`
 	Kind      string `json:"kind,omitempty"`
 	Body      string `json:"body"`
+	/* When to be told, as HH:MM on the note's own day.
+
+	   Optional, and most notes have none: a note about a maths problem does
+	   not want to interrupt anybody, and forcing a time on every one would
+	   turn the diary into an alarm clock. */
+	RemindAt string `json:"remind_at,omitempty"`
 	// Tri-state on update: nil leaves it alone, true ticks, false unticks.
 	Done *bool `json:"done,omitempty"`
 }
@@ -1192,10 +1198,14 @@ func (s *Server) createDiaryNote(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO student_diary_notes
-			    (institution_id, student_id, author_user_id, on_date, kind, body)
-			VALUES ($1, $2, $3, $4::date, $5, btrim($6))
+			    (institution_id, student_id, author_user_id, on_date, kind, body,
+			     remind_at)
+			VALUES ($1, $2, $3, $4::date, $5, btrim($6),
+			        CASE WHEN $7::text = '' THEN NULL
+			             ELSE ($4::date + $7::time) END)
 			RETURNING id::text`,
-			id.InstitutionID, student, id.UserID, on, kind, req.Body).Scan(&out)
+			id.InstitutionID, student, id.UserID, on, kind, req.Body,
+			strings.TrimSpace(req.RemindAt)).Scan(&out)
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())

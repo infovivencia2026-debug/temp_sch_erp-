@@ -87,6 +87,21 @@ func schedulerEntries(env Envelope) []cronEntry {
 		   20-second per-send deadline in the worst case where every one of
 		   them hangs, because a task killed mid-drain leaves the rows it had
 		   not reached queued -- correct, but a tick wasted. */
+		/* Every 5 minutes — diary reminders that have come due.
+
+		   The same interval as the dispatch below, for the same reason: a
+		   child who asked to be reminded at 16:00 is reminded by 16:05, and a
+		   tick that finds nothing is one indexed query over a partial index
+		   holding only unsent reminders. Not a daily entry — this produces no
+		   work at a time of day, it delivers work somebody scheduled for any
+		   time of day.
+
+		   No Envelope: the sweep runs across every school in one pass, because
+		   a per-institution entry would register the same query ten times to
+		   find the same nothing. */
+		{"*/5 * * * *", TypeDiaryReminders, Envelope{},
+			Options(QueueDefault, 3, 2*time.Minute)},
+
 		{"*/5 * * * *", TypeMessageDispatch,
 			MessageDispatchPayload{Envelope: env, Limit: 50},
 			Options(QueueDefault, 3, 10*time.Minute)},

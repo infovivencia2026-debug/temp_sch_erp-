@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, ShieldCheck, Star, Landmark } from 'lucide-react'
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
@@ -54,6 +54,7 @@ export default function StudentBankAccounts() {
           search ? `&q=${encodeURIComponent(search)}` : ''
         }`,
       ),
+    placeholderData: keepPreviousData,
   })
 
   if (q.isLoading) return <Loading label="Opening the register…" />

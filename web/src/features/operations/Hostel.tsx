@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
@@ -67,6 +67,7 @@ export default function Hostel() {
     queryKey: ['hostel-candidates', search],
     queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
     enabled: search.trim().length >= 2,
+    placeholderData: keepPreviousData,
   })
 
   const allocate = useMutation({

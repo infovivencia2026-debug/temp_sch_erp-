@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
@@ -89,6 +89,7 @@ export default function StudentProfile() {
     queryKey: ['profile-search', search],
     queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
     enabled: search.trim().length >= 2 && !selected,
+    placeholderData: keepPreviousData,
   })
 
   const profile = useQuery({

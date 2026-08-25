@@ -91,6 +91,7 @@ func (h *Handlers) routes() map[string]func(context.Context, *asynq.Task) error 
 		TypeExportBuild:        h.exportBuild,
 		TypeAttendanceRollup:   h.attendanceRollup,
 		TypeSessionPrune:       h.sessionPrune,
+		TypeDiaryReminders:     h.diaryReminders,
 	}
 }
 
@@ -354,6 +355,101 @@ func (h *Handlers) attendanceRollup(ctx context.Context, t *asynq.Task) error {
 
 // sessionPrune is cron-driven housekeeping. Expired rows are harmless to reads
 // (Resolve filters on expires_at) but the table grows without bound otherwise.
+/* Reminders the child asked for, delivered when they asked.
+
+   A diary note carried a date and nothing else, so "hand in the science
+   project" sat on Thursday's page and reached nobody on Thursday: the child had
+   to open the diary to be reminded by the diary, which is the one thing a
+   reminder exists not to require.
+
+   Swept rather than scheduled per note. A job queued for each reminder would
+   mean a job to cancel when a note is edited or ticked off, and a queue holding
+   thousands of pending tasks for reminders most of which will be done before
+   they fire. One query every five minutes over a partial index costs almost
+   nothing and has no state to keep in step.
+
+   Late rather than early, and never twice. reminded_at is stamped in the same
+   statement that selects the row, so two sweeps overlapping cannot both claim
+   it — a reminder arriving twice is worse than one arriving four minutes late.
+*/
+func (h *Handlers) diaryReminders(ctx context.Context, _ *asynq.Task) error {
+	var sent int
+
+	err := h.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
+		/* Claim and read in one statement.
+
+		   The UPDATE ... RETURNING is the whole concurrency story: whichever
+		   sweep gets there first stamps reminded_at, and the other's WHERE no
+		   longer matches. Nothing needs locking and nothing needs a queue. */
+		rows, err := tx.Query(ctx, `
+			UPDATE student_diary_notes n
+			   SET reminded_at = now()
+			 WHERE n.id IN (
+			     SELECT id FROM student_diary_notes
+			      WHERE remind_at IS NOT NULL
+			        AND reminded_at IS NULL
+			        AND remind_at <= now()
+			        AND done_at IS NULL
+			      ORDER BY remind_at
+			      LIMIT 500)
+			RETURNING n.institution_id, n.author_user_id, n.student_id,
+			          n.kind, n.body, to_char(n.on_date, 'YYYY-MM-DD')`)
+		if err != nil {
+			return fmt.Errorf("claim due reminders: %w", err)
+		}
+
+		type due struct {
+			inst, author, student any
+			kind, body, onDate    string
+		}
+		var batch []due
+		for rows.Next() {
+			var d due
+			if err := rows.Scan(&d.inst, &d.author, &d.student,
+				&d.kind, &d.body, &d.onDate); err != nil {
+				rows.Close()
+				return err
+			}
+			batch = append(batch, d)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		/* Told to whoever wrote it, not to the child.
+
+		   A parent keeping a young child's diary is a real case — the note
+		   belongs to the child's day and the reminder belongs to the person who
+		   asked to be reminded. Sending it to the student would tell the wrong
+		   person, and sending it to both would tell a fourteen-year-old their
+		   mother set them a reminder. */
+		for _, d := range batch {
+			title := "Reminder"
+			if d.kind != "" && d.kind != "note" {
+				title = "Reminder: " + d.kind
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO notifications
+				    (institution_id, user_id, kind, title, body, link)
+				VALUES ($1, $2, 'diary_reminder', $3, $4, '/go/digital_diary_schedule')`,
+				d.inst, d.author, title, d.body); err != nil {
+				return fmt.Errorf("notify: %w", err)
+			}
+			sent++
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if sent > 0 {
+		slog.Info("diary reminders sent", "count", sent)
+	}
+	return nil
+}
+
+
 func (h *Handlers) sessionPrune(ctx context.Context, _ *asynq.Task) error {
 	return h.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx,

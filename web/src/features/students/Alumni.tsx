@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarHeart, GraduationCap, HandCoins, UserPlus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -97,6 +97,7 @@ export default function Alumni() {
         '/api/v1/academics/admin/alumni' +
           (q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''),
       ),
+    placeholderData: keepPreviousData,
   })
   const events = useQuery({
     queryKey: ['alumni-events'],

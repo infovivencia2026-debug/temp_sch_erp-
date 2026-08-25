@@ -3,11 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, NotebookPen, ClipboardList } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button,
   ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
 
@@ -30,6 +30,23 @@ interface DiaryResponse {
   items: Entry[]
 }
 
+/* The kind as a colour rather than a word.
+
+   The word was telling a reader what the line already says — "Period 1 ·
+   English" is a lesson — while the chip carrying it ran into the title. The
+   dot keeps kind readable at a glance and gives the title its line back; the
+   word survives as the dot's tooltip and its accessible name, so nothing is
+   lost to somebody who cannot see colour. */
+const DOT: Record<string, string> = {
+  period: 'bg-info',
+  homework: 'bg-warning',
+  exam: 'bg-destructive',
+  note: 'bg-muted-foreground',
+  reminder: 'bg-primary',
+  revision: 'bg-success',
+  personal: 'bg-muted-foreground',
+}
+
 const KIND_LABEL: Record<string, string> = {
   period: 'Lesson',
   homework: 'Due',
@@ -42,16 +59,6 @@ const KIND_LABEL: Record<string, string> = {
   event: 'Event',
   working_day: 'Working day',
 }
-const KIND_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'primary'> = {
-  period: 'neutral',
-  homework: 'warning',
-  exam: 'danger',
-  note: 'primary',
-  club_event: 'info',
-  holiday: 'success',
-  vacation: 'success',
-}
-
 const NOTE_KINDS = [
   { value: 'note', label: 'Note' },
   { value: 'reminder', label: 'Reminder' },
@@ -236,10 +243,22 @@ export default function Diary() {
                             className="flex flex-wrap items-start justify-between gap-3"
                           >
                             <div className="min-w-0">
-                              <p className="text-[14px]">
-                                <Badge tone={KIND_TONE[e.kind] ?? 'neutral'}>
-                                  {KIND_LABEL[e.kind] ?? e.kind}
-                                </Badge>
+                              {/* The word, not a chip jammed against the title.
+
+                                  A Badge and a span with nothing between them
+                                  rendered "LessonPeriod 1 · English" and
+                                  "DueQA chain-3 test…". And the word was
+                                  telling somebody what they could already see:
+                                  "Period 1 · English" is a lesson, and a title
+                                  with a subject under it is homework. A
+                                  coloured dot keeps the kind readable at a
+                                  glance without spending a word on it. */}
+                              <p className="flex items-baseline gap-2 text-[14px]">
+                                <span
+                                  className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', DOT[e.kind] ?? 'bg-muted-foreground')}
+                                  title={KIND_LABEL[e.kind] ?? e.kind}
+                                  aria-label={KIND_LABEL[e.kind] ?? e.kind}
+                                />
                                 <span className={e.done ? 'line-through opacity-60' : ''}>
                                   {e.title}
                                 </span>

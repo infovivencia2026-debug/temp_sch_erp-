@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Library, BookMarked, Hourglass } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -58,6 +58,16 @@ export default function LibraryHolds() {
   const ready = readyFor(children, studentId)
   const [q, setQ] = useState('')
 
+  /* Typing must not take the page away.
+
+     The search term is part of the query key, so every keystroke started a
+     new query — and with the loading return below, the whole screen unmounted
+     and came back, which reads as the page reloading and jumping to the top.
+     The input lost focus with it, so the second character went nowhere.
+
+     keepPreviousData holds the rows already on screen while the next answer
+     arrives, so the list dims rather than disappearing and the caret stays
+     where the reader left it. */
   const catalogue = useQuery({
     queryKey: ['library-catalogue', studentId, q],
     queryFn: () =>
@@ -65,6 +75,7 @@ export default function LibraryHolds() {
         `/api/v1/portal/library/titles${studentQuery(studentId, q ? `q=${encodeURIComponent(q)}` : '')}`,
       ),
     enabled: ready,
+    placeholderData: keepPreviousData,
   })
 
   const holds = useQuery({
@@ -93,7 +104,13 @@ export default function LibraryHolds() {
     onSuccess: refresh,
   })
 
-  if (catalogue.isLoading && ready) return <Loading label="Opening the catalogue…" />
+  /* Only the FIRST load takes the screen. isLoading is true whenever a new
+     key has no cached data, which with the search term in the key is every
+     keystroke; isPending with keepPreviousData is true only when there is
+     nothing to show at all. */
+  if (catalogue.isPending && ready && !catalogue.data) {
+    return <Loading label="Opening the catalogue…" />
+  }
   if (catalogue.error) return <ErrorState error={catalogue.error} />
 
   const titles = catalogue.data?.items ?? []

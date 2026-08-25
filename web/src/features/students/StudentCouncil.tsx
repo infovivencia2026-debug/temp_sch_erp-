@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Award, ClipboardCheck, UserPlus, Users } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
@@ -335,6 +335,7 @@ function SeatMember({
       api.get<Page<Student>>(
         '/api/v1/students/?limit=25' + (q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''),
       ),
+    placeholderData: keepPreviousData,
   })
 
   const save = useMutation({

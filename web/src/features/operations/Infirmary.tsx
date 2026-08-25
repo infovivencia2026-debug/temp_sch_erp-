@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Phone, Search } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -41,6 +41,7 @@ export default function Infirmary() {
       api.get<List<HealthRow>>(
         `/api/v1/ops/health/students?q=${encodeURIComponent(search)}&flagged=${flagged}`,
       ),
+    placeholderData: keepPreviousData,
   })
 
   const rows = q.data?.items ?? []

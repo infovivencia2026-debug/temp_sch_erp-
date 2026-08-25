@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Image, ShieldCheck, Trophy } from 'lucide-react'
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
@@ -107,6 +107,7 @@ export default function AchievementsShowcase() {
         `/api/v1/students?q=${encodeURIComponent(studentSearch)}&limit=10`,
       ),
     enabled: studentSearch.trim().length >= 2,
+    placeholderData: keepPreviousData,
   })
   /* Held rather than looked back up: choosing a child rewrites the search box
      to their name, which changes the query key, so the list that contained
