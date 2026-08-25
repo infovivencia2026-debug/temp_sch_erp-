@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The platform tier, keyed by catalogue feature.
@@ -27,33 +27,33 @@ import { lazy } from 'react'
  */
 export const platformKeys = {
   // Statutory & Boards
-  'super_admin.statutory_boards.board_affiliation_disclosure': lazy(() => import('./BoardAffiliation')),
-  'super_admin.statutory_boards.state_board_configuration': lazy(() => import('./StateBoardConfig')),
-  'super_admin.statutory_boards.district_mandal_master': lazy(() => import('./DistrictMandalMaster')),
-  'super_admin.statutory_boards.sqaa_framework_management': lazy(() => import('./SQAAFramework')),
-  'super_admin.statutory_boards.school_management_type': lazy(() => import('./ManagementType')),
+  'super_admin.statutory_boards.board_affiliation_disclosure': screen(() => import('./BoardAffiliation')),
+  'super_admin.statutory_boards.state_board_configuration': screen(() => import('./StateBoardConfig')),
+  'super_admin.statutory_boards.district_mandal_master': screen(() => import('./DistrictMandalMaster')),
+  'super_admin.statutory_boards.sqaa_framework_management': screen(() => import('./SQAAFramework')),
+  'super_admin.statutory_boards.school_management_type': screen(() => import('./ManagementType')),
 
   // Campuses & Academic Year
-  'super_admin.campuses_academic_year.academic_calendar_model': lazy(() => import('./CalendarModel')),
-  'super_admin.campuses_academic_year.white_label_branding': lazy(() => import('./WhiteLabel')),
-  'super_admin.campuses_academic_year.franchise_management': lazy(() => import('../seller/Franchises')),
+  'super_admin.campuses_academic_year.academic_calendar_model': screen(() => import('./CalendarModel')),
+  'super_admin.campuses_academic_year.white_label_branding': screen(() => import('./WhiteLabel')),
+  'super_admin.campuses_academic_year.franchise_management': screen(() => import('../seller/Franchises')),
 
   // Institution Setup
-  'super_admin.institution_setup.branding': lazy(() => import('./Branding')),
+  'super_admin.institution_setup.branding': screen(() => import('./Branding')),
 
   // Platform Configuration
-  'super_admin.platform_configuration.numbering_templates': lazy(() => import('./Numbering')),
+  'super_admin.platform_configuration.numbering_templates': screen(() => import('./Numbering')),
 
   // Operations
-  'super_admin.operations.data_backup_restore': lazy(() => import('./BackupRestore')),
+  'super_admin.operations.data_backup_restore': screen(() => import('./BackupRestore')),
 
   // Access & Security
-  'super_admin.access_security.sso_mfa': lazy(() => import('./SsoMfa')),
+  'super_admin.access_security.sso_mfa': screen(() => import('./SsoMfa')),
 
   // The vendor's own back office
-  'seller_admin.support.support_tickets': lazy(() => import('../seller/SupportTickets')),
-  'seller_admin.support.impersonation_audit': lazy(() => import('../seller/Impersonation')),
-  'seller_admin.usage_health.adoption_metrics': lazy(() => import('../seller/Adoption')),
-  'seller_admin.usage_health.instance_health': lazy(() => import('../seller/InstanceHealth')),
-  'seller_admin.entitlements.module_entitlement_matrix': lazy(() => import('../seller/Entitlements')),
+  'seller_admin.support.support_tickets': screen(() => import('../seller/SupportTickets')),
+  'seller_admin.support.impersonation_audit': screen(() => import('../seller/Impersonation')),
+  'seller_admin.usage_health.adoption_metrics': screen(() => import('../seller/Adoption')),
+  'seller_admin.usage_health.instance_health': screen(() => import('../seller/InstanceHealth')),
+  'seller_admin.entitlements.module_entitlement_matrix': screen(() => import('../seller/Entitlements')),
 }

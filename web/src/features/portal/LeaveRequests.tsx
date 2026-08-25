@@ -48,6 +48,21 @@ const TONE: Record<LeaveRow['status'], 'warning' | 'success' | 'danger' | 'neutr
 export default function LeaveRequests() {
   const t = useT()
   const qc = useQueryClient()
+
+  /* The same screen for the student and for the parent.
+
+     A student could not apply for leave at all: the feature existed once, on
+     the parent's menu, so a sixteen-year-old had to ask a guardian to file
+     something the school expects them to file themselves. The endpoint never
+     cared — a student's own record is in their scope, so applying for
+     themselves was always allowed; there was simply no way in.
+
+     What differs is one column. "Child" is the right heading for a guardian
+     picking between three of them and a strange one for somebody looking at
+     their own name in every row, so it appears when there is somebody to
+     distinguish and not otherwise. */
+  const { children } = useChildren()
+  const forSelf = children.length === 1
   const leave = useQuery({
     queryKey: ['portal-leave'],
     queryFn: () => api.get<List<LeaveRow>>('/api/v1/portal/leave'),
@@ -91,7 +106,7 @@ export default function LeaveRequests() {
           />
           <Table
             head={[
-              t('portal.leave_requests.col_child'),
+              ...(forSelf ? [] : [t('portal.leave_requests.col_child')]),
               t('portal.leave_requests.col_days'),
               t('portal.leave_requests.col_reason'),
               t('portal.leave_requests.col_decision'),
@@ -102,15 +117,25 @@ export default function LeaveRequests() {
           >
             {rows.map((r) => (
               <tr key={r.id}>
-                <Td>
-                  <div className="font-medium">{r.student_name}</div>
-                  <div className="text-[12px] text-muted-foreground">
-                    {t('portal.leave_requests.applied_on', { date: formatDate(r.applied_on) })}
-                  </div>
-                </Td>
+                {!forSelf && (
+                  <Td>
+                    <div className="font-medium">{r.student_name}</div>
+                    <div className="text-[12px] text-muted-foreground">
+                      {t('portal.leave_requests.applied_on', { date: formatDate(r.applied_on) })}
+                    </div>
+                  </Td>
+                )}
                 <Td>
                   {formatDate(r.from_date)}
                   {r.to_date !== r.from_date && ` – ${formatDate(r.to_date)}`}
+                  {/* The name column carried the date it was applied on, so
+                      dropping that column for a student would quietly take
+                      the date with it. */}
+                  {forSelf && (
+                    <div className="text-[12px] text-muted-foreground">
+                      {t('portal.leave_requests.applied_on', { date: formatDate(r.applied_on) })}
+                    </div>
+                  )}
                   <div className="text-[12px] text-muted-foreground">
                     {r.is_half_day
                       ? t('portal.leave_requests.half_day')

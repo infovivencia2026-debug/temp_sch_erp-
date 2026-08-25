@@ -169,7 +169,7 @@ export default function DisciplineLog() {
                     )}
                     {r.parent_meeting_on && (
                       <span className="block text-[12px] text-muted-foreground">
-                        Family seen {formatDate(r.parent_meeting_on)}
+                        Parent seen {formatDate(r.parent_meeting_on)}
                       </span>
                     )}
                   </Td>

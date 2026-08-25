@@ -73,7 +73,7 @@ interface OpenDay {
   capacity: number
   booked: number
   attended: number
-  families: number
+  parents: number
 }
 interface Sale {
   id: string
@@ -720,7 +720,7 @@ function OpenDays() {
       <Card>
         <CardHeader
           title="Schedule an open house"
-          description="Capacity lives on each slot rather than the event, because the whole point is to spread two hundred families across a Saturday morning rather than have them all arrive at ten."
+          description="Capacity lives on each slot rather than the event, because the whole point is to spread two hundred parents across a Saturday morning rather than have them all arrive at ten."
         />
         <div className="p-4">
           <FormGrid>

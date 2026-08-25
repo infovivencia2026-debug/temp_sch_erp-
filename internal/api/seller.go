@@ -492,18 +492,85 @@ type ticketRow struct {
 	RaisedBy  *string `json:"raised_by,omitempty"`
 	CreatedAt string  `json:"created_at"`
 	OpenDays  int     `json:"open_days"`
+
+	/* What was promised, and whether it was kept.
+
+	   The queue said how long a ticket had been open and nothing about whether
+	   that was acceptable, so a trial school's cosmetic question and an
+	   Enterprise school that cannot take fees both read "open 3 days". */
+	OpenHours     int    `json:"open_hours"`
+	PlanCode      string `json:"plan_code,omitempty"`
+	PlanName      string `json:"plan_name,omitempty"`
+	PromisedHours int    `json:"promised_hours"`
+	Breached      bool   `json:"breached"`
+}
+
+/* What the vendor promised, by plan and by urgency.
+
+   In code rather than a table because it is three numbers the vendor sets
+   once. A settings screen for something nobody has asked to change is
+   configuration that exists to be admired; when a school negotiates its own
+   terms this becomes a column on plans, and the shape here is already the
+   shape that column would have.
+
+   A school with no plan at all — a trial that lapsed, a tenant provisioned by
+   hand — falls to the slowest promise rather than to none. "No plan" must not
+   read as "no obligation", because somebody is still sitting there waiting. */
+func promisedHours(planCode, priority string) int {
+	tier := 3
+	switch strings.ToLower(planCode) {
+	case "enterprise", "ent":
+		tier = 0
+	case "pro", "campus_pro", "premium":
+		tier = 1
+	case "basic", "standard", "starter":
+		tier = 2
+	}
+	// urgent, high, normal, low — down each row; the tier chooses the row.
+	promise := [4][4]int{
+		{1, 4, 8, 24},     // enterprise
+		{4, 8, 24, 48},    // pro
+		{8, 24, 48, 72},   // basic
+		{24, 48, 72, 120}, // no plan, or one we do not recognise
+	}
+	col := 2
+	switch strings.ToLower(priority) {
+	case "urgent":
+		col = 0
+	case "high":
+		col = 1
+	case "low":
+		col = 3
+	}
+	return promise[tier][col]
 }
 
 func (s *Server) listTickets(w http.ResponseWriter, r *http.Request) {
 	items := []ticketRow{}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		/* Hours open, and the plan the school is on.
+
+		   The queue reported whole days and nothing about what was promised,
+		   so "open 3 days" read identically for a trial school's cosmetic
+		   question and an Enterprise school that cannot take fees. Sorting by
+		   urgency still could not say which had been failed.
+
+		   Hours rather than days because the tightest promise below is
+		   measured in them, and a ticket four hours past a four-hour promise
+		   rounds to "0 days" — the breach that matters most made invisible by
+		   the unit. */
 		rows, err := tx.Query(r.Context(), `
 			SELECT t.id::text, i.name, t.subject, t.category, t.priority, t.status,
 			       u.full_name, to_char(t.created_at, 'YYYY-MM-DD'),
-			       EXTRACT(day FROM now() - t.created_at)::int
+			       EXTRACT(day FROM now() - t.created_at)::int,
+			       (EXTRACT(epoch FROM now() - t.created_at) / 3600)::int,
+			       COALESCE(pl.code, ''), COALESCE(pl.name, '')
 			  FROM support_tickets t
 			  LEFT JOIN institutions i ON i.id = t.institution_id
 			  LEFT JOIN users u ON u.id = t.raised_by
+			  LEFT JOIN subscriptions sub ON sub.institution_id = t.institution_id
+			                             AND sub.status IN ('active','trial')
+			  LEFT JOIN plans pl ON pl.code = sub.plan_code
 			 WHERE t.status <> 'closed'
 		   -- A parent's complaint about a named teacher is the school's
 		   -- business, not the software vendor's. support_tickets carries
@@ -519,9 +586,12 @@ func (s *Server) listTickets(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var v ticketRow
 			if err := rows.Scan(&v.ID, &v.School, &v.Subject, &v.Category, &v.Priority,
-				&v.Status, &v.RaisedBy, &v.CreatedAt, &v.OpenDays); err != nil {
+				&v.Status, &v.RaisedBy, &v.CreatedAt, &v.OpenDays,
+				&v.OpenHours, &v.PlanCode, &v.PlanName); err != nil {
 				return err
 			}
+			v.PromisedHours = promisedHours(v.PlanCode, v.Priority)
+			v.Breached = v.OpenHours > v.PromisedHours
 			items = append(items, v)
 		}
 		return rows.Err()

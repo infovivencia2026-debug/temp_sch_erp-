@@ -80,21 +80,29 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 12 roles, 340 features.
+// Roles is the catalog: 13 roles, 328 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
 		Name: "Seller Admin",
 		Sections: []Section{
 			{
-				Slug: "customers",
-				Name: "Customers",
-				Workspace: "Customers",
+				Slug: "home",
+				Name: "Home",
+				Workspace: "Home",
 				Features: []Feature{
-					{Key: "seller_admin.customers.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support."},
-					{Key: "seller_admin.customers.provision_new_school", Slug: "provision_new_school", Name: "Provision New School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials."},
-					{Key: "seller_admin.customers.suspend_reactivate", Slug: "suspend_reactivate", Name: "Suspend & Reactivate", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement."},
-					{Key: "seller_admin.customers.onboarding_progress", Slug: "onboarding_progress", Name: "Onboarding Progress", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation."},
+					{Key: "seller_admin.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used — with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once."},
+				},
+			},
+			{
+				Slug: "schools",
+				Name: "Schools",
+				Workspace: "Schools",
+				Features: []Feature{
+					{Key: "seller_admin.schools.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support."},
+					{Key: "seller_admin.schools.provision_new_school", Slug: "provision_new_school", Name: "Provision New School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a school, its first campus and its first administrator in one step, and hand over the credentials."},
+					{Key: "seller_admin.schools.tenant_access_control", Slug: "tenant_access_control", Name: "Tenant Access Control", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart."},
+					{Key: "seller_admin.schools.onboarding_progress", Slug: "onboarding_progress", Name: "Onboarding Progress", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation."},
 				},
 			},
 			{
@@ -104,7 +112,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "seller_admin.subscriptions_billing.plans_pricing", Slug: "plans_pricing", Name: "Plans & Pricing", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Define plans with a student cap, included modules and an annual or per-student price."},
 					{Key: "seller_admin.subscriptions_billing.subscription_ledger", Slug: "subscription_ledger", Name: "Subscription Ledger", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Each school's plan, term dates, renewal date and invoice history."},
-					{Key: "seller_admin.subscriptions_billing.seat_overage_renewals", Slug: "seat_overage_renewals", Name: "Seat Overage & Renewals", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past their student cap or inside the renewal window, with the revenue at risk."},
+					{Key: "seller_admin.subscriptions_billing.license_capacity_tracking", Slug: "license_capacity_tracking", Name: "License & Capacity Tracking", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used."},
 				},
 			},
 			{
@@ -700,7 +708,7 @@ var Roles = []Role{
 					{Key: "finance.fees.take_fee_payment", Slug: "take_fee_payment", Name: "Take fee payment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen."},
 					{Key: "finance.fees.online_fee_portal", Slug: "online_fee_portal", Name: "Online fee portal", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered."},
 					{Key: "finance.fees.unpaid_fees_reminders", Slug: "unpaid_fees_reminders", Name: "Unpaid fees & reminders", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too."},
-					{Key: "finance.fees.class_transport_fee_setup", Slug: "class_transport_fee_setup", Name: "Class & transport fee setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each class is charged for the year — tuition, lab, transport by distance — with concessions and refunds, the receipt series, and the one action that turns the structure into every family's invoice."},
+					{Key: "finance.fees.class_transport_fee_setup", Slug: "class_transport_fee_setup", Name: "Class & transport fee setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each class is charged for the year — tuition, lab, transport by distance — with concessions and refunds, the receipt series, and the one action that turns the structure into every parent's invoice."},
 				},
 			},
 			{
@@ -750,8 +758,7 @@ var Roles = []Role{
 				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
-					{Key: "admissions.home.admissions_kpis", Slug: "admissions_kpis", Name: "Admissions KPIs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "New enquiries, applications received, incomplete applications, interviews/tests today, offers pending and enrollments."},
-					{Key: "admissions.home.follow_ups", Slug: "follow_ups", Name: "Follow-ups", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications needing documents, review, payment or follow-up."},
+					{Key: "admissions.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "New enquiries, applications received, offers pending and enrolment conversion, with the follow-ups due today underneath."},
 				},
 			},
 			{
@@ -759,16 +766,12 @@ var Roles = []Role{
 				Name: "Enquiries",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.enquiries.enquiries_leads", Slug: "enquiries_leads", Name: "Enquiries / leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Capture prospective student enquiries and source/campaign."},
-					{Key: "admissions.enquiries.lead_source_tracking", Slug: "lead_source_tracking", Name: "Lead Source Tracking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Tag leads with marketing channels (Google Ads, Facebook, Newspaper, Referral, Walk-in)."},
-					{Key: "admissions.enquiries.counselor_lead_assignment", Slug: "counselor_lead_assignment", Name: "Counselor Lead Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Automatically or manually route incoming admission inquiries to specific admission counselors."},
-					{Key: "admissions.enquiries.counselor_activity_follow_ups", Slug: "counselor_activity_follow_ups", Name: "Counselor Activity & Follow-ups", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Log call notes, schedule follow-up reminders, and log candidate visit outcomes."},
-					{Key: "admissions.enquiries.multi_touch_campaign_sequences", Slug: "multi_touch_campaign_sequences", Name: "Multi-Touch Campaign Sequences", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Trigger automated follow-up SMS, WhatsApp messages, and email drip sequences to leads."},
-					{Key: "admissions.enquiries.utm_tracking_digital_campaign_attribution", Slug: "utm_tracking_digital_campaign_attribution", Name: "UTM Tracking & Digital Campaign attribution", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Attribute web inquiries to specific Facebook, Google Ads, or email UTM campaign tags."},
+					{Key: "admissions.enquiries.enquiries", Slug: "enquiries", Name: "Enquiries", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every enquiry the school has taken — walk-in, telephone, website or referral — with the child, the class sought, the parent's number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there."},
+					{Key: "admissions.enquiries.assign_leads", Slug: "assign_leads", Name: "Assign Leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once — so a Monday morning's forty enquiries are shared out in one action rather than opened one at a time."},
+					{Key: "admissions.enquiries.follow_up_calls", Slug: "follow_up_calls", Name: "Follow-up Calls", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The calls you owe parents today about their enquiry: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row."},
 					{Key: "admissions.enquiries.24_7_admission_chatbot", Slug: "24_7_admission_chatbot", Name: "24/7 Admission Chatbot", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads."},
 					{Key: "admissions.enquiries.ai_voice_agent_integration", Slug: "ai_voice_agent_integration", Name: "AI Voice Agent Integration", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up."},
-					{Key: "admissions.enquiries.admissions_open_day_scheduler", Slug: "admissions_open_day_scheduler", Name: "Admissions Open Day Scheduler", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Organize school open house events, manage online slot booking, and check in attending parents."},
-					{Key: "admissions.enquiries.prospectus_kit_sales_log", Slug: "prospectus_kit_sales_log", Name: "Prospectus & Kit Sales Log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Track inventory, unit sales, and receipt generation for physical school prospectuses."},
+					{Key: "admissions.enquiries.campus_visits", Slug: "campus_visits", Name: "Campus Visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice."},
 				},
 			},
 			{
@@ -776,63 +779,11 @@ var Roles = []Role{
 				Name: "Applications",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.applications.applications", Slug: "applications", Name: "Applications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Create/review applications and track status."},
-					{Key: "admissions.applications.online_application_form_builder", Slug: "online_application_form_builder", Name: "Online Application Form Builder", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Configure custom digital admission application forms with file upload rules and field validation."},
-					{Key: "admissions.applications.applicant_documents", Slug: "applicant_documents", Name: "Applicant documents", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collect and verify required admission documents."},
-					{Key: "admissions.applications.entrance_exam_scheduling", Slug: "entrance_exam_scheduling", Name: "Entrance Exam Scheduling", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Schedule entrance exam dates, assign exam halls, generate admit cards, and log candidate marks."},
-					{Key: "admissions.applications.interview_interaction_scheduler", Slug: "interview_interaction_scheduler", Name: "Interview & Interaction Scheduler", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Book interview slots for parents/students with principal/management and record scores."},
-					{Key: "admissions.applications.applicant_medical_fitness_declaration", Slug: "applicant_medical_fitness_declaration", Name: "Applicant Medical Fitness Declaration", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Collect applicant medical history, vaccination certificates, and physical fitness approvals."},
-					{Key: "admissions.applications.foreign_nri_student_visa_documentation", Slug: "foreign_nri_student_visa_documentation", Name: "Foreign / NRI Student Visa Documentation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Track passport details, student visa status, and embassy NOCs for international applicants."},
-				},
-			},
-			{
-				Slug: "admissions",
-				Name: "Admissions",
-				Workspace: "Admissions",
-				Features: []Feature{
-					{Key: "admissions.admissions.offers_admission_decisions", Slug: "offers_admission_decisions", Name: "Offers / admission decisions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Issue offers/admission decisions based on configured workflow."},
-					{Key: "admissions.admissions.merit_list_generation", Slug: "merit_list_generation", Name: "Merit List Generation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Calculate weighted scores based on prior marks, entrance exam, and interview to publish merit lists."},
-					{Key: "admissions.admissions.seat_allocation_management", Slug: "seat_allocation_management", Name: "Seat Allocation Management", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Manage class/section seat quotas (General, RTE, Management, Sports, Sibling) and availability."},
-					{Key: "admissions.admissions.provisional_offer_letters", Slug: "provisional_offer_letters", Name: "Provisional Offer Letters", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Generate and email/SMS provisional admission offer letters with payment deadline links."},
-					{Key: "admissions.admissions.admission_waitlist_management", Slug: "admission_waitlist_management", Name: "Admission Waitlist Management", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Maintain real-time waitlists per class, auto-promoting candidates as seats open up."},
-					{Key: "admissions.admissions.admission_fee_collection", Slug: "admission_fee_collection", Name: "Admission Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collect prospectus and application form fees via cash, POS, or integrated payment gateway."},
-					{Key: "admissions.admissions.enrollment_handoff", Slug: "enrollment_handoff", Name: "Enrollment handoff", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Convert admitted applicant to student/enrollment without duplicate data entry."},
-					{Key: "admissions.admissions.sibling_priority_auto_matching", Slug: "sibling_priority_auto_matching", Name: "Sibling Priority Auto-Matching", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Auto-detect existing enrolled siblings during inquiry to apply sibling priority quota."},
-					{Key: "admissions.admissions.alumni_child_quota_allocation", Slug: "alumni_child_quota_allocation", Name: "Alumni Child Quota Allocation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Identify children of alumni applicants and apply institutional alumni quota benefits."},
-					{Key: "admissions.admissions.rte_right_to_education_quota_tracking", Slug: "rte_right_to_education_quota_tracking", Name: "RTE (Right to Education) Quota Tracking", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Manage government RTE quota applications, lottery selection results, and document verification."},
-					{Key: "admissions.admissions.rte_online_lottery_import", Slug: "rte_online_lottery_import", Name: "RTE Online Lottery Import", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Import the state RTE 25% lottery allotment list and convert allotted candidates into applications."},
-					{Key: "admissions.admissions.aadhaar_apaar_capture_at_admission", Slug: "aadhaar_apaar_capture_at_admission", Name: "Aadhaar & APAAR Capture at Admission", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Capture Aadhaar consent, APAAR ID and prior-school UDISE code during the admission form."},
-					{Key: "admissions.admissions.transfer_certificate_intake", Slug: "transfer_certificate_intake", Name: "Transfer Certificate Intake", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record the previous school's TC number, board and issue date, and verify against the prior UDISE record."},
-					{Key: "admissions.admissions.medium_of_instruction_selection", Slug: "medium_of_instruction_selection", Name: "Medium of Instruction Selection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Capture the medium the applicant is admitted into and the language combination chosen."},
-					{Key: "admissions.admissions.child_info_id_capture", Slug: "child_info_id_capture", Name: "Child Info ID Capture", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record the Telangana Child Info ID at admission and verify it against the state register."},
-				},
-			},
-			{
-				Slug: "visitors",
-				Name: "Visitors",
-				Workspace: "Front Desk",
-				Features: []Feature{
-					{Key: "admissions.visitors.visitor_gate_pass_generation", Slug: "visitor_gate_pass_generation", Name: "Visitor Gate Pass Generation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Log guest photo, phone number, host staff member, visit reason, and print paper/digital badge."},
-					{Key: "admissions.visitors.visitor_checkout_tracking", Slug: "visitor_checkout_tracking", Name: "Visitor Checkout Tracking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Scan visitor barcode or log exit time to ensure no unauthorized visitors remain on campus."},
-					{Key: "admissions.visitors.parent_appointment_booking", Slug: "parent_appointment_booking", Name: "Parent Appointment Booking", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Schedule formal parent meetings with staff/admin to prevent unscheduled office crowding."},
-				},
-			},
-			{
-				Slug: "gate_security",
-				Name: "Gate Security",
-				Workspace: "Front Desk",
-				Features: []Feature{
-					{Key: "admissions.gate_security.gate_rfid_entry_management", Slug: "gate_rfid_entry_management", Name: "Gate RFID Entry Management", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Monitor real-time student/staff gate scans for late arrivals or early departures."},
-					{Key: "admissions.gate_security.emergency_gate_lockout", Slug: "emergency_gate_lockout", Name: "Emergency Gate Lockout", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Trigger gate security alerts for unapproved exits or blacklisted visitors."},
-				},
-			},
-			{
-				Slug: "office_log",
-				Name: "Office Log",
-				Workspace: "Front Desk",
-				Features: []Feature{
-					{Key: "admissions.office_log.front_office_calls_register", Slug: "front_office_calls_register", Name: "Front Office Calls Register", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Maintain daily telephone call logs, caller identity, inquiry nature, and message forwarding."},
-					{Key: "admissions.office_log.postal_courier_log", Slug: "postal_courier_log", Name: "Postal & Courier Log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record inbound and outbound official mail, courier tracking numbers, recipient, and handover status."},
+					{Key: "admissions.applications.application_forms", Slug: "application_forms", Name: "Application Forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered."},
+					{Key: "admissions.applications.document_verification", Slug: "document_verification", Name: "Document Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told."},
+					{Key: "admissions.applications.entrance_tests", Slug: "entrance_tests", Name: "Entrance & Tests", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due to sit the test: the slot, the hall ticket number, and the marks. A candidate who clears the cut-off moves to the interview round."},
+					{Key: "admissions.applications.interviews", Slug: "interviews", Name: "Interviews", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome."},
+					{Key: "admissions.applications.principal_approval", Slug: "principal_approval", Name: "Principal Approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications waiting on the principal's word, oldest first: the child, the scores, the interview note, and one decision. Approving is what opens the fee counter for that family."},
 				},
 			},
 			{
@@ -848,8 +799,8 @@ var Roles = []Role{
 				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
-					{Key: "admissions.reports.admission_conversion_reports", Slug: "admission_conversion_reports", Name: "Admission Conversion Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "View funnel analytics: Inquiries -> Form Bought -> Exam Taken -> Offer Issued -> Enrolled."},
-					{Key: "admissions.reports.lost_lead_reason_analysis", Slug: "lost_lead_reason_analysis", Name: "Lost Lead Reason Analysis", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Record and analyze rejection/drop-out reasons (Fee too high, Distance, Selected other school)."},
+					{Key: "admissions.reports.admission_reports", Slug: "admission_reports", Name: "Admission reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries, applications and admissions with the conversion between them — the numbers a management committee asks for. Exports to a spreadsheet."},
+					{Key: "admissions.reports.dropped_leads", Slug: "dropped_leads", Name: "Dropped leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Why parents did not join, counted: fees, distance, chose another school. The reason is asked for when an enquiry is marked lost, so this is built from what was actually recorded."},
 				},
 			},
 			{
@@ -858,6 +809,55 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "admissions.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+			{
+				Slug: "admissions",
+				Name: "Admissions",
+				Workspace: "Admissions",
+				Features: []Feature{
+					{Key: "admissions.admissions.all_admissions", Slug: "all_admissions", Name: "All admissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every applicant who has reached a decision stage, and what was decided — accepted, rejected or on hold. The list an admission clerk works from."},
+					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
+					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
+					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},
+					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section — without anybody typing the child's details a second time."},
+					{Key: "admissions.admissions.id_compliance", Slug: "id_compliance", Name: "ID & Compliance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Aadhaar, APAAR and the PEN each child needs, checked for shape as they are typed, and the export UDISE+ expects. A missing one found now is not found at reporting time."},
+				},
+			},
+			{
+				Slug: "front_desk",
+				Name: "Front Desk",
+				Workspace: "Front Desk",
+				Features: []Feature{
+					{Key: "admissions.front_desk.visitors_log", Slug: "visitors_log", Name: "Visitors log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is on campus right now and who has been: name, phone, who they are here to see, and the time in. Checking somebody out is a button on their row, and a pass prints from the same place."},
+					{Key: "admissions.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up."},
+					{Key: "admissions.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out with who took them and what was said — the register the front office keeps by the phone."},
+					{Key: "admissions.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "front_office",
+		Name: "Receptionist / Front Office",
+		Sections: []Section{
+			{
+				Slug: "front_desk",
+				Name: "Front Desk",
+				Workspace: "Front Desk",
+				Features: []Feature{
+					{Key: "front_office.front_desk.visitors_log", Slug: "visitors_log", Name: "Visitors log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is on the premises right now and who has been: name, phone, who they are here to see, and the time in. Signing somebody out is a button on their row, and the pass prints from the same place. The block list is checked as the pass is issued."},
+					{Key: "front_office.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: who is expected, when, and who turned up."},
+					{Key: "front_office.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out, who took them and what was said — the register the front office keeps by the phone, and the messages still waiting to be passed on."},
+					{Key: "front_office.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+				},
+			},
+			{
+				Slug: "my_profile",
+				Name: "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "front_office.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
@@ -985,6 +985,7 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
+					{Key: "student.attendance.apply_for_leave", Slug: "apply_for_leave", Name: "Apply for leave", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet."},
 				},
 			},
 			{
@@ -1065,7 +1066,7 @@ var Roles = []Role{
 				Name: "Requests",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Leave, certificate, bonafide, ID card, add/drop or help request depending on institution type."},
+					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the office for a document — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given."},
 				},
 			},
 			{
@@ -1167,11 +1168,19 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "documents",
+				Name: "Documents",
+				Workspace: "Documents",
+				Features: []Feature{
+					{Key: "parent.documents.certificate_requests", Slug: "certificate_requests", Name: "Certificate requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download."},
+					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
+				},
+			},
+			{
 				Slug: "leave_absence",
 				Name: "Leave & Absence",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.leave_absence.requests", Slug: "requests", Name: "Requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit leave/permission/certificate/help requests on behalf of child where allowed."},
 					{Key: "parent.leave_absence.apply_student_leave", Slug: "apply_student_leave", Name: "Apply Student Leave", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit digital student leave applications with reason and medical certificate attachments."},
 				},
 			},
@@ -1183,14 +1192,6 @@ var Roles = []Role{
 					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
 					{Key: "parent.consent.digital_parent_consent_slips", Slug: "digital_parent_consent_slips", Name: "Digital Parent Consent Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Provide digital signature consent for upcoming field trips, sports events, or health camps."},
 					{Key: "parent.consent.parent_delegation_for_emergency_pickup", Slug: "parent_delegation_for_emergency_pickup", Name: "Parent Delegation for Emergency Pickup", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
-				},
-			},
-			{
-				Slug: "documents",
-				Name: "Documents",
-				Workspace: "Requests",
-				Features: []Feature{
-					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{

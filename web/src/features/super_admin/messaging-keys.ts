@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The messaging tier, keyed by catalogue feature.
@@ -22,6 +22,6 @@ import { lazy } from 'react'
  * until procurement finishes.
  */
 export const messagingKeys = {
-  'super_admin.messaging.email_server_smtp_integration': lazy(() => import('./EmailServer')),
-  'super_admin.messaging.automated_trigger_rules': lazy(() => import('./TriggerRules')),
+  'super_admin.messaging.email_server_smtp_integration': screen(() => import('./EmailServer')),
+  'super_admin.messaging.automated_trigger_rules': screen(() => import('./TriggerRules')),
 }

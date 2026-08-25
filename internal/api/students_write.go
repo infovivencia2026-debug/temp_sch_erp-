@@ -722,6 +722,8 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 	results := []map[string]any{}
 	ledger := []map[string]any{}
 	documents := []map[string]any{}
+	enrolments := []map[string]any{}
+	transport := []map[string]any{}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var (
@@ -883,6 +885,72 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* Where the child has been, and how they get here.
+
+		   Two tabs on the most-opened record in the product were showing a
+		   single line each: the History tab said which class the child is in
+		   now — which the header already says — and Transport was not there at
+		   all, because there was nothing to put in it.
+
+		   Both were queries nobody had written, not features nobody had built.
+		   A promotion writes an enrolments row and closes the last one, and a
+		   bus seat is a transport_allocations row; the record just never asked
+		   for either. The class teacher asking "has this child been detained
+		   before" and the front desk asking "which bus does she take, her
+		   mother is at the gate" were both being sent to somebody else's
+		   screen to find out. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT ay.name, c.name, sec.name, e.roll_no,
+			       to_char(e.enrolled_on,'YYYY-MM-DD'), e.status
+			  FROM enrollments e
+			  JOIN academic_years ay ON ay.id = e.academic_year_id
+			  JOIN classes c ON c.id = e.class_id
+			  JOIN sections sec ON sec.id = e.section_id
+			 WHERE e.student_id = '`+sid.String()+`'::uuid
+			 ORDER BY e.enrolled_on DESC`,
+			func(rows pgx.Rows) error {
+				var year, cls, sec, on, st string
+				var roll *int
+				if err := rows.Scan(&year, &cls, &sec, &roll, &on, &st); err != nil {
+					return err
+				}
+				enrolments = append(enrolments, map[string]any{
+					"year": year, "class": cls, "section": sec,
+					"roll_no": roll, "from": on, "status": st})
+				return nil
+			}); err != nil {
+			return err
+		}
+
+		if err := scanInto(r.Context(), tx, `
+			SELECT rt.name, COALESCE(v.registration_no,''), COALESCE(pu.name,''),
+			       COALESCE(to_char(pu.pickup_time,'HH24:MI'),''),
+			       COALESCE(dr.name,''), COALESCE(to_char(dr.drop_time,'HH24:MI'),''),
+			       to_char(ta.valid_from,'YYYY-MM-DD'),
+			       COALESCE(to_char(ta.valid_to,'YYYY-MM-DD'),'')
+			  FROM transport_allocations ta
+			  JOIN routes rt ON rt.id = ta.route_id
+			  LEFT JOIN vehicles v ON v.id = rt.vehicle_id
+			  LEFT JOIN route_stops pu ON pu.id = ta.pickup_stop_id
+			  LEFT JOIN route_stops dr ON dr.id = ta.drop_stop_id
+			 WHERE ta.student_id = '`+sid.String()+`'::uuid
+			 ORDER BY ta.valid_from DESC`,
+			func(rows pgx.Rows) error {
+				var route, vehicle, pick, pickAt, drop, dropAt, from, to string
+				if err := rows.Scan(&route, &vehicle, &pick, &pickAt,
+					&drop, &dropAt, &from, &to); err != nil {
+					return err
+				}
+				transport = append(transport, map[string]any{
+					"route": route, "vehicle": vehicle,
+					"pickup_stop": pick, "pickup_time": pickAt,
+					"drop_stop": drop, "drop_time": dropAt,
+					"from": from, "to": to})
+				return nil
+			}); err != nil {
+			return err
+		}
+
 		return scanInto(r.Context(), tx, `
 			SELECT ic.serial_no, ct.name, to_char(ic.issued_on,'YYYY-MM-DD')
 			  FROM issued_certificates ic
@@ -913,5 +981,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 	out["results"] = results
 	out["invoices"] = ledger
 	out["documents"] = documents
+	out["enrolments"] = enrolments
+	out["transport"] = transport
 	httpx.JSON(w, http.StatusOK, out)
 }

@@ -40,6 +40,16 @@ interface Profile {
   results: { exam: string; percentage: string; grade: string; rank: string }[]
   invoices: { date: string; invoice_no: string; net_paise: number; paid_paise: number; status: string }[]
   documents: { serial_no: string; type: string; issued_on: string }[]
+  enrolments: {
+    year: string; class: string; section: string
+    roll_no: number | null; from: string; status: string
+  }[]
+  transport: {
+    route: string; vehicle: string
+    pickup_stop: string; pickup_time: string
+    drop_stop: string; drop_time: string
+    from: string; to: string
+  }[]
 }
 
 const DOT: Record<string, string> = {
@@ -467,29 +477,93 @@ export default function StudentProfile() {
         </Card>
       ),
     },
-    /* Transport and Communication used to be here, each one a tab that
-       opened on the words "Not built yet".
+    /* Transport came back, because there is now something to put in it.
 
-       A tab is a promise that there is something behind it. Two of the eight
-       on the most-opened record in the product paid out an apology, so a
-       teacher checking which bus a child takes clicked, read that we had not
-       written it, and learned nothing about the child. Absent is honest;
-       present-and-empty is the screen wasting their click. They come back
-       when there is a route and a stop to put in them. */
+       It was removed for being a tab that opened on "Not built yet" — a
+       promise that paid out an apology. What was actually missing was a
+       query: a bus seat has always been a transport_allocations row, and the
+       record simply never asked for one. The front desk with a mother at the
+       gate asking which bus her daughter takes was being sent to the
+       transport module to find out about a child whose record was already
+       open.
+
+       Communication stays out. A child's messages are a real thing to show
+       and there is no one place they live yet, so the tab returns when there
+       is something behind it and not before. */
+    {
+      key: 'transport', label: 'Transport',
+      render: () => (
+        <Card>
+          <CardHeader
+            title="Bus route"
+            description="The route this child is allotted, and where they are picked up and dropped."
+          />
+          <Table
+            head={['Route', 'Vehicle', 'Pick-up', 'Drop', 'From']}
+            empty={!p.transport.length}
+            emptyLabel="This child does not use school transport."
+          >
+            {p.transport.map((t, i) => (
+              <tr key={`${t.route}-${t.from}-${i}`}>
+                <Td>{t.route}</Td>
+                <Td className="font-mono text-[12px]">{t.vehicle || '—'}</Td>
+                <Td>
+                  {t.pickup_stop || '—'}
+                  {t.pickup_time && (
+                    <span className="text-muted-foreground"> · {t.pickup_time}</span>
+                  )}
+                </Td>
+                <Td>
+                  {t.drop_stop || '—'}
+                  {t.drop_time && <span className="text-muted-foreground"> · {t.drop_time}</span>}
+                </Td>
+                <Td className="text-muted-foreground">
+                  {formatDate(t.from)}
+                  {t.to ? ` — ${formatDate(t.to)}` : ''}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      ),
+    },
     {
       key: 'history', label: 'History',
       render: () => (
         <Card>
-          <CardHeader title="Enrolment history" description="Admission, promotions and status changes" />
-          <dl className="divide-y text-[14px]">
+          <CardHeader
+            title="Enrolment history"
+            description="Every year this child has been on the roll, and how each one ended."
+          />
+          {/* This said three things the header already said. A promotion
+              closes one enrolments row and opens the next, so the record of
+              where a child has been was sitting there the whole time — which
+              is what a class teacher is asking when they ask whether a child
+              has been detained before. */}
+          <Table
+            head={['Year', 'Class', 'Roll', 'From', 'Outcome']}
+            empty={!p.enrolments.length}
+            emptyLabel="No enrolment recorded."
+          >
+            {p.enrolments.map((e, i) => (
+              <tr key={`${e.year}-${e.from}-${i}`}>
+                <Td>{e.year}</Td>
+                <Td>
+                  {e.class}-{e.section}
+                </Td>
+                <Td className="tabular-nums">{e.roll_no ?? '—'}</Td>
+                <Td className="text-muted-foreground">{formatDate(e.from)}</Td>
+                <Td>
+                  <Badge tone={e.status === 'active' ? 'success' : e.status === 'detained' ? 'warning' : undefined}>
+                    {e.status}
+                  </Badge>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+          <dl className="divide-y border-t text-[14px]">
             <Field k="Admitted" v={formatDate(p.admission_date)} />
-            <Field k="Current status" v={p.status} />
-            <Field k="Current class" v={cls} />
           </dl>
-          {/* The note that used to sit here named the `enrollments` table and
-              told the reader it was not surfaced yet. That is a line from our
-              backlog printed on a child's record; whoever needs it can read
-              this file. */}
         </Card>
       ),
     },

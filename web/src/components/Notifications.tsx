@@ -52,6 +52,8 @@ export default function Notifications() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
+  const navigate = useNavigate()
+
   // Refused, or this account has no feed: show nothing rather than a dead control.
   if (feed.error) return null
 
@@ -65,7 +67,6 @@ export default function Notifications() {
    * staff message meant knowing that Communication has a Messages screen. The
    * one action a notification exists to prompt was the one thing it did not
    * do. */
-  const navigate = useNavigate()
   const openNote = (n: Note) => {
     setOpen(false)
     if (n.link) navigate(n.link)

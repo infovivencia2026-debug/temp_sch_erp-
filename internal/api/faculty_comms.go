@@ -1399,7 +1399,7 @@ func (s *Server) listChildRemarks(w http.ResponseWriter, r *http.Request) {
 		// A member of staff has the other screen. Answering with an empty list
 		// would read as "nothing has been written", which is a different and
 		// wrong statement.
-		httpx.Forbidden(w, r, "a family's own remarks")
+		httpx.Forbidden(w, r, "a parent's own remarks")
 		return
 	}
 

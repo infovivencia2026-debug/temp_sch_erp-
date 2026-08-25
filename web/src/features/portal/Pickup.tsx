@@ -47,7 +47,7 @@ const TONE: Record<Pass['status'], 'success' | 'neutral' | 'danger'> = {
   expired: 'neutral',
 }
 
-const RELATIONS = ['Driver', 'Grandparent', 'Uncle / Aunt', 'Neighbour', 'Family friend', 'Other']
+const RELATIONS = ['Driver', 'Grandparent', 'Uncle / Aunt', 'Neighbour', 'Parent friend', 'Other']
 
 export default function Pickup() {
   const t = useT()

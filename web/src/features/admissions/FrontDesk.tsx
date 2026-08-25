@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Mail, Phone, ShieldBan, UserRound } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -86,6 +87,22 @@ interface Named {
   id: string
   full_name?: string
   name?: string
+  /* What tells two children of the same name apart.
+   *
+   * This school's roll has three "Rahul Iyer" and six "Ganesh Gupta", which is
+   * ordinary — a picker showing only the name asks somebody to guess, and a
+   * visitor logged against the wrong child is a safeguarding record that
+   * points at the wrong family. The admission number is the thing a school
+   * already uses to settle it. */
+  admission_no?: string
+  employee_code?: string
+}
+
+/** A name, plus whatever makes it unambiguous. */
+function pickerLabel(n: Named): string {
+  const id = n.admission_no ?? n.employee_code
+  const name = n.full_name ?? n.name ?? n.id
+  return id ? `${name} · ${id}` : name
 }
 
 const TABS = [
@@ -96,8 +113,72 @@ const TABS = [
   ['blocklist', 'Block list', ShieldBan],
 ] as const
 
+type Tab = (typeof TABS)[number][0]
+
+/* Four menu entries, one desk.
+
+   Visitors log, Parent appointments, Daily call log and Dispatch & courier
+   are one screen on purpose: the person working them is one person at one
+   counter, and a parent at the window is often all four at once — she was
+   expected at eleven, she is signing in, she rang yesterday, and she is
+   collecting a transfer certificate. Splitting that into four screens would
+   mean four sign-in forms and four half-views of the same morning.
+
+   What must differ is where each entry lands. All four opened on Visitors, so
+   somebody clicking "Daily call log" arrived at a sign-in form and had to find
+   the tab themselves — which is the menu asking a question and then ignoring
+   the answer. */
+const OPENS_ON: Record<string, Tab> = {
+  visitors_log: 'visitors',
+  parent_appointments: 'appointments',
+  daily_call_log: 'calls',
+  dispatch_courier: 'post',
+}
+
+const TITLES: Record<string, [string, string]> = {
+  visitors_log: [
+    'Visitors log',
+    'Who is on the premises right now, who has signed out, and the pass each was issued.',
+  ],
+  parent_appointments: [
+    'Parent appointments',
+    'Meetings booked with the principal and with teachers, in date order.',
+  ],
+  daily_call_log: [
+    'Daily call log',
+    'What was said on the telephone, and which messages still have to be passed on.',
+  ],
+  dispatch_courier: [
+    'Dispatch & courier',
+    'Post and couriers in and out, and what is still lying at the desk undelivered.',
+  ],
+}
+
 export default function FrontDesk() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('visitors')
+  const { featureSlug } = useParams()
+  const [title, description] = TITLES[featureSlug ?? ''] ?? [
+    'The desk',
+    'Who is on the premises, who is booked in, what was said on the telephone and what came in the post.',
+  ]
+
+  const [tab, setTab] = useState<Tab>(OPENS_ON[featureSlug ?? ''] ?? 'visitors')
+
+  /* Following the menu on the way *between* two entries, not just into one.
+   *
+   * All four entries render this same component, so walking from "Visitors
+   * log" to "Daily call log" changes a route parameter and nothing else —
+   * React keeps the component mounted and the initial state above never runs
+   * again. The URL changed, the heading changed, and the visitor sign-in form
+   * stayed on screen.
+   *
+   * Adjusting during render rather than in an effect: the tab is a fact about
+   * the entry we are on, so it should be right on the first paint instead of
+   * flashing the previous one. */
+  const [lastSlug, setLastSlug] = useState(featureSlug)
+  if (featureSlug !== lastSlug) {
+    setLastSlug(featureSlug)
+    setTab(OPENS_ON[featureSlug ?? ''] ?? 'visitors')
+  }
 
   const visitors = useQuery({
     queryKey: ['visitors'],
@@ -123,8 +204,8 @@ export default function FrontDesk() {
     <>
       <PageHead
         eyebrow="Front office"
-        title="The desk"
-        description="Who is on the premises, who is booked in, what was said on the telephone and what came in the post."
+        title={title}
+        description={description}
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -172,10 +253,20 @@ export default function FrontDesk() {
   )
 }
 
+/* The host list.
+ *
+ * This asked /hr/employees, which is gated on the permission that also opens
+ * payroll and staff documents. Neither the receptionist nor the admissions
+ * clerk holds it and neither should, so the request 403'd, the dropdown came
+ * back empty, and "who are they here to see" — the one question asked of every
+ * visitor — had nothing in it to pick.
+ *
+ * /office/staff is the same names behind the permission that opens this
+ * screen. Names and employee codes; nothing about pay. */
 function useStaff() {
   return useQuery({
-    queryKey: ['employees', 'desk'],
-    queryFn: () => api.get<List<Named>>('/api/v1/hr/employees?limit=300'),
+    queryKey: ['desk-staff'],
+    queryFn: () => api.get<List<Named>>('/api/v1/office/staff'),
   })
 }
 function useStudents() {
@@ -242,7 +333,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                 placeholder="A staff member"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>
@@ -253,7 +344,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -387,7 +478,7 @@ function Appointments() {
                 placeholder="A staff member"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>
@@ -398,7 +489,7 @@ function Appointments() {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -585,7 +676,7 @@ function Calls({ rows }: { rows: Call[] }) {
                 placeholder="None"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
@@ -596,7 +687,7 @@ function Calls({ rows }: { rows: Call[] }) {
                 placeholder="Nobody in particular"
                 options={(staff.data?.items ?? []).map((e) => ({
                   value: e.id,
-                  label: e.full_name ?? e.name ?? e.id,
+                  label: pickerLabel(e),
                 }))}
               />
             </Field>

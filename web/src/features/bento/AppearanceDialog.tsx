@@ -366,7 +366,7 @@ export function AppearanceDialog({
            <body>; the outer `border` was `--bento-line` at 1.38:1, which is
            not enough to separate a floating dialog from the page behind it. */
         className={cn(
-          `appearance-panel pop-down flex max-h-[min(80vh,660px)] w-full max-w-[860px] flex-col
+          `appearance-panel pop-down flex max-h-[min(88vh,760px)] w-full max-w-[980px] flex-col
            overflow-hidden rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,

@@ -608,7 +608,7 @@ func TestTurningTheGuardOffNeedsAnExplicitConfirmation(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d without a confirmation, want 400", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "every real family") {
+	if !strings.Contains(w.Body.String(), "every real parent") {
 		t.Errorf("body = %s, want it to say what is about to happen", w.Body.String())
 	}
 }

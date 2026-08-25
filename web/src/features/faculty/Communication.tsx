@@ -93,19 +93,19 @@ export default function Communication() {
         <Card>
           <CardHeader
             title="Where to go"
-            description="Each of these writes to the child's record or to the family's portal."
+            description="Each of these writes to the child's record or to the parent's portal."
           />
           <ul className="divide-y">
             <Jump
               to={ROUTES.remarks}
               title="Remarks"
-              body="Academic and class observations, shared with the family unless you keep them staff-only."
+              body="Academic and class observations, shared with the parent unless you keep them staff-only."
               onGo={navigate}
             />
             <Jump
               to={ROUTES.anecdotal}
               title="Anecdotal records"
-              body="Private notes on how a child is growing. Never shown to the family."
+              body="Private notes on how a child is growing. Never shown to the parent."
               onGo={navigate}
             />
             <Jump
@@ -127,7 +127,7 @@ export default function Communication() {
             <Jump
               to={ROUTES.broadcast}
               title="Classroom communication"
-              body="Notices to a whole class or to one child's family."
+              body="Notices to a whole class or to one child's parent."
               onGo={navigate}
             />
           </ul>

@@ -332,7 +332,7 @@ function VisitLog({
             <Checkbox
               checked={form.parent_informed}
               onChange={(v) => setForm({ ...form, parent_informed: v })}
-              label="The family has been told"
+              label="The parent has been told"
               hint={
                 leaving
                   ? 'Required: a child cannot be signed off the premises until somebody has rung home.'
@@ -413,7 +413,7 @@ function VisitLog({
                     <div className="text-[12px] text-muted-foreground">{v.referred_to}</div>
                   )}
                   <div className="text-[12px] text-muted-foreground">
-                    {v.parent_informed ? 'Family told' : 'Family not told'} · {v.seen_by}
+                    {v.parent_informed ? 'Parent told' : 'Parent not told'} · {v.seen_by}
                   </div>
                 </Td>
               </tr>
@@ -611,7 +611,7 @@ function MedicationRegister({ date }: { date: string }) {
             <Checkbox
               checked={form.parent_informed}
               onChange={(v) => setForm({ ...form, parent_informed: v })}
-              label="The family has been told"
+              label="The parent has been told"
               hint={incident ? 'Required for a refusal or a reaction' : undefined}
             />
           </div>
@@ -699,7 +699,7 @@ function MedicationRegister({ date }: { date: string }) {
                 {d.adverse_reaction && <Badge tone="danger">{d.adverse_reaction}</Badge>}
                 {(d.refused || d.adverse_reaction) && (
                   <div className="text-[12px] text-muted-foreground">
-                    {d.parent_informed ? 'Family told' : 'Family not told'}
+                    {d.parent_informed ? 'Parent told' : 'Parent not told'}
                   </div>
                 )}
                 {d.notes && <div className="text-[12px] text-muted-foreground">{d.notes}</div>}

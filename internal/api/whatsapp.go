@@ -1540,7 +1540,7 @@ func (s *Server) setRecipientMode(w http.ResponseWriter, r *http.Request) {
 	}
 	if mode == "everyone" && strings.TrimSpace(req.Confirm) != "everyone" {
 		httpx.BadRequest(w, r,
-			"turning the guard off messages every real family — type 'everyone' to confirm")
+			"turning the guard off messages every real parent — type 'everyone' to confirm")
 		return
 	}
 

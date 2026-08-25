@@ -94,11 +94,17 @@ func (s *Server) setPayrollState(w http.ResponseWriter, r *http.Request) {
 			   SET status    = $4,
 			       locked_at = CASE WHEN $4 = 'draft' THEN NULL
 			                        WHEN locked_at IS NULL THEN now()
-			                        ELSE locked_at END
+			                        ELSE locked_at END,
+			       -- Publishing is an event, not a state — see 00148. Unlocking
+			       -- back to draft clears it, because a month being re-run is
+			       -- a month whose staff will have to be told again.
+			       published_at = CASE WHEN $5 THEN now()
+			                           WHEN $4 = 'draft' THEN NULL
+			                           ELSE published_at END
 			 WHERE period_month = $1 AND period_year = $2
 			   AND status = ANY($3)
 			 RETURNING id::text`,
-			in.Month, in.Year, from, status).Scan(&runID)
+			in.Month, in.Year, from, status, in.To == "published").Scan(&runID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			httpx.BadRequest(w, r,
 				"That month is not at a stage where this can be done. Lock it before drawing the bank file, and pay it before publishing.")

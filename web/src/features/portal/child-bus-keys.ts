@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /* The parent's two bus screens, keyed by catalogue entry.
 
@@ -17,6 +17,6 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs
    `make catalog` so internal/api/implemented_gen.go agrees with it. */
 export const childBusKeys = {
-  'parent.my_childs_bus.live_bus_tracking_map': lazy(() => import('./ChildBus')),
-  'parent.my_childs_bus.school_transport_driver_call_button': lazy(() => import('./DriverCall')),
+  'parent.my_childs_bus.live_bus_tracking_map': screen(() => import('./ChildBus')),
+  'parent.my_childs_bus.school_transport_driver_call_button': screen(() => import('./DriverCall')),
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
+import { Activity, Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -62,7 +63,83 @@ const SUB_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   cancelled: 'neutral',
 }
 
+/* One screen, seven doors into it.
+
+   Every entry in this workspace rendered this page unfiltered, so the rail
+   read as seven promises and paid out one. They stay one screen — a school is
+   a single row, and splitting it would mean seven copies of that row and seven
+   half-views of the same account — but each entry now opens on what its own
+   name says.
+
+   VIEW decides what is on screen; TITLES decides what it is called. Kept apart
+   because two entries can share a view and never share a heading: provisioning
+   a school and reading the directory are the same table with the form open. */
+type SellerView =
+  | 'directory'
+  | 'provision'
+  | 'access'
+  | 'onboarding'
+  | 'plans'
+  | 'ledger'
+  | 'capacity'
+
+const VIEW: Record<string, SellerView> = {
+  tenant_directory: 'directory',
+  provision_new_school: 'provision',
+  tenant_access_control: 'access',
+  onboarding_progress: 'onboarding',
+  plans_pricing: 'plans',
+  subscription_ledger: 'ledger',
+  license_capacity_tracking: 'capacity',
+}
+
+const TITLES: Record<SellerView, [string, string, string]> = {
+  directory: [
+    'Schools',
+    'Every school on this installation',
+    'What each one pays, how many children it has on the roll, and how far it has got.',
+  ],
+  provision: [
+    'Provision a school',
+    'Schools',
+    'Create a school, its first campus and its first administrator in one step. The credentials '
+      + 'are shown once, to hand over.',
+  ],
+  access: [
+    'Tenant Access Control',
+    'Schools',
+    'Who may sign in and who may not. Suspending blocks sign-in and keeps every record; nothing '
+      + 'is deleted and nothing needs restarting.',
+  ],
+  onboarding: [
+    'Onboarding Progress',
+    'Schools',
+    'How far each new school has got, and which step it is stuck on \u2014 so somebody can '
+      + 'intervene before a stalled rollout becomes a cancellation.',
+  ],
+  plans: [
+    'Plans & Pricing',
+    'Subscriptions & Billing',
+    'What a school can be sold: the student cap, the modules included, and the price.',
+  ],
+  ledger: [
+    'Subscription Ledger',
+    'Subscriptions & Billing',
+    'What each school is on, what it is worth a year, and when it renews.',
+  ],
+  capacity: [
+    'License & Capacity Tracking',
+    'Subscriptions & Billing',
+    'Schools past the students their plan allows, and those inside the renewal window, counted '
+      + 'from the live headcount rather than from what was sold.',
+  ],
+}
+
 export default function Tenants() {
+  const { featureSlug } = useParams()
+  const view: SellerView = VIEW[featureSlug ?? ''] ?? 'directory'
+  const [title, eyebrow, description] = TITLES[view]
+
   const qc = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [handover, setHandover] = useState<Handover | null>(null)
@@ -104,18 +181,54 @@ export default function Tenants() {
 
   const live = rows.filter((t) => t.subscription_status === 'active').length
   const trials = rows.filter((t) => t.subscription_status === 'trial').length
-  const stalled = rows.filter((t) => t.setup_percent < 60).length
-  const annual = rows.reduce((n, t) => {
+  const suspended = rows.filter((t) => t.status === 'suspended').length
+
+  /* The onboarding pipeline: schools that have bought and are not yet running.
+     Not the same as "stalled" — a school three days in at 40% is progressing,
+     and counting it as a problem is how a vendor learns to ignore the number.
+     Both are shown, because the second is the one somebody has to act on. */
+  const onboarding = rows.filter(
+    (t) => t.setup_percent < 100 && t.status !== 'suspended',
+  ).length
+  const stalled = rows.filter(
+    (t) => t.setup_percent < 60 && t.status !== 'suspended',
+  ).length
+
+  /* Monthly, not annual.
+
+     This totalled a year's subscriptions and called it "Annual value", on a
+     panel whose question is what comes in this month. A plan priced per year
+     is divided by twelve rather than dropped, so a mixed book of monthly and
+     annual contracts adds up to one comparable figure — which is what MRR
+     means and why every SaaS vendor reads it. */
+  const mrrPaise = rows.reduce((n, t) => {
+    if (t.subscription_status !== 'active') return n
     const p = plans.data?.items.find((x) => x.code === t.plan)
-    return n + (t.subscription_status === 'active' && p ? p.price_paise : 0)
+    if (!p) return n
+    return n + Math.round(p.price_paise / 12)
   }, 0)
+
+  /* Whether the thing all of them run on is well.
+
+     There was no health number here at all: a vendor could be looking at a
+     panel of green revenue while a school's sign-ins were failing. Schools
+     nobody has signed into for a fortnight is the cheapest honest proxy — it
+     catches an outage, a lapsed rollout and a school that has quietly stopped
+     using the product, all of which the vendor wants to know about today. */
+  const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
+  const quiet = rows.filter((t) => {
+    if (t.status === 'suspended') return false
+    if (!t.last_sign_in) return true
+    const at = Date.parse(t.last_sign_in)
+    return Number.isFinite(at) && Date.now() - at > FORTNIGHT_MS
+  }).length
 
   return (
     <>
       <PageHead
-        eyebrow="Customers"
-        title="Schools"
-        description="Every school on this installation, what they pay and how far they have got."
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
         actions={
           <Button
             onClick={() => {
@@ -130,16 +243,42 @@ export default function Tenants() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Schools" value={rows.length} icon={Building2} />
-          <Stat label="Paying" value={live} hint={`${trials} on trial`} />
-          <Stat label="Annual value" value={formatPaise(annual)} icon={TrendingUp} />
           <Stat
-            label="Rollout stalled"
-            value={stalled}
+            label="Active school tenants"
+            value={live}
+            icon={Building2}
+            hint={
+              [
+                trials ? `${trials} on trial` : '',
+                suspended ? `${suspended} suspended` : '',
+              ]
+                .filter(Boolean)
+                .join(' \u00b7 ') || `${rows.length} in total`
+            }
+          />
+          <Stat
+            label="In onboarding"
+            value={onboarding}
             delta={
               stalled
-                ? { value: 'Under 60% set up', positive: false }
+                ? { value: `${stalled} stalled under 60%`, positive: false }
                 : { value: 'All progressing', positive: true }
+            }
+          />
+          <Stat
+            label="Monthly recurring revenue"
+            value={formatPaise(mrrPaise)}
+            icon={TrendingUp}
+            hint="Annual plans counted as a twelfth"
+          />
+          <Stat
+            label="Infrastructure health"
+            value={quiet ? `${quiet} quiet` : 'All active'}
+            icon={Activity}
+            delta={
+              quiet
+                ? { value: 'No sign-in in a fortnight', positive: false }
+                : { value: 'Every school signed in recently', positive: true }
             }
           />
         </CellGrid>

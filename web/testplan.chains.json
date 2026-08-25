@@ -1,0 +1,440 @@
+[
+ {
+  "name": "Attendance reaches the parent and the principal",
+  "why": "One register mark is the school's whole absence story: the family is told, the principal's day-count moves, and the child's percentage changes.",
+  "steps": [
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/attendance/take_attendance",
+    "do": "Mark one child absent in your own section, and save.",
+    "expect": "The register saves and says how many were marked."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/attendance/attendance",
+    "do": "Open the child's attendance.",
+    "expect": "\u201c<child> was marked absent\u201d, and the percentage has dropped."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/home/dashboard",
+    "do": "Look at today's attendance figure.",
+    "expect": "The absent count includes that child \u2014 e.g. \u201c1 absent \u00b7 90% \u00b7 9/10\u201d."
+   }
+  ]
+ },
+ {
+  "name": "Homework reaches the student and the parent",
+  "why": "Set once by the teacher, read in two different apps \u2014 and the notification has to quote enough of it to be worth opening.",
+  "steps": [
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/teaching/homework_classwork",
+    "do": "Publish a piece of homework to one section, with a due date.",
+    "expect": "It appears in your own list as published."
+   },
+   {
+    "role": "Student",
+    "url": "https://temperp.187-127-178-100.sslip.io/student/homework/homework_assignments",
+    "do": "Open homework.",
+    "expect": "The same title and due date, and a notification quoting it."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/homework_academics",
+    "do": "Open the child's homework.",
+    "expect": "The same item \u2014 the parent sees what was set, not a summary of it."
+   }
+  ]
+ },
+ {
+  "name": "A fee collected moves three numbers",
+  "why": "Money is the relation a school checks first. One receipt has to change the family's dues, the day's collection, and the invoice's own state.",
+  "steps": [
+   {
+    "role": "Accounts & Finance",
+    "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/take_fee_payment",
+    "do": "Collect a part payment against an outstanding invoice and issue the receipt.",
+    "expect": "A receipt number is issued and the invoice moves to part-paid."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/fees_payments",
+    "do": "Open fees.",
+    "expect": "Dues have fallen by exactly what was paid, and the receipt is downloadable."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/home/dashboard",
+    "do": "Look at today's collection.",
+    "expect": "\u201cCollected today\u201d includes the payment."
+   }
+  ]
+ },
+ {
+  "name": "Staff leave becomes somebody else's period",
+  "why": "The chain the timetable turns on: leave approved in the morning has to produce a named cover before the period starts.",
+  "steps": [
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/leave_self_service",
+    "do": "Apply for one day's leave, with a reason.",
+    "expect": "It is listed as pending."
+   },
+   {
+    "role": "HOD / Department Head",
+    "url": "https://temperp.187-127-178-100.sslip.io/hod/staff/leaves_subs",
+    "do": "Approve it.",
+    "expect": "The teacher is notified, and the row moves to approved."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/substitutions",
+    "do": "Open the board for that date.",
+    "expect": "Their periods are listed uncovered, with free staff offered for each."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/substitutions",
+    "do": "Assign a proxy to one period.",
+    "expect": "It reads covered; the proxy is notified. Assigning somebody already teaching that period is refused, naming the clash."
+   }
+  ]
+ },
+ {
+  "name": "A student asks for leave and the class teacher answers",
+  "why": "New. A student could not start this chain at all until today \u2014 the feature existed only on the parent's menu.",
+  "steps": [
+   {
+    "role": "Student",
+    "url": "https://temperp.187-127-178-100.sslip.io/student/attendance/apply_for_leave",
+    "do": "Apply for two days, with a reason.",
+    "expect": "Listed as waiting on the school. No \u201cChild\u201d column \u2014 every row is you."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/student_leave_requests",
+    "do": "Open student leave requests as that child's class teacher.",
+    "expect": "The application is there to decide."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/student_leave_requests",
+    "do": "Approve it.",
+    "expect": "The student is notified, and the row is approved."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/leave_absence/apply_student_leave",
+    "do": "Open leave for that child.",
+    "expect": "The child's own application is visible to the family too."
+   }
+  ]
+ },
+ {
+  "name": "A parent writes and the teacher writes back",
+  "why": "New. The parent could always send; the teacher had no inbox that surfaced it, so the reply leg could never complete.",
+  "steps": [
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/direct_teacher_messaging",
+    "do": "Write to one of the child's teachers.",
+    "expect": "The message is sent and shows in your thread."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/messages",
+    "do": "Open Messages and switch to the Parents register.",
+    "expect": "The thread is listed, named by the parent, with the child underneath and an unread badge. The notification links straight to it."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/messages",
+    "do": "Reply.",
+    "expect": "The reply sends; the unread badge clears."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/direct_teacher_messaging",
+    "do": "Reopen the thread.",
+    "expect": "The teacher's reply is there."
+   }
+  ]
+ },
+ {
+  "name": "Marks become a report card the family reads",
+  "why": "Four roles touch one number: who may enter it, who may collate it, and who may read it. It is also where the subject-teacher rule is proved.",
+  "steps": [
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/marks_entry",
+    "do": "Open marks entry as a subject teacher.",
+    "expect": "The paper dropdown offers only the subjects you are allocated \u2014 not every subject of the class."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/marks_entry",
+    "do": "Enter marks for your subject and save.",
+    "expect": "Saved. A mark above the paper's maximum is refused."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/report_cards",
+    "do": "As the class teacher of that section, generate report cards.",
+    "expect": "Generated for the section. A teacher who is not its class teacher is refused."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/results_report_cards",
+    "do": "Open the child's report card.",
+    "expect": "The mark entered in step 2 is on it."
+   }
+  ]
+ },
+ {
+  "name": "An applicant becomes a student with a bill",
+  "why": "The longest chain in the product: admissions, students, fees and the parent portal all have to agree about one child.",
+  "steps": [
+   {
+    "role": "Admissions & Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/enquiries",
+    "do": "Add a lead, then convert it to an application.",
+    "expect": "The application appears at the first stage."
+   },
+   {
+    "role": "Admissions & Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/principal_approval",
+    "do": "Take it through to accepted.",
+    "expect": "Status accepted."
+   },
+   {
+    "role": "Admissions & Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/fee_enrollment",
+    "do": "Enrol the accepted applicant into a class and section.",
+    "expect": "A student record and admission number are created \u2014 without retyping the child's details."
+   },
+   {
+    "role": "Accounts & Finance",
+    "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/class_transport_fee_setup",
+    "do": "Generate the instalment for that class.",
+    "expect": "The new child is billed. A class with its own fee structure is billed from that one, not from the all-classes structure."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/fees_payments",
+    "do": "Sign in as that family.",
+    "expect": "The invoice is waiting."
+   }
+  ]
+ },
+ {
+  "name": "Payroll pays, tells, and cannot be told twice",
+  "why": "Money leaving the school, plus the notification and email legs \u2014 and the state has to survive a page reload.",
+  "steps": [
+   {
+    "role": "HR & Payroll",
+    "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/monthly_payroll",
+    "do": "Run the month.",
+    "expect": "Gross, deductions and net per member of staff. Unmarked staff attendance blocks the run, naming how many."
+   },
+   {
+    "role": "HR & Payroll",
+    "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/monthly_payroll",
+    "do": "Lock, download the bank file, then mark it paid.",
+    "expect": "Each step offers only the next one."
+   },
+   {
+    "role": "HR & Payroll",
+    "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/monthly_payroll",
+    "do": "Publish payslips, then reload the page.",
+    "expect": "It reads Published \u2014 not \u201cPaid\u201d with a Publish button. This is B6."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/my_pay",
+    "do": "Open My pay.",
+    "expect": "The payslip for that month, with the breakup, plus a notification and an email."
+   }
+  ]
+ },
+ {
+  "name": "A circular reaches exactly who it named",
+  "why": "Broadcast is the easiest thing to get silently wrong \u2014 it can report twelve recipients and reach nobody.",
+  "steps": [
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/circulars",
+    "do": "Write a circular to one audience \u2014 a class, or all parents.",
+    "expect": "It reports how many people it will reach."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/circulars",
+    "do": "Open its delivery list.",
+    "expect": "Every named recipient, so \u201creached 12\u201d can be checked against 12 names."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/communication",
+    "do": "Sign in as somebody in that audience.",
+    "expect": "The circular is at the top of the bell."
+   }
+  ]
+ },
+ {
+  "name": "The bus a child takes is one fact everywhere",
+  "why": "Transport is read by the family, the office and the front desk, and each was reading it from a different place.",
+  "steps": [
+   {
+    "role": "Transport Manager",
+    "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/student_allocation",
+    "do": "Allot a child to a route with a pick-up and drop stop.",
+    "expect": "The allocation is saved against that child."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/transport_snapshot",
+    "do": "Open the child's bus.",
+    "expect": "The same route and stop."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/student_360",
+    "do": "Open that child's record, Transport tab.",
+    "expect": "Route, vehicle, pick-up and drop with times \u2014 not \u201cnot built yet\u201d."
+   }
+  ]
+ },
+ {
+  "name": "A visitor at the gate is found, checked and signed out",
+  "why": "The front desk's whole job, and the one place a wrong name matters at the gate.",
+  "steps": [
+   {
+    "role": "Receptionist / Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/visitors_log",
+    "do": "Sign a visitor in against a host.",
+    "expect": "The host dropdown lists staff with their employee code \u2014 not an empty list. A pass number is issued."
+   },
+   {
+    "role": "Receptionist / Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/visitors_log",
+    "do": "Try to sign in somebody on the block list.",
+    "expect": "Refused, naming the reason."
+   },
+   {
+    "role": "Receptionist / Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/visitors_log",
+    "do": "Sign them out.",
+    "expect": "Minutes on site are recorded; \u201con the premises\u201d falls by one."
+   },
+   {
+    "role": "Receptionist / Front Office",
+    "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/daily_call_log",
+    "do": "Walk to the call log from the menu.",
+    "expect": "It opens on Calls \u2014 not on the visitor form."
+   }
+  ]
+ },
+ {
+  "name": "A certificate is asked for, signed, and downloaded",
+  "why": "A request that crosses from the family into the office and back out as a file.",
+  "steps": [
+   {
+    "role": "Student",
+    "url": "https://temperp.187-127-178-100.sslip.io/student/requests/requests",
+    "do": "Request a bonafide certificate.",
+    "expect": "Listed as requested."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/certificates_transfers",
+    "do": "Issue it.",
+    "expect": "A serial number is allotted and the record snapshot is frozen into it."
+   },
+   {
+    "role": "Student",
+    "url": "https://temperp.187-127-178-100.sslip.io/student/requests/requests",
+    "do": "Reopen requests.",
+    "expect": "It is ready, and downloads."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/student_360",
+    "do": "Open that child's Documents tab.",
+    "expect": "The certificate with its serial and issue date."
+   }
+  ]
+ },
+ {
+  "name": "A library book leaves and comes back",
+  "why": "The librarian's counter and the student's own shelf are the same loan seen from two sides.",
+  "steps": [
+   {
+    "role": "Librarian",
+    "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/issue_return",
+    "do": "Issue a book to a student.",
+    "expect": "Due date set; copies available falls by one."
+   },
+   {
+    "role": "Student",
+    "url": "https://temperp.187-127-178-100.sslip.io/student/notices_calendar/library_book_hold_request",
+    "do": "Open the library.",
+    "expect": "The loan and its due date."
+   },
+   {
+    "role": "Librarian",
+    "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/issue_return",
+    "do": "Return it late.",
+    "expect": "A fine is raised at the school's own rate."
+   }
+  ]
+ },
+ {
+  "name": "A remark written about a child is a remark the family reads",
+  "why": "The visibility flag is the whole point \u2014 a private note must stay private.",
+  "steps": [
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/remarks",
+    "do": "Write a remark with \u201cFamily can see this\u201d on.",
+    "expect": "Saved, and the family is notified."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/teacher_remarks",
+    "do": "Open remarks.",
+    "expect": "The remark is there."
+   },
+   {
+    "role": "Faculty / Teacher",
+    "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/remarks",
+    "do": "Write a second one with that switch off.",
+    "expect": "It stays on the staff side only \u2014 the family must not see it."
+   }
+  ]
+ },
+ {
+  "name": "A promotion closes one year and opens the next",
+  "why": "The one operation that rewrites a child's history, and the history tab has to show both ends of it.",
+  "steps": [
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/class_promotion",
+    "do": "Promote a section into the next class.",
+    "expect": "It reports how many moved."
+   },
+   {
+    "role": "Institution Admin / Principal",
+    "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/student_360",
+    "do": "Open one of those children, History tab.",
+    "expect": "Two rows: last year marked promoted, this year active \u2014 with class, section and roll number."
+   },
+   {
+    "role": "Parent / Guardian",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/digital_student_id_card_view",
+    "do": "Open the child.",
+    "expect": "The new class and section."
+   }
+  ]
+ }
+]

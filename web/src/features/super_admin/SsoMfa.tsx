@@ -138,7 +138,7 @@ export default function SsoMfa() {
               <Field
                 label="Allowed email domains"
                 wide
-                hint="Comma separated. Leave blank where families sign in with their own addresses, which is most schools."
+                hint="Comma separated. Leave blank where parents sign in with their own addresses, which is most schools."
               >
                 <Input
                   value={v.allowed_email_domains.join(', ')}

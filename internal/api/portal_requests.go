@@ -1153,9 +1153,21 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		if len(summary) > 240 {
 			summary = summary[:237] + "…"
 		}
+		/* Where the link lands depends on who is being told.
+
+		   Both ends got "/go/communication", which is the teacher's outgoing
+		   screen — remarks, notices, PTM notes — and reads none of this. So
+		   the one notification that mattered, a parent writing in, sent the
+		   teacher to a page that could not show it. Theirs opens the family
+		   register in Messages, on the conversation itself. */
+		link := "/go/communication"
+		if to == teacherID {
+			link = "/go/messages?box=parents&child=" + sid.String() +
+				"&with=" + parentID.String()
+		}
 		if err := notify(r, tx, id.InstitutionID, to, &sid, "parent_message",
 			"Message from "+from+" about "+child, summary,
-			"/go/communication", "parent_teacher_message", &msgID); err != nil {
+			link, "parent_teacher_message", &msgID); err != nil {
 			return err
 		}
 

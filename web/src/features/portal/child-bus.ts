@@ -75,7 +75,7 @@ export function stateSentence(row: ChildBusRow, staleAfter: number): string {
   const bus = `${row.route}${row.registration_no ? ` (${row.registration_no})` : ''}`
   switch (row.state) {
     case 'not_published':
-      return `Your school has not switched on live bus tracking for families. Nothing is being hidden from you by accident — no position is published to parents at all, and the transport office is the place to ask for it. Everything else on this page about ${bus} is still true.`
+      return `Your school has not switched on live bus tracking for parents. Nothing is being hidden from you by accident — no position is published to parents at all, and the transport office is the place to ask for it. Everything else on this page about ${bus} is still true.`
     case 'not_running':
       return `No run is in progress on ${bus} right now. That is an answer, not a fault: a bus appears here while the driver has a trip open, and outside those hours the phone deliberately reports nothing.`
     case 'no_signal':

@@ -245,10 +245,30 @@ func setUserRoles(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 			SELECT id, institution_id FROM roles
 			 WHERE key = $1 AND (institution_id = $2 OR institution_id IS NULL)
 			 ORDER BY institution_id NULLS LAST LIMIT 1`, key, instID).Scan(&roleID, &roleInst)
-		if errors.Is(err, pgx.ErrNoRows) {
-			continue // unknown key: report by omission rather than failing the batch
-		}
-		if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			/* Not installed yet, rather than not a role.
+
+			   The optional roles are not created for a school until it asks
+			   for one — and asking for one is exactly what this is. But the
+			   answer to a missing row was to skip it in silence, so a
+			   principal choosing the "Office staff" preset, which promises
+			   admissions, the front desk and the fee counter, got two of the
+			   three and was told nothing. The preset named a role the school
+			   did not have, and the product quietly handed over less than it
+			   had offered.
+
+			   A key that is genuinely unknown still falls through by
+			   omission, which is what the caller reports back. */
+			if rbac.IsDefault(key) {
+				continue
+			}
+			newID, _, instErr := installOptionalRole(r.Context(), tx, instID, key)
+			if instErr != nil {
+				continue
+			}
+			roleID, roleInst = newID, &instID
+		case err != nil:
 			return nil, err
 		}
 		// A platform role (institution_id NULL) must be assigned with a NULL

@@ -51,6 +51,20 @@ ROLE_KEYS = {
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
     "Admissions & Front Office": "admissions",
+    # The reception desk, on its own.
+    #
+    # front_office is offered to schools — it is in the "Office staff" preset
+    # next to admissions and finance — and the role's own blurb says "a
+    # reception desk separate from admissions". But it had no catalogue, so a
+    # school that gave somebody the receptionist role and nothing else handed
+    # them a product with no menu in it at all: seven capability grants, zero
+    # feature keys, an empty rail.
+    #
+    # It is deliberately not a copy of the admissions workspace. A receptionist
+    # signs visitors in and answers the telephone; who is offered a seat is
+    # somebody else's decision, and putting the approvals queue on this menu
+    # would be handing out a screen whose every button answers 403.
+    "Receptionist / Front Office": "front_office",
     "HR & Payroll": "hr",
     "Seller Admin": "seller_admin",
 }
@@ -63,7 +77,7 @@ ROLE_ORDER = [
     "seller_admin", "super_admin",
     "institution_admin", "hod", "faculty",
     "librarian", "transport_manager",
-    "finance", "admissions", "hr",
+    "finance", "admissions", "front_office", "hr",
     "student", "parent",
 ]
 

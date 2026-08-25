@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The two reminder-plan screens, keyed by catalogue feature.
@@ -34,5 +34,5 @@ import { lazy } from 'react'
  * by internal/rbac permissions, in mountMessageRules.
  */
 export const messageRulesKeys = {
-  'finance.student_dues.automated_fee_reminders': lazy(() => import('./FeeReminders')),
+  'finance.student_dues.automated_fee_reminders': screen(() => import('./FeeReminders')),
 }

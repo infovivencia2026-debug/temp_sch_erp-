@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The integrations index, keyed by catalogue feature.
@@ -26,5 +26,5 @@ import { lazy } from 'react'
 export const integrationsKeys = {
   // Platform Setup — Platform Configuration. Read-only; every row links out to
   // the screen that owns that connector's credentials.
-  'super_admin.platform_configuration.integrations': lazy(() => import('./Integrations')),
+  'super_admin.platform_configuration.integrations': screen(() => import('./Integrations')),
 }

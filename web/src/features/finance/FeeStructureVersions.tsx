@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, ConfirmButton, Badge, Input, Field, FormGrid, FormNotice,
+  Button, ConfirmButton, Badge, Input, Select, Field, FormGrid, FormNotice,
   Skeleton, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
@@ -34,6 +35,60 @@ export default function FeeStructureVersions() {
 
   const [openId, setOpenId] = useState('')
   const structures = useVersionedStructures()
+
+  /* Making a structure, from the screen that lists them.
+   *
+   * A fee structure could only be created in the principal's setup wizard, so
+   * an accounts clerk — on the screen whose own subject is what each class pays
+   * — had no way to make a per-class one, only the seeded "All classes" row.
+   * The data model carried class_id the whole time; the door was missing.
+   *
+   * Which class it names is not decoration. A structure for one class beats the
+   * all-classes one for that class when invoices are raised, so Grade 8 can
+   * cost more without anybody editing the general list or remembering an
+   * order to run the two in. */
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newClass, setNewClass] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newErr, setNewErr] = useState<unknown>(null)
+
+  const classes = useQuery({
+    queryKey: ['fee-classes'],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/setup/fee-classes'),
+    enabled: adding,
+  })
+  const heads = useQuery({
+    queryKey: ['fee-heads'],
+    queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/setup/fee-heads'),
+    enabled: adding,
+  })
+
+  const createStructure = async () => {
+    setCreating(true)
+    setNewErr(null)
+    try {
+      const firstHead = heads.data?.items?.[0]
+      if (!firstHead) throw new Error('Add a fee head first — a structure needs something to charge.')
+      await api.post('/api/v1/setup/fee-structures', {
+        name: newName.trim(),
+        ...(newClass ? { class_id: newClass } : {}),
+        // The server refuses a structure with no lines, and rightly — one
+        // cannot bill. It opens with a single head at zero, which the school
+        // then prices in a revision, where the amounts belong.
+        items: [{ fee_head_id: firstHead.id, instalment_no: 1, amount_paise: 0 }],
+      })
+      toast.ok('Structure created. Open a revision to set its heads and amounts.')
+      setAdding(false)
+      setNewName('')
+      setNewClass('')
+      await structures.refetch()
+    } catch (e) {
+      setNewErr(e)
+    } finally {
+      setCreating(false)
+    }
+  }
   const history = useStructureVersions(openId)
 
   const rows = structures.data?.items ?? []
@@ -45,10 +100,49 @@ export default function FeeStructureVersions() {
     <>
       <PageHead
         eyebrow="Fees"
-        title="Fee structure versioning"
-        description="Revise a fee mid-year without changing what was already billed."
+        title="Fee structures"
+        description="What each class pays, and how a fee is revised mid-year without changing what was already billed."
+        actions={
+          mayEdit ? (
+            <Button variant={adding ? 'ghost' : 'primary'} onClick={() => setAdding((v) => !v)}>
+              {adding ? 'Cancel' : 'Add a structure'}
+            </Button>
+          ) : undefined
+        }
       />
       <PageBody>
+        {adding && (
+          <Card>
+            <CardHeader
+              title="New fee structure"
+              description="Name it and say which class it is for. A structure naming one class beats the all-classes one for that class, so a grade can cost more without touching anybody else."
+            />
+            {newErr ? <FormNotice error={newErr} /> : null}
+            <FormGrid>
+              <Field label="Name" required>
+                <Input
+                  value={newName}
+                  onChange={setNewName}
+                  placeholder="Grade 8 tuition"
+                />
+              </Field>
+              <Field label="Applies to" hint="One class, or every class that has no structure of its own.">
+                <Select
+                  value={newClass}
+                  onChange={setNewClass}
+                  placeholder="All classes"
+                  options={[
+                    { value: '', label: 'All classes' },
+                    ...(classes.data?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                />
+              </Field>
+            </FormGrid>
+            <Button onClick={() => void createStructure()} disabled={!newName.trim() || creating}>
+              {creating ? 'Creating…' : 'Create structure'}
+            </Button>
+          </Card>
+        )}
         <CellGrid cols={4}>
           <Stat label="Fee structures" value={rows.length} />
           <Stat

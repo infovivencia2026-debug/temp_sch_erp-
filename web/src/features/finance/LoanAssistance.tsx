@@ -71,7 +71,7 @@ export default function LoanAssistance() {
       <PageHead
         eyebrow="Concessions"
         title="Education loan assistance"
-        description="Which papers a lender still wants, and where each family's application has got to."
+        description="Which papers a lender still wants, and where each parent's application has got to."
         width="wide"
       />
       <PageBody width="wide">
@@ -79,7 +79,7 @@ export default function LoanAssistance() {
           <div className="flex items-start gap-3 px-5 py-4 text-[13px] text-muted-foreground">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              The school helps a family assemble paperwork and records what the family reports
+              The school helps a parent assemble paperwork and records what the parent reports
               back. It is not the lender, does not assess or approve any application, and holds
               no interest rate or repayment schedule. Every figure below is as reported to the
               office.
@@ -226,7 +226,7 @@ function ApplicationDetail({
           <div className="rounded-md border px-4 py-3 text-[13px]">
             {a.sanctioned_amount_paise != null && (
               <p>
-                Sanctioned, as reported by the family:{' '}
+                Sanctioned, as reported by the parent:{' '}
                 <span className="font-medium tabular-nums">{inr(a.sanctioned_amount_paise)}</span>
               </p>
             )}
@@ -251,7 +251,7 @@ function ApplicationDetail({
 
       <CardHeader
         title="What the lender wants"
-        description="Missing first. The ones marked as issued by the school are already in the office — a family should not be sent away for those."
+        description="Missing first. The ones marked as issued by the school are already in the office — a parent should not be sent away for those."
       />
       <Table
         head={['Document', 'Status', 'Provided', 'Where it is', '']}
@@ -273,7 +273,7 @@ function ApplicationDetail({
         <StatusPanel application={a} onDone={invalidate} />
       )}
 
-      <CardHeader title="What has happened" description="So a family can be told, rather than only where it stands." />
+      <CardHeader title="What has happened" description="So a parent can be told, rather than only where it stands." />
       <Table head={['When', 'Moved to', 'From', 'Note', 'By']} empty={d.events.length === 0}>
         {d.events.map((ev, i) => (
           <tr key={`${ev.happened_at}-${i}`}>
@@ -450,14 +450,14 @@ function StatusPanel({
       <div>
         <h4 className="text-[14px] font-semibold">Move it on</h4>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          The ladder only goes forward — a family told &ldquo;under review&rdquo; after being
+          The ladder only goes forward — a parent told &ldquo;under review&rdquo; after being
           told &ldquo;declined&rdquo; has been told nothing. A declined application can be
-          reopened to gather more papers, because families do try again.
+          reopened to gather more papers, because parents do try again.
         </p>
       </div>
       {options.length === 0 ? (
         <p className="text-[13px] text-muted-foreground">
-          This application is finished; nothing follows the money reaching the family.
+          This application is finished; nothing follows the money reaching the parent.
         </p>
       ) : (
         <>
@@ -487,17 +487,17 @@ function StatusPanel({
               </Field>
             )}
             {next === 'sanctioned' && (
-              <Field label="Sanctioned, as the family reported (₹)" required>
+              <Field label="Sanctioned, as the parent reported (₹)" required>
                 <Input value={sanctioned} onChange={setSanctioned} />
               </Field>
             )}
             {next === 'disbursed' && (
-              <Field label="Disbursed, as the family reported (₹)" required>
+              <Field label="Disbursed, as the parent reported (₹)" required>
                 <Input value={disbursed} onChange={setDisbursed} />
               </Field>
             )}
             {next === 'declined' && (
-              <Field label="Reason the family was given" required wide>
+              <Field label="Reason the parent was given" required wide>
                 <Input value={declined} onChange={setDeclined} />
               </Field>
             )}
@@ -585,7 +585,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
               placeholder={studentQuery.length > 1 ? 'Choose the child' : 'Search first'}
             />
           </Field>
-          <Field label="Lender" hint="Leave blank if the family has not chosen one yet.">
+          <Field label="Lender" hint="Leave blank if the parent has not chosen one yet.">
             <Select
               value={lenderId}
               onChange={setLenderId}
@@ -605,8 +605,8 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
             />
           </Field>
           <Field
-            label="Amount the family is seeking (₹)"
-            hint="What the family says they need. Not an assessment and not an offer."
+            label="Amount the parent is seeking (₹)"
+            hint="What the parent says they need. Not an assessment and not an offer."
           >
             <Input value={amount} onChange={setAmount} />
           </Field>
@@ -661,7 +661,7 @@ function LendersPanel({ mayWrite }: { mayWrite: boolean }) {
     <Card>
       <CardHeader
         title="Lenders the school has dealt with"
-        description="A contact list, in the order a family would find useful. No rates and no ranking — the school is not recommending a product."
+        description="A contact list, in the order a parent would find useful. No rates and no ranking — the school is not recommending a product."
         action={
           mayWrite && !open ? (
             <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>

@@ -457,6 +457,17 @@ export interface VendorTicket {
   created_at: string
   open_days: number
   body?: string
+
+  /* What was promised, and whether it was kept.
+
+     The queue reported only how long a ticket had waited, so an Enterprise
+     school that cannot take fees and a trial school's cosmetic question both
+     read the same. The promise comes from the plan the school pays for. */
+  open_hours: number
+  plan_code?: string
+  plan_name?: string
+  promised_hours: number
+  breached: boolean
 }
 
 // --- impersonation -----------------------------------------------------------

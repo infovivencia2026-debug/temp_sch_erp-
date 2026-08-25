@@ -1828,7 +1828,7 @@ func (s *Server) creditScholarshipToFees(w http.ResponseWriter, r *http.Request)
 		switch {
 		case !offsets:
 			return refusal(
-				"this scholarship reaches the family as cash; posting it against " +
+				"this scholarship reaches the parent as cash; posting it against " +
 					"the school's fees would credit the child for money the school " +
 					"never received")
 		case stage != "credited" || credited <= 0:
@@ -2973,15 +2973,15 @@ func (s *Server) setLoanStatus(w http.ResponseWriter, r *http.Request) {
 		switch next {
 		case "sanctioned":
 			if req.SanctionedReported == nil || *req.SanctionedReported <= 0 {
-				return refusal("how much did the family say was sanctioned?")
+				return refusal("how much did the parent say was sanctioned?")
 			}
 		case "disbursed":
 			if req.DisbursedReported == nil || *req.DisbursedReported <= 0 {
-				return refusal("how much did the family say was disbursed?")
+				return refusal("how much did the parent say was disbursed?")
 			}
 		case "declined":
 			if strings.TrimSpace(req.DeclinedReason) == "" {
-				return refusal("what reason was the family given?")
+				return refusal("what reason was the parent given?")
 			}
 		}
 		// Reopening after a decline clears the outcome: the previous refusal is

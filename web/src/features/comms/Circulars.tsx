@@ -165,7 +165,7 @@ export default function Circulars() {
                   { value: 'parents', label: 'Parents only' },
                   { value: 'students', label: 'Students only' },
                   { value: 'staff', label: 'Staff only' },
-                  { value: 'everyone', label: 'Everyone — families and staff' },
+                  { value: 'everyone', label: 'Everyone — parents and staff' },
                 ]}
               />
             </div>
@@ -236,7 +236,7 @@ export default function Circulars() {
                  there is nowhere to deliver a portal notice to. That is worth
                  saying plainly, with where to fix it. */
               <p className="text-[13px] text-warning">
-                {publish.data.unreachable_children} children could not be reached — their family
+                {publish.data.unreachable_children} children could not be reached — their parent
                 has no login yet. Issue logins on School setup → Students to reach them.
               </p>
             )}
@@ -328,13 +328,13 @@ function Delivery({ id }: { id: string }) {
         <Stat
           label="Could not be reached"
           value={d.unreachable_children}
-          hint={d.unreachable_children ? 'Children whose family has no login' : 'Everyone has a login'}
+          hint={d.unreachable_children ? 'Children whose parent has no login' : 'Everyone has a login'}
         />
       </CellGrid>
       <Table
         head={['Name', 'Who they are', 'About', 'Acknowledged']}
         empty={d.people.length === 0}
-        emptyLabel="Nobody could be reached — no family or staff account matches this audience."
+        emptyLabel="Nobody could be reached — no parent or staff account matches this audience."
       >
         {d.people.map((p, i) => (
           <tr key={`${p.name}-${i}`}>

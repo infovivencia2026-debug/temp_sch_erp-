@@ -210,7 +210,7 @@ export default function GrievanceHub() {
       <PageHead
         eyebrow="Communication"
         title="Parent feedback & grievances"
-        description="Every concern a family has raised, who owns it, and whether the school kept the date it promised."
+        description="Every concern a parent has raised, who owns it, and whether the school kept the date it promised."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -313,7 +313,7 @@ export default function GrievanceHub() {
             <ErrorState error={list.error} />
           ) : (
             <Table
-              head={['Raised', 'Subject', 'Category', 'Family', 'Owner', 'Due', 'Status', '']}
+              head={['Raised', 'Subject', 'Category', 'Parent', 'Owner', 'Due', 'Status', '']}
               empty={rows.length === 0}
               emptyLabel="Nothing in the queue."
             >
@@ -421,7 +421,7 @@ export default function GrievanceHub() {
 
                   <Field
                     label="Add to the timeline"
-                    hint="A note stays inside the school. A reply is what the family sees."
+                    hint="A note stays inside the school. A reply is what the parent sees."
                   >
                     <Textarea
                       value={note.body}
@@ -438,7 +438,7 @@ export default function GrievanceHub() {
                           setNote({ ...note, visible_to_parent: e.target.checked })
                         }
                       />
-                      Show this to the family
+                      Show this to the parent
                     </label>
                     <Select
                       value={note.new_status}
@@ -447,7 +447,7 @@ export default function GrievanceHub() {
                       options={[
                         { value: 'open', label: 'Open' },
                         { value: 'in_progress', label: 'In progress' },
-                        { value: 'waiting', label: 'Waiting on the family' },
+                        { value: 'waiting', label: 'Waiting on the parent' },
                       ]}
                     />
                     <Button
@@ -473,7 +473,7 @@ export default function GrievanceHub() {
                     <>
                       <Field
                         label="Resolution"
-                        hint="Always sent to the family. A case resolved with nothing said to them is the complaint that follows the complaint."
+                        hint="Always sent to the parent. A case resolved with nothing said to them is the complaint that follows the complaint."
                       >
                         <Textarea value={resolution} onChange={setResolution} rows={3} />
                       </Field>
@@ -503,7 +503,7 @@ export default function GrievanceHub() {
                           <span>{formatDate(u.created_at)}</span>
                           <span>{u.author ?? 'System'}</span>
                           <Badge tone={u.visible_to_parent ? 'info' : 'neutral'} solid>
-                            {u.visible_to_parent ? 'Seen by family' : 'Internal'}
+                            {u.visible_to_parent ? 'Seen by parent' : 'Internal'}
                           </Badge>
                         </div>
                         <p className="whitespace-pre-wrap">{u.body}</p>

@@ -276,6 +276,7 @@ export function Shell({
      A rail that only ever followed clicks would sit on Home while somebody
      worked in Operations all afternoon. */
   const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced)
+
   const activeWs =
     railWorkspaces.find((w) => w.slug === railPick) ??
     railWorkspaces.find((w) =>
@@ -490,6 +491,13 @@ export function Shell({
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
         <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 pb-3">
+          {/* Recent was here, above the workspace.
+
+              It read as part of the menu without being part of it: five
+              entries at the top of the rail, in no fixed place, changing
+              under somebody who was learning where things live. A menu is
+              worth learning precisely because it does not move, and the rail
+              is short enough that a habit is one glance down it. */}
           {(activeWs ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,

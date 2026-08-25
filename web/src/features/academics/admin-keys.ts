@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /* The principal's academic and student screens.
@@ -9,7 +10,7 @@ import { lazy } from 'react'
    catalogue lacks renders the honest placeholder instead of the screen, which
    is a silent way to lose a feature that looks finished from the code. */
 export const adminAcademicsKeys = {
-  'institution_admin.academics.school_calendar': lazy(() => import('./AcademicCalendar')),
+  'institution_admin.academics.school_calendar': screen(() => import('./AcademicCalendar')),
   'institution_admin.academics.substitutions': lazy(
     () => import('./SubstitutionBoard'),
   ),

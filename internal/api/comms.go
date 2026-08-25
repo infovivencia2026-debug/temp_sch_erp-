@@ -1850,7 +1850,7 @@ func (s *Server) publishShowcaseEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, err.Error())
 	case missing:
 		httpx.Denied(w, r,
-			"record the family's confirmation before publishing this child's name and photograph")
+			"record the parent's confirmation before publishing this child's name and photograph")
 	default:
 		httpx.JSON(w, http.StatusOK, map[string]any{"published": true})
 	}
@@ -2223,7 +2223,7 @@ func (s *Server) openCounselorThread(w http.ResponseWriter, r *http.Request) {
 		guardian, err := uuid.Parse(strings.TrimSpace(req.GuardianUserID))
 		if err != nil {
 			httpx.BadRequest(w, r,
-				"guardian_user_id must be a uuid — a counselling thread has a family in it")
+				"guardian_user_id must be a uuid — a counselling thread has a parent in it")
 			return
 		}
 		studentID, parentUser = sid, guardian

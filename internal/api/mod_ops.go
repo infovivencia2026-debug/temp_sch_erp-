@@ -530,7 +530,15 @@ func (s *Server) createSubstitution(w http.ResponseWriter, r *http.Request) {
 		_, err := tx.Exec(r.Context(), `
 			INSERT INTO substitutions (institution_id, timetable_entry_id, on_date,
 			                           substitute_user_id, reason, created_by)
-			VALUES ($1,$2,$3::date,$4,$5,$6)`,
+			VALUES ($1,$2,$3::date,$4,$5,$6)
+			-- Changing one's mind about a proxy is ordinary. The first choice
+			-- goes absent too, or is needed for an invigilation, and the
+			-- office picks somebody else — which failed outright on the unique
+			-- index and surfaced as "something went wrong" on the one screen
+			-- that is worked at eight in the morning.
+			ON CONFLICT (timetable_entry_id, on_date) DO UPDATE
+			   SET substitute_user_id = EXCLUDED.substitute_user_id,
+			       reason = EXCLUDED.reason, created_by = EXCLUDED.created_by`,
 			id.InstitutionID, entryID, req.OnDate, subID, nullString(req.Reason), id.UserID)
 		return err
 	})
@@ -1027,6 +1035,18 @@ type payslipRow struct {
 	Net          int64  `json:"net_paise"`
 	Breakup      any    `json:"breakup"`
 	RunStatus    string `json:"run_status"`
+	// Whether the staff have been told, which "paid" does not say. Without it
+	// the screen offered "Publish payslips" on a month already published, and
+	// twelve people get notified twice.
+	Published bool `json:"published"`
+	/* Whether this person is still on the staff.
+
+	   A payslip is a record of money that moved, so it survives the person
+	   leaving — which is right, and made two screens disagree without either
+	   being wrong. HR's headcount said 11 and the payroll run said 12, because
+	   August genuinely paid twelve people and one has since been relieved.
+	   Neither number wanted changing; the row simply never said so. */
+	LeftService bool `json:"left_service"`
 }
 
 func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
@@ -1036,7 +1056,8 @@ func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 		       ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup,
 		       -- The month's state travels with the rows so the screen can
 		       -- offer the right next step rather than every step at once.
-		       pr.status
+		       pr.status, pr.published_at IS NOT NULL,
+		       e.status <> 'active'
 		  FROM payslips ps
 		  JOIN employees e ON e.id = ps.employee_id
 		  JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
@@ -1047,7 +1068,7 @@ func (s *Server) listPayslips(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (payslipRow, error) {
 			var v payslipRow
 			return v, rows.Scan(&v.EmployeeCode, &v.FullName, &v.PaidDays, &v.LOPDays,
-				&v.Gross, &v.Deduction, &v.Net, &v.Breakup, &v.RunStatus)
+				&v.Gross, &v.Deduction, &v.Net, &v.Breakup, &v.RunStatus, &v.Published, &v.LeftService)
 		})
 	respond(w, r, items, err)
 }

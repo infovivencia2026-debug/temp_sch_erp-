@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /* The teaching workspace, keyed by catalogue entry.
@@ -16,8 +17,8 @@ import { lazy } from 'react'
    they are separate screens, but there is only one study_materials row behind
    both and no way for them to disagree. */
 export const teachingKeys = {
-  'faculty.teaching.assignments_submissions': lazy(() => import('./Assignments')),
-  'faculty.teaching.lms_study_material_upload': lazy(() => import('./LMSUpload')),
+  'faculty.teaching.assignments_submissions': screen(() => import('./Assignments')),
+  'faculty.teaching.lms_study_material_upload': screen(() => import('./LMSUpload')),
   'faculty.question_papers_online_tests.question_bank_management': lazy(
     () => import('./QuestionBank'),
   ),

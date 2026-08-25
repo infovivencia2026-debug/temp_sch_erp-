@@ -366,6 +366,19 @@
   h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
 
+  /* Money and dates are not words, and must never be broken like one.
+     `overflow-wrap: anywhere` above stops a long email address from pushing a
+     table sideways, and it was also splitting ₹1,800 across three lines — as
+     "₹1," then "8" then "0" then "0" — in a payslip column squeezed by having
+     a dozen salary components beside it. A figure broken mid-number is not a
+     figure any more; the payroll table is exactly where a school reads down a
+     column of them. So numeric cells opt out and let the table scroll. */
+  .responsive-table :where(td, th).num {
+    overflow-wrap: normal;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Rules both ways, but not equally.
 
      This file used to draw horizontal separators only, on the argument that
@@ -1083,60 +1096,21 @@ dialog,
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   ARRIVING, rather than appearing.
-
-   The block above slows everything that TRANSITIONS, which is everything that
-   was already on screen when it changed. It does nothing for the commonest
-   abrupt movement in the product: an element that was not in the document a
-   frame ago and now is. A menu, a dialog, a toast, a popover — each of them
-   was mounted at full opacity at its final position, and no transition can
-   soften that, because there is no previous value to move from.
-
-   So they get an entrance instead. 8px of rise and a fraction of scale, on the
-   same curve as everything else: enough that the eye sees it arrive from
-   somewhere and tracks it, not so much that it reads as an effect.
-
-   Attached to the roles rather than to each component, for the same reason the
-   block above uses an attribute selector — there are dozens of these and they
-   are written by many hands, and a convention nobody has to remember is the
-   only kind that survives. `.motion-enter` is the opt-in for anything that is
-   none of these roles.
-   ───────────────────────────────────────────────────────────────────────── */
-@keyframes motion-arrive {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
-  to   { opacity: 1; transform: none; }
-}
-
-[role='menu'],
-[role='dialog'],
-[role='listbox'],
-[role='tooltip'],
-dialog[open],
-.motion-enter {
-  animation: motion-arrive var(--motion) var(--motion-ease) both;
-}
-
-/* A pane is not a popover, but it is new on screen for the same reason and in
-   the same instant. Half of the work area changing width has to be seen
-   happening or the other half looks like it jumped. */
+/* A pane is not a popover, but it arrives for the same reason and in the same
+   instant, and the rules above only name the roles a popover wears. Half of
+   the work area changing width has to be seen happening, or the half that did
+   not change looks like it jumped. Scale rather than the rise those get: a
+   pane has no origin above the fold to come from, it simply becomes the size
+   it is. */
 @keyframes motion-open-pane {
   from { opacity: 0; transform: scale(0.985); }
   to   { opacity: 1; transform: none; }
 }
 
 [data-pane] {
-  animation: motion-open-pane var(--motion) var(--motion-ease) both;
+  animation: motion-open-pane var(--motion-enter) var(--motion-ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [role='menu'],
-  [role='dialog'],
-  [role='listbox'],
-  [role='tooltip'],
-  dialog[open],
-  [data-pane],
-  .motion-enter {
-    animation: none;
-  }
+  [data-pane] { animation: none !important; }
 }

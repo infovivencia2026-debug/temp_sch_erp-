@@ -154,7 +154,7 @@ export default function Branding() {
               <Field label="Wordmark key">
                 <Input value={current.wordmark_key ?? ''} onChange={set('wordmark_key')} />
               </Field>
-              <Field label="Support email" hint="Shown to families when something goes wrong, in place of the vendor's address.">
+              <Field label="Support email" hint="Shown to parents when something goes wrong, in place of the vendor's address.">
                 <Input value={current.support_email ?? ''} onChange={set('support_email')} />
               </Field>
               <Field label="Support telephone">

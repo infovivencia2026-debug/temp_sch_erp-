@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /* The parent's transport snapshot and the two settings that go with it.
@@ -17,7 +18,7 @@ import { lazy } from 'react'
    let this agent edit that file; `make catalog` afterwards keeps
    internal/api/implemented_gen.go agreeing with it. */
 export const transportPrefsKeys = {
-  'parent.my_childs_bus.transport_snapshot': lazy(() => import('./TransportSnapshot')),
+  'parent.my_childs_bus.transport_snapshot': screen(() => import('./TransportSnapshot')),
   'parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer': lazy(
     () => import('./BusRefreshRate'),
   ),

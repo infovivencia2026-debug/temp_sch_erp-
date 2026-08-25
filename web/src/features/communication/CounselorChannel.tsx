@@ -426,7 +426,7 @@ export default function CounselorChannel() {
                         label="Reason"
                         wide
                         required
-                        hint="The family sees this. It is the record of why their conversation was widened."
+                        hint="The parent sees this. It is the record of why their conversation was widened."
                       >
                         <Input
                           value={addition.reason}

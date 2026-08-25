@@ -1,0 +1,3965 @@
+{
+ "base": "https://temperp.187-127-178-100.sslip.io",
+ "roles": [
+  {
+   "key": "seller_admin",
+   "name": "Seller Admin",
+   "sections": [
+    {
+     "slug": "customers",
+     "name": "Customers",
+     "features": [
+      {
+       "key": "seller_admin.customers.tenant_directory",
+       "slug": "tenant_directory",
+       "name": "Tenant Directory",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/tenant_directory"
+      },
+      {
+       "key": "seller_admin.customers.provision_new_school",
+       "slug": "provision_new_school",
+       "name": "Provision New School",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/provision_new_school"
+      },
+      {
+       "key": "seller_admin.customers.suspend_reactivate",
+       "slug": "suspend_reactivate",
+       "name": "Suspend & Reactivate",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/suspend_reactivate"
+      },
+      {
+       "key": "seller_admin.customers.onboarding_progress",
+       "slug": "onboarding_progress",
+       "name": "Onboarding Progress",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/customers/onboarding_progress"
+      }
+     ]
+    },
+    {
+     "slug": "subscriptions_billing",
+     "name": "Subscriptions & Billing",
+     "features": [
+      {
+       "key": "seller_admin.subscriptions_billing.plans_pricing",
+       "slug": "plans_pricing",
+       "name": "Plans & Pricing",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Define plans with a student cap, included modules and an annual or per-student price.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/plans_pricing"
+      },
+      {
+       "key": "seller_admin.subscriptions_billing.subscription_ledger",
+       "slug": "subscription_ledger",
+       "name": "Subscription Ledger",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Each school's plan, term dates, renewal date and invoice history.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/subscription_ledger"
+      },
+      {
+       "key": "seller_admin.subscriptions_billing.seat_overage_renewals",
+       "slug": "seat_overage_renewals",
+       "name": "Seat Overage & Renewals",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Schools past their student cap or inside the renewal window, with the revenue at risk.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/subscriptions_billing/seat_overage_renewals"
+      }
+     ]
+    },
+    {
+     "slug": "entitlements",
+     "name": "Entitlements",
+     "features": [
+      {
+       "key": "seller_admin.entitlements.module_entitlement_matrix",
+       "slug": "module_entitlement_matrix",
+       "name": "Module Entitlement Matrix",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Which modules each plan and each school may use; switching one off hides it from that school's navigation.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/entitlements/module_entitlement_matrix"
+      }
+     ]
+    },
+    {
+     "slug": "usage_health",
+     "name": "Usage & Health",
+     "features": [
+      {
+       "key": "seller_admin.usage_health.adoption_metrics",
+       "slug": "adoption_metrics",
+       "name": "Adoption Metrics",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Sign-ins, active users and transactions per school per week \u2014 the leading indicator of renewal.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/usage_health/adoption_metrics"
+      },
+      {
+       "key": "seller_admin.usage_health.instance_health",
+       "slug": "instance_health",
+       "name": "Instance Health",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/usage_health/instance_health"
+      }
+     ]
+    },
+    {
+     "slug": "support",
+     "name": "Support",
+     "features": [
+      {
+       "key": "seller_admin.support.support_tickets",
+       "slug": "support_tickets",
+       "name": "Support Tickets",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Tickets raised by schools, with the tenant, severity, owner and time open.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/support_tickets"
+      },
+      {
+       "key": "seller_admin.support.impersonation_audit",
+       "slug": "impersonation_audit",
+       "name": "Impersonation & Audit",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/seller_admin/support/impersonation_audit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "super_admin",
+   "name": "Super Admin",
+   "sections": [
+    {
+     "slug": "dashboard",
+     "name": "Dashboard",
+     "features": [
+      {
+       "key": "super_admin.dashboard.campus_cards",
+       "slug": "campus_cards",
+       "name": "Campus cards",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Show one card per campus instead of generic KPI boxes. Each campus card shows Campus Name, Total Students, Fee Collected, Outstanding Fee, with a View Campus action.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/campus_cards"
+      },
+      {
+       "key": "super_admin.dashboard.all_campuses_summary",
+       "slug": "all_campuses_summary",
+       "name": "All campuses summary",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "A small overall strip above/below campus cards: total campuses, total students, total fee collected, total outstanding. Keep this secondary to campus cards.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/all_campuses_summary"
+      },
+      {
+       "key": "super_admin.dashboard.alerts",
+       "slug": "alerts",
+       "name": "Alerts",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Only system-level issues needing action: failed integrations, payment reconciliation failures, inactive campus setup, security alerts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/alerts"
+      },
+      {
+       "key": "super_admin.dashboard.multi_branch_revenue_analytics",
+       "slug": "multi_branch_revenue_analytics",
+       "name": "Multi-Branch Revenue Analytics",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "View aggregate fee collection, outstanding balances, and comparative revenue across branches.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/multi_branch_revenue_analytics"
+      },
+      {
+       "key": "super_admin.dashboard.central_admission_funnel_kpi",
+       "slug": "central_admission_funnel_kpi",
+       "name": "Central Admission Funnel KPI",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Track total inquiries, applications, admissions finalized, and conversion rate across all campuses.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/central_admission_funnel_kpi"
+      },
+      {
+       "key": "super_admin.dashboard.global_attendance_heatmap",
+       "slug": "global_attendance_heatmap",
+       "name": "Global Attendance Heatmap",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Monitor real-time student and staff attendance percentages across all campus locations.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/global_attendance_heatmap"
+      },
+      {
+       "key": "super_admin.dashboard.executive_system_alerts",
+       "slug": "executive_system_alerts",
+       "name": "Executive System Alerts",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Display system-critical alerts including integration downtime, security breaches, and pending audits.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/executive_system_alerts"
+      },
+      {
+       "key": "super_admin.dashboard.system_health",
+       "slug": "system_health",
+       "name": "System health",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Background jobs, queue depth, failed integrations and recent errors.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/dashboard/system_health"
+      }
+     ]
+    },
+    {
+     "slug": "institution_setup",
+     "name": "Institution Setup",
+     "features": [
+      {
+       "key": "super_admin.institution_setup.institutions_campuses",
+       "slug": "institutions_campuses",
+       "name": "Institutions & campuses",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Create/edit institution and campuses; address, timezone, academic model, contact details and status.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/institution_setup/institutions_campuses"
+      },
+      {
+       "key": "super_admin.institution_setup.academic_year_defaults",
+       "slug": "academic_year_defaults",
+       "name": "Academic year defaults",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Set active academic year/term defaults per campus; actual academic structure remains with institution admins.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/institution_setup/academic_year_defaults"
+      },
+      {
+       "key": "super_admin.institution_setup.branding",
+       "slug": "branding",
+       "name": "Branding",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Logo, institution name, colors and portal identity per tenant/campus.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/institution_setup/branding"
+      },
+      {
+       "key": "super_admin.institution_setup.school_settings",
+       "slug": "school_settings",
+       "name": "School settings",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Institution profile, campuses, academic year and numbering.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/institution_setup/school_settings"
+      }
+     ]
+    },
+    {
+     "slug": "access_security",
+     "name": "Access & Security",
+     "features": [
+      {
+       "key": "super_admin.access_security.users",
+       "slug": "users",
+       "name": "Users",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Create, activate, suspend and search users.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/users"
+      },
+      {
+       "key": "super_admin.access_security.roles_permissions",
+       "slug": "roles_permissions",
+       "name": "Roles & permissions",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Assign roles and define data scope such as institution, campus, department, class or self.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/roles_permissions"
+      },
+      {
+       "key": "super_admin.access_security.login_session_audit",
+       "slug": "login_session_audit",
+       "name": "Login & session audit",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "View login history, active sessions and suspicious access.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/login_session_audit"
+      },
+      {
+       "key": "super_admin.access_security.sso_mfa",
+       "slug": "sso_mfa",
+       "name": "SSO / MFA",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure single sign-on and multi-factor authentication when required.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/sso_mfa"
+      },
+      {
+       "key": "super_admin.access_security.user_directory",
+       "slug": "user_directory",
+       "name": "User directory",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Create, search, suspend and reset accounts across the school.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/access_security/user_directory"
+      }
+     ]
+    },
+    {
+     "slug": "platform_configuration",
+     "name": "Platform Configuration",
+     "features": [
+      {
+       "key": "super_admin.platform_configuration.module_configuration",
+       "slug": "module_configuration",
+       "name": "Module configuration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Enable/disable modules by institution so users only see what their institution uses.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/module_configuration"
+      },
+      {
+       "key": "super_admin.platform_configuration.integrations",
+       "slug": "integrations",
+       "name": "Integrations",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure payment gateway, email/SMS/WhatsApp, biometric devices, Google/Microsoft and other connectors.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/integrations"
+      },
+      {
+       "key": "super_admin.platform_configuration.numbering_templates",
+       "slug": "numbering_templates",
+       "name": "Numbering & templates",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure receipt, admission, student ID and certificate numbering/templates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/numbering_templates"
+      },
+      {
+       "key": "super_admin.platform_configuration.audit_log",
+       "slug": "audit_log",
+       "name": "Audit log",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Search critical configuration and data-change history.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/audit_log"
+      },
+      {
+       "key": "super_admin.platform_configuration.data_operations",
+       "slug": "data_operations",
+       "name": "Data operations",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Controlled import/export, archival, retention and backup/restore administration.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/data_operations"
+      },
+      {
+       "key": "super_admin.platform_configuration.import_export",
+       "slug": "import_export",
+       "name": "Import & export",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Bulk import of students, staff and opening balances, with validation reports.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/platform_configuration/import_export"
+      }
+     ]
+    },
+    {
+     "slug": "campuses_academic_year",
+     "name": "Campuses & Academic Year",
+     "features": [
+      {
+       "key": "super_admin.campuses_academic_year.franchise_management",
+       "slug": "franchise_management",
+       "name": "Franchise Management",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Centralized administrative oversight, asset sharing, and brand compliance for franchise chains.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/campuses_academic_year/franchise_management"
+      },
+      {
+       "key": "super_admin.campuses_academic_year.white_label_branding",
+       "slug": "white_label_branding",
+       "name": "White-Label Branding",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure custom logos, domain names, color themes, login portal banners, and email header templates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/campuses_academic_year/white_label_branding"
+      },
+      {
+       "key": "super_admin.campuses_academic_year.academic_calendar_model",
+       "slug": "academic_calendar_model",
+       "name": "Academic Calendar Model",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure the June-April school year separately from the April-March financial year used for receipts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/campuses_academic_year/academic_calendar_model"
+      }
+     ]
+    },
+    {
+     "slug": "messaging",
+     "name": "Messaging",
+     "features": [
+      {
+       "key": "super_admin.messaging.sms_gateway_integration",
+       "slug": "sms_gateway_integration",
+       "name": "SMS Gateway Integration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure gateway API credentials, sender IDs, DLTI templates, and SMS delivery logs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/messaging/sms_gateway_integration"
+      },
+      {
+       "key": "super_admin.messaging.whatsapp_api_integration",
+       "slug": "whatsapp_api_integration",
+       "name": "WhatsApp API Integration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Connect WhatsApp Business API, manage template approvals, automated triggers, and delivery logs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/messaging/whatsapp_api_integration"
+      },
+      {
+       "key": "super_admin.messaging.email_server_smtp_integration",
+       "slug": "email_server_smtp_integration",
+       "name": "Email Server (SMTP) Integration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure SMTP credentials, send grid settings, DKIM/SPF verification, and email dispatch logs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/messaging/email_server_smtp_integration"
+      },
+      {
+       "key": "super_admin.messaging.automated_trigger_rules",
+       "slug": "automated_trigger_rules",
+       "name": "Automated Trigger Rules",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Set trigger conditions for instant automated notifications on absence, fee due, or bus delay.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/messaging/automated_trigger_rules"
+      }
+     ]
+    },
+    {
+     "slug": "payments_devices",
+     "name": "Payments & Devices",
+     "features": [
+      {
+       "key": "super_admin.payments_devices.payment_gateway_connectors",
+       "slug": "payment_gateway_connectors",
+       "name": "Payment Gateway Connectors",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Manage credentials for Razorpay, Paytm, CCAvenue, BillDesk, Easebuzz, and CCAvenue.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/payment_gateway_connectors"
+      },
+      {
+       "key": "super_admin.payments_devices.biometric_device_integration",
+       "slug": "biometric_device_integration",
+       "name": "Biometric Device Integration",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Connect biometric fingerprint, facial recognition, and RFID hardware machines via IP/Webhooks.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/biometric_device_integration"
+      },
+      {
+       "key": "super_admin.payments_devices.gps_hardware_integration",
+       "slug": "gps_hardware_integration",
+       "name": "GPS Hardware Integration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Configure bus GPS tracker hardware protocols, IMEI mapping, and refresh intervals.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/gps_hardware_integration"
+      },
+      {
+       "key": "super_admin.payments_devices.virtual_classroom_integration",
+       "slug": "virtual_classroom_integration",
+       "name": "Virtual Classroom Integration",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Connect Zoom, Google Meet, and Microsoft Teams tenant accounts for seamless live streaming.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/virtual_classroom_integration"
+      },
+      {
+       "key": "super_admin.payments_devices.tally_erp_prime_connector",
+       "slug": "tally_erp_prime_connector",
+       "name": "Tally ERP / Prime Connector",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Configure ledger XML exports, cost-center mapping, and automated batch voucher sync.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/tally_erp_prime_connector"
+      },
+      {
+       "key": "super_admin.payments_devices.meritto_leadsquared_sync",
+       "slug": "meritto_leadsquared_sync",
+       "name": "Meritto / LeadSquared Sync",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Map lead sources, counselor assignments, and multi-touch lead status sync with external CRMs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/payments_devices/meritto_leadsquared_sync"
+      }
+     ]
+    },
+    {
+     "slug": "statutory_boards",
+     "name": "Statutory & Boards",
+     "features": [
+      {
+       "key": "super_admin.statutory_boards.sqaa_framework_management",
+       "slug": "sqaa_framework_management",
+       "name": "SQAA Framework Management",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Configure School Quality Assessment and Assurance standards and self-assessment checklists.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/sqaa_framework_management"
+      },
+      {
+       "key": "super_admin.statutory_boards.udise_data_sync",
+       "slug": "udise_data_sync",
+       "name": "UDISE+ Data Sync",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Map school, student, teacher and facility fields to the UDISE+ return format and validate data integrity before submission.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/udise_data_sync"
+      },
+      {
+       "key": "super_admin.statutory_boards.apaar_id_provisioning",
+       "slug": "apaar_id_provisioning",
+       "name": "APAAR ID Provisioning",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Generate and reconcile APAAR (One Nation One Student) IDs against Aadhaar and the UDISE+ register.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/apaar_id_provisioning"
+      },
+      {
+       "key": "super_admin.statutory_boards.digilocker_issuer_integration",
+       "slug": "digilocker_issuer_integration",
+       "name": "DigiLocker Issuer Integration",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Register as a DigiLocker issuer and push transfer certificates, report cards and mark sheets as verifiable documents.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/digilocker_issuer_integration"
+      },
+      {
+       "key": "super_admin.statutory_boards.board_affiliation_disclosure",
+       "slug": "board_affiliation_disclosure",
+       "name": "Board Affiliation & Disclosure",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Maintain CBSE/ICSE/State affiliation numbers, mandatory public disclosure documents and renewal dates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/board_affiliation_disclosure"
+      },
+      {
+       "key": "super_admin.statutory_boards.state_board_configuration",
+       "slug": "state_board_configuration",
+       "name": "State Board Configuration",
+       "scope": "platform",
+       "tier": "advanced",
+       "expect": "Select the state education board (BSE Telangana SSC, TSBIE Intermediate, CBSE, ICSE) and its grading and assessment rules.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/state_board_configuration"
+      },
+      {
+       "key": "super_admin.statutory_boards.school_management_type",
+       "slug": "school_management_type",
+       "name": "School Management Type",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Classify each campus as Government, Aided, Private Unaided, Model School, Gurukul or KGBV for state reporting.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/school_management_type"
+      },
+      {
+       "key": "super_admin.statutory_boards.district_mandal_master",
+       "slug": "district_mandal_master",
+       "name": "District & Mandal Master",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Maintain state, district, mandal and village/ward codes used by every government return.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/district_mandal_master"
+      },
+      {
+       "key": "super_admin.statutory_boards.child_info_portal_sync",
+       "slug": "child_info_portal_sync",
+       "name": "Child Info Portal Sync",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Map school and student records to the Telangana Child Info portal register and reconcile differences.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/statutory_boards/child_info_portal_sync"
+      }
+     ]
+    },
+    {
+     "slug": "operations",
+     "name": "Operations",
+     "features": [
+      {
+       "key": "super_admin.operations.data_backup_restore",
+       "slug": "data_backup_restore",
+       "name": "Data Backup & Restore",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Schedule automated cloud database backups and manage point-in-time recovery archives.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/operations/data_backup_restore"
+      },
+      {
+       "key": "super_admin.operations.system_health_integration_alerts",
+       "slug": "system_health_integration_alerts",
+       "name": "System Health & Integration Alerts",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/operations/system_health_integration_alerts"
+      }
+     ]
+    },
+    {
+     "slug": "ai_automation",
+     "name": "AI & Automation",
+     "features": [
+      {
+       "key": "super_admin.ai_automation.predictive_dropout_risk_engine",
+       "slug": "predictive_dropout_risk_engine",
+       "name": "Predictive Dropout Risk Engine",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "AI models analyzing attendance, grades, and fee delays to predict student churn risk.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/ai_automation/predictive_dropout_risk_engine"
+      },
+      {
+       "key": "super_admin.ai_automation.automated_timetable_optimizer",
+       "slug": "automated_timetable_optimizer",
+       "name": "Automated Timetable Optimizer",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Genetic algorithms solving complex multi-variable faculty, room, and elective timetable constraints.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/ai_automation/automated_timetable_optimizer"
+      },
+      {
+       "key": "super_admin.ai_automation.ai_sentiment_analysis_on_feedback",
+       "slug": "ai_sentiment_analysis_on_feedback",
+       "name": "AI Sentiment Analysis on Feedback",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Natural Language Processing on parent complaints and reviews to gauge overall campus sentiment.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/ai_automation/ai_sentiment_analysis_on_feedback"
+      },
+      {
+       "key": "super_admin.ai_automation.automated_exam_question_translation",
+       "slug": "automated_exam_question_translation",
+       "name": "Automated Exam Question Translation",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "AI translation engine converting English question banks into regional languages instantly.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/ai_automation/automated_exam_question_translation"
+      },
+      {
+       "key": "super_admin.ai_automation.smart_fee_cash_flow_predictor",
+       "slug": "smart_fee_cash_flow_predictor",
+       "name": "Smart Fee Cash Flow Predictor",
+       "scope": "platform",
+       "tier": "core",
+       "expect": "Predictive modeling forecasting next quarter's fee collections based on historical payment patterns.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/super_admin/ai_automation/smart_fee_cash_flow_predictor"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "institution_admin",
+   "name": "Institution Admin / Principal",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "institution_admin.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The school on one page: the numbers at the top, what needs the principal today in the middle, and the day's events and cover at the foot.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/home/dashboard"
+      }
+     ]
+    },
+    {
+     "slug": "getting_started",
+     "name": "Getting Started",
+     "features": [
+      {
+       "key": "institution_admin.getting_started.school_setup",
+       "slug": "school_setup",
+       "name": "School setup",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/getting_started/school_setup"
+      }
+     ]
+    },
+    {
+     "slug": "approvals",
+     "name": "Approvals",
+     "features": [
+      {
+       "key": "institution_admin.approvals.approvals",
+       "slug": "approvals",
+       "name": "Approvals",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Everything waiting on a signature \u2014 leave, attendance corrections, fee concessions \u2014 in one queue rather than one queue per module.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/approvals/approvals"
+      }
+     ]
+    },
+    {
+     "slug": "students",
+     "name": "Students",
+     "features": [
+      {
+       "key": "institution_admin.students.student_360",
+       "slug": "student_360",
+       "name": "Student 360",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "One child, whole: attendance, marks, fees, conduct and who to ring, on one page. The screen a school opens when a parent is at the desk.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/student_360"
+      },
+      {
+       "key": "institution_admin.students.certificates_transfers",
+       "slug": "certificates_transfers",
+       "name": "Certificates & transfers",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/certificates_transfers"
+      },
+      {
+       "key": "institution_admin.students.class_promotion",
+       "slug": "class_promotion",
+       "name": "Class Promotion",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child's history survives the promotion.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/class_promotion"
+      },
+      {
+       "key": "institution_admin.students.academic_performance",
+       "slug": "academic_performance",
+       "name": "Academic Performance",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/students/academic_performance"
+      }
+     ]
+    },
+    {
+     "slug": "admissions",
+     "name": "Admissions",
+     "features": [
+      {
+       "key": "institution_admin.admissions.admissions_pipeline",
+       "slug": "admissions_pipeline",
+       "name": "Admissions Pipeline",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Enquiries, applications and confirmed admissions for the coming session, and the conversion between them. Growth, and where it is being lost.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/admissions/admissions_pipeline"
+      }
+     ]
+    },
+    {
+     "slug": "academics",
+     "name": "Academics",
+     "features": [
+      {
+       "key": "institution_admin.academics.master_timetable",
+       "slug": "master_timetable",
+       "name": "Master Timetable",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The whole school's week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/master_timetable"
+      },
+      {
+       "key": "institution_admin.academics.substitutions",
+       "slug": "substitutions",
+       "name": "Substitutions",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is away today, which periods that leaves uncovered, and who has been put in front of each of them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/substitutions"
+      },
+      {
+       "key": "institution_admin.academics.school_calendar",
+       "slug": "school_calendar",
+       "name": "School Calendar",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Terms, holidays, exams, sports day and parent meetings. The year the school works to, which the principal signs off before it starts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/school_calendar"
+      },
+      {
+       "key": "institution_admin.academics.curriculum_roadmap",
+       "slug": "curriculum_roadmap",
+       "name": "Curriculum Roadmap",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Approved once a year and taught from all of it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/curriculum_roadmap"
+      },
+      {
+       "key": "institution_admin.academics.lesson_plans",
+       "slug": "lesson_plans",
+       "name": "Lesson Plans",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/lesson_plans"
+      },
+      {
+       "key": "institution_admin.academics.syllabus_progress",
+       "slug": "syllabus_progress",
+       "name": "Syllabus Progress",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/syllabus_progress"
+      },
+      {
+       "key": "institution_admin.academics.attendance_audit",
+       "slug": "attendance_audit",
+       "name": "Attendance Audit",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/attendance_audit"
+      },
+      {
+       "key": "institution_admin.academics.class_setup",
+       "slug": "class_setup",
+       "name": "Class Setup",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/class_setup"
+      },
+      {
+       "key": "institution_admin.academics.teacher_assignment",
+       "slug": "teacher_assignment",
+       "name": "Teacher Assignment",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Which teacher takes which subject in which class, reviewed and signed off before the timetable is built on top of it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/academics/teacher_assignment"
+      }
+     ]
+    },
+    {
+     "slug": "examinations",
+     "name": "Examinations",
+     "features": [
+      {
+       "key": "institution_admin.examinations.performance_overview",
+       "slug": "performance_overview",
+       "name": "Performance overview",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Pass rate, subject performance, at-risk students and backlog summary.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/examinations/performance_overview"
+      },
+      {
+       "key": "institution_admin.examinations.hall_ticket_issue",
+       "slug": "hall_ticket_issue",
+       "name": "Hall Ticket Issue",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Issue and reprint board hall tickets against the accepted nominal roll.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/examinations/hall_ticket_issue"
+      },
+      {
+       "key": "institution_admin.examinations.exams_results",
+       "slug": "exams_results",
+       "name": "Exams & results",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Exam schedule, marks entry status and result publication readiness.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/examinations/exams_results"
+      },
+      {
+       "key": "institution_admin.examinations.exams_papers",
+       "slug": "exams_papers",
+       "name": "Exams & papers",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every exam the school has scheduled and how many papers it holds. An exam with no papers cannot be marked, moderated, or turned into a report card, so this is where they are created \u2014 one for every subject each class studies.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/examinations/exams_papers"
+      }
+     ]
+    },
+    {
+     "slug": "fees",
+     "name": "Fees",
+     "features": [
+      {
+       "key": "institution_admin.fees.fee_dashboard",
+       "slug": "fee_dashboard",
+       "name": "Fee Dashboard",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/fees/fee_dashboard"
+      },
+      {
+       "key": "institution_admin.fees.fee_default",
+       "slug": "fee_default",
+       "name": "Fee Default",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is behind, by how much and for how long, grouped by class. The accountant works the counter; this is the list a principal takes into a parent meeting.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/fees/fee_default"
+      }
+     ]
+    },
+    {
+     "slug": "communication",
+     "name": "Communication",
+     "features": [
+      {
+       "key": "institution_admin.communication.grievances",
+       "slug": "grievances",
+       "name": "Grievances",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/grievances"
+      },
+      {
+       "key": "institution_admin.communication.school_achievements_showcase",
+       "slug": "school_achievements_showcase",
+       "name": "School Achievements Showcase",
+       "scope": "institution",
+       "tier": "optional",
+       "expect": "Log awards, sports victories, academic honors, and publish them to parent/student portals.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/school_achievements_showcase"
+      },
+      {
+       "key": "institution_admin.communication.circulars",
+       "slug": "circulars",
+       "name": "Circulars",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/circulars"
+      },
+      {
+       "key": "institution_admin.communication.messages",
+       "slug": "messages",
+       "name": "Messages",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "A message to one colleague \u2014 a head of department, a class teacher \u2014 rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/communication/messages"
+      }
+     ]
+    },
+    {
+     "slug": "standard",
+     "name": "Standard",
+     "features": [
+      {
+       "key": "institution_admin.standard.reports",
+       "slug": "reports",
+       "name": "Reports",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Core enrollment, attendance, academic, fee and staff reports.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/standard/reports"
+      },
+      {
+       "key": "institution_admin.standard.attendance_overview",
+       "slug": "attendance_overview",
+       "name": "Attendance Overview",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/standard/attendance_overview"
+      },
+      {
+       "key": "institution_admin.standard.fee_collection",
+       "slug": "fee_collection",
+       "name": "Fee Collection",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/standard/fee_collection"
+      }
+     ]
+    },
+    {
+     "slug": "staff",
+     "name": "Staff",
+     "features": [
+      {
+       "key": "institution_admin.staff.leaves_subs",
+       "slug": "leaves_subs",
+       "name": "Leaves & Subs",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/staff/leaves_subs"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "institution_admin.my_profile.leave_self_service",
+       "slug": "leave_self_service",
+       "name": "Leave & self service",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Apply for your own leave, and see where it has got to. A principal takes leave too.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/my_profile/leave_self_service"
+      },
+      {
+       "key": "institution_admin.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/my_profile/my_pay"
+      }
+     ]
+    },
+    {
+     "slug": "exams",
+     "name": "Exams",
+     "features": [
+      {
+       "key": "institution_admin.exams.question_paper_approval",
+       "slug": "question_paper_approval",
+       "name": "Question paper approval",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every paper waiting to be read, across the school, with who set it and when the exam is.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/exams/question_paper_approval"
+      },
+      {
+       "key": "institution_admin.exams.mark_moderation",
+       "slug": "mark_moderation",
+       "name": "Mark moderation",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The same paper-by-paper view across every department, and the record of who moderated what.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/institution_admin/exams/mark_moderation"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "hod",
+   "name": "HOD / Department Head",
+   "sections": [
+    {
+     "slug": "timetable",
+     "name": "Timetable",
+     "features": [
+      {
+       "key": "hod.timetable.class_timetable",
+       "slug": "class_timetable",
+       "name": "Class timetable",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/timetable/class_timetable"
+      },
+      {
+       "key": "hod.timetable.staff_timetable",
+       "slug": "staff_timetable",
+       "name": "Staff timetable",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Every teacher in the department, period by period, with their free periods visible. Assign a teacher to a period, move them off one, and see the clash before it is saved rather than after.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/timetable/staff_timetable"
+      },
+      {
+       "key": "hod.timetable.department_timetable",
+       "slug": "department_timetable",
+       "name": "Department timetable",
+       "scope": "department",
+       "tier": "core",
+       "expect": "The department's grid by class, by faculty and by room, read together so a gap in one is explained by the other two.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/timetable/department_timetable"
+      },
+      {
+       "key": "hod.timetable.substitution_requests",
+       "slug": "substitution_requests",
+       "name": "Substitution requests",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Cover requests from the department's teachers: who is away, which period, which class, and why. Assign it to a teacher who is free at that hour and they are told immediately.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/timetable/substitution_requests"
+      },
+      {
+       "key": "hod.timetable.my_timetable",
+       "slug": "my_timetable",
+       "name": "My timetable",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Their own teaching week: the periods they stand in front of a class for, apart from the master timetable they build for everybody else.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/timetable/my_timetable"
+      }
+     ]
+    },
+    {
+     "slug": "academics",
+     "name": "Academics",
+     "features": [
+      {
+       "key": "hod.academics.language_subject_allocation",
+       "slug": "language_subject_allocation",
+       "name": "Language subject allocation",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/academics/language_subject_allocation"
+      },
+      {
+       "key": "hod.academics.faculty_allocation",
+       "slug": "faculty_allocation",
+       "name": "Faculty allocation",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/academics/faculty_allocation"
+      }
+     ]
+    },
+    {
+     "slug": "staff",
+     "name": "Staff",
+     "features": [
+      {
+       "key": "hod.staff.teacher_remarks",
+       "slug": "teacher_remarks",
+       "name": "Teacher remarks",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/staff/teacher_remarks"
+      },
+      {
+       "key": "hod.staff.leaves_subs",
+       "slug": "leaves_subs",
+       "name": "Leaves & Subs",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Leave requested by your own department's staff, with the periods it would leave uncovered shown beside it. Either you or the principal may approve; whoever gets there first decides it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/staff/leaves_subs"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "hod.my_profile.profile",
+       "slug": "profile",
+       "name": "Profile",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Own details and password.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/my_profile/profile"
+      },
+      {
+       "key": "hod.my_profile.leave_self_service",
+       "slug": "leave_self_service",
+       "name": "Leave & self service",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Apply for your own leave, and see where it has got to. Approving the department's leave is a different screen.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/my_profile/leave_self_service"
+      },
+      {
+       "key": "hod.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/my_profile/my_pay"
+      }
+     ]
+    },
+    {
+     "slug": "attendance",
+     "name": "Attendance",
+     "features": [
+      {
+       "key": "hod.attendance.take_attendance",
+       "slug": "take_attendance",
+       "name": "Take attendance",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Mark the register for the classes they teach.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/attendance/take_attendance"
+      }
+     ]
+    },
+    {
+     "slug": "teaching",
+     "name": "Teaching",
+     "features": [
+      {
+       "key": "hod.teaching.homework_classwork",
+       "slug": "homework_classwork",
+       "name": "Homework / classwork",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Set and grade homework for their own classes, and see who has turned it in.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/teaching/homework_classwork"
+      },
+      {
+       "key": "hod.teaching.lesson_plans_content",
+       "slug": "lesson_plans_content",
+       "name": "Lesson plans / content",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Write and submit their own lesson plans. Approving other teachers' plans is a different screen.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/teaching/lesson_plans_content"
+      }
+     ]
+    },
+    {
+     "slug": "marks_report_cards",
+     "name": "Marks & Report Cards",
+     "features": [
+      {
+       "key": "hod.marks_report_cards.marks_entry",
+       "slug": "marks_entry",
+       "name": "Marks entry",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Enter exam marks for the papers they teach.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/marks_report_cards/marks_entry"
+      },
+      {
+       "key": "hod.marks_report_cards.report_cards",
+       "slug": "report_cards",
+       "name": "Report cards",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Generate and publish report cards for a section they are class teacher of.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/marks_report_cards/report_cards"
+      }
+     ]
+    },
+    {
+     "slug": "communication",
+     "name": "Communication",
+     "features": [
+      {
+       "key": "hod.communication.communication",
+       "slug": "communication",
+       "name": "Communication",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Notices home to the classes they teach, and the thread with a parent about one child.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/communication/communication"
+      },
+      {
+       "key": "hod.communication.messages",
+       "slug": "messages",
+       "name": "Messages",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "One colleague at a time. The staff address book and the thread with each of them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/communication/messages"
+      }
+     ]
+    },
+    {
+     "slug": "exams",
+     "name": "Exams",
+     "features": [
+      {
+       "key": "hod.exams.question_paper_approval",
+       "slug": "question_paper_approval",
+       "name": "Question paper approval",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Papers your teachers have sent for approval before an exam: open the paper, approve it for printing, or send it back with the reason. The teacher is told either way, and who approved it is kept.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/exams/question_paper_approval"
+      },
+      {
+       "key": "hod.exams.mark_moderation",
+       "slug": "mark_moderation",
+       "name": "Mark moderation",
+       "scope": "department",
+       "tier": "core",
+       "expect": "Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark \u2014 so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hod/exams/mark_moderation"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "faculty",
+   "name": "Faculty / Teacher",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "faculty.home.todays_classes",
+       "slug": "todays_classes",
+       "name": "Today's classes",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/home/todays_classes"
+      },
+      {
+       "key": "faculty.home.my_work",
+       "slug": "my_work",
+       "name": "My work",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Assignments to review, marks pending, substitutions, leave status and announcements.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/home/my_work"
+      },
+      {
+       "key": "faculty.home.my_day",
+       "slug": "my_day",
+       "name": "My day",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Today's periods, what is pending and anything about this class that needs attention.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/home/my_day"
+      }
+     ]
+    },
+    {
+     "slug": "my_classes",
+     "name": "My Classes",
+     "features": [
+      {
+       "key": "faculty.my_classes.my_classes",
+       "slug": "my_classes",
+       "name": "My classes",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Class roster, subject resources and relevant student academic information.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_classes/my_classes"
+      },
+      {
+       "key": "faculty.my_classes.student_progress",
+       "slug": "student_progress",
+       "name": "Student progress",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "View attendance and academic progress for students taught/mentored by the faculty member.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_classes/student_progress"
+      },
+      {
+       "key": "faculty.my_classes.student_behavior_demerits",
+       "slug": "student_behavior_demerits",
+       "name": "Student Behavior & Demerits",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_classes/student_behavior_demerits"
+      },
+      {
+       "key": "faculty.my_classes.my_students",
+       "slug": "my_students",
+       "name": "My students",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Every child in the class with attendance, marks and guardian contact in one place.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_classes/my_students"
+      },
+      {
+       "key": "faculty.my_classes.student_details",
+       "slug": "student_details",
+       "name": "Student details",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "One child's full record: profile, guardians, attendance, marks and remarks.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_classes/student_details"
+      }
+     ]
+    },
+    {
+     "slug": "attendance",
+     "name": "Attendance",
+     "features": [
+      {
+       "key": "faculty.attendance.take_attendance",
+       "slug": "take_attendance",
+       "name": "Take attendance",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Fast daily or period/subject-wise attendance for assigned students.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/attendance/take_attendance"
+      },
+      {
+       "key": "faculty.attendance.attendance_correction",
+       "slug": "attendance_correction",
+       "name": "Attendance correction",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Request or process correction within permitted window/workflow.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/attendance/attendance_correction"
+      },
+      {
+       "key": "faculty.attendance.offline_attendance_diary_capture",
+       "slug": "offline_attendance_diary_capture",
+       "name": "Offline Attendance & Diary Capture",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/attendance/offline_attendance_diary_capture"
+      }
+     ]
+    },
+    {
+     "slug": "teaching",
+     "name": "Teaching",
+     "features": [
+      {
+       "key": "faculty.teaching.homework_classwork",
+       "slug": "homework_classwork",
+       "name": "Homework / classwork",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Create homework/classwork with due date, attachments and instructions.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/teaching/homework_classwork"
+      },
+      {
+       "key": "faculty.teaching.assignments_submissions",
+       "slug": "assignments_submissions",
+       "name": "Assignments & submissions",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Create assignments, review submissions, grade and add feedback.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/teaching/assignments_submissions"
+      },
+      {
+       "key": "faculty.teaching.lesson_plans_content",
+       "slug": "lesson_plans_content",
+       "name": "Lesson plans / content",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Plan lessons and attach learning resources when LMS/lesson planning is enabled.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/teaching/lesson_plans_content"
+      },
+      {
+       "key": "faculty.teaching.lms_study_material_upload",
+       "slug": "lms_study_material_upload",
+       "name": "LMS Study Material Upload",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/teaching/lms_study_material_upload"
+      }
+     ]
+    },
+    {
+     "slug": "timetable",
+     "name": "Timetable",
+     "features": [
+      {
+       "key": "faculty.timetable.my_timetable",
+       "slug": "my_timetable",
+       "name": "My timetable",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Daily/weekly teaching schedule, rooms/labs and substitutions.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/timetable/my_timetable"
+      },
+      {
+       "key": "faculty.timetable.substitution_request_submission",
+       "slug": "substitution_request_submission",
+       "name": "Substitution Request Submission",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Request advance leave and propose peer faculty substitution for approval.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/timetable/substitution_request_submission"
+      }
+     ]
+    },
+    {
+     "slug": "marks_report_cards",
+     "name": "Marks & Report Cards",
+     "features": [
+      {
+       "key": "faculty.marks_report_cards.marks_entry",
+       "slug": "marks_entry",
+       "name": "Marks entry",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Enter internal/exam marks for assigned subjects; validate before submission.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/marks_entry"
+      },
+      {
+       "key": "faculty.marks_report_cards.report_cards",
+       "slug": "report_cards",
+       "name": "Report cards",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Generate and issue the report card for every child in the class.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/marks_report_cards/report_cards"
+      }
+     ]
+    },
+    {
+     "slug": "assessment_schemes",
+     "name": "Assessment Schemes",
+     "features": [
+      {
+       "key": "faculty.assessment_schemes.cce_formative_assessment_entry",
+       "slug": "cce_formative_assessment_entry",
+       "name": "CCE Formative Assessment Entry",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/assessment_schemes/cce_formative_assessment_entry"
+      },
+      {
+       "key": "faculty.assessment_schemes.cce_summative_assessment_entry",
+       "slug": "cce_summative_assessment_entry",
+       "name": "CCE Summative Assessment Entry",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Record SA1 to SA3 summative marks out of 80 as per the state board CCE scheme.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/assessment_schemes/cce_summative_assessment_entry"
+      }
+     ]
+    },
+    {
+     "slug": "question_papers_online_tests",
+     "name": "Question Papers & Online Tests",
+     "features": [
+      {
+       "key": "faculty.question_papers_online_tests.question_bank_management",
+       "slug": "question_bank_management",
+       "name": "Question Bank Management",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/question_papers_online_tests/question_bank_management"
+      },
+      {
+       "key": "faculty.question_papers_online_tests.ai_examcell_paper_generator",
+       "slug": "ai_examcell_paper_generator",
+       "name": "AI Examcell Paper Generator",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Auto-generate exam papers matching blueprint matrices, mark weightage, and difficulty ratios.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/question_papers_online_tests/ai_examcell_paper_generator"
+      },
+      {
+       "key": "faculty.question_papers_online_tests.ved_ai_assessment_assistant",
+       "slug": "ved_ai_assessment_assistant",
+       "name": "Ved AI Assessment Assistant",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Use AI suggestions for creating creative rubric criteria, quiz questions, and essay prompts.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/question_papers_online_tests/ved_ai_assessment_assistant"
+      },
+      {
+       "key": "faculty.question_papers_online_tests.objective_online_test_creation",
+       "slug": "objective_online_test_creation",
+       "name": "Objective Online Test Creation",
+       "scope": "assigned_classes",
+       "tier": "advanced",
+       "expect": "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/question_papers_online_tests/objective_online_test_creation"
+      }
+     ]
+    },
+    {
+     "slug": "communication",
+     "name": "Communication",
+     "features": [
+      {
+       "key": "faculty.communication.communication",
+       "slug": "communication",
+       "name": "Communication",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Announcements/messages to assigned classes, students or parents based on policy.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/communication"
+      },
+      {
+       "key": "faculty.communication.remarks",
+       "slug": "remarks",
+       "name": "Remarks",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Add permitted academic/class remarks and observations.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/remarks"
+      },
+      {
+       "key": "faculty.communication.messages",
+       "slug": "messages",
+       "name": "Messages",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "One colleague at a time. The staff address book, and the thread you have with each of them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/communication/messages"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "faculty.my_profile.leave_self_service",
+       "slug": "leave_self_service",
+       "name": "Leave & self service",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Apply for leave, view approval status, attendance and personal documents.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/leave_self_service"
+      },
+      {
+       "key": "faculty.my_profile.profile",
+       "slug": "profile",
+       "name": "Profile",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Own profile, password and leave.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/profile"
+      },
+      {
+       "key": "faculty.my_profile.student_leave_requests",
+       "slug": "student_leave_requests",
+       "name": "Student leave requests",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/student_leave_requests"
+      },
+      {
+       "key": "faculty.my_profile.remarks_about_me",
+       "slug": "remarks_about_me",
+       "name": "Remarks about me",
+       "scope": "self",
+       "tier": "core",
+       "expect": "What your head of department, the principal or a parent has written about you. You are told when one is added.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/remarks_about_me"
+      },
+      {
+       "key": "faculty.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/my_profile/my_pay"
+      }
+     ]
+    },
+    {
+     "slug": "exams",
+     "name": "Exams",
+     "features": [
+      {
+       "key": "faculty.exams.question_papers",
+       "slug": "question_papers",
+       "name": "Question papers",
+       "scope": "assigned_classes",
+       "tier": "core",
+       "expect": "Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/faculty/exams/question_papers"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "librarian",
+   "name": "Librarian",
+   "sections": [
+    {
+     "slug": "library",
+     "name": "Library",
+     "features": [
+      {
+       "key": "librarian.library.book_cataloging_accession_register",
+       "slug": "book_cataloging_accession_register",
+       "name": "Book Cataloging & Accession Register",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/book_cataloging_accession_register"
+      },
+      {
+       "key": "librarian.library.barcode_spine_label_printing",
+       "slug": "barcode_spine_label_printing",
+       "name": "Barcode & Spine Label Printing",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Generate and print custom barcode labels and spine call tags for library books.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/barcode_spine_label_printing"
+      },
+      {
+       "key": "librarian.library.book_issue_return_terminal",
+       "slug": "book_issue_return_terminal",
+       "name": "Book Issue & Return Terminal",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Scan student ID and book barcode to issue or return books in <5 seconds.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/book_issue_return_terminal"
+      },
+      {
+       "key": "librarian.library.book_reservation_queue",
+       "slug": "book_reservation_queue",
+       "name": "Book Reservation Queue",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Auto-notify students when a reserved book is returned and available for collection.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/book_reservation_queue"
+      },
+      {
+       "key": "librarian.library.fine_penalty_summary",
+       "slug": "fine_penalty_summary",
+       "name": "Fine & Penalty Summary",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/fine_penalty_summary"
+      },
+      {
+       "key": "librarian.library.opac_digital_book_search",
+       "slug": "opac_digital_book_search",
+       "name": "OPAC Digital Book Search",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Online Public Access Catalog for students to search book availability and reserve books.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/opac_digital_book_search"
+      },
+      {
+       "key": "librarian.library.digital_library_usage",
+       "slug": "digital_library_usage",
+       "name": "Digital Library Usage",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/digital_library_usage"
+      },
+      {
+       "key": "librarian.library.annual_book_stock_verification",
+       "slug": "annual_book_stock_verification",
+       "name": "Annual Book Stock Verification",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/annual_book_stock_verification"
+      },
+      {
+       "key": "librarian.library.new_session_textbook_orders",
+       "slug": "new_session_textbook_orders",
+       "name": "New Session Textbook Orders",
+       "scope": "campus",
+       "tier": "advanced",
+       "expect": "Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/new_session_textbook_orders"
+      },
+      {
+       "key": "librarian.library.books_copies",
+       "slug": "books_copies",
+       "name": "Books & copies",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Titles, editions and the individual copies held against each.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/books_copies"
+      },
+      {
+       "key": "librarian.library.accession_register",
+       "slug": "accession_register",
+       "name": "Accession register",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "The statutory accession register, with barcode and spine label printing.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/accession_register"
+      },
+      {
+       "key": "librarian.library.issue_return",
+       "slug": "issue_return",
+       "name": "Issue & return",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "The counter: scan a card, scan a book, issue or take it back.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/issue_return"
+      },
+      {
+       "key": "librarian.library.reservations",
+       "slug": "reservations",
+       "name": "Reservations",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Holds placed by students and staff, and who is next in the queue.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/reservations"
+      },
+      {
+       "key": "librarian.library.fines",
+       "slug": "fines",
+       "name": "Fines",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Overdue fines accrued, waived and collected.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/library/fines"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "librarian.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/librarian/my_profile/my_pay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "transport_manager",
+   "name": "Transport Manager",
+   "sections": [
+    {
+     "slug": "transport",
+     "name": "Transport",
+     "features": [
+      {
+       "key": "transport_manager.transport.vehicle_master_registry",
+       "slug": "vehicle_master_registry",
+       "name": "Vehicle Master Registry",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/vehicle_master_registry"
+      },
+      {
+       "key": "transport_manager.transport.driver_attendant_profiles",
+       "slug": "driver_attendant_profiles",
+       "name": "Driver & Attendant Profiles",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Store driver licenses, police verification docs, phone numbers, and assigned bus routes.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/driver_attendant_profiles"
+      },
+      {
+       "key": "transport_manager.transport.route_pickup_stop_mapping",
+       "slug": "route_pickup_stop_mapping",
+       "name": "Route & Pickup Stop Mapping",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/route_pickup_stop_mapping"
+      },
+      {
+       "key": "transport_manager.transport.student_route_assignment",
+       "slug": "student_route_assignment",
+       "name": "Student Route Assignment",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Assign students to specific bus routes and pick-up stops with automated fee mapping.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/student_route_assignment"
+      },
+      {
+       "key": "transport_manager.transport.route_distance_fee_slabs",
+       "slug": "route_distance_fee_slabs",
+       "name": "Route Distance Fee Slabs",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Define transport fee slabs by route distance and auto-apply them to the student's fee structure.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/route_distance_fee_slabs"
+      },
+      {
+       "key": "transport_manager.transport.transport_attendance_scans",
+       "slug": "transport_attendance_scans",
+       "name": "Transport Attendance Scans",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Scan student RFID tags as they step on and off the bus to confirm safe transit.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/transport_attendance_scans"
+      },
+      {
+       "key": "transport_manager.transport.real_time_vehicle_tracking_vts",
+       "slug": "real_time_vehicle_tracking_vts",
+       "name": "Real-time Vehicle Tracking (VTS)",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "View live GPS map of moving school buses, current speed, route adherence, and delay alerts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/real_time_vehicle_tracking_vts"
+      },
+      {
+       "key": "transport_manager.transport.geo_fenced_bus_stop_alerts",
+       "slug": "geo_fenced_bus_stop_alerts",
+       "name": "Geo-fenced Bus Stop Alerts",
+       "scope": "campus",
+       "tier": "advanced",
+       "expect": "Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/geo_fenced_bus_stop_alerts"
+      },
+      {
+       "key": "transport_manager.transport.bus_speeding_rash_driving_alerts",
+       "slug": "bus_speeding_rash_driving_alerts",
+       "name": "Bus Speeding & Rash Driving Alerts",
+       "scope": "campus",
+       "tier": "advanced",
+       "expect": "Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/bus_speeding_rash_driving_alerts"
+      },
+      {
+       "key": "transport_manager.transport.vehicle_fuel_maintenance_log",
+       "slug": "vehicle_fuel_maintenance_log",
+       "name": "Vehicle Fuel & Maintenance Log",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Track fuel purchases, mileage performance, routine servicing, and repair expense logs.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/vehicle_fuel_maintenance_log"
+      },
+      {
+       "key": "transport_manager.transport.fuel_sensor_mileage_telematics",
+       "slug": "fuel_sensor_mileage_telematics",
+       "name": "Fuel Sensor & Mileage Telematics",
+       "scope": "campus",
+       "tier": "optional",
+       "expect": "Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/fuel_sensor_mileage_telematics"
+      },
+      {
+       "key": "transport_manager.transport.driver_sobriety_safety_checklist",
+       "slug": "driver_sobriety_safety_checklist",
+       "name": "Driver Sobriety & Safety Checklist",
+       "scope": "campus",
+       "tier": "optional",
+       "expect": "Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/driver_sobriety_safety_checklist"
+      },
+      {
+       "key": "transport_manager.transport.bus_breakdown_emergency_dispatch",
+       "slug": "bus_breakdown_emergency_dispatch",
+       "name": "Bus Breakdown Emergency Dispatch",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Trigger emergency notifications and dispatch replacement buses with auto-route updates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/bus_breakdown_emergency_dispatch"
+      },
+      {
+       "key": "transport_manager.transport.seatbelt_cctv_video_streaming",
+       "slug": "seatbelt_cctv_video_streaming",
+       "name": "Seatbelt & CCTV Video Streaming",
+       "scope": "campus",
+       "tier": "optional",
+       "expect": "Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/seatbelt_cctv_video_streaming"
+      },
+      {
+       "key": "transport_manager.transport.ais_140_telematics_vahan_compliance",
+       "slug": "ais_140_telematics_vahan_compliance",
+       "name": "AIS-140 Telematics & VAHAN Compliance",
+       "scope": "campus",
+       "tier": "advanced",
+       "expect": "Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/ais_140_telematics_vahan_compliance"
+      },
+      {
+       "key": "transport_manager.transport.vehicles",
+       "slug": "vehicles",
+       "name": "Vehicles",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "The vehicle register: registration, capacity, permit, insurance and fitness expiry.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/vehicles"
+      },
+      {
+       "key": "transport_manager.transport.drivers_attendants",
+       "slug": "drivers_attendants",
+       "name": "Drivers & attendants",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Who drives what, with licence expiry and background verification.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/drivers_attendants"
+      },
+      {
+       "key": "transport_manager.transport.routes_stops",
+       "slug": "routes_stops",
+       "name": "Routes & stops",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Route definitions, the stops on each and the timing between them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/routes_stops"
+      },
+      {
+       "key": "transport_manager.transport.student_allocation",
+       "slug": "student_allocation",
+       "name": "Student allocation",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Which child boards at which stop on which route, and the fee slab that implies.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/student_allocation"
+      },
+      {
+       "key": "transport_manager.transport.route_attendance",
+       "slug": "route_attendance",
+       "name": "Route attendance",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Boarding and alighting scans for each route, morning and afternoon.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/route_attendance"
+      },
+      {
+       "key": "transport_manager.transport.delays_exceptions",
+       "slug": "delays_exceptions",
+       "name": "Delays & exceptions",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Routes running late, breakdowns and any child not scanned.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/delays_exceptions"
+      },
+      {
+       "key": "transport_manager.transport.live_vehicle_tracking",
+       "slug": "live_vehicle_tracking",
+       "name": "Live vehicle tracking",
+       "scope": "campus",
+       "tier": "core",
+       "expect": "Where every bus is now, against the route it should be running.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/transport/live_vehicle_tracking"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "transport_manager.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/transport_manager/my_profile/my_pay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "finance",
+   "name": "Accounts & Finance",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "finance.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Collected today, collected this month, what is still outstanding, and the handful of things that need somebody this morning.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/home/dashboard"
+      }
+     ]
+    },
+    {
+     "slug": "fees",
+     "name": "Fees",
+     "features": [
+      {
+       "key": "finance.fees.take_fee_payment",
+       "slug": "take_fee_payment",
+       "name": "Take fee payment",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/take_fee_payment"
+      },
+      {
+       "key": "finance.fees.online_fee_portal",
+       "slug": "online_fee_portal",
+       "name": "Online fee portal",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/online_fee_portal"
+      },
+      {
+       "key": "finance.fees.unpaid_fees_reminders",
+       "slug": "unpaid_fees_reminders",
+       "name": "Unpaid fees & reminders",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/unpaid_fees_reminders"
+      },
+      {
+       "key": "finance.fees.class_transport_fee_setup",
+       "slug": "class_transport_fee_setup",
+       "name": "Class & transport fee setup",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "What each class is charged for the year \u2014 tuition, lab, transport by distance \u2014 with concessions and refunds, the receipt series, and the one action that turns the structure into every parent's invoice.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/fees/class_transport_fee_setup"
+      }
+     ]
+    },
+    {
+     "slug": "campus_money",
+     "name": "Campus Money",
+     "features": [
+      {
+       "key": "finance.campus_money.cafeteria_store_sales",
+       "slug": "cafeteria_store_sales",
+       "name": "Cafeteria & store sales",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "A till for the canteen and one for the store: record what a student bought for lunch, a book or a uniform, and close the drawer at the end of the day against what it should hold.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/campus_money/cafeteria_store_sales"
+      },
+      {
+       "key": "finance.campus_money.donations_aid",
+       "slug": "donations_aid",
+       "name": "Donations & aid",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Money that comes from outside the school \u2014 grant-in-aid, government scholarships, alumni giving, education loans \u2014 tracked apart from tuition so it can be accounted for to whoever gave it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/campus_money/donations_aid"
+      }
+     ]
+    },
+    {
+     "slug": "accounts",
+     "name": "Accounts",
+     "features": [
+      {
+       "key": "finance.accounts.approve_pay_salaries",
+       "slug": "approve_pay_salaries",
+       "name": "Approve & pay salaries",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "What HR calculated for the month, read before the money moves, and then the bank file that releases it. Finance approves and pays; HR decides the numbers.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/accounts/approve_pay_salaries"
+      },
+      {
+       "key": "finance.accounts.vendor_bills_petty_cash",
+       "slug": "vendor_bills_petty_cash",
+       "name": "Vendor bills & petty cash",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Money leaving the school: supplier invoices for electricity and construction at one end, the tea and the minor repair at the other, and every expense in between.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/accounts/vendor_bills_petty_cash"
+      },
+      {
+       "key": "finance.accounts.school_property_budgeting",
+       "slug": "school_property_budgeting",
+       "name": "School property & budgeting",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Next year's spending limits against this year's actuals, and the register of what the school owns \u2014 buses, computers, desks \u2014 with what each is worth after depreciation.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/accounts/school_property_budgeting"
+      }
+     ]
+    },
+    {
+     "slug": "banking_reports",
+     "name": "Banking & Reports",
+     "features": [
+      {
+       "key": "finance.banking_reports.match_bank_records",
+       "slug": "match_bank_records",
+       "name": "Match bank records",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/banking_reports/match_bank_records"
+      },
+      {
+       "key": "finance.banking_reports.accounting_tax_reports",
+       "slug": "accounting_tax_reports",
+       "name": "Accounting & tax reports",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements \u2014 with a one-click export for the school's accountant.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/banking_reports/accounting_tax_reports"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "finance.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/finance/my_profile/my_pay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "admissions",
+   "name": "Admissions & Front Office",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "admissions.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "New enquiries, applications received, offers pending and enrolment conversion, with the follow-ups due today underneath.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/home/dashboard"
+      }
+     ]
+    },
+    {
+     "slug": "enquiries",
+     "name": "Enquiries",
+     "features": [
+      {
+       "key": "admissions.enquiries.enquiries",
+       "slug": "enquiries",
+       "name": "Enquiries",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every enquiry the school has taken \u2014 walk-in, telephone, website or referral \u2014 with the child, the class sought, the parent's number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/enquiries"
+      },
+      {
+       "key": "admissions.enquiries.assign_leads",
+       "slug": "assign_leads",
+       "name": "Assign Leads",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once \u2014 so a Monday morning's forty enquiries are shared out in one action rather than opened one at a time.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/assign_leads"
+      },
+      {
+       "key": "admissions.enquiries.follow_up_calls",
+       "slug": "follow_up_calls",
+       "name": "Follow-up Calls",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The calls you owe parents today about their enquiry: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/follow_up_calls"
+      },
+      {
+       "key": "admissions.enquiries.24_7_admission_chatbot",
+       "slug": "24_7_admission_chatbot",
+       "name": "24/7 Admission Chatbot",
+       "scope": "institution",
+       "tier": "optional",
+       "expect": "Configure web widget chatbot to answer tuition queries, syllabus details, and capture leads.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/24_7_admission_chatbot"
+      },
+      {
+       "key": "admissions.enquiries.ai_voice_agent_integration",
+       "slug": "ai_voice_agent_integration",
+       "name": "AI Voice Agent Integration",
+       "scope": "institution",
+       "tier": "optional",
+       "expect": "Automate outbound AI voice agent calls to confirm entrance exam attendance or follow up.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/ai_voice_agent_integration"
+      },
+      {
+       "key": "admissions.enquiries.campus_visits",
+       "slug": "campus_visits",
+       "name": "Campus Visits",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/enquiries/campus_visits"
+      }
+     ]
+    },
+    {
+     "slug": "applications",
+     "name": "Applications",
+     "features": [
+      {
+       "key": "admissions.applications.application_forms",
+       "slug": "application_forms",
+       "name": "Application Forms",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/application_forms"
+      },
+      {
+       "key": "admissions.applications.document_verification",
+       "slug": "document_verification",
+       "name": "Document Verification",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Birth certificate, Aadhaar, transfer certificate and the last report card \u2014 each one marked verified, rejected or to be resubmitted, with the reason the parent is told.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/document_verification"
+      },
+      {
+       "key": "admissions.applications.entrance_tests",
+       "slug": "entrance_tests",
+       "name": "Entrance & Tests",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Applicants due to sit the test: the slot, the hall ticket number, and the marks. A candidate who clears the cut-off moves to the interview round.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/entrance_tests"
+      },
+      {
+       "key": "admissions.applications.interviews",
+       "slug": "interviews",
+       "name": "Interviews",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/interviews"
+      },
+      {
+       "key": "admissions.applications.principal_approval",
+       "slug": "principal_approval",
+       "name": "Principal Approval",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Applications waiting on the principal's word, oldest first: the child, the scores, the interview note, and one decision. Approving is what opens the fee counter for that family.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/applications/principal_approval"
+      }
+     ]
+    },
+    {
+     "slug": "communication",
+     "name": "Communication",
+     "features": [
+      {
+       "key": "admissions.communication.applicant_communication",
+       "slug": "applicant_communication",
+       "name": "Applicant communication",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Send status updates, reminders and admission instructions.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/communication/applicant_communication"
+      }
+     ]
+    },
+    {
+     "slug": "reports",
+     "name": "Reports",
+     "features": [
+      {
+       "key": "admissions.reports.admission_reports",
+       "slug": "admission_reports",
+       "name": "Admission reports",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Enquiries, applications and admissions with the conversion between them \u2014 the numbers a management committee asks for. Exports to a spreadsheet.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/reports/admission_reports"
+      },
+      {
+       "key": "admissions.reports.dropped_leads",
+       "slug": "dropped_leads",
+       "name": "Dropped leads",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Why parents did not join, counted: fees, distance, chose another school. The reason is asked for when an enquiry is marked lost, so this is built from what was actually recorded.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/reports/dropped_leads"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "admissions.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/my_profile/my_pay"
+      }
+     ]
+    },
+    {
+     "slug": "admissions",
+     "name": "Admissions",
+     "features": [
+      {
+       "key": "admissions.admissions.all_admissions",
+       "slug": "all_admissions",
+       "name": "All admissions",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Every applicant who has reached a decision stage, and what was decided \u2014 accepted, rejected or on hold. The list an admission clerk works from.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/all_admissions"
+      },
+      {
+       "key": "admissions.admissions.seat_allotment",
+       "slug": "seat_allotment",
+       "name": "Seat Allotment",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Rank the applicants on the weights the school has set \u2014 test score, sibling, distance \u2014 against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/seat_allotment"
+      },
+      {
+       "key": "admissions.admissions.waitlist",
+       "slug": "waitlist",
+       "name": "Waitlist",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is next if a seat is given up, in order, with the date they went on.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/waitlist"
+      },
+      {
+       "key": "admissions.admissions.rte_quota",
+       "slug": "rte_quota",
+       "name": "RTE Quota",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/rte_quota"
+      },
+      {
+       "key": "admissions.admissions.fee_enrollment",
+       "slug": "fee_enrollment",
+       "name": "Fee & Enrollment",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section \u2014 without anybody typing the child's details a second time.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/fee_enrollment"
+      },
+      {
+       "key": "admissions.admissions.id_compliance",
+       "slug": "id_compliance",
+       "name": "ID & Compliance",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Aadhaar, APAAR and the PEN each child needs, checked for shape as they are typed, and the export UDISE+ expects. A missing one found now is not found at reporting time.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/admissions/id_compliance"
+      }
+     ]
+    },
+    {
+     "slug": "front_desk",
+     "name": "Front Desk",
+     "features": [
+      {
+       "key": "admissions.front_desk.visitors_log",
+       "slug": "visitors_log",
+       "name": "Visitors log",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is on campus right now and who has been: name, phone, who they are here to see, and the time in. Checking somebody out is a button on their row, and a pass prints from the same place.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/front_desk/visitors_log"
+      },
+      {
+       "key": "admissions.front_desk.parent_appointments",
+       "slug": "parent_appointments",
+       "name": "Parent appointments",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/front_desk/parent_appointments"
+      },
+      {
+       "key": "admissions.front_desk.daily_call_log",
+       "slug": "daily_call_log",
+       "name": "Daily call log",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Calls in and out with who took them and what was said \u2014 the register the front office keeps by the phone.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/front_desk/daily_call_log"
+      },
+      {
+       "key": "admissions.front_desk.dispatch_courier",
+       "slug": "dispatch_courier",
+       "name": "Dispatch & courier",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/admissions/front_desk/dispatch_courier"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "front_office",
+   "name": "Receptionist / Front Office",
+   "sections": [
+    {
+     "slug": "front_desk",
+     "name": "Front Desk",
+     "features": [
+      {
+       "key": "front_office.front_desk.visitors_log",
+       "slug": "visitors_log",
+       "name": "Visitors log",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is on the premises right now and who has been: name, phone, who they are here to see, and the time in. Signing somebody out is a button on their row, and the pass prints from the same place. The block list is checked as the pass is issued.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/visitors_log"
+      },
+      {
+       "key": "front_office.front_desk.parent_appointments",
+       "slug": "parent_appointments",
+       "name": "Parent appointments",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Meetings booked with a teacher or the office: who is expected, when, and who turned up.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/parent_appointments"
+      },
+      {
+       "key": "front_office.front_desk.daily_call_log",
+       "slug": "daily_call_log",
+       "name": "Daily call log",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Calls in and out, who took them and what was said \u2014 the register the front office keeps by the phone, and the messages still waiting to be passed on.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/daily_call_log"
+      },
+      {
+       "key": "front_office.front_desk.dispatch_courier",
+       "slug": "dispatch_courier",
+       "name": "Dispatch & courier",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/front_office/front_desk/dispatch_courier"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "front_office.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/front_office/my_profile/my_pay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "hr",
+   "name": "HR & Payroll",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "hr.home.dashboard",
+       "slug": "dashboard",
+       "name": "Dashboard",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Who is away today and whose classes need covering, what paperwork is lapsing or missing, and the three jobs a day is mostly made of.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/home/dashboard"
+      }
+     ]
+    },
+    {
+     "slug": "attendance",
+     "name": "Attendance",
+     "features": [
+      {
+       "key": "hr.attendance.staff_register",
+       "slug": "staff_register",
+       "name": "Staff register",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Today's attendance for every active member of staff, marked in one pass.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/attendance/staff_register"
+      },
+      {
+       "key": "hr.attendance.biometric_machine_attendance_sync",
+       "slug": "biometric_machine_attendance_sync",
+       "name": "Biometric Machine Attendance Sync",
+       "scope": "institution",
+       "tier": "advanced",
+       "expect": "Real-time automated fetch of staff check-in/out logs from biometric hardware.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/attendance/biometric_machine_attendance_sync"
+      },
+      {
+       "key": "hr.attendance.biometric_punch_in_out_grace_period",
+       "slug": "biometric_punch_in_out_grace_period",
+       "name": "Biometric Punch In/Out Grace Period",
+       "scope": "institution",
+       "tier": "advanced",
+       "expect": "Configure 10-minute grace windows for morning staff check-in before triggering late mark deductions.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/attendance/biometric_punch_in_out_grace_period"
+      },
+      {
+       "key": "hr.attendance.staff_duty_roster",
+       "slug": "staff_duty_roster",
+       "name": "Staff duty roster",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Assign staff to campus duties - gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they teach.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/attendance/staff_duty_roster"
+      }
+     ]
+    },
+    {
+     "slug": "leave",
+     "name": "Leave",
+     "features": [
+      {
+       "key": "hr.leave.leave",
+       "slug": "leave",
+       "name": "Leave",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Leave balances, requests, approvals and holiday calendar.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/leave/leave"
+      },
+      {
+       "key": "hr.leave.leave_rules",
+       "slug": "leave_rules",
+       "name": "Leave rules",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The rules leave is decided by: how much of each type staff get a year, what counts as a late arrival and when it becomes loss of pay, and how a half day is deducted. Set once; every leave request and every payslip follows it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/leave/leave_rules"
+      }
+     ]
+    },
+    {
+     "slug": "hiring_training",
+     "name": "Hiring & Training",
+     "features": [
+      {
+       "key": "hr.hiring_training.staff_hiring",
+       "slug": "staff_hiring",
+       "name": "Staff hiring",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Create job openings, track the people who apply and the demo lesson that decides, and turn a hire into a staff record without anybody typing the details a second time.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/hiring_training/staff_hiring"
+      },
+      {
+       "key": "hr.hiring_training.staff_performance_reviews",
+       "slug": "staff_performance_reviews",
+       "name": "Staff performance reviews",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Set up the yearly review cycle for teachers and staff: the scoring scale, when self-assessments are due and when the principal's review is due. Scores are kept on the staff member's record.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/hiring_training/staff_performance_reviews"
+      },
+      {
+       "key": "hr.hiring_training.staff_training_development",
+       "slug": "staff_training_development",
+       "name": "Staff training & development",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The training hours each board requires \u2014 CBSE asks fifty a year of teaching staff \u2014 and who is short of them, worst first, so the gap is closed before an inspection finds it.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/hiring_training/staff_training_development"
+      }
+     ]
+    },
+    {
+     "slug": "reports",
+     "name": "Reports",
+     "features": [
+      {
+       "key": "hr.reports.staff_analytics_reports",
+       "slug": "staff_analytics_reports",
+       "name": "Staff analytics & reports",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/reports/staff_analytics_reports"
+      }
+     ]
+    },
+    {
+     "slug": "my_profile",
+     "name": "My Profile",
+     "features": [
+      {
+       "key": "hr.my_profile.my_pay",
+       "slug": "my_pay",
+       "name": "My pay",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/my_profile/my_pay"
+      }
+     ]
+    },
+    {
+     "slug": "records",
+     "name": "Records",
+     "features": [
+      {
+       "key": "hr.records.staff_records",
+       "slug": "staff_records",
+       "name": "Staff records",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/records/staff_records"
+      },
+      {
+       "key": "hr.records.service_book_qualifications",
+       "slug": "service_book_qualifications",
+       "name": "Service book & qualifications",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "The service record kept for each teacher over their career \u2014 postings, promotions, increments \u2014 and their degrees and teaching qualifications, which is what an inspector asks to see.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/records/service_book_qualifications"
+      }
+     ]
+    },
+    {
+     "slug": "onboarding_exit",
+     "name": "Onboarding & Exit",
+     "features": [
+      {
+       "key": "hr.onboarding_exit.staff_joinings_exits",
+       "slug": "staff_joinings_exits",
+       "name": "Staff joinings & exits",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "One page, four tabs: the KYC and documents a new appointment depends on; the resignation, notice period and department-by-department clearance an exit runs through; the appointment, experience and relieving letters issued along the way; and transfers between campuses or departments. The final settlement stays locked until every department has signed.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/onboarding_exit/staff_joinings_exits"
+      }
+     ]
+    },
+    {
+     "slug": "payroll",
+     "name": "Payroll",
+     "features": [
+      {
+       "key": "hr.payroll.monthly_payroll",
+       "slug": "monthly_payroll",
+       "name": "Monthly payroll",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Run the month's salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee's days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/monthly_payroll"
+      },
+      {
+       "key": "hr.payroll.salary_setup",
+       "slug": "salary_setup",
+       "name": "Salary setup",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "What each member of staff is paid, and the components a payslip is built from \u2014 basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year's payslips still explain themselves.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/salary_setup"
+      },
+      {
+       "key": "hr.payroll.taxes_statutory",
+       "slug": "taxes_statutory",
+       "name": "Taxes & statutory",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/payroll/taxes_statutory"
+      }
+     ]
+    },
+    {
+     "slug": "welfare",
+     "name": "Welfare",
+     "features": [
+      {
+       "key": "hr.welfare.staff_welfare",
+       "slug": "staff_welfare",
+       "name": "Staff welfare",
+       "scope": "institution",
+       "tier": "core",
+       "expect": "Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/hr/welfare/staff_welfare"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "student",
+   "name": "Student",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "student.home.my_day",
+       "slug": "my_day",
+       "name": "My day",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/home/my_day"
+      },
+      {
+       "key": "student.home.digital_diary_schedule",
+       "slug": "digital_diary_schedule",
+       "name": "Digital Diary & Schedule",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Track personal study schedules, project deadlines, and school calendar events.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/home/digital_diary_schedule"
+      },
+      {
+       "key": "student.home.custom_theme_selection",
+       "slug": "custom_theme_selection",
+       "name": "Custom Theme Selection",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Customize student portal appearance with dark mode, high-contrast mode, or color themes.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/home/custom_theme_selection"
+      }
+     ]
+    },
+    {
+     "slug": "timetable",
+     "name": "Timetable",
+     "features": [
+      {
+       "key": "student.timetable.timetable",
+       "slug": "timetable",
+       "name": "Timetable",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Daily/weekly class timetable and exam timetable.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/timetable/timetable"
+      }
+     ]
+    },
+    {
+     "slug": "attendance",
+     "name": "Attendance",
+     "features": [
+      {
+       "key": "student.attendance.attendance",
+       "slug": "attendance",
+       "name": "Attendance",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/attendance/attendance"
+      },
+      {
+       "key": "student.attendance.apply_for_leave",
+       "slug": "apply_for_leave",
+       "name": "Apply for leave",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/attendance/apply_for_leave"
+      }
+     ]
+    },
+    {
+     "slug": "homework",
+     "name": "Homework",
+     "features": [
+      {
+       "key": "student.homework.homework_assignments",
+       "slug": "homework_assignments",
+       "name": "Homework & assignments",
+       "scope": "self",
+       "tier": "core",
+       "expect": "View due/overdue/submitted work; submit files/text where enabled.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/homework/homework_assignments"
+      },
+      {
+       "key": "student.homework.classmate_homework_help_forum",
+       "slug": "classmate_homework_help_forum",
+       "name": "Classmate Homework Help Forum",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Moderated discussion board where students can post homework questions and share study hints.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/homework/classmate_homework_help_forum"
+      }
+     ]
+    },
+    {
+     "slug": "learning",
+     "name": "Learning",
+     "features": [
+      {
+       "key": "student.learning.courses_subjects",
+       "slug": "courses_subjects",
+       "name": "Courses / subjects",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Current enrolled courses/subjects, teacher and learning resources.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/courses_subjects"
+      },
+      {
+       "key": "student.learning.e_learning_resource_hub",
+       "slug": "e_learning_resource_hub",
+       "name": "E-Learning Resource Hub",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/e_learning_resource_hub"
+      },
+      {
+       "key": "student.learning.ai_personal_learning_companion",
+       "slug": "ai_personal_learning_companion",
+       "name": "AI Personal Learning Companion",
+       "scope": "self",
+       "tier": "core",
+       "expect": "24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/ai_personal_learning_companion"
+      },
+      {
+       "key": "student.learning.peer_tutoring_study_groups",
+       "slug": "peer_tutoring_study_groups",
+       "name": "Peer Tutoring & Study Groups",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Sign up as student tutors or request peer study group assistance in specific subjects.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/peer_tutoring_study_groups"
+      },
+      {
+       "key": "student.learning.gamified_learning_streak_counter",
+       "slug": "gamified_learning_streak_counter",
+       "name": "Gamified Learning Streak Counter",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Visual daily login and homework completion streak counter rewarding students with digital badges.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/gamified_learning_streak_counter"
+      },
+      {
+       "key": "student.learning.gamified_learning_badge_showcase",
+       "slug": "gamified_learning_badge_showcase",
+       "name": "Gamified Learning Badge Showcase",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Display earned academic, behavioral, and extracurricular digital badges on public student profile.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/gamified_learning_badge_showcase"
+      },
+      {
+       "key": "student.learning.virtual_classroom_hand_raise_telemetry",
+       "slug": "virtual_classroom_hand_raise_telemetry",
+       "name": "Virtual Classroom Hand-Raise Telemetry",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Log student digital hand-raises during live virtual classes to measure real-time engagement.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/virtual_classroom_hand_raise_telemetry"
+      },
+      {
+       "key": "student.learning.global_university_guidance_counselor",
+       "slug": "global_university_guidance_counselor",
+       "name": "Global University Guidance Counselor",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Track college application deadlines, essay drafts, and request teacher Letters of Recommendation (LOR).",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/global_university_guidance_counselor"
+      },
+      {
+       "key": "student.learning.student_portfolio_management",
+       "slug": "student_portfolio_management",
+       "name": "Student Portfolio Management",
+       "scope": "self",
+       "tier": "advanced",
+       "expect": "Maintain personal showcase portfolio containing certificates, creative projects, and sports records.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/learning/student_portfolio_management"
+      }
+     ]
+    },
+    {
+     "slug": "exams_results",
+     "name": "Exams & Results",
+     "features": [
+      {
+       "key": "student.exams_results.exams_grades",
+       "slug": "exams_grades",
+       "name": "Exams & grades",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Exam schedule, marks, grades, published results and report cards.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/exams_results/exams_grades"
+      },
+      {
+       "key": "student.exams_results.academic_record",
+       "slug": "academic_record",
+       "name": "Academic record",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Current/previous grades, transcript/academic history when published.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/exams_results/academic_record"
+      }
+     ]
+    },
+    {
+     "slug": "fees",
+     "name": "Fees",
+     "features": [
+      {
+       "key": "student.fees.fees",
+       "slug": "fees",
+       "name": "Fees",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Current dues, fee history, payment status, online payment and receipts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/fees/fees"
+      }
+     ]
+    },
+    {
+     "slug": "notices_calendar",
+     "name": "Notices & Calendar",
+     "features": [
+      {
+       "key": "student.notices_calendar.calendar",
+       "slug": "calendar",
+       "name": "Calendar",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Academic calendar, holidays, events and deadlines.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/notices_calendar/calendar"
+      },
+      {
+       "key": "student.notices_calendar.library_book_hold_request",
+       "slug": "library_book_hold_request",
+       "name": "Library Book Hold Request",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Reserve available library books online for pickup at the start of the next school day.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/notices_calendar/library_book_hold_request"
+      }
+     ]
+    },
+    {
+     "slug": "campus_life",
+     "name": "Campus Life",
+     "features": [
+      {
+       "key": "student.campus_life.student_wall_peer_recognition",
+       "slug": "student_wall_peer_recognition",
+       "name": "Student Wall & Peer Recognition",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "View school news, student council announcements, badge achievements, and art features.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/student_wall_peer_recognition"
+      },
+      {
+       "key": "student.campus_life.digital_hall_of_fame",
+       "slug": "digital_hall_of_fame",
+       "name": "Digital Hall of Fame",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Showcase historic trophies, school record holders, and national rankers across academic/sports.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/digital_hall_of_fame"
+      },
+      {
+       "key": "student.campus_life.student_club_event_ticketing_qr_check_in",
+       "slug": "student_club_event_ticketing_qr_check_in",
+       "name": "Student Club Event Ticketing & QR Check-In",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Register for campus drama, music, or science events and generate QR-coded admission tickets.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/student_club_event_ticketing_qr_check_in"
+      },
+      {
+       "key": "student.campus_life.lost_found_item_board",
+       "slug": "lost_found_item_board",
+       "name": "Lost & Found Item Board",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Post missing items or report found items with photos on the digital lost-and-found board.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/lost_found_item_board"
+      },
+      {
+       "key": "student.campus_life.lost_found_photo_board_with_claim_verification",
+       "slug": "lost_found_photo_board_with_claim_verification",
+       "name": "Lost & Found Photo Board with Claim Verification",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "View photos of lost items found on campus and submit digital claim proof to reclaim items.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/lost_found_photo_board_with_claim_verification"
+      },
+      {
+       "key": "student.campus_life.digital_locker_combination_access_log",
+       "slug": "digital_locker_combination_access_log",
+       "name": "Digital Locker Combination & Access Log",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Manage assigned physical hallway locker numbers and view digital access keycode history.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/campus_life/digital_locker_combination_access_log"
+      }
+     ]
+    },
+    {
+     "slug": "alumni",
+     "name": "Alumni",
+     "features": [
+      {
+       "key": "student.alumni.alumni_network_registration",
+       "slug": "alumni_network_registration",
+       "name": "Alumni Network Registration",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Register for the official school alumni network upon passing out to stay connected with batchmates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/alumni/alumni_network_registration"
+      },
+      {
+       "key": "student.alumni.alumni_job_internship_board",
+       "slug": "alumni_job_internship_board",
+       "name": "Alumni Job & Internship Board",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Senior students access exclusive internship and entry-level job posts shared by alumni network.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/alumni/alumni_job_internship_board"
+      }
+     ]
+    },
+    {
+     "slug": "requests",
+     "name": "Requests",
+     "features": [
+      {
+       "key": "student.requests.requests",
+       "slug": "requests",
+       "name": "Requests",
+       "scope": "self",
+       "tier": "core",
+       "expect": "Ask the office for a document \u2014 bonafide, transfer certificate, conduct certificate, a duplicate ID card \u2014 and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/requests/requests"
+      }
+     ]
+    },
+    {
+     "slug": "profile",
+     "name": "Profile",
+     "features": [
+      {
+       "key": "student.profile.digital_student_id_card_nfc_tap_pass",
+       "slug": "digital_student_id_card_nfc_tap_pass",
+       "name": "Digital Student ID Card NFC Tap Pass",
+       "scope": "self",
+       "tier": "optional",
+       "expect": "Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/student/profile/digital_student_id_card_nfc_tap_pass"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "parent",
+   "name": "Parent / Guardian",
+   "sections": [
+    {
+     "slug": "home",
+     "name": "Home",
+     "features": [
+      {
+       "key": "parent.home.child_switcher",
+       "slug": "child_switcher",
+       "name": "Child switcher",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Switch between linked children without separate accounts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/child_switcher"
+      },
+      {
+       "key": "parent.home.child_summary",
+       "slug": "child_summary",
+       "name": "Child summary",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/child_summary"
+      },
+      {
+       "key": "parent.home.needs_attention",
+       "slug": "needs_attention",
+       "name": "Needs attention",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/needs_attention"
+      },
+      {
+       "key": "parent.home.real_time_push_notifications",
+       "slug": "real_time_push_notifications",
+       "name": "Real-Time Push Notifications",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Receive instant app push alerts for homework, circulars, fee dues, and attendance.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/home/real_time_push_notifications"
+      }
+     ]
+    },
+    {
+     "slug": "attendance",
+     "name": "Attendance",
+     "features": [
+      {
+       "key": "parent.attendance.attendance",
+       "slug": "attendance",
+       "name": "Attendance",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Daily/monthly attendance and absence history for the selected child.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/attendance/attendance"
+      },
+      {
+       "key": "parent.attendance.child_absence_reporting_button",
+       "slug": "child_absence_reporting_button",
+       "name": "Child Absence Reporting Button",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Notify class teacher in advance of child's planned absence with 1-click reason selection.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/attendance/child_absence_reporting_button"
+      }
+     ]
+    },
+    {
+     "slug": "academics",
+     "name": "Academics",
+     "features": [
+      {
+       "key": "parent.academics.homework_academics",
+       "slug": "homework_academics",
+       "name": "Homework & academics",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Homework, classwork, subjects and published academic progress.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/homework_academics"
+      },
+      {
+       "key": "parent.academics.results_report_cards",
+       "slug": "results_report_cards",
+       "name": "Results & report cards",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Exam schedule, marks/grades and downloadable published report cards.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/results_report_cards"
+      },
+      {
+       "key": "parent.academics.ai_child_performance_summary_audio",
+       "slug": "ai_child_performance_summary_audio",
+       "name": "AI Child Performance Summary Audio",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/ai_child_performance_summary_audio"
+      },
+      {
+       "key": "parent.academics.iep_progress_goal_tracker",
+       "slug": "iep_progress_goal_tracker",
+       "name": "IEP Progress Goal Tracker",
+       "scope": "children",
+       "tier": "advanced",
+       "expect": "View real-time progress bars towards child's specific IEP milestones and therapy goals.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/iep_progress_goal_tracker"
+      },
+      {
+       "key": "parent.academics.child_remarks",
+       "slug": "child_remarks",
+       "name": "Child remarks",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Everything your child's teachers have written about them \u2014 commendations and concerns alike \u2014 newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/academics/child_remarks"
+      }
+     ]
+    },
+    {
+     "slug": "fees",
+     "name": "Fees",
+     "features": [
+      {
+       "key": "parent.fees.fees_payments",
+       "slug": "fees_payments",
+       "name": "Fees & payments",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Dues, installments, online payment, payment history and receipts.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/fees_payments"
+      },
+      {
+       "key": "parent.fees.digital_fee_receipt_pdf_download",
+       "slug": "digital_fee_receipt_pdf_download",
+       "name": "Digital Fee Receipt PDF Download",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Download official stamped PDF fee receipts directly to parent smartphone storage.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/digital_fee_receipt_pdf_download"
+      },
+      {
+       "key": "parent.fees.child_daily_cafeteria_purchase_timeline",
+       "slug": "child_daily_cafeteria_purchase_timeline",
+       "name": "Child Daily Cafeteria Purchase Timeline",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "View exact timestamped items, prices, and nutritional content bought by child in canteen.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/fees/child_daily_cafeteria_purchase_timeline"
+      }
+     ]
+    },
+    {
+     "slug": "my_childs_bus",
+     "name": "My Child's Bus",
+     "features": [
+      {
+       "key": "parent.my_childs_bus.transport_snapshot",
+       "slug": "transport_snapshot",
+       "name": "Transport snapshot",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Bus route/stop/tracking only when transport module is enabled.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/transport_snapshot"
+      },
+      {
+       "key": "parent.my_childs_bus.live_bus_tracking_map",
+       "slug": "live_bus_tracking_map",
+       "name": "Live Bus Tracking Map",
+       "scope": "children",
+       "tier": "core",
+       "expect": "View real-time movement of child's bus on an interactive map with estimated time of arrival.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/live_bus_tracking_map"
+      },
+      {
+       "key": "parent.my_childs_bus.school_transport_driver_call_button",
+       "slug": "school_transport_driver_call_button",
+       "name": "School Transport Driver Call Button",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Direct masked call connection to bus attendant/driver during bus transit hours.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/school_transport_driver_call_button"
+      }
+     ]
+    },
+    {
+     "slug": "alerts_preferences",
+     "name": "Alerts & Preferences",
+     "features": [
+      {
+       "key": "parent.alerts_preferences.parent_bus_proximity_radius_customizer",
+       "slug": "parent_bus_proximity_radius_customizer",
+       "name": "Parent Bus Proximity Radius Customizer",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away).",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/alerts_preferences/parent_bus_proximity_radius_customizer"
+      },
+      {
+       "key": "parent.alerts_preferences.real_time_school_bus_live_video_feed_access",
+       "slug": "real_time_school_bus_live_video_feed_access",
+       "name": "Real-time School Bus Live Video Feed Access",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Permit authorized parents to view 15-second live video camera check-ins of child's bus during transit.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/alerts_preferences/real_time_school_bus_live_video_feed_access"
+      },
+      {
+       "key": "parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer",
+       "slug": "parent_app_live_bus_tracking_refresh_rate_customizer",
+       "name": "Parent App Live Bus Tracking Refresh Rate Customizer",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/alerts_preferences/parent_app_live_bus_tracking_refresh_rate_customizer"
+      }
+     ]
+    },
+    {
+     "slug": "messages",
+     "name": "Messages",
+     "features": [
+      {
+       "key": "parent.messages.communication",
+       "slug": "communication",
+       "name": "Communication",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Circulars, announcements and permitted teacher/school messages.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/communication"
+      },
+      {
+       "key": "parent.messages.direct_teacher_messaging",
+       "slug": "direct_teacher_messaging",
+       "name": "Direct Teacher Messaging",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Send structured query messages directly to class teacher during designated hours.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/direct_teacher_messaging"
+      },
+      {
+       "key": "parent.messages.teacher_remarks",
+       "slug": "teacher_remarks",
+       "name": "Teacher remarks",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Write a remark about one of your child's teachers. It reaches the head of department and the teacher.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/messages/teacher_remarks"
+      }
+     ]
+    },
+    {
+     "slug": "school_life",
+     "name": "School Life",
+     "features": [
+      {
+       "key": "parent.school_life.calendar_ptm",
+       "slug": "calendar_ptm",
+       "name": "Calendar & PTM",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Exams, holidays, events, parent-teacher meetings and booking where enabled.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/calendar_ptm"
+      },
+      {
+       "key": "parent.school_life.parent_teacher_meeting_booking",
+       "slug": "parent_teacher_meeting_booking",
+       "name": "Parent-Teacher Meeting Booking",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Select available PTM time slots to meet subject teachers without queueing.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/parent_teacher_meeting_booking"
+      },
+      {
+       "key": "parent.school_life.ptm_appointment_reminder_alert",
+       "slug": "ptm_appointment_reminder_alert",
+       "name": "PTM Appointment Reminder Alert",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/ptm_appointment_reminder_alert"
+      },
+      {
+       "key": "parent.school_life.school_photo_video_gallery",
+       "slug": "school_photo_video_gallery",
+       "name": "School Photo & Video Gallery",
+       "scope": "children",
+       "tier": "core",
+       "expect": "View high-resolution photos and videos from school sports day, annual day, and events.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/school_photo_video_gallery"
+      },
+      {
+       "key": "parent.school_life.live_event_seating_pass",
+       "slug": "live_event_seating_pass",
+       "name": "Live Event Seating Pass",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Download barcoded digital entry passes with pre-allocated row/seat numbers for school events.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/school_life/live_event_seating_pass"
+      }
+     ]
+    },
+    {
+     "slug": "documents",
+     "name": "Documents",
+     "features": [
+      {
+       "key": "parent.documents.certificate_requests",
+       "slug": "certificate_requests",
+       "name": "Certificate requests",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Ask the office for a document about your child \u2014 bonafide, transfer certificate, conduct certificate, a duplicate ID card \u2014 and follow each request until the signed copy is ready to download.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/documents/certificate_requests"
+      },
+      {
+       "key": "parent.documents.digilocker_document_pull",
+       "slug": "digilocker_document_pull",
+       "name": "DigiLocker Document Pull",
+       "scope": "children",
+       "tier": "advanced",
+       "expect": "Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/documents/digilocker_document_pull"
+      }
+     ]
+    },
+    {
+     "slug": "leave_absence",
+     "name": "Leave & Absence",
+     "features": [
+      {
+       "key": "parent.leave_absence.apply_student_leave",
+       "slug": "apply_student_leave",
+       "name": "Apply Student Leave",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Submit digital student leave applications with reason and medical certificate attachments.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/leave_absence/apply_student_leave"
+      }
+     ]
+    },
+    {
+     "slug": "consent",
+     "name": "Consent",
+     "features": [
+      {
+       "key": "parent.consent.consent_acknowledgement",
+       "slug": "consent_acknowledgement",
+       "name": "Consent & acknowledgement",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Acknowledge circulars, permissions, trips and configured consent forms.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/consent/consent_acknowledgement"
+      },
+      {
+       "key": "parent.consent.digital_parent_consent_slips",
+       "slug": "digital_parent_consent_slips",
+       "name": "Digital Parent Consent Slips",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Provide digital signature consent for upcoming field trips, sports events, or health camps.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/consent/digital_parent_consent_slips"
+      },
+      {
+       "key": "parent.consent.parent_delegation_for_emergency_pickup",
+       "slug": "parent_delegation_for_emergency_pickup",
+       "name": "Parent Delegation for Emergency Pickup",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/consent/parent_delegation_for_emergency_pickup"
+      }
+     ]
+    },
+    {
+     "slug": "profile",
+     "name": "Profile",
+     "features": [
+      {
+       "key": "parent.profile.digital_student_id_card_view",
+       "slug": "digital_student_id_card_view",
+       "name": "Digital Student ID Card View",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Access child's digital student ID card with QR code directly within the mobile app.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/digital_student_id_card_view"
+      },
+      {
+       "key": "parent.profile.digital_parent_id_card_for_campus_entry",
+       "slug": "digital_parent_id_card_for_campus_entry",
+       "name": "Digital Parent ID Card for Campus Entry",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/digital_parent_id_card_for_campus_entry"
+      },
+      {
+       "key": "parent.profile.parent_app_biometric_lock_face_id_fingerprint",
+       "slug": "parent_app_biometric_lock_face_id_fingerprint",
+       "name": "Parent App Biometric Lock (Face ID / Fingerprint)",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Allow parents to secure mobile app access using smartphone hardware biometric authentication.",
+       "built": false,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/parent_app_biometric_lock_face_id_fingerprint"
+      },
+      {
+       "key": "parent.profile.multi_language_app_interface_toggle",
+       "slug": "multi_language_app_interface_toggle",
+       "name": "Multi-Language App Interface Toggle",
+       "scope": "children",
+       "tier": "core",
+       "expect": "Switch complete parent mobile app UI between English, Hindi, Telugu, Tamil, Marathi, and regional languages.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/multi_language_app_interface_toggle"
+      },
+      {
+       "key": "parent.profile.telugu_language_interface",
+       "slug": "telugu_language_interface",
+       "name": "Telugu Language Interface",
+       "scope": "children",
+       "tier": "advanced",
+       "expect": "Use the parent app entirely in Telugu, including circulars, fee notices and report cards.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/telugu_language_interface"
+      },
+      {
+       "key": "parent.profile.parent_app_dark_mode_high_contrast_accessibility",
+       "slug": "parent_app_dark_mode_high_contrast_accessibility",
+       "name": "Parent App Dark Mode & High Contrast Accessibility",
+       "scope": "children",
+       "tier": "optional",
+       "expect": "Toggle high-contrast text modes and dark UI themes for low-vision parent app users.",
+       "built": true,
+       "url": "https://temperp.187-127-178-100.sslip.io/parent/profile/parent_app_dark_mode_high_contrast_accessibility"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

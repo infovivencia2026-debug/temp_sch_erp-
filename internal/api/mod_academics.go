@@ -1190,6 +1190,7 @@ type examSubjectRow struct {
 // listExamSubjects lists the papers a teacher can enter marks against, with
 // how many are already done so the pending ones are obvious.
 func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
 	res, err := s.resolveScope(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -1215,16 +1216,44 @@ func (s *Server) listExamSubjects(w http.ResponseWriter, r *http.Request) {
 		nullString(q.Get("class_id")),
 		nullString(q.Get("exam_kind")),
 	}
+	/* The subject, not just the class.
+
+	   This narrowed to the sections the caller teaches in, which is a
+	   different question from the one the screen asks. A Telugu teacher who
+	   takes 6-B was offered every paper of 6-B — Telugu, English, General
+	   Science, Hindi, Mathematics — because she teaches somebody in that
+	   class. Five papers she cannot mark, one she can, and no way to tell
+	   which from the list.
+
+	   Saving already refused her: enterMarks checks the allocation and returns
+	   403. So the dropdown was inviting a teacher into four papers that would
+	   turn her away at the end, which is worse than not offering them — she
+	   finds out after typing twenty marks.
+
+	   Two things belong here, and they are different rights. A subject teacher
+	   reaches the papers of the class_subjects she is allocated to. A class
+	   teacher reaches every subject of her own section, because collating the
+	   whole section's marks into a report card is her job and the school has
+	   nobody else to do it. The exam controller and the office still see all
+	   of it — AllStudents is what marks them out. */
 	mine := "TRUE"
 	if !res.AllStudents {
-		if len(res.SectionIDs) == 0 {
-			mine = "FALSE"
-		} else {
-			args = append(args, res.SectionIDs)
-			mine = `EXISTS (SELECT 1 FROM sections msec
-			                 WHERE msec.class_id = cs.class_id
-			                   AND msec.id = ANY($` + itoa(len(args)) + `))`
+		clauses := []string{}
+
+		// Allocated to teach this class_subject.
+		args = append(args, id.UserID)
+		clauses = append(clauses, `EXISTS (SELECT 1 FROM section_subject_teachers t
+		                                    WHERE t.teacher_user_id = $`+itoa(len(args))+`
+		                                      AND t.class_subject_id = cs.id)`)
+
+		// Class teacher of a section in this class: every subject of it.
+		if len(res.ClassTeacherOf) > 0 {
+			args = append(args, res.ClassTeacherOf)
+			clauses = append(clauses, `EXISTS (SELECT 1 FROM sections cts
+			                                    WHERE cts.id = ANY($`+itoa(len(args))+`)
+			                                      AND cts.class_id = cs.class_id)`)
 		}
+		mine = "(" + strings.Join(clauses, " OR ") + ")"
 	}
 
 	items, err := collect(s, r, `

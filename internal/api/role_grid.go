@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/school-erp/erp/internal/catalog"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
 )
@@ -496,30 +495,15 @@ func (s *Server) installRole(w http.ResponseWriter, r *http.Request) {
 	var roleID uuid.UUID
 	var created bool
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var err error
-		roleID, created, err = rbac.InstallRole(r.Context(), tx, id.InstitutionID, req.Key)
-		if err != nil {
-			return err
-		}
 		/* Half the optional roles are catalog personas as well as capability
 		   roles — hod and operations own a whole workspace. Installing the
 		   capabilities without the navigation gives the school a role that can
-		   reach everything and shows nothing, so the menu grants are written
-		   here too, exactly as cmd/migrate writes them at seed time. */
-		persona, ok := catalog.RoleByKey(req.Key)
-		if !ok {
-			return nil
-		}
-		for _, sec := range persona.Sections {
-			for _, f := range sec.Features {
-				if _, err := tx.Exec(r.Context(), `
-					INSERT INTO role_permissions (role_id, permission_key)
-					VALUES ($1,$2) ON CONFLICT DO NOTHING`, roleID, f.Key); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
+		   reach everything and shows nothing, so the menu grants go with them;
+		   installOptionalRole is that pair, shared with the preset path, which
+		   used to skip an uninstalled role in silence. */
+		var err error
+		roleID, created, err = installOptionalRole(r.Context(), tx, id.InstitutionID, req.Key)
+		return err
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())

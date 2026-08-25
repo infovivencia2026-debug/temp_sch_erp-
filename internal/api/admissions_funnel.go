@@ -605,7 +605,7 @@ type openDayRow struct {
 	Capacity  int     `json:"capacity"`
 	Booked    int     `json:"booked"`
 	Attended  int     `json:"attended"`
-	Families  int     `json:"families"`
+	Families  int     `json:"parents"`
 }
 
 func (s *Server) listOpenDays(w http.ResponseWriter, r *http.Request) {

@@ -207,7 +207,7 @@ export default function CampaignSequences() {
       <PageHead
         eyebrow="Admissions"
         title="Multi-touch campaign sequences"
-        description="A planned run of follow-ups for a new enquiry, which stops the moment the family converts or opts out."
+        description="A planned run of follow-ups for a new enquiry, which stops the moment the parent converts or opts out."
         actions={
           <Button onClick={() => run.mutate()} disabled={run.isPending}>
             <Send className="h-3.5 w-3.5" />
@@ -219,7 +219,7 @@ export default function CampaignSequences() {
         <CellGrid cols={4}>
           <Stat label="Sequences" value={rows.length} />
           <Stat
-            label="Families being nurtured"
+            label="Parents being nurtured"
             value={rows.reduce((n, c) => n + c.active_leads, 0)}
             icon={Users}
           />
@@ -317,7 +317,7 @@ export default function CampaignSequences() {
         {!campaignID && (
           <EmptyState
             title="Choose a sequence"
-            body="Its touches, the families on it and what has gone out all belong to one sequence."
+            body="Its touches, the parents on it and what has gone out all belong to one sequence."
           />
         )}
 
@@ -486,7 +486,7 @@ export default function CampaignSequences() {
               </div>
             ) : (
               <Table
-                head={['Family', 'Lead', 'On the sequence', 'Sent', 'Left', 'Next', 'Why it stopped', '']}
+                head={['Parent', 'Lead', 'On the sequence', 'Sent', 'Left', 'Next', 'Why it stopped', '']}
                 empty={!enrolments.isLoading && (enrolments.data?.items.length ?? 0) === 0}
                 emptyLabel="Nobody is on this sequence yet."
               >
@@ -554,7 +554,7 @@ export default function CampaignSequences() {
             </div>
           ) : (
             <Table
-              head={['Due', 'Sequence', 'Touch', 'Family', 'Channel', 'What happened', 'Why']}
+              head={['Due', 'Sequence', 'Touch', 'Parent', 'Channel', 'What happened', 'Why']}
               empty={!outbox.isLoading && (outbox.data?.items.length ?? 0) === 0}
               emptyLabel="Nothing has been due yet."
             >

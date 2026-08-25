@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { screen } from '@/lib/screen'
 
 /**
  * The administrative roll-ups, keyed by catalogue feature.
@@ -29,10 +29,10 @@ import { lazy } from 'react'
  * whole-table extracts.
  */
 export const rollupKeys = {
-  'institution_admin.fees.fee_dashboard': lazy(() => import('./FeeOverview')),
-  'institution_admin.department.department_academics': lazy(() => import('./DepartmentAcademics')),
-  'institution_admin.analysis.department_reports': lazy(() => import('./DepartmentReports')),
-  'institution_admin.analysis.performance_analytics': lazy(() => import('./PerformanceAnalytics')),
-  'institution_admin.standard.fee_collection': lazy(() => import('./CollectionSummaries')),
-  'hr.reports.hr_reports': lazy(() => import('./HRReports')),
+  'institution_admin.fees.fee_dashboard': screen(() => import('./FeeOverview')),
+  'institution_admin.department.department_academics': screen(() => import('./DepartmentAcademics')),
+  'institution_admin.analysis.department_reports': screen(() => import('./DepartmentReports')),
+  'institution_admin.analysis.performance_analytics': screen(() => import('./PerformanceAnalytics')),
+  'institution_admin.standard.fee_collection': screen(() => import('./CollectionSummaries')),
+  'hr.reports.hr_reports': screen(() => import('./HRReports')),
 }

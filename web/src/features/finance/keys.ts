@@ -1,3 +1,4 @@
+import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /**
@@ -23,11 +24,11 @@ import { lazy } from 'react'
  * blocks it at the counter for the same reason.
  */
 export const financeKeys = {
-  'finance.home.dashboard': lazy(() => import('./Dashboard')),
+  'finance.home.dashboard': screen(() => import('./Dashboard')),
 
   // Fee collection & setup.
-  'finance.fees.take_fee_payment': lazy(() => import('./FeeCounter')),
-  'finance.fees.online_fee_portal': lazy(() => import('./Payments')),
+  'finance.fees.take_fee_payment': screen(() => import('./FeeCounter')),
+  'finance.fees.online_fee_portal': screen(() => import('./Payments')),
   'finance.fees.unpaid_fees_reminders': lazy(() =>
     import('./bundles').then((m) => ({ default: m.UnpaidFees })),
   ),
@@ -62,5 +63,5 @@ export const financeKeys = {
     import('./bundles').then((m) => ({ default: m.AccountingReports })),
   ),
 
-  'finance.my_profile.my_pay': lazy(() => import('../me/MyPay')),
+  'finance.my_profile.my_pay': screen(() => import('../me/MyPay')),
 }

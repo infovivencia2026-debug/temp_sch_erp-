@@ -28,7 +28,7 @@ export default function Remarks() {
       anecdotal={false}
       eyebrow="Teaching workspace"
       title="Remarks"
-      description="Academic and class observations about the children you teach. Shared with the family unless you mark a remark staff-only."
+      description="Academic and class observations about the children you teach. Shared with the parent unless you mark a remark staff-only."
     />
   )
 }
@@ -84,7 +84,7 @@ export function RemarkBoard({
             label="Staff only"
             value={shown.filter((r) => r.private).length}
             icon={Lock}
-            hint="Never shown in the family portal"
+            hint="Never shown in the parent portal"
           />
         </CellGrid>
 
@@ -99,8 +99,8 @@ export function RemarkBoard({
               title={anecdotal ? 'No notes yet' : 'Nothing written yet'}
               body={
                 anecdotal
-                  ? 'Anecdotal records stay with the staff who teach this child. They are never shown to the family.'
-                  : 'Remarks you write appear here, and in the family portal unless you mark them staff-only.'
+                  ? 'Anecdotal records stay with the staff who teach this child. They are never shown to the parent.'
+                  : 'Remarks you write appear here, and in the parent portal unless you mark them staff-only.'
               }
             />
           ) : (
@@ -169,7 +169,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remarks'] })
       qc.invalidateQueries({ queryKey: ['comms-summary'] })
-      toast.ok(f.staffOnly ? 'Note filed — staff only' : 'Remark saved and shared with the family')
+      toast.ok(f.staffOnly ? 'Note filed — staff only' : 'Remark saved and shared with the parent')
       onClose()
     },
   })
@@ -180,7 +180,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
         title={anecdotal ? 'New anecdotal record' : 'New remark'}
         description={
           anecdotal
-            ? 'Kept for the staff who teach this child. Never shown to the family.'
+            ? 'Kept for the staff who teach this child. Never shown to the parent.'
             : 'Say what you saw. A remark with an example in it is the one a parent can act on.'
         }
       />
@@ -255,7 +255,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
               checked={f.staffOnly}
               onChange={(v) => setF({ ...f, staffOnly: v })}
               label="Staff only"
-              hint="Keep this out of the family portal. Use it for something the family should hear from you first."
+              hint="Keep this out of the parent portal. Use it for something the parent should hear from you first."
             />
           </div>
         )}

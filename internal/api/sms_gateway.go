@@ -1566,7 +1566,7 @@ smsGatewayAdvisory is the sentence that has to appear in the product.
 	fee campaign to nine hundred families from a personal SIM and have the
 	number disconnected, and the first they will know is that nothing arrives.
 */
-const smsGatewayAdvisory = "This is not a licensed bulk-SMS service. Indian commercial SMS requires a DLT-registered sender id and pre-approved templates; a personal SIM sending in bulk will be throttled by the carrier and may be disconnected. Use this for tens of messages a day to a few hundred families — for a fee campaign to the whole school, buy a licensed gateway."
+const smsGatewayAdvisory = "This is not a licensed bulk-SMS service. Indian commercial SMS requires a DLT-registered sender id and pre-approved templates; a personal SIM sending in bulk will be throttled by the carrier and may be disconnected. Use this for tens of messages a day to a few hundred parents — for a fee campaign to the whole school, buy a licensed gateway."
 
 /*
 getSMSGatewayOverview is the whole admin screen in one call.

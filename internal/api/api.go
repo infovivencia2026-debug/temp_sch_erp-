@@ -233,6 +233,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/exams", s.createExam)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads", s.listFeeHeads)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
+			// Pricing a class means naming one. Accounts holds fees.write and
+			// not academics.read, so without this the class dropdown on the
+			// fee-structure form was empty for exactly the people who use it.
+			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-classes", s.listClasses)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-structures", s.createFeeStructure)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-structures", s.listFeeStructures)
 			// Fees are re-set every year; a price list you cannot remove is
@@ -313,6 +317,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/today", s.listTodaysClasses)
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
+			// The teacher's half of the parent conversation — see
+			// teacher_parent_inbox.go. The reply leg already existed; being
+			// told there was something to reply to did not.
+			r.Get("/parent-messages", s.listTeacherParentThreads)
+			r.Get("/parent-messages/thread", s.listTeacherParentMessages)
 			s.mountFacultyComms(r)
 			s.mountTeaching(r)
 			/* What a class teacher knows about each child: the roll-up, the
@@ -456,6 +465,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/visitors/{id}/out", s.signVisitorOut)
 			r.Get("/blocklist", s.listBlocklist)
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/blocklist", s.addToBlocklist)
+			// The host list on the visitor and appointment forms. Not
+			// /hr/employees, which needs the permission that also opens
+			// payroll — see front_desk_directory.go.
+			r.Get("/staff", s.listDeskStaff)
 			r.Get("/appointments", s.listAppointments)
 			r.With(httpx.RequirePermission(rbac.FrontDeskWrite)).Post("/appointments", s.saveAppointment)
 			r.Get("/calls", s.listCalls)
@@ -731,7 +744,19 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/plans", s.listPlans)
 			r.Get("/tickets", s.listTickets)
 			r.Get("/enquiries", s.listSalesEnquiries)
+			// One notice to every school at once — see platform_broadcast.go.
+			r.Get("/broadcasts", s.listPlatformBroadcasts)
+			r.Post("/broadcasts", s.raisePlatformBroadcast)
+			r.Delete("/broadcasts/{id}", s.retirePlatformBroadcast)
 		})
+
+		/* What the vendor is telling every school, read by everyone.
+
+		   Outside /seller and gated on nothing beyond being signed in: a
+		   maintenance notice only the vendor may read is not a notice, and a
+		   permission in front of it would keep it from the person at the
+		   counter who most needs to know the site goes down on Sunday. */
+		r.Get("/platform-notices", s.listLiveBroadcasts)
 
 		/* What needs me, for whoever is asking.
 
