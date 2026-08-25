@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Mic, Square, X } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
+import { useDictation } from '@/lib/speech'
 import { cn } from '@/lib/utils'
 
 /* A small tab, and a small panel. Never the whole screen.
@@ -19,6 +20,13 @@ import { cn } from '@/lib/utils'
 const ENDPOINT = (import.meta as { env?: Record<string, string> }).env?.VITE_ASSISTANT_URL ?? ''
 const STORAGE_KEY = 'erp.assistant.conversation'
 
+/** What the draft becomes once a spoken phrase is settled: the two joined by a
+    single space, and neither given a stray one when the other is empty. */
+function draftWith(existing: string, spoken: string): string {
+  if (!spoken) return existing
+  return existing ? `${existing} ${spoken}` : spoken
+}
+
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
@@ -35,6 +43,22 @@ export function AssistantTab() {
   const conversation = useRef<string | null>(
     typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null,
   )
+
+  /* Speech lands in the DRAFT, not in the conversation.
+
+     Sending on the final result would be quicker by one press and wrong: a
+     recogniser mishears a school's name or a roll number often enough that
+     asking the question it thinks it heard, with no chance to look first,
+     produces an answer to something nobody asked. What was heard goes in the
+     box the keyboard writes to, where it can be corrected. `heard` is kept
+     apart from what was typed so an interim result — which the recogniser
+     revises word by word — replaces the last interim rather than accumulating
+     "how how do how do I". */
+  const typed = useRef('')
+  const dictation = useDictation((text, final) => {
+    setDraft(text ? `${typed.current}${typed.current ? ' ' : ''}${text}` : typed.current)
+    if (final) typed.current = draftWith(typed.current, text)
+  })
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
@@ -58,7 +82,9 @@ export function AssistantTab() {
   async function ask() {
     const message = draft.trim()
     if (!message || state !== 'idle') return
+    if (dictation.listening) dictation.stop()
     setDraft('')
+    typed.current = ''
     setTurns((t) => [...t, { role: 'user', text: message }])
 
     if (!ENDPOINT) {
@@ -103,7 +129,13 @@ export function AssistantTab() {
 
   return (
     <>
-      {/* The tab. Bottom-LEFT, which is where it was asked for.
+      {/* The tab. Bottom-RIGHT, which is where an assistant is looked for.
+
+          It was bottom-left, and left is where this product's navigation lives:
+          the sidebar, its groups, its active mark. A floating control in that
+          corner reads as one more navigation item that has come loose. The
+          right-hand bottom corner is empty in every layout here and is where a
+          decade of chat widgets has trained people to look.
 
           The panel is lifted clear of the dock rather than sharing its line:
           the dock is centred and ~44px tall, so a panel anchored at bottom-5
@@ -116,7 +148,7 @@ export function AssistantTab() {
         aria-expanded={open}
         aria-label="Assistant"
         className={cn(
-          `fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full border
+          `fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border
            bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg transition-colors
            hover:bg-accent focus-visible:outline-none focus-visible:ring-2
            focus-visible:ring-ring`,
@@ -131,7 +163,7 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-24 left-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
+          className="fixed bottom-24 right-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
@@ -183,20 +215,70 @@ export function AssistantTab() {
             ))}
           </div>
 
+          {/* Said above the box, where the answer to "is it hearing me?" has to
+              be. The pulsing dot is the only moving thing in the panel while
+              recognition is open, which is what distinguishes listening from a
+              microphone that was pressed and did not start. */}
+          {(dictation.listening || dictation.error) && (
+            <p
+              role="status"
+              className={cn(
+                'flex items-center gap-2 border-t px-3 py-1.5 text-[11.5px]',
+                dictation.error ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {dictation.listening && (
+                <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-destructive" aria-hidden />
+              )}
+              {dictation.error ?? 'Listening — speak your question.'}
+            </p>
+          )}
+
           <form
             onSubmit={(e) => { e.preventDefault(); void ask() }}
-            className="flex gap-2 border-t px-3 py-2.5"
+            className="flex items-center gap-2 border-t px-3 py-2.5"
           >
             <input
               ref={inputRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value)
+                // Typing supersedes anything a half-finished spoken phrase would
+                // have been appended to, so the two never fight over the box.
+                typed.current = e.target.value
+              }}
               maxLength={4000}
-              placeholder="Ask a question…"
+              placeholder={dictation.supported ? 'Ask, or press the microphone…' : 'Ask a question…'}
               aria-label="Your question"
               className="min-w-0 flex-1 rounded-full border bg-background px-3 py-1.5 text-[13px]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            {/* Drawn only where it works. Firefox has no speech recognition at
+                all, so on Firefox there is no microphone — a button that does
+                nothing when pressed is worse than an absent one, because the
+                person presses it, waits, and concludes the assistant is
+                broken. */}
+            {dictation.supported && (
+              <button
+                type="button"
+                onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                disabled={state !== 'idle'}
+                aria-label={dictation.listening ? 'Stop listening' : 'Ask by voice'}
+                aria-pressed={dictation.listening}
+                title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
+                className={cn(
+                  `grid size-8 shrink-0 place-items-center rounded-full border transition-colors
+                   disabled:opacity-40`,
+                  dictation.listening
+                    ? 'border-destructive bg-destructive text-white'
+                    : 'hover:bg-accent',
+                )}
+              >
+                {dictation.listening
+                  ? <Square className="size-3 fill-current" />
+                  : <Mic className="size-3.5" />}
+              </button>
+            )}
             <button
               type="submit"
               disabled={state !== 'idle' || !draft.trim()}
