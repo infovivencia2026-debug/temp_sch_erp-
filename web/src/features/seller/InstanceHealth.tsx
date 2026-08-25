@@ -1,8 +1,72 @@
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Loading, ErrorState, UnavailableState,
 } from '@/components/ui'
 import { usePlatform, type HealthResponse, type QueueStat } from '../super_admin/platform-lib'
+
+/* The provisioning log, and the failures in it.
+
+   This screen said error rates were not measured, which was true and left the
+   vendor unable to answer the question they are actually asked: "we tried to
+   sign up on Tuesday and something failed, what happened?" A successful
+   provision needs no log — the school is in the directory. A failed one left
+   nothing at all, which is how the same school gets provisioned three times by
+   three people who each concluded it had not worked. */
+interface PlatformEvent {
+  id: string
+  kind: string
+  ok: boolean
+  school?: string
+  subject: string
+  detail?: string
+  actor?: string
+  at: string
+}
+
+function ProvisioningLog() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['platform-events'],
+    queryFn: () => api.get<{ items: PlatformEvent[]; failures: number }>('/api/v1/seller/events'),
+  })
+  const items = data?.items ?? []
+
+  return (
+    <Card>
+      <CardHeader
+        title="Provisioning log"
+        description={
+          data?.failures
+            ? `${data.failures} failed — a school that could not be created leaves nothing else behind.`
+            : 'Every school created here, and every attempt that failed.'
+        }
+      />
+      {isLoading ? (
+        <Loading label="Reading the log…" />
+      ) : (
+        <Table
+          head={['', 'What', 'School', 'Detail', 'By', 'When']}
+          empty={items.length === 0}
+          emptyLabel="Nothing recorded yet. The next school provisioned appears here, whether it works or not."
+        >
+          {items.map((e) => (
+            <tr key={e.id}>
+              <Td>
+                <Badge tone={e.ok ? 'success' : 'danger'}>{e.ok ? 'done' : 'failed'}</Badge>
+              </Td>
+              <Td className="whitespace-nowrap">{e.kind}</Td>
+              <Td className="whitespace-nowrap font-medium">{e.school ?? e.subject}</Td>
+              <Td className="text-muted-foreground">{e.detail ?? '—'}</Td>
+              <Td className="whitespace-nowrap text-muted-foreground">{e.actor ?? '—'}</Td>
+              <Td className="num text-muted-foreground">{e.at.replace('T', ' ')}</Td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Card>
+  )
+}
 
 /**
  * What is going wrong inside each school, before the school telephones.
@@ -148,8 +212,10 @@ export default function InstanceHealth() {
           )}
         </Card>
 
+        <ProvisioningLog />
+
         <Card>
-          <CardHeader title="What this screen cannot tell you" />
+          <CardHeader title="What this screen still cannot tell you" />
           <div className="p-5">
             <UnavailableState
               title="Error rates and slow endpoints are not measured."

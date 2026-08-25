@@ -201,19 +201,28 @@ function MyAppraisalsPanel({
 
   return (
     <>
-      <CellGrid cols={3}>
-        <Stat label="My appraisals" value={rows.length} icon={Gauge} />
-        <Stat
-          label="Awaiting my self-assessment"
-          value={awaiting}
-          hint={awaiting ? 'Your reviewer cannot rate you until this is in' : undefined}
-        />
-        <Stat
-          label="Awaiting my acknowledgement"
-          value={toSign}
-          hint={toSign ? 'A published score is not closed until you sign it' : undefined}
-        />
-      </CellGrid>
+      {/* Nothing to count until there is something to count.
+
+          Three tiles reading nought, above a card titled the same as the
+          first tile, above a table saying no appraisal has been raised — the
+          same fact stated four times, on a profile page where appraisals are
+          not even the subject. The tiles are worth their space once a cycle
+          exists and one of them needs the person to act. */}
+      {rows.length > 0 && (
+        <CellGrid cols={3}>
+          <Stat label="Appraisal cycles" value={rows.length} icon={Gauge} />
+          <Stat
+            label="Awaiting my self-assessment"
+            value={awaiting}
+            hint={awaiting ? 'Your reviewer cannot rate you until this is in' : undefined}
+          />
+          <Stat
+            label="Awaiting my acknowledgement"
+            value={toSign}
+            hint={toSign ? 'A published score is not closed until you sign it' : undefined}
+          />
+        </CellGrid>
+      )}
 
       <Card>
         <CardHeader

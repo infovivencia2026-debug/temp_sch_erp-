@@ -219,6 +219,21 @@ func (s *Server) provisionTenant(w http.ResponseWriter, r *http.Request) {
 		out, err = provisionSchool(r.Context(), tx, s.Hasher, p)
 		return err
 	})
+	/* Both outcomes, recorded.
+
+	   A provision that worked announces itself — the school is in the
+	   directory. One that failed left nothing at all, which is how the same
+	   school gets provisioned three times by three people who each concluded
+	   it had not worked. */
+	id := httpx.IdentityFrom(r.Context())
+	if err != nil {
+		recordPlatformEvent(r.Context(), s.DB, "provision", false, nil,
+			p.SchoolName, err.Error(), id.UserID)
+	} else {
+		recordPlatformEvent(r.Context(), s.DB, "provision", true, &out.InstitutionID,
+			p.SchoolName, "plan "+p.PlanCode+", administrator "+p.AdminName, id.UserID)
+	}
+
 	switch {
 	case errors.Is(err, errNoPlan):
 		httpx.BadRequest(w, r, "that plan does not exist")

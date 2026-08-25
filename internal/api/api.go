@@ -747,6 +747,8 @@ func (s *Server) Routes() http.Handler {
 			// One notice to every school at once — see platform_broadcast.go.
 			// What each school uses, and what the installation costs to
 			// provide it — see platform_usage.go.
+			// The provisioning and error log — see platform_log.go.
+			r.Get("/events", s.listPlatformEvents)
 			r.Get("/usage", s.getPlatformUsage)
 			r.Put("/costs", s.setPlatformCosts)
 			r.Get("/broadcasts", s.listPlatformBroadcasts)
