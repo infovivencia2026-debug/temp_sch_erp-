@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 321 features. */
+/** 13 roles, 320 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1142,8 +1142,7 @@ export const ROLES: Role[] = [
         name: 'Consent',
         workspace: 'Requests',
         features: [
-          { key: 'parent.consent.consent_acknowledgement', slug: 'consent_acknowledgement', name: 'Consent & acknowledgement', scope: 'children', tier: 'core', summary: 'Acknowledge circulars, permissions, trips and configured consent forms.' },
-          { key: 'parent.consent.digital_parent_consent_slips', slug: 'digital_parent_consent_slips', name: 'Digital Parent Consent Slips', scope: 'children', tier: 'core', summary: 'Provide digital signature consent for upcoming field trips, sports events, or health camps.' },
+          { key: 'parent.consent.consent_acknowledgement', slug: 'consent_acknowledgement', name: 'Consent & acknowledgement', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept.' },
           { key: 'parent.consent.parent_delegation_for_emergency_pickup', slug: 'parent_delegation_for_emergency_pickup', name: 'Parent Delegation for Emergency Pickup', scope: 'children', tier: 'core', summary: 'Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.' },
         ],
       },

@@ -1149,8 +1149,33 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	/* The child turns their own work in, and nobody else.
+
+	   This accepted a guardian, because a guardian has the child in scope —
+	   so a parent was handed the same button and could mark homework done. A
+	   parent needs to see what was set and whether it has been turned in;
+	   doing it for them is not a convenience, it is the one part of homework
+	   that only means anything if the child did it.
+
+	   Checked on the role rather than on the scope: scope answers "whose
+	   records may you see", which is a wider question and the wrong one here. */
 	if len(res.StudentIDs) == 0 {
-		httpx.BadRequest(w, r, "only a student or their guardian can submit homework")
+		httpx.BadRequest(w, r, "only the student can submit homework")
+		return
+	}
+	var isStudent bool
+	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(),
+			`SELECT EXISTS (SELECT 1 FROM students WHERE user_id = $1)`,
+			id.UserID).Scan(&isStudent)
+	}); err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !isStudent {
+		httpx.Denied(w, r,
+			"only the student can turn their own homework in. You can see what was set and "+
+				"whether it has been handed in.")
 		return
 	}
 	target := res.StudentIDs[0]

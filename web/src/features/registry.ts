@@ -190,7 +190,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.communication.applicant_communication': screen(() => import('./admissions/Funnel')),
 
   'parent.consent.consent_acknowledgement': screen(() => import('./portal/Consent')),
-  'parent.consent.digital_parent_consent_slips': screen(() => import('./portal/Consent')),
 
   'parent.messages.communication': screen(() => import('./comms/Circulars')),
   'institution_admin.statutory_returns.govt_returns': screen(() => import('./compliance/UDISE')),

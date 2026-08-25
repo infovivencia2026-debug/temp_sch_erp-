@@ -61,9 +61,22 @@ export default function Homework() {
      empty term. */
   const { data: session } = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () =>
+      api.get<{ permissions: string[]; user?: { roles?: string[] } }>('/api/v1/session'),
   })
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
+
+  /* Only the child turns their own work in.
+
+     The screen decided what to show from one flag: if you cannot publish
+     homework you must be a student, so a PARENT was handed a Turn-in button
+     and could mark their child's homework done. The endpoint allowed it too —
+     a guardian has the child in scope — so nothing stopped it.
+
+     A parent needs to see what was set and whether it has been turned in.
+     Doing it for them is not a convenience; it is the one part of homework
+     that only means something if the child did it. */
+  const isStudent = session?.user?.roles?.includes('student') ?? false
 
   /* A teacher's diary is the work that teacher set.
 
@@ -236,11 +249,18 @@ export default function Homework() {
                         <CheckCircle2 className="mr-1 h-3 w-3" />
                         Turned in
                       </Badge>
-                    ) : (
+                    ) : isStudent ? (
                       <Button size="sm" disabled={submit.isPending} onClick={() => submit.mutate(h.id)}>
                         <Send className="h-3.5 w-3.5" />
                         Turn in
                       </Button>
+                    ) : (
+                      /* A parent sees the state and cannot change it. Saying
+                         "not turned in yet" is the useful half; the button was
+                         never theirs to press. */
+                      <Badge tone={h.overdue ? 'danger' : 'warning'}>
+                        {h.overdue ? 'Overdue' : 'Not turned in yet'}
+                      </Badge>
                     )}
                   </div>
                  </div>

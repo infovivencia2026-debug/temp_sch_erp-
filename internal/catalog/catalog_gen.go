@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 321 features.
+// Roles is the catalog: 13 roles, 320 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1189,8 +1189,7 @@ var Roles = []Role{
 				Name: "Consent",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Acknowledge circulars, permissions, trips and configured consent forms."},
-					{Key: "parent.consent.digital_parent_consent_slips", Slug: "digital_parent_consent_slips", Name: "Digital Parent Consent Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Provide digital signature consent for upcoming field trips, sports events, or health camps."},
+					{Key: "parent.consent.consent_acknowledgement", Slug: "consent_acknowledgement", Name: "Consent & acknowledgement", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept."},
 					{Key: "parent.consent.parent_delegation_for_emergency_pickup", Slug: "parent_delegation_for_emergency_pickup", Name: "Parent Delegation for Emergency Pickup", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
 				},
 			},
