@@ -16,13 +16,28 @@ export type OrbState = 'idle' | 'thinking' | 'answering'
 
 const TAU = Math.PI * 2
 
-export function AssistantOrb({ state, size = 34 }: { state: OrbState; size?: number }) {
+export function AssistantOrb({
+  state,
+  size = 34,
+  awake = false,
+}: {
+  state: OrbState
+  size?: number
+  /* Pointed at. The orb is alive at rest, but only just — 0.35 is a rate you
+     have to already be watching to notice, which is right for something that
+     sits in the corner all day and wrong for the moment somebody puts a cursor
+     on it and asks whether it is a button. Waking it is the answer to that
+     question, and it costs nothing when nobody is pointing. */
+  awake?: boolean
+}) {
   const ref = useRef<HTMLCanvasElement>(null)
   /* The target lives in a ref, not in state: the animation loop reads it every
      frame, and re-running the effect on each change would tear down and restart
      the loop — which is the jump this component exists to avoid. */
   const target = useRef<OrbState>(state)
   target.current = state
+  const hovered = useRef(awake)
+  hovered.current = awake
 
   useEffect(() => {
     const canvas = ref.current
@@ -50,6 +65,18 @@ export function AssistantOrb({ state, size = 34 }: { state: OrbState; size?: num
       if (s === 'idle') { amp.to = 1; speed.to = 0.35; glow.to = 0.25 }
       if (s === 'thinking') { amp.to = 0.62; speed.to = 2.6; glow.to = 0.9 }
       if (s === 'answering') { amp.to = 1.22; speed.to = 1.1; glow.to = 0.6 }
+      /* Waking is applied on top of whatever it was doing, rather than as a
+         fourth state. A hover during "thinking" must not slow the orb down to
+         some hover speed — the state is the message and the hover is only an
+         acknowledgement, so it brightens and swells a little and leaves the
+         rate the state asked for alone. Eased through the same critically
+         damped ease as everything else, so it wakes over about a quarter of a
+         second rather than snapping. */
+      if (hovered.current) {
+        amp.to *= 1.14
+        glow.to = Math.max(glow.to, 0.7)
+        if (s === 'idle') speed.to = 1.5
+      }
     }
     // Critically damped, not springy: an overshoot reads as a bounce, and a
     // bouncing status light looks like an error.

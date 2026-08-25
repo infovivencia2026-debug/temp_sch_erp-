@@ -35,6 +35,7 @@ interface Turn {
 
 export function AssistantTab() {
   const [open, setOpen] = useState(false)
+  const [hover, setHover] = useState(false)
   const [state, setState] = useState<OrbState>('idle')
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState('')
@@ -129,12 +130,14 @@ export function AssistantTab() {
 
   return (
     <>
-      {/* The tab. Bottom-LEFT, which is where it has been asked for twice.
+      {/* The tab. Bottom-RIGHT, settled by asking rather than by inferring.
 
-          It was moved to the right on the reasoning that left is where this
-          product's navigation lives and a floating control there reads as a nav
-          item come loose. That was overruled, which settles it: bottom-left is
-          the position. Do not move it again without being asked to.
+          It moved left, then right, then left again across one afternoon,
+          because "the bot is still on the left corner" reads both as a
+          complaint and as a statement of fact and I guessed wrong at it twice.
+          The answer, once asked for plainly, was the right-hand corner: left is
+          where this product's navigation lives, so a floating control down
+          there reads as a nav item come loose.
 
           The panel is lifted clear of the dock rather than sharing its line:
           the dock is centred and ~44px tall, so a panel anchored at bottom-5
@@ -144,17 +147,29 @@ export function AssistantTab() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
         aria-expanded={open}
         aria-label="Assistant"
         className={cn(
-          `fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full border
-           bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg transition-colors
-           hover:bg-accent focus-visible:outline-none focus-visible:ring-2
-           focus-visible:ring-ring`,
+          /* transition-transform, not transition-colors: the tint alone was
+             the entire hover response, and against a card background at the
+             corner of a busy screen it is close to invisible. It lifts and
+             deepens its shadow now — the tab reads as something that can be
+             pressed, and the orb inside it wakes at the same moment. Keyboard
+             focus wakes it too, or the effect would exist only for a mouse. */
+          `fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border
+           bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg
+           transition-[transform,box-shadow,background-color]
+           hover:-translate-y-0.5 hover:bg-accent hover:shadow-xl
+           focus-visible:-translate-y-0.5 focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',
         )}
       >
-        <AssistantOrb state={state} size={30} />
+        <AssistantOrb state={state} size={30} awake={hover} />
         <span>Ask</span>
       </button>
 
@@ -162,7 +177,7 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-24 left-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
+          className="fixed bottom-24 right-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
