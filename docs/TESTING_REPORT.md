@@ -174,3 +174,89 @@ Recorded because a wrong finding costs more than a missing one.
 - **"Cells are overflowing."** Twice this was the board running past the
   viewport, and once it was rows collapsing onto their contents. Three different
   causes reported under one word; measurement separated them.
+
+---
+
+## Run — 25 Aug 2026, parent, endpoint probe against the live host
+
+A different method from the runs above, and worth saying so: not a browser walk
+but a signed-in session calling, in order, every parameterless `GET` the
+catalogue lists against this role's features. It answers "does the data behind
+each screen come back" and says nothing about what the screen does with it. The
+browser walks above remain the better instrument for the second question.
+
+| | |
+|---|---|
+| Features in the catalogue | **10** |
+| Endpoints probed | 9 |
+| Answered 200 | **7** |
+| Answered 403 | 2 |
+| Failed / timed out | **0** |
+| Slowest | 149ms (`/communication/circulars`) |
+
+### The two 403s are catalogue metadata, not a broken screen
+
+`/academics/sections` and `/academics/subjects` are listed against "Homework &
+academics" and refuse a parent for want of `academics.read`. The screen does not
+call them — the endpoint column is inherited from the shared staff screen the
+feature is registered to. The same two appear on the Student's row for the same
+reason.
+
+Recorded so the next reader does not spend a morning granting a parent
+`academics.read` to fix a screen that was never broken. **A feature's Endpoints
+column in FEATURES.csv is what the screen file could reach, not what this role's
+path through it actually calls.**
+
+The equivalent probe against Institution Admin — 46 endpoints — returned 44×200
+and 2×400, both of the 400s correct (`/hpc/card` and `/hpc/hall-ticket` require
+a `student_id`). No role-scoped failure anywhere in that set.
+
+### The report-card total: root cause, and a correction
+
+The 25 Aug parent run recorded "the total is English alone… it is dropping rows
+by some other rule". **That diagnosis is wrong, and the real one is worse.**
+
+Read from the API and then from the database for the same child:
+
+```
+/portal/results  ->  card 17 / 400  ·  4.25%  ·  D2  ·  published
+                     subjects: English 17/20 (A2), Social Studies 18/20
+report_cards     ->  total_marks 17.00, created 2026-08-17 09:50
+marks            ->  2 rows, summing 35.00
+```
+
+The card is not computing anything at request time. It is a **stored snapshot**
+written by the generate-and-publish step in `mod_academics.go`, and it was
+written on 17 August when English was the only subject with marks entered.
+Social Studies was marked afterwards. Nothing recomputed the card and nothing
+flagged it as behind.
+
+So there is no rule dropping rows. There is a published number that was true
+once. The subject list underneath it *is* read live, which is exactly why the
+two disagree on screen — and why it looks like a summing bug.
+
+Two separate defects sit behind the one symptom:
+
+1. **A published card has no invalidation.** Marks entered after publication do
+   not regenerate it, do not mark it stale, and do not warn the person entering
+   them that a published card now contradicts their entry. The upsert in
+   `mod_academics.go` means regenerating is cheap and correct — nothing calls it.
+2. **The denominator is the whole exam; the numerator is whatever was entered.**
+   `max_marks` sums every subject in the exam (400) while `total_marks` sums the
+   marks that exist (17, via `LEFT JOIN marks`). A child with two papers marked
+   out of an eleven-paper exam is published at 4.25% and graded D2. Regenerating
+   this card today would produce 35/400 — 8.75%, still a D2, still wrong for the
+   same reason.
+
+The second is the one to fix first, and it is a product decision before it is a
+code change: either a card refuses to publish while any subject is unmarked, or
+it is scored against the papers actually marked and says how many that was. It
+must not do what it does now, which is publish a real-looking failing grade to a
+child and their parent.
+
+### Not re-checked this run
+
+The browser-only findings from the 25 Aug parent walk — "Language" opening
+Appearance, "Absent 1 days", the "Good morning, Demo" greeting, the four
+identical Meera Menon chips — are untouched by an endpoint probe and remain
+open as recorded.
