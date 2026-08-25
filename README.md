@@ -202,14 +202,52 @@ out.
 
 ## Deploy
 
-Binaries are cross-compiled locally and uploaded; the server carries no Go or
-Node toolchain.
+The server builds from git. `make deploy-server` is the supported path;
+`make deploy` (cross-compile locally and upload) still works but ships whatever
+is in your working tree, which is not something anyone can reproduce later.
 
 ```bash
-make deploy                    # build, upload, migrate, restart, reload nginx
-make logs                      # tail both units
-make status                    # unit status + https health probe
+make deploy-server                    # build on the box from origin/main
+make deploy-server COMMIT=abc1234     # ship exactly that revision
+make deploy-server BRANCH=hotfix      # a different branch
+make logs                             # tail both units
+make status                           # unit status + https health probe
 ```
+
+**Deploy rules**
+
+1. **Deploys name a commit.** `COMMIT` pins the revision; without it you get
+   whatever `origin/$BRANCH` pointed at that second, and a rollback has no
+   command. The hash is stamped into the binary as `main.version` and printed
+   at the end of the run.
+2. **The commit must be on the branch.** A hash that is not an ancestor of
+   `origin/$BRANCH` is refused — otherwise the next ordinary deploy silently
+   reverts it, which reads as a fix disappearing from production.
+   `ALLOW_OFF_BRANCH=1` overrides it for a genuine emergency.
+3. **Migrations run before the binaries swap.** A failed migration leaves the
+   old binaries serving: a failed deploy rather than an outage.
+4. **A deploy owns the queue it disturbs.** Restarting the worker orphans
+   whatever it was running — those tasks sit in asynq's `active` list with a
+   dead lease and are never picked up again. The deploy requeues them and then
+   reports queue health; a queue that was already unhealthy is printed loudly
+   but does not fail the run, because by then the new binaries are live.
+
+### Queue maintenance
+
+The deploy repairs what it broke. Everything else is
+[scripts/queue-maint.sh](scripts/queue-maint.sh), run over ssh:
+
+```bash
+make queue-status              # depths per queue: pending/active/scheduled/retry/archived
+make queue-doctor              # health verdict; non-zero exit if unhealthy
+make queue-failed N=50         # archived tasks and the errors that killed them
+make queue-retry Q=bulk        # archived + retrying -> pending
+make queue-unstick             # tasks orphaned by a worker restart -> pending
+make queue-restart             # restart the worker, then report
+```
+
+Reads are safe; anything that mutates needs `--yes`. `retry` is preferred over
+`purge` — purge deletes payloads that are the only copy of the job.
 
 `make deploy FQDN=erp.yourschool.com SERVICE=yourschool` retargets it.
 Everything is namespaced by `$SERVICE` — port, database, roles, unit names,

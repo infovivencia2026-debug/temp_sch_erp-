@@ -121,12 +121,40 @@ deploy-app: ## Upload binaries, run migrations, restart services
 	ssh $(HOST) 'FQDN=$(FQDN) APP_DIR=$(REMOTE_DIR) SERVICE=$(SERVICE) WEBROOT=$(WEBROOT) \
 		bash /tmp/$(SERVICE)-dist/deploy.sh'
 
-deploy-server: ## Build and deploy ON the server from git (no local toolchain needed)
+deploy-server: ## Build and deploy ON the server from git: make deploy-server [COMMIT=abc1234]
 	@# Everything happens on the box: git pull, go build, npm build, migrate,
-	@# restart. The only local requirement is ssh, which is the point --
-	@# cross-compiling meant whoever deployed also had to carry a Go toolchain
-	@# and whatever was in their working tree.
-	ssh $(HOST) 'BRANCH=$(or $(BRANCH),main) bash -s' < scripts/build-on-server.sh
+	@# restart, queue check. The only local requirement is ssh, which is the
+	@# point -- cross-compiling meant whoever deployed also had to carry a Go
+	@# toolchain and whatever was in their working tree.
+	@#
+	@# COMMIT pins the deploy to one revision. "deploy main" is not repeatable:
+	@# it means whatever the branch pointed at that second, so a rollback has
+	@# no command. With COMMIT it does -- the same target with the old hash.
+	@# The hash must be an ancestor of $(BRANCH); the server refuses otherwise.
+	ssh $(HOST) 'BRANCH=$(or $(BRANCH),main) COMMIT=$(COMMIT) bash -s' < scripts/build-on-server.sh
+
+## --- queue ----------------------------------------------------------------
+
+.PHONY: queue-status queue-doctor queue-failed queue-retry queue-unstick queue-restart
+QUEUE_MAINT = SERVICE=$(SERVICE) bash /opt/$(SERVICE)-src/scripts/queue-maint.sh
+
+queue-status: ## Queue depths per queue
+	ssh $(HOST) "$(QUEUE_MAINT) status"
+
+queue-doctor: ## Health verdict for the queue; exits non-zero if unhealthy
+	ssh $(HOST) "$(QUEUE_MAINT) doctor"
+
+queue-failed: ## Show archived (dead) tasks and their errors
+	ssh $(HOST) "$(QUEUE_MAINT) failed $(or $(N),20)"
+
+queue-retry: ## Requeue archived+retrying tasks: make queue-retry [Q=bulk]
+	ssh $(HOST) "$(QUEUE_MAINT) retry $(or $(Q),all) --yes"
+
+queue-unstick: ## Requeue tasks orphaned by a worker restart: make queue-unstick [Q=bulk]
+	ssh $(HOST) "$(QUEUE_MAINT) unstick $(or $(Q),all) --yes"
+
+queue-restart: ## Restart the worker, then report queue health
+	ssh $(HOST) "$(QUEUE_MAINT) restart"
 
 deploy-ui: ## Upload the SPA bundle
 	ssh $(HOST) 'mkdir -p $(WEBROOT)'

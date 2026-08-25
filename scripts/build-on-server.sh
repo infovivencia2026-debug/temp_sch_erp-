@@ -71,8 +71,31 @@ else
     rm -rf "$SRC"
     git clone --quiet --branch "$BRANCH" "$REPO" "$SRC"
 fi
+# COMMIT pins the deploy to an exact revision. Without it a deploy means
+# "whatever origin/$BRANCH pointed at the moment this ran", which is not a
+# thing you can redeploy: two runs a minute apart can ship different code and
+# both report the same branch name. With it, rolling back is the same command
+# with the previous hash, and the hash is what gets stamped into the binary,
+# printed at the end, and recorded against any queue repair done afterwards.
+if [ -n "${COMMIT:-}" ]; then
+    git -C "$SRC" fetch --quiet origin "$COMMIT" 2>/dev/null || true
+    git -C "$SRC" rev-parse --verify --quiet "${COMMIT}^{commit}" >/dev/null \
+        || { echo "commit $COMMIT is not in $SRC after fetching $BRANCH" >&2; exit 1; }
+    git -C "$SRC" reset --quiet --hard "$COMMIT"
+fi
 COMMIT=$(git -C "$SRC" rev-parse --short HEAD)
 echo "at $COMMIT — $(git -C "$SRC" log -1 --format=%s)"
+
+# Refuse to ship a commit that is not on the branch, unless asked. A detached
+# hash from a dead branch installs just as happily as a good one, and the next
+# deploy from $BRANCH silently reverts it -- which reads as "my fix disappeared
+# in production" rather than as the deploy that never should have happened.
+if [ "${ALLOW_OFF_BRANCH:-0}" != "1" ] \
+   && ! git -C "$SRC" merge-base --is-ancestor HEAD "origin/$BRANCH" 2>/dev/null; then
+    echo "HEAD ($COMMIT) is not an ancestor of origin/$BRANCH — refusing." >&2
+    echo "Push it to $BRANCH first, or re-run with ALLOW_OFF_BRANCH=1." >&2
+    exit 1
+fi
 
 say "Build"
 cd "$SRC"
@@ -137,4 +160,35 @@ systemctl restart "${SERVICE}-web" "${SERVICE}-worker"
 sleep 2
 systemctl is-active "${SERVICE}-web" "${SERVICE}-worker"
 
+say "Queue"
+# A deploy restarts the worker, and restarting the worker orphans whatever it
+# was running: those tasks stay in asynq's `active` list with an expired lease,
+# where nothing picks them up again. The old deploy ended one line above this
+# and called that success -- both units active, queue quietly holding a report
+# card run that will never finish.
+#
+# So the deploy owns the queue it disturbed: requeue what the restart stranded,
+# then report the rest. The unstick is fatal if it fails (it is repairing this
+# deploy's own damage); the health verdict is not, because a backlog that
+# predates this deploy is not a reason to leave the new binaries uninstalled --
+# they are already running by now. It is printed loudly instead.
+QUEUE_MAINT="$SRC/scripts/queue-maint.sh"
+if [ -x "$QUEUE_MAINT" ] || [ -f "$QUEUE_MAINT" ]; then
+    SERVICE="$SERVICE" ENV_FILE="$ENV_FILE" SRC="$SRC" YES=1 \
+        bash "$QUEUE_MAINT" unstick all --yes
+    if ! SERVICE="$SERVICE" ENV_FILE="$ENV_FILE" SRC="$SRC" \
+            bash "$QUEUE_MAINT" doctor; then
+        echo
+        echo "  !! the queue is NOT healthy after this deploy."
+        echo "  !! $COMMIT is live; the warnings above are about work already queued."
+        echo "  !! read it:    bash $QUEUE_MAINT failed"
+        echo "  !! requeue it: bash $QUEUE_MAINT retry all --yes"
+        QUEUE_UNHEALTHY=1
+    fi
+else
+    echo "  queue-maint.sh not in this checkout — skipping queue check"
+fi
+
 say "Deployed $COMMIT"
+[ "${QUEUE_UNHEALTHY:-0}" = "1" ] && echo "(queue needs attention — see above)"
+exit 0
