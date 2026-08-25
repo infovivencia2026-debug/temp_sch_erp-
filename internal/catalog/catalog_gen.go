@@ -80,12 +80,20 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 327 features.
+// Roles is the catalog: 13 roles, 328 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
 		Name: "Seller Admin",
 		Sections: []Section{
+			{
+				Slug: "home",
+				Name: "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "seller_admin.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used — with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once."},
+				},
+			},
 			{
 				Slug: "schools",
 				Name: "Schools",

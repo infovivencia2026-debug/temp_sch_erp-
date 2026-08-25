@@ -744,7 +744,19 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/plans", s.listPlans)
 			r.Get("/tickets", s.listTickets)
 			r.Get("/enquiries", s.listSalesEnquiries)
+			// One notice to every school at once — see platform_broadcast.go.
+			r.Get("/broadcasts", s.listPlatformBroadcasts)
+			r.Post("/broadcasts", s.raisePlatformBroadcast)
+			r.Delete("/broadcasts/{id}", s.retirePlatformBroadcast)
 		})
+
+		/* What the vendor is telling every school, read by everyone.
+
+		   Outside /seller and gated on nothing beyond being signed in: a
+		   maintenance notice only the vendor may read is not a notice, and a
+		   permission in front of it would keep it from the person at the
+		   counter who most needs to know the site goes down on Sunday. */
+		r.Get("/platform-notices", s.listLiveBroadcasts)
 
 		/* What needs me, for whoever is asking.
 

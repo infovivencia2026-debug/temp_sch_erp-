@@ -33,12 +33,20 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 327 features. */
+/** 13 roles, 328 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
     name: 'Seller Admin',
     sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'seller_admin.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used — with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once.' },
+        ],
+      },
       {
         slug: 'schools',
         name: 'Schools',

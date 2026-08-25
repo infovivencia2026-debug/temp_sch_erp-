@@ -89,6 +89,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // The vendor's back office. One screen carries the directory, provisioning,
   // the handover and the plan list, because in practice they are one job.
+  // The vendor's own first screen. Every other role opens on a dashboard;
+  // this one opened on a table of schools with the business's four numbers
+  // squeezed above it as a header.
+  'seller_admin.home.dashboard': screen(() => import('./seller/SellerDashboard')),
   'seller_admin.schools.tenant_directory': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.provision_new_school': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.tenant_access_control': screen(() => import('./seller/Tenants')),

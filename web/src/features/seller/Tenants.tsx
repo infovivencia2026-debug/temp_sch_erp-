@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
+import { Activity, Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -181,11 +181,47 @@ export default function Tenants() {
 
   const live = rows.filter((t) => t.subscription_status === 'active').length
   const trials = rows.filter((t) => t.subscription_status === 'trial').length
-  const stalled = rows.filter((t) => t.setup_percent < 60).length
-  const annual = rows.reduce((n, t) => {
+  const suspended = rows.filter((t) => t.status === 'suspended').length
+
+  /* The onboarding pipeline: schools that have bought and are not yet running.
+     Not the same as "stalled" — a school three days in at 40% is progressing,
+     and counting it as a problem is how a vendor learns to ignore the number.
+     Both are shown, because the second is the one somebody has to act on. */
+  const onboarding = rows.filter(
+    (t) => t.setup_percent < 100 && t.status !== 'suspended',
+  ).length
+  const stalled = rows.filter(
+    (t) => t.setup_percent < 60 && t.status !== 'suspended',
+  ).length
+
+  /* Monthly, not annual.
+
+     This totalled a year's subscriptions and called it "Annual value", on a
+     panel whose question is what comes in this month. A plan priced per year
+     is divided by twelve rather than dropped, so a mixed book of monthly and
+     annual contracts adds up to one comparable figure — which is what MRR
+     means and why every SaaS vendor reads it. */
+  const mrrPaise = rows.reduce((n, t) => {
+    if (t.subscription_status !== 'active') return n
     const p = plans.data?.items.find((x) => x.code === t.plan)
-    return n + (t.subscription_status === 'active' && p ? p.price_paise : 0)
+    if (!p) return n
+    return n + Math.round(p.price_paise / 12)
   }, 0)
+
+  /* Whether the thing all of them run on is well.
+
+     There was no health number here at all: a vendor could be looking at a
+     panel of green revenue while a school's sign-ins were failing. Schools
+     nobody has signed into for a fortnight is the cheapest honest proxy — it
+     catches an outage, a lapsed rollout and a school that has quietly stopped
+     using the product, all of which the vendor wants to know about today. */
+  const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
+  const quiet = rows.filter((t) => {
+    if (t.status === 'suspended') return false
+    if (!t.last_sign_in) return true
+    const at = Date.parse(t.last_sign_in)
+    return Number.isFinite(at) && Date.now() - at > FORTNIGHT_MS
+  }).length
 
   return (
     <>
@@ -207,16 +243,42 @@ export default function Tenants() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Schools" value={rows.length} icon={Building2} />
-          <Stat label="Paying" value={live} hint={`${trials} on trial`} />
-          <Stat label="Annual value" value={formatPaise(annual)} icon={TrendingUp} />
           <Stat
-            label="Rollout stalled"
-            value={stalled}
+            label="Active school tenants"
+            value={live}
+            icon={Building2}
+            hint={
+              [
+                trials ? `${trials} on trial` : '',
+                suspended ? `${suspended} suspended` : '',
+              ]
+                .filter(Boolean)
+                .join(' \u00b7 ') || `${rows.length} in total`
+            }
+          />
+          <Stat
+            label="In onboarding"
+            value={onboarding}
             delta={
               stalled
-                ? { value: 'Under 60% set up', positive: false }
+                ? { value: `${stalled} stalled under 60%`, positive: false }
                 : { value: 'All progressing', positive: true }
+            }
+          />
+          <Stat
+            label="Monthly recurring revenue"
+            value={formatPaise(mrrPaise)}
+            icon={TrendingUp}
+            hint="Annual plans counted as a twelfth"
+          />
+          <Stat
+            label="Infrastructure health"
+            value={quiet ? `${quiet} quiet` : 'All active'}
+            icon={Activity}
+            delta={
+              quiet
+                ? { value: 'No sign-in in a fortnight', positive: false }
+                : { value: 'Every school signed in recently', positive: true }
             }
           />
         </CellGrid>
