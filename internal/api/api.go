@@ -317,6 +317,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/today", s.listTodaysClasses)
 			r.Get("/my-work", s.getMyWork)
 			r.Get("/classes", s.listMyClasses)
+			// The head of department's own first screen — see hod_dashboard.go.
+			r.Get("/hod-dashboard", s.getHODDashboard)
 			// The teacher's half of the parent conversation — see
 			// teacher_parent_inbox.go. The reply leg already existed; being
 			// told there was something to reply to did not.
@@ -742,6 +744,17 @@ func (s *Server) Routes() http.Handler {
 			r.Put("/tenants/{id}/subscription", s.setSubscription)
 			r.Post("/tenants/{id}/reset-admin", s.resetTenantAdmin)
 			r.Get("/plans", s.listPlans)
+			// The price list is the one screen in this workspace that exists
+			// to be changed — see plans_write.go. A school's agreed price is
+			// fixed at signing, so an edit reaches the next purchase only.
+			r.Post("/plans", s.createPlan)
+			r.Put("/plans/{code}", s.updatePlan)
+			r.Delete("/plans/{code}", s.retirePlan)
+			// What one school was promised, against what its tier includes —
+			// see tenant_limits.go. A number, not a switch, which is why the
+			// entitlement matrix could not hold it.
+			r.Get("/limits", s.listTenantLimits)
+			r.Put("/limits", s.setTenantLimits)
 			r.Get("/tickets", s.listTickets)
 			r.Get("/enquiries", s.listSalesEnquiries)
 			// One notice to every school at once — see platform_broadcast.go.

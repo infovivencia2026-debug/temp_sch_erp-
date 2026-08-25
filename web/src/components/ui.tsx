@@ -77,9 +77,15 @@ export function PageHead({
     <div className={cn('px-5 pb-6 pt-5 sm:px-7', WIDTH[width])}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 max-w-3xl">
+          {/* The breadcrumb must not break mid-word.
+
+              Squeezed by the actions beside it, "Examinations / Marks entry"
+              rendered as "Examination" / "s" on two lines — a word cut in half
+              is not a word, and this is the line that tells somebody where
+              they are. It wraps between its parts or not at all. */}
           {eyebrow && (
-            <nav className="mb-1 flex items-center gap-1 text-[12.5px] text-muted-foreground">
-              <span>{eyebrow}</span>
+            <nav className="mb-1 flex flex-wrap items-center gap-1 text-[12.5px] text-muted-foreground">
+              <span className="whitespace-nowrap">{eyebrow}</span>
               <span aria-hidden className="text-muted-foreground/50">/</span>
               {/* Now the only visible name for the screen, so it carries the
                   weight the h1 used to. Still on the breadcrumb's line — the

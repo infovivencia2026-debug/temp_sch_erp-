@@ -48,6 +48,21 @@ var All = []string{
 	Exams, HR, Transport, Library, Hostel, Inventory,
 }
 
+/* Known reports whether a name is one of the modules a school can buy.
+
+   The vendor types module names when writing a plan, and a name that is not a
+   module would switch nothing on while reading as though it had. Checked
+   against the same list Allows enforces, so the price list and the gate cannot
+   drift into disagreeing about what a module is called. */
+func Known(module string) bool {
+	for _, m := range All {
+		if m == module {
+			return true
+		}
+	}
+	return false
+}
+
 // sectionModule maps a catalog section to the module a school buys it in.
 //
 // Sections absent from this map are core: the school's own identity, the

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 323 features. */
+/** 13 roles, 324 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -355,6 +355,14 @@ export const ROLES: Role[] = [
     key: 'hod',
     name: 'HOD / Department Head',
     sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'hod.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'department', tier: 'core', summary: 'Your department before nine o\'clock: who is out and how many of their periods nobody is covering, what is waiting on your decision, and which of your registers have not been taken.' },
+        ],
+      },
       {
         slug: 'timetable',
         name: 'Timetable',

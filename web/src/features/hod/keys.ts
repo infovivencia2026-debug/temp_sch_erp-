@@ -17,6 +17,12 @@ import { screen } from '@/lib/screen'
  * internal/scope, which is where a department boundary belongs.
  */
 export const hodKeys = {
+  /* The head of department's own first screen.
+
+     Every other role opened on a dashboard and this one opened on a timetable,
+     so the questions a HOD arrives with had to be assembled from four screens. */
+  'hod.home.dashboard': screen(() => import('./HodDashboard')),
+
   // The editable whole-school grid, reached by whoever actually edits it.
   'hod.timetable.class_timetable': screen(() => import('../academics/MasterTimetable')),
   // Loads, free periods, and the subject requirements the live grid does not

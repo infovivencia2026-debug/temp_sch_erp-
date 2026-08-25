@@ -244,6 +244,10 @@ export default function Gradebook() {
                   title="Set up this paper"
                   description={`Out of ${max} at the moment. Change it before you start — it locks once the first mark is saved.`}
                 />
+                {/* Card draws the border; the screen supplies the padding
+                    inside it. Without this the fields ran to the card's edge
+                    and the Save button was clipped by it. */}
+                <div className="space-y-4 px-5 pb-5">
                 {setupNote && <FormNotice ok={setupNote} />}
                 {setup.error && <FormNotice error={setup.error} />}
                 <FormGrid>
@@ -273,6 +277,7 @@ export default function Gradebook() {
                 >
                   Save
                 </Button>
+                </div>
               </Card>
             )}
 

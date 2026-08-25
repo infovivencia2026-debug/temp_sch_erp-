@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 323 features.
+// Roles is the catalog: 13 roles, 324 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -402,6 +402,14 @@ var Roles = []Role{
 		Key:  "hod",
 		Name: "HOD / Department Head",
 		Sections: []Section{
+			{
+				Slug: "home",
+				Name: "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "hod.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("department"), Tier: Tier("core"), Summary: "Your department before nine o'clock: who is out and how many of their periods nobody is covering, what is waiting on your decision, and which of your registers have not been taken."},
+				},
+			},
 			{
 				Slug: "timetable",
 				Name: "Timetable",

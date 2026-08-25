@@ -55,6 +55,13 @@ type Resolved struct {
 	ClassTeacherOf []uuid.UUID
 	StudentIDs    []uuid.UUID // own record, or linked children
 
+	/* Whether this person stands in front of a class at all.
+
+	   Allocated at least one class_subject, or class teacher of at least one
+	   section. Not the same as "has sections in scope": a HOD sees their
+	   department's sections without teaching in any of them. */
+	Teaches bool
+
 	// Capability overrides. A back-office role legitimately reads the whole
 	// institution; a teacher does not. Without this distinction every holder of
 	// students.read reaches every student, which is how faculty ended up able
@@ -148,6 +155,19 @@ func Resolve(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolve
 			return fmt.Errorf("department sections: %w", err)
 		}
 		r.SectionIDs = union(r.SectionIDs, deptSections)
+
+		/* Do they teach? One question, both ways it can be true.
+
+		   Asked here rather than inferred from SectionIDs, which a HOD has
+		   through their department without teaching in any of them. */
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (SELECT 1 FROM section_subject_teachers t
+			                WHERE t.teacher_user_id = $1)
+			    OR EXISTS (SELECT 1 FROM sections s
+			                WHERE s.class_teacher_id = $1)`,
+			id.UserID).Scan(&r.Teaches); err != nil {
+			return fmt.Errorf("teaches: %w", err)
+		}
 
 		// Own student record plus any children linked through guardians.
 		if r.StudentIDs, err = collectIDs(ctx, tx, `
@@ -298,8 +318,25 @@ func (r *Resolved) HasScope(s catalog.Scope) bool {
 	   internal/scope's own predicates inside each query — a HOD with no
 	   department still matches no departments — and this value is used only to
 	   decide whether the catalogue lists the feature. */
-	case catalog.ScopeDepartment, catalog.ScopeAssignedClasses:
+	case catalog.ScopeDepartment:
 		return true
+
+	/* Teaching is not a setup step.
+
+	   A department is: a school that has not created one yet will, and its HOD
+	   should keep their menu meanwhile. But a head of department who is
+	   allocated no subject and is class teacher of nothing does not teach —
+	   not "not yet", but this term, by the school's own decision. Marks entry,
+	   Homework, Lesson plans, Report cards and Take attendance then open on an
+	   empty list and stay empty however long they wait, which reads as the
+	   product being broken rather than as the job being different.
+
+	   Allocate them a subject next term and all five return on the next sign
+	   in, with no role change and nothing for anybody to remember. The
+	   school's decision reaches the menu by itself, which is the only way it
+	   stays true. */
+	case catalog.ScopeAssignedClasses:
+		return r.Teaches
 	case catalog.ScopeSelf:
 		/* "Self" means the person signed in, and everybody has one.
 

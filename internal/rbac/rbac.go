@@ -312,9 +312,23 @@ var SystemRoles = []Role{
 	// A department head reads across their department and approves within it,
 	// but does not administer the institution. The department *boundary* is not
 	// expressed here — these are capabilities; internal/scope narrows the rows.
+	/* A head of department teaches.
+
+	   The role held every capability for running a department and none for
+	   doing the job inside it, so a HOD who takes Maths for 6-B reached the
+	   Homework screen — the catalogue grants it — and got the STUDENT's
+	   version, because the screen decides what to show from
+	   academics.homework.write and the role did not have it. A Turn-in button,
+	   on a teacher's screen, which the endpoint then refused with "only a
+	   student or their guardian can submit homework".
+
+	   HomeworkWrite and AttendanceWrite are what the classroom half of the job
+	   needs. Every HOD in an Indian school still has a timetable; a role that
+	   assumes otherwise describes an administrator, not a head of department. */
 	{"hod", "HOD / Department Head", []string{
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
-		AttendanceRead, ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
+		AttendanceRead, AttendanceWrite, HomeworkWrite,
+		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
 		EmployeesRead, LeaveApprove, AnnouncementsWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	// Operations covers every specialism; the sub-role a user actually performs
