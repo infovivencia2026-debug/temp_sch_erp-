@@ -93,13 +93,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // this one opened on a table of schools with the business's four numbers
   // squeezed above it as a header.
   'seller_admin.home.dashboard': screen(() => import('./seller/SellerDashboard')),
-  'seller_admin.schools.tenant_directory': screen(() => import('./seller/Tenants')),
-  'seller_admin.schools.provision_new_school': screen(() => import('./seller/Tenants')),
-  'seller_admin.schools.tenant_access_control': screen(() => import('./seller/Tenants')),
-  'seller_admin.schools.onboarding_progress': screen(() => import('./seller/Tenants')),
+  'seller_admin.schools.schools': screen(() => import('./seller/Tenants')),
+  'seller_admin.schools.add_school': screen(() => import('./seller/Tenants')),
+  'seller_admin.schools.access': screen(() => import('./seller/Tenants')),
+  'seller_admin.schools.setup': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.plans_pricing': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Tenants')),
-  'seller_admin.subscriptions_billing.license_capacity_tracking': screen(() => import('./seller/Tenants')),
+  'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
 
   'institution_admin.home.dashboard': screen(() => import('./principal/Dashboard')),
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),

@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
+import { Copy, KeyRound, Plus, X } from 'lucide-react'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Loading, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
@@ -84,13 +84,13 @@ type SellerView =
   | 'capacity'
 
 const VIEW: Record<string, SellerView> = {
-  tenant_directory: 'directory',
-  provision_new_school: 'provision',
-  tenant_access_control: 'access',
-  onboarding_progress: 'onboarding',
+  schools: 'directory',
+  add_school: 'provision',
+  access: 'access',
+  setup: 'onboarding',
   plans_pricing: 'plans',
   subscription_ledger: 'ledger',
-  license_capacity_tracking: 'capacity',
+  license_capacity: 'capacity',
 }
 
 const TITLES: Record<SellerView, [string, string, string]> = {
@@ -100,19 +100,19 @@ const TITLES: Record<SellerView, [string, string, string]> = {
     'What each one pays, how many children it has on the roll, and how far it has got.',
   ],
   provision: [
-    'Provision a school',
+    'Add a school',
     'Schools',
     'Create a school, its first campus and its first administrator in one step. The credentials '
       + 'are shown once, to hand over.',
   ],
   access: [
-    'Tenant Access Control',
+    'Access',
     'Schools',
     'Who may sign in and who may not. Suspending blocks sign-in and keeps every record; nothing '
       + 'is deleted and nothing needs restarting.',
   ],
   onboarding: [
-    'Onboarding Progress',
+    'Setup',
     'Schools',
     'How far each new school has got, and which step it is stuck on \u2014 so somebody can '
       + 'intervene before a stalled rollout becomes a cancellation.',
@@ -128,7 +128,7 @@ const TITLES: Record<SellerView, [string, string, string]> = {
     'What each school is on, what it is worth a year, and when it renews.',
   ],
   capacity: [
-    'License & Capacity Tracking',
+    'License & capacity',
     'Subscriptions & Billing',
     'Schools past the students their plan allows, and those inside the renewal window, counted '
       + 'from the live headcount rather than from what was sold.',
@@ -179,50 +179,6 @@ export default function Tenants() {
   if (tenants.isLoading) return <Loading />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
-  const live = rows.filter((t) => t.subscription_status === 'active').length
-  const trials = rows.filter((t) => t.subscription_status === 'trial').length
-  const suspended = rows.filter((t) => t.status === 'suspended').length
-
-  /* The onboarding pipeline: schools that have bought and are not yet running.
-     Not the same as "stalled" — a school three days in at 40% is progressing,
-     and counting it as a problem is how a vendor learns to ignore the number.
-     Both are shown, because the second is the one somebody has to act on. */
-  const onboarding = rows.filter(
-    (t) => t.setup_percent < 100 && t.status !== 'suspended',
-  ).length
-  const stalled = rows.filter(
-    (t) => t.setup_percent < 60 && t.status !== 'suspended',
-  ).length
-
-  /* Monthly, not annual.
-
-     This totalled a year's subscriptions and called it "Annual value", on a
-     panel whose question is what comes in this month. A plan priced per year
-     is divided by twelve rather than dropped, so a mixed book of monthly and
-     annual contracts adds up to one comparable figure — which is what MRR
-     means and why every SaaS vendor reads it. */
-  const mrrPaise = rows.reduce((n, t) => {
-    if (t.subscription_status !== 'active') return n
-    const p = plans.data?.items.find((x) => x.code === t.plan)
-    if (!p) return n
-    return n + Math.round(p.price_paise / 12)
-  }, 0)
-
-  /* Whether the thing all of them run on is well.
-
-     There was no health number here at all: a vendor could be looking at a
-     panel of green revenue while a school's sign-ins were failing. Schools
-     nobody has signed into for a fortnight is the cheapest honest proxy — it
-     catches an outage, a lapsed rollout and a school that has quietly stopped
-     using the product, all of which the vendor wants to know about today. */
-  const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
-  const quiet = rows.filter((t) => {
-    if (t.status === 'suspended') return false
-    if (!t.last_sign_in) return true
-    const at = Date.parse(t.last_sign_in)
-    return Number.isFinite(at) && Date.now() - at > FORTNIGHT_MS
-  }).length
-
   return (
     <>
       <PageHead
@@ -242,50 +198,21 @@ export default function Tenants() {
         }
       />
       <PageBody>
-        <CellGrid cols={4}>
-          <Stat
-            label="Active school tenants"
-            value={live}
-            icon={Building2}
-            hint={
-              [
-                trials ? `${trials} on trial` : '',
-                suspended ? `${suspended} suspended` : '',
-              ]
-                .filter(Boolean)
-                .join(' \u00b7 ') || `${rows.length} in total`
-            }
-          />
-          <Stat
-            label="In onboarding"
-            value={onboarding}
-            delta={
-              stalled
-                ? { value: `${stalled} stalled under 60%`, positive: false }
-                : { value: 'All progressing', positive: true }
-            }
-          />
-          <Stat
-            label="Monthly recurring revenue"
-            value={formatPaise(mrrPaise)}
-            icon={TrendingUp}
-            hint="Annual plans counted as a twelfth"
-          />
-          <Stat
-            label="Infrastructure health"
-            value={quiet ? `${quiet} quiet` : 'All active'}
-            icon={Activity}
-            delta={
-              quiet
-                ? { value: 'No sign-in in a fortnight', positive: false }
-                : { value: 'Every school signed in recently', positive: true }
-            }
-          />
-        </CellGrid>
+        {/* The four business numbers live on the Dashboard now.
+
+            They were repeated above every one of these seven views, which is
+            the loudest reason the views read as one page: the eye lands on the
+            same row of figures each time and concludes nothing has changed.
+            One place to read them, seven places that answer their own
+            question. */}
 
         {handover && <HandoverCard h={handover} onClose={() => setHandover(null)} />}
 
-        {creating && (
+        {/* On its own entry the form is the screen, so it is open on arrival.
+            Somebody who clicked "Onboard New School" has already said what
+            they want; making them press "New school" first is the menu asking
+            a question and then asking it again. */}
+        {(creating || view === 'provision') && (
           <ProvisionForm
             plans={plans.data?.items ?? []}
             onDone={(h) => {
@@ -297,8 +224,22 @@ export default function Tenants() {
           />
         )}
 
+        {view === 'onboarding' && <OnboardingPipeline rows={rows} />}
+
+        {view === 'access' && (
+          <AccessHub rows={rows} onSet={(id, status) => setStatus.mutate({ id, status })} busy={setStatus.isPending} />
+        )}
+
+        {view === 'capacity' && <CapacityBoard rows={rows} />}
+
+        {view === 'ledger' && <LedgerBoard rows={rows} plans={plans.data?.items ?? []} />}
+
+        {view === 'directory' && (
         <Card>
-          <CardHeader title="Directory" description={`${rows.length} schools`} />
+          <CardHeader
+            title="Every school"
+            description={`${rows.length} registered — plan, roll, setup and when each was last used.`}
+          />
           {rows.length === 0 ? (
             <EmptyState title="No customers yet" body="Provision the first school to get started." />
           ) : (
@@ -419,9 +360,14 @@ export default function Tenants() {
             </div>
           )}
         </Card>
+        )}
 
+        {view === 'plans' && (
         <Card>
-          <CardHeader title="Plans" description="What the schools above are sold" />
+          <CardHeader
+            title="Plans"
+            description="What a school can be sold: the student cap, the modules included, and the price."
+          />
           <Table head={['Plan', 'Price', 'Student cap', 'Modules', 'Schools on it']}>
             {(plans.data?.items ?? []).map((p) => (
               <tr key={p.code}>
@@ -436,6 +382,7 @@ export default function Tenants() {
             ))}
           </Table>
         </Card>
+        )}
       </PageBody>
     </>
   )
@@ -622,6 +569,283 @@ function ProvisionForm({
           </Button>
         </div>
       </form>
+    </Card>
+  )
+}
+
+/* Where each new school has got to.
+
+   "Onboarding Progress" opened on the same directory as everything else, so
+   the one question it exists to answer — who is stuck — had to be worked out
+   by reading a percentage column. A pipeline answers it by grouping: a school
+   is at one stage, and the stages are in the order a school actually goes
+   through them.
+
+   The stages are read from setup_percent rather than stored, because the
+   product already knows how far setup has got and a second record of the same
+   fact is a second thing to be wrong. */
+const STAGES: { key: string; name: string; blurb: string; from: number; to: number }[] = [
+  { key: 'signed', name: 'Signed, not started', blurb: 'Provisioned and nobody has begun', from: 0, to: 1 },
+  { key: 'early', name: 'Setting up', blurb: 'Classes, staff and the year', from: 1, to: 60 },
+  { key: 'importing', name: 'Loading data', blurb: 'Students and timetable going in', from: 60, to: 100 },
+  { key: 'live', name: 'Live', blurb: 'Set up and in use', from: 100, to: 101 },
+]
+
+function OnboardingPipeline({ rows }: { rows: Tenant[] }) {
+  const active = rows.filter((t) => t.status !== 'suspended')
+  return (
+    <div className="grid gap-4 lg:grid-cols-4">
+      {STAGES.map((st) => {
+        const inStage = active.filter(
+          (t) => t.setup_percent >= st.from && t.setup_percent < st.to,
+        )
+        return (
+          <Card key={st.key} className="flex min-w-0 flex-col">
+            <CardHeader title={`${st.name} · ${inStage.length}`} description={st.blurb} />
+            <ul className="divide-y">
+              {inStage.map((t) => {
+                /* Stuck is a matter of time, not of position. A school two
+                   days into loading data is doing exactly what it should; the
+                   same school three weeks later is one nobody has rung. */
+                const days = Math.floor(
+                  (Date.now() - Date.parse(t.created_on)) / 86_400_000,
+                )
+                const stuck = st.key !== 'live' && days > 21
+                return (
+                  <li key={t.id} className="px-4 py-2.5">
+                    <div className="truncate text-[14px] font-medium">{t.name}</div>
+                    <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-muted-foreground">
+                      <span className="tabular-nums">{t.setup_percent}%</span>
+                      <span>·</span>
+                      <span className={stuck ? 'text-destructive' : undefined}>
+                        {Number.isFinite(days) ? `${days} days in` : 'just now'}
+                      </span>
+                      {stuck && <Badge tone="danger">stuck</Badge>}
+                    </div>
+                  </li>
+                )
+              })}
+              {inStage.length === 0 && (
+                <li className="px-4 py-3 text-[13px] text-muted-foreground">Nobody here.</li>
+              )}
+            </ul>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+/* Who may sign in, and nothing else.
+
+   Suspension was a button at the end of a row of six other columns, which is
+   the wrong shape for the one screen whose whole subject is access: the
+   question is not "tell me about this school" but "should these people be able
+   to get in this morning". Suspended first, because that is the list somebody
+   is here to change. */
+function AccessHub({
+  rows,
+  onSet,
+  busy,
+}: {
+  rows: Tenant[]
+  onSet: (id: string, status: string) => void
+  busy: boolean
+}) {
+  const order = [...rows].sort((a, b) => {
+    const rank = (t: Tenant) => (t.status === 'suspended' ? 0 : t.subscription_status === 'past_due' ? 1 : 2)
+    return rank(a) - rank(b) || a.name.localeCompare(b.name)
+  })
+  const blocked = rows.filter((t) => t.status === 'suspended').length
+  return (
+    <Card>
+      <CardHeader
+        title="Who may sign in"
+        description={
+          blocked
+            ? `${blocked} school${blocked === 1 ? '' : 's'} blocked. Suspending keeps every record — nothing is deleted, and nothing needs restarting.`
+            : 'Every school can sign in. Suspending keeps every record — nothing is deleted, and nothing needs restarting.'
+        }
+      />
+      <Table head={['School', 'Subscription', 'Students', 'Renews', 'Access', '']}>
+        {order.map((t) => (
+          <tr key={t.id}>
+            <Td className="whitespace-nowrap font-medium">{t.name}</Td>
+            <Td>
+              {t.subscription_status ? (
+                <Badge tone={SUB_TONE[t.subscription_status] ?? 'neutral'}>
+                  {t.plan_name ?? t.plan} · {t.subscription_status.replace('_', ' ')}
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">no subscription</span>
+              )}
+            </Td>
+            <Td className="num">
+              {t.students}
+              {t.licensed_students != null && (
+                <span className="text-muted-foreground"> / {t.licensed_students}</span>
+              )}
+            </Td>
+            <Td className="num text-muted-foreground">
+              {t.renews_on ? formatDate(t.renews_on) : '—'}
+            </Td>
+            <Td>
+              <Badge tone={t.status === 'suspended' ? 'danger' : 'success'}>
+                {t.status === 'suspended' ? 'blocked' : 'can sign in'}
+              </Badge>
+            </Td>
+            <Td>
+              {t.status === 'suspended' ? (
+                <Button size="sm" disabled={busy} onClick={() => onSet(t.id, 'active')}>
+                  Let them back in
+                </Button>
+              ) : (
+                <ConfirmButton
+                  size="sm"
+                  variant="secondary"
+                  tone="danger"
+                  question={`Suspend ${t.name}? Nobody there will be able to sign in. Every record is kept.`}
+                  confirmLabel="Suspend"
+                  onConfirm={() => onSet(t.id, 'suspended')}
+                  disabled={busy}
+                >
+                  Suspend
+                </ConfirmButton>
+              )}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </Card>
+  )
+}
+
+/* Seats sold against seats used, and what renews soon.
+
+   Both halves are about a contract meeting reality, which is why they are one
+   screen: a school 40 over its cap and renewing in a fortnight is one
+   conversation, and reading it off two screens is how it becomes two. */
+function CapacityBoard({ rows }: { rows: Tenant[] }) {
+  const RENEWAL_WINDOW_DAYS = 45
+  const soon = rows.filter((t) => {
+    if (!t.renews_on) return false
+    const days = (Date.parse(t.renews_on) - Date.now()) / 86_400_000
+    return days >= 0 && days <= RENEWAL_WINDOW_DAYS
+  })
+  const over = rows.filter((t) => t.over_by > 0)
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Past the plan"
+          description="Counted from the live headcount, not from what was sold — a school that admitted forty children this morning is forty seats heavier this morning."
+        />
+        {over.length === 0 ? (
+          <EmptyState title="Every school inside its plan" body="Nothing to renegotiate today." />
+        ) : (
+          <Table head={['School', 'Plan', 'Students', 'Licensed', 'Over by']}>
+            {over.map((t) => (
+              <tr key={t.id}>
+                <Td className="whitespace-nowrap font-medium">{t.name}</Td>
+                <Td>{t.plan_name ?? t.plan ?? '—'}</Td>
+                <Td className="num">{t.students}</Td>
+                <Td className="num">{t.licensed_students ?? '—'}</Td>
+                <Td className="num">
+                  <Badge tone="danger">{t.over_by} over</Badge>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Renewing soon"
+          description={`Contracts due within ${RENEWAL_WINDOW_DAYS} days.`}
+        />
+        {soon.length === 0 ? (
+          <EmptyState title="Nothing due" body={`No contract renews in the next ${RENEWAL_WINDOW_DAYS} days.`} />
+        ) : (
+          <Table head={['School', 'Plan', 'Renews', 'Students', 'Status']}>
+            {soon.map((t) => (
+              <tr key={t.id}>
+                <Td className="whitespace-nowrap font-medium">{t.name}</Td>
+                <Td>{t.plan_name ?? t.plan ?? '—'}</Td>
+                <Td className="num">{t.renews_on ? formatDate(t.renews_on) : '—'}</Td>
+                <Td className="num">{t.students}</Td>
+                <Td>
+                  <Badge tone={t.over_by > 0 ? 'warning' : 'neutral'}>
+                    {t.over_by > 0 ? `${t.over_by} over its cap` : 'within plan'}
+                  </Badge>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+/* What each school is worth, and when it is next due.
+
+   The ledger opened on the directory — the same table as four other entries,
+   with the same six columns about students and setup. A ledger is not a list
+   of schools; it is a list of money, and the columns that belong on it are the
+   ones the directory has no room for: what the contract is worth a year, what
+   that is a month, and when it comes round again.
+
+   No payment feed yet, because there is no gateway. When one is connected this
+   is where its receipts land, and the shape below is already the shape they
+   would sit in. */
+function LedgerBoard({ rows, plans }: { rows: Tenant[]; plans: Plan[] }) {
+  const priced = rows
+    .map((t) => {
+      const plan = plans.find((p) => p.code === t.plan)
+      const annual = t.subscription_status === 'active' && plan ? plan.price_paise : 0
+      return { t, plan, annual }
+    })
+    .sort((a, b) => b.annual - a.annual)
+
+  const annualTotal = priced.reduce((n, x) => n + x.annual, 0)
+  const unbilled = priced.filter((x) => x.annual === 0).length
+
+  return (
+    <Card>
+      <CardHeader
+        title="The book"
+        description={
+          `${formatPaise(annualTotal)} a year across ${priced.length - unbilled} paying schools`
+          + (unbilled ? ` · ${unbilled} bringing in nothing yet` : '')
+        }
+      />
+      <Table head={['School', 'Plan', 'Status', 'A year', 'A month', 'Renews']}>
+        {priced.map(({ t, plan, annual }) => (
+          <tr key={t.id}>
+            <Td className="whitespace-nowrap font-medium">{t.name}</Td>
+            <Td className="whitespace-nowrap">{plan?.name ?? t.plan ?? '—'}</Td>
+            <Td>
+              {t.subscription_status ? (
+                <Badge tone={SUB_TONE[t.subscription_status] ?? 'neutral'}>
+                  {t.subscription_status.replace('_', ' ')}
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">none</span>
+              )}
+            </Td>
+            <Td className="num">{annual ? formatPaise(annual) : '—'}</Td>
+            {/* The same contract expressed two ways, because a vendor reads
+                the book monthly and sells it annually. */}
+            <Td className="num text-muted-foreground">
+              {annual ? formatPaise(Math.round(annual / 12)) : '—'}
+            </Td>
+            <Td className="num text-muted-foreground">
+              {t.renews_on ? formatDate(t.renews_on) : '—'}
+            </Td>
+          </tr>
+        ))}
+      </Table>
     </Card>
   )
 }

@@ -52,10 +52,10 @@ export const ROLES: Role[] = [
         name: 'Schools',
         workspace: 'Schools',
         features: [
-          { key: 'seller_admin.schools.tenant_directory', slug: 'tenant_directory', name: 'Tenant Directory', scope: 'platform', tier: 'core', summary: 'Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support.' },
-          { key: 'seller_admin.schools.provision_new_school', slug: 'provision_new_school', name: 'Provision New School', scope: 'platform', tier: 'core', summary: 'Create a school, its first campus and its first administrator in one step, and hand over the credentials.' },
-          { key: 'seller_admin.schools.tenant_access_control', slug: 'tenant_access_control', name: 'Tenant Access Control', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
-          { key: 'seller_admin.schools.onboarding_progress', slug: 'onboarding_progress', name: 'Onboarding Progress', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.' },
+          { key: 'seller_admin.schools.schools', slug: 'schools', name: 'Schools', scope: 'platform', tier: 'core', summary: 'Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support.' },
+          { key: 'seller_admin.schools.add_school', slug: 'add_school', name: 'Add School', scope: 'platform', tier: 'core', summary: 'Create a school, its first campus and its first administrator in one step, and hand over the credentials.' },
+          { key: 'seller_admin.schools.access', slug: 'access', name: 'Access', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
+          { key: 'seller_admin.schools.setup', slug: 'setup', name: 'Setup', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.' },
         ],
       },
       {
@@ -65,7 +65,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.subscriptions_billing.plans_pricing', slug: 'plans_pricing', name: 'Plans & Pricing', scope: 'platform', tier: 'core', summary: 'Define plans with a student cap, included modules and an annual or per-student price.' },
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
-          { key: 'seller_admin.subscriptions_billing.license_capacity_tracking', slug: 'license_capacity_tracking', name: 'License & Capacity Tracking', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
+          { key: 'seller_admin.subscriptions_billing.license_capacity', slug: 'license_capacity', name: 'License & Capacity', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
         ],
       },
       {
@@ -90,8 +90,8 @@ export const ROLES: Role[] = [
         name: 'Support',
         workspace: 'Support',
         features: [
-          { key: 'seller_admin.support.support_tickets', slug: 'support_tickets', name: 'Support Tickets', scope: 'platform', tier: 'core', summary: 'Tickets raised by schools, with the tenant, severity, owner and time open.' },
-          { key: 'seller_admin.support.impersonation_audit', slug: 'impersonation_audit', name: 'Impersonation & Audit', scope: 'platform', tier: 'core', summary: 'Act as a school\'s administrator to reproduce a fault, with every such session recorded and visible to that school.' },
+          { key: 'seller_admin.support.support', slug: 'support', name: 'Support', scope: 'platform', tier: 'core', summary: 'Tickets raised by schools, with the tenant, severity, owner and time open.' },
+          { key: 'seller_admin.support.audit', slug: 'audit', name: 'Audit', scope: 'platform', tier: 'core', summary: 'Act as a school\'s administrator to reproduce a fault, with every such session recorded and visible to that school.' },
         ],
       },
     ],

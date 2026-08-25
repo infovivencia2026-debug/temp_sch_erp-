@@ -5,7 +5,7 @@ import {
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
   CornerDownLeft, House,
   Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard,
-  FileCheck2, FolderTree, Handshake, Inbox, KeyRound, Landmark,
+  FileCheck2, FileText, FolderTree, Handshake, Inbox, KeyRound, Landmark,
   LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
   Wrench,
 } from 'lucide-react'
@@ -103,6 +103,18 @@ const WORKSPACE_ICON: Record<string, typeof Home> = {
   Support: LifeBuoy,
   'Usage & Health': Activity,
   Setup: Settings2,
+
+  /* The last two that fell through.
+
+     Every unmapped workspace draws the same fallback, so these two were
+     indistinguishable from each other in the rail — and Schools is the
+     vendor's own first section, where the whole business lives.
+
+     Schools reuses the building the singular School already uses, because they
+     are the same subject seen from the two sides of the product: one school's
+     own record, and the vendor's list of all of them. */
+  Schools: Building2,
+  Documents: FileText,
 }
 
 export function markFor(workspace: string) {

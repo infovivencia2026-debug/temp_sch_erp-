@@ -99,10 +99,10 @@ var Roles = []Role{
 				Name: "Schools",
 				Workspace: "Schools",
 				Features: []Feature{
-					{Key: "seller_admin.schools.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support."},
-					{Key: "seller_admin.schools.provision_new_school", Slug: "provision_new_school", Name: "Provision New School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a school, its first campus and its first administrator in one step, and hand over the credentials."},
-					{Key: "seller_admin.schools.tenant_access_control", Slug: "tenant_access_control", Name: "Tenant Access Control", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart."},
-					{Key: "seller_admin.schools.onboarding_progress", Slug: "onboarding_progress", Name: "Onboarding Progress", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation."},
+					{Key: "seller_admin.schools.schools", Slug: "schools", Name: "Schools", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support."},
+					{Key: "seller_admin.schools.add_school", Slug: "add_school", Name: "Add School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a school, its first campus and its first administrator in one step, and hand over the credentials."},
+					{Key: "seller_admin.schools.access", Slug: "access", Name: "Access", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart."},
+					{Key: "seller_admin.schools.setup", Slug: "setup", Name: "Setup", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation."},
 				},
 			},
 			{
@@ -112,7 +112,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "seller_admin.subscriptions_billing.plans_pricing", Slug: "plans_pricing", Name: "Plans & Pricing", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Define plans with a student cap, included modules and an annual or per-student price."},
 					{Key: "seller_admin.subscriptions_billing.subscription_ledger", Slug: "subscription_ledger", Name: "Subscription Ledger", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Each school's plan, term dates, renewal date and invoice history."},
-					{Key: "seller_admin.subscriptions_billing.license_capacity_tracking", Slug: "license_capacity_tracking", Name: "License & Capacity Tracking", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used."},
+					{Key: "seller_admin.subscriptions_billing.license_capacity", Slug: "license_capacity", Name: "License & Capacity", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used."},
 				},
 			},
 			{
@@ -137,8 +137,8 @@ var Roles = []Role{
 				Name: "Support",
 				Workspace: "Support",
 				Features: []Feature{
-					{Key: "seller_admin.support.support_tickets", Slug: "support_tickets", Name: "Support Tickets", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Tickets raised by schools, with the tenant, severity, owner and time open."},
-					{Key: "seller_admin.support.impersonation_audit", Slug: "impersonation_audit", Name: "Impersonation & Audit", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school."},
+					{Key: "seller_admin.support.support", Slug: "support", Name: "Support", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Tickets raised by schools, with the tenant, severity, owner and time open."},
+					{Key: "seller_admin.support.audit", Slug: "audit", Name: "Audit", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school."},
 				},
 			},
 		},

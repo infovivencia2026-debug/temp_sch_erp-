@@ -51,8 +51,8 @@ export const platformKeys = {
   'super_admin.access_security.sso_mfa': screen(() => import('./SsoMfa')),
 
   // The vendor's own back office
-  'seller_admin.support.support_tickets': screen(() => import('../seller/SupportTickets')),
-  'seller_admin.support.impersonation_audit': screen(() => import('../seller/Impersonation')),
+  'seller_admin.support.support': screen(() => import('../seller/SupportTickets')),
+  'seller_admin.support.audit': screen(() => import('../seller/Impersonation')),
   'seller_admin.usage_health.adoption_metrics': screen(() => import('../seller/Adoption')),
   'seller_admin.usage_health.instance_health': screen(() => import('../seller/InstanceHealth')),
   'seller_admin.entitlements.module_entitlement_matrix': screen(() => import('../seller/Entitlements')),
