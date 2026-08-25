@@ -1,4 +1,3 @@
-import { screen } from '@/lib/screen'
 import { lazy } from 'react'
 
 /**
@@ -28,7 +27,6 @@ export const commsKeys = {
   'institution_admin.communication.school_achievements_showcase': lazy(
     () => import('./AchievementsShowcase'),
   ),
-  'parent.school_life.ptm_appointment_reminder_alert': screen(() => import('./PTMReminders')),
 }
 
 /**

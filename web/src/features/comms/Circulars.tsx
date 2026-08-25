@@ -1,16 +1,25 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Paperclip, Send } from 'lucide-react'
+import { ChevronDown, Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Select, Textarea, Loading, ErrorState,
+  Table, Td, Badge, Button, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 
 interface Circular {
   id: string; title: string; kind: string; audience_role: string
   requires_ack: boolean; published_at: string; acknowledgements: number; sections: number
+  /* What the notice actually says, and who signed it.
+
+     A parent could see that the school had said something and not what, or
+     who. The time matters as much as the date on a notice about this
+     afternoon's early closing. */
+  published_at_full?: string
+  published_by?: string
+  body?: string
+  acknowledged_by_me?: boolean
 }
 
 /** Circulars with targeting and read receipts. SMS goes out one queued task
@@ -48,6 +57,16 @@ export default function Circulars() {
     queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
   })
   const canPublish = session.data?.permissions.includes('comms.announcements.write') ?? false
+
+  /* Signing a notice that asked to be signed.
+
+     Not a statistic like the acknowledgement counts on the office's register —
+     this is the one thing the school actually needs this parent to do, so it
+     sits on the notice itself rather than in a column. */
+  const ack = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/communication/circulars/${id}/ack`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
+  })
 
   const sections = useQuery({
     queryKey: ['sections'],
@@ -95,6 +114,15 @@ export default function Circulars() {
         }
       />
       <PageBody>
+        {!canPublish ? (
+          /* A parent reads a notice; they do not administer one. Audience,
+             Sections, Acknowledged and "Who got it" all answer questions the
+             SCHOOL has about a notice — shown to somebody who cannot act on
+             any of them, and standing in front of the one thing they came
+             for, which is what it says. */
+          <FamilyNotices rows={rows} onAck={(id) => ack.mutate(id)} acking={ack.isPending} />
+        ) : (
+        <>
         <CellGrid cols={3}>
           <Stat label="Circulars" value={rows.length} />
           <Stat label="Awaiting acknowledgement"
@@ -285,6 +313,8 @@ export default function Circulars() {
         </Card>
 
         {openId && <Delivery id={openId} />}
+        </>
+        )}
       </PageBody>
     </>
   )
@@ -354,6 +384,97 @@ function Delivery({ id }: { id: string }) {
           </tr>
         ))}
       </Table>
+    </Card>
+  )
+}
+
+/* What a parent came to read.
+
+   The office's register answers the school's questions about a notice — who it
+   was addressed to, how many acknowledged, who got it. A parent has one
+   question, which is what it says, and one obligation, which is to sign the
+   ones that ask. Everything else on that table is somebody else's work shown
+   to somebody who cannot act on it.
+*/
+function FamilyNotices({ rows, onAck, acking }: {
+  rows: Circular[]
+  onAck: (id: string) => void
+  acking: boolean
+}) {
+  const [openId, setOpenId] = useState<string | null>(null)
+  const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
+
+  return (
+    <Card>
+      <CardHeader
+        title="Notices"
+        description={
+          waiting
+            ? `${waiting} waiting for you to acknowledge`
+            : 'Everything the school has published, newest first.'
+        }
+      />
+      {rows.length === 0 ? (
+        <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
+      ) : (
+        <ul className="divide-y">
+          {rows.map((c) => {
+            const open = openId === c.id
+            const needsMe = c.requires_ack && !c.acknowledged_by_me
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenId(open ? null : c.id)}
+                  aria-expanded={open}
+                  className="flex w-full items-start gap-3 px-5 py-3.5 text-left hover:bg-muted/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14.5px] font-medium">{c.title}</span>
+                      {needsMe && <Badge tone="warning">needs your acknowledgement</Badge>}
+                      {c.requires_ack && c.acknowledged_by_me && (
+                        <Badge tone="success">acknowledged</Badge>
+                      )}
+                    </div>
+                    {/* Date and time, because "24 Aug" on a notice about this
+                        afternoon is the half that does not help. */}
+                    <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+                      {(c.published_at_full ?? c.published_at).replace('T', ' ')}
+                      {c.published_by && ` \u00b7 ${c.published_by}`}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      'mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                      open && 'rotate-180',
+                    )}
+                    aria-hidden
+                  />
+                </button>
+
+                {open && (
+                  <div className="px-5 pb-4">
+                    <p className="max-w-[70ch] whitespace-pre-wrap text-[14px]">
+                      {c.body || 'This notice has no further detail.'}
+                    </p>
+                    {needsMe && (
+                      <Button
+                        className="mt-3"
+                        size="sm"
+                        disabled={acking}
+                        onClick={() => onAck(c.id)}
+                      >
+                        I have read this
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Card>
   )
 }

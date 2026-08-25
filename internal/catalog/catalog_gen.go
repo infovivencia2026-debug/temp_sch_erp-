@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 320 features.
+// Roles is the catalog: 13 roles, 316 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1130,9 +1130,7 @@ var Roles = []Role{
 				Name: "My Child's Bus",
 				Workspace: "Transport",
 				Features: []Feature{
-					{Key: "parent.my_childs_bus.transport_snapshot", Slug: "transport_snapshot", Name: "Transport snapshot", Scope: Scope("children"), Tier: Tier("core"), Summary: "Bus route/stop/tracking only when transport module is enabled."},
-					{Key: "parent.my_childs_bus.live_bus_tracking_map", Slug: "live_bus_tracking_map", Name: "Live Bus Tracking Map", Scope: Scope("children"), Tier: Tier("core"), Summary: "View real-time movement of child's bus on an interactive map with estimated time of arrival."},
-					{Key: "parent.my_childs_bus.school_transport_driver_call_button", Slug: "school_transport_driver_call_button", Name: "School Transport Driver Call Button", Scope: Scope("children"), Tier: Tier("core"), Summary: "Direct masked call connection to bus attendant/driver during bus transit hours."},
+					{Key: "parent.my_childs_bus.live_bus_tracking", Slug: "live_bus_tracking", Name: "Live bus tracking", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's bus: the route, the vehicle, their stop and when it is due — and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus."},
 				},
 			},
 			{
@@ -1161,8 +1159,7 @@ var Roles = []Role{
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.school_life.calendar_ptm", Slug: "calendar_ptm", Name: "Calendar & PTM", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exams, holidays, events, parent-teacher meetings and booking where enabled."},
-					{Key: "parent.school_life.parent_teacher_meeting_booking", Slug: "parent_teacher_meeting_booking", Name: "Parent-Teacher Meeting Booking", Scope: Scope("children"), Tier: Tier("core"), Summary: "Select available PTM time slots to meet subject teachers without queueing."},
-					{Key: "parent.school_life.ptm_appointment_reminder_alert", Slug: "ptm_appointment_reminder_alert", Name: "PTM Appointment Reminder Alert", Scope: Scope("children"), Tier: Tier("core"), Summary: "Receive push notification reminders 15 minutes before scheduled virtual or physical PTM slot."},
+					{Key: "parent.school_life.parent_teacher_meeting_booking", Slug: "parent_teacher_meeting_booking", Name: "Parent-Teacher Meeting Booking", Scope: Scope("children"), Tier: Tier("core"), Summary: "The slots the school has opened for parent-teacher meetings, and the one you have booked — with a reminder before it, so a meeting agreed three weeks ago is not missed on the morning."},
 					{Key: "parent.school_life.school_photo_video_gallery", Slug: "school_photo_video_gallery", Name: "School Photo & Video Gallery", Scope: Scope("children"), Tier: Tier("core"), Summary: "View high-resolution photos and videos from school sports day, annual day, and events."},
 					{Key: "parent.school_life.live_event_seating_pass", Slug: "live_event_seating_pass", Name: "Live Event Seating Pass", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Download barcoded digital entry passes with pre-allocated row/seat numbers for school events."},
 				},
@@ -1201,8 +1198,7 @@ var Roles = []Role{
 					{Key: "parent.profile.digital_student_id_card_view", Slug: "digital_student_id_card_view", Name: "Digital Student ID Card View", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Access child's digital student ID card with QR code directly within the mobile app."},
 					{Key: "parent.profile.digital_parent_id_card_for_campus_entry", Slug: "digital_parent_id_card_for_campus_entry", Name: "Digital Parent ID Card for Campus Entry", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates."},
 					{Key: "parent.profile.parent_app_biometric_lock_face_id_fingerprint", Slug: "parent_app_biometric_lock_face_id_fingerprint", Name: "Parent App Biometric Lock (Face ID / Fingerprint)", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to secure mobile app access using smartphone hardware biometric authentication."},
-					{Key: "parent.profile.multi_language_app_interface_toggle", Slug: "multi_language_app_interface_toggle", Name: "Multi-Language App Interface Toggle", Scope: Scope("children"), Tier: Tier("core"), Summary: "Switch complete parent mobile app UI between English, Hindi, Telugu, Tamil, Marathi, and regional languages."},
-					{Key: "parent.profile.telugu_language_interface", Slug: "telugu_language_interface", Name: "Telugu Language Interface", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Use the parent app entirely in Telugu, including circulars, fee notices and report cards."},
+					{Key: "parent.profile.language", Slug: "language", Name: "Language", Scope: Scope("children"), Tier: Tier("core"), Summary: "Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees."},
 					{Key: "parent.profile.parent_app_dark_mode_high_contrast_accessibility", Slug: "parent_app_dark_mode_high_contrast_accessibility", Name: "Parent App Dark Mode & High Contrast Accessibility", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Toggle high-contrast text modes and dark UI themes for low-vision parent app users."},
 				},
 			},

@@ -36,6 +36,19 @@ import (
 // about behaves exactly as it did.
 func (s *Server) evidenceFor(r *http.Request, sc *scope.Resolved, key string) bool {
 	switch key {
+	case "parent.my_childs_bus.live_bus_tracking":
+		/* Only a parent whose child actually travels by bus.
+
+		   Most children walk or are dropped off. For them the entry opened on
+		   "no child of yours is on a school bus" — a permanent state, not a
+		   setup gap, and one the parent cannot do anything about from there. */
+		return s.anyRow(r, `
+			SELECT EXISTS (
+			  SELECT 1 FROM transport_allocations ta
+			   WHERE ta.student_id = ANY($1)
+			     AND (ta.valid_to IS NULL OR ta.valid_to >= CURRENT_DATE))`,
+			sc.StudentIDs)
+
 	case "parent.academics.iep_progress_goal_tracker":
 		/* Only a parent whose child actually has a support plan.
 
@@ -68,4 +81,5 @@ func (s *Server) anyRow(r *http.Request, sql string, args ...any) bool {
    the features that need one. Every other entry costs nothing. */
 var evidenceKeys = map[string]bool{
 	"parent.academics.iep_progress_goal_tracker": true,
+	"parent.my_childs_bus.live_bus_tracking":     true,
 }

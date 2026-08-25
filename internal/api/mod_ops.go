@@ -300,6 +300,13 @@ type circularRow struct {
 	Audience    string `json:"audience_role"`
 	RequiresAck bool   `json:"requires_ack"`
 	PublishedAt string `json:"published_at"`
+	/* The notice itself, and who signed it.
+
+	   A parent could see that the school had said something, and not what, or
+	   who said it. The date alone is the half that does not help on a notice
+	   about this afternoon. */
+	PublishedAtFull string `json:"published_at_full"`
+	PublishedBy     string `json:"published_by,omitempty"`
 	Acks        int    `json:"acknowledgements"`
 	Sections    int    `json:"sections"`
 	// Whether the caller has signed this one. The total count answers the
@@ -380,21 +387,34 @@ func (s *Server) listCirculars(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items, err := collect(s, r, `
+		/* The notice itself, not only that there is one.
+
+		   The list carried a title and a date and no body and no author, so a
+		   parent could see that the school had said something and not what, or
+		   who said it. Opening a second endpoint per row to read a paragraph
+		   the first query already had in hand is a round trip for nothing.
+
+		   Time as well as date: "24 Aug" on a notice about this afternoon's
+		   early closing is the half of the fact that does not help. */
 		SELECT a.id::text, a.title, a.kind, a.audience_role, a.requires_ack,
 		       to_char(a.publish_at,'YYYY-MM-DD'),
+		       to_char(a.publish_at,'YYYY-MM-DD"T"HH24:MI'),
+		       COALESCE(u.full_name, ''),
 		       (SELECT count(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id)::int,
 		       (SELECT count(*) FROM announcement_sections s2 WHERE s2.announcement_id = a.id)::int,
 		       EXISTS (SELECT 1 FROM announcement_acks ak
 		                WHERE ak.announcement_id = a.id AND ak.user_id = $1),
 		       a.body
 		  FROM announcements a
+		  LEFT JOIN users u ON u.id = a.created_by
 		 WHERE `+where+`
 		 ORDER BY a.publish_at DESC LIMIT 200`,
 		args,
 		func(rows pgx.Rows) (circularRow, error) {
 			var v circularRow
 			return v, rows.Scan(&v.ID, &v.Title, &v.Kind, &v.Audience, &v.RequiresAck,
-				&v.PublishedAt, &v.Acks, &v.Sections, &v.Mine, &v.Body)
+				&v.PublishedAt, &v.PublishedAtFull, &v.PublishedBy,
+				&v.Acks, &v.Sections, &v.Mine, &v.Body)
 		})
 	respond(w, r, items, err)
 }

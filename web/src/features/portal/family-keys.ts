@@ -31,10 +31,7 @@ export const familyKeys = {
      them into three pages to match three keys would be the catalogue shaping
      the product rather than describing it. The screen lives under learning/
      because a student reaches it too -- same preferences, same row. */
-  'parent.profile.multi_language_app_interface_toggle': lazy(
-    () => import('../learning/ThemeSelection'),
-  ),
-  'parent.profile.telugu_language_interface': lazy(
+  'parent.profile.language': lazy(
     () => import('../learning/ThemeSelection'),
   ),
   'parent.profile.parent_app_dark_mode_high_contrast_accessibility': lazy(

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 326 of the catalog's features are implemented.
+// 322 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.all_admissions":                                           true,
 	"admissions.admissions.fee_enrollment":                                           true,
@@ -222,18 +222,14 @@ var implementedFeatures = map[string]bool{
 	"parent.messages.communication":                                                  true,
 	"parent.messages.direct_teacher_messaging":                                       true,
 	"parent.messages.teacher_remarks":                                                true,
-	"parent.my_childs_bus.live_bus_tracking_map":                                     true,
-	"parent.my_childs_bus.school_transport_driver_call_button":                       true,
-	"parent.my_childs_bus.transport_snapshot":                                        true,
+	"parent.my_childs_bus.live_bus_tracking":                                         true,
 	"parent.profile.digital_parent_id_card_for_campus_entry":                         true,
 	"parent.profile.digital_student_id_card_view":                                    true,
-	"parent.profile.multi_language_app_interface_toggle":                             true,
+	"parent.profile.language":                                                        true,
 	"parent.profile.parent_app_dark_mode_high_contrast_accessibility":                true,
-	"parent.profile.telugu_language_interface":                                       true,
 	"parent.school_life.calendar_ptm":                                                true,
 	"parent.school_life.live_event_seating_pass":                                     true,
 	"parent.school_life.parent_teacher_meeting_booking":                              true,
-	"parent.school_life.ptm_appointment_reminder_alert":                              true,
 	"parent.school_life.school_photo_video_gallery":                                  true,
 	"seller_admin.entitlements.module_entitlement_matrix":                            true,
 	"seller_admin.home.dashboard":                                                    true,
