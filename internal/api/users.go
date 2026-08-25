@@ -428,7 +428,39 @@ var derivedFrom = map[string]string{
    Stated as a pair rather than a list of forbidden roles, because the objection
    is to the combination and not to either half: both are perfectly good roles
    on their own. */
-var overlappingRoles = [][2]string{{"hod", "faculty"}}
+var overlappingRoles = [][2]string{
+	// 11 of the HOD's 22 entries are the faculty role's own: marks entry,
+	// homework, lesson plans, the register, report cards.
+	{"hod", "faculty"},
+	// All five of the receptionist's entries are inside admissions — the same
+	// four desk registers plus My pay. Granting both is the front desk twice.
+	{"admissions", "front_office"},
+}
+
+/* Why those two and not the rest.
+
+   Measured against the catalogue rather than chosen: every other pair of staff
+   roles shares at most a fifth of the smaller one, and what they share is My
+   pay and the profile — the entries every role has because every role is held
+   by a person. hod+institution_admin is the closest real pair at 31%, and a
+   vice-principal who also heads a department is a genuine two-job person.
+
+   A test recomputes this from the catalogue, so a role that grows into
+   duplicating another is caught when it grows rather than when a school
+   complains. */
+
+/* What to do instead, per pair.
+
+   A refusal that only says no leaves somebody to guess, and the guess is
+   usually to grant it anyway from another screen. */
+var overlapRemedy = map[[2]string]string{
+	{"hod", "faculty"}: "A head of department who teaches gets marks entry, homework and " +
+		"the register from the hod role as soon as somebody allocates them a subject in " +
+		"Faculty allocation.",
+	{"admissions", "front_office"}: "Admissions already contains the four front-desk " +
+		"registers. Give front_office alone to somebody who only works the desk, or " +
+		"admissions alone to somebody who does both.",
+}
 
 // checkGrantable rejects a role list a caller is not entitled to hand out.
 func checkGrantable(keys []string, platformAdmin bool) error {
@@ -438,10 +470,8 @@ func checkGrantable(keys []string, platformAdmin bool) error {
 	}
 	for _, pair := range overlappingRoles {
 		if held[pair[0]] && held[pair[1]] {
-			return errors.New("a person cannot hold both " + pair[0] + " and " + pair[1] +
-				" — they draw the same screens. A head of department who teaches gets " +
-				"marks entry, homework and the register from the hod role as soon as " +
-				"somebody allocates them a subject in Faculty allocation.")
+			return errors.New("a person cannot hold both " + pair[0] + " and " +
+				pair[1] + " — they draw the same screens. " + overlapRemedy[pair])
 		}
 	}
 	for _, k := range keys {
@@ -532,12 +562,15 @@ type rolePreset struct {
 // self-service portals (which belong to students and guardians, not staff) and
 // the platform operator (which spans tenants).
 var AllOperationalRoles = []string{
-	/* No faculty beside hod: the two draw the same classroom screens, so a
-	   person holding both gets one workspace listed twice. Somebody running the
-	   whole school single-handed still teaches — they get those screens from
-	   hod as soon as they are allocated a subject, like anybody else. */
+	/* Neither faculty beside hod, nor front_office beside admissions.
+
+	   Each pair draws the same screens, so holding both gives one workspace
+	   listed twice. Somebody running the whole school single-handed still
+	   teaches and still works the desk — they get the classroom screens from
+	   hod once they are allocated a subject, and the four desk registers from
+	   admissions, which already contains them. */
 	"institution_admin", "it_admin", "hod",
-	"finance", "admissions", "front_office", "hr", "operations",
+	"finance", "admissions", "hr", "operations",
 	"exam_controller", "librarian", "transport_manager", "hostel_warden",
 }
 
@@ -560,7 +593,10 @@ var rolePresets = []rolePreset{
 		Key:         "office",
 		Name:        "Office staff",
 		Description: "Admissions, the front desk and the fee counter — the usual front-office bundle.",
-		RoleKeys:    []string{"admissions", "front_office", "finance"},
+		/* admissions, not admissions+front_office: the receptionist's five
+		   entries are all inside admissions, so granting both would give this
+		   person the front desk twice. */
+		RoleKeys:    []string{"admissions", "finance"},
 	},
 	{
 		Key:         "accounts",
