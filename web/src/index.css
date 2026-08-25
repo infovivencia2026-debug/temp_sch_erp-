@@ -1084,6 +1084,34 @@ dialog[open],
   to   { opacity: 1; transform: none; }
 }
 
+/* A drawer is the one surface where the distance is the point.
+
+   8px of travel is right for a menu resolving next to its button, and wrong
+   for a 26rem column that lives at the edge of the window: it looked like the
+   panel had always been there and merely faded up. Coming the full width says
+   where it came from, and — with the same curve as everything else — says it
+   slowly enough to follow. */
+[data-side='right'] { animation-name: drawer-in-right; }
+@keyframes drawer-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: none; }
+}
+
+/* And leaves the way it came.
+
+   Without this the drawer arrived over 560ms and disappeared in one frame,
+   which reads as a fault rather than as closing — the same complaint as
+   things appearing from nowhere, in the other direction. The component keeps
+   it mounted for exactly this animation and unmounts on animationend. */
+[data-side='right'][data-closing] {
+  animation-name: drawer-out-right;
+  animation-fill-mode: forwards;
+}
+@keyframes drawer-out-right {
+  from { transform: none; }
+  to   { transform: translateX(100%); }
+}
+
 [class*='transition'] {
   transition-duration: var(--motion-quick) !important;
   transition-timing-function: var(--motion-ease) !important;

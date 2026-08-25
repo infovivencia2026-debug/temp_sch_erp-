@@ -497,7 +497,7 @@ export function Table({
   const from = at * PAGE_SIZE
   const shown = rows.length > PAGE_SIZE ? rows.slice(from, from + PAGE_SIZE) : rows
   return (
-/* `.scroll-x`, not a bare overflow-x-auto: it draws the bar and the edge
+    /* `.scroll-x`, not a bare overflow-x-auto: it draws the bar and the edge
        shadow that say the table continues past the card. See index.css.
 
        The width rule below is the other half of the same problem — a `wide`
