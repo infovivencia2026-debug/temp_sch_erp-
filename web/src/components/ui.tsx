@@ -2,6 +2,7 @@ import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
   type ReactElement, type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Printer, X,
 } from 'lucide-react'
@@ -1042,6 +1043,42 @@ export function Select({
     return () => document.removeEventListener('mousedown', away)
   }, [open])
 
+  /* Where the menu goes, in viewport coordinates.
+
+     The trigger may be inside a table that scrolls sideways, so its position
+     is only knowable at the moment the menu opens — and has to be re-read if
+     anything scrolls underneath it while it is open. */
+  const [box_, setBox_] = useState<{ left: number; top: number; width: number } | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      setBox_(null)
+      return
+    }
+    const place = () => {
+      const el = box.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      /* Above the trigger when there is no room below it. A menu opening off
+         the bottom of the window is the same fault as one clipped by a table:
+         the options exist and cannot be reached. */
+      const below = window.innerHeight - r.bottom
+      const wantsAbove = below < 220 && r.top > below
+      setBox_({
+        left: r.left,
+        top: wantsAbove ? Math.max(8, r.top - 4 - Math.min(256, r.top - 16)) : r.bottom + 4,
+        width: r.width,
+      })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open])
+
   const all = kind ? [...options, ...custom] : options
   const selected = all.find((o) => o.value === value)
   const q = query.trim().toLowerCase()
@@ -1094,6 +1131,17 @@ export function Select({
         value={open ? query : shownLabel}
         placeholder={shownLabel || placeholder || 'Type to search'}
         onFocus={() => { setOpen(true); setActive(0) }}
+        /* Clicking it again reopens it.
+         *
+         * Choosing an option closes the menu and leaves the input focused, so
+         * the next click fired no focus event and nothing happened — somebody
+         * wanting to change their answer clicked the box, saw it do nothing,
+         * and clicked away to try again. onFocus alone only ever opens the
+         * FIRST time.
+         *
+         * The query is cleared on choose, so reopening shows the whole list
+         * rather than the list narrowed by what was picked last time. */
+        onClick={() => { setOpen(true); setActive(0) }}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0) }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((i) => Math.min(i + 1, rows - 1)) }
@@ -1110,8 +1158,15 @@ export function Select({
         <ChevronDown className="h-4 w-4" />
       </span>
 
-      {open && (
-        <div className="absolute z-40 mt-1 max-h-64 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md">
+      {open && box_ && createPortal(
+        <div
+          /* In the body, so no scrolling ancestor can clip it. Placed against
+             the trigger's own box rather than flowing under it, because the
+             two no longer share a coordinate space. */
+          style={{ left: box_.left, top: box_.top, width: box_.width }}
+          className="fixed z-50 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-md"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {placeholder && !q && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
               className="block w-full rounded px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent">
@@ -1171,7 +1226,8 @@ export function Select({
             </p>
           )}
           {err && <p className="px-2 py-1.5 text-[12px] text-destructive">{err}</p>}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

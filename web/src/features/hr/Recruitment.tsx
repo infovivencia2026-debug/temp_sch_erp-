@@ -460,7 +460,11 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
           title="Candidates"
           description="Whoever has been waiting longest, first."
         />
+        {/* Six columns with a dropdown and a button in the last one: without
+            `wide` the width was divided equally, the Select was squeezed to a
+            chevron, and its open menu was clipped by the row it sat in. */}
         <Table
+          wide
           head={['Name', 'Post', 'Qualification', 'Stage', 'Waiting', '']}
           empty={rows.length === 0}
           emptyLabel="Nobody has applied against this post yet."
@@ -497,13 +501,18 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
               </Td>
               <Td className="text-right">
                 {mayWrite && c.stage !== 'joined' && (
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Select
-                      value=""
-                      onChange={(stage) => stage && move.mutate({ id: c.id, stage })}
-                      placeholder="Move to…"
-                      options={STAGES.filter(([s]) => s !== c.stage).map(([value, label]) => ({ value, label }))}
-                    />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {/* Room to read the stage it is moving to. A Select given
+                        no width collapses to its chevron in a crowded row, and
+                        "Move to…" is the only thing that says what it does. */}
+                    <div className="w-48 min-w-[11rem] text-left">
+                      <Select
+                        value=""
+                        onChange={(stage) => stage && move.mutate({ id: c.id, stage })}
+                        placeholder="Move to…"
+                        options={STAGES.filter(([s]) => s !== c.stage).map(([value, label]) => ({ value, label }))}
+                      />
+                    </div>
                     <Button size="sm" onClick={() => setHiring(c)}>Hire</Button>
                   </div>
                 )}
