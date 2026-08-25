@@ -351,6 +351,13 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 				if !id.Can(f.Key) {
 					continue
 				}
+				/* A few entries earn their place only when there is something
+				   behind them — see catalog_evidence.go. Deliberately a short
+				   explicit list, not a general "hide what is empty": that rule
+				   is the one that empties a menu mid-setup. */
+				if evidenceKeys[f.Key] && !s.evidenceFor(r, sc, f.Key) {
+					continue
+				}
 				cs.Features = append(cs.Features, catalogFeature{
 					Key:     f.Key,
 					Slug:    f.Slug,
