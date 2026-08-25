@@ -399,7 +399,17 @@
     background: hsl(var(--surface-hover));
   }
 
-  .responsive-table :where(td, th).num {
+  /* A figure is not a word, wherever it appears.
+
+     `overflow-wrap: anywhere` stops a long email address shoving a card
+     sideways, and it was equally happy to split ₹1,800 across four lines and
+     break "09:00–09:45" at the dash. Both are one thing that happens to be
+     written with punctuation in the middle.
+
+     Scoped to .num rather than applied to every number, because a paragraph
+     that mentions a figure should still wrap: this is for the cells and labels
+     whose whole content is one reading. */
+  .num {
     overflow-wrap: normal;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;

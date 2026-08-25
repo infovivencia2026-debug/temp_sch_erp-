@@ -144,7 +144,7 @@ export default function MarkModeration() {
                             : `${overMax} marks above the paper maximum`}
                         </Badge>
                       ) : r.lowest_pct && r.highest_pct ? (
-                        `${r.lowest_pct}–${r.highest_pct}%`
+                        <span className="num">{r.lowest_pct}–{r.highest_pct}%</span>
                       ) : (
                         '—'
                       )}

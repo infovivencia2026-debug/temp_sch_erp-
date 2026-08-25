@@ -116,7 +116,16 @@ export default function TodaysClasses() {
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
                       <Clock className="size-3.5" aria-hidden="true" />
-                      {p ? `${p.name} · ${p.starts_at}–${p.ends_at}` : e.period_name}
+                      {/* The line may wrap between its parts; the clock
+                          reading may not break inside itself. */}
+                      {p ? (
+                        <>
+                          {p.name} ·{' '}
+                          <span className="num">{p.starts_at}–{p.ends_at}</span>
+                        </>
+                      ) : (
+                        e.period_name
+                      )}
                       {e.room ? ` · ${e.room}` : ''}
                     </p>
                   </>
@@ -134,7 +143,10 @@ export default function TodaysClasses() {
                   key={e.id}
                   className={cn('flex items-center gap-4 px-5 py-3', isNow && 'bg-primary-soft')}
                 >
-                  <span className="w-24 shrink-0 text-[12px] tabular-nums text-muted-foreground">
+                  {/* A period is one time, not two lines: overflow-wrap
+                      breaks "09:00–09:45" at the dash once the column is
+                      tight, and a clock reading is not a word. */}
+                  <span className="w-24 shrink-0 whitespace-nowrap text-[12px] tabular-nums text-muted-foreground">
                     {p ? `${p.starts_at}–${p.ends_at}` : e.period_name}
                   </span>
                   <span className="min-w-0 flex-1">

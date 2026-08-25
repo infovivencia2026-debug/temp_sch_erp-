@@ -264,7 +264,13 @@ export default function Portal() {
                 <ul className="divide-y">
                   {s.today.map((c, i) => (
                     <li key={`${c.period}-${i}`} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5">
-                      <span className="w-24 shrink-0 font-mono text-[13px] tabular-nums text-muted-foreground">
+                      {/* A period is one time, not two lines.
+
+                          96px of monospace holds "09:00–09:45" only just, and
+                          overflow-wrap:anywhere — which stops a long email
+                          address shoving a card sideways — was happy to break
+                          it at the dash. A clock reading is not a word. */}
+                      <span className="w-28 shrink-0 whitespace-nowrap font-mono text-[13px] tabular-nums text-muted-foreground">
                         {c.starts_at ?? '—'}
                         {c.ends_at ? `–${c.ends_at}` : ''}
                       </span>
