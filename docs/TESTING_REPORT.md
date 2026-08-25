@@ -260,3 +260,83 @@ The browser-only findings from the 25 Aug parent walk — "Language" opening
 Appearance, "Absent 1 days", the "Good morning, Demo" greeting, the four
 identical Meera Menon chips — are untouched by an endpoint probe and remain
 open as recorded.
+
+---
+
+## Run — 25 Aug 2026, parent, real browser, catalogue-driven
+
+`scripts/ui_probe.mjs` follows `<a href>` and the parent shell is a tab strip
+and a launcher of BUTTONS, which is why the 24 Aug run reached 7 parent screens
+and said so itself. This run takes the route list from `/api/v1/catalog` — the
+same catalogue the SPA builds its own navigation from — and visits every one in
+a real Chromium, hooking `console`, every response, and measuring `<main>`.
+
+| | |
+|---|---|
+| Routes in this role's catalogue | **31** |
+| Visited | **31** |
+| Timeouts | **0** |
+| Failed network calls | **1** |
+| Console errors | **1** (the same one) |
+| Unrounded percentages / `undefined` / `NaN` / raw snake_case | **0** |
+
+### A correction to this report's own method
+
+**17 of 31 parent screens render under 400 characters, and that number means
+almost nothing here.** Two were opened and read in full:
+
+`/parent/attendance/attendance` measures 300 characters and contains 96%
+overall, 25 days marked, 24 present, 1 absent, and a month-by-month history
+back to July. It is a complete screen. `innerText` on this shell is compact —
+figures are short, labels are short, and a card that reads as substantial to a
+person is 40 characters to a probe.
+
+The earlier runs used the same threshold and drew conclusions from it. Where
+those conclusions were checked by opening the screen they held; where they were
+not, they are worth re-checking before anybody acts on them. **A character count
+is a prompt to look, not a finding.**
+
+### Found this run
+
+1. **A parent is offered a control they cannot use, on Report an absence.**
+   `/parent/attendance/child_absence_reporting_button` fires
+   `GET /api/v1/setup/options?kind=absence_reason` on every load and gets **403,
+   missing permission: institution.read**, with a console error to match.
+
+   The screen is *not* broken, and it is worth being exact about why: the
+   `Select` in `components/ui.tsx` catches that failure on purpose — "the
+   built-in list still works" — so the parent still sees the standard reasons
+   and can still report the absence. What survives the catch is the **"Add a
+   reason"** affordance, which `canAdd` offers as soon as they type something
+   the list does not contain, and which posts to the same endpoint that just
+   refused them.
+
+   So: a noisy 403 on every load, plus a button that is visible only to roles
+   that cannot press it. The fix is one condition — don't offer custom options
+   to a caller whose fetch was refused — not a permission grant. **A parent
+   must not hold `institution.read`.**
+
+2. **Raw ISO dates on `/parent/messages/communication`** — `2026-08-16`, where
+   the rest of the product writes "16 Aug 2026". This is cluster 5 of the 24 Aug
+   audit, now with a confirmed screen against it.
+
+3. **"Absent 1 days" confirmed** on `/parent/attendance/attendance`, live.
+   Already logged; now reproduced by machine rather than by eye.
+
+4. **The four identical children are still there**, and they are the first thing
+   the shell renders: the breadcrumb reads "Meera Menon / Meera Menon" and the
+   switcher below it is "Meera · Meera · Meera · Meera". Seed data, already
+   logged twice from two roles.
+
+5. **The report card reads 17 / 400 · 4.3% · D2 · Rank 1** with English 17/20
+   and Social Studies 18/20 beneath it — reproduced exactly. Root cause is in
+   the endpoint-probe section above: the card is a stored snapshot from 17
+   August, not a live sum, and the percentage divides what was entered by the
+   whole exam.
+
+### What this run did not cover
+
+Nothing was clicked. Every screen was visited by URL and measured as it first
+settled, so anything behind a button — the absence form's submit, the meeting
+booking flow, the child switcher's effect on a second child — is unprobed. The
+hand-run on 25 Aug remains the only pass that exercised interaction.
