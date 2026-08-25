@@ -548,9 +548,13 @@
   to { opacity: 1; transform: none; }
 }
 
+/* `*` at 0.01ms was the blunt version of this, written before the motion
+   section at the foot of this file existed. It killed the colour fades too,
+   which are not displacement and are not what the setting is asking about --
+   and being first in the file it quietly beat everything the motion section
+   tried to say. Displacement is handled there, properly, per surface. */
 @media (prefers-reduced-motion: reduce) {
   .reveal { animation: none; opacity: 1; transform: none; }
-  * { transition-duration: 0.01ms !important; }
 }
 
 /* Tables become cards on a phone.
@@ -1011,11 +1015,42 @@
    otherwise win at random depending on stylesheet order.
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --motion-quick: 420ms;   /* hovers, colour changes, small state flips */
-  --motion: 680ms;         /* panels, menus, dialogs, anything that travels */
-  --motion-slow: var(--motion);
-  --motion-enter: 560ms;   /* the arrival of something that was not there */
-  --motion-ease: cubic-bezier(0.22, 0.61, 0.16, 1);
+  /* RETIMED AGAINST HOW A HAND EXPECTS A SURFACE TO BEHAVE.
+
+     These were 420 / 680 / 560. The reasoning for them is above and it is
+     half right: raising a duration without fixing the curve does produce
+     something that feels late rather than calm. The curve was fixed. The
+     durations were then left where they were, and 680ms for a menu is a menu
+     you wait for.
+
+     The test is not "does it look smooth in isolation" but "does the surface
+     feel attached to my hand". Anything over about 350ms for ordinary
+     navigation stops feeling like a response and starts feeling like a short
+     film -- the interface is performing rather than reacting. Feedback on a
+     press has to land inside roughly 100ms or the press feels unacknowledged
+     and people tap twice.
+
+     So: fast where a finger is involved, unhurried only where something
+     genuinely travels a long way. */
+  --motion-press: 90ms;    /* the acknowledgement of a press, under the finger */
+  --motion-quick: 160ms;   /* hovers, colour changes, small state flips */
+  --motion: 300ms;         /* panels, menus, dialogs, anything that travels */
+  --motion-slow: 420ms;    /* a sheet or drawer crossing most of the screen */
+  --motion-enter: 200ms;   /* the arrival of something that was not there */
+
+  /* TWO CURVES, AND THE DIFFERENCE BETWEEN THEM IS THE WHOLE POINT.
+
+     --motion-ease is a settle: quick to leave, long and soft to arrive, no
+     overshoot. It is the default, and it is what everything that carries
+     information uses -- a figure that bounces reads as unreliable.
+
+     --motion-spring has a small overshoot, and it is for things that a person
+     just did: a control that snaps into its new state, a menu resolving out of
+     the button that was pressed. Kept subtle deliberately. Bounce should have
+     a reason; decorative bounce is what makes an interface feel like a toy,
+     and this one is used by people counting money. */
+  --motion-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-spring: cubic-bezier(0.22, 1.12, 0.36, 1);
   --ease-soft: var(--motion-ease);
 }
 
@@ -1043,6 +1078,38 @@
   transition-timing-function: var(--motion-ease);
 }
 
+/* THE PRESS ITSELF, WHICH NOTHING ACKNOWLEDGED.
+
+   Every control in this product waited for the click to land and then changed
+   something. Between the finger going down and the result appearing there was
+   nothing at all, and on a slow connection that gap is the whole interaction:
+   people press again, and the second press is the one that gets counted.
+
+   A press is not a hover and not a click. It is the moment contact is made,
+   and the surface should give under it immediately -- inside 90ms, which is
+   about as long as a press can go unacknowledged before it reads as ignored.
+
+   Cancellable for free, and that matters: :active is released the moment the
+   pointer leaves the control, so a finger that lands on the wrong button and
+   slides off watches it come back up. Nothing has to be written for that; it
+   is why this is :active and not a JavaScript pressed state.
+
+   0.97, not 0.9. This is a confirmation that contact happened, not an
+   animation. Rows and table cells are excluded -- a list row that shrinks under
+   a finger reads as the list collapsing. */
+:where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'],
+       summary):active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: var(--motion-press);
+}
+
+/* A card is bigger, so it needs less. The same 3% on a full-width tile is a
+   lurch; 1% is the same statement at that size. */
+:where(.card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
+  transform: scale(0.99);
+  transition-duration: var(--motion-press);
+}
+
 /* SECOND HOLE — things that arrive. A transition needs a from-state, and an
    element that has just been mounted has none: a menu, a dialog, a toast or a
    dropdown was simply not there and then was, at full opacity, in one frame.
@@ -1055,8 +1122,15 @@
 
    By role and by element, so a new menu written next week is covered without
    anyone remembering this file exists. */
+/* A popover resolves OUT OF the control that opened it.
+
+   It was a 4px drop and a 1.5% scale, which at 560ms read as a fade with a
+   twitch in it. The scale is what carries the spatial claim -- "this came from
+   there" -- so it starts further down at 0.94 and the travel is dropped
+   entirely. Combined with transform-origin below, a menu grows from its own
+   corner instead of arriving from an unrelated direction. */
 @keyframes motion-enter {
-  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  from { opacity: 0; transform: scale(0.94); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -1068,9 +1142,15 @@
 dialog[open],
 [data-state='open'][data-side],
 [popover]:popover-open {
-  animation: motion-enter var(--motion-enter) var(--motion-ease) both;
+  animation: motion-enter var(--motion-enter) var(--motion-spring) both;
+  /* Where the thing grows FROM. `top center` is right for a menu hanging under
+     its button and wrong for one opening upward out of a dock, so the two
+     placement classes the popovers already carry set their own origin below. */
   transform-origin: top center;
 }
+
+.pop-up { transform-origin: bottom center; }
+.pop-down { transform-origin: top center; }
 
 /* A panel that owns the side of the screen comes from that side, not from
    above — the rise reads as wrong on something 400px tall. */
@@ -1091,7 +1171,14 @@ dialog[open],
    panel had always been there and merely faded up. Coming the full width says
    where it came from, and — with the same curve as everything else — says it
    slowly enough to follow. */
-[data-side='right'] { animation-name: drawer-in-right; }
+/* A drawer crosses most of the screen, so it is the one surface that keeps a
+   long duration -- --motion-slow rather than --motion. Distance is what a
+   duration should be scaled by; a menu resolving 8px out of its button and a
+   26rem column crossing the window are not the same event. */
+[data-side='right'] {
+  animation-name: drawer-in-right;
+  animation-duration: var(--motion-slow);
+}
 @keyframes drawer-in-right {
   from { transform: translateX(100%); }
   to   { transform: none; }
@@ -1117,6 +1204,16 @@ dialog[open],
   transition-timing-function: var(--motion-ease) !important;
 }
 
+/* The press overrides the override.
+
+   The blanket rule above is !important, so without this the 90ms press would
+   be stretched to whatever the element's class list asked for and the give
+   under the finger would arrive after the finger had gone. */
+:where(button, [role='button'], .btn, [role='tab'], [role='switch'], summary,
+       .card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
+  transition-duration: var(--motion-press) !important;
+}
+
 /* Things that MOVE rather than merely change get the longer time: a menu
    arriving from its own origin, a panel sliding, a dialog rising. */
 [class*='transition-transform'],
@@ -1136,19 +1233,48 @@ dialog,
 /* Somebody who has asked their system for less motion gets it, whatever this
    file would prefer. Slower animation is a preference; overriding that setting
    is an accessibility failure. */
+/* REDUCED MOTION IS NOT NO MOTION.
+
+   This used to set everything to 1ms and strip the entrances, which obeys the
+   setting and throws away the reason the entrances exist: a menu that appears
+   in one frame still cannot be connected to the button that opened it, and
+   somebody who asked for less movement did not ask to lose that.
+
+   What the setting is actually about is DISPLACEMENT -- travel, parallax,
+   zoom, depth. So the transforms go and the fades stay, on a short duration.
+   Nothing here moves across the screen any more; things simply become
+   present. */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --motion-quick: 1ms;
-    --motion: 1ms;
-    --motion-enter: 1ms;
+    --motion-press: 1ms;
+    --motion-quick: 80ms;
+    --motion: 120ms;
+    --motion-slow: 120ms;
+    --motion-enter: 120ms;
+    --motion-spring: var(--motion-ease);
   }
-  .motion-enter,
-  [role='menu'],
-  [role='listbox'],
-  [role='tooltip'],
-  [role='dialog'],
-  dialog[open] {
-    animation: none !important;
+
+  @keyframes motion-enter {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes motion-enter-side {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes drawer-in-right {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes motion-open-pane {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* No give under the finger either: a scale is displacement, however small. */
+  :where(button, [role='button'], .btn, [role='tab'], [role='switch'], summary,
+         .card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
+    transform: none;
   }
   [class*='transition'],
   [class*='animate-'],
@@ -1157,8 +1283,8 @@ dialog,
   dialog,
   [role='dialog'],
   [role='menu'] {
-    transition-duration: 1ms !important;
-    animation-duration: 1ms !important;
+    transition-duration: var(--motion-quick) !important;
+    animation-duration: var(--motion-enter) !important;
   }
 }
 
