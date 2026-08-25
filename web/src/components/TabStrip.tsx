@@ -5,6 +5,9 @@ import { useCatalog, screenTitle } from '@/lib/catalog'
 import { useTabs, neighbourOf, MAX_TABS } from '@/lib/tabs'
 import { usePanes, isHomeBoard, type Side } from '@/lib/panes'
 import TabMenu, { type MenuTarget } from '@/components/TabMenu'
+import { useLayout } from '@/lib/layout'
+import { requestArrange } from '@/lib/widgets'
+import { requestAppearance } from '@/lib/appearance-request'
 import { cn } from '@/lib/utils'
 
 /* The tab strip. Desktop only — see lib/tabs.ts for why that is a decision
@@ -20,6 +23,7 @@ export default function TabStrip() {
   const catalog = useCatalog()
   const { tabs, open, close } = useTabs()
   const { paths, split, closeSplit } = usePanes()
+  const { layout } = useLayout()
   const [menu, setMenu] = useState<MenuTarget | null>(null)
 
   const titleFor = (path: string) => screenTitle(catalog, path)
@@ -121,7 +125,31 @@ export default function TabStrip() {
         <TabMenu
           target={menu}
           paneCount={Math.max(paths.length, 1)}
-          refuse={isHomeBoard(menu.path) ? 'Home board' : undefined}
+          /* A Home board in the Focus layout is the one tab whose menu is not
+             about panes at all. In the classic layout Home is an ordinary page
+             and splits like any other. */
+          board={
+            layout === 'bento' && isHomeBoard(menu.path)
+              ? {
+                  onAddWidget: () => {
+                    // The board has to be the one on screen before anything can
+                    // be added to it: the arranger reads whichever dashboard is
+                    // currently published, not whichever tab was right-clicked.
+                    if (menu.path !== here) navigate(menu.path)
+                    requestAppearance('dashboard')
+                    setMenu(null)
+                  },
+                  onEdit: () => {
+                    if (menu.path !== here) navigate(menu.path)
+                    // Parked rather than set: navigating unmounts the old
+                    // board, and that unmount clears arrange mode. The next
+                    // board to publish picks the intent up.
+                    requestArrange()
+                    setMenu(null)
+                  },
+                }
+              : undefined
+          }
           onSplit={(side) => { doSplit(side, menu.path); setMenu(null) }}
           onUnsplit={() => { closeSplit(); setMenu(null) }}
           onClose={() => {

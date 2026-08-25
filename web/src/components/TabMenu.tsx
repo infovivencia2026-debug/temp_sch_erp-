@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { PanelRight, PanelLeft, PanelTop, PanelBottom, X, Columns2 } from 'lucide-react'
+import { PanelRight, PanelLeft, PanelTop, PanelBottom, X, Columns2, Plus, Sliders } from 'lucide-react'
 import { MAX_PANES, type Side } from '@/lib/panes'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +28,7 @@ const SIDES: { side: Side; label: string; icon: typeof PanelRight }[] = [
 export default function TabMenu({
   target,
   paneCount,
-  refuse,
+  board,
   onSplit,
   onUnsplit,
   onClose,
@@ -36,10 +36,14 @@ export default function TabMenu({
 }: {
   target: MenuTarget
   paneCount: number
-  /** Why this particular tab cannot be split, if it cannot. Shown on the four
-      directions rather than hiding them: a menu that silently loses half its
-      items on one tab reads as a bug. */
-  refuse?: string
+  /** Set when this tab is a Home board, which cannot be a pane. The menu then
+      offers what a board CAN do instead of four greyed-out directions.
+
+      Showing them disabled was the first attempt and it was wrong: a menu of
+      four dead rows is four rows of nothing, and a dashboard is not short of
+      things somebody might want from it — it is the one screen in the product
+      that is meant to be rearranged. So the space goes to that instead. */
+  board?: { onAddWidget: () => void; onEdit: () => void }
   onSplit: (side: Side) => void
   onUnsplit: () => void
   onClose: () => void
@@ -68,7 +72,6 @@ export default function TabMenu({
   }, [onDismiss])
 
   const full = paneCount >= MAX_PANES
-  const blocked = refuse ?? (full ? `${MAX_PANES} max` : undefined)
 
   return (
     <>
@@ -106,16 +109,23 @@ export default function TabMenu({
         <p className="truncate px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
           {target.title}
         </p>
-        {SIDES.map(({ side, label, icon: Icon }) => (
-          <Item
-            key={side}
-            icon={Icon}
-            label={label}
-            hint={blocked}
-            disabled={!!blocked}
-            onSelect={() => onSplit(side)}
-          />
-        ))}
+        {board ? (
+          <>
+            <Item icon={Plus} label="Add a widget" onSelect={board.onAddWidget} />
+            <Item icon={Sliders} label="Rearrange this board" onSelect={board.onEdit} />
+          </>
+        ) : (
+          SIDES.map(({ side, label, icon: Icon }) => (
+            <Item
+              key={side}
+              icon={Icon}
+              label={label}
+              hint={full ? `${MAX_PANES} max` : undefined}
+              disabled={full}
+              onSelect={() => onSplit(side)}
+            />
+          ))
+        )}
         <div className="my-1 h-px bg-border" />
         {paneCount > 1 && (
           <Item icon={Columns2} label="Back to one pane" onSelect={onUnsplit} />

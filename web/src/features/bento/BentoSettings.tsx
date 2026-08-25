@@ -6,6 +6,7 @@ import {
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { resetAppearance } from '@/lib/appearance'
+import { useAppearanceRequest } from '@/lib/appearance-request'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
 import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
@@ -74,6 +75,23 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
+
+  /* Somebody else asked for this dialog — the tab menu, offering to add a
+     widget to the board they right-clicked. The dialog is mounted here and
+     nowhere else, so the request arrives as a value rather than as a prop
+     threaded through the shell. */
+  const wanted = useAppearanceRequest()
+  useEffect(() => {
+    // One answerer. This component is mounted four times — dock, rail,
+    // sidebar, menu bar — and three of them are hidden by whichever layout is
+    // in force, so an unguarded request would open four dialogs, three of them
+    // stacked behind chrome nobody can see. The dock is the instance the Focus
+    // layout always has.
+    if (placement !== 'dock' || wanted.seq === 0) return
+    setAppearanceTab(wanted.page)
+    setShowAppearance(true)
+    setOpen(false)
+  }, [wanted.seq, wanted.page, placement])
   /* Which category pane is showing, macOS System Settings style: a flat root
      list of self-contained categories, each opening into its own screen with
      a back arrow rather than everything living on one scrolling list.

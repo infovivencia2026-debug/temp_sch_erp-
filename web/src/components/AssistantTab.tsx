@@ -103,20 +103,20 @@ export function AssistantTab() {
 
   return (
     <>
-      {/* The tab. Bottom-RIGHT, clear of the dock, which is centred.
+      {/* The tab. Bottom-LEFT, which is where it was asked for.
 
-          It sat bottom-left, which is where the sidebar's own controls live —
-          a floating pill in that corner reads as one more piece of navigation
-          chrome rather than as something you talk to. Bottom-right is where
-          every product this one will be compared to keeps its assistant, and
-          the habit is worth more here than any argument for the other side. */}
+          The panel is lifted clear of the dock rather than sharing its line:
+          the dock is centred and ~44px tall, so a panel anchored at bottom-5
+          puts its own text input directly on top of the dock's settings gear —
+          two controls in the same pixels, and the one you hit is whichever
+          happens to be painted last. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label="Assistant"
         className={cn(
-          `fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border
+          `fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full border
            bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg transition-colors
            hover:bg-accent focus-visible:outline-none focus-visible:ring-2
            focus-visible:ring-ring`,
@@ -131,7 +131,7 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-5 right-5 z-40 flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2.5rem))]
+          className="fixed bottom-24 left-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">

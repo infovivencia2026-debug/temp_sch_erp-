@@ -535,6 +535,10 @@ export function publishBoard(dashboard: string, widgets: BoardWidget[]) {
     board.widgets.every((w, i) => w.id === widgets[i].id && w.label === widgets[i].label && w.w === widgets[i].w && w.h === widgets[i].h)
   if (same) return
   board = { dashboard, widgets }
+  if (arrangeWanted) {
+    arrangeWanted = false
+    arranging = true
+  }
   emitBoard()
 }
 
@@ -547,6 +551,26 @@ export function clearBoard(dashboard: string) {
   // editing state nobody asked for.
   arranging = false
   emitBoard()
+}
+
+/* Arrange the board that is ABOUT to be on screen.
+
+   `setArranging(true)` only works if the board is already mounted: the tab
+   menu can be used on a Home tab somebody is not currently looking at, and
+   navigating there unmounts the old board — whose `clearBoard` deliberately
+   drops arrange mode, so a flag set before the move is cleared by the move.
+
+   So the intent is parked instead, and the next board to publish picks it up.
+   One-shot: it is consumed on use, or a single "rearrange" would put every
+   dashboard opened afterwards into edit mode. */
+let arrangeWanted = false
+
+export function requestArrange() {
+  if (board.dashboard) {
+    setArranging(true)
+    return
+  }
+  arrangeWanted = true
 }
 
 export function setArranging(v: boolean) {
