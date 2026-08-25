@@ -325,7 +325,27 @@ export function Shell({
     setTheme(next)
   }
 
-  const isBentoRole = role?.key === 'faculty' || role?.key === 'parent'
+  /* THERE IS NO SUCH THING AS A BENTO ROLE, AND THERE SHOULD NEVER HAVE BEEN.
+
+     A const here read `role?.key === 'faculty' || role?.key === 'parent'` and
+     hid the sidebar, the hamburger and the show-navigation button for those
+     two roles and nobody else. It was written when faculty and parent were the
+     only two roles with a Bento home board, and it was already stale by the
+     time finance, the principal, student and admissions got one -- a hardcoded
+     list of two that nothing regenerates.
+
+     What it produced was a product that behaved differently for two of
+     thirteen roles for a reason no user could see or fix. A teacher who chose
+     the Sidebar layout got no sidebar, and no hamburger to open one with,
+     which is not a layout preference being applied -- it is a preference being
+     ignored. There was no way back to navigation from inside those roles
+     except by knowing the URL.
+
+     Chrome is decided by the layout preference, for everybody. `chromeless`
+     below is that preference and it is the only thing that hides the sidebar
+     now. Which SCREEN a role lands on is a separate question, answered by
+     bento-registry.ts, and it was never the same question as whether that role
+     is allowed a menu. */
 
   /* Bento is a full-bleed canvas: no sidebar, no header. A grid laid out to be
      read edge to edge with a 256px rail beside it and a 56px strip above it is
@@ -363,7 +383,7 @@ export function Shell({
              by default, and hiding a thing that is not shown would leave the
              hamburger opening nothing. */
           railHidden ? 'lg:!hidden' : '',
-          isBentoRole || chromeless ? '!hidden' : ''
+          chromeless ? '!hidden' : ''
         )}
       >
         {/* --- the rail: one mark per workspace ---------------------------
@@ -646,21 +666,19 @@ export function Shell({
             sticky blur already says "this stays". */}
         {!chromeless && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
-          {!isBentoRole && (
-            <button
-              aria-label="Open navigation"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
-              onClick={() => setNavOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          )}
+          <button
+            aria-label="Open navigation"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+            onClick={() => setNavOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
           {/* The way back. Shown only when the rail is away, because a button
               that puts back something already there is a button that does
               nothing — and a hidden rail with no visible way to return it is
               how a person decides the app has lost its menu. */}
-          {!isBentoRole && railHidden && (
+          {railHidden && (
             <button
               type="button"
               aria-label="Show navigation"
