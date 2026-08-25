@@ -1699,6 +1699,96 @@ export const en = {
   // summed in the browser from the overdue invoice list the classic screen
   // already fetches — no second endpoint, and no figure the classic screen
   // does not also show.
+  // --- the head of department's board -------------------------------------
+  'bento.hod.eyebrow': 'Your department',
+  'bento.hod.title': 'Before nine',
+  'bento.hod.loading': 'Reading your department\u2026',
+  'bento.hod.failed': 'That did not load. No period is listed as uncovered because nothing was read, not because every lesson has a teacher.',
+
+  'bento.hod.uncovered': 'Nobody in front of them',
+  'bento.hod.uncovered_sub': 'Periods today whose teacher is out and who has no cover',
+  'bento.hod.uncovered_sr': 'Absent staff, and how many of their periods are uncovered',
+  'bento.hod.of_periods': 'of {n} periods lost today',
+  'bento.hod.uncovered_of': '{u} of {p} uncovered',
+  'bento.hod.all_covered_short': 'all covered',
+  'bento.hod.nobody_out': 'Nobody in the department is out today.',
+  'bento.hod.cue_cover': 'Arrange substitutions',
+
+  'bento.hod.waiting': 'Waiting on you',
+  'bento.hod.waiting_sub': 'Four queues, all of them yours to clear',
+  'bento.hod.waiting_sr': 'Approvals waiting, by queue',
+  'bento.hod.across_queues': 'across {n} queues',
+  'bento.hod.nothing_waiting': 'Every queue is clear.',
+  'bento.hod.q_leave': 'Leave requests',
+  'bento.hod.q_subs': 'Substitutions',
+  'bento.hod.q_papers': 'Question papers',
+  'bento.hod.q_marks': 'Marks to moderate',
+  'bento.hod.cue_approvals': 'Open approvals',
+
+  'bento.hod.registers': 'Registers not taken',
+  'bento.hod.registers_sub': 'Of your sections, how many are still unopened today',
+  'bento.hod.registers_sr': 'Registers not taken as a share of the department\u2019s sections',
+  'bento.hod.of_sections': 'of {n} sections',
+  'bento.hod.no_sections': 'No sections are allocated to this department.',
+  'bento.hod.cue_registers': 'Open the register',
+
+  'bento.hod.absent': 'Staff out today',
+  'bento.hod.absent_sub': 'Teachers of yours not in',
+  'bento.hod.absent_note': 'Out of {n} teachers. A level against a level is not a fraction, so it is not drawn as one.',
+  'bento.hod.cue_leave': 'Open leave',
+
+  'bento.hod.marks_sub': 'Submitted and not yet moderated',
+  'bento.hod.marks_note': 'A queue, not a share: this page carries no total to divide it by, and a percentage of nothing is worse than a number.',
+  'bento.hod.cue_marks': 'Open moderation',
+
+  'bento.hod.department': 'Teachers',
+  'bento.hod.department_sub': 'The size of what you head',
+  'bento.hod.department_note': 'Across {s} sections and {d} departments.',
+  'bento.hod.cue_allocation': 'Open allocation',
+
+  // --- HR's morning board -------------------------------------------------
+  'bento.hr.eyebrow': 'Home',
+  'bento.hr.title': 'The morning',
+  'bento.hr.loading': 'Reading the register…',
+  'bento.hr.failed': 'That did not load. Nobody is listed as away because nothing was read, not because everybody is in.',
+
+  'bento.hr.away': 'Not in today',
+  'bento.hr.away_sub': 'Marked absent this morning, or approved to be away before it',
+  'bento.hr.away_sr': 'Staff away today and why',
+  'bento.hr.away_returning': '{n} back on a later date',
+  'bento.hr.everyone_in': 'Nobody is marked away and no leave covers today.',
+  'bento.hr.cue_cover': 'Arrange cover',
+
+  'bento.hr.register': 'Register taken',
+  'bento.hr.register_sub': 'Staff marked either way in today\u2019s register',
+  'bento.hr.register_sr': 'Staff marked today as a share of active staff',
+  'bento.hr.of_staff': 'of {n} on the staff',
+  'bento.hr.no_staff': 'No active staff on record.',
+  'bento.hr.cue_register': 'Open the register',
+
+  'bento.hr.present': 'In today',
+  'bento.hr.present_sub': 'Of those marked \u2014 the only rate this page can state honestly',
+  'bento.hr.present_sr': 'Present as a share of staff marked today',
+  'bento.hr.of_marked': 'of {n} marked so far',
+  'bento.hr.register_not_taken': 'The register has not been taken yet, so there is no rate to state.',
+
+  'bento.hr.attention': 'Waiting on you',
+  'bento.hr.attention_sub': 'Paperwork lapsing, and decisions nobody has made',
+  'bento.hr.attention_sr': 'Items needing attention',
+  'bento.hr.urgent': '{n} already overdue',
+  'bento.hr.nothing_waiting': 'Nothing is lapsing and nothing is waiting.',
+  'bento.hr.cue_attention': 'Open staff records',
+
+  'bento.hr.leave': 'Leave to decide',
+  'bento.hr.leave_sub': 'Staff requests nobody has answered',
+  'bento.hr.leave_note': 'A queue rather than a share: nothing on this page is the number of requests it could have been out of.',
+  'bento.hr.cue_leave': 'Open leave',
+
+  'bento.hr.joiners': 'Joined this month',
+  'bento.hr.joiners_sub': 'Employees whose start date falls in the last 30 days',
+  'bento.hr.joiners_note': 'Across {n} departments. A period count against a level is not a fraction, so it is not drawn as one.',
+  'bento.hr.cue_records': 'Open staff records',
+
   // --- the admissions desk board ------------------------------------------
   'bento.admissions.eyebrow': 'Home',
   'bento.admissions.title': 'Admissions desk',

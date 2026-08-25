@@ -57,20 +57,33 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      anybody who switched roles -- and admissions and HR are the two that use
      it hardest. */
   'admissions.home.dashboard': screen(() => import('./AdmissionsDesk')),
+  'hr.home.dashboard': screen(() => import('./HRMorning')),
+  'hod.home.dashboard': screen(() => import('./HodDepartment')),
 
   /* The three people who use this product every day, on the screen each of
      them lands on. Keyed by the catalogue key the classic screen is registered
      under in registry.ts, which is what the router looks up — the classic
      files are not opened and not edited.
 
-     `parent.home.child_switcher` is the parent's landing feature: /parent
-     resolves to it, and it and `parent.home.child_summary` both render
-     portal/Portal.tsx classically. Only the landing key is converted, so a
-     parent who navigates to the summary still meets the classic screen rather
-     than two Bento renderings of the same thing; adding the second key is one
-     more line if that is wanted. */
+     Only the landing key of each is converted, so somebody who navigates on to
+     a neighbouring screen meets the classic one rather than two Bento
+     renderings of the same thing; adding a second key is one more line if that
+     is wanted. */
   'student.home.my_day': screen(() => import('./StudentDay')),
-  'parent.home.child_switcher': screen(() => import('./ParentWeek')),
+  /* `parent.home.dashboard`, and it was `parent.home.child_switcher` for
+     months.
+
+     That key is not in the catalogue. It is not in catalog_gen.go, it is not
+     in catalog.gen.ts, and bentoComponentFor is an exact lookup with no
+     aliasing -- so this map has been answering a question nobody asked, and
+     ParentWeek, all 839 lines of it, has never once rendered for a parent.
+     They have been getting the classic portal the whole time.
+
+     The comment above it asserted that child_switcher WAS the parent's landing
+     feature, which is the part that made it survive review: a wrong fact
+     stated confidently beside the line it justifies. The catalogue says
+     `parent.home.dashboard`, and the classic registry has said so all along. */
+  'parent.home.dashboard': screen(() => import('./ParentWeek')),
   'faculty.home.todays_classes': screen(() => import('./FacultyToday')),
 }
 
