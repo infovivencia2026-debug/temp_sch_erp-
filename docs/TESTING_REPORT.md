@@ -421,3 +421,65 @@ All honest: two are the biometric features blocked on hardware and deferred in
 welfare are "choose a month first" states with their pickers present. Nothing
 here is an empty query. Per the parent run's correction, the character count was
 a prompt to look rather than a finding — and looking is what settled it.
+
+---
+
+## Re-check — 25 Aug 2026, HR, two numbers from the run above
+
+Two claims from the HR run were checked against the API and the database
+directly. **One does not reproduce, and one of my own from the same day was
+wrong.** Both are recorded here rather than quietly edited above, because the
+point of this file is that a wrong finding costs more than a missing one.
+
+### "11 staff have no documents against a staff of 9" — does not reproduce
+
+`GET /api/v1/hr/dashboard`, signed in as HR, right now:
+
+```
+headcount                                        9
+attention: staff have no documents on file       9
+attention: staff cannot sign in yet              2
+```
+
+Nine of nine, not eleven of nine. The query behind it is
+`count(*) FROM employees WHERE status='active' AND NOT EXISTS (…employee_documents…)`,
+which cannot exceed the headcount it is shown against — they select from the
+same table with the same predicate, one with an extra `NOT EXISTS`.
+
+Scoped SQL against Vivencia agrees: 9 active, 9 without documents, 2 without a
+login. So either the number moved between the two runs or it was misread. **Not
+a defect; not carried forward.** Worth saying plainly, because "11 > 9" reads
+like a join double-counting and somebody would have gone looking for one.
+
+### "Every demo employee exists twice" — my own finding, and it was wrong
+
+Earlier today I recorded 28 employee rows against 22 distinct codes and called
+it a seeder that inserts where it should upsert. That count was taken as the
+postgres superuser, **which bypasses row-level security**, so it counted every
+school on the installation at once:
+
+```
+FACULTY-DEMO            Demo School                     active
+FACULTY-DEMO            Vivencia High School, Kompally  active
+HR-DEMO                 Demo School                     active
+HR-DEMO                 Vivencia High School, Kompally  active
+INSTITUTION_ADMIN-DEMO  Demo School                     active
+INSTITUTION_ADMIN-DEMO  Vivencia High School, Kompally  active
+```
+
+They are not duplicates. They are one demo employee per role in each of two
+tenants, which is exactly what `demo-users` is meant to produce, and RLS keeps
+them apart — Vivencia's own count is 9 active with 9 distinct codes.
+
+The lesson is procedural and worth more than the finding was: **a psql session
+as the superuser is not what the app sees.** Every count in this file taken that
+way has to name the tenant it was scoped to, or it is measuring a different
+product. The Grade 6 enrolment gap and the leave-type rows were both read the
+same way and should be re-checked scoped before anybody acts on them.
+
+### Still standing from the HR run
+
+The seeder rename reaching `users` but not `employees` — "Demo finance" in the
+staff record against "Demo Accounts & Finance" on the login — holds. Both rows
+were read scoped to Vivencia, and the raw role key is in the Name column of the
+staff directory on five screens.
