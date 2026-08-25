@@ -121,6 +121,10 @@ func run() error {
 	appsPage := &api.AppsPage{Tpl: tpl, Dir: cfg.APKDir}
 	r.Get("/apps", appsPage.Show)
 	r.Get("/apps/{slug}.apk", appsPage.Download)
+	// HEAD as well as GET: a download manager asks for the size before it
+	// starts, and chi answers an unregistered method with 405, which some of
+	// them treat as the file being gone rather than as an odd server.
+	r.Head("/apps/{slug}.apk", appsPage.Download)
 
 	// Self-service purchase. The enquiry form above is for schools that want
 	// to talk to somebody; this is for schools that have finished deciding.

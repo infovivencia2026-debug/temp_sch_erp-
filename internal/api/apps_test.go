@@ -104,6 +104,7 @@ func TestDownloadRejectsUnknownSlug(t *testing.T) {
 
 	r := chi.NewRouter()
 	r.Get("/apps/{slug}.apk", a.Download)
+	r.Head("/apps/{slug}.apk", a.Download)
 
 	for _, path := range []string{"/apps/passwd.apk", "/apps/..%2f..%2fetc%2fpasswd.apk"} {
 		rec := httptest.NewRecorder()
@@ -126,5 +127,13 @@ func TestDownloadRejectsUnknownSlug(t *testing.T) {
 	}
 	if rec.Body.String() != "apk" {
 		t.Errorf("body %q", rec.Body.String())
+	}
+
+	// A download manager asks the size before it starts; 405 reads to some of
+	// them as the file being gone.
+	head := httptest.NewRecorder()
+	r.ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/apps/bus-tracker.apk", nil))
+	if head.Code != http.StatusOK {
+		t.Errorf("HEAD status %d, want 200", head.Code)
 	}
 }
