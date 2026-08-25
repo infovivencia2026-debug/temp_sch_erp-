@@ -219,8 +219,12 @@ export default function SellerDashboard() {
               title="Broadcast to every school"
               description="This appears to every signed-in user on the installation — principals, teachers, parents. Not a circular: a circular belongs to one school and reaches its own families."
             />
-            {raise.isError && <FormNotice error={raise.error} />}
-            <FormGrid>
+            {/* Card draws the border; the screen supplies the padding inside
+                it. Without this the fields ran to the card's own edge and the
+                button was clipped by it. */}
+            <div className="space-y-4 px-5 pb-5">
+              {raise.isError && <FormNotice error={raise.error} />}
+              <FormGrid>
               <Field label="Kind" required>
                 <Select
                   value={form.severity}
@@ -261,13 +265,14 @@ export default function SellerDashboard() {
                   placeholder="Fee payments will be unavailable. Nothing already recorded is affected."
                 />
               </Field>
-            </FormGrid>
-            <Button
-              onClick={() => raise.mutate()}
-              disabled={!form.title.trim() || raise.isPending}
-            >
-              {raise.isPending ? 'Publishing…' : 'Publish to every school'}
-            </Button>
+              </FormGrid>
+              <Button
+                onClick={() => raise.mutate()}
+                disabled={!form.title.trim() || raise.isPending}
+              >
+                {raise.isPending ? 'Publishing…' : 'Publish to every school'}
+              </Button>
+            </div>
           </Card>
         )}
 

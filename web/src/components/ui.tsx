@@ -442,6 +442,7 @@ export function Table({
   empty,
   emptyLabel = 'Nothing to show.',
   sort,
+  wide,
 }: {
   head: Column[]
   children: ReactNode
@@ -449,6 +450,16 @@ export function Table({
   emptyLabel?: string
   /** Supply what useSort returned to make keyed columns clickable. */
   sort?: { sortKey: string; dir: SortDir; toggle: (k: string) => void }
+  /* A table with more columns than the screen has room for.
+
+     `w-full` divides the width between however many columns there are, which
+     is right for six and wrong for fifteen. The entitlement matrix has one
+     column per module: at thirteen, every cell was squeezed until school names
+     broke character by character — "Demo Scho ol" — and the buttons at the
+     right were clipped by the card edge. The remedy is not smaller text; it is
+     to let columns take the width they need and scroll the container, which it
+     has always been able to do. */
+  wide?: boolean
 }) {
   const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
 
@@ -487,7 +498,9 @@ export function Table({
   const shown = rows.length > PAGE_SIZE ? rows.slice(from, from + PAGE_SIZE) : rows
   return (
     <div className="overflow-x-auto">
-      <table className="responsive-table w-full text-[14px]">
+      <table
+        className={cn('responsive-table text-[14px]', wide ? 'w-max min-w-full' : 'w-full')}
+      >
         <thead>
           <tr>
             {head.map((h) => {

@@ -80,14 +80,17 @@ export default function Entitlements() {
               them switched. Same markup as before on the desktop, because it
               is the same component the classes were copied from. */}
           <Table
+            wide
             head={['School', 'Plan', ...data.modules]}
             empty={!data.schools.length}
             emptyLabel="No schools yet."
           >
             {data.schools.map((s) => (
               <tr key={s.institution_id}>
-                <Td className="font-medium">{s.school}</Td>
-                <Td>{s.plan_name ?? <span className="text-muted-foreground">None</span>}</Td>
+                <Td className="whitespace-nowrap font-medium">{s.school}</Td>
+                <Td className="whitespace-nowrap">
+                  {s.plan_name ?? <span className="text-muted-foreground">None</span>}
+                </Td>
                 {data.modules.map((m) => {
                   const on = s.enabled.includes(m)
                   const covered = s.plan_modules.length === 0 || s.plan_modules.includes(m)

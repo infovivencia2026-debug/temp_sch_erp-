@@ -117,8 +117,12 @@ export default function FeeStructureVersions() {
               title="New fee structure"
               description="Name it and say which class it is for. A structure naming one class beats the all-classes one for that class, so a grade can cost more without touching anybody else."
             />
-            {newErr ? <FormNotice error={newErr} /> : null}
-            <FormGrid>
+            {/* Card draws the border; the screen supplies the padding inside
+                it. Without this the fields run to the card's own edge and the
+                button is clipped by it. */}
+            <div className="space-y-4 px-5 pb-5">
+              {newErr ? <FormNotice error={newErr} /> : null}
+              <FormGrid>
               <Field label="Name" required>
                 <Input
                   value={newName}
@@ -137,10 +141,11 @@ export default function FeeStructureVersions() {
                   ]}
                 />
               </Field>
-            </FormGrid>
-            <Button onClick={() => void createStructure()} disabled={!newName.trim() || creating}>
-              {creating ? 'Creating…' : 'Create structure'}
-            </Button>
+              </FormGrid>
+              <Button onClick={() => void createStructure()} disabled={!newName.trim() || creating}>
+                {creating ? 'Creating…' : 'Create structure'}
+              </Button>
+            </div>
           </Card>
         )}
         <CellGrid cols={4}>
