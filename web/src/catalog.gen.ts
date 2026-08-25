@@ -1030,7 +1030,7 @@ export const ROLES: Role[] = [
         name: 'Profile',
         workspace: 'Profile',
         features: [
-          { key: 'student.profile.digital_student_id_card_nfc_tap_pass', slug: 'digital_student_id_card_nfc_tap_pass', name: 'Digital Student ID Card NFC Tap Pass', scope: 'self', tier: 'optional', summary: 'Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts.' },
+          { key: 'student.profile.my_id_card', slug: 'my_id_card', name: 'My ID card', scope: 'self', tier: 'optional', summary: 'Your own school identity card: photo, name, admission number, class and the emergency contact, with the QR a gate reader scans. Tapping it on an NFC reader needs the school to have one; the card itself is here either way.' },
         ],
       },
     ],

@@ -1077,7 +1077,7 @@ var Roles = []Role{
 				Name: "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
-					{Key: "student.profile.digital_student_id_card_nfc_tap_pass", Slug: "digital_student_id_card_nfc_tap_pass", Name: "Digital Student ID Card NFC Tap Pass", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Use smartphone NFC or Apple/Google Wallet pass for school gate entry and library book checkouts."},
+					{Key: "student.profile.my_id_card", Slug: "my_id_card", Name: "My ID card", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Your own school identity card: photo, name, admission number, class and the emergency contact, with the QR a gate reader scans. Tapping it on an NFC reader needs the school to have one; the card itself is here either way."},
 				},
 			},
 		},

@@ -365,7 +365,7 @@
    },
    {
     "role": "Parent / Guardian",
-    "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/transport_snapshot",
+    "url": "https://temperp.187-127-178-100.sslip.io/parent/my_childs_bus/live_bus_tracking",
     "do": "Open the child's bus.",
     "expect": "The same route and stop."
    },

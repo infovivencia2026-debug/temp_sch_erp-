@@ -25,6 +25,15 @@ import { lazy } from 'react'
      teacher already schedules through the live-class launcher. There is no
      second session model, and no video: this is the record, not the stream. */
 export const studentLifeKeys = {
+  /* The child's own identity card.
+
+     A parent could see their child's card and the child could not see their
+     own: the student's entry was the NFC tap pass, which needs a reader the
+     school may not own, so it was catalogued and never built. The card itself
+     needs no hardware — it is the same screen the parent opens, and
+     useChildren returns a student their own record. */
+  'student.profile.my_id_card': screen(() => import('../portal/StudentIDCard')),
+
   'student.campus_life.lost_found_photo_board_with_claim_verification': lazy(
     () => import('./LostFoundClaims'),
   ),
