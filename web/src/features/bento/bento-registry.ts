@@ -52,6 +52,12 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
   'institution_admin.home.dashboard': screen(() => import('./PrincipalDashboard')),
   'finance.home.dashboard': screen(() => import('./FinanceDashboard')),
 
+  /* The back office. Four roles were still landing on the classic screen
+     while five had a board, which made the product look half-converted to
+     anybody who switched roles -- and admissions and HR are the two that use
+     it hardest. */
+  'admissions.home.dashboard': screen(() => import('./AdmissionsDesk')),
+
   /* The three people who use this product every day, on the screen each of
      them lands on. Keyed by the catalogue key the classic screen is registered
      under in registry.ts, which is what the router looks up — the classic

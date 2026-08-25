@@ -1699,6 +1699,56 @@ export const en = {
   // summed in the browser from the overdue invoice list the classic screen
   // already fetches — no second endpoint, and no figure the classic screen
   // does not also show.
+  // --- the admissions desk board ------------------------------------------
+  'bento.admissions.eyebrow': 'Home',
+  'bento.admissions.title': 'Admissions desk',
+  'bento.admissions.loading': 'Counting the pipeline…',
+  'bento.admissions.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
+
+  'bento.admissions.funnel': 'Applications to students',
+  'bento.admissions.funnel_sub': 'Every application on record, and how far each got',
+  'bento.admissions.funnel_sr': 'Applications, of which offered, of which enrolled',
+  'bento.admissions.stage_applied': 'Applied',
+  'bento.admissions.stage_offered': 'Offered',
+  'bento.admissions.stage_enrolled': 'Enrolled',
+  'bento.admissions.of_applications': 'of {n} applications',
+  'bento.admissions.no_applications': 'No applications on record yet.',
+  'bento.admissions.cue_applications': 'Open applications',
+
+  'bento.admissions.follow_ups': 'Follow-ups due',
+  'bento.admissions.follow_ups_sub': 'Due today or already past, and not yet applied or lost',
+  'bento.admissions.follow_ups_sr': 'Overdue follow-ups, oldest first',
+  'bento.admissions.oldest_days': 'oldest {n} days past',
+  'bento.admissions.days_short': '{n}d',
+  'bento.admissions.none_overdue': 'Nothing is overdue. The desk is clear.',
+  'bento.admissions.cue_follow_ups': 'Open follow-ups',
+
+  'bento.admissions.new_enquiries': 'Not yet touched',
+  'bento.admissions.new_enquiries_sub': 'Enquiries still at new — nobody has rung them',
+  'bento.admissions.new_enquiries_sr': 'Untouched enquiries as a share of all enquiries',
+  'bento.admissions.of_enquiries': 'of {n} enquiries',
+  'bento.admissions.no_enquiries': 'No enquiries on record yet.',
+  'bento.admissions.cue_enquiries': 'Open enquiries',
+
+  'bento.admissions.incomplete': 'Left unfinished',
+  'bento.admissions.incomplete_sub': 'Applications still in draft — a family that started and stopped',
+  'bento.admissions.incomplete_sr': 'Draft applications as a share of all applications',
+  'bento.admissions.cue_incomplete': 'Open applications',
+
+  'bento.admissions.offered': 'Offers made',
+  'bento.admissions.offered_sub': 'Applications at offered',
+  'bento.admissions.offered_note': 'Shown as a stage in the funnel above rather than as a share: offered and enrolled test different columns, and an application can reach a student without passing through offered.',
+  'bento.admissions.cue_offers': 'Open offers',
+
+  'bento.admissions.sources': 'Where they came from',
+  'bento.admissions.sources_sub': 'The six commonest sources on the enquiries this page could read',
+  'bento.admissions.sources_sr': 'Enquiries by source',
+  'bento.admissions.sources_partial': 'across the {n} most recent',
+  'bento.admissions.cue_sources': 'Open enquiries',
+
+  'bento.admissions.list_loading': 'Reading the enquiries…',
+  'bento.admissions.list_failed': 'The enquiry list did not load, so this is not drawn rather than drawn empty.',
+
   'bento.finance.eyebrow': 'Home',
   'bento.finance.title': 'Finance overview',
   'bento.finance.loading': 'Counting what has come in…',
