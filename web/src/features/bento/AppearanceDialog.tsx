@@ -15,6 +15,9 @@ import {
 import { cn } from '@/lib/utils'
 import { useActiveRole } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
+// Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
+// dashboard cards sit. This one is the frame -- sidebar or focus.
+import { useLayout as useFrameLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
 
 /* Choosing a typeface by looking at it.
@@ -274,6 +277,7 @@ export function AppearanceDialog({
 }) {
   const { appearance, set } = useAppearance()
   const { skin, setSkin } = useSkin()
+  const { layout: frame, setLayout: setFrame } = useFrameLayout()
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
@@ -529,6 +533,24 @@ export function AppearanceDialog({
                 a hierarchy, it is a coin toss. Whether the screen is framed or
                 bare is an answer to the same question the axes above answer,
                 so it is asked in the same place. */}
+            {/* Layout, which used to be a drill-down pane in the settings
+                menu with its chosen value printed on the row.
+
+                It was the fourth separate door into this one dialog: Layout
+                opened a pane, and Appearance, Dock Settings and Dashboard
+                Widgets each opened a different tab of this window. Four
+                gateways to one place is not a menu, it is a guessing game
+                about which word means the thing you want. Sidebar-or-focus is
+                an answer to the same question every axis below it answers --
+                how should this look -- so it is asked here, and the menu now
+                has one row. */}
+            <Axis<Layout>
+              label={t('bento.settings.layout')}
+              value={frame}
+              options={LAYOUTS}
+              onPick={setFrame}
+              name={(v) => t(`bento.settings.layout.${v}`)}
+            />
             <Axis<Skin>
               label={t('bento.settings.frame')}
               value={skin}

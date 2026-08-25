@@ -1,15 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Check, LogOut, Settings, PanelLeft, UserCircle,
-  Maximize2, Type, Minimize2, LayoutGrid, Sliders, ChevronLeft, ChevronRight,
+  LogOut, Settings, UserCircle,
+  Maximize2, Type, Minimize2,
   Contrast as RotateCcw, } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { resetAppearance } from '@/lib/appearance'
 import { useAppearanceRequest } from '@/lib/appearance-request'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
-import { useLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SURFACE } from './ColourDialog'
@@ -38,9 +37,7 @@ import { INK, EDGE, WASH, RING, SURFACE } from './ColourDialog'
    the panel opens from, and nothing else. */
 export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
-/* One shared class string for every root-level row and every option row
-   inside a category pane — the drill-down still reads as one menu, not two
-   different components glued together. */
+/* One shared class string for every row in the menu. */
 const ROW = `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[14px]
              transition-colors ${WASH} ${RING}`
 
@@ -48,7 +45,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   /* `resolved` is still read: the panel picks its own ink from the theme in
      force, whether or not anybody can choose it here. */
   const { resolved } = useTheme()
-  const { layout, setLayout } = useLayout()
 
   /* Full screen, tracked rather than assumed.
 
@@ -92,19 +88,13 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
     setShowAppearance(true)
     setOpen(false)
   }, [wanted.seq, wanted.page, placement])
-  /* Which category pane is showing, macOS System Settings style: a flat root
-     list of self-contained categories, each opening into its own screen with
-     a back arrow rather than everything living on one scrolling list.
+  /* No pane state any more.
 
-     This used to be a single popover holding theme, three dialog
-     destinations, frame, layout, fullscreen, reset, account and sign out all
-     at once. Finding "Frame" meant scrolling past Theme and three unrelated
-     destinations first, and every category read as equally important because
-     none of them had room of their own. Root now shows a handful of rows;
-     each category opens to just its own controls. Reset to 'root' whenever
-     the menu closes, so it never reopens three levels deep in whatever was
-     last touched. */
-  const [pane, setPane] = useState<'root' | 'layout'>('root')
+     This was a macOS-style drill-down: a root list of categories, each opening
+     into its own screen with a back arrow. Exactly one category ever existed
+     (Layout), and its screen held one choice. A drill-down with a single branch
+     is a corridor. Layout moved into the appearance dialog beside the other
+     axes, and the menu became what it always was in practice -- a flat list. */
   const box = useRef<HTMLDivElement>(null)
   /* The menu is portaled to document.body, so it is NOT a DOM descendant of
      `box` — the trigger's wrapper — even though it is a React child of it. It
@@ -135,12 +125,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('mousedown', onDown)
     }
-  }, [open])
-
-  // A closed menu forgets which category it was showing, so reopening it
-  // always starts at the root list rather than wherever it was left.
-  useEffect(() => {
-    if (!open) setPane('root')
   }, [open])
 
   /* A cog, at the far right of the screen.
@@ -283,164 +267,74 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
             (placement === 'menubar') ? 'pop-down' : 'pop-up',
           )}
         >
-          {pane === 'root' && (
-            <>
-              {/* Each row is one self-contained destination: a category with its
-                  own pane, or a single direct action. Nothing here is a control
-                  itself — that is the whole point of the drill-down — so this
-                  list stays short no matter how many preferences the categories
-                  behind it grow to hold. */}
-              {/* Appearance is NOT a row here.
+          {/* ONE door, not four.
 
-                  It was, and so was a second row with the same word on it
-                  lower down — one opening a pane that held a single choice,
-                  the other opening the dialog where everything else about how
-                  the product looks already lives. Two rows, one label, two
-                  destinations. The pane's one remaining choice (the frame)
-                  moved into that dialog, and the row went with it. */}
-              <button type="button" role="menuitem" onClick={() => setPane('layout')} className={ROW}>
-                <PanelLeft className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.settings.layout')}</span>
-                <span className={cn('shrink-0 text-[12px]', INK)}>
-                  {t(`bento.settings.layout.${layout}`)}
-                </span>
-                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
-              </button>
+              This list had Layout, Appearance, Dock Settings and Dashboard
+              Widgets on it. Layout opened a pane here; the other three each
+              opened a different tab of the same dialog. So four rows, four
+              words, one destination -- and no way to tell from the labels
+              that Dock Settings and Appearance were the same window. People
+              opened three of them looking for the fourth.
 
-              <div
-                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-                role="separator"
-              />
+              They are one row now. The dialog behind it already names its
+              own pages along the top, which is where a choice between
+              Appearance, Colour, Dock and Dashboard belongs: inside the
+              thing, after you have opened it, not guessed at from out here.
+              Layout moved in with them as another axis on the first page. */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
+            className={ROW}
+          >
+            <Type className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('bento.appearance.title')}</span>
+          </button>
 
-              {/* Dock and Dashboard open the full dialog directly — each is
-                  already a self-contained screen there, so a middle pane here
-                  would only be a detour to the same place. */}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true); setOpen(false) }}
-                className={ROW}
-              >
-                <Type className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.appearance.title')}</span>
-              </button>
+          <div
+            className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
+            role="separator"
+          />
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setAppearanceTab('dock'); setShowAppearance(true); setOpen(false) }}
-                className={ROW}
-              >
-                <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">Dock Settings</span>
-              </button>
+          {/* Single-toggle and terminal actions stay flat at the root —
+              Mac's own Settings does the same with Lock Screen / Log Out:
+              a dialog exists for a set of related choices, not for one
+              switch or a one-way door. */}
+          <button type="button" role="menuitem" onClick={toggleFull} className={ROW}>
+            {full
+              ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
+              : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
+            <span className="flex-1">
+              {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
+            </span>
+          </button>
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setAppearanceTab('dashboard'); setShowAppearance(true); setOpen(false) }}
-                className={ROW}
-              >
-                <Sliders className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">Dashboard Widgets</span>
-              </button>
+          {/* A way back. Enough axes lived here at once that somebody
+              ended up somewhere they could not retrace, and a settings
+              panel with no exit from itself is a trap. */}
+          <button type="button" role="menuitem" onClick={() => resetAppearance()} className={ROW}>
+            <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.reset')}</span>
+          </button>
 
-              <div
-                className="my-1 h-px bg-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]"
-                role="separator"
-              />
+          {/* The account screen existed and nothing pointed at it.
 
-              {/* Single-toggle and terminal actions stay flat at the root —
-                  Mac's own Settings does the same with Lock Screen / Log Out:
-                  a category pane exists for a set of related choices, not for
-                  one switch or a one-way door. */}
-              <button type="button" role="menuitem" onClick={toggleFull} className={ROW}>
-                {full
-                  ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
-                  : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
-                <span className="flex-1">
-                  {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
-                </span>
-              </button>
+              /account sits outside the catalogue on purpose — everybody has a name,
+              a password and contact details whatever their role — but the only way in
+              was to type the URL. Ten roles could sign in with no route to their own
+              profile, which is why it read as a feature that did not exist.
 
-              {/* A way back. Enough axes lived here at once that somebody
-                  ended up somewhere they could not retrace, and a settings
-                  panel with no exit from itself is a trap. */}
-              <button type="button" role="menuitem" onClick={() => resetAppearance()} className={ROW}>
-                <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.settings.reset')}</span>
-              </button>
+              Directly above sign out, where every product keeps the account it
+              belongs to. */}
+          <a href="/account" role="menuitem" className={ROW}>
+            <UserCircle className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.account')}</span>
+          </a>
 
-              {/* The account screen existed and nothing pointed at it.
-
-                  /account sits outside the catalogue on purpose — everybody has a name,
-                  a password and contact details whatever their role — but the only way in
-                  was to type the URL. Ten roles could sign in with no route to their own
-                  profile, which is why it read as a feature that did not exist.
-
-                  Directly above sign out, where every product keeps the account it
-                  belongs to. */}
-              <a href="/account" role="menuitem" className={ROW}>
-                <UserCircle className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.settings.account')}</span>
-              </a>
-
-              <a href="/logout" role="menuitem" className={ROW}>
-                <LogOut className="size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{t('bento.settings.signout')}</span>
-              </a>
-            </>
-          )}
-
-          {pane === 'layout' && (
-            <>
-              {/* Layout as a preference, not an exit.
-
-                  This was a "Leave Bento" button, which asked a user to know
-                  that they were inside something called Bento — our word for
-                  it, never theirs. It reads as two choices about how the
-                  screen is arranged now, which is what it always was.
-
-                  It could not simply be deleted. The switch lives nowhere
-                  else: the appearance screen that carries theme and density
-                  is catalogued for students only, so a principal has no other
-                  route to it, and the classic header is hidden by the very
-                  layout they would be trying to leave. */}
-              <button
-                type="button"
-                onClick={() => setPane('root')}
-                className={cn(
-                  'mb-1 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left',
-                  'text-[12px] font-medium transition-colors', INK, WASH, RING,
-                )}
-              >
-                <ChevronLeft className="size-3.5 shrink-0" aria-hidden="true" />
-                {t('bento.settings.layout')}
-              </button>
-
-              {LAYOUTS.map((option) => {
-                const Icon = option === 'classic' ? PanelLeft : Maximize2
-                const active = layout === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setLayout(option as Layout)
-                      setOpen(false)
-                    }}
-                    className={cn(ROW, active && 'font-medium')}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="flex-1">{t(`bento.settings.layout.${option}`)}</span>
-                    {active && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-                  </button>
-                )
-              })}
-            </>
-          )}
+          <a href="/logout" role="menuitem" className={ROW}>
+            <LogOut className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('bento.settings.signout')}</span>
+          </a>
         </div>,
         document.body,
       )}
