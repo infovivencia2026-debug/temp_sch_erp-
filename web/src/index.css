@@ -396,6 +396,19 @@
     transition: border-color 0.2s ease;
   }
 
+  /* An empty state inside a card is the card's own body, not a second card.
+     Left as one it draws a box inside a box: two hairlines a padding-width
+     apart, and two radii that stop agreeing the moment the corner preference
+     moves off its default — at --radius-scale 1.6 the inner curve is wider
+     than the gap it sits in. So when nested, drop the chrome and let the
+     outer card hold the shape; standalone, it stays a card. */
+  .card .empty-state {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
   /* A table header is a label row, not a band. The tint is enough to hold the
      header still while the body scrolls under it. */
   .responsive-table thead th {

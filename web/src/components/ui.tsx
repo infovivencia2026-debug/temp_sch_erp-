@@ -1308,7 +1308,7 @@ export function PrintButton({ label = 'Print' }: { label?: string }) {
 
 export function EmptyState({ title, body }: { title: string; body?: string }) {
   return (
-    <Card className="p-10 text-center">
+    <Card className="empty-state p-10 text-center">
       <p className="text-[15px] font-semibold">{title}</p>
       {body && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-muted-foreground">{body}</p>}
     </Card>
