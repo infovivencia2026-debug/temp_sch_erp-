@@ -160,7 +160,7 @@ class TrackerRepository @Inject constructor(
         } catch (failure: ApiFailure) {
             when (failure) {
                 is ApiFailure.TripAlreadyOpen -> StartOutcome.AlreadyOpen(
-                    failure.message
+                    failure.detail
                         ?: "This bus already has a run open. Close it, or take it over.",
                 )
                 is ApiFailure.Unauthorized -> StartOutcome.NotPaired

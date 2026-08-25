@@ -1,3 +1,14 @@
+import java.util.Properties
+
+// Release signing is read from an untracked keystore.properties, exactly as
+// the SMS gateway does it. Absent the file the release variant simply has no
+// signing config -- assembleRelease produces an unsigned APK rather than
+// failing, and nothing secret lands in git.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -21,9 +32,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // No signingConfigs block and no keystore.properties: this app has never
-    // been released and nothing here should imply that it has. `assembleRelease`
-    // produces an unsigned APK; whoever ships it adds the signing separately.
+    signingConfigs {
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
 
     buildTypes {
         debug {
@@ -37,6 +55,7 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

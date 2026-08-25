@@ -36,7 +36,7 @@ class ApiFailureTest {
     fun `409 trip_already_open carries the message the driver is shown`() {
         val failure = ApiFailures.from(json, 409, body("trip_already_open"), null)
         assertTrue(failure is ApiFailure.TripAlreadyOpen)
-        assertEquals("m", (failure as ApiFailure.TripAlreadyOpen).message)
+        assertEquals("m", (failure as ApiFailure.TripAlreadyOpen).detail)
     }
 
     @Test

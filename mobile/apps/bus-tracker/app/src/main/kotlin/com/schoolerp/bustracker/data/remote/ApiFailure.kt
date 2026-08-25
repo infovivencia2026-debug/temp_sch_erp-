@@ -17,8 +17,16 @@ sealed class ApiFailure(val reason: String) : Exception(reason) {
     /** The trip is not this device's, or is already closed. Stop reporting to it. */
     data object NoSuchTrip : ApiFailure(ErrorCodes.NO_SUCH_TRIP)
 
-    /** A run is already open for this bus. The driver decides whether to supersede. */
-    class TripAlreadyOpen(val message: String?) : ApiFailure(ErrorCodes.TRIP_ALREADY_OPEN)
+    /**
+     * A run is already open for this bus. The driver decides whether to
+     * supersede.
+     *
+     * [detail] rather than `message`, which is Throwable's own property: a val
+     * of that name here shadows it, and Kotlin refuses to compile it without an
+     * override. Naming it `detail` also matches [Rejected] below, where it is
+     * the same thing -- the server's sentence about why.
+     */
+    class TripAlreadyOpen(val detail: String?) : ApiFailure(ErrorCodes.TRIP_ALREADY_OPEN)
 
     /**
      * This phone's clock is more than a day from the server's. Not retryable:
