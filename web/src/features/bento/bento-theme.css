@@ -72,17 +72,33 @@
      cautionary one drew the same colour in a palette whose entire job is
      telling things apart.
 
-     The soft values are untouched, deliberately. The greys read well as fills
-     and the restrained surface was the point; what was wrong was using a fill
-     colour to draw with. Panels stay neutral, marks carry the hue, which is the
-     ninety-per-cent-neutral rule this product already follows elsewhere.
+     The soft values were untouched at that pass, deliberately: the greys read
+     well as fills and the restrained surface was the point. What that left,
+     though, was an inconsistency rather than a restraint. Measured as chroma —
+     how far a fill is from grey — the twelve ran from 0.035 to 0.169, a
+     five-fold spread:
+
+       students 0.047   finance 0.035   warning 0.047   academics 0.071
+       operations 0.114  staff 0.122   admissions 0.133  reports 0.133
+       attendance 0.145  critical 0.145  communication 0.157  success 0.169
+
+     So eight cards carried a visible tint and four were white to the eye. On a
+     board where colour is how a domain is recognised, four of twelve simply
+     opting out reads as light mode having no colour in it — which is how it was
+     reported.
+
+     The four were lifted to the family's own middle (0.129–0.141), not past its
+     loudest. The eight that already worked are untouched, because they were
+     never the complaint. Every one still clears this file's own bar: the ink at
+     4.2:1 on its own fill, black at 4.5:1. Panels still stay quiet and marks
+     still carry the hue — there is simply enough hue to see.
 
      Every ink below clears 4.2:1 against its own 13% panel and 5:1 against the
      card, and all twelve are distinct. */
-  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;
+  --dom-students: #2563eb;      --dom-students-soft: #dee8ff;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #e5d8fc;
   --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;
-  --dom-finance: #a16207;       --dom-finance-soft: #fcf8f3;
+  --dom-finance: #a16207;       --dom-finance-soft: #fcedd8;
   --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;
   --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;
   --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2;
@@ -93,7 +109,7 @@
      Safety orange #FF5F1F and laser green #39FF14 are signal colours at
      near-maximum chroma: they fail on white and vibrate against a tint. */
   --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
-  --dom-warning: #c2410c;       --dom-warning-soft: #fbf2ef;
+  --dom-warning: #c2410c;       --dom-warning-soft: #fce3d8;
   --dom-success: #067647;       --dom-success-soft: #c6f1df;
 
   /* The word on a domain card: black or white, whichever wins against
@@ -386,10 +402,10 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-shadow: none;
   --bento-shadow-sm: none;
 
-  --dom-students: #2563eb;      --dom-students-soft: #eff3fb;      --dom-students-text: #000000;
-  --dom-academics: #7c3aed;     --dom-academics-soft: #ede7f9;     --dom-academics-text: #000000;
+  --dom-students: #2563eb;      --dom-students-soft: #dee8ff;      --dom-students-text: #000000;
+  --dom-academics: #7c3aed;     --dom-academics-soft: #e5d8fc;     --dom-academics-text: #000000;
   --dom-attendance: #0f766e;    --dom-attendance-soft: #cef3f0;    --dom-attendance-text: #000000;
-  --dom-finance: #b45309;       --dom-finance-soft: #fbf4ef;       --dom-finance-text: #000000;
+  --dom-finance: #b45309;       --dom-finance-soft: #fcedd8;       --dom-finance-text: #000000;
   --dom-staff: #be123c;         --dom-staff-soft: #f5d6de;         --dom-staff-text: #000000;
   --dom-admissions: #0369a1;    --dom-admissions-soft: #d2e8f4;    --dom-admissions-text: #000000;
   --dom-communication: #6d28d9; --dom-communication-soft: #d9caf2; --dom-communication-text: #000000;
@@ -397,7 +413,7 @@ html[data-skin='focus'] [data-layout='bento'] {
   --dom-reports: #475569;       --dom-reports-soft: #c0ccdd;       --dom-reports-text: #000000;
 
   --dom-critical: #b42318;      --dom-critical-soft: #f3d1ce;
-  --dom-warning: #b54708;       --dom-warning-soft: #f8eae2;
+  --dom-warning: #b54708;       --dom-warning-soft: #fce3d8;
   --dom-success: #067647;       --dom-success-soft: #c6f1df;
 
   /* The word on a domain card: black or white, whichever wins against
