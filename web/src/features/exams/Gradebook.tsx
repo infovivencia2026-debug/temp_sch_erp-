@@ -104,10 +104,19 @@ export default function Gradebook() {
   const [scaleID, setScaleID] = useState('')
   const [setupNote, setSetupNote] = useState('')
 
+  /* /setup/grading-scales, not /academics/grading-scales.
+
+     That second path has never existed. The route is registered inside
+     r.Route("/setup") in api.go, and the setup panel has always called it
+     correctly; only this screen guessed. So the request 404'd on every visit
+     to Marks entry, the Grade scale dropdown was permanently stuck on "Leave
+     as it is", and `retry: false` meant it failed quietly enough that nobody
+     traced it -- a wrong URL is indistinguishable from a feature nobody
+     finished, right up until you read the router. */
   const scales = useQuery({
     queryKey: ['grading-scales'],
     queryFn: () => api.get<List<{ id: string; name: string; is_default: boolean }>>(
-      '/api/v1/academics/grading-scales',
+      '/api/v1/setup/grading-scales',
     ),
     retry: false,
   })

@@ -80,7 +80,10 @@ func (s *Server) mountHRLifecycle(r chi.Router) {
 	   first migration and nothing could ever create one, so the Type column
 	   was empty in every school and "how many sick days do I have" had
 	   nothing to answer from. */
-	r.Get("/leave-types", s.listLeaveTypes)
+	// The GET moved to api.go, registered before the hr.employees.read guard:
+	// a teacher applying for leave has to be able to read the list of types,
+	// and that gate is for the staff file, not for a dropdown. Writing one is
+	// still hr.employees.write.
 	r.With(write).Post("/leave-types", s.saveLeaveType)
 
 	r.Get("/leave-policy", s.getLeavePolicy)

@@ -445,26 +445,43 @@ func (s *Server) Routes() http.Handler {
 
 		// --- HR & Payroll ---------------------------------------------------
 		r.Route("/hr", func(r chi.Router) {
-			r.Use(httpx.RequirePermission(rbac.EmployeesRead))
-			r.Get("/dashboard", s.getHRDashboard)
-			r.Get("/employees", s.listEmployees)
-			r.Get("/documents", s.listEmployeeDocuments)
-			// The school's own ID card artwork, front and back. Reading it is
-			// open to anybody who reads staff, because printing a card is the
-			// point; changing it is a write against the school's branding.
-			/* Letters over a career, not only at the end of one.
+			/* THE KINDS OF LEAVE A SCHOOL GIVES ARE NOT AN HR SECRET.
 
-			   Writing one needs the right to change staff records; reading who
-			   printed what is open to anybody who reads staff, because a
-			   register nobody can see is not a check on anything. */
-			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/letters", s.issueStaffLetter)
-			r.Post("/letters/printed", s.logLetterPrinted)
-			r.Get("/letters/prints", s.listLetterPrints)
+			   Everything else under /hr is the staff FILE -- salaries,
+			   documents, exits -- and hr.employees.read is the right gate for
+			   it. This one is a dropdown on the form a teacher fills in to ask
+			   for a day off, and it sat behind that same gate: a teacher's own
+			   leave screen 403'd, showed "Type: Not recorded" on all thirteen
+			   of their own rows, and offered nothing to pick when applying.
 
-			r.Get("/id-card-template", s.getIDCardTemplate)
-			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
-				Put("/id-card-template", s.saveIDCardTemplate)
-			s.mountHRLifecycle(r)
+			   So it is registered before the guard rather than inside it, and
+			   the guard moved into a group around everything else. Reading the
+			   list of leave types tells you nothing about any person; writing
+			   one is still hr.employees.write, below. */
+			r.Get("/leave-types", s.listLeaveTypes)
+
+			r.Group(func(r chi.Router) {
+				r.Use(httpx.RequirePermission(rbac.EmployeesRead))
+				r.Get("/dashboard", s.getHRDashboard)
+				r.Get("/employees", s.listEmployees)
+				r.Get("/documents", s.listEmployeeDocuments)
+				// The school's own ID card artwork, front and back. Reading it is
+				// open to anybody who reads staff, because printing a card is the
+				// point; changing it is a write against the school's branding.
+				/* Letters over a career, not only at the end of one.
+
+				   Writing one needs the right to change staff records; reading who
+				   printed what is open to anybody who reads staff, because a
+				   register nobody can see is not a check on anything. */
+				r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/letters", s.issueStaffLetter)
+				r.Post("/letters/printed", s.logLetterPrinted)
+				r.Get("/letters/prints", s.listLetterPrints)
+
+				r.Get("/id-card-template", s.getIDCardTemplate)
+				r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+					Put("/id-card-template", s.saveIDCardTemplate)
+				s.mountHRLifecycle(r)
+			})
 		})
 
 		/* --- The front desk -------------------------------------------------
