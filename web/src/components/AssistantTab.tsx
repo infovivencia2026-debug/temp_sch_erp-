@@ -227,24 +227,33 @@ export function AssistantTab() {
         onBlur={() => setHover(false)}
         aria-expanded={open}
         aria-label="Assistant"
+        title="Assistant"
         className={cn(
-          /* SIZED TO BE FOUND, NOT TO BE TIDY.
+          /* THE ORB ALONE. NO WORD BESIDE IT.
 
-             It was a 30px orb in a pill with 12.5px type, which is the size of
-             a status chip. Sitting in the corner of a dashboard that is itself
-             made of large coloured cards, it read as one more label rather than
-             as the one control on the screen that answers questions -- people
-             looked straight past it. The orb is half again as large, the pill
-             is taller than it is dense, and the word is set at 14px.
+             It was a 30px orb in a pill reading "Ask" — the size and shape of a
+             status chip, which on a dashboard built out of large coloured cards
+             read as one more label and got looked straight past. The first
+             correction made everything bigger, the word included. The word was
+             the part that did not belong.
+
+             A round button is what a floating control in a corner is, and the
+             orb is already the whole message: it is the only thing on the
+             screen that moves, it brightens when pointed at, and it changes
+             character between thinking and answering. "Ask" told a reader what
+             the orb was doing anyway, in a place where nothing else competes
+             for the meaning.
+
+             The label survives for anybody who cannot see it — aria-label and
+             title both say Assistant — so nothing is lost but the ink.
 
              transition-transform, not transition-colors: the tint alone was the
-             entire hover response, and against a card background at the corner
-             of a busy screen it was close to invisible. It lifts and deepens
-             its shadow now, and the orb inside it wakes at the same moment.
-             Keyboard focus wakes it too, or the effect would exist only for a
-             mouse. */
-          `fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full border
-           bg-card py-2 pl-2 pr-4 text-[14px] font-medium shadow-xl
+             entire hover response and was close to invisible at the corner of a
+             busy screen. It lifts and deepens its shadow now, and the orb wakes
+             at the same moment. Keyboard focus wakes it too, or the effect
+             would exist only for a mouse. */
+          `fixed bottom-6 right-6 z-40 grid size-16 place-items-center rounded-full
+           border bg-card shadow-xl
            transition-[transform,box-shadow,background-color]
            hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
            focus-visible:-translate-y-0.5 focus-visible:outline-none
@@ -253,7 +262,6 @@ export function AssistantTab() {
         )}
       >
         <AssistantOrb state={state} size={44} awake={hover} />
-        <span>Ask</span>
       </button>
 
       {open && (

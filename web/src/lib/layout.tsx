@@ -92,6 +92,30 @@ export function applyLayout(next: Layout) {
   emit()
 }
 
+/* A CHOICE IN FLIGHT OUTRANKS A READ THAT STARTED AFTER IT.
+
+   Switching the layout swaps the entire shell — the dock replaces the sidebar
+   or the other way round — so the control itself unmounts and a fresh one
+   mounts in the new chrome. That new control reconciles on mount: it GETs
+   /preferences/display and applies whatever the account row says.
+
+   The PUT from the click is still in flight at that moment. So the GET reads
+   the OLD layout, applies it, and the screen snaps back about two seconds
+   after the switch. Clicking again works, because by then the first save has
+   landed — which is exactly the "click it twice" this was reported as.
+
+   `saving` is the guard. While a layout save is outstanding, a reconcile is
+   somebody else's stale read and is discarded. It is a counter rather than a
+   boolean so two switches in quick succession do not clear each other's guard.
+
+   `localWins` covers the save that never lands. Offline, or signed out: the
+   device keeps the choice, and nothing may quietly revert it for the rest of
+   this page's life. Cross-device reconciliation resumes on the next load,
+   which is the right scope — the alternative is a screen that changes shape
+   under somebody who just told it not to. */
+let saving = 0
+let localWins = false
+
 /** The value without subscribing. For non-React callers only. */
 export function currentLayout(): Layout {
   return current
@@ -108,40 +132,64 @@ export interface LayoutValue {
   setLayout: (next: Layout) => void
 }
 
+/** Choose a layout: this device immediately, the account behind it.
+
+    A module function rather than a closure inside the hook, so the race it
+    guards against can be tested without a renderer — the store is deliberately
+    renderer-free and this is the one part of it that had a bug worth pinning.
+*/
+export function chooseLayout(next: Layout) {
+  if (!isLayout(next)) return
+  applyLayout(next)
+  /* Read-modify-write against the one row. The GET is what stops a layout
+     save from blanking the theme: the endpoint takes the whole preference
+     object, so sending only a layout would store defaults over everything
+     else on it. */
+  saving++
+  void (async () => {
+    try {
+      const cur = await api.get<{ preference: Record<string, unknown> }>(
+        '/api/v1/portal/preferences/display',
+      )
+      await api.put('/api/v1/portal/preferences/display', {
+        ...cur.preference,
+        layout: next,
+      })
+    } catch {
+      /* Offline, or a signed-out tab. The device keeps the choice; the
+         account picks it up the next time the switch is used. Nothing is
+         shown to the user, because nothing they can act on has failed —
+         but nothing may revert it either, so the local value is authoritative
+         from here until the page is loaded again. */
+      localWins = true
+    } finally {
+      saving--
+    }
+  })()
+}
+
 export function useLayout(): LayoutValue {
   const layout = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
-
-  const setLayout = useCallback((next: Layout) => {
-    if (!isLayout(next)) return
-    applyLayout(next)
-    /* Read-modify-write against the one row. The GET is what stops a layout
-       save from blanking the theme: the endpoint takes the whole preference
-       object, so sending only a layout would store defaults over everything
-       else on it. */
-    void (async () => {
-      try {
-        const cur = await api.get<{ preference: Record<string, unknown> }>(
-          '/api/v1/portal/preferences/display',
-        )
-        await api.put('/api/v1/portal/preferences/display', {
-          ...cur.preference,
-          layout: next,
-        })
-      } catch {
-        /* Offline, or a signed-out tab. The device keeps the choice; the
-           account picks it up the next time the switch is used. Nothing is
-           shown to the user, because nothing they can act on has failed. */
-      }
-    })()
-  }, [])
-
+  const setLayout = useCallback((next: Layout) => chooseLayout(next), [])
   return { layout, setLayout }
 }
 
 /** Reconcile the device copy against the account row. Call it once with what
-    GET /preferences/display returned; it never writes back to the server. */
+    GET /preferences/display returned; it never writes back to the server.
+
+    Ignored while a choice is being saved, and ignored for good once a save has
+    failed. See the note above `saving`: without this, switching the layout
+    remounts the control, the fresh one reads the row before the PUT lands, and
+    the screen reverts a second or two later. */
 export function reconcileLayout(value: unknown) {
+  if (saving > 0 || localWins) return
   if (isLayout(value)) applyLayout(value)
+}
+
+/** Whether a reconcile would currently be discarded. Exported for the test;
+    nothing in the app needs to ask. */
+export function layoutSaveInFlight(): boolean {
+  return saving > 0 || localWins
 }
 
 // stamp on load: currentLayout() reads localStorage synchronously, so the
