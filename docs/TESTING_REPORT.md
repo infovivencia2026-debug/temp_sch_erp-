@@ -483,3 +483,67 @@ The seeder rename reaching `users` but not `employees` — "Demo finance" in the
 staff record against "Demo Accounts & Finance" on the login — holds. Both rows
 were read scoped to Vivencia, and the raw role key is in the Name column of the
 staff directory on five screens.
+
+---
+
+## Re-check — 25 Aug 2026, finance: the two dashboards do not disagree
+
+The finance run records that "the two dashboards disagree about the same money…
+different queries under the same words". Both endpoints were called within the
+same minute and the numbers reconcile exactly. **The diagnosis is wrong, and the
+real one is a smaller bug that is easier to fix and worth fixing.**
+
+`GET /api/v1/principal/dashboard` carries **four** money figures, not two:
+
+```
+                collected      outstanding
+range           45,04,625        6,66,625
+year            44,97,125        6,32,875
+billed          51,30,000
+```
+
+`GET /api/v1/finance/dashboard` carries the range pair, and only that pair:
+
+```
+month_paise       45,04,625
+outstanding_paise  6,66,625
+range             this_month · 2026-08-01 → 2026-08-25
+```
+
+**Finance's numbers are identical to the principal endpoint's RANGE numbers.**
+The principal's screen is rendering the `_year_` variants; finance's screen is
+rendering the range. Same server, same data, two different periods, each screen
+labelling its own simply "collected" and "owed".
+
+So nobody's query is wrong. What is wrong is that two screens print a period
+figure without naming the period, and a principal and an accountant comparing
+notes will each conclude the other's system is broken. **The fix is a label, not
+a reconciliation** — and that is a much cheaper thing to ship than the hunt for
+two disagreeing queries this entry would otherwise have sent somebody on.
+
+### One real gap underneath it
+
+Finance's banner "**NO BILLED TOTAL IS RECORDED**" is accurate for the endpoint
+it reads: `/finance/dashboard` has no billed field at all. But the principal's
+endpoint does — `billed_paise` 51,30,000, over 114 invoices — computed from the
+same invoices in the same tenant.
+
+So the billed total is not missing from the product. It is missing from the
+finance response, and the accountant is told it does not exist while the
+principal is shown it on the next screen. Either `/finance/dashboard` should
+carry it, or the banner should stop asserting something the database can
+answer.
+
+`FinanceDashboard.tsx` was written against that absence — its header comment
+reasons at length that there is no billed total anywhere in this product's
+finance data, and therefore no "% collected" may be drawn. That reasoning was
+true of its own endpoint and false of the product.
+
+### Also confirmed this run
+
+- `GET /api/v1/payroll/payslips?month=8&year=2026` **403** on Approve & pay
+  salaries, reproduced. The HR run already narrowed it correctly: the
+  permission works, finance simply does not hold `hr.payroll.read`. What still
+  needs deciding is whether the tile belongs in finance's catalogue at all —
+  and either way the raw permission string should not be the screen's copy.
+- 13 routes, 1 failed call, 0 JS errors, 0 unrounded percentages.
