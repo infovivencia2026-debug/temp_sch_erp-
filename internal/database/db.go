@@ -1,4 +1,4 @@
-// Package database owns the pgx pool and, more importantly, the only correct
+// Package database owns the pgx pools and, more importantly, the only correct
 // way to run a tenant-scoped query.
 //
 // Every tenant table in the schema carries an RLS policy of the form
@@ -7,52 +7,67 @@
 //
 // and those helpers read the `app.institution_id` / `app.is_platform_admin`
 // GUCs. A query issued on a connection where those are unset sees zero rows,
-// which is the safe direction to fail. The pool therefore connects as the
+// which is the safe direction to fail. Pools therefore connect as the
 // unprivileged app_user: Postgres exempts superusers and table owners from
 // RLS, so connecting as erp_owner would silently disable every policy.
+//
+// # Where the rows live
+//
+// DB is a facade over a Resolver, which maps an institution to the Shard --
+// the physical database -- holding its rows. Today one shared shard holds
+// every tenant and RLS is what keeps them apart. That is the right shape at
+// this size: one managed Postgres with point-in-time recovery is far easier to
+// operate than ten, and RLS with FORCE ROW LEVEL SECURITY is real isolation,
+// not a convention a handler can forget.
+//
+// The resolver exists so the decision stays reversible. When a specific school
+// justifies its own database -- a procurement requirement, a restore-
+// granularity need, or one tenant large enough to distort the shared instance
+// -- that becomes a placement change behind this interface rather than a
+// change at the 900-odd call sites below. Resolver.Control documents the one
+// thing that must be solved first.
 package database
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DB struct{ Pool *pgxpool.Pool }
+// DB is the handle every caller holds. It routes each unit of work to the
+// shard that owns the tenant, then runs it with the RLS GUCs set.
+type DB struct{ r Resolver }
 
+// Connect opens the single shared shard. It is the production constructor;
+// New takes an arbitrary resolver for tests and for a future split fleet.
 func Connect(ctx context.Context, url string, maxConns int32) (*DB, error) {
-	cfg, err := pgxpool.ParseConfig(url)
+	shard, err := OpenShard(ctx, "shared", url, maxConns)
 	if err != nil {
-		return nil, fmt.Errorf("parse DATABASE_URL: %w", err)
+		return nil, err
 	}
-	cfg.MaxConns = maxConns
-	// A 1 vCPU box shares this pool with nginx and Redis; idle connections cost
-	// backend memory for no benefit, so retire them fairly aggressively.
-	cfg.MinConns = 1
-	cfg.MaxConnIdleTime = 5 * time.Minute
-	cfg.MaxConnLifetime = time.Hour
-	cfg.HealthCheckPeriod = time.Minute
-
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ping: %w", err)
-	}
-	return &DB{Pool: pool}, nil
+	return New(NewSharedResolver(shard)), nil
 }
 
-func (d *DB) Close() { d.Pool.Close() }
+// New wraps a resolver.
+func New(r Resolver) *DB { return &DB{r: r} }
 
+// Resolver exposes the placement map, for callers that must address shards
+// directly: health checks, the migrator, and per-shard metrics.
+func (d *DB) Resolver() Resolver { return d.r }
+
+func (d *DB) Close() { d.r.Close() }
+
+// Health pings every shard. One unreachable shard fails the check: with a
+// shared fleet that is the whole service, and with a split one it is still an
+// outage for the schools placed there.
 func (d *DB) Health(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	return d.Pool.Ping(ctx)
+	for _, s := range d.r.Shards() {
+		if err := s.ping(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Scope carries the RLS identity for a unit of work.
@@ -61,41 +76,23 @@ type Scope struct {
 	PlatformAdmin bool
 }
 
-// InTenant runs fn inside a transaction whose GUCs are set for the scope.
+// InTenant runs fn inside a transaction whose GUCs are set for the scope, on
+// whichever shard holds the scope's institution.
 //
-// SET LOCAL is deliberate: it is scoped to the transaction, so the setting
-// cannot leak to the next request that borrows this pooled connection. Doing
-// this with a plain SET on an acquired connection is the classic way to hand
-// tenant A's data to tenant B after a mid-request error skips the reset.
+// A scope naming no institution routes to the control shard; see AsPlatform.
 func (d *DB) InTenant(ctx context.Context, s Scope, fn func(pgx.Tx) error) error {
-	tx, err := d.Pool.Begin(ctx)
+	shard, err := d.shardFor(ctx, s)
 	if err != nil {
-		return fmt.Errorf("begin: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // no-op once committed
-
-	admin := "off"
-	if s.PlatformAdmin {
-		admin = "on"
-	}
-	// set_config with parameters, not string interpolation into SET LOCAL --
-	// SET LOCAL does not accept placeholders, and the value is a UUID from the
-	// session record, but interpolating it would still be an injection sink.
-	inst := ""
-	if s.InstitutionID != uuid.Nil {
-		inst = s.InstitutionID.String()
-	}
-	if _, err := tx.Exec(ctx,
-		`SELECT set_config('app.institution_id', $1, true),
-		        set_config('app.is_platform_admin', $2, true)`,
-		inst, admin); err != nil {
-		return fmt.Errorf("set tenant scope: %w", err)
-	}
-
-	if err := fn(tx); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return shard.inTenant(ctx, s, fn)
+}
+
+func (d *DB) shardFor(ctx context.Context, s Scope) (*Shard, error) {
+	if s.InstitutionID == uuid.Nil {
+		return d.r.Control(ctx)
+	}
+	return d.r.ForTenant(ctx, s.InstitutionID)
 }
 
 // AsPlatform runs fn with app.is_platform_admin set, which satisfies every
@@ -113,6 +110,11 @@ func (d *DB) InTenant(ctx context.Context, s Scope, fn func(pgx.Tx) error) error
 // Everything else must go through InTenant. Queries here are unfiltered by
 // tenant, so keep them narrow and always parameterised: a LIKE over users in
 // this scope would read every tenant's rows.
+//
+// It runs on the control shard only. That is correct while the fleet is one
+// shard and every user is on it; it is also precisely why splitting a tenant
+// out needs the identity problem solved first, since a login for a school on
+// its own database would find nothing here.
 func (d *DB) AsPlatform(ctx context.Context, fn func(pgx.Tx) error) error {
 	return d.InTenant(ctx, Scope{PlatformAdmin: true}, fn)
 }
