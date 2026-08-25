@@ -70,7 +70,7 @@ export default function WeekGrid({
     p.ends_at ? `${p.starts_at.slice(0, 5)}–${p.ends_at.slice(0, 5)}` : p.starts_at.slice(0, 5)
 
   return (
-    <div className="overflow-x-auto">
+    <div className="scroll-x">
       <table className="w-full min-w-[44rem] border-collapse text-[13px]">
         <thead>
           <tr className="text-muted-foreground">

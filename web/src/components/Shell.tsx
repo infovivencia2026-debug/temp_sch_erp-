@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
+import { AssistantTab } from '@/components/AssistantTab'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
@@ -734,6 +735,11 @@ export function Shell({
             )}
             <BentoDock />
           </main>
+          {/* A small corner tab, not a screen. A question is nearly always about
+              what is already on screen, so an assistant that covers it makes
+              somebody leave the thing they wanted to ask about. Mounted outside
+              <main> so it stays put while a long register scrolls. */}
+          <AssistantTab />
         </div>
       </div>
     </div>

@@ -222,7 +222,7 @@ export default function DepartmentTimetable() {
               title={t.full_name}
               description={`${t.periods} periods a week, ${t.free_slots} slots free, cap ${t.max_periods_per_week}.`}
             />
-            <div className="overflow-x-auto p-4">
+            <div className="scroll-x p-4">
               <table className="w-full min-w-[720px] border-separate border-spacing-1 text-[13px]">
                 <thead>
                   <tr>

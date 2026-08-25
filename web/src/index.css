@@ -1152,3 +1152,65 @@ dialog,
 @media (prefers-reduced-motion: reduce) {
   [data-pane] { animation: none !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   A SCROLLER THAT SAYS SO.
+
+   Every table in the product already sat in `overflow-x: auto`, so a wide
+   register could always be scrolled. Nothing said it could. Two things hid it:
+   the platform draws an overlay scrollbar that fades out and never reserves
+   space, so on a touchpad it is simply not there until you already guessed;
+   and a table clipped at the edge of a card looks exactly like a table that
+   ends at the edge of a card. The column that fell off — usually the actions —
+   was gone with no evidence it had existed.
+
+   So the edge is drawn instead of relied upon. The shadows below are painted
+   by the scroller itself: two opaque covers pinned to the viewport, two
+   shadows pinned to the CONTENT. When the content is flush left its cover sits
+   over the left shadow and hides it; scroll right and the content slides out
+   from under, revealing a soft edge that says the table continues that way.
+   No JavaScript, no listeners, and correct on the first paint — which matters,
+   because the first paint is when somebody decides whether there is more.
+
+   `background-attachment: local` is what does it: `scroll` pins to the
+   viewport, `local` pins to the content. That pairing is the whole trick.
+   ───────────────────────────────────────────────────────────────────────── */
+.scroll-x {
+  overflow-x: auto;
+  /* The cover has to be the colour of whatever the scroller is sitting on, or
+     it paints a pale band along an edge that has nothing to hide. Card is the
+     right default — nearly every wide thing in this product is in one — and a
+     scroller on another ground sets `--scroll-ground` to say so. */
+  --scroll-ground: var(--card);
+  background-image:
+    /* covers, over the shadows, pinned to the viewport */
+    linear-gradient(to right, hsl(var(--scroll-ground)) 30%, hsl(var(--scroll-ground) / 0)),
+    linear-gradient(to left,  hsl(var(--scroll-ground)) 30%, hsl(var(--scroll-ground) / 0)),
+    /* shadows, pinned to the content */
+    linear-gradient(to right, hsl(var(--foreground) / 0.13), hsl(var(--foreground) / 0)),
+    linear-gradient(to left,  hsl(var(--foreground) / 0.13), hsl(var(--foreground) / 0));
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-repeat: no-repeat;
+  background-size: 44px 100%, 44px 100%, 18px 100%, 18px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* And the bar itself, drawn rather than borrowed.
+
+   Thin and always present on the scrollers that can move sideways, because a
+   horizontal scrollbar is not clutter — it is the only thing on screen that
+   states how much of the table you are looking at. Vertical bars are left to
+   the platform: a page scrolls, everybody knows a page scrolls. */
+.scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scroll-x::-webkit-scrollbar { height: 10px; }
+.scroll-x::-webkit-scrollbar-track { background: transparent; }
+.scroll-x::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+.scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }

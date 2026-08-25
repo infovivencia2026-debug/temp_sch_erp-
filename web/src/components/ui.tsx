@@ -497,7 +497,14 @@ export function Table({
   const from = at * PAGE_SIZE
   const shown = rows.length > PAGE_SIZE ? rows.slice(from, from + PAGE_SIZE) : rows
   return (
-    <div className="overflow-x-auto">
+/* `.scroll-x`, not a bare overflow-x-auto: it draws the bar and the edge
+       shadow that say the table continues past the card. See index.css.
+
+       The width rule below is the other half of the same problem — a `wide`
+       table is one whose columns cannot be squeezed, so it is sized to its
+       content and allowed to run past the card, which is precisely the case
+       the scroll affordance exists to announce. */
+    <div className="scroll-x">
       <table
         className={cn('responsive-table text-[14px]', wide ? 'w-max min-w-full' : 'w-full')}
       >

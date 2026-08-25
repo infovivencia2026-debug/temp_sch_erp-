@@ -432,7 +432,7 @@ export default function BulkImport({
             </div>
 
             {result.rejected > 0 && (
-              <div className="mt-3 overflow-x-auto">
+              <div className="mt-3 scroll-x">
                 <p className="mb-2 text-[12.5px] text-muted-foreground">
                   Nothing has been added. Fix these rows in your spreadsheet and drop it again —
                   the row numbers match the file.

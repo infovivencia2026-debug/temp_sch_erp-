@@ -2055,7 +2055,7 @@ function FeeStructureList() {
   return (
     <div className="mt-5 border-t pt-4">
       <p className="eyebrow mb-2">Structures already priced</p>
-      <div className="overflow-x-auto rounded-md border">
+      <div className="scroll-x rounded-md border">
         <table className="w-full text-[13px]">
           <thead className="bg-muted text-left text-muted-foreground">
             <tr>
@@ -2511,7 +2511,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
           </Button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-md border">
+      <div className="scroll-x rounded-md border">
         <table className="w-full text-[13px]">
           <thead className="bg-muted text-left text-muted-foreground">
             <tr>
