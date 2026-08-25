@@ -931,3 +931,57 @@ func TestChildBusReturnsOnlyTheCallersOwnChildren(t *testing.T) {
 		t.Errorf("the transport clerk's own /me/child-bus returned %v, want nothing", none)
 	}
 }
+
+/*
+A phone that claims a pair code is approved by the act of the code existing.
+
+	This is a regression test with a live failure behind it. Migration 00156
+	added approved_at and backfilled it from paired_at, reasoning that a code
+	an authorised person generated is itself the approval. The INSERT in
+	claimBusTrackerPairCode was not updated to match, so every handset that
+	paired AFTERWARDS came out permanently pending and was refused by
+	requireBusTracker with awaiting_approval — a bus paired at the depot and
+	never once on the map, with nothing in the app to explain it.
+
+	Asserted against the SQL rather than a database, which is not ideal and is
+	what is available here: no Postgres runs on the machine these tests are
+	written on. It pins the two facts that broke — that the column is named in
+	the insert, and that the enrol path deliberately does not name it.
+*/
+func TestPairedTrackersAreApprovedAndEnrolledOnesAreNot(t *testing.T) {
+	claim := busTrackerSourceOf(t, "claimBusTrackerPairCode")
+	if !strings.Contains(claim, "approved_at") {
+		t.Error("claiming a pair code no longer sets approved_at: every phone " +
+			"that pairs will be refused as awaiting_approval")
+	}
+
+	enrol := busTrackerSourceOf(t, "enrolBusTracker")
+	if strings.Contains(enrol, "approved_at, approved_by") {
+		t.Error("self-enrolment sets approved_at: a driver would be approving " +
+			"their own phone onto a map of where children are")
+	}
+}
+
+// busTrackerSourceOf returns the body of one function from this package's
+// source, so a test can assert on SQL that has no database to run against.
+func busTrackerSourceOf(t *testing.T, fn string) string {
+	t.Helper()
+	for _, file := range []string{"bus_tracker.go", "device_login.go"} {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		src := string(b)
+		at := strings.Index(src, ") "+fn+"(")
+		if at < 0 {
+			continue
+		}
+		end := strings.Index(src[at:], "\n}\n")
+		if end < 0 {
+			end = len(src) - at
+		}
+		return src[at : at+end]
+	}
+	t.Fatalf("could not find %s in this package's source", fn)
+	return ""
+}

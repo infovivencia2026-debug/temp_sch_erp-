@@ -473,10 +473,27 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 		ping = policy.PingSeconds
 
 		if err := tx.QueryRow(r.Context(), `
+			/* approved_at is set HERE, and forgetting it broke the only
+			   pairing path the shipped app has.
+
+			   Migration 00156 added the column and backfilled every existing
+			   tracker from paired_at, on the reasoning that a code an
+			   authorised person generated IS the approval. That reasoning is
+			   right and it applies to codes generated from now on just as much
+			   as to the ones already claimed -- but the backfill only touched
+			   rows that existed when it ran, and this INSERT was left naming
+			   the old column list. Every phone that claimed a code afterwards
+			   came out permanently pending and was refused by
+			   requireBusTracker, which is a live bus off the map.
+
+			   The enrol path deliberately does NOT do this: nobody authorised
+			   a driver signing themselves in, which is the whole reason that
+			   route waits for the principal. Here, somebody with
+			   transport.write pressed a button. */
 			INSERT INTO vehicle_trackers (institution_id, vehicle_id, name,
 			    device_model, android_version, app_version, token_sealed,
-			    pair_code_id, paired_by, ping_seconds)
-			VALUES ($1,$2,$3,$4,$5,$6,'\x00'::bytea,$7,$8,$9)
+			    pair_code_id, paired_by, ping_seconds, approved_at, approved_by)
+			VALUES ($1,$2,$3,$4,$5,$6,'\x00'::bytea,$7,$8,$9,now(),$8)
 			RETURNING id`,
 			inst, vehicle, name, nullString(req.DeviceModel),
 			nullString(req.AndroidVersion), nullString(req.AppVersion),
