@@ -437,7 +437,11 @@ export function AppearanceDialog({
             ))}
           </nav>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6">
+        {/* `.scroll-y` draws the bar rather than waiting for the platform to
+            fade one in. A dialog with four pages behind its tabs — one of them
+            fifteen typeface cards — has to say on its first paint that there is
+            more below the fold. See index.css. */}
+        <div className="scroll-y min-h-0 flex-1 px-7 py-6">
           {tab === 'appearance' && (<div>
           <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
             <Type className="size-4" aria-hidden="true" />

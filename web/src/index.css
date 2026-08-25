@@ -1242,3 +1242,39 @@ dialog,
   border-radius: 9999px;
 }
 .scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
+
+/* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
+
+   The rule above leaves vertical scrolling to the platform, and for the
+   document that is right: everybody knows a page scrolls, and the browser's
+   own bar is at the edge of the window where it is looked for.
+
+   A dialog is the opposite case. The settings panel is a fixed box with four
+   pages behind its tabs, one of which is fifteen typeface cards; on a platform
+   that draws overlay scrollbars — every Mac, and Windows since 11 — there is
+   nothing at its edge until you have already scrolled, so the panel reads as
+   ending at the last row it happens to show. Somebody looking for the two mono
+   faces below the fold has no reason to believe they exist.
+
+   `scrollbar-gutter: stable` is the other half: without it the bar appears on
+   overflow and takes 10px out of the content, so a page that is one row short
+   of scrolling reflows the moment it crosses the line. The room is reserved
+   whether or not it is used. */
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scroll-y::-webkit-scrollbar { width: 10px; }
+.scroll-y::-webkit-scrollbar-track { background: transparent; }
+.scroll-y::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+.scroll-y:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
+}
