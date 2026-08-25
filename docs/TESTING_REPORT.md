@@ -340,3 +340,84 @@ Nothing was clicked. Every screen was visited by URL and measured as it first
 settled, so anything behind a button — the absence form's submit, the meeting
 booking flow, the child switcher's effect on a second child — is unprobed. The
 hand-run on 25 Aug remains the only pass that exercised interaction.
+
+---
+
+## Run — 25 Aug 2026, HR & Payroll, against the live host
+
+Catalogue-driven browser walk: the route list comes from `/api/v1/catalog` —
+what the SPA builds its own navigation from — and every route is visited in
+Chromium with `console` and every response hooked.
+
+| | |
+|---|---|
+| Routes in this role's catalogue | **19** |
+| Visited | **19** |
+| Failed network calls | **0** |
+| Console errors | **0** |
+| Timeouts | **0** |
+| Unrounded percentages / `undefined` / `NaN` | **0** |
+| Screens rendering under 400 characters | 6 |
+
+The cleanest role walked so far: nothing failed and nothing threw. Two findings,
+and both are about the seed rather than the code — but one of them contradicts
+this file.
+
+### 1. "Fixed and verified" is half true: the rename never reached the person
+
+This report records, under **Fixed and verified**, that demo accounts were all
+named "Demo institution_admin" and that the seeder's upsert has been corrected.
+The correction reached `users`. It never reached `employees`:
+
+```
+employee_code      employee record   login name
+ADMISSIONS-DEMO    Demo admissions   Demo Admissions & Front Office
+FACULTY-DEMO       Demo faculty      Demo Faculty / Teacher
+FINANCE-DEMO       Demo finance      Demo Accounts & Finance
+HOD-DEMO           Demo hod          Demo HOD / Department Head
+```
+
+The login carries the role's NAME; the staff record still carries its KEY. So
+HR's own Staff records table lists "Demo institution_admin", "Demo hr", "Demo
+finance" — a raw role key in the Name column of the staff directory — on five
+screens across this role.
+
+This also answers the open question left by the parent run: *"the greeting reads
+Good morning, Demo — check it reached the parent's person record, not just the
+login."* It did not. Same bug, seen from the other end.
+
+**The entry in Fixed and verified should be narrowed to "the login name", not
+left standing as done.** A fix recorded as complete is worse than one recorded
+as partial: nobody looks at it again.
+
+### 2. Every demo employee exists twice
+
+```
+employees                28 rows
+distinct employee_code   22
+duplicated               ADMISSIONS-DEMO, FACULTY-DEMO, HOD-DEMO,
+                         FINANCE-DEMO, HR-DEMO, INSTITUTION_ADMIN-DEMO  (2 each)
+```
+
+Six demo people, two employee rows each, sharing an employee code. This is the
+same class as the four Meera Menons found from the admin and parent runs: a
+seeder that upserts on one key and inserts on another, run more than once.
+
+`employee_code` has no unique constraint to have prevented it. Whether it
+should is a product question — a school that reuses codes across years may want
+that — but the demo tenant now has a staff directory in which six of
+twenty-two people are listed twice.
+
+### 3. Raw ISO date
+
+`/hr/onboarding_exit/staff_joinings_exits` renders `2026-08-19` where the rest
+of the product writes "19 Aug 2026". Cluster 5 of the 24 Aug audit, second
+confirmed screen after `/parent/messages/communication`.
+
+### The six thin screens
+
+All honest: two are the biometric features blocked on hardware and deferred in
+`DEFERRED.md` (they say so), and My pay, Payroll, Statutory returns and Staff
+welfare are "choose a month first" states with their pickers present. Nothing
+here is an empty query. Per the parent run's correction, the character count was
+a prompt to look rather than a finding — and looking is what settled it.
