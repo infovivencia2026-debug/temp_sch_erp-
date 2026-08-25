@@ -40,6 +40,5 @@ export const familyKeys = {
   'parent.profile.parent_app_dark_mode_high_contrast_accessibility': lazy(
     () => import('../learning/ThemeSelection'),
   ),
-  'parent.home.real_time_push_notifications': screen(() => import('./Alerts')),
   'parent.fees.child_daily_cafeteria_purchase_timeline': screen(() => import('./Cafeteria')),
 }

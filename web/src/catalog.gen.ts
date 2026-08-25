@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 324 features. */
+/** 13 roles, 321 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1044,10 +1044,7 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'parent.home.child_switcher', slug: 'child_switcher', name: 'Child switcher', scope: 'children', tier: 'core', summary: 'Switch between linked children without separate accounts.' },
-          { key: 'parent.home.child_summary', slug: 'child_summary', name: 'Child summary', scope: 'children', tier: 'core', summary: 'Attendance today/%, homework due, latest result, fee due and latest announcement for selected child.' },
-          { key: 'parent.home.needs_attention', slug: 'needs_attention', name: 'Needs attention', scope: 'children', tier: 'core', summary: 'Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM.' },
-          { key: 'parent.home.real_time_push_notifications', slug: 'real_time_push_notifications', name: 'Real-Time Push Notifications', scope: 'children', tier: 'core', summary: 'Receive instant app push alerts for homework, circulars, fee dues, and attendance.' },
+          { key: 'parent.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'children', tier: 'core', summary: 'Your child\'s day on one page: attendance, fees, homework and what the school has said — with anything waiting on you at the top. Switch children from the same page if you have more than one.' },
         ],
       },
       {

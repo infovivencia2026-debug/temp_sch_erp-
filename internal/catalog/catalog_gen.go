@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 324 features.
+// Roles is the catalog: 13 roles, 321 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1091,10 +1091,7 @@ var Roles = []Role{
 				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
-					{Key: "parent.home.child_switcher", Slug: "child_switcher", Name: "Child switcher", Scope: Scope("children"), Tier: Tier("core"), Summary: "Switch between linked children without separate accounts."},
-					{Key: "parent.home.child_summary", Slug: "child_summary", Name: "Child summary", Scope: Scope("children"), Tier: Tier("core"), Summary: "Attendance today/%, homework due, latest result, fee due and latest announcement for selected child."},
-					{Key: "parent.home.needs_attention", Slug: "needs_attention", Name: "Needs attention", Scope: Scope("children"), Tier: Tier("core"), Summary: "Absence, attendance shortage, overdue fee, consent request, unread circular or upcoming PTM."},
-					{Key: "parent.home.real_time_push_notifications", Slug: "real_time_push_notifications", Name: "Real-Time Push Notifications", Scope: Scope("children"), Tier: Tier("core"), Summary: "Receive instant app push alerts for homework, circulars, fee dues, and attendance."},
+					{Key: "parent.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's day on one page: attendance, fees, homework and what the school has said — with anything waiting on you at the top. Switch children from the same page if you have more than one."},
 				},
 			},
 			{

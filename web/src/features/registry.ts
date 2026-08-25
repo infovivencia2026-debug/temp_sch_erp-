@@ -159,9 +159,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'student.home.my_day': screen(() => import('./portal/Portal')),
   'student.attendance.attendance': screen(() => import('./portal/Portal')),
   'student.timetable.timetable': screen(() => import('./shared/Timetable')),
-  'parent.home.child_switcher': screen(() => import('./portal/Portal')),
-  'parent.home.child_summary': screen(() => import('./portal/Portal')),
-  'parent.home.needs_attention': screen(() => import('./portal/Reminders')),
+  /* One Dashboard, where there were four entries.
+
+     Child switcher and Child summary opened the identical screen, so the menu
+     named the same page twice; Needs attention was a third click for the list
+     a parent most wants on arrival. Real-Time Push Notifications was a menu
+     entry for something that is not a screen — the notifications already
+     arrive, on the bell and on the phone, and a page about them tells somebody
+     what is already happening to them. */
+  'parent.home.dashboard': screen(() => import('./portal/Portal')),
   'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'admissions.reports.admission_reports': screen(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.admissions_pipeline': screen(() => import('./admissions/Pipeline')),

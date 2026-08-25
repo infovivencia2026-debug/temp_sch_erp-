@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 330 of the catalog's features are implemented.
+// 327 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.all_admissions":                                           true,
 	"admissions.admissions.fee_enrollment":                                           true,
@@ -218,10 +218,7 @@ var implementedFeatures = map[string]bool{
 	"parent.fees.child_daily_cafeteria_purchase_timeline":                            true,
 	"parent.fees.digital_fee_receipt_pdf_download":                                   true,
 	"parent.fees.fees_payments":                                                      true,
-	"parent.home.child_summary":                                                      true,
-	"parent.home.child_switcher":                                                     true,
-	"parent.home.needs_attention":                                                    true,
-	"parent.home.real_time_push_notifications":                                       true,
+	"parent.home.dashboard":                                                          true,
 	"parent.leave_absence.apply_student_leave":                                       true,
 	"parent.messages.communication":                                                  true,
 	"parent.messages.direct_teacher_messaging":                                       true,
