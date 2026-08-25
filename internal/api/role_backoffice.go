@@ -502,10 +502,29 @@ func leaveFor(r *http.Request) any {
 	return nil
 }
 
+/*
+listLeaveRequests answers two different questions from one table.
+
+	"Whose leave is waiting on me" is an approver's queue; "how many days have I
+	taken" is a person's own record. They are the same rows and they are not the
+	same screen, and this used to decide between them by PERMISSION alone: hold
+	hr.employees.read and you saw everything, whichever door you came through.
+
+	A head of department holds it. So /hod/my_profile/leave_self_service --
+	titled "My leave" -- listed thirteen of another teacher's requests and a
+	student's medical leave, fourteen rows, none of them the reader's own. The
+	same screen looked correct for a class teacher only because the rows they
+	could see happened to be theirs.
+
+	`for=mine` settles it from the caller's side, because the caller is the one
+	that knows which door was opened. It NARROWS and can never widen: a request
+	without the permission is scoped to self regardless of what it asks for, so
+	the parameter cannot be used to see anything the old rule would have hidden.
+*/
 func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	mine := "TRUE"
-	if !id.Can(rbac.EmployeesRead) {
+	if !id.Can(rbac.EmployeesRead) || r.URL.Query().Get("for") == "mine" {
 		mine = `e.user_id = $3`
 	}
 

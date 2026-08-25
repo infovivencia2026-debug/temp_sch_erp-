@@ -72,8 +72,26 @@ export default function Leave() {
    * workspace in the URL says which door somebody came through: HR's is staff,
    * everybody else's is unchanged, and the principal still sees one queue
    * because they genuinely decide both from the same desk. */
-  const workspace = useLocation().pathname.split('/')[1]
-  const forWhom = workspace === 'hr' ? 'staff' : ''
+  const path = useLocation().pathname
+  const workspace = path.split('/')[1]
+
+  /* MY LEAVE IS MINE, WHOEVER ELSE'S I AM ALLOWED TO SEE.
+
+     This screen is registered twice: as an approver's queue, and as
+     `<role>.my_profile.leave_self_service`, titled "My leave". The server used
+     to choose between them by permission alone -- hold hr.employees.read and
+     you saw every row, whichever door you came through.
+
+     A head of department holds it. So their "My leave" listed thirteen of
+     another teacher's requests and a student's medical leave: fourteen rows,
+     none of them theirs. It looked right for a class teacher only because the
+     rows they could see happened to be their own.
+
+     The route says which door this is, so the route decides. `for=mine`
+     narrows on the server and can never widen -- a caller without the
+     permission is scoped to themselves regardless of what they ask for. */
+  const selfService = path.includes('/my_profile/')
+  const forWhom = selfService ? 'mine' : workspace === 'hr' ? 'staff' : ''
 
   const q = useQuery({
     queryKey: ['leave', status, forWhom],
