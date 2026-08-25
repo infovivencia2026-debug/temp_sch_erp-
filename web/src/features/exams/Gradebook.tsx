@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Upload } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, ExportButton, PrintButton, FormNotice, FormGrid, Field, Input,
+  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 
@@ -17,6 +18,52 @@ interface Paper {
 interface Row {
   student_id: string; admission_no: string; full_name: string
   marks_obtained?: number; max_marks: number; grade?: string; is_absent: boolean
+}
+
+/* Reading a marks sheet the exam cell already has.
+
+   CSV because that is what every spreadsheet in an Indian school exports to,
+   and because a format a person can open in Notepad is one they can fix
+   themselves when a column is wrong.
+
+   The header is found rather than demanded: a sheet whose columns are
+   "Roll No, Name, Marks" and one whose columns are "admission_no, student,
+   score" are the same sheet, and refusing the second on a technicality is how
+   an import feature goes unused. */
+function readMarksSheet(text: string): { key: string; value: string }[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
+  if (lines.length === 0) return []
+
+  const split = (line: string) =>
+    line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
+
+  const header = split(lines[0]).map((h) => h.toLowerCase())
+  const find = (...names: string[]) =>
+    header.findIndex((h) => names.some((n) => h.includes(n)))
+
+  let idCol = find('admission', 'adm no', 'adm_no', 'roll')
+  let markCol = find('mark', 'score', 'obtained')
+  let nameCol = find('name', 'student')
+
+  /* A sheet with no header at all — somebody pasted two columns. Assume the
+     first is who and the last is how many, which is the only arrangement that
+     makes sense and the one a person would have typed. */
+  let body = lines.slice(1)
+  if (idCol < 0 && nameCol < 0 && markCol < 0) {
+    idCol = 0
+    markCol = split(lines[0]).length - 1
+    body = lines
+  }
+  if (markCol < 0) markCol = split(lines[0]).length - 1
+
+  const out: { key: string; value: string }[] = []
+  for (const line of body) {
+    const cells = split(line)
+    const key = (idCol >= 0 ? cells[idCol] : nameCol >= 0 ? cells[nameCol] : '') ?? ''
+    const value = (cells[markCol] ?? '').trim()
+    if (key) out.push({ key: key.trim(), value })
+  }
+  return out
 }
 
 /** Marks entry. The grade is computed server-side from the exam's grading
@@ -81,6 +128,57 @@ export default function Gradebook() {
   })
 
   const [draft, setDraft] = useState<Record<string, string>>({})
+  const [importNote, setImportNote] = useState('')
+  const [importErr, setImportErr] = useState('')
+
+  /* Filling the boxes from a sheet, and stopping there.
+
+     The teacher sees what arrived against names they recognise and presses the
+     Save button that was already on the screen. An import that wrote straight
+     to the database would be ninety marks entered by a file nobody read. */
+  const importSheet = (file: File) => {
+    setImportNote('')
+    setImportErr('')
+    const reader = new FileReader()
+    reader.onerror = () => setImportErr('That file could not be read.')
+    reader.onload = () => {
+      const pairs = readMarksSheet(String(reader.result ?? ''))
+      if (pairs.length === 0) {
+        setImportErr('Nothing in that file looked like a marks sheet.')
+        return
+      }
+      /* Admission number first, name second. Two children called Rahul Iyer
+         sit in the same room, and an admission number belongs to one of them —
+         so a name is only trusted when nothing matched by number. */
+      const byAdm = new Map(rows.map((r) => [r.admission_no.toLowerCase(), r]))
+      const byName = new Map(rows.map((r) => [r.full_name.trim().toLowerCase(), r]))
+
+      const next = { ...draft }
+      const missed: string[] = []
+      let filled = 0
+      for (const { key, value } of pairs) {
+        const row = byAdm.get(key.toLowerCase()) ?? byName.get(key.toLowerCase())
+        if (!row) {
+          missed.push(key)
+          continue
+        }
+        next[row.student_id] = value
+        filled++
+      }
+      setDraft(next)
+      setImportNote(
+        `${filled} mark${filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
+      )
+      if (missed.length) {
+        setImportErr(
+          `Nobody in this paper matched: ${missed.slice(0, 6).join(', ')}` +
+            (missed.length > 6 ? ` and ${missed.length - 6} more` : '') +
+            '. Those rows were left alone.',
+        )
+      }
+    }
+    reader.readAsText(file)
+  }
   /* Absence is an override, not a set of names.
      A Set can only say "the teacher ticked this one", which is not the same
      question as "is this child absent" — the server answers that one in
@@ -183,7 +281,26 @@ export default function Gradebook() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* A mark sheet is filed, signed and argued over on paper. */}
-            <ExportButton report="marks" />
+            {/* Import, not export.
+
+                Export sat on the screen whose job is putting marks IN, and
+                downloaded every mark in the school — the wrong direction and
+                the wrong scope on a teacher's page. */}
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
+              <Upload className="h-3.5 w-3.5" aria-hidden />
+              Import marks
+              <input
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                className="sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) importSheet(f)
+                  // Cleared so the same file can be picked twice after a fix.
+                  e.target.value = ''
+                }}
+              />
+            </label>
             <PrintButton />
             <Select
               value={classID}
@@ -279,6 +396,13 @@ export default function Gradebook() {
                 </Button>
                 </div>
               </Card>
+            )}
+
+            {(importNote || importErr) && (
+              <div className="space-y-2">
+                {importNote && <FormNotice ok={importNote} />}
+                {importErr && <FormNotice error={new Error(importErr)} />}
+              </div>
             )}
 
             <Card>

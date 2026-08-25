@@ -59,19 +59,32 @@ export default function Homework() {
      not a filter over what has already arrived: narrowing a page that has
      already dropped the rows being looked for finds nothing and looks like an
      empty term. */
-  const query = new URLSearchParams(
-    Object.entries(filters).filter(([, v]) => v !== ''),
-  ).toString()
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['homework', query],
-    queryFn: () => api.get<List<Homework>>('/api/v1/homework' + (query ? `?${query}` : '')),
-  })
   const { data: session } = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
   })
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
+
+  /* A teacher's diary is the work that teacher set.
+
+     The list showed everything set for any section the caller touches, and
+     touch is not teach: a head of department who takes one Maths class read a
+     list mostly belonging to the colleagues who share those sections. Opening
+     on your own and widening is the right way round — the whole-section view
+     is what a class teacher and the office want, so it stays one click away
+     rather than being taken off them. */
+  const [onlyMine, setOnlyMine] = useState(true)
+  const mine = canPublish && onlyMine
+
+  const query = new URLSearchParams([
+    ...Object.entries(filters).filter(([, v]) => v !== ''),
+    ...(mine ? [['mine', '1'] as [string, string]] : []),
+  ]).toString()
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['homework', query],
+    queryFn: () => api.get<List<Homework>>('/api/v1/homework' + (query ? `?${query}` : '')),
+  })
 
   const submit = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/homework/${id}/submit`, { text_answer: 'Submitted' }),
@@ -135,9 +148,30 @@ export default function Homework() {
           <CardHeader
             title="Diary"
             description={
-              query
-                ? `${items.length} entries matching the filter`
+              canPublish
+                ? mine
+                  ? `${items.length} you have set`
+                  : `${items.length} set by anyone teaching these sections`
                 : `${items.length} entries`
+            }
+            action={
+              /* Only where there is a distinction to make. A student's diary
+                 is their own by definition, and offering to widen it would
+                 offer them somebody else's homework. */
+              canPublish ? (
+                <Button
+                  size="sm"
+                  variant={mine ? 'primary' : 'secondary'}
+                  onClick={() => setOnlyMine((v) => !v)}
+                  title={
+                    mine
+                      ? 'Showing only what you set. Switch to see everything set for these sections.'
+                      : 'Showing everything set for these sections, by any teacher.'
+                  }
+                >
+                  {mine ? 'Only mine' : 'Everyone teaching these sections'}
+                </Button>
+              ) : undefined
             }
           />
           {items.length === 0 ? (
@@ -150,7 +184,10 @@ export default function Homework() {
               }
             />
           ) : (
-            <ul className="divide-y">
+            /* A term is a few hundred rows. Left to grow, the list runs past
+               the filters above it, and the filters are what somebody came
+               back to the top for. */
+            <ul className="max-h-[34rem] divide-y overflow-y-auto">
               {items.map((h) => (
                 <li key={h.id} className="px-5 py-4">
                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

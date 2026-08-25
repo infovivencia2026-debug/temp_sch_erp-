@@ -1026,6 +1026,7 @@ type homeworkRow struct {
 // what was set for the sections their children are enrolled in. The scope
 // resolver already knows which of the two the caller is.
 func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
 	res, err := s.resolveScope(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -1080,6 +1081,21 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 	filter("h.kind = $%d", q.Get("kind"))
 	filter("h.assigned_on >= $%d::date", q.Get("from"))
 	filter("h.assigned_on <= $%d::date", q.Get("to"))
+
+	/* Only what this teacher set.
+
+	   A teacher's diary showed everything set for any section they touch,
+	   including work set by the three colleagues who share those sections — so
+	   a head of department who takes one Maths class read a list mostly
+	   belonging to other people, with no way to find their own.
+
+	   Opt-in rather than the default here, because the office and the class
+	   teacher genuinely want the whole section's diary. The teaching screens
+	   ask for it; nothing else has to change. */
+	if q.Get("mine") == "1" {
+		args = append(args, id.UserID)
+		where += fmt.Sprintf(" AND h.created_by = $%d", len(args))
+	}
 
 	items, err := collect(s, r, `
 		SELECT h.id::text, h.title, h.kind, sub.name, c.name, sec.name,
