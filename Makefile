@@ -57,6 +57,10 @@ admin: ## Create an admin: make admin EMAIL=.. PASSWORD=.. [INSTITUTION=..]
 catalog: ## Regenerate the feature catalog + implemented list from the CSV and registry
 	python3 scripts/gen_catalog.py
 	python3 scripts/gen_implemented.py
+	@# The assistant's precomputed answers come from the same catalogue. Run
+	@# here rather than as its own target so they cannot drift from it: help
+	@# that names a screen the product no longer has is worse than none.
+	python3 scripts/gen_answers.py
 	gofmt -w internal/catalog internal/api
 
 docs: catalog ## Regenerate docs/FEATURES.md
