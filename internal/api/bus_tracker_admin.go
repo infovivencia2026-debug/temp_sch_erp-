@@ -369,7 +369,31 @@ func validateTrackingPolicy(b trackingPolicyBody) string {
 // getTrackingPolicy reads the school's settings, creating the schema defaults
 // on first read. Reuses trackingPolicyFor so the office screen and the ingest
 // path can never be looking at two different readers of one row.
+/*
+getTrackingPolicy answers with a school's policy, or says it needs a school.
+
+	THIS ENDPOINT 500'D FOR EVERY PLATFORM OPERATOR, and the reason is worth
+	keeping: reading the policy WRITES one. trackingPolicyFor inserts the
+	defaults when a school has none, which is the right shape for a school —
+	nobody should have to visit a settings screen before a bus can report — and
+	the wrong shape for an account attached to no school at all.
+
+	A platform operator's institution is uuid.Nil, so the insert failed on
+	transport_tracking_policy_institution_id_fkey and the handler reported
+	"something went wrong". It was the only 5xx found across nine roles, and it
+	was not a fault in the database or in the policy: it was a GET being asked
+	to create a row for a school that does not exist.
+
+	Guarded with requireInstitution, which is what the other twelve
+	school-scoped screens on the platform catalogue already answer with — the
+	same sentence, a 400 rather than a 500, and no write attempted. A platform
+	operator now gets told to pick a school instead of being told the server
+	broke.
+*/
 func (s *Server) getTrackingPolicy(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
 	id := httpx.IdentityFrom(r.Context())
 	var body trackingPolicyBody
 	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -392,6 +416,11 @@ func (s *Server) getTrackingPolicy(w http.ResponseWriter, r *http.Request) {
 // saveTrackingPolicy writes it, refusing out-of-range values in a sentence
 // rather than letting Postgres answer with a constraint name.
 func (s *Server) saveTrackingPolicy(w http.ResponseWriter, r *http.Request) {
+	// Same guard as the read, for the same reason: there is no school to save
+	// a policy against, and the foreign key would say so as a 500.
+	if !requireInstitution(w, r) {
+		return
+	}
 	id := httpx.IdentityFrom(r.Context())
 	var req trackingPolicyBody
 	if !httpx.Decode(w, r, &req) {
