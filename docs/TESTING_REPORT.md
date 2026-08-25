@@ -547,3 +547,54 @@ true of its own endpoint and false of the product.
   needs deciding is whether the tile belongs in finance's catalogue at all —
   and either way the raw permission string should not be the screen's copy.
 - 13 routes, 1 failed call, 0 JS errors, 0 unrounded percentages.
+
+---
+
+## Run — 25 Aug 2026, librarian, against the live host
+
+Catalogue-driven browser walk: routes from `/api/v1/catalog`, every one visited
+in Chromium with `console` and every response hooked.
+
+| | |
+|---|---|
+| Routes in this role's catalogue | **15** |
+| Visited | **15** |
+| Failed network calls | **0** |
+| Console errors | **0** |
+| Timeouts | **0** |
+| Unrounded percentages, raw ISO dates, raw snake_case, `undefined`/`NaN` | **0** |
+| Screens rendering under 400 characters | 5 |
+
+**Nothing to report.** The cleanest role walked — no failure, no error, no
+formatting slip, and every thin screen accounted for below. Worth stating
+plainly rather than padding: an optional role that nobody has been fixing this
+week came out clean, which says the shared components are sound where nobody
+has been touching them.
+
+### The five thin screens, and what the count means by now
+
+Four of them — Fine & Penalty Summary, Digital Library Usage, Annual Book Stock
+Verification, New Session Textbook Orders — render the same sentence:
+
+> *"Fine & Penalty Summary is set up for this workspace, but its screen has not
+> been built. It is listed here rather than hidden so the workspace reflects the
+> full feature set."*
+
+That is the deferred-feature placeholder doing exactly its job: it names the
+feature, says it does not exist yet, and says why it is still on the menu. The
+fifth is My pay waiting on a month.
+
+**This completes the picture of the "thin screens" metric, and it has three
+different causes, none of them a defect:**
+
+1. **Complete but compact** — the parent's attendance screen is 300 characters
+   and carries 96%, 25 days marked and a monthly history. `innerText` on this
+   shell is terse.
+2. **"Pick one first"** — a picker is present and the screen is waiting on it.
+   Most of the institution_admin and finance counts.
+3. **Not built yet, and saying so** — these four.
+
+Across ten roles the metric has flagged roughly a hundred screens and produced
+**no defect on its own**. It remains useful as a place to look; it has never
+once been a finding by itself, and this file should stop reporting the raw
+count as though it were one.
