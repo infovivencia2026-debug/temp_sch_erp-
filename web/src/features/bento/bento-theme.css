@@ -1459,3 +1459,28 @@ html[data-layout='bento'] body {
 @supports not (backdrop-filter: blur(1px)) {
   .bento-frost { background: var(--bento-bg); }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   A HOME BOARD DOES NOT SCROLL.
+
+   The board's height is already measured and capped, so on every viewport
+   tested — 1600x900 down to 1152x560, and with the text axis at 160% — nothing
+   overflowed. But "nothing overflows in the cases I measured" is not the same
+   promise as "this cannot scroll", and the difference is exactly the cases
+   nobody measured: a longer school name in the header, a language whose words
+   run wider, a browser with a larger minimum font size.
+
+   So the surface clips rather than scrolls. The board is capped, cells shed
+   their supporting text at small sizes, and the arranger refuses layouts that
+   need a fourth row — clipping is the backstop behind three mechanisms that
+   already keep content inside, not a way of hiding overflow that was expected.
+
+   Only at lg. Below that the board stacks into one or two columns and a phone
+   is meant to scroll: clipping there would cut the bottom cards off with no
+   way to reach them.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .bento-surface {
+    overflow: hidden;
+  }
+}
