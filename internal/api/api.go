@@ -745,6 +745,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/tickets", s.listTickets)
 			r.Get("/enquiries", s.listSalesEnquiries)
 			// One notice to every school at once — see platform_broadcast.go.
+			// What each school uses, and what the installation costs to
+			// provide it — see platform_usage.go.
+			r.Get("/usage", s.getPlatformUsage)
+			r.Put("/costs", s.setPlatformCosts)
 			r.Get("/broadcasts", s.listPlatformBroadcasts)
 			r.Post("/broadcasts", s.raisePlatformBroadcast)
 			r.Delete("/broadcasts/{id}", s.retirePlatformBroadcast)

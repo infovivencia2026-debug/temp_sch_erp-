@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 334 of the catalog's features are implemented.
+// 329 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.all_admissions":                                           true,
 	"admissions.admissions.fee_enrollment":                                           true,
@@ -251,6 +251,7 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.support.support":                                                   true,
 	"seller_admin.usage_health.adoption_metrics":                                     true,
 	"seller_admin.usage_health.instance_health":                                      true,
+	"seller_admin.usage_health.usage_cost":                                           true,
 	"student.alumni.alumni_job_internship_board":                                     true,
 	"student.alumni.alumni_network_registration":                                     true,
 	"student.attendance.apply_for_leave":                                             true,
@@ -287,13 +288,7 @@ var implementedFeatures = map[string]bool{
 	"super_admin.campuses_academic_year.academic_calendar_model":                     true,
 	"super_admin.campuses_academic_year.franchise_management":                        true,
 	"super_admin.campuses_academic_year.white_label_branding":                        true,
-	"super_admin.dashboard.alerts":                                                   true,
-	"super_admin.dashboard.all_campuses_summary":                                     true,
-	"super_admin.dashboard.campus_cards":                                             true,
-	"super_admin.dashboard.central_admission_funnel_kpi":                             true,
-	"super_admin.dashboard.executive_system_alerts":                                  true,
-	"super_admin.dashboard.global_attendance_heatmap":                                true,
-	"super_admin.dashboard.multi_branch_revenue_analytics":                           true,
+	"super_admin.dashboard.dashboard":                                                true,
 	"super_admin.dashboard.system_health":                                            true,
 	"super_admin.institution_setup.academic_year_defaults":                           true,
 	"super_admin.institution_setup.branding":                                         true,

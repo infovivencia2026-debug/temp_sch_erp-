@@ -54,6 +54,8 @@ export const platformKeys = {
   'seller_admin.support.support': screen(() => import('../seller/SupportTickets')),
   'seller_admin.support.audit': screen(() => import('../seller/Impersonation')),
   'seller_admin.usage_health.adoption_metrics': screen(() => import('../seller/Adoption')),
+  // What each school uses against what the installation costs to run.
+  'seller_admin.usage_health.usage_cost': screen(() => import('../seller/UsageCost')),
   'seller_admin.usage_health.instance_health': screen(() => import('../seller/InstanceHealth')),
   'seller_admin.entitlements.module_entitlement_matrix': screen(() => import('../seller/Entitlements')),
 }

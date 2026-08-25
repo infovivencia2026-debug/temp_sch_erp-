@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 322 features.
+// Roles is the catalog: 13 roles, 323 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -130,6 +130,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "seller_admin.usage_health.adoption_metrics", Slug: "adoption_metrics", Name: "Adoption Metrics", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Sign-ins, active users and transactions per school per week — the leading indicator of renewal."},
 					{Key: "seller_admin.usage_health.instance_health", Slug: "instance_health", Name: "Instance Health", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it."},
+					{Key: "seller_admin.usage_health.usage_cost", Slug: "usage_cost", Name: "Usage & Cost", Scope: Scope("platform"), Tier: Tier("core"), Summary: "What each school actually uses — files stored, records held, messages sent — against what the installation costs to run. Enter the monthly bill once and every school's share is read against what it pays, so a customer's price can be seen next to its cost."},
 				},
 			},
 			{

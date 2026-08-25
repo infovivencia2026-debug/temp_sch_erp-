@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 322 features. */
+/** 13 roles, 323 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -83,6 +83,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.usage_health.adoption_metrics', slug: 'adoption_metrics', name: 'Adoption Metrics', scope: 'platform', tier: 'core', summary: 'Sign-ins, active users and transactions per school per week — the leading indicator of renewal.' },
           { key: 'seller_admin.usage_health.instance_health', slug: 'instance_health', name: 'Instance Health', scope: 'platform', tier: 'core', summary: 'Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.' },
+          { key: 'seller_admin.usage_health.usage_cost', slug: 'usage_cost', name: 'Usage & Cost', scope: 'platform', tier: 'core', summary: 'What each school actually uses — files stored, records held, messages sent — against what the installation costs to run. Enter the monthly bill once and every school\'s share is read against what it pays, so a customer\'s price can be seen next to its cost.' },
         ],
       },
       {
