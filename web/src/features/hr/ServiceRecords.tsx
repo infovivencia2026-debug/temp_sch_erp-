@@ -258,7 +258,7 @@ function ServiceBookTab() {
           <EmptyState title="No pages yet"
             body="The appointment page is written for you when an onboarding file is completed." />
         ) : (
-          <Table head={['Date', 'Employee', 'Entry', 'Particulars', 'Order', 'Attested', '']}>
+          <Table wide head={['Date', 'Employee', 'Entry', 'Particulars', 'Order', 'Attested', '']}>
             {rows.map((e) => (
               <tr key={e.id}>
                 <Td className="tabular-nums text-muted-foreground">{e.event_date}</Td>

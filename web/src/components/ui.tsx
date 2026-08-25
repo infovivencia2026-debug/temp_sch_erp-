@@ -786,7 +786,10 @@ export function Button({
       title={title}
       aria-label={title}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-sm font-medium',
+        /* nowrap because the height is fixed. A label that wraps does not make
+           the button taller, it spills out of it — which is what a narrow last
+           column in a wide table does to a two-syllable word. */
+        'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm font-medium',
         'transition-colors duration-150',
         'disabled:pointer-events-none disabled:opacity-50',
         size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-9 px-3.5 text-[14px]',
