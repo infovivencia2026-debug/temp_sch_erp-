@@ -211,11 +211,29 @@ export function AssistantTab() {
             {turns.map((turn, i) => (
               <div key={i} className={cn('max-w-[86%]', turn.role === 'user' && 'ml-auto')}>
                 <p
+                  /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
+
+                     The question was `bg-primary-soft text-primary`, two tokens
+                     that both move when somebody paints an accent colour — and
+                     they move independently. Paint the accent green in dark
+                     mode and --primary-soft resolves to a near-black green
+                     while --primary resolves to a mid green on top of it:
+                     unreadable, and unreadable only for the people who had
+                     customised their colours, which is why it survived.
+
+                     A defined pair instead. --primary/--primary-foreground and
+                     --accent/--accent-foreground are each specified together in
+                     both themes and stay legible whatever the accent becomes.
+                     The bot's turn also names its foreground rather than
+                     inheriting: it was relying on the panel's colour reaching
+                     it, which is true until the day a painted region sits
+                     between them. */
                   className={cn(
                     'whitespace-pre-wrap rounded-[12px] px-3 py-2 text-[13px]',
-                    turn.role === 'user' && 'bg-primary-soft text-primary',
-                    turn.role === 'bot' && 'bg-accent',
-                    turn.role === 'error' && 'bg-destructive/15 text-destructive',
+                    turn.role === 'user' && 'bg-primary text-primary-foreground',
+                    turn.role === 'bot' && 'bg-accent text-accent-foreground',
+                    turn.role === 'error' &&
+                      'bg-destructive text-destructive-foreground',
                   )}
                 >
                   {turn.text}

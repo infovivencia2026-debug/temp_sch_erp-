@@ -39,6 +39,45 @@ that pane and the others stay where they are. Right-click a tab and choose
 This is worth doing whenever you are comparing rather than switching — a
 receipt against the day book, a timetable against a teacher's load.
 
+## The dashboard
+
+Your dashboard is the first screen in the sidebar. It is called **Home** in the
+navigation and **Dashboard** on the screen itself and on its tab — the same
+place, two names, because "Home" is where it sits and "Dashboard" is what it
+is.
+
+To reach it: Sidebar → Home → Dashboard. It is also where clicking the school's
+name at the top of the sidebar takes you.
+
+What it shows depends on your role, and it is the same question in each case —
+what needs you today.
+
+- **Principal / Institution Admin** — attendance taken so far today, students on
+  roll, fees collected against what was billed, what is outstanding, and how
+  many approvals are waiting on you.
+- **Accounts & Finance** — collections, arrears, defaulters, and anything that
+  failed to settle.
+- **Admissions** — enquiries, applications in flight, and follow-ups due.
+- **Faculty / Teacher** — today's classes, which registers are still unmarked,
+  and what is waiting on you.
+- **HR & Payroll** — headcount, leave pending, and where the current payroll run
+  has got to.
+- **Parent / Guardian** — a summary for each child: attendance, fees due, and
+  anything the school has sent. Use the child switcher if you have more than
+  one.
+- **Student** — your day, and any action reminders.
+
+**Needs attention** sits at the top of most dashboards. It is not a summary; it
+is the list of things that will not resolve themselves without you.
+
+Every card carries a link to the screen it summarises, so a number you want to
+act on is one click from the place you act on it. A card showing a dash rather
+than a figure means nothing has been recorded yet today — an unmarked register,
+not a broken card.
+
+**To change which cards you see:** the cog → Dashboard. You can hide cards you
+do not use and change their size. It is remembered on this device.
+
 ## Searching
 
 The search box in the top bar (or Ctrl+K) finds screens by name across your
