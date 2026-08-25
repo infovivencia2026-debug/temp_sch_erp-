@@ -4,7 +4,9 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Loading, ErrorState, UnavailableState,
 } from '@/components/ui'
-import { usePlatform, type HealthResponse, type QueueStat } from '../super_admin/platform-lib'
+import {
+  usePlatform, queueWaiting, type HealthResponse, type QueueStat,
+} from '../super_admin/platform-lib'
 
 /* The provisioning log, and the failures in it.
 
@@ -110,9 +112,16 @@ export default function InstanceHealth() {
             value={noRegister.length}
             hint="The signal that most reliably precedes a support call"
           />
+          {/* WAITING, NOT `size`.
+
+              asynq's Size is pending + active + scheduled + retry +
+              aggregating + ARCHIVED, so this tile read "Queued jobs 3,852" on
+              a platform where pending, active and retry were all zero. Nothing
+              was queued; most of that number had already finished or given up.
+              A vendor seeing it has no way to tell which. */}
           <Stat
-            label="Queued jobs"
-            value={queues.reduce((n, [, q]) => n + q.size, 0)}
+            label="Jobs waiting"
+            value={queues.reduce((n, [, q]) => n + queueWaiting(q), 0)}
             hint={queueError ? 'Queue is unreachable' : 'Across every queue'}
           />
         </CellGrid>
@@ -192,19 +201,31 @@ export default function InstanceHealth() {
               </p>
             </div>
           ) : (
+            /* GAVE UP replaces Size, and Failed keeps its name but not its
+               place at the end.
+
+               Size is asynq's total and includes finished and abandoned work,
+               so a column of 3,811 beside four zeroes told an operator
+               nothing. What they need is the two facts that mean action:
+               how much is still going to run, and how much has stopped
+               trying. `failed` stays because it is real, but it is asynq's
+               DAILY counter and resets — it read 0 while twenty-one jobs sat
+               archived, which is why archived is now its own column. */
             <Table
-              head={['Queue', 'Size', 'Pending', 'Active', 'Retrying', 'Failed', 'State']}
+              head={['Queue', 'Waiting', 'Pending', 'Active', 'Scheduled', 'Retrying', 'Gave up', 'Failed today', 'State']}
               empty={!queues.length}
               emptyLabel="No queues reported."
             >
               {queues.map(([name, q]) => (
                 <tr key={name}>
                   <Td className="font-medium">{name}</Td>
-                  <Td>{q.size}</Td>
+                  <Td>{queueWaiting(q)}</Td>
                   <Td>{q.pending}</Td>
                   <Td>{q.active}</Td>
+                  <Td>{q.scheduled || '—'}</Td>
                   <Td>{q.retry || '—'}</Td>
-                  <Td>{q.failed ? <Badge tone="danger">{q.failed}</Badge> : '—'}</Td>
+                  <Td>{q.archived ? <Badge tone="danger">{q.archived}</Badge> : '—'}</Td>
+                  <Td>{q.failed ? <Badge tone="warning">{q.failed}</Badge> : '—'}</Td>
                   <Td>{q.paused ? <Badge tone="warning">Paused</Badge> : <Badge tone="success">Running</Badge>}</Td>
                 </tr>
               ))}

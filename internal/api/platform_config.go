@@ -3706,9 +3706,29 @@ func (s *Server) getInstanceHealth(w http.ResponseWriter, r *http.Request) {
 	if s.Inspector != nil {
 		if stats, qerr := s.Inspector.Stats(r.Context()); qerr == nil {
 			for name, q := range stats {
+				/* SCHEDULED AND ARCHIVED, WHICH THIS USED TO HIDE.
+
+				   asynq documents Size as the sum of Pending, Active,
+				   Scheduled, Retry, Aggregating and Archived. Reporting Size
+				   beside only pending/active/retry/failed made the two
+				   irreconcilable: the vendor console showed 3,811 jobs on the
+				   default queue with pending 0, active 0, retry 0 and failed
+				   0, and no way to tell whether that was work stuck or work
+				   finished. The report's own note asked exactly that question
+				   and could not answer it from this response.
+
+				   Archived is the one that matters most and was the one
+				   missing: an archived job is a job that gave up. Twenty-one
+				   message:send jobs have been sitting archived on this
+				   installation all day — the deploy script warns about them
+				   every time — while this endpoint reported failed: 0, because
+				   asynq's Failed is a daily counter that resets, not a
+				   backlog. */
 				out.Queues[name] = map[string]any{
 					"size": q.Size, "pending": q.Pending, "active": q.Active,
-					"retry": q.Retry, "failed": q.Failed, "paused": q.Paused,
+					"scheduled": q.Scheduled, "retry": q.Retry,
+					"archived": q.Archived, "completed": q.Completed,
+					"failed": q.Failed, "paused": q.Paused,
 				}
 			}
 		} else {

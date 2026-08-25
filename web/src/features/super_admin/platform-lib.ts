@@ -553,13 +553,25 @@ export interface HealthRow {
 }
 
 export interface QueueStat {
+  /** asynq's own total: pending + active + scheduled + retry + aggregating +
+      archived. Not "waiting" — it counts jobs that have given up as well. */
   size: number
   pending: number
   active: number
+  scheduled: number
   retry: number
+  /** Jobs that gave up. A backlog, and the number worth acting on. */
+  archived: number
+  completed: number
+  /** asynq's DAILY counter, which resets. Not a backlog, despite the name. */
   failed: number
   paused: boolean
 }
+
+/** What is actually still going to run. Excludes archived (gave up) and
+    completed (done), both of which `size` includes. */
+export const queueWaiting = (q: QueueStat) =>
+  q.pending + q.active + q.scheduled + q.retry
 
 export interface HealthResponse {
   items: HealthRow[]
