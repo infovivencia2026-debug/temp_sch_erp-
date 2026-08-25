@@ -643,6 +643,44 @@ var rolePresets = []rolePreset{
 		Description: "Accounts, roles, integrations and the audit trail.",
 		RoleKeys:    []string{"it_admin"},
 	},
+
+	/* The two-hat presets.
+
+	   Every Indian school below a certain size runs on people doing two jobs —
+	   the Telugu teacher who is also the librarian, the games master who runs
+	   the buses. Both roles were already grantable together and somebody had to
+	   know that, tick two boxes, and know which two would not collide.
+
+	   Only combinations that share nothing but My pay and the profile, which is
+	   measured rather than assumed: TestNoTwoGrantableRolesAreTheSameWorkspace
+	   fails if any pair here grows into duplicating itself. */
+	{
+		Key:  "teacher_librarian",
+		Name: "Teacher & librarian",
+		Description: "Teaches their own classes and runs the library. Two workspaces on the " +
+			"left rail; nothing is shared between them.",
+		RoleKeys: []string{"faculty", "librarian"},
+	},
+	{
+		Key:  "teacher_transport",
+		Name: "Teacher & transport in-charge",
+		Description: "Teaches, and runs the routes, vehicles and driver roster.",
+		RoleKeys: []string{"faculty", "transport_manager"},
+	},
+	{
+		Key:  "principal_hr",
+		Name: "Principal & payroll",
+		Description: "Runs the school and keeps the staff records and salaries — the small-school " +
+			"arrangement where the head does both.",
+		RoleKeys: []string{"institution_admin", "hr"},
+	},
+	{
+		Key:  "hod_librarian",
+		Name: "Head of department & librarian",
+		Description: "Heads a department and runs the library. Allocate them a subject and their " +
+			"own teaching screens appear too.",
+		RoleKeys: []string{"hod", "librarian"},
+	},
 }
 
 // listRolePresets returns the bundles, filtered to roles that actually exist
@@ -666,19 +704,35 @@ func (s *Server) listRolePresets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := make([]rolePreset, 0, len(rolePresets))
+	/* A preset offers what it says, and says what is not installed yet.
+
+	   This trimmed each preset to the roles the school already had, so
+	   "Teacher & librarian" at a school that has never switched the librarian
+	   role on was offered under that name and granted faculty alone. The name
+	   promised two workspaces and delivered one, silently, which is the worst
+	   way for a school to discover an optional role exists.
+
+	   Trimming was right when assigning an uninstalled role did nothing. It is
+	   not right now: setUserRoles installs an optional role on demand, so the
+	   preset works in full — and the only thing worth saying is which of them
+	   the school is switching on for the first time. */
+	type presetOut struct {
+		rolePreset
+		// Roles this school does not have yet, which granting the preset will
+		// switch on. Named so the screen can say so rather than surprise
+		// somebody with a workspace nobody asked for.
+		NewToSchool []string `json:"new_to_school,omitempty"`
+	}
+
+	out := make([]presetOut, 0, len(rolePresets))
 	for _, p := range rolePresets {
-		keys := make([]string, 0, len(p.RoleKeys))
+		item := presetOut{rolePreset: p}
 		for _, k := range p.RoleKeys {
-			if existing[k] {
-				keys = append(keys, k)
+			if !existing[k] {
+				item.NewToSchool = append(item.NewToSchool, k)
 			}
 		}
-		if len(keys) == 0 {
-			continue
-		}
-		p.RoleKeys = keys
-		out = append(out, p)
+		out = append(out, item)
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }
