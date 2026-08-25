@@ -40,14 +40,14 @@ export const ROLES: Role[] = [
     name: 'Seller Admin',
     sections: [
       {
-        slug: 'customers',
-        name: 'Customers',
-        workspace: 'Customers',
+        slug: 'schools',
+        name: 'Schools',
+        workspace: 'Schools',
         features: [
-          { key: 'seller_admin.customers.tenant_directory', slug: 'tenant_directory', name: 'Tenant Directory', scope: 'platform', tier: 'core', summary: 'Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support.' },
-          { key: 'seller_admin.customers.provision_new_school', slug: 'provision_new_school', name: 'Provision New School', scope: 'platform', tier: 'core', summary: 'Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials.' },
-          { key: 'seller_admin.customers.suspend_reactivate', slug: 'suspend_reactivate', name: 'Suspend & Reactivate', scope: 'platform', tier: 'core', summary: 'Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement.' },
-          { key: 'seller_admin.customers.onboarding_progress', slug: 'onboarding_progress', name: 'Onboarding Progress', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation.' },
+          { key: 'seller_admin.schools.tenant_directory', slug: 'tenant_directory', name: 'Tenant Directory', scope: 'platform', tier: 'core', summary: 'Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support.' },
+          { key: 'seller_admin.schools.provision_new_school', slug: 'provision_new_school', name: 'Provision New School', scope: 'platform', tier: 'core', summary: 'Create a school, its first campus and its first administrator in one step, and hand over the credentials.' },
+          { key: 'seller_admin.schools.tenant_access_control', slug: 'tenant_access_control', name: 'Tenant Access Control', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
+          { key: 'seller_admin.schools.onboarding_progress', slug: 'onboarding_progress', name: 'Onboarding Progress', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.' },
         ],
       },
       {
@@ -57,7 +57,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.subscriptions_billing.plans_pricing', slug: 'plans_pricing', name: 'Plans & Pricing', scope: 'platform', tier: 'core', summary: 'Define plans with a student cap, included modules and an annual or per-student price.' },
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
-          { key: 'seller_admin.subscriptions_billing.seat_overage_renewals', slug: 'seat_overage_renewals', name: 'Seat Overage & Renewals', scope: 'platform', tier: 'core', summary: 'Schools past their student cap or inside the renewal window, with the revenue at risk.' },
+          { key: 'seller_admin.subscriptions_billing.license_capacity_tracking', slug: 'license_capacity_tracking', name: 'License & Capacity Tracking', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
         ],
       },
       {

@@ -87,14 +87,14 @@ var Roles = []Role{
 		Name: "Seller Admin",
 		Sections: []Section{
 			{
-				Slug: "customers",
-				Name: "Customers",
-				Workspace: "Customers",
+				Slug: "schools",
+				Name: "Schools",
+				Workspace: "Schools",
 				Features: []Feature{
-					{Key: "seller_admin.customers.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on the installation with its plan, student headcount, status and date joined; open one to act inside it for support."},
-					{Key: "seller_admin.customers.provision_new_school", Slug: "provision_new_school", Name: "Provision New School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a tenant, its first campus and its first administrator in one step, and send the welcome credentials."},
-					{Key: "seller_admin.customers.suspend_reactivate", Slug: "suspend_reactivate", Name: "Suspend & Reactivate", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Suspend a tenant for non-payment or at end of contract, blocking sign-in while preserving the data, and reactivate on settlement."},
-					{Key: "seller_admin.customers.onboarding_progress", Slug: "onboarding_progress", Name: "Onboarding Progress", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, so the account manager can intervene before a stalled rollout becomes a cancellation."},
+					{Key: "seller_admin.schools.tenant_directory", Slug: "tenant_directory", Name: "Tenant Directory", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support."},
+					{Key: "seller_admin.schools.provision_new_school", Slug: "provision_new_school", Name: "Provision New School", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create a school, its first campus and its first administrator in one step, and hand over the credentials."},
+					{Key: "seller_admin.schools.tenant_access_control", Slug: "tenant_access_control", Name: "Tenant Access Control", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart."},
+					{Key: "seller_admin.schools.onboarding_progress", Slug: "onboarding_progress", Name: "Onboarding Progress", Scope: Scope("platform"), Tier: Tier("core"), Summary: "How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation."},
 				},
 			},
 			{
@@ -104,7 +104,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "seller_admin.subscriptions_billing.plans_pricing", Slug: "plans_pricing", Name: "Plans & Pricing", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Define plans with a student cap, included modules and an annual or per-student price."},
 					{Key: "seller_admin.subscriptions_billing.subscription_ledger", Slug: "subscription_ledger", Name: "Subscription Ledger", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Each school's plan, term dates, renewal date and invoice history."},
-					{Key: "seller_admin.subscriptions_billing.seat_overage_renewals", Slug: "seat_overage_renewals", Name: "Seat Overage & Renewals", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past their student cap or inside the renewal window, with the revenue at risk."},
+					{Key: "seller_admin.subscriptions_billing.license_capacity_tracking", Slug: "license_capacity_tracking", Name: "License & Capacity Tracking", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used."},
 				},
 			},
 			{

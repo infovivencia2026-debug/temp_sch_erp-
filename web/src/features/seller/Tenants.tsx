@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, Copy, KeyRound, Plus, TrendingUp, X } from 'lucide-react'
 import { api, setActingInstitution, type List } from '@/lib/api'
@@ -62,7 +63,83 @@ const SUB_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   cancelled: 'neutral',
 }
 
+/* One screen, seven doors into it.
+
+   Every entry in this workspace rendered this page unfiltered, so the rail
+   read as seven promises and paid out one. They stay one screen — a school is
+   a single row, and splitting it would mean seven copies of that row and seven
+   half-views of the same account — but each entry now opens on what its own
+   name says.
+
+   VIEW decides what is on screen; TITLES decides what it is called. Kept apart
+   because two entries can share a view and never share a heading: provisioning
+   a school and reading the directory are the same table with the form open. */
+type SellerView =
+  | 'directory'
+  | 'provision'
+  | 'access'
+  | 'onboarding'
+  | 'plans'
+  | 'ledger'
+  | 'capacity'
+
+const VIEW: Record<string, SellerView> = {
+  tenant_directory: 'directory',
+  provision_new_school: 'provision',
+  tenant_access_control: 'access',
+  onboarding_progress: 'onboarding',
+  plans_pricing: 'plans',
+  subscription_ledger: 'ledger',
+  license_capacity_tracking: 'capacity',
+}
+
+const TITLES: Record<SellerView, [string, string, string]> = {
+  directory: [
+    'Schools',
+    'Every school on this installation',
+    'What each one pays, how many children it has on the roll, and how far it has got.',
+  ],
+  provision: [
+    'Provision a school',
+    'Schools',
+    'Create a school, its first campus and its first administrator in one step. The credentials '
+      + 'are shown once, to hand over.',
+  ],
+  access: [
+    'Tenant Access Control',
+    'Schools',
+    'Who may sign in and who may not. Suspending blocks sign-in and keeps every record; nothing '
+      + 'is deleted and nothing needs restarting.',
+  ],
+  onboarding: [
+    'Onboarding Progress',
+    'Schools',
+    'How far each new school has got, and which step it is stuck on \u2014 so somebody can '
+      + 'intervene before a stalled rollout becomes a cancellation.',
+  ],
+  plans: [
+    'Plans & Pricing',
+    'Subscriptions & Billing',
+    'What a school can be sold: the student cap, the modules included, and the price.',
+  ],
+  ledger: [
+    'Subscription Ledger',
+    'Subscriptions & Billing',
+    'What each school is on, what it is worth a year, and when it renews.',
+  ],
+  capacity: [
+    'License & Capacity Tracking',
+    'Subscriptions & Billing',
+    'Schools past the students their plan allows, and those inside the renewal window, counted '
+      + 'from the live headcount rather than from what was sold.',
+  ],
+}
+
 export default function Tenants() {
+  const { featureSlug } = useParams()
+  const view: SellerView = VIEW[featureSlug ?? ''] ?? 'directory'
+  const [title, eyebrow, description] = TITLES[view]
+
   const qc = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [handover, setHandover] = useState<Handover | null>(null)
@@ -113,9 +190,9 @@ export default function Tenants() {
   return (
     <>
       <PageHead
-        eyebrow="Customers"
-        title="Schools"
-        description="Every school on this installation, what they pay and how far they have got."
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
         actions={
           <Button
             onClick={() => {
