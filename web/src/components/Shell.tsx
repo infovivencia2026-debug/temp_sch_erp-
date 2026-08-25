@@ -115,10 +115,21 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
     // two-line label at 116% has to be allowed to be two lines.
     'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-[7px] pr-2',
     'py-1 text-[calc(13.5px*var(--font-scale,1))]',
-    'transition-colors duration-100',
+    'transition-colors',
     depth === 0 ? 'pl-2.5' : 'pl-7',
+    /* A NAV ITEM IS TEXT UNTIL IT IS POINTED AT.
+
+       The active item was a filled white card with a shadow — a raised button
+       sitting in a column of plain words, which is more emphasis than "you are
+       here" needs and enough to make the item beside it look disabled by
+       comparison. The mark at the left edge and a half-step of weight say the
+       same thing without lifting anything off the page.
+
+       Hover is where the surface appears, and only there: a wash and a
+       darkening of the ink, so pointing at a row shows it can be pressed. That
+       is the whole button — it is drawn by the cursor and put away after. */
     active
-      ? 'bg-nav-active font-[550] text-foreground shadow-[var(--lift-panel)]'
+      ? 'font-[560] text-foreground hover:bg-surface-hover'
       : dim
         // Unbuilt, and only on screen because the roadmap toggle is on. A
         // lighter weight says so without a chip beside every second label.
@@ -553,9 +564,30 @@ export function Shell({
                   if (!items.length) return null
                   const labelled = ws.sections.length > 1
                   return (
-                    <div key={section.slug} className={labelled ? 'mt-2 first:mt-0' : undefined}>
+                    /* GROUPS HAVE TO BE FURTHER APART THAN THEIR OWN ROWS.
+
+                       Most sections here hold one feature, so the rail was
+                       Home / Dashboard / Getting started / School setup /
+                       Approvals / Approvals — six lines at even spacing, and
+                       whether a line was a heading or a destination came down
+                       to reading its capitals. The distance now says it before
+                       the type does: a group is separated by more than the
+                       gap between two items inside one, which is the oldest
+                       rule there is for making a list into groups.
+
+                       A hairline above each group but the first, because with
+                       one item per group the space alone still leaves the
+                       heading closer to the item above it than to its own. */
+                    <div
+                      key={section.slug}
+                      className={labelled ? 'mt-5 border-t border-border/60 pt-3 first:mt-0 first:border-t-0 first:pt-0' : undefined}
+                    >
                       {labelled && (
-                        <p className="px-2.5 pb-1 pt-1 text-[calc(11px*var(--font-scale,1))] font-medium uppercase tracking-[0.06em] text-muted-foreground/75">
+                        /* Smaller and wider-tracked than an item, and short of
+                           full weight: a heading is a label for what follows,
+                           not a thing to be pressed, and at 11px semibold it
+                           was competing with the row under it. */
+                        <p className="px-2.5 pb-1.5 text-[calc(10.5px*var(--font-scale,1))] font-medium uppercase tracking-[0.1em] text-muted-foreground/60">
                           {section.name}
                         </p>
                       )}
