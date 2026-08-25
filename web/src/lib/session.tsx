@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
+import { claimTabs } from './tabs'
 
 const SessionContext = createContext<SessionResponse | null>(null)
 
@@ -53,6 +54,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   if (data.subscription && !data.subscription.active) {
     return <Locked session={data} />
   }
+
+  /* The tab strip belongs to whoever is signed in.
+
+     sessionStorage survives a sign-out — it is scoped to the browser tab, not
+     to the login — so without this the next person on a shared front-desk
+     machine inherits the last one's eight open screens. Claiming here rather
+     than on the sign-out path because sign-out is a full navigation to the Go
+     binary's /logout: there is no reliable moment for the SPA to tidy up on
+     the way out, and the arrival of a session is the one moment that is
+     certain.
+
+     Not an effect: this runs during render, before any child reads the strip,
+     so nobody sees the previous person's tabs even for a frame. claimTabs is
+     idempotent for the same user, so a re-render costs nothing. */
+  if (data.user) claimTabs(data.user.id)
 
   return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
 }

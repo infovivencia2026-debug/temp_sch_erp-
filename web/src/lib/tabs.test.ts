@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openTab, closeTab, closeOthers, closeAll, neighbourOf, useTabs, MAX_TABS } from './tabs'
+import { openTab, closeTab, closeOthers, closeAll, neighbourOf, useTabs, MAX_TABS, claimTabs } from './tabs'
 
 /* The store, not the strip. What matters here is the two places a tab bar
    usually gets it wrong: which tab it drops when it is full, and where it sends
@@ -104,5 +104,31 @@ describe('the hook', () => {
   it('exposes the same list the module holds', () => {
     openTab('/a', 'A', '/a')
     expect(typeof useTabs).toBe('function')
+  })
+})
+
+describe('whose tabs these are', () => {
+  it('empties the strip when a different person signs in', () => {
+    openTab('/finance/fees/collect', 'Collect', '/')
+    openTab('/finance/fees/receipts', 'Receipts', '/finance/fees/collect')
+    claimTabs('user-a')
+    expect(current()).toHaveLength(2)
+
+    // The same person again — a reload, a re-render — keeps their work.
+    claimTabs('user-a')
+    expect(current()).toHaveLength(2)
+
+    // Somebody else. sessionStorage survives a sign-out, so this is the only
+    // thing standing between the next person and the last one's screens.
+    claimTabs('user-b')
+    expect(current()).toHaveLength(0)
+  })
+
+  it('does not empty the strip on the first claim of a fresh session', () => {
+    // No owner recorded yet: these tabs were opened by the person who is
+    // signing in, not inherited from anybody.
+    openTab('/hr/records/staff_records', 'Staff', '/')
+    claimTabs('user-c')
+    expect(current()).toHaveLength(1)
   })
 })

@@ -22,7 +22,17 @@ import { useCallback, useSyncExternalStore } from 'react'
 
    Session-scoped, not persisted. Tabs describe what somebody is doing right
    now. Restoring yesterday's eight tabs on a shared office machine tells the
-   next person what the last one was working on. */
+   next person what the last one was working on.
+
+   AND sessionStorage ALONE DOES NOT ACHIEVE THAT, which is what the paragraph
+   above assumed. It is scoped to the browser TAB, not to the login: signing
+   out and signing in as somebody else in the same tab keeps every key. Walking
+   the roles found it immediately — after signing in as operations, the strip
+   still carried the librarian's eight tabs, Fines and all.
+
+   So the owner is stored beside them. A different user id empties the strip
+   before it can be read, which works even though sign-out is a server redirect
+   with no chance for JavaScript to tidy up on the way past. */
 
 export interface Tab {
   /** The full in-app path, including any query string. */
@@ -37,6 +47,7 @@ export interface Tab {
 export const MAX_TABS = 8
 
 const KEY = 'erp.tabs'
+const OWNER = 'erp.tabs.owner'
 
 function read(): Tab[] {
   try {
@@ -72,6 +83,28 @@ function write(next: Tab[]) {
     /* private browsing: the tabs last the page's life */
   }
   for (const l of listeners) l()
+}
+
+/** Whose tabs these are.
+
+    Called once the session is known. A different user id — including the first
+    id after a sign-out that left the previous person's strip behind — empties
+    it. The same id is a no-op, so a reload does not lose anybody's tabs.
+
+    Nothing is remembered about the previous owner beyond the comparison: the
+    id replaces the old one and the tabs go. */
+export function claimTabs(userID: string) {
+  if (!userID) return
+  let previous: string | null = null
+  try {
+    previous = sessionStorage.getItem(OWNER)
+    sessionStorage.setItem(OWNER, userID)
+  } catch {
+    /* private browsing: the strip lasts the page's life and belongs to
+       whoever is looking at it, which is the behaviour wanted anyway */
+    return
+  }
+  if (previous !== null && previous !== userID) write([])
 }
 
 /** Open a path, or bring it forward if it is already open.
