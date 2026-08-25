@@ -204,6 +204,36 @@ function Home() {
   return <Navigate to={`/${first.key}`} replace />
 }
 
+/* The route table, once, addressable at a path other than the browser's.
+
+   `location` is what makes a split possible: a pane is this same table asked
+   what lives at ITS path, so a pane and the ordinary screen are the same code
+   resolving the same way. React Router puts the given location into context
+   for everything below, so a screen inside a pane reading useLocation or
+   useParams sees its own pane rather than the address bar. */
+export function AppRoutes({ location }: { location?: string }) {
+  return (
+    <Routes location={location}>
+      {/* Outside the catalogue on purpose. Every signed-in person
+          has a name, a password and contact details, whatever their
+          role — and only faculty had a catalogue entry for it, so
+          eight roles out of nine could not reach the screen that
+          already existed to change their own password. */}
+      <Route path="/account" element={<AccountPage />} />
+      <Route path="/" element={<Home />} />
+      {/* Role-agnostic links, for anything that is written down
+          before anybody knows who will read it — a notification,
+          mostly. See GoTo. */}
+      <Route path="/go/:featureSlug" element={<GoTo />} />
+      <Route path="/go/:sectionSlug/:featureSlug" element={<GoTo />} />
+      <Route path="/:roleKey" element={<RoleIndex />} />
+      <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />
+      <Route path="/:roleKey/:sectionSlug/:featureSlug" element={<FeatureRoute />} />
+      <Route path="*" element={<Home />} />
+    </Routes>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -212,25 +242,8 @@ export default function App() {
         <SessionProvider>
           <CatalogProvider>
             <I18nProvider>
-            <Shell>
-              <Routes>
-                {/* Outside the catalogue on purpose. Every signed-in person
-                    has a name, a password and contact details, whatever their
-                    role — and only faculty had a catalogue entry for it, so
-                    eight roles out of nine could not reach the screen that
-                    already existed to change their own password. */}
-                <Route path="/account" element={<AccountPage />} />
-                <Route path="/" element={<Home />} />
-                {/* Role-agnostic links, for anything that is written down
-                    before anybody knows who will read it — a notification,
-                    mostly. See GoTo. */}
-                <Route path="/go/:featureSlug" element={<GoTo />} />
-                <Route path="/go/:sectionSlug/:featureSlug" element={<GoTo />} />
-                <Route path="/:roleKey" element={<RoleIndex />} />
-                <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />
-                <Route path="/:roleKey/:sectionSlug/:featureSlug" element={<FeatureRoute />} />
-                <Route path="*" element={<Home />} />
-              </Routes>
+            <Shell renderAt={(path) => <AppRoutes location={path} />}>
+              <AppRoutes />
             </Shell>
             </I18nProvider>
           </CatalogProvider>

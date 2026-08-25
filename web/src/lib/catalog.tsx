@@ -184,6 +184,27 @@ export function useFeature(sectionSlug?: string, featureSlug?: string) {
   }, [role, sectionSlug, featureSlug])
 }
 
+/** What a path is called, according to the catalogue.
+
+    From the catalogue rather than from the rendered page, because a tab and a
+    pane both need their label BEFORE the screen behind it has loaded; reading
+    an <h1> would leave every freshly-opened one briefly blank and then jump.
+    Falls back to the last path segment made readable, so a screen outside the
+    catalogue — /account, say — is still named rather than shown as a URL. */
+export function screenTitle(catalog: CatalogResponse, path: string): string {
+  const [, roleKey, sectionSlug, featureSlug] = path.split('?')[0].split('/')
+  for (const role of catalog.roles) {
+    if (roleKey && role.key !== roleKey) continue
+    for (const section of role.sections) {
+      if (sectionSlug && section.slug !== sectionSlug) continue
+      const f = section.features.find((x) => usable(x) && x.slug === featureSlug)
+      if (f) return f.name
+    }
+  }
+  const last = path.split('?')[0].split('/').filter(Boolean).pop() ?? 'Screen'
+  return last.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 /** Path helper so links are built in one place. */
 export function featurePath(roleKey: string, sectionSlug: string, featureSlug: string) {
   return `/${roleKey}/${sectionSlug}/${featureSlug}`

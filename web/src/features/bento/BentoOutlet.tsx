@@ -43,11 +43,15 @@ import { cn } from '@/lib/utils'
     section which actually opens. Anything else — /account, an unknown role, a
     section this account does not hold — resolves to nothing and therefore
     falls through to classic. */
-function useRouteFeatureKey(): string | undefined {
+function useRouteFeatureKey(override?: string): string | undefined {
   const catalog = useCatalog()
   const { pathname } = useLocation()
 
-  const [roleKey, sectionSlug, featureSlug] = pathname.split('/').filter(Boolean)
+  /* A pane names its own path. The browser's location describes one pane of a
+     split — the focused one — so resolving from it would give all four panes
+     whichever screen the address bar happened to be on. */
+  const at = (override ?? pathname).split('?')[0]
+  const [roleKey, sectionSlug, featureSlug] = at.split('/').filter(Boolean)
   if (!roleKey || !sectionSlug) return undefined
 
   const role = catalog.roles.find((r) => r.key === roleKey) ?? catalog.roles[0]
@@ -106,9 +110,13 @@ function BentoChunkPending() {
   return <div className="p-6" aria-busy="true" />
 }
 
-export function BentoOutlet({ children }: { children: ReactNode }) {
+export function BentoOutlet({ children, path }: { children: ReactNode; path?: string }) {
   const { layout } = useLayout()
-  const key = useRouteFeatureKey()
+  const key = useRouteFeatureKey(path)
+  // Inside a split, a pane is the frame — not the window. The board below is
+  // measured against its container rather than the viewport, or four boards
+  // would each claim the full height of the screen.
+  const paned = path !== undefined
 
   /* Note what was opened, so the launcher can lead with it.
 
@@ -177,7 +185,9 @@ export function BentoOutlet({ children }: { children: ReactNode }) {
          and scrolls in the shell's own work area. */
       className={cn(
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
-        Screen ? 'h-dvh overflow-hidden' : 'min-h-dvh',
+        paned
+          ? (Screen ? 'h-full overflow-hidden' : 'min-h-full')
+          : (Screen ? 'h-dvh overflow-hidden' : 'min-h-dvh'),
       )}
     >
       {/* The room around the board.

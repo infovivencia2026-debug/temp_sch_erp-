@@ -366,10 +366,25 @@
   h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
 
-  /* Horizontal separators only. Vertical rules between every column turn a
-     table into a spreadsheet grid and make it harder to read across a row. */
+  /* Rules both ways, but not equally.
+
+     This file used to draw horizontal separators only, on the argument that
+     vertical rules make a table read as a spreadsheet grid. That holds for a
+     report you read down. It does not hold for the registers this product is
+     mostly made of — fourteen narrow columns of marks, attendance codes and
+     amounts, where losing which column a figure is in is the actual failure
+     mode, and the eye has nothing to hold on to across a wide row.
+
+     So the column rule is drawn, and drawn LIGHTER than the row rule: it is
+     there to be found when followed rather than to be seen when glanced at.
+     The last cell in each row leaves its rule off, so the grid does not draw a
+     second line just inside whatever card is holding it. */
   table { border-collapse: collapse; }
-  :where(table) :where(th, td) { border-bottom: 1px solid hsl(var(--border)); }
+  :where(table) :where(th, td) {
+    border-bottom: 1px solid hsl(var(--border));
+    border-right: 1px solid hsl(var(--border) / 0.55);
+  }
+  :where(table) :where(th, td):last-child { border-right: 0; }
   :where(table) tr:last-child :where(td) { border-bottom: 0; }
 
   svg { stroke-width: 1.75; }
@@ -945,9 +960,77 @@
    otherwise win at random depending on stylesheet order.
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --motion-quick: 320ms;   /* hovers, colour changes, small state flips */
-  --motion: 520ms;         /* panels, menus, dialogs, anything that travels */
+  --motion-quick: 420ms;   /* hovers, colour changes, small state flips */
+  --motion: 680ms;         /* panels, menus, dialogs, anything that travels */
+  --motion-slow: var(--motion);
+  --motion-enter: 560ms;   /* the arrival of something that was not there */
   --motion-ease: cubic-bezier(0.22, 0.61, 0.16, 1);
+  --ease-soft: var(--motion-ease);
+}
+
+/* NOTHING ARRIVES INSTANTLY, and nothing changes instantly.
+
+   The two rules below close the two holes the pass above left, and both holes
+   had the same shape: the durations only reached elements that already
+   declared a transition in their class list.
+
+   FIRST HOLE — things that change with no transition declared. Most buttons,
+   rows, cells and links in this product change their background on hover
+   without saying so in a class, because Tailwind's hover: utilities do not
+   imply one. Those flipped at zero milliseconds while everything beside them
+   moved at 420, which is what reads as "swift" even when the numbers say
+   otherwise: it is not that the app is fast, it is that it is two speeds.
+
+   Named properties rather than `all`: transitioning `all` would animate
+   height, width and layout on every hover and make a long table crawl. */
+:where(a, button, summary, label, input, select, textarea, [role='button'],
+       [role='tab'], [role='menuitem'], [role='option'], [role='switch'],
+       .card, .cell, tr, li) {
+  transition-property: background-color, border-color, color, fill, stroke,
+                       box-shadow, opacity, transform, backdrop-filter;
+  transition-duration: var(--motion-quick);
+  transition-timing-function: var(--motion-ease);
+}
+
+/* SECOND HOLE — things that arrive. A transition needs a from-state, and an
+   element that has just been mounted has none: a menu, a dialog, a toast or a
+   dropdown was simply not there and then was, at full opacity, in one frame.
+   No duration anywhere fixes that, because nothing is transitioning.
+
+   So they get an entrance instead. A short rise and a fade, on the same curve
+   as everything else, which is enough to say where the thing came from — the
+   complaint about popping is really a complaint about not being able to see
+   the connection between the click and what appeared.
+
+   By role and by element, so a new menu written next week is covered without
+   anyone remembering this file exists. */
+@keyframes motion-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.motion-enter,
+[role='menu'],
+[role='listbox'],
+[role='tooltip'],
+[role='dialog'],
+dialog[open],
+[data-state='open'][data-side],
+[popover]:popover-open {
+  animation: motion-enter var(--motion-enter) var(--motion-ease) both;
+  transform-origin: top center;
+}
+
+/* A panel that owns the side of the screen comes from that side, not from
+   above — the rise reads as wrong on something 400px tall. */
+[role='dialog'][data-side='right'],
+[role='dialog'][data-side='left'] {
+  animation-name: motion-enter-side;
+}
+
+@keyframes motion-enter-side {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
 }
 
 [class*='transition'] {
@@ -978,6 +1061,15 @@ dialog,
   :root {
     --motion-quick: 1ms;
     --motion: 1ms;
+    --motion-enter: 1ms;
+  }
+  .motion-enter,
+  [role='menu'],
+  [role='listbox'],
+  [role='tooltip'],
+  [role='dialog'],
+  dialog[open] {
+    animation: none !important;
   }
   [class*='transition'],
   [class*='animate-'],
@@ -988,5 +1080,63 @@ dialog,
   [role='menu'] {
     transition-duration: 1ms !important;
     animation-duration: 1ms !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ARRIVING, rather than appearing.
+
+   The block above slows everything that TRANSITIONS, which is everything that
+   was already on screen when it changed. It does nothing for the commonest
+   abrupt movement in the product: an element that was not in the document a
+   frame ago and now is. A menu, a dialog, a toast, a popover — each of them
+   was mounted at full opacity at its final position, and no transition can
+   soften that, because there is no previous value to move from.
+
+   So they get an entrance instead. 8px of rise and a fraction of scale, on the
+   same curve as everything else: enough that the eye sees it arrive from
+   somewhere and tracks it, not so much that it reads as an effect.
+
+   Attached to the roles rather than to each component, for the same reason the
+   block above uses an attribute selector — there are dozens of these and they
+   are written by many hands, and a convention nobody has to remember is the
+   only kind that survives. `.motion-enter` is the opt-in for anything that is
+   none of these roles.
+   ───────────────────────────────────────────────────────────────────────── */
+@keyframes motion-arrive {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+[role='menu'],
+[role='dialog'],
+[role='listbox'],
+[role='tooltip'],
+dialog[open],
+.motion-enter {
+  animation: motion-arrive var(--motion) var(--motion-ease) both;
+}
+
+/* A pane is not a popover, but it is new on screen for the same reason and in
+   the same instant. Half of the work area changing width has to be seen
+   happening or the other half looks like it jumped. */
+@keyframes motion-open-pane {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+[data-pane] {
+  animation: motion-open-pane var(--motion) var(--motion-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [role='menu'],
+  [role='dialog'],
+  [role='listbox'],
+  [role='tooltip'],
+  dialog[open],
+  [data-pane],
+  .motion-enter {
+    animation: none;
   }
 }

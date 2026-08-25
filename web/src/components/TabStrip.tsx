@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
-import { useCatalog, usable } from '@/lib/catalog'
+import { useCatalog, screenTitle } from '@/lib/catalog'
 import { useTabs, neighbourOf, MAX_TABS } from '@/lib/tabs'
+import { usePanes, type Side } from '@/lib/panes'
+import TabMenu, { type MenuTarget } from '@/components/TabMenu'
 import { cn } from '@/lib/utils'
 
 /* The tab strip. Desktop only — see lib/tabs.ts for why that is a decision
@@ -17,23 +19,10 @@ export default function TabStrip() {
   const navigate = useNavigate()
   const catalog = useCatalog()
   const { tabs, open, close } = useTabs()
+  const { paths, split, closeSplit } = usePanes()
+  const [menu, setMenu] = useState<MenuTarget | null>(null)
 
-  /* The name this path has in the catalogue. Falls back to the last path
-     segment made readable, so a screen outside the catalogue — /account, say —
-     still gets a tab worth reading rather than a URL. */
-  const titleFor = (path: string): string => {
-    const [, roleKey, sectionSlug, featureSlug] = path.split('?')[0].split('/')
-    for (const role of catalog.roles) {
-      if (roleKey && role.key !== roleKey) continue
-      for (const section of role.sections) {
-        if (sectionSlug && section.slug !== sectionSlug) continue
-        const f = section.features.find((x) => usable(x) && x.slug === featureSlug)
-        if (f) return f.name
-      }
-    }
-    const last = path.split('?')[0].split('/').filter(Boolean).pop() ?? 'Screen'
-    return last.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-  }
+  const titleFor = (path: string) => screenTitle(catalog, path)
 
   /* Every navigation opens or refreshes a tab. Doing it here rather than at
      each link means nothing has to remember to participate — including links
@@ -53,8 +42,18 @@ export default function TabStrip() {
     open(here, titleFor(here), here)
   }, [here, catalog.roles.length])
 
+  /* Splitting is offered from the strip, so it follows the strip's own rule
+     about when there is enough going on to show one. Somebody with a single
+     screen open has nothing to put beside it yet. */
   // One tab is not a tab strip; it is a line of chrome restating the title.
   if (tabs.length < 2) return null
+
+  const doSplit = (side: Side, path: string) => {
+    /* `here` seeds the other half of a first split: until this click there
+       were no panes, so what is on screen has to be told to the store before
+       anything can be put next to it. */
+    if (split(side, path, here)) navigate(path)
+  }
 
   return (
     <div
@@ -64,17 +63,27 @@ export default function TabStrip() {
     >
       {tabs.map((t) => {
         const active = t.path === here
+        // A tab showing in some other pane is open in front of somebody even
+        // though the address bar is not on it, and a strip that greys it out
+        // says the opposite of what the screen shows.
+        const shown = active || paths.includes(t.path)
         return (
           <div
             key={t.path}
             role="tab"
             aria-selected={active}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setMenu({ path: t.path, title: t.title, x: e.clientX, y: e.clientY })
+            }}
             className={cn(
               `group flex min-w-0 max-w-[220px] items-center gap-1.5 border-b-2 px-3 py-2
                text-[12.5px] transition-colors`,
-              active
-                ? 'border-primary font-medium text-foreground'
+              shown
+                ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:bg-accent',
+              active && 'font-medium',
+              shown && !active && 'border-primary/40',
             )}
           >
             <button
@@ -107,6 +116,21 @@ export default function TabStrip() {
         <span className="self-center pl-1 text-[11px] text-muted-foreground">
           {MAX_TABS} max
         </span>
+      )}
+      {menu && (
+        <TabMenu
+          target={menu}
+          paneCount={Math.max(paths.length, 1)}
+          onSplit={(side) => { doSplit(side, menu.path); setMenu(null) }}
+          onUnsplit={() => { closeSplit(); setMenu(null) }}
+          onClose={() => {
+            const to = menu.path === here ? neighbourOf(menu.path) : null
+            close(menu.path)
+            if (to) navigate(to)
+            setMenu(null)
+          }}
+          onDismiss={() => setMenu(null)}
+        />
       )}
     </div>
   )

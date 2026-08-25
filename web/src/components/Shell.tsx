@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
+import PaneArea from '@/components/PaneArea'
+import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
@@ -146,10 +148,22 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
 
-export function Shell({ children }: { children: ReactNode }) {
+export function Shell({
+  children,
+  renderAt,
+}: {
+  children: ReactNode
+  /** Renders the router at an arbitrary path, for a split work area. Optional
+      so the shell still stands up in a test that only wants the chrome. */
+  renderAt?: (path: string) => ReactNode
+}) {
   const catalog = useCatalog()
   const session = useSession()
   const role = useActiveRole()
+  const { paths } = usePanes()
+  // A split work area scrolls per pane, so the shell's own scroller has to
+  // stand down — two bars for one gesture move the wrong thing.
+  const split = paths.length > 1
   const navigate = useNavigate()
   const { sectionSlug } = useParams()
   const [navOpen, setNavOpen] = useState(false)
@@ -677,8 +691,24 @@ export function Shell({ children }: { children: ReactNode }) {
             with it. Introduced when this wrapper was added for the tab strip. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <TabStrip />
-          <main data-paint="workarea" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <BentoOutlet>{children}</BentoOutlet>
+          {/* Split or whole, decided one level in.
+
+              PaneArea renders `children` untouched when nothing is split, so
+              the ordinary case has neither an extra scroller nor an extra
+              wrapper — and each pane brings its own BentoOutlet, because a
+              pane resolves its own path rather than the address bar's. */}
+          <main
+            data-paint="workarea"
+            className={cn(
+              'min-h-0 min-w-0 flex-1',
+              split ? 'overflow-hidden' : 'overflow-y-auto',
+            )}
+          >
+            {split && renderAt ? (
+              <PaneArea renderAt={renderAt}>{children}</PaneArea>
+            ) : (
+              <BentoOutlet>{children}</BentoOutlet>
+            )}
             <BentoDock />
           </main>
         </div>
