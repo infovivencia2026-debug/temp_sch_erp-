@@ -270,9 +270,6 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
               <button type="button" role="menuitem" onClick={() => setPane('appearance')} className={ROW}>
                 <Palette className="size-4 shrink-0" aria-hidden="true" />
                 <span className="flex-1">{t('bento.settings.appearance')}</span>
-                <span className={cn('shrink-0 text-[12px]', INK)}>
-                  {t(`bento.settings.theme.${theme}`)}
-                </span>
                 <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
               </button>
 
