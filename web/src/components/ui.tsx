@@ -329,6 +329,8 @@ export function Stat({
   icon: Icon,
   hint,
   period,
+  onClick,
+  active,
 }: {
   label: string
   value: ReactNode
@@ -343,9 +345,28 @@ export function Stat({
      now; a total belongs to a period. Silence there is how somebody reports
      the wrong figure to a trustee. */
   period?: string
+  /* What pressing it does, where that means anything.
+
+     "Examinations 1" says there is one and not which one, and the card already
+     knows exactly which rows it counted. Without onClick a Stat stays an
+     ordinary card rather than becoming a button that does nothing, which is
+     the worse half of making things clickable. */
+  onClick?: () => void
+  /** Whether this card's filter is the one currently applied. */
+  active?: boolean
 }) {
+  const Box = onClick ? 'button' : 'div'
   return (
-    <div className="cell">
+    <Box
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      aria-pressed={onClick ? active : undefined}
+      className={cn(
+        'cell',
+        onClick && 'w-full cursor-pointer text-left transition-colors hover:bg-accent',
+        onClick && active && 'bg-accent',
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[13px] text-muted-foreground">{label}</p>
         {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
@@ -365,7 +386,7 @@ export function Stat({
       {period && (
         <p className="mt-1.5 text-[12px] text-muted-foreground/80">{period}</p>
       )}
-    </div>
+    </Box>
   )
 }
 

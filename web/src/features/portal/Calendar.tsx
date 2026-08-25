@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, GraduationCap, PartyPopper, Users } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -20,6 +21,18 @@ import { useChildren, childOptions } from './use-children'
    Booked meetings appear here but are not managed here. Taking a slot is its
    own screen with its own catalogue entry, because choosing a time is a task
    and reading the calendar is a glance. */
+
+/* What each card counts, said once.
+
+   These were three inline predicates — one of them a seven-item exclusion list
+   — so a card and the list it stands over could disagree about what an event
+   is, and the day somebody adds a kind they would. */
+const isExam = (e: { kind: string }) => e.kind === 'exam'
+const isMeeting = (e: { kind: string }) => e.kind === 'ptm_booking'
+const isEvent = (e: { kind: string }) =>
+  !['exam', 'term', 'ptm', 'ptm_booking', 'holiday', 'vacation', 'working_day'].includes(e.kind)
+
+type CalendarView = 'all' | 'exam' | 'event' | 'meeting'
 
 interface Entry {
   date: string
@@ -66,6 +79,7 @@ function monthOf(iso: string) {
 export default function Calendar() {
   const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
+  const [view, setView] = useState<CalendarView>('all')
   const query = useQuery({
     queryKey: ['portal-calendar', studentId],
     queryFn: () =>
@@ -81,10 +95,19 @@ export default function Calendar() {
   const today = new Date().toISOString().slice(0, 10)
   const upcoming = items.filter((e) => (e.end_date ?? e.date) >= today)
 
+  /* The three kinds the cards count, defined once.
+
+     They were three different inline predicates — one of them a seven-item
+     exclusion list — so a card and the list it stands over could disagree
+     about what an event is, and the day somebody added a kind they would. */
+  const shown = view === 'all' ? upcoming : upcoming.filter(
+    view === 'exam' ? isExam : view === 'event' ? isEvent : isMeeting,
+  )
+
   // Grouped by month rather than listed flat. Sixty rows of dates is a
   // spreadsheet; a parent reads the calendar to find the next thing.
   const months: { name: string; rows: Entry[] }[] = []
-  for (const e of upcoming) {
+  for (const e of shown) {
     const name = monthOf(e.date)
     const last = months[months.length - 1]
     if (last && last.name === name) last.rows.push(e)
@@ -99,15 +122,42 @@ export default function Calendar() {
         description={t('portal.calendar.description')}
       />
       <PageBody>
+        {/* The cards are the filter.
+
+            "Examinations 1" said there was one and not which one, and the
+            entry was somewhere in a list below sorted by month. The card
+            already knows exactly which rows it counted, so pressing it shows
+            them — one click instead of a scroll and a scan. Pressing it again
+            goes back to everything. */}
         <CellGrid cols={4}>
-          <Stat label={t('portal.calendar.stat_coming_up')} value={upcoming.length} icon={CalendarDays} />
-          <Stat label={t('portal.calendar.stat_examinations')} value={upcoming.filter((e) => e.kind === 'exam').length} icon={GraduationCap} />
+          <Stat
+            label={t('portal.calendar.stat_coming_up')}
+            value={upcoming.length}
+            icon={CalendarDays}
+            active={view === 'all'}
+            onClick={() => setView('all')}
+          />
+          <Stat
+            label={t('portal.calendar.stat_examinations')}
+            value={upcoming.filter(isExam).length}
+            icon={GraduationCap}
+            active={view === 'exam'}
+            onClick={() => setView(view === 'exam' ? 'all' : 'exam')}
+          />
           <Stat
             label={t('portal.calendar.stat_events')}
-            value={upcoming.filter((e) => !['exam', 'term', 'ptm', 'ptm_booking', 'holiday', 'vacation', 'working_day'].includes(e.kind)).length}
+            value={upcoming.filter(isEvent).length}
             icon={PartyPopper}
+            active={view === 'event'}
+            onClick={() => setView(view === 'event' ? 'all' : 'event')}
           />
-          <Stat label={t('portal.calendar.stat_your_meetings')} value={upcoming.filter((e) => e.kind === 'ptm_booking').length} icon={Users} />
+          <Stat
+            label={t('portal.calendar.stat_your_meetings')}
+            value={upcoming.filter(isMeeting).length}
+            icon={Users}
+            active={view === 'meeting'}
+            onClick={() => setView(view === 'meeting' ? 'all' : 'meeting')}
+          />
         </CellGrid>
 
         {children.length > 1 && (
@@ -126,9 +176,20 @@ export default function Calendar() {
 
         {months.length === 0 ? (
           <Card>
+            {/* A filter that hides everything must say it is a filter, or the
+                parent reads "nothing coming up" and believes the school has
+                nothing planned. */}
             <EmptyState
-              title={t('portal.calendar.empty_title')}
-              body={t('portal.calendar.empty_body')}
+              title={
+                view === 'all'
+                  ? t('portal.calendar.empty_title')
+                  : 'Nothing of that kind coming up'
+              }
+              body={
+                view === 'all'
+                  ? t('portal.calendar.empty_body')
+                  : 'Press the same card again, or “Coming up”, to see everything.'
+              }
             />
           </Card>
         ) : (
