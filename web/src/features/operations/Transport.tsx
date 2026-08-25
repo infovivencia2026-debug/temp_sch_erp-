@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
+import { useSession } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 /* Transport: the fleet, and the runs it makes.
@@ -181,6 +182,8 @@ export default function Transport() {
           </Card>
         )}
 
+        <BusTrackers />
+
         <Card>
           <CardHeader
             title="Fleet"
@@ -215,5 +218,181 @@ export default function Transport() {
         </Card>
       </PageBody>
     </>
+  )
+}
+
+
+/* PAIRING A PHONE TO A BUS, ON A SCREEN, AT ANY TIME.
+
+   The code that joins a driver's handset to a vehicle could only be produced
+   by calling POST /transport/trackers/pair by hand. Every other half of this
+   feature had a screen -- the map, the trips, the policy, the revoke -- and the
+   one step a school actually has to perform, on the day a phone is replaced or
+   a new bus arrives, had none. So it was done for them by whoever had a
+   terminal, which is not a product.
+
+   A code is eight characters, single-use and dead in ten minutes, so it is
+   shown once with the time it expires and never stored anywhere this screen
+   can read it back from. Pressing the button again mints a new one and kills
+   the old: that is the recovery path as well as the first-issue path, because
+   "it did not work" and "I have lost it" are the same request from the office
+   side of the desk.
+
+   AND THE APPROVAL, WHICH IS A DIFFERENT ACT BY A DIFFERENT PERSON. A driver
+   who enrols their own phone -- number, PIN, and the plate painted on the bus
+   -- produces a row here that holds a real credential and reports nothing. Only
+   the principal or a platform administrator can let it in, so the button is
+   only rendered for them; anybody else sees what is waiting and who enrolled
+   it, which is what lets them go and ask. */
+interface TrackerRow {
+  vehicle_id: string
+  registration_no: string
+  route?: string
+  driver?: string
+  tracker_id?: string
+  tracker?: string
+  device_model?: string
+  last_seen_at?: string
+  quiet_seconds?: number
+  battery_pct?: number
+  location_ok?: boolean
+  paused?: boolean
+  paired: boolean
+  pending: boolean
+  enrolled_by?: string
+}
+
+interface PairCode {
+  pair_code: string
+  expires_at: string
+  valid_minutes: number
+  vehicle: string
+}
+
+function BusTrackers() {
+  const qc = useQueryClient()
+  const session = useSession()
+  const roles = session.user?.roles ?? []
+  // Only these two may approve, and the server enforces it independently —
+  // this hides a button that would 403, it does not decide anything.
+  const canApprove = roles.includes('institution_admin') || roles.includes('super_admin')
+
+  const trackers = useQuery({
+    queryKey: ['transport-trackers'],
+    queryFn: () => api.get<List<TrackerRow>>('/api/v1/transport/trackers'),
+  })
+
+  const [code, setCode] = useState<PairCode | null>(null)
+  const [failed, setFailed] = useState('')
+
+  const pair = useMutation({
+    mutationFn: (v: TrackerRow) =>
+      api.post<PairCode>('/api/v1/transport/trackers/pair', {
+        vehicle_id: v.vehicle_id,
+        name: `Bus ${v.registration_no}`,
+      }),
+    onSuccess: (c) => { setFailed(''); setCode(c) },
+    onError: (e: Error) => { setCode(null); setFailed(e.message) },
+  })
+
+  const approve = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/transport/trackers/${id}/approve`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['transport-trackers'] }),
+    onError: (e: Error) => setFailed(e.message),
+  })
+
+  const rows = trackers.data?.items ?? []
+  const waiting = rows.filter((r) => r.pending).length
+
+  return (
+    <Card>
+      <CardHeader
+        title="Bus trackers"
+        description={
+          waiting > 0
+            ? `${waiting} phone${waiting === 1 ? '' : 's'} registered by a driver and waiting to be let in`
+            : "The driver's phone is the GPS unit. Generate a code to pair one, or approve one a driver registered."
+        }
+      />
+
+      {code && (
+        <div className="mb-4 rounded-[10px] border border-primary/40 bg-primary-soft px-4 py-3">
+          <p className="text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
+            Pairing code for {code.vehicle}
+          </p>
+          <p className="my-1 font-mono text-[30px] font-semibold tracking-[0.16em] tabular-nums">
+            {code.pair_code}
+          </p>
+          <p className="text-[13px] text-muted-foreground">
+            Type it into the app on the driver's phone, with the school server
+            address <span className="font-mono">{window.location.origin}</span>.
+            It expires in {code.valid_minutes} minutes and works once.
+          </p>
+        </div>
+      )}
+      {failed && (
+        <p className="mb-4 text-[13px] text-destructive">{failed}</p>
+      )}
+
+      {trackers.isLoading ? (
+        <Loading />
+      ) : trackers.error ? (
+        <ErrorState error={trackers.error} />
+      ) : (
+        <Table
+          head={['Bus', 'Phone', 'Last heard', 'State', '']}
+          empty={!rows.length}
+          emptyLabel="No vehicles on the fleet."
+        >
+          {rows.map((r) => (
+            <tr key={r.vehicle_id}>
+              <Td className="font-mono text-[13px] font-medium">
+                {r.registration_no}
+                {r.route && <span className="ml-2 font-sans text-[12px] text-muted-foreground">{r.route}</span>}
+              </Td>
+              <Td className="text-muted-foreground">
+                {r.tracker ?? '—'}
+                {r.enrolled_by && (
+                  <span className="block text-[12px]">registered by {r.enrolled_by}</span>
+                )}
+              </Td>
+              <Td className="text-muted-foreground tabular-nums">{r.last_seen_at ?? 'never'}</Td>
+              <Td>
+                <StatusPill
+                  status={
+                    r.pending ? 'pending'
+                      : !r.paired ? 'not paired'
+                      : r.paused ? 'paused'
+                      : 'active'
+                  }
+                />
+              </Td>
+              <Td className="text-right">
+                {r.pending && canApprove && r.tracker_id ? (
+                  <Button
+                    onClick={() => approve.mutate(r.tracker_id!)}
+                    disabled={approve.isPending}
+                  >
+                    Approve
+                  </Button>
+                ) : r.pending ? (
+                  <span className="text-[12px] text-muted-foreground">
+                    the principal approves this
+                  </span>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => pair.mutate(r)}
+                    disabled={pair.isPending}
+                  >
+                    {r.paired ? 'Pair a new phone' : 'Generate code'}
+                  </Button>
+                )}
+              </Td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Card>
   )
 }

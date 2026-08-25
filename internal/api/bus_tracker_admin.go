@@ -65,6 +65,12 @@ type trackerAdminRow struct {
 	// "this bus was unpaired last Tuesday, by whom, and why" is the question
 	// that follows.
 	Paired bool `json:"paired"`
+	// Pending is a handset a driver enrolled that nobody has let in yet. It
+	// holds a real credential and reports nothing, which on a screen of
+	// otherwise-identical rows is indistinguishable from a bus parked up --
+	// so it is said, and it is said before every other reading.
+	Pending    bool    `json:"pending"`
+	EnrolledBy *string `json:"enrolled_by,omitempty"`
 }
 
 /*
@@ -87,7 +93,9 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 		       tr.ping_seconds, tr.paused,
 		       to_char(tr.revoked_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD"T"HH24:MI'),
 		       tr.revoked_reason,
-		       tr.id IS NOT NULL AND tr.revoked_at IS NULL
+		       tr.id IS NOT NULL AND tr.revoked_at IS NULL,
+		       tr.id IS NOT NULL AND tr.revoked_at IS NULL AND tr.approved_at IS NULL,
+		       eu.full_name
 		  FROM vehicles v
 		  LEFT JOIN LATERAL (
 		       SELECT t.* FROM vehicle_trackers t
@@ -97,8 +105,15 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN vehicle_trips vt ON vt.vehicle_id = v.id AND vt.ended_at IS NULL
 		  LEFT JOIN routes rt ON rt.id = vt.route_id
 		  LEFT JOIN employees e ON e.id = v.driver_employee_id
+		  LEFT JOIN users eu ON eu.id = tr.enrolled_by
 		 WHERE v.status <> 'retired'
-		 ORDER BY tr.id IS NOT NULL AND tr.revoked_at IS NULL,
+		 /* Pending first, then unpaired, then the working ones.
+		
+		    A handset waiting for the principal is the only row on this screen
+		    that needs somebody to do something today, and sorting it under
+		    forty healthy buses is how it waits a week. */
+		 ORDER BY (tr.id IS NOT NULL AND tr.revoked_at IS NULL AND tr.approved_at IS NULL) DESC,
+		          (tr.id IS NOT NULL AND tr.revoked_at IS NULL),
 		          v.registration_no`, nil,
 		func(rows pgx.Rows) (trackerAdminRow, error) {
 			var v trackerAdminRow
@@ -107,7 +122,7 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 				&v.TrackerID, &v.TrackerName, &v.DeviceModel, &v.AppVersion,
 				&v.LastSeenAt, &v.QuietSeconds, &v.BatteryPct, &v.Charging,
 				&v.LocationOK, &v.PingSeconds, &v.Paused,
-				&v.RevokedAt, &v.RevokedWhy, &v.Paired)
+				&v.RevokedAt, &v.RevokedWhy, &v.Paired, &v.Pending, &v.EnrolledBy)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)
