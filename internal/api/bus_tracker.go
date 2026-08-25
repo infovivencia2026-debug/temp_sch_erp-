@@ -535,6 +535,10 @@ startBusTrackerTrip opens a run and hands back the stops it will pass.
 */
 func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	dev := busTrackerFrom(r.Context())
+	// Guaranteed non-nil: requireBusTrackerDriver refuses the request without
+	// one. Read here so the driver lands on the trip row rather than being
+	// looked up afterwards from a session that may have ended by then.
+	driver := staffSessionFrom(r.Context())
 	var req startTripRequest
 	if !httpx.Decode(w, r, &req) {
 		return
@@ -614,10 +618,11 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO vehicle_trips (institution_id, vehicle_id, route_id,
-			    tracker_id, direction, started_at)
-			VALUES ($1,$2,$3,$4,$5,$6)
+			    tracker_id, direction, started_at, started_by, driver_session_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 			RETURNING id`,
-			dev.Institution, dev.Vehicle, route, dev.ID, req.Direction, started).
+			dev.Institution, dev.Vehicle, route, dev.ID, req.Direction, started,
+			driver.UserID, driver.ID).
 			Scan(&tripID); err != nil {
 			return err
 		}
@@ -1211,8 +1216,19 @@ func (s *Server) mountBusTrackerDevice(r chi.Router) {
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireBusTracker)
-		r.Post("/bus-tracker/trips", s.startBusTrackerTrip)
-		r.Post("/bus-tracker/trips/{id}/end", s.endBusTrackerTrip)
+
+		// Who is driving. Device-authenticated but not driver-authenticated,
+		// for the obvious reason: this is the request that produces a driver.
+		r.Post("/bus-tracker/session", s.busTrackerSignIn)
+		r.Post("/bus-tracker/session/end", s.busTrackerSignOut)
+
+		// Opening and closing a run names a person, so both require one to be
+		// signed in. Positions and heartbeat deliberately do not: a session
+		// that lapses mid-route must never drop a moving bus off the parents'
+		// map, and the trip already records the driver who opened it.
+		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips", s.startBusTrackerTrip)
+		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips/{id}/end", s.endBusTrackerTrip)
+
 		r.Post("/bus-tracker/positions", s.ingestBusTrackerPositions)
 		r.Post("/bus-tracker/heartbeat", s.busTrackerHeartbeatHandler)
 	})

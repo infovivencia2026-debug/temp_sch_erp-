@@ -619,18 +619,19 @@ func (s *Server) requireSMSGatewayDevice(next http.Handler) http.Handler {
 		}
 
 		var (
-			sealed  []byte
-			dev     smsGatewayDevice
-			revoked *time.Time
+			sealed   []byte
+			dev      smsGatewayDevice
+			revoked  *time.Time
+			approved *time.Time
 		)
 		err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 			return tx.QueryRow(r.Context(), `
 				SELECT id, institution_id, name, token_sealed, revoked_at,
-				       poll_seconds, per_minute_cap, paused
+				       approved_at, poll_seconds, per_minute_cap, paused
 				  FROM sms_gateway_devices
 				 WHERE id = $1`, id).
 				Scan(&dev.ID, &dev.Institution, &dev.Name, &sealed, &revoked,
-					&dev.PollSeconds, &dev.PerMinuteCap, &dev.Paused)
+					&approved, &dev.PollSeconds, &dev.PerMinuteCap, &dev.Paused)
 		})
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
@@ -657,6 +658,26 @@ func (s *Server) requireSMSGatewayDevice(next http.Handler) http.Handler {
 		}
 		if subtle.ConstantTimeCompare([]byte(want), []byte(secret)) != 1 {
 			smsGatewayUnauthorized(w, r)
+			return
+		}
+
+		/* Enrolled is not the same as allowed to send.
+
+		   A handset that signed itself in sits pending until somebody with
+		   integrations.write approves it, so its credential is real and its
+		   outbox is empty. Said plainly rather than as an empty queue: an app
+		   that polls forever and is handed nothing looks to the office like a
+		   school with no messages, which is the failure this whole feature was
+		   supposed to make visible.
+
+		   Distinguished from revoked and unknown, unlike every other refusal
+		   above, because this one is not adversarial -- the device is ours, we
+		   know exactly who enrolled it, and the person holding it needs to be
+		   told what to go and do. */
+		if approved == nil {
+			httpx.Error(w, r, http.StatusForbidden, "awaiting_approval",
+				"this phone is enrolled but not yet approved — ask an administrator "+
+					"to approve it on the SMS gateway screen")
 			return
 		}
 
@@ -771,6 +792,7 @@ func (s *Server) mountSMSGateway(r chi.Router) {
 	r.With(creds).Post("/sms-gateway/pair", s.pairSMSGatewayDevice)
 	r.With(creds).Put("/sms-gateway/devices/{id}", s.updateSMSGatewayDevice)
 	r.With(creds).Post("/sms-gateway/devices/{id}/revoke", s.revokeSMSGatewayDevice)
+	r.With(creds).Post("/sms-gateway/devices/{id}/approve", s.approveSMSGatewayDevice)
 }
 
 /*
@@ -792,6 +814,11 @@ code into a phone.
 func (s *Server) mountSMSGatewayDevice(r chi.Router) {
 	// Unauthenticated, rate limited, and the only way to become a device.
 	r.Post("/public/sms-gateway/claim", s.claimSMSGatewayPairCode)
+
+	// Enrolment by signing in on the handset, which is the route the app now
+	// takes. The claim above stays: a school midway through printed
+	// instructions should not find that they stopped working.
+	r.Post("/public/sms-gateway/enrol", s.enrolSMSGateway)
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireSMSGatewayDevice)
@@ -1516,7 +1543,13 @@ type smsGatewayDeviceView struct {
 	SignalDBM    *int   `json:"signal_dbm,omitempty"`
 	SIMReady     *bool  `json:"sim_ready,omitempty"`
 	Paused       bool   `json:"paused"`
-	PollSeconds  int    `json:"poll_seconds"`
+	// Pending is a handset that enrolled by somebody signing in on it and has
+	// not been approved. It holds a real credential and is handed nothing, so
+	// the screen has to say so -- otherwise it is indistinguishable from a
+	// working phone on a quiet day.
+	Pending     bool    `json:"pending"`
+	EnrolledBy  *string `json:"enrolled_by,omitempty"`
+	PollSeconds int     `json:"poll_seconds"`
 	PerMinuteCap int    `json:"per_minute_cap"`
 	SentToday    int    `json:"sent_today"`
 	FailedToday  int    `json:"failed_today"`
@@ -1612,9 +1645,11 @@ func (s *Server) getSMSGatewayOverview(w http.ResponseWriter, r *http.Request) {
 			       to_char(d.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       EXTRACT(EPOCH FROM (now() - d.last_seen_at)),
 			       d.battery_pct, d.charging, d.signal_dbm, d.sim_ready,
-			       d.paused, d.poll_seconds, d.per_minute_cap,
+			       d.paused, d.approved_at IS NULL, e.full_name,
+			       d.poll_seconds, d.per_minute_cap,
 			       COALESCE(t.sent, 0), COALESCE(t.failed, 0), COALESCE(t.parts, 0)
 			  FROM sms_gateway_devices d
+			  LEFT JOIN users e ON e.id = d.enrolled_by
 			  LEFT JOIN LATERAL (
 			      SELECT count(*) FILTER (WHERE g.state = 'sent')                    AS sent,
 			             count(*) FILTER (WHERE g.state IN ('failed','expired'))     AS failed,
@@ -1636,7 +1671,8 @@ func (s *Server) getSMSGatewayOverview(w http.ResponseWriter, r *http.Request) {
 			if err := rows.Scan(&v.ID, &v.Name, &v.AndroidVersion, &v.SIMOperator,
 				&v.AppVersion, &v.PairedAt, &v.LastSeenAt, &silent,
 				&v.BatteryPct, &v.Charging, &v.SignalDBM, &v.SIMReady,
-				&v.Paused, &v.PollSeconds, &v.PerMinuteCap,
+				&v.Paused, &v.Pending, &v.EnrolledBy,
+				&v.PollSeconds, &v.PerMinuteCap,
 				&v.SentToday, &v.FailedToday, &v.PartsToday); err != nil {
 				rows.Close()
 				return err
@@ -1649,6 +1685,11 @@ func (s *Server) getSMSGatewayOverview(w http.ResponseWriter, r *http.Request) {
 			   pasted, and a phone that has stopped reporting is in a drawer
 			   with a flat battery. */
 			switch {
+			// Pending outranks every other reading. A phone awaiting approval
+			// is not paused, not stale and not broken -- it is waiting for a
+			// person, and that person is looking at this screen.
+			case v.Pending:
+				v.Health = "pending"
 			case v.Paused:
 				v.Health = "paused"
 			case silent == nil:

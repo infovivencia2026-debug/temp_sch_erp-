@@ -248,6 +248,11 @@ func (s *Server) Routes() http.Handler {
 			// them in. Deliberately not access.users.write — that right would
 			// also let HR reset the principal's password.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/login", s.issueStaffLogin)
+			// The handset credential, beside the browser one. Same permission
+			// on purpose: the office that appointed a driver hands them their
+			// PIN, and access.users.write would also let HR reset the
+			// principal's password.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/pin", s.issueStaffPIN)
 			// Reading a downloaded password list back in. Same right as
 			// issuing one by hand, because it is the same act done in bulk.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/logins/import", s.importStaffLogins)
