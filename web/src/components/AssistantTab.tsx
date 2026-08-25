@@ -129,13 +129,12 @@ export function AssistantTab() {
 
   return (
     <>
-      {/* The tab. Bottom-RIGHT, which is where an assistant is looked for.
+      {/* The tab. Bottom-LEFT, which is where it has been asked for twice.
 
-          It was bottom-left, and left is where this product's navigation lives:
-          the sidebar, its groups, its active mark. A floating control in that
-          corner reads as one more navigation item that has come loose. The
-          right-hand bottom corner is empty in every layout here and is where a
-          decade of chat widgets has trained people to look.
+          It was moved to the right on the reasoning that left is where this
+          product's navigation lives and a floating control there reads as a nav
+          item come loose. That was overruled, which settles it: bottom-left is
+          the position. Do not move it again without being asked to.
 
           The panel is lifted clear of the dock rather than sharing its line:
           the dock is centred and ~44px tall, so a panel anchored at bottom-5
@@ -148,7 +147,7 @@ export function AssistantTab() {
         aria-expanded={open}
         aria-label="Assistant"
         className={cn(
-          `fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border
+          `fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full border
            bg-card py-1.5 pl-1.5 pr-3 text-[12.5px] shadow-lg transition-colors
            hover:bg-accent focus-visible:outline-none focus-visible:ring-2
            focus-visible:ring-ring`,
@@ -163,7 +162,7 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-24 right-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
+          className="fixed bottom-24 left-5 z-40 flex h-[min(520px,calc(100vh-8rem))] w-[min(380px,calc(100vw-2.5rem))]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
