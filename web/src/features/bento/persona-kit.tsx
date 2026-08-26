@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import { Cell, useBoardHeight, type CellSpan } from './bento-kit'
-import { CardShell, Nil } from './bento-cards'
+import { CardShell, CornerMark, Nil } from './bento-cards'
 import { WidgetLayer } from './WidgetLayer'
 
 /* THE PERSONA KIT — what the student, parent and faculty boards need that
@@ -201,12 +201,25 @@ export function PersonaCard({
     <Cell span={span} domain={ground} className={tall ? undefined : '[--bento-fig:24px]'}>
       <div className="flex min-h-0 flex-1 flex-col" style={style}>
         {to ? (
+          /* THE MARK THE OTHER BOARDS HAVE.
+
+             Four persona boards — the student's day, the teacher's classes, the
+             parent's week and my work — wrapped the whole card in a link and
+             drew nothing to say so. The principal's board drew a corner arrow,
+             so somebody moving between them saw an affordance on one and none
+             on the other for the same act of opening something. The card was
+             always clickable; there was simply no way to know.
+
+             A span, not a second Link: a link inside a link is invalid and the
+             browser closes the outer one early, which breaks the card. It is
+             aria-hidden because the enclosing Link already carries the name. */
           <Link
             to={to}
             aria-label={cueLabel}
-            className="block min-h-0 flex-1 rounded-[6px] outline-none focus-visible:ring-2 focus-visible:ring-current"
+            className="relative block min-h-0 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
           >
             {body}
+            <CornerMark />
           </Link>
         ) : (
           <div className="min-h-0 flex-1">{body}</div>

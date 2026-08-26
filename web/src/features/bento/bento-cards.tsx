@@ -1,4 +1,5 @@
 import { Fragment, useId, type ReactNode } from 'react'
+import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
@@ -212,16 +213,52 @@ export function CardShell({
            `aria-hidden`, because the enclosing link already carries the label.
            A second announcement of the same name is noise to a screen reader,
            not help. */
-        <span
-          aria-hidden="true"
-          className="bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center"
-        >
-          <span className="text-[15px] leading-none">↗</span>
-        </span>
+        <CornerMark />
       )}
     </div>
   )
 }
+/** THE CORNER MARK — one definition, every board.
+
+    There were three of these and they did not match. `Cue` in bento-kit drew a
+    lucide arrow inside a Link; `CardShell` drew a text "↗" inside a span, which
+    is a different glyph at a different weight in whatever font the card
+    inherits; and the four persona boards drew nothing at all, because the whole
+    card is the link there and nobody added a visible affordance. So a person
+    moving between the principal's board and the student's saw a button, a
+    slightly different button, and no button — for the same act of opening
+    something.
+
+    That is what "the buttons are not consistent" means, and it cannot be fixed
+    by editing three places to agree: they would drift again on the next change.
+    One component, three callers, no way to disagree.
+
+    `as` decides the element, because the callers genuinely differ. Where the
+    cell itself is the link the mark must NOT be another link — a link inside a
+    link is invalid HTML and the browser closes the outer one early, which
+    silently breaks the card. There it is a span, aria-hidden, because the
+    enclosing link already carries the name. */
+export function CornerMark({
+  label,
+  as = 'span',
+}: {
+  /** The accessible name, when this mark is itself the control. */
+  label?: string
+  as?: 'span' | 'div'
+}) {
+  const Tag = as
+  return (
+    <Tag
+      aria-hidden={label ? undefined : 'true'}
+      aria-label={label}
+      title={label}
+      className="bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center"
+    >
+      <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+    </Tag>
+  )
+}
+
 /* ── drawings ──────────────────────────────────────────────────────────── */
 /* SQUARE CORNERS THROUGHOUT, and it is not a style preference.
 

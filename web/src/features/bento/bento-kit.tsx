@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode, useCallback } from 
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
+import { CornerMark } from './bento-cards'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -662,12 +663,12 @@ export function Cue({
       to={to}
       aria-label={label}
       title={label}
-      className={cn(
-        `bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center`,
-        still ? '' : 'transition-colors duration-150',
-      )}
+      className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >
-      <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+      {/* The Link is `display: contents` so the mark itself is the box — one
+          definition of that box lives in bento-cards.tsx and every board uses
+          it, which is the only way three call sites stay identical. */}
+      <CornerMark />
     </Link>
   )
 }
@@ -694,15 +695,20 @@ export function AnchorAction({ to, label }: { to: string; label: string }) {
 
            An action carries its own contrast. It is the one thing on a card
            that must stay legible whatever ends up behind it. */
-        `inline-flex items-center gap-1.5 rounded-full bg-[var(--bento-card)] px-4 py-2.5
-         text-[12.5px] font-semibold text-[var(--bento-ink)] shadow-sm
-         ring-1 ring-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]`,
+        /* Square, hairline, currentColor — the labelled member of the same
+           family as the corner mark, not a white capsule from another design.
+           The card/ink pair it used describes the DEFAULT card and can resolve
+           to one colour on a tinted one, which is how the corner button once
+           rendered white-on-white. currentColor is the ink the cell has already
+           resolved against its own ground and cannot collapse. */
+        `inline-flex items-center gap-1.5 rounded-none px-4 py-2.5 text-[12.5px]
+         font-semibold border border-current/35 bg-current/10`,
         still ? '' : 'transition-opacity duration-150',
         'opacity-95 hover:opacity-100',
       )}
     >
       {label}
-      <ArrowUpRight className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />
+      <ArrowUpRight className="h-4 w-4 opacity-70" strokeWidth={1.75} aria-hidden="true" />
     </Link>
   )
 }
