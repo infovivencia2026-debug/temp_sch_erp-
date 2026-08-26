@@ -111,7 +111,13 @@ export function CardShell({
         className,
       )}
     >
-      <div className="flex min-w-0 items-start justify-between gap-2">
+      {/* pr-7 keeps the title clear of the corner square.
+
+          The action is absolutely positioned at the card's top right and is
+          outside this grid entirely, so nothing here would otherwise stop a
+          long title running underneath it. The reserve is the button's 32px
+          less the card's own padding. */}
+      <div className="flex min-w-0 items-start justify-between gap-2 pr-7">
         <div className="min-w-0">
           <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
             {title}
@@ -141,7 +147,7 @@ export function CardShell({
             linked nowhere. `/` and `+` meant nothing at all. The prop stays in
             the signature so no caller breaks; it simply is not drawn. */}
       </div>
-      <div className="min-w-0">
+      <div className="flex min-w-0 items-end justify-between gap-2">
         {/* A placeholder is not a figure. When there is no number the cell
             passes an em dash, and at the figure's own size that renders as a
             wide white bar — which reads as a broken chart rather than as "no
@@ -170,16 +176,18 @@ export function CardShell({
         >
           {value}
         </p>
-        {/* Two lines, not an ellipsis. This is the sentence that carries the
-            reading — "12% of billed, owed by 30 students" — and truncating it
-            cut the half that says who. */}
-        {change && (
-          <p className="mt-1 line-clamp-2 leading-tight opacity-65
-                        text-[length:var(--card-change,11px)]">
-            {change}
-          </p>
-        )}
       </div>
+      {/* Two lines, not an ellipsis. This is the sentence that carries the
+          reading — "12% of billed, owed by 30 students" — and truncating it
+          cut the half that says who. */}
+      {change ? (
+        <p className="line-clamp-2 leading-tight opacity-65
+                      text-[length:var(--card-change,11px)]">
+          {change}
+        </p>
+      ) : (
+        <span />
+      )}
       <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
       {action && (
         <div className="flex min-w-0 shrink-0 justify-start">

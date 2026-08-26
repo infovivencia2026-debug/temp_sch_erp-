@@ -633,57 +633,36 @@ export function Cue({
   const still = useReduceMotion()
   void tone; void dark
   return (
+    /* AN ARROW IN THE CORNER, not a pill along the bottom edge.
+
+       The pill was a fifth thing competing for a card's height. On a one-by-one
+       cell the figure, the sentence, the drawing and a 38px button do not fit,
+       and something had to give — which is how the contents ended up laid over
+       the button in the first place. Every fix for that was a fix for a
+       symptom: as long as the action occupies a band of its own, the drawing
+       is paying for it.
+
+       In the corner it costs nothing. It sits in the space the header already
+       reserves, it cannot collide with anything because nothing else is laid
+       out there, and it gives the drawing back the whole of the row it was
+       sharing. It is also where the reference puts its own corner mark, which
+       is not a coincidence — a card whose every pixel is data has nowhere else
+       for an affordance to go.
+
+       The label does not disappear, it moves to the accessible name: the
+       control still announces "Substitutions" to a screen reader and shows it
+       on hover, and the arrow is the same glyph the pill carried. A 32px
+       target, which is the smallest this may be and still be pressed. */
     <Link
       to={to}
+      aria-label={label}
+      title={label}
       className={cn(
-        /* A white pill with black text, on every card, in every theme.
-
-           It used to take its colour from the card's tone — ink on a plain
-           card, anchor-ink on the anchor. That worked while a card's ground
-           came from a palette somebody had measured contrast against. Cards
-           can now be tinted from an open colour wheel, so there is no colour
-           the cue can inherit and still be guaranteed readable: the rule that
-           gives dark text on mint gives dark text on navy too.
-
-           So it stops inheriting. White ground, near-black text, its own
-           contrast — the one control on the card that is legible whatever is
-           behind it, which is what an action ought to be.
-
-           mt-auto keeps it on the bottom edge; the padding is the button's
-           own, so the control has a body rather than being text with space
-           above it. */
-        /* The pill inverts against whatever card it sits on: dark on a light
-           card, white on a dark one. Fixed white was invisible in light mode —
-           1.00:1 on the white card and 1.35:1 on the mint anchor — and only
-           worked in dark, which is where it was designed. Inverted it measures
-           17.7:1 and 16.6:1, and in dark mode it is still the white pill with
-           near-black text it was meant to be. */
-        /* AN OUTLINE IN THE CARD'S OWN INK, not a filled pill in the board's.
-
-           The filled version paired `--bento-ink` with `--bento-card`, and both
-           of those are BOARD tokens: they describe the default card, not the
-           one this cue is actually sitting on. On a domain-tinted cell — and
-           on any card tinted from the open colour wheel — the pair can collapse
-           to the same colour, which is exactly what happened: a white button
-           with white text on the magenta cell, an empty capsule with an
-           invisible label.
-
-           `currentColor` cannot collapse. The cell has already resolved its own
-           ink against its own ground — black on a pale tint, white on a dark
-           one — and it is what every mark in bento-cards.tsx already inherits.
-           So the cue borrows it too: a hairline border and the label in that
-           same ink, over a wash of it at 10%, which lifts the control off the
-           ground without inventing a second colour that has to be measured.
-
-           Square-ish rather than a capsule, to match the cards it sits on. */
-        `bento-cue mt-auto inline-flex w-fit items-center gap-1.5 rounded-[3px]
-         border border-current/35 bg-current/10 px-3 py-1.5 text-[12px]
-         font-semibold`,
-        still ? '' : 'transition-transform duration-150 hover:scale-[1.03]',
+        `bento-cue absolute right-0 top-0 z-10 grid size-8 place-items-center`,
+        still ? '' : 'transition-colors duration-150',
       )}
     >
-      {label}
-      <ArrowUpRight className="h-3.5 w-3.5 opacity-70" strokeWidth={1.75} aria-hidden="true" />
+      <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
     </Link>
   )
 }

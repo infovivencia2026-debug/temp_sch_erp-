@@ -61,9 +61,25 @@
      default. */
   --bento-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo,
                 Consolas, 'Roboto Mono', 'DejaVu Sans Mono', monospace;
-  --bento-radius: calc(3px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(2px * var(--radius-scale, 1));
-  --bento-gap: calc(6px * var(--bento-density, 1));
+  /* A SHEET, NOT A TRAY OF TILES.
+
+     This is the change the sharpening could not make on its own. A 3px corner
+     and a 6px gutter still describe cards floating over a ground, with a
+     shadow under each and their own border around each; the reference's whole
+     structure is one ruled sheet whose cells butt together and whose only
+     lines are the gaps themselves showing the background through.
+
+     So: no corner, and a gutter of one pixel. The board paints itself in the
+     line colour and every cell paints its own ground on top, which turns the
+     gutters into hairline rules for free — no borders to draw, none to get out
+     of step with the palette, and no doubling where two cells meet.
+
+     Both are still multiplied by their own axis. Corners at 4 gives back the
+     rounded card, density at 1.7 gives back the airy board; the DEFAULT is now
+     the sheet rather than the tray. */
+  --bento-radius: calc(0px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(0px * var(--radius-scale, 1));
+  --bento-gap: calc(1px * var(--bento-density, 1));
   --bento-dock: 72px;
   /* A hairline. At 1px a card is outlined; at 0.5 it is edged, which is what
      separates cards on a board without drawing a grid over the whole screen.
@@ -159,43 +175,35 @@
    sitting inside a card is not floating, and when everything is a capsule the
    capsule stops meaning anything. */
 [data-layout='bento'] .bento-cue {
-  /* One button, everywhere. It was mixed from currentColor so it could sit on
-     the white card, the mint anchor and the near-black cell without a branch —
-     but that made it a different button on each, and on the gradient it was a
-     ghost. A plain white button with black text reads at 21:1 against its own
-     face on every ground there is, and the hairline is what separates it from
-     a white card rather than the fill. */
-  /* CURRENTCOLOR, not the board's card/ink pair — and this is a correctness
-     fix, not a preference.
+  /* A SQUARE IN THE CORNER.
 
-     `--bento-card` and `--bento-ink` describe the DEFAULT card. They say
-     nothing about the one this button is actually sitting on, and this product
-     tints cells twelve ways by domain and lets a school pick any ground it
-     likes from a colour wheel. On such a cell the pair can resolve to the same
-     colour, and it did: a white capsule with white text on the magenta cover
-     card — a button with no visible label at all.
+     Square because everything else on this board is: the cells butt together
+     with no corner between them, the tracks and bars are rectangles, and a
+     capsule floating in the corner of a square card is the one rounded thing
+     left on the screen. It reads as borrowed from another design.
 
-     `currentColor` cannot collapse, because the cell has already resolved its
-     own ink against its own ground, and it is what every mark in
-     bento-cards.tsx already inherits. A hairline of it, a 10% wash of it, and
-     the label in it: one button that is legible on the pale tint, the dark
-     cell and the gradient anchor alike, with no branch and nothing to measure
-     per palette. This is what the Focus skin has always done; the difference
-     was never intentional.
+     currentColor throughout, for the reason the pill was changed to it and
+     then kept: `--bento-card` and `--bento-ink` describe the DEFAULT card and
+     say nothing about the one this button sits on, and on a domain-tinted cell
+     the pair can resolve to the same colour — which is how it once rendered as
+     a white square with a white arrow. The cell has already resolved its own
+     ink against its own ground; borrowing it cannot collapse.
 
-     The radius follows the cards down to 3px. When every control is a capsule
-     the capsule stops meaning anything, and these sit inside a square card. */
-  background: color-mix(in srgb, currentColor 10%, transparent);
+     Quiet until wanted. At rest it is a hairline and a faint arrow, so a board
+     of twelve cards is not a board of twelve buttons; on hover or focus it
+     fills. The whole 32px square is the target either way. */
+  background: color-mix(in srgb, currentColor 6%, transparent);
   color: inherit;
-  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
-  border-radius: var(--bento-radius-sm);
-  padding: 10px 18px;
-  font-weight: 600;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  border-left: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0;
+  opacity: 0.55;
 }
-[data-layout='bento'] .bento-cue:hover {
-  background: color-mix(in srgb, currentColor 18%, transparent);
-  border-color: color-mix(in srgb, currentColor 55%, transparent);
+[data-layout='bento'] .bento-cue:hover,
+[data-layout='bento'] .bento-cue:focus-visible {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  opacity: 1;
 }
 
 html.dark[data-layout='bento'] {
@@ -271,14 +279,20 @@ html.dark[data-layout='bento'] {
    Applied by class rather than utility so the skin below has one thing to
    override instead of three. */
 [data-layout='bento'] .bento-cell {
-  border-width: var(--bento-border-w);
+  /* No border and no shadow. The one-pixel gutter over the board's own line
+     colour already draws every rule on this board, and a border on top of it
+     doubles the line wherever two cells meet — 1px of gap between two 0.5px
+     edges reads as a 2px trough, which is exactly the soft, tray-like look
+     this is trying to leave behind. The Borders axis still adds one back for
+     anyone who wants it; it is simply not the default. */
+  border-width: calc(var(--bento-border-w) - 0.5px);
   border-style: solid;
   /* Was rgba(0,0,0,0.14): a fixed black wash that no palette could move and
      that vanished entirely on the two dark schemes. `--bento-line` is the
      hairline the palettes actually ship, and it is what every hover and focus
      rule below already mixes against. */
   border-color: var(--bento-line);
-  box-shadow: var(--bento-shadow-sm);
+  box-shadow: none;
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
   /* The crosshair below is positioned against this. */
   position: relative;
@@ -467,9 +481,9 @@ html[data-skin='focus'] [data-layout='bento'] {
   /* Focus keeps a slightly softer corner than the classic board -- it is the
      calmer of the two skins and always has been -- but it was at 10px, which
      is a pill next to the 3px the rest of the product now draws. */
-  --bento-radius: calc(4px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(3px * var(--radius-scale, 1));
-  --bento-gap: calc(14px * var(--bento-density, 1));
+  --bento-radius: calc(0px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(0px * var(--radius-scale, 1));
+  --bento-gap: calc(1px * var(--bento-density, 1));
   /* Hairline here too. This block set 1px flat, which also dropped the Borders
      axis on the floor: whatever the slider said, this frame drew one pixel. */
   --bento-border-w: calc(0.5px * var(--border-scale, 1));
@@ -572,18 +586,20 @@ html.dark[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
   border-color: color-mix(in srgb, var(--bento-ink) 38%, var(--bento-line));
 }
 
+/* Focus wrote its own cue when the cue was a pill, so that it could be an
+   outline rather than a filled capsule. The corner square is already an
+   outline in currentColor, and the two skins now want the same thing — so this
+   only makes it a shade quieter, which is what Focus is for. */
 html[data-skin='focus'] [data-layout='bento'] .bento-cue,
 html[data-skin='focus'][data-layout='bento'] .bento-cue {
   background: transparent;
-  color: inherit;
-  border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
-  border-radius: var(--bento-radius-sm);
+  opacity: 0.45;
 }
 
 html[data-skin='focus'] [data-layout='bento'] .bento-cue:hover,
 html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
-  border-color: color-mix(in srgb, currentColor 58%, transparent);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -884,13 +900,15 @@ html[data-shadow='deep'][data-layout='bento'] {
 
 /* DENSITY — the gap between cards, and the padding inside them. */
 :root { --bento-density: 1; }
-/* Compact is now genuinely tight: 6px x 0.33 is a 2px gutter, so cards very
-   nearly butt and the board reads as one ruled sheet rather than as a tray of
-   floating tiles. It was 3.6px, which is neither one thing nor the other. */
-:root[data-density='compact'] { --bento-density: 0.33; }
-:root[data-density='comfortable'] { --bento-density: 1; }
+/* The unit is now ONE PIXEL rather than six, so these multipliers changed with
+   it. Compact is the hairline sheet the reference draws; comfortable is a 4px
+   gutter, which still reads as ruled; spacious gives back the 10px tray for
+   anyone who wants air between the cards. The names still mean what they say —
+   only the scale under them moved. */
+:root[data-density='compact'] { --bento-density: 1; }
+:root[data-density='comfortable'] { --bento-density: 4; }
 :root[data-density='spacious'],
-:root[data-density='relaxed'] { --bento-density: 1.7; }
+:root[data-density='relaxed'] { --bento-density: 10; }
 
 /* SHADOW — Focus calls its own depth tokens, so the axis has to move those
    rather than the classic --lift-* pair. */
@@ -1010,6 +1028,17 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        derived from it. The persona boards used gap-5 while the arithmetic read
        --bento-gap, and their cells could never come out right. */
     gap: var(--bento-gap) !important;
+
+    /* THE BOARD PAINTS THE LINES.
+
+       Every cell paints its own opaque ground, so the only place this colour
+       shows is the gutters — which turns a one-pixel gap into a hairline rule
+       without a single border being drawn. It cannot fall out of step with the
+       palette, it cannot double where two cells meet, and it costs nothing.
+       The outline closes the frame on the outside edge, where there is no
+       neighbouring cell to make the gap. */
+    background: var(--bento-line);
+    outline: 1px solid var(--bento-line);
 
     /* FIVE COLUMNS, THREE ROWS. The board is a fixed 15-slot grid.
 
