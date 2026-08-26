@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Link, NavLink, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Check, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Rows3, Sun,
   UserRound, X,
@@ -25,6 +25,7 @@ import { useLayout } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { markFor, hueFor } from '@/features/bento/BentoLauncher'
+import { useViewport } from '@/lib/viewport'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -192,8 +193,18 @@ export function Shell({
   // stand down — two bars for one gesture move the wrong thing.
   const split = paths.length > 1
   const navigate = useNavigate()
+  const location = useLocation()
   const { sectionSlug } = useParams()
   const [navOpen, setNavOpen] = useState(false)
+  /* Which of the three device shapes this is. The one place in the shell that
+     asks; every other responsive decision here is a Tailwind variant keyed to
+     the same two numbers. */
+  const viewport = useViewport()
+  const asideRef = useRef<HTMLElement>(null)
+  /* Where focus goes back to when the drawer closes. Held in a ref rather than
+     read from document.activeElement at close time, because by then focus is
+     inside the drawer that is about to be removed. */
+  const openerRef = useRef<HTMLButtonElement>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const scopeLine = useScopeLine()
   const { resolved, setTheme } = useTheme()
@@ -357,6 +368,93 @@ export function Shell({
   const { layout } = useLayout()
   const chromeless = layout === 'bento'
 
+  /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
+
+     The same <aside> is three things across the width range, and only one of
+     them is a modal layer over the page. Everything below hangs off this one
+     condition so that a tablet's rail and a desktop's sidebar never acquire a
+     scroll lock, a focus trap or an Escape handler — all three of which would
+     be actively wrong on navigation that sits beside the content rather than
+     over it. */
+  const phoneDrawer = viewport === 'phone' && navOpen && !chromeless
+
+  /* The page behind a modal layer does not scroll.
+
+     Without this a swipe over the scrim scrolls the content underneath — on
+     iOS it also drags the whole document and leaves the drawer floating over a
+     half-scrolled page — which is the difference between a drawer and a panel
+     that happens to be drawn on top. */
+  useEffect(() => {
+    if (!phoneDrawer) return
+    document.body.setAttribute('data-scroll-lock', '')
+    return () => document.body.removeAttribute('data-scroll-lock')
+  }, [phoneDrawer])
+
+  /* Escape closes it, and Tab cannot leave it.
+
+     A dialog that a keyboard can tab out of is a dialog that hides the page
+     behind it from the eye and not from the focus ring: the next Tab lands on
+     something under the scrim that cannot be seen and cannot be clicked. The
+     trap is the two-line kind — wrap at each end — rather than an inert
+     polyfill, because the drawer's contents are ordinary links and the only
+     thing wrong with the rest of the document is that it is behind a scrim. */
+  useEffect(() => {
+    if (!phoneDrawer) return
+    const el = asideRef.current
+    if (!el) return
+    const opener = openerRef.current
+    const focusable = () =>
+      Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((n) => n.offsetParent !== null)
+
+    // After paint: the drawer is mid-transition and a hidden element cannot
+    // take focus.
+    const id = requestAnimationFrame(() => focusable()[0]?.focus())
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNavOpen(false)
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = focusable()
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      cancelAnimationFrame(id)
+      document.removeEventListener('keydown', onKey)
+      /* Back to the button that opened it, which is where the eye and the
+         focus ring both were. Guarded on the opener still being in the
+         document, because this also runs when the shell unmounts. */
+      if (opener?.isConnected) opener.focus()
+    }
+  }, [phoneDrawer])
+
+  /* Navigating closes it.
+
+     The three inline `setNavOpen(false)` calls on the nav links stay where
+     they are and are not redundant with this: tapping the screen you are
+     already on does not change the pathname, so only the handler closes that
+     one. This catches everything that moves the router WITHOUT a tap on a
+     link — the command palette, a redirect, the back button — which used to
+     leave the drawer standing open over the screen it had just opened. */
+  useEffect(() => {
+    setNavOpen(false)
+  }, [location.pathname])
+
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
@@ -372,16 +470,53 @@ export function Shell({
           The sidebar sits a shade off the ground rather than white, so it
           separates by tone. A white sidebar beside a white page divided by a
           grey line is three rectangles and a border to read first. */}
+      {/* THREE SHAPES, NOT ONE, AND THE MIDDLE ONE IS THE POINT.
+
+          There was a single breakpoint here — `lg`, at 1024 — so everything
+          below it was a phone. A 820px tablet got a 300px modal drawer over
+          520px of dimmed content, reached by a hamburger, which is the phone
+          treatment on a device with room for navigation to simply be there.
+          768 to 1023 was the gap.
+
+          Phone (below md): the off-canvas drawer, which is the convention and
+          was already right; it is 288px rather than 300px so that a strip of
+          the page behind stays visible and the drawer reads as covering the
+          page rather than as replacing it.
+
+          Tablet (md to lg): the collapsed icon rail. The 58px rail this
+          sidebar already draws stays in flow, permanently, and the label panel
+          beside it is simply not drawn. No hamburger, no scrim, nothing to
+          open — a tablet has 58px to spare and the marks are the navigation
+          the rail was built to be.
+
+          Desktop (lg and up): both panes, exactly as before, including the
+          hide control and its remembered `erp.rail`.
+
+          Every width is stated by a variant rather than one being the base,
+          because three widths on one property is precisely the case where
+          "which of these two utilities did Tailwind emit last" stops being a
+          question worth having an answer to. */}
       <aside
+        id="shell-nav"
+        ref={asideRef}
         data-paint="sidebar"
+        /* A drawer over the page is a dialog; a rail in the page is not.
+
+           Only while it is actually the phone drawer, because announcing
+           aria-modal on a rail that sits beside the content is a lie that
+           costs a screen-reader user the rest of the page. */
+        role={phoneDrawer ? 'dialog' : undefined}
+        aria-modal={phoneDrawer ? true : undefined}
+        aria-label={phoneDrawer ? 'Navigation' : undefined}
         className={cn(
-          'w-[282px] shrink-0 flex-row bg-sidebar',
-          'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-[300px]',
-          'max-lg:border-r max-lg:transition-transform',
-          navOpen ? 'flex max-lg:translate-x-0' : 'hidden lg:flex max-lg:-translate-x-full',
-          /* Only on lg. Below it the rail is a drawer that is already closed
-             by default, and hiding a thing that is not shown would leave the
-             hamburger opening nothing. */
+          'shrink-0 flex-row bg-sidebar',
+          'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
+          'max-md:border-r max-md:transition-transform',
+          'md:max-lg:w-[58px] lg:w-[282px]',
+          navOpen ? 'flex max-md:translate-x-0' : 'hidden md:flex max-md:-translate-x-full',
+          /* Only on lg. Below it the sidebar is either a drawer that is
+             already closed by default or a rail that is the whole navigation,
+             and hiding either would leave nothing to open. */
           railHidden ? 'lg:!hidden' : '',
           chromeless ? '!hidden' : ''
         )}
@@ -399,7 +534,24 @@ export function Shell({
 
             Marks carry their domain colour, so the rail, the dock, the board
             and the cards are one colour system rather than four. */}
-        <div className="flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3">
+        {/* overflow-y-auto because on a tablet this column IS the navigation.
+            Twelve workspace marks at 40px plus the settings mark come to about
+            560px, which a landscape tablet at 768 high does not have once the
+            padding is out — and a mark you cannot reach is a workspace that
+            does not exist on that device. */}
+        {/* The scroll is TABLET-ONLY, and the gate is load-bearing.
+
+            At 768-1023 this column IS the navigation, so it has to scroll when
+            a school has more workspaces than fit. Applied at every width, it
+            also clipped the desktop rail: the workspace tooltips are
+            `.rail-item::after`, absolutely positioned at `left: calc(100% + 8px)`
+            so they open to the RIGHT of the 58px column, and per CSS Overflow
+            an `overflow-y: auto` with `overflow-x: visible` computes the x axis
+            to `auto` as well. That makes the column a clipping scroll container
+            on both axes, and z-index does not defeat an ancestor's clip — so
+            every workspace mark on desktop lost the only label it has. */}
+        <div className="flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3
+                        md:max-lg:overflow-y-auto">
           {railWorkspaces.map((ws) => {
             const Mark = markFor(ws.name)
             const on = ws.slug === activeWs?.slug
@@ -407,7 +559,29 @@ export function Shell({
               <button
                 key={ws.slug}
                 type="button"
-                onClick={() => setRailPick(ws.slug)}
+                onClick={() => {
+                  setRailPick(ws.slug)
+                  /* On a tablet the mark IS the navigation.
+
+                     The panel it normally selects is not drawn at this width,
+                     so selecting a workspace and stopping there would leave a
+                     column of buttons that visibly do nothing — the rail would
+                     be decoration on the one device where it is the whole
+                     menu. So it also opens that workspace's first screen,
+                     which is what the dock's category marks do for the same
+                     reason in the chrome-less layout.
+
+                     Desktop and phone are untouched: there the panel is beside
+                     it and changing the panel is the entire job. */
+                  if (viewport !== 'tablet' || !role) return
+                  for (const sec of ws.sections) {
+                    const first = visibleFeatures(sec, showPlanned, showAdvanced)[0]
+                    if (first) {
+                      navigate(featurePath(role.key, sec.slug, first.slug))
+                      return
+                    }
+                  }
+                }}
                 aria-label={ws.name}
                 aria-current={on ? 'true' : undefined}
                 data-tip={ws.name}
@@ -431,8 +605,12 @@ export function Shell({
           <BentoSettings placement="rail" />
         </div>
 
-        {/* --- the panel: the selected workspace, and nothing else --------- */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* --- the panel: the selected workspace, and nothing else ---------
+
+            Not drawn at tablet width, which is what makes the sidebar a
+            collapsed rail there rather than a narrow two-pane sidebar with its
+            second pane crushed to nothing. */}
+        <div className="flex min-w-0 flex-1 flex-col md:max-lg:hidden">
 
         {/* --- workspace header: where am I, and whose -------------------- */}
         <div className="relative shrink-0 px-3 pb-2 pt-3">
@@ -529,8 +707,10 @@ export function Shell({
             </>
           )}
 
+          {/* md, not lg: at tablet width this panel is not drawn at all, and
+              at desktop width there is a drawer to close. */}
           <button
-            className="absolute right-4 top-5 lg:hidden"
+            className="absolute right-4 top-5 md:hidden"
             onClick={() => setNavOpen(false)}
             aria-label="Close navigation"
           >
@@ -651,9 +831,11 @@ export function Shell({
         </div>
       </aside>
 
+      {/* The scrim belongs to the drawer, so it stops where the drawer does.
+          A tablet's rail sits in the page and has nothing to dim. */}
       {navOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={() => setNavOpen(false)}
           aria-hidden
         />
@@ -666,9 +848,15 @@ export function Shell({
             sticky blur already says "this stays". */}
         {!chromeless && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
+          {/* Gone at md, because from md up the navigation is on the screen.
+              A hamburger beside a visible rail asks somebody to open what they
+              are already looking at. */}
           <button
+            ref={openerRef}
             aria-label="Open navigation"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+            aria-expanded={navOpen}
+            aria-controls="shell-nav"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover md:hidden"
             onClick={() => setNavOpen(true)}
           >
             <Menu className="h-5 w-5" />

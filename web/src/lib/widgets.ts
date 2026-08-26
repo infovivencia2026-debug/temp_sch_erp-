@@ -642,3 +642,115 @@ export function rowsNeeded(items: { w: number; h: number }[], cols = 5): number 
     and a number that lives in one place cannot drift from the other. */
 export const BOARD_COLS = 5
 export const BOARD_ROWS = 3
+
+/* THE SAME BOARD, AT PHONE PROPORTIONS.
+
+   A phone page is two columns by three rows, which is six slots against the
+   desktop board's fifteen. Stated here beside BOARD_COLS/BOARD_ROWS and for
+   the same reason: the packer below and the `max-width: 767px` block in
+   bento-theme.css both have to believe the same two numbers, and a number that
+   lives in one place cannot drift from the other.
+
+   Two columns because a cell is at most two wide (MAX_SPAN), so two columns is
+   the narrowest grid on which every legal shape still exists — a 2-wide card
+   is a full-width row of the page and a 2x2 is a third of it, which is exactly
+   the small/medium/large vocabulary a phone home screen already has.
+
+   Three rows rather than four. Four was tried on paper and gives tiles about
+   80px tall on a 390x844 device once the dock and the page dots are taken out,
+   which is shorter than the text inside them. Three gives roughly 4:3 tiles,
+   which is the proportion iOS widgets actually use. */
+export const PHONE_COLS = 2
+export const PHONE_ROWS = 3
+
+/** Where one widget ended up: which page, and where on it. */
+export interface Spot {
+  id: string
+  /** The size it is DRAWN at, after clamping to the page. */
+  w: number
+  h: number
+  /** Zero-based. Page 0 is the one you land on. */
+  page: number
+  /** Zero-based, from the top-left of that page. */
+  row: number
+  col: number
+}
+
+/* PAST THE CEILING, A PHONE ADDS A PAGE INSTEAD OF DROPPING A CARD.
+
+   This is the one behavioural difference between the two boards, and it is the
+   whole idea. The desktop board is a fixed fifteen slots and something has to
+   give when a layout wants a sixteenth: what gives there is the widget, which
+   is dropped to the add tray, because the board's promise is that everything
+   on it is visible at once and a sixteenth slot would break that promise.
+
+   A phone makes the same promise per PAGE and keeps it by paging, which is
+   what a home screen is. So nothing is ever dropped here — a widget somebody
+   placed exists, it is simply on page two — and the page count is not a
+   setting, it is the remainder of the pack.
+
+   Dense first-fit, scanning left to right and top to bottom, which is the same
+   rule `rowsNeeded` simulates for the desktop board: a later 1x1 back-fills a
+   gap an earlier 2x1 left behind rather than starting a hole that runs the
+   height of the page. Written out rather than delegated to `rowsNeeded`
+   because that function answers "how tall" and this one needs to know "where",
+   and inferring positions from a row count is guessing at an answer the
+   simulation already had.
+
+   Both dimensions are clamped to the page rather than refused. A stored 5 —
+   from a layout saved before the 2x2 ceiling existed, or from the `spotlight`
+   preset — must still load, and a card that cannot be placed anywhere would
+   make this loop non-terminating. Clamped, every item fits an empty page, so
+   the worst case is one page per widget and the function always ends. */
+export function paginate(
+  items: { id: string; w: number; h: number }[],
+  cols = PHONE_COLS,
+  rows = PHONE_ROWS,
+): Spot[] {
+  const out: Spot[] = []
+  let page = 0
+  let taken = new Set<string>()
+  const at = (r: number, c: number) => `${r}:${c}`
+  const free = (r: number, c: number, w: number, h: number) => {
+    if (c + w > cols || r + h > rows) return false
+    for (let y = r; y < r + h; y++) {
+      for (let x = c; x < c + w; x++) if (taken.has(at(y, x))) return false
+    }
+    return true
+  }
+  const claim = (r: number, c: number, w: number, h: number) => {
+    for (let y = r; y < r + h; y++) {
+      for (let x = c; x < c + w; x++) taken.add(at(y, x))
+    }
+  }
+
+  for (const item of items) {
+    const w = Math.min(Math.max(1, item.w), cols)
+    const h = Math.min(Math.max(1, item.h), rows)
+    let spot: { row: number; col: number } | null = null
+    for (let r = 0; !spot && r <= rows - h; r++) {
+      for (let c = 0; c <= cols - w; c++) {
+        if (!free(r, c, w, h)) continue
+        spot = { row: r, col: c }
+        break
+      }
+    }
+    if (!spot) {
+      // Nothing left on this page. Turn it, and start the new one at its
+      // top-left — which is always free, because w and h were clamped to a
+      // page above.
+      page += 1
+      taken = new Set<string>()
+      spot = { row: 0, col: 0 }
+    }
+    claim(spot.row, spot.col, w, h)
+    out.push({ id: item.id, w, h, page, row: spot.row, col: spot.col })
+  }
+  return out
+}
+
+/** How many pages that pack came to. Zero widgets is zero pages, so a caller
+    can ask this before deciding whether a pager is worth drawing at all. */
+export function pageCount(spots: Spot[]): number {
+  return spots.length === 0 ? 0 : spots[spots.length - 1].page + 1
+}

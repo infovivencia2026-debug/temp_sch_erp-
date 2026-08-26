@@ -8,8 +8,10 @@ import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   WIDTHS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, PRESETS, BOARD_ROWS,
-  type WidgetSize, type BoardWidget,
+  paginate, pageCount, PHONE_COLS, PHONE_ROWS,
+  type WidgetSize, type BoardWidget, type Spot,
 } from '@/lib/widgets'
+import { usePhone } from '@/lib/viewport'
 import { COL, ROW, spanFor, clampSpan, MAX_SPAN, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
@@ -51,6 +53,20 @@ interface LayerValue {
   fitted: Set<string>
   /** The tallest layout that still fits on this screen, in rows. */
   maxRows: number
+  /* THE PHONE'S TWO DIFFERENCES, PUBLISHED SO THE CELLS AGREE WITH THE PACK.
+
+     `phone` is not "is the screen narrow" — it is "does overflow open a page
+     instead of dropping a card". Every question of the form "will this still
+     fit?" has to read it, because on a phone the honest answer is always yes:
+     a size that does not fit the page it is on fits the page after it, and
+     refusing it would be refusing something the layout can express.
+
+     `spots` is where the pack actually put each widget. Null whenever the
+     board is not paged — every width above the phone, and the phone itself
+     while somebody is arranging, where the board goes back to the stacked
+     scrolling list so that the editing controls are reachable. */
+  phone: boolean
+  spots: Map<string, Spot> | null
 }
 
 /* Every domain token a cell might read. Repointing all of them is what lets
@@ -173,9 +189,25 @@ export function WidgetLayer({
      still drop into a gap a 2x1 could not use. Anything that does not fit is
      offered in the add tray instead of vanishing — the board is capped, not
      the dashboard. */
+  /* ON A PHONE THE CEILING IS A PAGE BREAK, NOT A CEILING.
+
+     The paragraph above is the desktop board's rule and it is still right
+     there. It is wrong on a phone, and quietly so: the pack it describes is
+     against a FIVE-column board, which no phone ever draws, so what rendered
+     at 390px was the desktop-fitted subset stacked in one column. A widget
+     somebody had put on what they think of as their second screen did not
+     exist on their phone at all, and nothing said so.
+
+     So the phone keeps every candidate and lets `paginate` decide which page
+     each one lands on. Nothing is dropped, which means `off` — and with it the
+     add tray — holds only what this person removed by hand, which is the
+     honest content of a tray on a board with no ceiling. */
+  const phone = usePhone()
   const maxRows = BOARD_ROWS
   const fitted = new Set<string>()
-  {
+  if (phone) {
+    for (const d of candidates) fitted.add(d.id)
+  } else {
     const packed: { w: number; h: number }[] = []
     for (const d of candidates) {
       const dim = drawnDims(layout, d.id, d.size)
@@ -243,16 +275,70 @@ export function WidgetLayer({
     Math.min(maxRows, rowsNeeded(visible.map((v) => drawnDims(layout, v.id, v.size)))),
   )
   useEffect(() => {
+    /* Nothing to say on a phone. `--board-rows` is read by the fixed-height
+       board rules, which live behind `min-width: 1024px`; a phone's pages take
+       their three rows from the stylesheet's own repeat(). Writing a number
+       here that describes a five-column pack no phone draws would be a value
+       that is inert today and misleading the first time somebody reads it. */
+    if (phone) return
     document.documentElement.style.setProperty('--board-rows', String(rowsUsed))
     return () => {
       document.documentElement.style.removeProperty('--board-rows')
     }
-  }, [rowsUsed])
+  }, [rowsUsed, phone])
+
+  /* THE HOME SCREEN: WHERE EACH CARD SITS, AND HOW MANY PAGES THAT MAKES.
+
+     Only while the board is being read, not while it is being edited. Arrange
+     mode puts a toolbar and a per-card overlay on the board, and both want
+     room the pages do not have — a 2x3 page has no spare row for a toolbar,
+     and the size steppers sit on top of a tile a third of a phone tall. So on
+     a phone, arranging drops back to the stacked scrolling board that shipped
+     before any of this, which is a list rather than a home screen but is a
+     list you can actually work in. Paging is read-only, on purpose: moving a
+     card BETWEEN pages needs a stored page index, and `layout.placed` has no
+     such field to put one in. */
+  const paged = phone && !arranging
+  const spots = useMemo(() => {
+    if (!paged) return null
+    return paginate(
+      visible.map((v) => ({ id: v.id, ...drawnDims(layout, v.id, v.size) })),
+      PHONE_COLS,
+      PHONE_ROWS,
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout])
+  const pages = spots ? pageCount(spots) : 0
+  const spotMap = useMemo(
+    () => (spots ? new Map(spots.map((s) => [s.id, s])) : null),
+    [spots],
+  )
+
+  /* The pager is switched on from here, on the element BentoPage owns.
+
+     BentoPage draws `.bento-board`; this layer is rendered inside it and its
+     children ARE the board's grid children. So the layer knows the page count
+     and the board element does not, and the board element is the thing that
+     has to become a horizontal scroller. Reaching it through the marker span —
+     which exists for exactly this, and until now was reached by nothing — is
+     less machinery than threading a second context through a component that
+     has no other reason to know about widgets.
+
+     It is also the honest gate. A BentoPage with no WidgetLayer inside it (two
+     dashboards declare their cells without one) never sets the attribute, so
+     it keeps the stacked board it has always had rather than becoming a pager
+     with no pages in it. */
+  useEffect(() => {
+    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
+    if (!board || !paged) return
+    board.setAttribute('data-pager', '')
+    return () => board.removeAttribute('data-pager')
+  }, [paged])
 
   const value = useMemo<LayerValue>(
-    () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows }),
+    () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows, phone, spots: spotMap }),
     [
-      dashboard, arranging, declare, maxRows,
+      dashboard, arranging, declare, maxRows, phone, spotMap,
       /* Sizes as well as ids, because `visible` is handed to `move` and
          `tidy` as the seed for every widget nobody has explicitly placed. A
          key of ids alone holds the previous render's array — and with it the
@@ -413,7 +499,14 @@ export function WidgetLayer({
                      is, because the board is a fixed fifteen slots and a card
                      that does not fit does not get a smaller row — it pushes
                      the bottom row off the screen. */
+                  /* A phone board is never full, so nothing here is ever
+                     refused. The fifteen slots are the DESKTOP board's, and on
+                     a phone a sixteenth card is not a card that does not fit,
+                     it is the first card on page three. Asking the desktop
+                     question here would grey out an Add button for a board
+                     with room in it. */
                   const room =
+                    phone ||
                     rowsNeeded([
                       ...visible.map((v) => drawnDims(layout, v.id, v.size)),
                       { w: clampSpan(DIMS[d.size].w), h: clampSpan(DIMS[d.size].h) },
@@ -446,7 +539,125 @@ export function WidgetLayer({
         </div>
       )}
       {children}
+
+      {/* ONE EMPTY ELEMENT PER PAGE, AND IT IS WHAT MAKES THE PAGER SNAP.
+
+          CSS scroll snapping has no notion of "every 390 pixels": a snap
+          position exists only where an ELEMENT declares one. The cards cannot
+          declare them — half of them start mid-page, so mandatory snapping
+          would stop the scroll on the second column of page one, which is the
+          behaviour of a carousel with the wrong stride and not of a home
+          screen.
+
+          So each page gets a child of its own, placed across that page's two
+          columns and all three rows, carrying the only `scroll-snap-align` in
+          the board. It paints nothing, takes no pointer events and is hidden
+          from assistive technology — the dots below are the accessible way to
+          move between pages. The cards sit on top of it because they come
+          later in the DOM at the same z-index, which is all the stacking this
+          needs.
+
+          Rendered after `children` so that a card and its page never argue
+          about paint order in the one direction that would matter. */}
+      {paged &&
+        Array.from({ length: pages }, (_, i) => (
+          <span
+            key={`bento-page-${i}`}
+            className="bento-page"
+            data-page={i}
+            aria-hidden="true"
+            style={{
+              gridColumn: `${i * PHONE_COLS + 1} / span ${PHONE_COLS}`,
+              gridRow: `1 / span ${PHONE_ROWS}`,
+            }}
+          />
+        ))}
+
+      {/* Portalled to the body, like the dock, because the board is the
+          scroller and anything drawn inside it scrolls away with page one. */}
+      {paged && pages > 1 && createPortal(<PageDots pages={pages} mark={markRef} />, document.body)}
     </Ctx.Provider>
+  )
+}
+
+/* THE PAGE DOTS, WHICH ARE ALSO THE PAGE CONTROL.
+
+   iOS draws them as decoration and moves between pages by swiping, which is
+   fine on a phone and leaves a keyboard and a screen reader with no way at all
+   to reach page two. So they are a real tablist of real buttons: tap one and
+   the page scrolls to it, tab to them and the arrow keys are the browser's own
+   roving focus.
+
+   The active page comes from an IntersectionObserver over the page elements
+   rather than from arithmetic on scrollLeft. Scroll arithmetic has to know the
+   gap, the column width and the direction of the writing system to turn an
+   offset into an index, and it is wrong for a frame after every resize.
+   "Which page element is mostly on screen" is the same question asked in a
+   form the browser already answers. */
+/* The ref is typed structurally rather than as React.RefObject, because that
+   type changed shape between React 18 and 19 (`current` gained the null) and
+   this is the one property either version guarantees. */
+function PageDots({ pages, mark }: { pages: number; mark: { current: HTMLSpanElement | null } }) {
+  const t = useT()
+  const [at, setAt] = useState(0)
+
+  useEffect(() => {
+    const board = mark.current?.closest('.bento-board') as HTMLElement | null
+    if (!board) return
+    const seen = Array.from(board.querySelectorAll<HTMLElement>('.bento-page'))
+    if (seen.length === 0) return
+    /* Against the board, not the viewport: the pages scroll inside it, and a
+       root of null would measure them against the glass and count the dock. */
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          const n = Number(e.target.getAttribute('data-page'))
+          if (!Number.isNaN(n)) setAt(n)
+        }
+      },
+      { root: board, threshold: 0.6 },
+    )
+    for (const el of seen) io.observe(el)
+    return () => io.disconnect()
+  }, [mark, pages])
+
+  const go = (n: number) => {
+    const board = mark.current?.closest('.bento-board') as HTMLElement | null
+    const page = board?.querySelector<HTMLElement>(`.bento-page[data-page="${n}"]`)
+    page?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+  }
+
+  return (
+    <div
+      className="bento-dots"
+      role="tablist"
+      aria-label={t('bento.page.pages')}
+      /* The dots sit on the PAGE, so they take the page's ink — the same
+         declaration the arrange toolbar makes for the same reason. Read the
+         card's `--bento-ink` here and the dots vanish on every palette whose
+         cards are lighter than its ground, which is half of them. */
+      style={{ color: INK_HERE_FROM_PAGE } as CSSProperties}
+    >
+      {/* Said once, in words, for the reader who cannot see six circles. The
+          dots themselves carry the labels a tablist needs; this is the running
+          commentary that tells somebody a swipe landed. */}
+      <span className="sr-only" aria-live="polite">
+        {t('bento.page.indicator', { n: at + 1, total: pages })}
+      </span>
+      {Array.from({ length: pages }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          role="tab"
+          aria-selected={i === at}
+          aria-label={t('bento.page.goto', { n: i + 1 })}
+          onClick={() => go(i)}
+          className="bento-dot"
+          data-on={i === at ? '' : undefined}
+        />
+      ))}
+    </div>
   )
 }
 
@@ -744,6 +955,7 @@ export function Widget({
   const cw = clampSpan(w)
   const ch = clampSpan(h)
   const span = spanFor(cw, ch)
+  const spot = layer?.spots?.get(id)
   const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
   const moveBtn =
     'grid size-6 shrink-0 place-items-center rounded-md bg-[var(--bento-card)] text-[var(--bento-ink)] shadow-sm ' +
@@ -775,6 +987,13 @@ export function Widget({
      could never shrink out of it. */
   const fitsAt = (nw: number, nh: number) => {
     if (!layer) return true
+    /* On a phone every legal size fits, because the board can always turn a
+       page. `clampSpan` caps both axes at two and a page is two by three, so
+       the largest cell this product can express fits an EMPTY page with a row
+       to spare — there is no size to refuse. Refusing one here would be the
+       arranger telling somebody they cannot have a shape their own layout is
+       perfectly able to hold. */
+    if (layer.phone) return true
     const pw = clampSpan(nw)
     const ph = clampSpan(nh)
     if (pw === cw && ph === ch) return true
@@ -827,7 +1046,29 @@ export function Widget({
          and the cell inside sizes to its content, so a two-row card would sit
          at half height with a gap under it. */
       className={cn('bento-widget relative min-w-0 [&>*]:h-full', COL[cw], ROW[ch])}
-      style={{ order }}
+      /* PLACED EXPLICITLY ON A PHONE, FLOWED EVERYWHERE ELSE.
+
+         The board's ordinary geometry is `order` plus a span class and a dense
+         auto-flow: say how big and how far along, and let the grid find a
+         slot. That cannot express a page. The pages are laid out side by side
+         in one grid — page two is columns three and four — so a card has to
+         say which columns it occupies, and the only component that knows is
+         the layer that packed it.
+
+         An inline grid-column beats the `sm:col-span-2` class outright, which
+         is what we want: between 640 and 767 a phone is still a phone and that
+         class is still live, and one of the two answers has to be the pack's.
+         Off the pager `spot` is undefined and nothing is written, so every
+         other width keeps exactly the geometry it had. */
+      style={
+        spot
+          ? {
+              order,
+              gridColumn: `${spot.page * PHONE_COLS + spot.col + 1} / span ${spot.w}`,
+              gridRow: `${spot.row + 1} / span ${spot.h}`,
+            }
+          : { order }
+      }
       /* The two data attributes are what lets a cell's CONTENTS answer to its
          size — see the [data-w]/[data-h] rules in index.css. Doing it in CSS
          from one wrapper means thirty hand-written cells did not each have to

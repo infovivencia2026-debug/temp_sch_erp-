@@ -9,6 +9,7 @@ import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
 import { useBoard } from '@/lib/widgets'
+import { usePhone } from '@/lib/viewport'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -42,6 +43,19 @@ export function BentoDock() {
   const role = useActiveRole()
   const { appearance } = useAppearance()
   const { arranging } = useBoard()
+  /* A phone dock is a different dock, not a narrower one.
+
+     This bar's own comment budgets about 430px for nine workspace marks and
+     the fixed items — the arithmetic was explicitly about "any screen wide
+     enough to be running the desktop layout at all", which a 390px phone is
+     not. It has no wrap and, deliberately, no horizontal scroller, so on a
+     phone the items simply ran past the end of the pill.
+
+     Nothing is removed from the product by this: every workspace mark is a
+     shortcut into the launcher's own list, and the launcher is one press away
+     on the same bar. What is left is what a home screen dock holds — the four
+     or five places you go several times an hour. */
+  const phone = usePhone()
   const hidden = useMemo(
     () => new Set((appearance.hiddenDockItems ?? '').split(',').map(s => s.trim()).filter(Boolean)),
     [appearance.hiddenDockItems],
@@ -243,6 +257,14 @@ export function BentoDock() {
           {
             padding: 'var(--dock-pad, 8px)',
             paddingLeft: 'calc(var(--dock-pad, 8px) + 4px)',
+            /* The device's own reserved strip, added HERE rather than in the
+               stylesheet because the padding above is an inline style and a
+               rule cannot out-weigh one without !important. On a phone the bar
+               sits on the bottom edge, so the home indicator runs straight
+               through it unless the bar gives that strip back. */
+            ...(phone
+              ? { paddingBottom: 'calc(var(--dock-pad, 8px) + env(safe-area-inset-bottom, 0px))' }
+              : null),
             '--ink-here': 'var(--bento-dock-ink, var(--bento-ink))',
           } as CSSProperties
         }
@@ -281,7 +303,7 @@ export function BentoDock() {
           </button>
         )}
 
-        {categories.length > 0 && (
+        {!phone && categories.length > 0 && (
           <span className={rule} aria-hidden="true" />
         )}
 
@@ -302,7 +324,7 @@ export function BentoDock() {
             the bar fits on any screen wide enough to be running the desktop
             layout at all. */}
         <span className="flex items-center gap-0.5">
-          {categories.filter(c => !hidden.has(c.name)).map((c) => {
+          {(phone ? [] : categories.filter(c => !hidden.has(c.name))).map((c) => {
             const Mark = markFor(c.name)
             return (
               <button
@@ -338,7 +360,7 @@ export function BentoDock() {
           })}
         </span>
 
-        <span className={rule} aria-hidden="true" />
+        {!phone && <span className={rule} aria-hidden="true" />}
 
         {/* Pointing, for the person who does not know what to type. */}
         {/* The one that keeps its words.
@@ -357,16 +379,30 @@ export function BentoDock() {
              dock's face the wash was black on near-black and the ring was the
              mint accent at 1.2:1 — a focus ring a keyboard user cannot find,
              on the one control that opens everything else. */
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
-                     transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]
-                     focus-visible:outline-none focus-visible:ring-2
-                     focus-visible:ring-[var(--ink-here)]`}
+          /* On a phone it drops its word and joins the rank.
+
+             The label earns its width on a wide bar, where this is the one
+             door people look for by name. On a bottom bar of five items the
+             same words make one item twice the size of its neighbours, which
+             reads as a mistake rather than as emphasis — and the launcher it
+             opens announces its own name the moment it does. */
+          className={
+            phone
+              ? item
+              : `flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
+                 transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]
+                 focus-visible:outline-none focus-visible:ring-2
+                 focus-visible:ring-[var(--ink-here)]`
+          }
+          style={phone ? btnStyle : undefined}
+          data-tip={phone ? t('bento.launcher.title') : undefined}
+          aria-label={phone ? t('bento.launcher.title') : undefined}
         >
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
-          {t('bento.launcher.title')}
+          {!phone && t('bento.launcher.title')}
         </button>
 
-        <span className={rule} aria-hidden="true" />
+        {!phone && <span className={rule} aria-hidden="true" />}
         <BentoSettings placement="dock" />
       </div>
 

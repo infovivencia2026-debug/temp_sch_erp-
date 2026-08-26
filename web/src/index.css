@@ -1440,3 +1440,28 @@ dialog,
   background: hsl(var(--muted-foreground) / 0.5);
   background-clip: content-box;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE PAGE BEHIND A DRAWER DOES NOT SCROLL.
+
+   Set by the shell while, and only while, the sidebar is the phone drawer —
+   a modal layer over the content, as opposed to the tablet's rail or the
+   desktop's sidebar, both of which sit beside the content and have nothing to
+   lock.
+
+   Two declarations, because they answer two different gestures. `overflow`
+   stops the document scrolling under the scrim, which is what makes the layer
+   modal rather than merely drawn on top. `overscroll-behavior` stops the pull
+   that continues past the end of the drawer's own scroller from becoming the
+   browser's rubber-band or its pull-to-refresh — on a touch device those are
+   the same finger movement, and without this a swipe down the open drawer
+   reloads the page.
+
+   An attribute rather than a class so that nothing in the app's own class
+   handling can clear it by rewriting className, and so it is obvious in the
+   inspector what put it there.
+   ───────────────────────────────────────────────────────────────────────── */
+body[data-scroll-lock] {
+  overflow: hidden;
+  overscroll-behavior: none;
+}

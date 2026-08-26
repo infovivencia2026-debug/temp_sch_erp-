@@ -2098,6 +2098,11 @@ export const en = {
   'bento.appearance.title': 'Appearance',
   'bento.widgets.edit': 'Arrange',
   'bento.widgets.done': 'Done',
+  // The phone pager. Only English needs these: te.ts is a Partial, so an
+  // untranslated key falls back rather than failing the build.
+  'bento.page.pages': 'Board pages',
+  'bento.page.indicator': 'Page {n} of {total}',
+  'bento.page.goto': 'Go to page {n}',
   'bento.faculty_today.head_day': 'The day, lesson by lesson',
   'bento.faculty_today.head_now': 'Where you are in the day',
   'bento.faculty_today.head_kinds': 'What it is made of',

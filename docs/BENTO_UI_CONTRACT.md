@@ -113,9 +113,37 @@ from that list falls back to the size its dashboard declared:
 Removal is stored, never inferred from absence — otherwise every widget added
 later would be hidden from every existing user, silently and permanently.
 
-**2. Grid geometry.** Five columns at ≥1024px, two at ≥640px, one below. A
-width is capped at two below `lg`: a five-wide card on a two-column grid
-overflows the page rather than filling it.
+**2. Grid geometry.** Five columns at ≥1024px, two at ≥640px. A width is
+capped at two below `lg`: a five-wide card on a two-column grid overflows the
+page rather than filling it.
+
+**2a. Below 768px the board is paged, not stacked.** A phone gets a home
+screen: a fixed **two columns by three rows**, one page at a time, swiped
+sideways, with page dots between the last row and the dock. A page never
+scrolls in either direction — that is the whole contract, and it is the same
+claim the desktop board makes, made per page.
+
+Both spans clamp to 2, which on a two-column page means a 2-wide card is a full
+row of the page and a 2×2 is a third of it. Nothing is ever wider than a page.
+
+**Overflow opens a page; it does not drop a card.** This is the one behavioural
+difference between the two boards. At ≥768px the board is fifteen slots and a
+widget that will not pack into them is dropped to the add tray — the board's
+promise is that everything on it is visible at once. Below 768px nothing is
+dropped, the pack simply turns a page, and `off` (and therefore the add tray)
+holds only what this person removed by hand. Anything reading "not fitted ⇒
+offered in the tray" is a desktop statement and must not be generalised.
+
+Paging is **read-only**. On a phone, entering arrange mode drops back to the
+stacked scrolling board, because a 2×3 page has no spare row for the toolbar
+and no room for the per-card controls. Moving a card between pages needs a
+stored page index that `layout.placed` does not have.
+
+`PHONE_COLS`/`PHONE_ROWS` in `lib/widgets.ts` and the `max-width: 767px` block
+in `bento-theme.css` must agree, exactly as `BOARD_COLS`/`BOARD_ROWS` and the
+`min-width: 1024px` block already do. The page count is computed in JS
+(`paginate`) because CSS cannot count pages; `lib/viewport.ts` is the only
+sanctioned place to ask how wide the device is.
 
 **3. Row height.** Every row is `minmax(0, 1fr)` — an equal share of the height
 left below the header.

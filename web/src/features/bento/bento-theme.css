@@ -43,8 +43,20 @@
      were still there, still remembered, and applied to a layout they were not
      looking at. Every one is a multiple of the shipped value now, so the
      layout keeps its own proportions and still answers the preference. */
-  --bento-radius: calc(8px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(4px * var(--radius-scale, 1));
+  /* SHARPENED. 8px was a soft, generic card corner — the radius every
+     dashboard framework ships. 3px still reads as a card rather than as a
+     table cell, and it is what lets the board look drawn rather than
+     poured. Both are still multiplied by the Corners axis, so anybody who
+     wants the round version turns the slider up and gets it. */
+  /* The label face. Its own token so a palette or skin can change it, and so
+     the one place that needs a fallback chain keeps it: `ui-monospace` is
+     absent on most Android browsers, which is a majority of this product's
+     traffic, and without the tail it silently falls back to the serif default
+     the spec mandates for an unknown generic. */
+  --bento-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas,
+                'Roboto Mono', 'DejaVu Sans Mono', monospace;
+  --bento-radius: calc(3px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(2px * var(--radius-scale, 1));
   --bento-gap: calc(6px * var(--bento-density, 1));
   --bento-dock: 72px;
   /* A hairline. At 1px a card is outlined; at 0.5 it is edged, which is what
@@ -246,7 +258,45 @@ html.dark[data-layout='bento'] {
   border-color: var(--bento-line);
   box-shadow: var(--bento-shadow-sm);
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  /* The crosshair below is positioned against this. */
+  position: relative;
+  isolation: isolate;
 }
+
+/* THE CROSSHAIR.
+
+   A single-pixel cross through the middle of every card, at an alpha you do
+   not consciously see. It is the detail that makes a surface read as drawn to
+   a measure rather than as a rounded rectangle with words on it: the eye picks
+   up that the cards are registered to something, without being able to say
+   what.
+
+   Built from two gradients rather than two elements, so it costs one pseudo
+   and no layout. The stops are at 49.8%/50.2% because a gradient stop pair
+   exactly at 50% renders as a hairline the browser rounds inconsistently
+   between device pixel ratios -- on a 1.5x screen it disappears on some cards
+   and doubles on others.
+
+   `currentColor` is deliberate: on a pale domain tint the card's ink is black
+   and the cross is a dark rule, on a dark ground it is a light one. A fixed
+   white would vanish on half the palettes, which is exactly what the old fixed
+   black border did before it was replaced.
+
+   Off entirely for anyone who has asked for a flat surface -- that setting
+   means "stop decorating" and this is decoration. */
+[data-layout='bento'] .bento-cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.4;
+  background:
+    linear-gradient(90deg, transparent 0 49.8%, color-mix(in srgb, currentColor 6%, transparent) 50%, transparent 50.2%),
+    linear-gradient(transparent 0 49.8%, color-mix(in srgb, currentColor 5%, transparent) 50%, transparent 50.2%);
+}
+html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: none; }
 
 /* The card answers the pointer, but only where there is something to answer.
 
@@ -392,8 +442,11 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-card: #ffffff;
   --bento-ink: #000000;
   --bento-muted: var(--bento-ink);
-  --bento-radius: calc(10px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(8px * var(--radius-scale, 1));
+  /* Focus keeps a slightly softer corner than the classic board -- it is the
+     calmer of the two skins and always has been -- but it was at 10px, which
+     is a pill next to the 3px the rest of the product now draws. */
+  --bento-radius: calc(4px * var(--radius-scale, 1));
+  --bento-radius-sm: calc(3px * var(--radius-scale, 1));
   --bento-gap: calc(14px * var(--bento-density, 1));
   /* Hairline here too. This block set 1px flat, which also dropped the Borders
      axis on the floor: whatever the slider said, this frame drew one pixel. */
@@ -809,7 +862,10 @@ html[data-shadow='deep'][data-layout='bento'] {
 
 /* DENSITY — the gap between cards, and the padding inside them. */
 :root { --bento-density: 1; }
-:root[data-density='compact'] { --bento-density: 0.6; }
+/* Compact is now genuinely tight: 6px x 0.33 is a 2px gutter, so cards very
+   nearly butt and the board reads as one ruled sheet rather than as a tray of
+   floating tiles. It was 3.6px, which is neither one thing nor the other. */
+:root[data-density='compact'] { --bento-density: 0.33; }
 :root[data-density='comfortable'] { --bento-density: 1; }
 :root[data-density='spacious'],
 :root[data-density='relaxed'] { --bento-density: 1.7; }
@@ -1556,4 +1612,225 @@ html[data-layout='bento'] body {
   .bento-surface {
     overflow: hidden;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE PHONE: A HOME SCREEN, NOT A LONG LIST.
+
+   What this replaces. Below `sm` the board was `grid-cols-1`, every span class
+   was `sm:`-prefixed, and all the fixed-height rules were behind
+   `min-width: 1024px` — so a phone got one card per row at its natural height,
+   a 2x2 anchor drawn exactly as wide as a 1x1, and a page you scrolled until
+   it ended. That is a list of dashboard cards. It is not a dashboard, because
+   a dashboard's claim is that you can see the state of the school at a glance,
+   and a glance does not scroll.
+
+   What it becomes is the arrangement a phone already has for exactly this
+   problem: a fixed grid of tiles, a page at a time, swiped sideways, with the
+   dock pinned to the bottom edge. Two columns by three rows, stated in
+   PHONE_COLS/PHONE_ROWS in lib/widgets.ts, and the repeat() below has to agree
+   with them the same way the five-column block above agrees with BOARD_COLS.
+
+   767 rather than 639. The line here is the phone/tablet line from
+   lib/viewport.ts, not the one/two-column line from the card grids: an iPad in
+   portrait has room for a real board and would read a horizontal pager as a
+   fault, while a large phone in landscape is still a phone. Both the media
+   query and the hook say 768 so that the pack, the DOM and the paint cannot
+   disagree about which device this is.
+
+   ONLY WITH `data-pager`. The attribute is set by WidgetLayer, which is the
+   only thing that knows how many pages there are — so a Bento screen with no
+   widget layer in it (a converted screen that declares its cells without one,
+   or a classic screen falling through the outlet) keeps the stacked scrolling
+   board it has always had rather than becoming a pager with nothing to page.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* The dock's real height, once, so the page dots can sit above it without
+     anybody writing 56px in two places. Same tokens and same fallbacks the
+     dock itself is sized from, plus whatever the device reserves for its home
+     indicator, which is a strip the dock has to clear and cannot know about
+     until it is running. */
+  html[data-layout='bento'] {
+    --dock-h: calc(
+      var(--dock-btn, 40px) + 2 * var(--dock-pad, 8px) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  /* THE PAGER. One grid, wide enough for every page, scrolled sideways.
+
+     Pages are not separate elements holding separate grids — they are bands of
+     columns in ONE grid, two columns each, laid out left to right. That is
+     what lets a card be placed by the same arithmetic the pack used
+     (`grid-column: page * 2 + col + 1`) instead of being handed to a child
+     component that would have to re-derive it.
+
+     Every declaration that fights a Tailwind utility on the same element is
+     marked, and only those: `grid-cols-1` and `sm:grid-cols-2` are on the
+     class list and would otherwise pin this to one or two columns for the
+     whole board rather than per page, and `gap-[var(--bento-gap)]` is the same
+     class the five-column block above already has to out-weigh.
+
+     `grid-auto-columns` is a percentage of the SCROLLPORT, which is what makes
+     a page exactly one screen: two columns and the gap between them come to
+     100%, so the snap position for page two puts page one entirely off the
+     left edge and page two entirely on. */
+  [data-layout='bento'] .bento-board[data-pager] {
+    display: grid !important;
+    grid-template-columns: none !important;
+    grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: var(--bento-gap) !important;
+
+    /* A page does not scroll vertically — that is the whole contract — so the
+       board takes the height it is given and divides it into three. flex-1
+       against BentoPage's column, min-height 0 so the track can be shorter
+       than a card that overflows rather than the card pushing the board taller
+       than the screen. */
+    flex: 1 1 auto;
+    min-height: 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    /* A swipe that runs off the last page must not become the browser's own
+       back gesture or a bounce of the page behind. */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  [data-layout='bento'] .bento-board[data-pager]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* The snap targets, and they are the only ones.
+
+     Mandatory snapping stops at whatever declares a snap position, so if the
+     cards carried these the scroll would stop on the second column of page one
+     — a carousel with the wrong stride. One empty element per page, spanning
+     that page exactly, is the only way to say "every screenful". It paints
+     nothing and it must never swallow a tap meant for the card drawn over it.
+
+     `scroll-snap-stop: always` so a fast flick moves one page, the way a home
+     screen does, rather than skating past four of them. */
+  [data-layout='bento'] .bento-board[data-pager] > .bento-page {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    pointer-events: none;
+  }
+
+  /* The same backstop the five-column board has, and safe for the same reason
+     it was NOT safe on the old stacked phone board: there, clipping cut off
+     cards nobody could then scroll to. Here a page cannot scroll by
+     definition, so a card that overflows its tile is a card shedding content
+     it has no room for, which is what the size rules are for. */
+  [data-layout='bento'] .bento-board[data-pager] > .bento-widget {
+    overflow: hidden;
+  }
+
+  /* THE DOCK, PINNED.
+
+     It was a floating centred pill capped at `100vw - 6rem`, holding Home,
+     Work, nine workspace marks, All features and the search — about 430px of
+     content by its own arithmetic, which is wider than the phone it was being
+     asked to sit on. Every workspace mark now lives in the launcher that "All
+     features" opens, and what is left is a home screen's dock: the four or
+     five things you press several times an hour, spread across the bottom
+     edge.
+
+     Bottom edge rather than floating 24px up, because a bar that hovers over
+     the last row of tiles on a screen this small is covering a sixth of the
+     board. The pill's own padding is inline (it is derived from the dock
+     tokens), so the safe-area allowance is added there rather than fought
+     with !important here. */
+  [data-layout='bento'] .bento-dock {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    border-radius: 0;
+    gap: 0;
+    justify-content: space-around;
+  }
+
+  /* The shared search trigger, reduced to its glyph.
+
+     Below 640 the component hides itself entirely (`hidden ... sm:flex` on its
+     own button) and this matches nothing. Between 640 and 767 it appears and
+     brings a word and a keyboard hint with it — a Ctrl-K label on a device
+     with no keyboard, on the one bar with no width to spare. The mark is what
+     the hand learns anyway and the aria-label is untouched, so this costs the
+     word and nothing else.
+
+     Matched on `:has(kbd)`, the same shape the dock already uses to find this
+     one button and no other. The border is left alone: the dock re-colours it
+     with !important from the component, and a second opinion here would be one
+     more thing to keep in step. */
+  [data-layout='bento'] .bento-dock button:has(kbd) {
+    width: var(--dock-btn, 40px);
+    height: var(--dock-btn, 40px);
+    padding: 0;
+    justify-content: center;
+  }
+  [data-layout='bento'] .bento-dock button:has(kbd) > span,
+  [data-layout='bento'] .bento-dock button:has(kbd) > kbd {
+    display: none;
+  }
+
+  /* THE PAGE DOTS. iOS draws them between the last row and the dock, which is
+     the one strip of the screen nothing else wants.
+
+     Fixed rather than in the board, because the board is the scroller and
+     anything inside it slides away with page one. The strip ignores the
+     pointer so it cannot steal a swipe that was aimed at the tile above it;
+     the dots themselves take it back. */
+  .bento-dots {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--dock-h, 56px) + 6px);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    pointer-events: none;
+  }
+  .bento-dot {
+    pointer-events: auto;
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    /* The page's ink, declared on the strip by the component. Never a colour:
+       these sit on whatever the palette paints the ground, and half the
+       shipped palettes paint it near-black. */
+    background: currentColor;
+    opacity: 0.3;
+    transition: opacity 140ms ease, transform 140ms ease;
+  }
+  .bento-dot[data-on] {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  .bento-dot:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .bento-dot { transition: none; }
+}
+
+/* A tooltip that needs a hover has nothing to say to a finger: it is drawn on
+   the tap that was meant to navigate, sits over the tile above it, and stays
+   until something else is touched. Every dock item keeps its aria-label, so
+   nothing is lost that was not purely visual. */
+@media (pointer: coarse) {
+  [data-layout='bento'] .bento-dock [data-tip]::after { display: none; }
 }

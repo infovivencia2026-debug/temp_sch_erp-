@@ -173,6 +173,38 @@ because "show me the Tally export" should not also show forty unbuilt screens.
 
 ## Responsive
 
+**Three device shapes, at 768 and 1024.** Both numbers are Tailwind's stock
+`md` and `lg`, and both stylesheets' width media queries use the same two, so
+that a JS answer and a CSS answer about the same device can never differ.
+
+| | phone | tablet | desktop |
+|---|---|---|---|
+| width | below 768 | 768–1023 | 1024 and up |
+| sidebar | off-canvas drawer behind a hamburger, with a scrim | permanent 58px icon rail, in flow, no hamburger and no scrim | both panes, 282px, with the remembered hide control |
+| Focus board | paged home screen, 2×3 per page, dock on the bottom edge | stacked scrolling board, floating dock | fixed 5×3 board, floating dock |
+
+768 rather than 640 for the phone/tablet line: 640 is the width at which a card
+grid stops being one column, not the width at which a device stops being a
+phone. A large phone in landscape crosses 640 and is still a phone; 768 is iPad
+portrait, which is what the word tablet means.
+
+**Layout does not fork in JS, with one exception.** `lib/viewport.ts` is the
+only place in `web/src` that reads a width from JavaScript, and no component
+may call `matchMedia` for a width itself. The exception exists because the
+phone's paged board has to know how many pages there are, and a page count
+falls out of packing this person's widgets rather than out of the viewport —
+CSS can lay out a grid it is handed but cannot count the pages. Its default
+answer, before or without a `matchMedia` result, is `desktop`: the desktop
+branch is the untouched one, so a missing answer takes the code that already
+shipped.
+
+**The phone drawer is a dialog.** While the sidebar is the off-canvas drawer,
+and only then, it carries `role="dialog"`/`aria-modal`, the body takes
+`data-scroll-lock`, Escape closes it, Tab is trapped inside it, and focus
+returns to the hamburger on the way out. A tablet's rail and a desktop's
+sidebar get none of that — they sit beside the content and have nothing to trap
+or lock.
+
 Below 640px every table **becomes cards**. `thead` is dropped, each row gets a
 border and radius, and each cell prints its column header from `data-label`
 through `::before`.

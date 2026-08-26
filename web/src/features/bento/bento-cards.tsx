@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useId, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
@@ -27,6 +27,23 @@ const num = (v: unknown, fallback = 0) =>
     with no activity reading as a month of small activity. */
 const hasSignal = (values: number[]) =>
   values.some((v) => Number.isFinite(v) && v !== 0)
+/* Is this string safe to set as a tracked, uppercased micro-label?
+
+   The label treatment -- monospace, uppercase, 0.22em of letter-spacing -- is
+   what gives the card its engineered look, and it is a Latin-script idea.
+   Telugu is caseless, so `text-transform: uppercase` does nothing at all, and
+   letter-spacing is actively destructive: it pulls apart the conjunct clusters
+   that Telugu builds its consonants from, turning readable words into loose
+   glyphs. The monospace stacks in this product carry no Telugu coverage
+   either, so the browser would fall back mid-string and the label would come
+   out in two different faces.
+
+   So the treatment is applied only where it is correct. Anything with a
+   character outside Latin-1 keeps proportional type at a size chosen to match
+   optically -- which is the same label, set properly for its script. */
+const LATIN_ONLY = /^[ -ɏ‐-›]*$/
+const isLatin = (s: string) => LATIN_ONLY.test(s)
+
 const MARK = ink(88)
 const TRACK = ink(10)
 const QUIET = ink(38)
@@ -82,9 +99,22 @@ export function CardShell({
           <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
             {title}
           </p>
+          {/* THE MICRO-LABEL. Monospace, uppercase, widely tracked and dim --
+              the quiet voice that the figure below is loud against. The whole
+              card reads as measured because these two are set as far apart as
+              they can be: 0.22em of tracking here, negative tracking there.
+              Set at 0.92em of the supporting size, because a tracked
+              uppercase run occupies noticeably more width than the same
+              string set proportionally and would otherwise truncate first. */}
           {sub && (
-            <p className="mt-0.5 truncate font-medium uppercase tracking-[0.08em] opacity-60
-                          text-[length:var(--card-sub,10px)]">
+            <p
+              className={cn(
+                'mt-1 truncate opacity-55 text-[length:var(--card-sub,10px)]',
+                isLatin(sub)
+                  ? 'font-medium uppercase leading-none tracking-[0.22em] [font-family:var(--bento-mono)] [font-size:0.92em]'
+                  : 'font-medium leading-tight',
+              )}
+            >
               {sub}
             </p>
           )}
@@ -102,7 +132,20 @@ export function CardShell({
             sentence beneath it becomes the thing you read. */}
         <p
           className={cn(
-            'truncate pb-[0.06em] font-semibold tracking-[-0.05em] tabular-nums',
+            /* THE FIGURE, thinned.
+
+               It was semibold, which is the weight a heading takes -- and a
+               heading is what it looked like. A large number set light with
+               the letters pulled together reads as a measurement instead: the
+               thin stroke is what makes the size feel like precision rather
+               than emphasis.
+
+               350 rather than the 300 of a display setting, because this
+               clamps down to 26px on a one-by-one cell and a true light at
+               that size on a dark ground goes thin enough to shimmer. Inter is
+               a variable font here, so 350 is a real weight and not a
+               synthesised one. */
+            'truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:350]',
             value === '—'
               ? 'leading-tight opacity-45 text-[length:var(--card-change,13px)]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
@@ -127,7 +170,7 @@ export function CardShell({
               the card at 11px in a 2px-padded chip — a footnote wearing a
               border. */}
           <span
-            className="inline-flex max-w-full items-center gap-1.5 rounded-[10px] border
+            className="inline-flex max-w-full items-center gap-1.5 rounded-[3px] border
                        px-3.5 py-[0.6em] font-semibold text-[length:var(--card-action,15px)]"
             style={{ borderColor: ink(34), background: ink(8) }}
           >
@@ -140,6 +183,18 @@ export function CardShell({
   )
 }
 /* ── drawings ──────────────────────────────────────────────────────────── */
+/* SQUARE CORNERS THROUGHOUT, and it is not a style preference.
+
+   Every measure in here is a length the reader compares against another
+   length. A 3px radius on a track 5 to 10 pixels tall rounds a meaningful
+   fraction of that length into a curve, and the eye reads the curve as part of
+   the bar -- so two values that differ by a few percent draw as though they
+   differ by more, and the shortest bar in any set rounds into a dot that says
+   nothing about its own size. Rectangles are comparable; lozenges are not.
+
+   The strokes are hairlines -- 1.4 and non-scaling -- for the matching reason.
+   A 2.5 stroke that scales with the cell is a rope on a 2x2 board and covers
+   the very wiggles it is drawn to show. */
 function svgPath(points: number[], h = 150, w = 400) {
   const lo = Math.min(...points)
   const hi = Math.max(...points)
@@ -152,26 +207,92 @@ function svgPath(points: number[], h = 150, w = 400) {
     })
     .join(' ')
 }
-/** Trend. An open path, nothing under it. */
+/** The last point's coordinates, for the terminal dot.
+
+    Mirrors svgPath's arithmetic exactly rather than re-deriving it, because two
+    expressions that are meant to agree about where a line ends will not stay
+    in agreement through the next edit to either. */
+function lastPoint(points: number[], h = 150, w = 400) {
+  const lo = Math.min(...points)
+  const hi = Math.max(...points)
+  const range = hi - lo || 1
+  const v = points[points.length - 1]
+  return { x: w, y: h - 5 - ((v - lo) / range) * (h - 20) }
+}
+/** Trend. An open path, nothing under it.
+
+    THREE CHANGES that together make this read as an instrument rather than a
+    sketch. The stroke is 1.4 rather than 2.5, and non-scaling, so it is a
+    drawn hairline at every cell size instead of a rope that thickens as the
+    card grows. A baseline sits under it, because a line with nothing beneath
+    it floats and the eye has no datum to read height against. And the final
+    point carries a filled dot: the value everybody actually wants off a trend
+    is the latest one, and until now it was the end of a stroke like any
+    other.
+
+    The baseline is drawn at the foot of the viewBox rather than at zero. This
+    series is scaled to its own min and max -- svgPath does that deliberately,
+    so a flat-ish series still shows its shape -- which means zero is usually
+    off the bottom of the picture. A rule labelled as an axis where zero is not
+    would be a lie; this one is a floor, and reads as one. */
 export function Line({ points, srLabel }: { points: number[]; srLabel: string }) {
   if (points.length < 2 || !hasSignal(points)) return null
+  const end = lastPoint(points)
   return (
     <svg viewBox="0 0 400 150" preserveAspectRatio="none" className="h-full w-full"
          role="img" aria-label={srLabel}>
-      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={2.5}
+      <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
+            vectorEffect="non-scaling-stroke" />
+      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={1.4}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {/* preserveAspectRatio="none" stretches the viewBox, so a circle would
+          come out an ellipse -- wide on a 2x1, tall on a 1x2. The dot is drawn
+          as a rect sized in the stretched space it lands in, which is the only
+          way to get a square mark out of a non-uniform scale without a second
+          SVG. */}
+      <rect x={end.x - 8} y={end.y - 3} width={8} height={6} fill={MARK} />
     </svg>
   )
 }
 /** Magnitude and trend: the same line with the ground filled beneath it. */
 export function Area({ points, srLabel }: { points: number[]; srLabel: string }) {
+  /* The gradient id must be UNIQUE PER INSTANCE, and getting this wrong is
+     subtle enough to be worth the paragraph.
+
+     A fixed id looked like sharing one definition between every Area on the
+     board. It is not sharing: each instance emits its own <defs> with the same
+     literal id into one document, and `url(#id)` resolves by getElementById --
+     the FIRST match in document order. So every Area on the board was filled
+     from the first Area's gradient. That would be invisible if the stops were
+     a fixed colour, but they are `currentColor`, which in SVG resolves against
+     the <stop>'s own inherited colour rather than against the path referencing
+     it. Cards on this board have different ink -- black on a pale domain tint,
+     white on a dark one -- so the second Area on a differently-inked card was
+     washed in the first card's ink, and on an inverted cell that is a pale
+     smear on a dark ground.
+
+     useId is React's answer for exactly this: stable across the server and
+     client renders of the same element, unique per instance. */
+  const gradientID = `bento-area-${useId().replace(/:/g, '')}`
   if (points.length < 2 || !hasSignal(points)) return null
   const d = svgPath(points)
   return (
     <svg viewBox="0 0 400 150" preserveAspectRatio="none" className="h-full w-full"
          role="img" aria-label={srLabel}>
-      <path d={`${d} L 400 150 L 0 150 Z`} fill={ink(14)} stroke="none" />
-      <path d={d} fill="none" stroke={MARK} strokeWidth={2.5}
+      {/* A flat wash under a line says "there is area here" and nothing more.
+          A gradient that fades to nothing at the floor says where the mass
+          is, and it is what stops the fill competing with the stroke for
+          attention -- the stroke is the reading, the fill is its weight. */}
+      <defs>
+        <linearGradient id={gradientID} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="currentColor" stopOpacity="0.28" />
+          <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
+            vectorEffect="non-scaling-stroke" />
+      <path d={`${d} L 400 150 L 0 150 Z`} fill={`url(#${gradientID})`} stroke="none" />
+      <path d={d} fill="none" stroke={MARK} strokeWidth={1.4}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -183,9 +304,23 @@ export function Bars({ values, activeIndex, srLabel }: {
   if (!values.length || !hasSignal(values)) return null
   const hi = Math.max(...values) || 1
   return (
-    <div className="flex h-full items-end gap-1" role="img" aria-label={srLabel}>
+    /* Square tops and a hairline floor.
+
+       The rounded cap was 3px of radius on a bar that is often 4px wide, which
+       rounds most of the mark away and makes a short bar read as a dot. Square
+       also lets adjacent bars form a silhouette the eye can follow across the
+       series, which is the whole point of putting them next to each other.
+
+       The gap is 2px rather than 4: bars are a distribution, and a distribution
+       reads as one shape with gaps in it, not as a row of separate objects. */
+    <div
+      className="flex h-full items-end gap-[2px] border-b"
+      style={{ borderColor: ink(22) }}
+      role="img"
+      aria-label={srLabel}
+    >
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1 rounded-t-[3px]"
+        <span key={i} className="min-w-0 flex-1"
               style={{
                 height: `${Math.max(3, (v / hi) * 100)}%`,
                 background: activeIndex === undefined || i === activeIndex ? MARK : QUIET,
@@ -237,17 +372,30 @@ export function Rows({ items, srLabel, formatValue }: {
     >
       {shown.map((it) => (
         <Fragment key={it.label}>
-          <span className="truncate text-[length:min(9px,var(--card-note,9px))] font-medium
-                           uppercase leading-none tracking-[0.05em] opacity-70">
+          {/* Same micro-label treatment as the card's own, and gated the same
+              way -- a Telugu subject name here would be pulled apart by the
+              tracking exactly as it would in the header. */}
+          <span
+            className={cn(
+              'truncate text-[length:min(9px,var(--card-note,9px))] leading-none opacity-70',
+              isLatin(it.label)
+                ? 'font-medium uppercase tracking-[0.12em] [font-family:var(--bento-mono)]'
+                : 'font-medium',
+            )}
+          >
             {it.label}
           </span>
-          <span className="h-[min(10px,100%)] overflow-hidden rounded-[3px]"
-                style={{ background: TRACK }}>
-            <span className="block h-full rounded-[3px]"
+          {/* Square. A 3px radius on a 5px-tall track rounds the ends into
+              lozenges, and two lozenges of different lengths are harder to
+              compare than two rectangles -- the eye reads the curve as part of
+              the length. Thinner too: at 10px this was a bar chart competing
+              with the figure above it, and it is meant to be a measure. */}
+          <span className="h-[min(6px,100%)] overflow-hidden" style={{ background: TRACK }}>
+            <span className="block h-full"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
-          <b className="text-[length:min(10px,var(--card-note,10px))] font-bold leading-none
-                        tabular-nums">{fmt(it.value)}</b>
+          <b className="text-[length:min(10px,var(--card-note,10px))] leading-none
+                        tabular-nums [font-weight:500]">{fmt(it.value)}</b>
           </Fragment>
       ))}
     </div>
@@ -276,17 +424,32 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
           height the binding constraint, which is the one that is short. */}
       <div className="relative grid aspect-square h-full max-h-[104px] place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
-          <circle cx="50" cy="50" r="42" fill="none" stroke={TRACK} strokeWidth={11} />
+          {/* Thinner, and cut square at both ends.
+
+              An 11-unit stroke on a 42 radius is a quarter of the ring's own
+              width -- a doughnut, not a dial. At 6 it reads as an arc drawn
+              round the number, which is what leaves the number the loudest
+              thing in the cell.
+
+              The round cap went with it, and for a reason beyond taste: a
+              round cap adds half the stroke width past the true end of the
+              arc, so 2% drew as roughly 6% and 0.5% still drew a visible
+              lozenge. A butt cap ends where the value ends. */}
+          <circle cx="50" cy="50" r="44" fill="none" stroke={TRACK} strokeWidth={6} />
           {pct > 0 && (
             <circle
-              cx="50" cy="50" r="42" fill="none"
-              stroke={MARK} strokeWidth={11} strokeLinecap="round"
+              cx="50" cy="50" r="44" fill="none"
+              stroke={MARK} strokeWidth={6} strokeLinecap="butt"
               pathLength={100}
               strokeDasharray={`${pct} ${100 - pct}`}
             />
           )}
         </svg>
-        <span className="relative text-[13px] font-semibold tabular-nums">{pct}%</span>
+        <span className="relative text-[15px] tabular-nums tracking-[-0.03em] [font-weight:350]">
+          {pct}
+          <span className="ml-[1px] align-baseline text-[0.55em] opacity-60
+                           [font-family:var(--bento-mono)]">%</span>
+        </span>
       </div>
     </div>
   )
@@ -300,7 +463,9 @@ export function Stack({ columns, srLabel }: {
   return (
     <div className="flex h-full items-end gap-1.5" role="img" aria-label={srLabel}>
       {columns.map((c, i) => (
-        <span key={i} className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-t-[3px]"
+        // Square, for the same reason as Bars: a rounded cap eats most of a
+        // 4px-wide column and turns the shortest period into a dot.
+        <span key={i} className="flex min-w-0 flex-1 flex-col overflow-hidden"
               style={{ height: `${Math.max(4, (c.total / hi) * 100)}%` }}>
           {c.parts.map((p, j) => (
             <span key={j} style={{
@@ -320,7 +485,7 @@ export function Distribution({ values, srLabel }: { values: number[]; srLabel: s
   return (
     <div className="flex h-full items-end gap-1" role="img" aria-label={srLabel}>
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1 rounded-t-[3px]"
+        <span key={i} className="min-w-0 flex-1"
               style={{ height: `${Math.max(3, (v / hi) * 100)}%`, background: MARK }} />
       ))}
     </div>
@@ -350,8 +515,8 @@ export function Compare({ rows, srLabel, formatValue }: {
           <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
             {r.label}
           </span>
-          <span className="h-3.5 overflow-hidden rounded-[3px]" style={{ background: TRACK }}>
-            <span className="block h-full rounded-[3px]"
+          <span className="h-2.5 overflow-hidden" style={{ background: TRACK }}>
+            <span className="block h-full"
                   style={{ width: `${(r.value / hi) * 100}%`, background: MARK }} />
           </span>
           <b className="text-[9px] font-bold tabular-nums">{fmt(r.value)}</b>
@@ -393,8 +558,8 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
         </span>
         <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
       </div>
-      <span className="relative block h-3.5 overflow-hidden rounded-[3px]" style={{ background: TRACK }}>
-        <span className="block h-full rounded-[3px]" style={{ width: `${pct}%`, background: MARK }} />
+      <span className="relative block h-2.5 overflow-hidden" style={{ background: TRACK }}>
+        <span className="block h-full" style={{ width: `${pct}%`, background: MARK }} />
       </span>
       {/* The shortfall, named. Without this the empty end of the track is just
           empty, and the one number a principal came for is the one nobody
@@ -466,7 +631,7 @@ export function Funnel({ stages, srLabel, formatValue }: {
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
           <span className="h-3 min-w-0 flex-1">
-            <span className="block h-full rounded-[3px]"
+            <span className="block h-full"
                   style={{ width: `${Math.max(6, (s.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="shrink-0 text-[9px] font-bold tabular-nums">{fmt(s.value)}</b>
@@ -485,7 +650,7 @@ export function Scale({ value, min, max, srLabel }: {
   return (
     <div className="flex h-full items-center" role="img" aria-label={srLabel}>
       <span className="relative block h-px w-full" style={{ background: ink(45) }}>
-        <span className="absolute top-1/2 size-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        <span className="absolute top-1/2 h-[14px] w-[2px] -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${pct}%`, background: MARK }} />
       </span>
     </div>
@@ -503,7 +668,7 @@ export function Flow({ rows, srLabel }: { rows: number[]; srLabel: string }) {
            of throwing, 100k rendered 100k DOM nodes. */
         <div key={i} className="flex gap-1" style={{ paddingLeft: `${i * 16}px` }}>
           {Array.from({ length: Math.min(24, Math.max(0, Math.floor(num(n)))) }, (_, j) => (
-            <span key={j} className="h-1.5 w-3 rounded-full" style={{ background: MARK }} />
+            <span key={j} className="h-1 w-3" style={{ background: MARK }} />
           ))}
         </div>
       ))}
