@@ -103,6 +103,11 @@ type summaryStat struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
 	Hint  string `json:"hint,omitempty"`
+	// "good" where the hint is the answer somebody wanted — every register
+	// taken, nothing outstanding. Empty for a fact that is merely a fact.
+	// Never "bad": what is wrong belongs in the attention panel above, and a
+	// strip that alarms is the dashboard this replaced.
+	Tone string `json:"tone,omitempty"`
 }
 
 /*
@@ -627,6 +632,64 @@ func todaySummary(ctx context.Context, tx pgx.Tx, id *httpx.Identity, sc *scope.
 				Hint:  fmt.Sprintf("%d of %d marked", present, marked),
 			})
 		}
+	}
+
+	/* A teacher's today is her timetable, not the school's headcount.
+
+	   The strip was written for a principal — students, attendance, money,
+	   enquiries, staff — and a teacher holds two of those five. With nothing
+	   marked yet the attendance figure drops out too, so she was left with one
+	   tile reading "21 Students" across the width of the page: true, and not
+	   what she opened the app to find out.
+
+	   Only for somebody actually timetabled. A head of department who teaches
+	   nothing gets no periods and no tile rather than a zero. */
+	if id.Can(rbac.TimetableRead) {
+		var periods, sections int
+		if err := tx.QueryRow(ctx, `
+			SELECT count(*)::int, count(DISTINCT te.section_id)::int
+			  FROM timetable_entries te
+			 WHERE te.teacher_user_id = $1
+			   AND te.weekday = EXTRACT(isodow FROM CURRENT_DATE)::int`,
+			id.UserID).Scan(&periods, &sections); err != nil {
+			return nil, fmt.Errorf("summary periods: %w", err)
+		}
+		if periods > 0 {
+			hint := fmt.Sprintf("%d section", sections)
+			if sections != 1 {
+				hint += "s"
+			}
+			out = append(out, summaryStat{
+				Label: "Classes today", Value: fmt.Sprint(periods), Hint: hint,
+			})
+		}
+	}
+
+	/* Registers she still owes, said as a count rather than a warning.
+
+	   The attention panel already tells her which sections are unmarked and
+	   sends her to the register. This is the other half of the same fact —
+	   how much of the day's marking is done — and it is the figure that makes
+	   the strip mean something before anybody has marked anything. */
+	if id.Can(rbac.AttendanceWrite) && !sc.AnySection && len(sc.SectionIDs) > 0 {
+		var marked int
+		if err := tx.QueryRow(ctx, `
+			SELECT count(DISTINCT sa.section_id)::int
+			  FROM student_attendance sa
+			 WHERE sa.on_date = CURRENT_DATE AND sa.section_id = ANY($1)`,
+			sc.SectionIDs).Scan(&marked); err != nil {
+			return nil, fmt.Errorf("summary registers: %w", err)
+		}
+		total := len(sc.SectionIDs)
+		out = append(out, summaryStat{
+			Label: "Registers taken",
+			Value: fmt.Sprintf("%d of %d", marked, total),
+			Hint: map[bool]string{
+				true:  "All done",
+				false: "Still to mark",
+			}[marked >= total],
+			Tone: map[bool]string{true: "good", false: ""}[marked >= total],
+		})
 	}
 
 	if id.Can(rbac.PaymentsRead) {

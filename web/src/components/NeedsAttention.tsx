@@ -34,6 +34,9 @@ interface SummaryStat {
   label: string
   value: string
   hint?: string
+  /* 'good' where the hint is the answer somebody wanted. Never 'bad' — what
+     is wrong belongs in the attention panel above this strip. */
+  tone?: string
 }
 
 interface AttentionResponse {
@@ -237,7 +240,14 @@ export default function NeedsAttention({ name }: { name?: string }) {
                   {s.value}
                 </p>
                 <p className="mt-1.5 text-[12px] text-muted-foreground">{s.label}</p>
-                {s.hint && <p className="text-[11.5px] text-muted-foreground/70">{s.hint}</p>}
+                {s.hint && (
+                  <p className={cn(
+                    'text-[11.5px]',
+                    s.tone === 'good' ? 'text-success' : 'text-muted-foreground/70',
+                  )}>
+                    {s.hint}
+                  </p>
+                )}
               </div>
             ))}
           </div>
