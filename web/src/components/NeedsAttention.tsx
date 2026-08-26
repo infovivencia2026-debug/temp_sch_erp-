@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, CircleAlert, Info, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
+import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 /* The panel every role opens the product to read.
@@ -60,6 +61,8 @@ export default function NeedsAttention({ name }: { name?: string }) {
    * opening. A section with no class teacher is reported back rather than
    * silently skipped — a register nobody owns is a staffing gap, and sending
    * it again tomorrow will not fix that. */
+  /* Chasing is oversight, not marking. */
+  const canChase = useCan()('academics.attendance.read.all')
   const [nudged, setNudged] = useState('')
   const nudge = useMutation({
     mutationFn: () =>
@@ -180,7 +183,17 @@ export default function NeedsAttention({ name }: { name?: string }) {
                       real problem and then offered a read-only report. What
                       they actually do at that moment is chase somebody, so
                       that is the button. */}
-                  {item.key === 'attendance.unmarked' && (
+                  {/* Only for somebody who cannot mark it themselves.
+
+                      A principal does not mark registers, so chasing is the
+                      right action for them. A teacher's unmarked sections are
+                      her own — the probe scopes to sections the reader can
+                      mark — so this offered her a button to remind herself,
+                      and the endpoint refuses it anyway: it needs
+                      attendance.read.all, which neither faculty nor a head of
+                      department holds. A control shown to people it will 403
+                      for is worse than no control. */}
+                  {item.key === 'attendance.unmarked' && canChase && (
                     <div className="border-t px-4 py-2">
                       <button
                         type="button"
@@ -202,7 +215,22 @@ export default function NeedsAttention({ name }: { name?: string }) {
       {summary.length > 0 && (
         <section>
           <p className="eyebrow mb-2">Today</p>
-          <div className="grid gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-2 lg:grid-cols-4">
+          {/* Tracks to match the tiles.
+
+              The grid paints the border colour behind its cells and each tile
+              paints over it, so a column with no tile in it shows as a grey
+              block — which is what a teacher with one figure saw beside it.
+              Written out rather than computed because Tailwind only ships the
+              classes it can see in the source. */}
+          <div
+            className={cn(
+              'grid gap-px overflow-hidden rounded-md border bg-border',
+              summary.length === 1 && 'grid-cols-1',
+              summary.length === 2 && 'sm:grid-cols-2',
+              summary.length === 3 && 'sm:grid-cols-3',
+              summary.length >= 4 && 'sm:grid-cols-2 lg:grid-cols-4',
+            )}
+          >
             {summary.map((s) => (
               <div key={s.label} className="bg-card px-4 py-3">
                 <p className="font-display text-[24px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
