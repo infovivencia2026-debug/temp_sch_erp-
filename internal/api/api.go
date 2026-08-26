@@ -523,6 +523,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/funnel", s.getAdmissionsFunnel)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/enquiries", s.createEnquiry)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Put("/enquiries/{id}", s.updateEnquiry)
+			/* Which rungs of the ladder this school actually uses. Readable by
+			   anyone who can see admissions, because the screens have to draw
+			   themselves accordingly; writable only with admissions.write. */
+			r.Get("/stages", s.getAdmissionStages)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Put("/stages", s.saveAdmissionStages)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications", s.createApplication)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications/{id}/assessment", s.recordAssessment)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications/{id}/decision", s.decideApplication)

@@ -77,6 +77,23 @@ export default function Pipeline() {
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (m) => [m.application_no, m.name, m.class_sought, m.category, m.status])
 
+  /* Enrol into the class they applied for, and no other.
+   *
+   * The picker offered every section in the school, so a child who applied for
+   * Grade 7 could be enrolled into Grade 6-A with one wrong click — and the
+   * enrolment, the guardian link and the student record are all written in
+   * that one step, so it is not a mistake anybody notices until a parent asks
+   * why their son is in the wrong class.
+   *
+   * Matched on the class name because that is what the merit list carries. If
+   * nothing matches — a class renamed since the application was filed — the
+   * full list is offered rather than an empty picker, since a blocked
+   * enrolment is worse than a wide one somebody has to read. */
+  const enrolling = rows.find((m) => m.application_id === enrolFor)
+  const allSections = sections.data?.items ?? []
+  const inClass = allSections.filter((x) => x.class_name === enrolling?.class_sought)
+  const openSections = inClass.length ? inClass : allSections
+
   return (
     <>
       <PageHead
@@ -192,7 +209,8 @@ export default function Pipeline() {
                         </>
                       )}
                       {m.status === 'offered' && (
-                        <Button size="sm" variant="secondary" onClick={() => setEnrolFor(m.application_id)}>
+                        <Button size="sm" variant="secondary"
+                          onClick={() => { setEnrolFor(m.application_id); setSectionId('') }}>
                           Enrol
                         </Button>
                       )}
@@ -217,10 +235,12 @@ export default function Pipeline() {
             />
             <div className="flex flex-wrap items-end gap-3 p-5">
               <label>
-                <span className="text-[13px] text-muted-foreground">Section</span>
+                <span className="text-[13px] text-muted-foreground">
+                  Section{enrolling?.class_sought ? ` in ${enrolling.class_sought}` : ''}
+                </span>
                 <div className="mt-1">
                   <Select value={sectionId} onChange={setSectionId} placeholder="Select section"
-                    options={(sections.data?.items ?? []).map((s) => ({
+                    options={openSections.map((s) => ({
                       value: s.id, label: `${s.class_name}-${s.name}`,
                     }))} />
                 </div>

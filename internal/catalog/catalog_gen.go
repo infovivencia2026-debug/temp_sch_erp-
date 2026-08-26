@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 316 features.
+// Roles is the catalog: 13 roles, 315 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -819,7 +819,6 @@ var Roles = []Role{
 				Name: "Admissions",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.admissions.all_admissions", Slug: "all_admissions", Name: "All admissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every applicant who has reached a decision stage, and what was decided — accepted, rejected or on hold. The list an admission clerk works from."},
 					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
 					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
 					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},

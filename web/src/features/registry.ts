@@ -131,7 +131,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.timetable.my_timetable': screen(() => import('./shared/Timetable')),
   'parent.fees.fees_payments': screen(() => import('./portal/Fees')),
   'student.fees.fees': screen(() => import('./portal/Fees')),
-  'admissions.admissions.all_admissions': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_quota': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.fee_enrollment': screen(() => import('./admissions/Pipeline')),

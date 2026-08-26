@@ -358,6 +358,13 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 				if evidenceKeys[f.Key] && !s.evidenceFor(r, sc, f.Key) {
 					continue
 				}
+				/* Two rungs of the admissions ladder are optional: a school
+				   that neither tests nor interviews should not carry queues
+				   that can never fill. Unlike evidence, this is the school's
+				   own answer rather than a fact about its data. */
+				if stageKeys[f.Key] && !s.stageAllowed(r, f.Key) {
+					continue
+				}
 				cs.Features = append(cs.Features, catalogFeature{
 					Key:     f.Key,
 					Slug:    f.Slug,

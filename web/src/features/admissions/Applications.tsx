@@ -209,6 +209,28 @@ export default function Applications() {
 
   /* The class sought is a uuid, not a name — the endpoint rejects anything
      else — so the form has to offer the real classes rather than free text. */
+  /* Which rungs this school uses. Both default on, so a school that has never
+     opened the setting behaves exactly as it did. */
+  const stages = useQuery({
+    queryKey: ['admissions', 'stages'],
+    queryFn: () => api.get<{ entrance_test: boolean; interview: boolean }>(
+      '/api/v1/admissions/workflow/stages'),
+  })
+  const usesTest = stages.data?.entrance_test ?? true
+  const usesInterview = stages.data?.interview ?? true
+
+  const saveStages = useMutation({
+    mutationFn: (v: { entrance_test: boolean; interview: boolean }) =>
+      api.put('/api/v1/admissions/workflow/stages', v),
+    onSuccess: () => {
+      /* The catalogue decides the menu from these, so the nav has to be
+         refetched too — otherwise the entries stay until a reload. */
+      qc.invalidateQueries({ queryKey: ['admissions', 'stages'] })
+      qc.invalidateQueries({ queryKey: ['catalog'] })
+      setNote('Admission steps updated.')
+    },
+  })
+
   const classes = useQuery({
     queryKey: ['academics', 'classes'],
     queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
@@ -256,6 +278,12 @@ export default function Applications() {
   const count = (s: string) => items.filter((a) => a.status === s).length
   const live = items.filter((a) => !['rejected', 'withdrawn'].includes(a.status))
 
+  /* The ladder this school actually climbs. Indices still come from the full
+     LADDER, so an application already sitting on a rung the school has since
+     switched off is still drawn in the right place rather than jumping. */
+  const rungs = LADDER.filter((x) =>
+    (x !== 'test_scheduled' || usesTest) && (x !== 'interviewed' || usesInterview))
+
   const stage = open ? stageIndex(open.status) : -1
   const terminal = open ? ['rejected', 'withdrawn'].includes(open.status) : false
 
@@ -278,6 +306,29 @@ export default function Applications() {
           error={assess.error || decide.error || enrol.error || create.error}
           ok={note}
         />
+
+        {mayWrite && (
+          <Card>
+            <CardHeader
+              title="Which steps this school uses"
+              description="Switch off what you do not run — the menu entry and the stage go with it."
+            />
+            <div className="flex flex-wrap gap-6 p-5">
+              <Checkbox
+                checked={usesTest}
+                onChange={(v) => saveStages.mutate({ entrance_test: v, interview: usesInterview })}
+                label="Entrance test"
+                hint="An admission test applicants sit before a decision."
+              />
+              <Checkbox
+                checked={usesInterview}
+                onChange={(v) => saveStages.mutate({ entrance_test: usesTest, interview: v })}
+                label="Interview"
+                hint="A meeting with the child or the parents before a decision."
+              />
+            </div>
+          </Card>
+        )}
 
         {adding && (
           <Card>
@@ -411,7 +462,7 @@ export default function Applications() {
                   onChange={setStatus}
                   options={[
                     { value: '', label: 'All' },
-                    ...LADDER.map((s) => ({ value: s, label: s.replace(/_/g, ' ') })),
+                    ...rungs.map((s) => ({ value: s, label: s.replace(/_/g, ' ') })),
                     { value: 'waitlisted', label: 'waitlisted' },
                     { value: 'rejected', label: 'rejected' },
                   ]}
@@ -513,7 +564,9 @@ export default function Applications() {
             {/* Where this applicant has got to. A ladder read left to right
                 says more than a status word on its own. */}
             <div className="flex flex-wrap items-center gap-1 border-b px-5 py-4">
-              {LADDER.map((s, i) => (
+              {rungs.map((s) => {
+                const i = LADDER.indexOf(s)
+                return (
                 <span
                   key={s}
                   className={cn(
@@ -525,7 +578,8 @@ export default function Applications() {
                 >
                   {s.replace(/_/g, ' ')}
                 </span>
-              ))}
+                )
+              })}
               {terminal && <StatusPill status={open.status} className="ml-2" />}
             </div>
 
@@ -536,9 +590,12 @@ export default function Applications() {
             ) : (
               <div className="flex flex-col gap-5 p-5">
                 {/* Assessment — schedule or score a test or interview. */}
-                {mayWrite && stage < stageIndex('offered') && (
+                {mayWrite && (usesTest || usesInterview) && stage < stageIndex('offered') && (
                   <div>
-                    <p className="eyebrow mb-2">Entrance test or interview</p>
+                    <p className="eyebrow mb-2">
+                      {usesTest && usesInterview ? 'Entrance test or interview'
+                        : usesTest ? 'Entrance test' : 'Interview'}
+                    </p>
                     <div className="grid gap-3 sm:grid-cols-3">
                       <label className="flex flex-col gap-1.5 text-[13px]">
                         <span className="text-muted-foreground">Scheduled for</span>
@@ -554,14 +611,18 @@ export default function Applications() {
                       </label>
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <Button size="sm" variant="secondary" disabled={assess.isPending}
-                        onClick={() => assess.mutate('entrance_test')}>
-                        Record entrance test
-                      </Button>
-                      <Button size="sm" variant="secondary" disabled={assess.isPending}
-                        onClick={() => assess.mutate('interview')}>
-                        Record interview
-                      </Button>
+                      {usesTest && (
+                        <Button size="sm" variant="secondary" disabled={assess.isPending}
+                          onClick={() => assess.mutate('entrance_test')}>
+                          Record entrance test
+                        </Button>
+                      )}
+                      {usesInterview && (
+                        <Button size="sm" variant="secondary" disabled={assess.isPending}
+                          onClick={() => assess.mutate('interview')}>
+                          Record interview
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
