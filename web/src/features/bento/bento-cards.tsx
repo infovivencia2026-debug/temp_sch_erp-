@@ -1,7 +1,8 @@
-import { Fragment, useId, type ReactNode } from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import { Fragment, useEffect, useId, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { ArrowUpRight, Maximize2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useWidgetSize } from '@/lib/widget-size'
+import { useWidgetSize, WidgetSizeContext } from '@/lib/widget-size'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
    Twelve drawings, one card shell, and a single colour rule: every mark is
    `currentColor`. The cell has already resolved its own ink — black on a pale
@@ -56,7 +57,7 @@ const QUIET = ink(38)
     grid child refuses to shrink below its content and the drawing pushes the
     card out of shape. */
 export function CardShell({
-  title, sub, action, value, change, children, className,
+  title, sub, action, value, change, children, className, expandable = true,
 }: {
   title: string
   sub?: string
@@ -69,7 +70,15 @@ export function CardShell({
   change?: ReactNode
   children?: ReactNode
   className?: string
+  /** False inside the expanded view itself, which must not offer to expand
+      again — and has its own close control in the same corner. */
+  expandable?: boolean
 }) {
+  const [big, setBig] = useState(false)
+  /* Only a cell with something drawn in it is worth enlarging. A card that is
+     a number and a sentence looks identical at four times the size, so
+     offering the control there is a promise the card cannot keep. */
+  const canExpand = expandable && Boolean(children)
   return (
     /* FOUR rows: header, figure, drawing, action.
        The action was in the top-right corner. It is at the foot of the card
@@ -110,7 +119,7 @@ export function CardShell({
         /* THREE rows now, not four. The action no longer holds a band of its
            own — see below — so the drawing gets that height back. `relative`
            is what the corner mark is positioned against. */
-        'relative grid h-full min-h-0 gap-y-1.5 overflow-hidden',
+        'group/cell relative grid h-full min-h-0 gap-y-1.5 overflow-hidden',
         'grid-rows-[auto_auto_minmax(clamp(26px,20cqh,220px),1fr)]',
         className,
       )}
@@ -122,7 +131,11 @@ export function CardShell({
           outside this grid entirely, so nothing here would otherwise stop a
           long title running underneath it. The reserve is the button's 32px
           less the card's own padding. */}
-      <div className="flex min-w-0 items-start justify-between gap-2 pr-11">
+      <div className={cn(
+        'flex min-w-0 items-start justify-between gap-2',
+        /* Room for both controls where both exist. */
+        canExpand && action ? 'pr-[84px]' : 'pr-11',
+      )}>
         <div className="min-w-0">
           {/* NOT BOLD. Only the figure is.
 
@@ -234,9 +247,141 @@ export function CardShell({
            not help. */
         <CornerMark />
       )}
+      {canExpand && (
+        /* Left of the corner mark, and only drawn on hover or focus — a board
+           of twelve cards each showing two permanent controls is twenty-four
+           buttons, which is the mistake the bottom-edge pill was making before
+           it moved. Always present for a keyboard, which cannot hover.
+
+           stopPropagation AND preventDefault: on four of the boards the whole
+           card is a Link, so without both, opening this also navigates away
+           from the board underneath it. */
+        <button
+          type="button"
+          aria-label={`Expand ${title}`}
+          title={`Expand ${title}`}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setBig(true)
+          }}
+          className={cn(
+            'bento-cue absolute top-0 z-10 grid size-10 place-items-center',
+            action ? 'right-10' : 'right-0',
+            'opacity-0 transition-opacity focus-visible:opacity-100 group-hover/cell:opacity-100',
+          )}
+        >
+          <Maximize2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+      {big && (
+        <ExpandedCard
+          title={title}
+          sub={sub}
+          value={value}
+          change={change}
+          onClose={() => setBig(false)}
+        >
+          {children}
+        </ExpandedCard>
+      )}
     </div>
   )
 }
+/** THE SAME CARD, NEARLY FULL SCREEN.
+
+    A cell on a five-column board is around 260 by 190 pixels, and every drawing
+    in this file adapts down to fit it: `Rows` shows two of five entries on a
+    short cell, `Line` drops to ten points from thirty, the labels shed. That is
+    the right behaviour for a board — a drawing nobody can read is worse than a
+    small one — but it means the board can only ever show the shape of a thing,
+    and there was nowhere to go for the rest of it except a different screen
+    with a different question on it.
+
+    So the card opens. Same component, same props, same drawing — handed a
+    5x3 widget size, which is the largest the detail ladder recognises, so
+    every drawing renders its rich form: all the rows, all the points, the
+    labels and the axis. Nothing is re-implemented for the large view, which is
+    the whole point: a second rendering of the same figures is a second thing
+    that can disagree with the first.
+
+    Not a route. The reader is looking at a board and wants one card bigger for
+    ten seconds; sending them to a screen and back loses the board's scroll
+    position, its arrangement and their place on it.
+
+    Portalled to the body, because a cell is `overflow: hidden` with a
+    container-type — an overlay rendered inside one would be clipped to the
+    260x190 box it is trying to escape. */
+function ExpandedCard({
+  title, sub, value, change, children, onClose,
+}: {
+  title: string
+  sub?: string
+  value: ReactNode
+  change?: ReactNode
+  children?: ReactNode
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    /* The board behind must not scroll under the overlay — on a phone that is
+       the difference between closing this and losing your page. */
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[80] grid place-items-center p-3 sm:p-6"
+      style={{ background: 'color-mix(in srgb, var(--bento-bg) 88%, transparent)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bento-cell relative flex h-[92vh] w-[96vw] max-w-[1400px] flex-col
+                   overflow-hidden p-5 sm:p-7"
+        style={{
+          background: 'var(--bento-card)',
+          color: 'var(--bento-ink)',
+          border: '1px solid var(--bento-line)',
+          /* The cell's container query keys off its own size, and this one is
+             enormous — which is exactly what makes every clamp in the type
+             scale reach its ceiling here. */
+          containerType: 'size',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center"
+        >
+          <X className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
+        {/* 5x3 is the top of the detail ladder in lib/widget-size.ts, so every
+            drawing inside renders its 'rich' form rather than the abstracted
+            one it uses on a board. */}
+        <WidgetSizeContext.Provider value={{ w: 5, h: 3 }}>
+          <CardShell title={title} sub={sub} value={value} change={change} expandable={false}>
+            {children}
+          </CardShell>
+        </WidgetSizeContext.Provider>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 /** THE CORNER MARK — one definition, every board.
 
     There were three of these and they did not match. `Cue` in bento-kit drew a

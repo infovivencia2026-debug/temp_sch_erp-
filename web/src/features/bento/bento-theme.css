@@ -2014,6 +2014,15 @@ html[data-layout='bento'] body {
    ground, a hairline along its top edge to separate it from the board, and the
    assistant moves above it. --dock-h already carries the bar's height
    including the home-indicator strip, so one variable places both. */
+/* NO HOVER, SO NO HIDING. The expand control fades in under the pointer, and a
+   phone has no pointer — on touch it would only ever appear after a tap that
+   also did something else. It is simply always there, at the reduced opacity
+   the hover state starts from, which is enough to be found and quiet enough
+   not to make a board of cards a board of buttons. */
+@media (hover: none) {
+  [data-layout='bento'] .bento-cell button.bento-cue { opacity: 0.55 !important; }
+}
+
 @media (max-width: 767px) {
   [data-layout='bento'] .bento-dock {
     background: var(--bento-card) !important;
