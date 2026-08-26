@@ -115,13 +115,14 @@ export function CardShell({
         className,
       )}
     >
-      {/* pr-7 keeps the title clear of the corner square.
+      {/* THE RESERVE MUST EXCEED THE MARK, not equal it after subtracting the
+          padding.
 
           The action is absolutely positioned at the card's top right and is
           outside this grid entirely, so nothing here would otherwise stop a
           long title running underneath it. The reserve is the button's 32px
           less the card's own padding. */}
-      <div className="flex min-w-0 items-start justify-between gap-2 pr-7">
+      <div className="flex min-w-0 items-start justify-between gap-2 pr-11">
         <div className="min-w-0">
           <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
             {title}
