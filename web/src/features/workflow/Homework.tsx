@@ -178,31 +178,49 @@ export default function Homework() {
 
         <Card>
           <CardHeader
-            title="Diary"
-            description={
-              canPublish
-                ? mine
-                  ? `${items.length} you have set`
-                  : `${items.length} set by anyone teaching these sections`
-                : `${items.length} entries`
-            }
+            /* Not "Diary".
+
+               The product has a diary — the digital diary a child reads at
+               home — and this is the homework register on the homework screen.
+               One word for two things is how a teacher ends up looking for
+               yesterday's classwork in the wrong place. */
+            title={canPublish ? 'Homework set' : 'Homework you have been set'}
             action={
-              /* Only where there is a distinction to make. A student's diary
-                 is their own by definition, and offering to widen it would
-                 offer them somebody else's homework. */
+              /* Two choices, both drawn, one selected.
+
+                 It was one button labelled with the state it was already in —
+                 "Only mine" — so the label read as a description and pressing
+                 it did something nobody could predict. What it does and what
+                 it is doing are different questions, and a single toggle
+                 answers whichever one the reader guesses at.
+
+                 Only where there is a distinction to make: a student's list is
+                 their own by definition, and offering to widen it would offer
+                 them somebody else's homework. */
               canPublish ? (
-                <Button
-                  size="sm"
-                  variant={mine ? 'primary' : 'secondary'}
-                  onClick={() => setOnlyMine((v) => !v)}
-                  title={
-                    mine
-                      ? 'Showing only what you set. Switch to see everything set for these sections.'
-                      : 'Showing everything set for these sections, by any teacher.'
-                  }
-                >
-                  {mine ? 'Only mine' : 'Everyone teaching these sections'}
-                </Button>
+                <span className="flex items-center gap-2">
+                  <span className="text-[13px] text-muted-foreground">
+                    {items.length} showing
+                  </span>
+                  <span className="flex overflow-hidden rounded-sm border">
+                    <Button
+                      size="sm"
+                      variant={mine ? 'primary' : 'ghost'}
+                      onClick={() => setOnlyMine(true)}
+                      title="Only the homework you set yourself"
+                    >
+                      Set by me
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={!mine ? 'primary' : 'ghost'}
+                      onClick={() => setOnlyMine(false)}
+                      title="Everything set for these sections, by any teacher"
+                    >
+                      Set by anyone
+                    </Button>
+                  </span>
+                </span>
               ) : undefined
             }
           />
