@@ -90,7 +90,24 @@ export function CardShell({
            chart is what shrinks. Its floor is 30px: enough for two compressed
            rows, and below that a drawing is a ghost anyway and says less than
            the sentence it displaced. */
-        'grid h-full min-h-0 grid-rows-[auto_auto_minmax(clamp(30px,22cqh,220px),1fr)_auto]',
+        /* CLIPPED, and with a real gap between the rows.
+
+           The rows were separated by margins on the children — mt-1.5 here,
+           mt-1 there — which a grid track does not count when it decides how
+           tall it needs to be. So a card whose figure, two-line sentence and
+           drawing floor together exceeded the cell simply overflowed, and the
+           spill painted straight over the action button underneath: the number
+           touching the sentence, the sentence touching the drawing, the drawing
+           touching the button.
+
+           `gap-y` is part of the track sizing, so the grid now accounts for its
+           own separation, and `overflow-hidden` means anything that still does
+           not fit is cut off cleanly at the card's edge rather than landing on
+           top of a control. The drawing row is the only fraction and is the
+           one that gives way, which is the rule this shell has always stated
+           and could not previously keep. */
+        'grid h-full min-h-0 gap-y-1.5 overflow-hidden',
+        'grid-rows-[auto_auto_minmax(clamp(26px,20cqh,220px),1fr)_auto]',
         className,
       )}
     >
@@ -124,7 +141,7 @@ export function CardShell({
             linked nowhere. `/` and `+` meant nothing at all. The prop stays in
             the signature so no caller breaks; it simply is not drawn. */}
       </div>
-      <div className="mt-1.5 min-w-0">
+      <div className="min-w-0">
         {/* A placeholder is not a figure. When there is no number the cell
             passes an em dash, and at the figure's own size that renders as a
             wide white bar — which reads as a broken chart rather than as "no
@@ -163,9 +180,9 @@ export function CardShell({
           </p>
         )}
       </div>
-      <div className="mt-1.5 min-h-0 min-w-0 overflow-hidden">{children}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
       {action && (
-        <div className="mt-1.5 flex min-w-0 shrink-0 justify-start">
+        <div className="flex min-w-0 shrink-0 justify-start">
           {/* A real control, sized to be pressed. It was the smallest text on
               the card at 11px in a 2px-padded chip — a footnote wearing a
               border. */}

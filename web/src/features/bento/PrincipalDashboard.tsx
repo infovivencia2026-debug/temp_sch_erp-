@@ -1563,9 +1563,17 @@ function FeatureCard({
     : undefined
   return (
     <Cell span={span} domain={domain} accent={accent}>
+      {/* min-h-0 on BOTH the wrapper and the shell.
+
+          Without it on the shell, a flex item refuses to shrink below its
+          content's intrinsic height — so a long sentence or a tall drawing
+          made this wrapper taller than the space the cue had left it, and the
+          card's own contents were laid out over the button rather than above
+          it. The cue is a sibling here, not a fourth row of the shell, so
+          nothing else was keeping them apart. */}
       <div className="flex min-h-0 flex-1 flex-col" style={style}>
         <CardShell
-          className="flex-1"
+          className="min-h-0 flex-1"
           title={title}
           sub={sub}
           glyph={glyph}
