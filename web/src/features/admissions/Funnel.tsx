@@ -191,6 +191,15 @@ export default function Funnel() {
         description={view?.description ?? 'Where enquiries came from, who is chasing them, and the quota register an inspection reads.'}
       />
       <PageBody>
+        {/* The lead totals belong to the leads.
+
+            They were shown above every tab, so the waiting list and the
+            open-day diary each opened under "Live leads / Nobody chasing /
+            Follow-ups overdue" — four numbers about something else. Three
+            entries with the same four totals and the same tab strip read as
+            one page however different the content below, which is why this
+            kept being reported as "still the same". */}
+        {!view || view.tab === 'leads' ? (
         <CellGrid cols={4}>
           <Stat label="Live leads" value={rows.length} icon={Users} />
           <Stat
@@ -213,7 +222,13 @@ export default function Funnel() {
             }
           />
         </CellGrid>
+        ) : null}
 
+        {/* The tab strip is for browsing the funnel as a whole. An entry that
+            names one register is not browsing — it asked for that register,
+            and offering five others beside it is what made three menu entries
+            indistinguishable. */}
+        {!view && (
         <div className="flex flex-wrap gap-1 border-b">
           {TABS.map(([k, label, Icon]) => (
             <button
@@ -232,6 +247,7 @@ export default function Funnel() {
             </button>
           ))}
         </div>
+        )}
 
         {tab === 'leads' && <Leads rows={rows} />}
         {tab === 'sources' && <Sources />}
