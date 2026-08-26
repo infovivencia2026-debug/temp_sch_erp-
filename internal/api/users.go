@@ -385,18 +385,34 @@ type assignableRole struct {
 
    Two are withheld, for different reasons.
 
-   super_admin is a platform role that spans every school on the installation.
-   Postgres already refuses the insert — the row has no institution and the
-   RLS policy rejects it — but relying on that means the attempt surfaces as
+   super_admin and seller_admin are platform roles that span every school on
+   the installation — one operates the software, the other sells it, sets the
+   prices and can suspend a tenant. Postgres already refuses the insert for a
+   row with no institution, but relying on that means the attempt surfaces as
    an opaque 500 rather than as a rule. A privilege boundary that is only
-   enforced by accident is one refactor away from not being enforced.
+   enforced by accident is one refactor away from not being enforced — which is
+   exactly what happened to seller_admin, withheld nowhere while super_admin
+   beside it was withheld everywhere.
 
    student and parent are not granted, they are derived: the role arrives with
    the student record or the guardian link, and a "parent" who is not attached
    to a child gets a portal with nothing in it. */
 
+// platformOnlyKeys is the same set as a slice, for the queries that filter on it.
+//
+// Derived rather than written out twice: the day a third platform role is added
+// it must not be possible to add it to one list and forget the other.
+func platformOnlyKeys() []string {
+	out := make([]string, 0, len(platformOnlyRoles))
+	for k := range platformOnlyRoles {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // platformOnlyRoles may be granted only by an existing platform operator.
-var platformOnlyRoles = map[string]bool{"super_admin": true}
+var platformOnlyRoles = map[string]bool{"super_admin": true, "seller_admin": true}
 
 /* derivedRoles are facts about a person, not workspaces to hand out.
 
@@ -512,15 +528,31 @@ func (s *Server) listAssignableRoles(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, http.StatusForbidden, "forbidden", "you cannot read the role list")
 		return
 	}
+	/* Installed roles, and the ones this school could install.
+
+	   A school starts with the common half — teacher, HOD, finance, HR — and
+	   the rest arrive when somebody is first given one. Listing only what is
+	   installed meant a librarian could never be appointed, because appointing
+	   one is what installs it. The chicken had to be offered before the egg. */
+	installable := map[string]string{}
+	for _, sr := range rbac.SystemRoles {
+		if rbac.IsDefault(sr.Key) || rbac.PlatformRoles[sr.Key] ||
+			sr.Key == "student" || sr.Key == "parent" {
+			continue
+		}
+		installable[sr.Key] = sr.Name
+	}
+
 	items, err := collect(s, r, `
 		SELECT r.key, r.name,
 		       (SELECT count(*) FROM role_permissions rp WHERE rp.role_id = r.id)::int,
 		       (SELECT count(*) FROM user_roles ur WHERE ur.role_id = r.id)::int
 		  FROM roles r
 		 WHERE r.key <> ALL($1::text[])
-		   AND ($2 OR r.key <> 'super_admin')
+		   AND ($2 OR r.key <> ALL($3::text[]))
 		 ORDER BY r.name`,
-		[]any{[]string{"student", "parent"}, id.PlatformAdmin},
+		[]any{[]string{"student", "parent"}, id.PlatformAdmin,
+			platformOnlyKeys()},
 		func(rows pgx.Rows) (assignableRole, error) {
 			var v assignableRole
 			if err := rows.Scan(&v.Key, &v.Name, &v.Permissions, &v.Users); err != nil {
@@ -537,6 +569,25 @@ func (s *Server) listAssignableRoles(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+
+	/* The ones not installed yet, appended.
+
+	   Marked so the screen can say "not set up yet" rather than implying the
+	   school already runs a library. Choosing one installs it, which is the
+	   same act as the user-roles screen's — the role arrives with its first
+	   holder. */
+	for _, it := range items {
+		delete(installable, it.Key)
+	}
+	for key, name := range installable {
+		items = append(items, assignableRole{
+			Key:         key,
+			Name:        name,
+			Description: descriptions[key],
+			Source:      "installable",
+		})
+	}
+
 	// Catalog roles are the ones with a workspace behind them, so they lead.
 	sort.SliceStable(items, func(a, b int) bool {
 		return items[a].Source == "catalog" && items[b].Source != "catalog"

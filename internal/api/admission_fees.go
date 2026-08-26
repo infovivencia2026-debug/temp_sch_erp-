@@ -49,17 +49,26 @@ func (s *Server) getAdmissionFees(w http.ResponseWriter, r *http.Request) {
 
 	out := admissionFees{InstalmentNo: 1, Lines: []admissionFeeLine{}}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		/* The structure for the class the child applied for, in the year the
-		   school is running. Newest active one wins where a school has more
-		   than one — a structure superseded mid-year is still on the table. */
+		/* The structure for the class the child applied for.
+
+		   A NULL class_id means the structure applies to every class, which is
+		   how most schools price: one list for the whole school, and a
+		   separate one only where a class differs. Requiring an exact match
+		   found nothing at all and told the office no fee was priced, which
+		   was worse than wrong — it invited them to admit a child for free.
+
+		   Class-specific wins over school-wide, then newest, so a structure
+		   written for Grade 7 beats the general one and a superseded list
+		   loses to the one that replaced it. */
 		err := tx.QueryRow(r.Context(), `
 			SELECT fs.id::text, fs.name, c.name
 			  FROM applications a
 			  JOIN classes c ON c.id = a.class_sought
-			  JOIN fee_structures fs ON fs.class_id = a.class_sought
-			                        AND fs.is_active
+			  JOIN fee_structures fs ON fs.is_active
+			                        AND (fs.class_id = a.class_sought
+			                             OR fs.class_id IS NULL)
 			 WHERE a.id = $1::uuid
-			 ORDER BY fs.created_at DESC
+			 ORDER BY (fs.class_id IS NOT NULL) DESC, fs.created_at DESC
 			 LIMIT 1`, appID).Scan(&out.StructureID, &out.StructureName, &out.ClassName)
 		if err == pgx.ErrNoRows {
 			/* No structure priced for this class. Still name the class, so the

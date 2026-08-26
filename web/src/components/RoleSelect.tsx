@@ -21,6 +21,9 @@ import { useCan } from '@/lib/session'
 interface Role {
   key: string
   name: string
+  /* 'catalog' and 'capability' are installed; 'installable' is one this
+     school could have and has not set up yet. */
+  source?: string
 }
 
 export default function RoleSelect({
@@ -100,7 +103,13 @@ export default function RoleSelect({
       }}
       placeholder={roles.isLoading ? 'Loading…' : items.length ? 'Choose a role' : 'No roles available'}
       options={[
-        ...items.map((r) => ({ value: r.key, label: r.name })),
+        /* A role the school has not set up yet is still a role it can appoint
+           somebody to — choosing it installs it. Saying so beats offering it
+           as though the school already ran a library. */
+        ...items.map((r) => ({
+          value: r.key,
+          label: r.source === 'installable' ? `${r.name} — not set up yet` : r.name,
+        })),
         ...(mayCreate && items.length ? [{ value: '__add_role__', label: '+ Add your own role…' }] : []),
       ]}
     />

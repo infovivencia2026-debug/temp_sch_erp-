@@ -1048,6 +1048,17 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, err.Error())
 		return
 	}
+	/* The add-staff form sends whatever the role dropdown offered, and until
+	   now the dropdown offered the vendor's own workspace — a school's HR
+	   could appoint somebody Seller Admin. Checked here rather than only in
+	   the list, because a rule enforced by what the UI happens to show is not
+	   a rule: the request can be made without the UI. */
+	if platformOnlyRoles[req.RoleKey] && !id.PlatformAdmin {
+		httpx.Error(w, r, http.StatusForbidden, "platform_role",
+			"that role belongs to the people who operate this installation, "+
+				"not to a school. Pick one of your own school's roles.")
+		return
+	}
 
 	var empID, userID string
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -1108,6 +1119,17 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 			return "", "", false, err
 		}
 		if req.RoleKey != "" {
+			/* Install the role if this school has not got it yet.
+
+			   Librarian, transport manager and the receptionist are not seeded
+			   into a new school; they arrive with their first holder. The
+			   insert below selects from `roles`, so before this line an
+			   appointment to one of them matched no row, inserted nothing, and
+			   reported success — the staff member existed with no role and
+			   signed in to an empty rail. Silent, because nothing failed. */
+			if _, _, err = installOptionalRole(ctx, tx, instID, req.RoleKey); err != nil {
+				return "", "", false, err
+			}
 			if _, err = tx.Exec(ctx, `
 				INSERT INTO user_roles (institution_id, user_id, role_id)
 				SELECT $1, $2::uuid, r.id FROM roles r

@@ -7,6 +7,8 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
+import AddStaff from './AddStaff'
 
 /* Joining and leaving.
 
@@ -131,6 +133,8 @@ function useEmployees() {
 }
 
 export default function Lifecycle() {
+  const can = useCan()
+  const qc = useQueryClient()
   const [tab, setTab] = useState<(typeof TABS)[number][0]>('onboarding')
 
   const onboarding = useQuery({
@@ -158,6 +162,19 @@ export default function Lifecycle() {
         description="The KYC an appointment depends on, the clearances a settlement must not outrun, and the letters a teacher takes to their next school."
       />
       <PageBody>
+        {/* Where a joining actually starts.
+
+            This screen is named for people joining and could not add one: its
+            onboarding form takes an employee who already exists, and the only
+            form that creates one sits at the bottom of the staff directory
+            under Records. So somebody hiring a teacher opened "Staff joinings
+            & exits", found a checklist for a person who was not there yet, and
+            concluded the product could not appoint anybody.
+
+            The same component, not a second implementation — it appoints the
+            person, issues the login and hands over the password once. */}
+        {can('hr.employees.write') && <AddStaff onDone={() => qc.invalidateQueries()} />}
+
         <CellGrid cols={4}>
           <Stat label="Files incomplete" value={unverified.length} icon={ClipboardCheck}
             delta={unverified.length

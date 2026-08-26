@@ -658,10 +658,14 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 		if !req.NoInvoice {
 			structureID := req.FeeStructureID
 			if structureID == "" {
+				// Same rule as the panel that showed the figure: a NULL
+				// class_id prices the whole school, and the class-specific
+				// list wins where there is one.
 				err := tx.QueryRow(r.Context(), `
 					SELECT id::text FROM fee_structures
-					 WHERE class_id = $1 AND is_active
-					 ORDER BY created_at DESC LIMIT 1`, classID).Scan(&structureID)
+					 WHERE is_active AND (class_id = $1 OR class_id IS NULL)
+					 ORDER BY (class_id IS NOT NULL) DESC, created_at DESC
+					 LIMIT 1`, classID).Scan(&structureID)
 				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 					return err
 				}
