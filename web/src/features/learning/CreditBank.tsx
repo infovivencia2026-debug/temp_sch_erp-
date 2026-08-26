@@ -97,10 +97,16 @@ export default function CreditBank() {
 
             {!a?.has_apaar && (
               <Card>
-                <CardHeader
+                {/* The sentence is the whole card, so it goes in the body.
+
+                    Card descriptions are no longer drawn, so a card whose only
+                    content was one rendered as a heading over an empty box —
+                    which reads as a screen that failed to load rather than as
+                    an explanation. */}
+                <EmptyState
                   title="No APAAR yet"
-                  description="Credits can still be earned and recorded here. They are deposited to the national bank once the office registers an APAAR against your name."
-                />
+                  body="Credits can still be earned and recorded here. They are deposited to the national bank once the office registers an APAAR against your name."
+            />
               </Card>
             )}
 

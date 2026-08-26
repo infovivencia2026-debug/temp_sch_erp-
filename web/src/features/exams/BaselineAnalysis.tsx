@@ -202,9 +202,15 @@ export default function BaselineAnalysis() {
 
         {!classId && (
           <Card>
-            <CardHeader
+            {/* The sentence is the whole card, so it goes in the body.
+
+                Card descriptions are no longer drawn, so a card whose only
+                content was one rendered as a heading over an empty box —
+                which reads as a screen that failed to load rather than as
+                an explanation. */}
+            <EmptyState
               title="Choose a class for the detail"
-              description="Subject and per-child movement are shown one cohort at a time; across the whole school they are thousands of rows and no conclusion."
+              body="Subject and per-child movement are shown one cohort at a time; across the whole school they are thousands of rows and no conclusion."
             />
           </Card>
         )}

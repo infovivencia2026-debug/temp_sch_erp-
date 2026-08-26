@@ -238,9 +238,21 @@ export default function MyPay() {
             description={
               d.attendance.days_marked
                 ? `${d.attendance.days_marked} days marked this year.`
-                : 'Nobody has marked the staff register yet, so there is nothing to count.'
+                : undefined
             }
           />
+          {/* Said in the body, not in the description.
+
+              Card descriptions are no longer drawn, so this card — whose only
+              content when nothing is marked was that sentence — rendered as a
+              heading over an empty box. A card that says nothing is worse than
+              no card: the reader assumes it failed to load. */}
+          {d.attendance.days_marked === 0 && (
+            <EmptyState
+              title="Nothing marked yet"
+              body="Your attendance appears here once the office starts marking the staff register."
+            />
+          )}
           {d.attendance.days_marked > 0 && (
             <CellGrid>
               <Stat label="Present" value={d.attendance.present} />

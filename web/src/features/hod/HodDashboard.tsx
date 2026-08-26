@@ -128,9 +128,15 @@ export default function HodDashboard() {
             "my department" when they are "everybody". */}
         {data.departments === 0 && (
           <Card>
-            <CardHeader
+            {/* The sentence is the whole card, so it goes in the body.
+
+                Card descriptions are no longer drawn, so a card whose only
+                content was one rendered as a heading over an empty box —
+                which reads as a screen that failed to load rather than as
+                an explanation. */}
+            <EmptyState
               title="No department is assigned to you"
-              description="The figures above are the whole school, not a department of your own. Once the school creates departments and puts you on one, everything here narrows to it."
+              body="The figures above are the whole school, not a department of your own. Once the school creates departments and puts you on one, everything here narrows to it."
             />
           </Card>
         )}

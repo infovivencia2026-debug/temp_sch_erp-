@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Textarea, Loading, ErrorState, FormNotice, PrintButton,
+  Button, Input, Textarea, Loading, ErrorState, EmptyState, FormNotice, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -278,10 +278,16 @@ export default function MDMUtilisation() {
 
             {!d.return.id && (
               <Card>
-                <CardHeader
+                {/* The sentence is the whole card, so it goes in the body.
+
+                    Card descriptions are no longer drawn, so a card whose only
+                    content was one rendered as a heading over an empty box —
+                    which reads as a screen that failed to load rather than as
+                    an explanation. */}
+                <EmptyState
                   title="No return opened for this month"
-                  description="The figures above are computed from the register and are correct. Opening a return lets you record the opening balances and the sanctioned allotment, which nothing can derive."
-                />
+                  body="The figures above are computed from the register and are correct. Opening a return lets you record the opening balances and the sanctioned allotment, which nothing can derive."
+            />
               </Card>
             )}
           </>
