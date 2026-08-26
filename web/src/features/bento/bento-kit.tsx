@@ -841,7 +841,7 @@ export function Sparkline({
         d={d}
         fill="none"
         stroke={`url(#${gid}-line)`}
-        strokeWidth={1.4}
+        strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -1106,7 +1106,7 @@ export function ReservoirArt({ fill }: { fill: number }) {
         d={`M${left},${top} L${left},${bottom} L${right},${bottom} L${right},${top}`}
         fill="none"
         stroke={ART_LINE}
-        strokeWidth={1}
+        strokeWidth={1.6}
         strokeLinecap="butt"
         strokeLinejoin="miter"
         vectorEffect="non-scaling-stroke"
@@ -1128,7 +1128,7 @@ export function ReservoirArt({ fill }: { fill: number }) {
         x2={right}
         y2={level}
         stroke={artMark('mint')}
-        strokeWidth={1.4}
+        strokeWidth={2.2}
         strokeLinecap="butt"
         vectorEffect="non-scaling-stroke"
       />
@@ -1169,8 +1169,8 @@ export function BlockedFlowArt({ moved }: { moved: number }) {
           <stop offset="100%" stopColor={wash('mint', 8)} />
         </linearGradient>
       </defs>
-      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
-      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={1.6} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={1.6} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       {/* What moved. Mint: it arrived. */}
       <rect x={x0} y={top} width={Math.max(0, stop - x0)} height={bot - top} fill={`url(#${gid}-flow)`} />
       {/* Where it stopped. Orange: the caution, and the one mark in this
@@ -1178,7 +1178,7 @@ export function BlockedFlowArt({ moved }: { moved: number }) {
       <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={artMark('orange')} strokeWidth={2} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       {/* What did not. Pink: money out, still outstanding. */}
       {hatch.map((x) => (
-        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={artMark('pink')} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
+        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={artMark('pink')} strokeWidth={1.6} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       ))}
     </ArtSvg>
   )

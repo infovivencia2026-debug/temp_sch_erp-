@@ -137,8 +137,8 @@ export function CardShell({
               className={cn(
                 'mt-1 truncate opacity-55 text-[length:var(--card-sub,10px)]',
                 isLatin(sub)
-                  ? 'font-medium uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
-                  : 'font-medium leading-tight',
+                  ? 'font-semibold uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
+                  : 'font-semibold leading-tight',
               )}
             >
               {sub}
@@ -158,20 +158,21 @@ export function CardShell({
             sentence beneath it becomes the thing you read. */}
         <p
           className={cn(
-            /* THE FIGURE, thinned.
+            /* THE FIGURE, WITH WEIGHT.
 
-               It was semibold, which is the weight a heading takes -- and a
-               heading is what it looked like. A large number set light with
-               the letters pulled together reads as a measurement instead: the
-               thin stroke is what makes the size feel like precision rather
-               than emphasis.
+               It was thinned to 350 on the argument that a light number reads
+               as a measurement rather than as a heading. That argument holds
+               in print at 60px; it does not hold here. This figure clamps down
+               to 26px on a one-by-one cell, and at that size a light weight on
+               a coloured ground loses its stems -- the number stops being the
+               loudest thing on the card, which is the one job it has.
 
-               350 rather than the 300 of a display setting, because this
-               clamps down to 26px on a one-by-one cell and a true light at
-               that size on a dark ground goes thin enough to shimmer. Inter is
-               a variable font here, so 350 is a real weight and not a
-               synthesised one. */
-            'truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:350]',
+               650 rather than the old semibold 600: the negative tracking
+               stays, and pulling the letters together while the strokes are
+               heavy is what gives a figure density instead of just size.
+               Inter is variable here, so 650 is a real weight, not synthesised
+               from two. */
+            'truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:650]',
             value === '—'
               ? 'leading-tight opacity-45 text-[length:var(--card-change,13px)]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
@@ -282,7 +283,7 @@ export function Line({ points, srLabel }: { points: number[]; srLabel: string })
          role="img" aria-label={srLabel}>
       <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
-      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={1.4}
+      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={2.2}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {/* preserveAspectRatio="none" stretches the viewBox, so a circle would
           come out an ellipse -- wide on a 2x1, tall on a 1x2. The dot is drawn
@@ -331,7 +332,7 @@ export function Area({ points, srLabel }: { points: number[]; srLabel: string })
       <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
       <path d={`${d} L 400 150 L 0 150 Z`} fill={`url(#${gradientID})`} stroke="none" />
-      <path d={d} fill="none" stroke={MARK} strokeWidth={1.4}
+      <path d={d} fill="none" stroke={MARK} strokeWidth={2.2}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -434,7 +435,7 @@ export function Rows({ items, srLabel, formatValue }: {
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="text-[length:min(10px,var(--card-note,10px))] leading-none
-                        tabular-nums [font-weight:500]">{fmt(it.value)}</b>
+                        tabular-nums [font-weight:650]">{fmt(it.value)}</b>
           </Fragment>
       ))}
     </div>
@@ -474,17 +475,17 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
               round cap adds half the stroke width past the true end of the
               arc, so 2% drew as roughly 6% and 0.5% still drew a visible
               lozenge. A butt cap ends where the value ends. */}
-          <circle cx="50" cy="50" r="44" fill="none" stroke={TRACK} strokeWidth={6} />
+          <circle cx="50" cy="50" r="43" fill="none" stroke={TRACK} strokeWidth={8} />
           {pct > 0 && (
             <circle
-              cx="50" cy="50" r="44" fill="none"
-              stroke={MARK} strokeWidth={6} strokeLinecap="butt"
+              cx="50" cy="50" r="43" fill="none"
+              stroke={MARK} strokeWidth={8} strokeLinecap="butt"
               pathLength={100}
               strokeDasharray={`${pct} ${100 - pct}`}
             />
           )}
         </svg>
-        <span className="relative text-[15px] tabular-nums tracking-[-0.03em] [font-weight:350]">
+        <span className="relative text-[15px] tabular-nums tracking-[-0.03em] [font-weight:650]">
           {pct}
           <span className="ml-[1px] align-baseline text-[0.55em] opacity-60
                            [font-family:var(--bento-mono)]">%</span>
@@ -964,7 +965,7 @@ export function Ranked({
       {shown.map((it, i) => (
         <div key={it.label} className="min-w-0 flex-1">
           <b className="block leading-none tracking-[-0.04em] tabular-nums
-                        text-[length:min(var(--card-fig,22px),22px)] [font-weight:350]">
+                        text-[length:min(var(--card-fig,22px),22px)] [font-weight:650]">
             {String(i + 1).padStart(2, '0')}
           </b>
           <span className="mt-0.5 block truncate text-[length:min(8px,var(--card-note,8px))]
@@ -1020,7 +1021,7 @@ export function Rings({
             )
           })}
         </svg>
-        <span className="relative text-[13px] tabular-nums tracking-[-0.03em] [font-weight:350]">
+        <span className="relative text-[13px] tabular-nums tracking-[-0.03em] [font-weight:650]">
           {Math.round((num(usable[0].value) / num(usable[0].total)) * 100)}
           <span className="ml-px align-baseline text-[0.55em] opacity-60
                            [font-family:var(--bento-mono)]">%</span>
@@ -1073,9 +1074,9 @@ export function Forecast({
       <line x1="0" y1={h - 1} x2={w} y2={h - 1} stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
       <path d={`${upper} ${lower} Z`} fill={ink(12)} stroke="none" />
-      <path d={path(actual, 0)} fill="none" stroke={MARK} strokeWidth={1.4}
+      <path d={path(actual, 0)} fill="none" stroke={MARK} strokeWidth={2.2}
             strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <path d={path(band, joinIndex)} fill="none" stroke={QUIET} strokeWidth={1.4}
+      <path d={path(band, joinIndex)} fill="none" stroke={QUIET} strokeWidth={2.2}
             strokeDasharray="5 4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {/* Where measurement stops. */}
       <line x1={x(joinIndex)} y1="4" x2={x(joinIndex)} y2={h - 1} stroke={ink(34)}
