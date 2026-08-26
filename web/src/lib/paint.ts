@@ -16,10 +16,25 @@ import { applyTheme } from './theme'
    dialog: switch to dark afterwards and every surface would still be the light
    one they picked. Only what was deliberately chosen is stored. */
 
-export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards' | 'students' | 'academics' | 'finance' | 'operations' | 'reports'
+/* Twelve domains, not five.
+
+   The palettes have always shipped all twelve — attendance, staff, admissions,
+   communication, critical, warning and success as well as the five that were
+   listed here — and every one of them tints cells on the boards. Seven of them
+   simply had no region in the colour dialog, so those cards could not be
+   recoloured at all, by anybody, ever. Together with the `-soft` bug below
+   that is the whole of "I cannot change the colour of a few cells": five
+   domains were paintable and broken, seven were not paintable at all. */
+export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards'
+  | 'students' | 'academics' | 'attendance' | 'finance' | 'staff' | 'admissions'
+  | 'communication' | 'operations' | 'reports' | 'critical' | 'warning' | 'success'
 export type Channel = 'bg' | 'text' | 'accent'
 
-export const REGIONS: readonly Region[] = ['workarea', 'topbar', 'sidebar', 'bottombar', 'cards', 'students', 'academics', 'finance', 'operations', 'reports'] as const
+export const REGIONS: readonly Region[] = [
+  'workarea', 'topbar', 'sidebar', 'bottombar', 'cards',
+  'students', 'academics', 'attendance', 'finance', 'staff', 'admissions',
+  'communication', 'operations', 'reports', 'critical', 'warning', 'success',
+] as const
 export const CHANNELS: readonly Channel[] = ['bg', 'text', 'accent'] as const
 
 /** An HSL triple, kept unresolved so it can be written straight into a token
@@ -155,7 +170,10 @@ const BENTO_MAP: [keyof Paint, string][] = [
   ['bottombar.bg', '--bento-dock-bg'],
   ['bottombar.text', '--bento-dock-ink'],
 ]
-const BENTO_DOMAINS = ['students', 'academics', 'finance', 'operations', 'reports'] as const
+const BENTO_DOMAINS = [
+  'students', 'academics', 'attendance', 'finance', 'staff', 'admissions',
+  'communication', 'operations', 'reports', 'critical', 'warning', 'success',
+] as const
 
 /* Wipe, lay the shipped palette down, then the hand-painted regions over it.
 
@@ -209,7 +227,28 @@ function repaint() {
   for (const d of BENTO_DOMAINS) {
     const bg = paint[`${d}.bg`]
     const text = paint[`${d}.text`]
-    if (bg) set(`--dom-${d}`, hslCss(bg))
+    if (bg) {
+      /* BOTH TOKENS, and the second one is the whole bug.
+
+         A domain card's ground is `var(--dom-X-soft, var(--dom-X))` — soft
+         first, the strong hue only as a fallback. Every shipped palette
+         defines `-soft` for all twelve domains, so the fallback never fires,
+         and painting only `--dom-X` changed a colour that nothing on the card
+         was reading. The setting stored, the swatch updated, and the card did
+         not move.
+
+         It looked intermittent, which is what made it hard to believe: a
+         domain the active palette happened not to define `-soft` for fell
+         through to the strong token and DID recolour, so a few cells worked
+         and most did not.
+
+         Both are set to the picked colour now. `--dom-X` is what the dock and
+         the launcher mix their accents from, and a school that has chosen a
+         ground for Finance means that colour for Finance wherever it appears —
+         those uses mix it against the local ink, so they stay legible. */
+      set(`--dom-${d}`, hslCss(bg))
+      set(`--dom-${d}-soft`, hslCss(bg))
+    }
     if (text) set(`--dom-${d}-text`, hslCss(text))
   }
 }

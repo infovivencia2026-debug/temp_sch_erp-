@@ -2365,6 +2365,15 @@ export const en = {
   'bento.colour.region.finance': 'Finance',
   'bento.colour.region.operations': 'Operations',
   'bento.colour.region.reports': 'Reports',
+  /* The seven that shipped a colour and had no way to change it. Named as a
+     school would say them, not as the token spells them. */
+  'bento.colour.region.attendance': 'Attendance',
+  'bento.colour.region.staff': 'Staff',
+  'bento.colour.region.admissions': 'Admissions',
+  'bento.colour.region.communication': 'Communication',
+  'bento.colour.region.critical': 'Needs action',
+  'bento.colour.region.warning': 'Watch',
+  'bento.colour.region.success': 'Settled',
   'bento.colour.mode.light': 'For light mode',
   'bento.colour.mode.dark': 'For dark mode',
   'bento.colour.saved': 'Saved palettes',
