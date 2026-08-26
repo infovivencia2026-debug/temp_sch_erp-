@@ -109,7 +109,14 @@ export default function MyWork() {
               }
             />
           ) : (
-            <ul className="divide-y">
+            /* Capped and scrolled.
+
+               A teacher with four subjects across two sections has a dozen of
+               these, and a card that grows to whatever the term produced
+               pushes everything below it — the timetable, the cover — off the
+               screen entirely. Roughly six rows before it scrolls, so what is
+               under the card stays reachable. */
+            <ul className="max-h-[26rem] divide-y overflow-y-auto">
               {items.map((it, i) => {
                 const K = KIND[it.kind] ?? { label: it.kind, icon: FileText }
                 const Icon = K.icon

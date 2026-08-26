@@ -91,7 +91,7 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 		// Counted per paper rather than per student: "Class 8 English, 12 of 34
 		// entered" is a task, "408 marks missing" is a wall.
 		rows, err := tx.Query(r.Context(), `
-			SELECT ex.name, sub.name, c.name,
+			SELECT ex.name, sub.name, c.name || '-' || sec.name,
 			       count(DISTINCT e.student_id)::int AS expected,
 			       count(DISTINCT m.student_id)::int AS entered,
 			       to_char(ex.ends_on, 'YYYY-MM-DD'),
@@ -110,10 +110,22 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 			                WHERE t.section_id = sec.id
 			                  AND t.class_subject_id = cs.id
 			                  AND t.teacher_user_id = $2)
-			 GROUP BY ex.name, sub.name, c.name, ex.ends_on
+			 /* Grouped by section, not by class.
+
+			    A teacher with both 6-A and 6-B English had them merged into
+			    one "Grade 6 English" row with the two classes' counts added
+			    together — so "0 of 20 entered" named no register she could
+			    open, and entering one section's marks left the row saying
+			    half. */
+			 GROUP BY ex.name, sub.name, c.name, sec.name, ex.ends_on
 			HAVING count(DISTINCT m.student_id) < count(DISTINCT e.student_id)
 			 ORDER BY ex.ends_on NULLS LAST
-			 LIMIT 10`, sections, id.UserID)
+			 /* Was ten, which silently hid the eleventh register from a
+			    teacher with four subjects across two sections — and the count
+			    above the list was drawn from the same truncated set, so it
+			    agreed with the omission. The card scrolls now, so the honest
+			    limit is one nobody reaches. */
+			 LIMIT 100`, sections, id.UserID)
 		if err != nil {
 			return err
 		}
@@ -129,7 +141,12 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 			}
 			items = append(items, workItem{
 				Kind: "marks", Count: expected - entered,
-				Title:  class + " " + subject + " — " + exam,
+				/* Said as the job, not as a result.
+
+				   "Grade 6 English — Formative Assessment 1" reads like a
+				   grade the teacher has been given, in a list headed
+				   Outstanding; it is a register she has not filled in. */
+				Title:  "Enter marks — " + class + " " + subject + ", " + exam,
 				Detail: itoa(entered) + " of " + itoa(expected) + " marks entered",
 				Due:    dueP, Overdue: late,
 			})
