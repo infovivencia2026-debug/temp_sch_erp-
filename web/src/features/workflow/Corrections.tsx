@@ -6,6 +6,7 @@ import {
   Table, Td, Button, Select, Input, Loading, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* Attendance corrections.
@@ -23,7 +24,10 @@ import { formatDate } from '@/lib/utils'
 interface Mark {
   id: string
   student_id: string
-  full_name: string
+  /* student_name, not full_name: the attendance row names it that, and the
+     mismatch left the register showing a column of admission numbers with
+     nobody's name beside them. */
+  student_name: string
   admission_no: string
   on_date: string
   status: string
@@ -44,6 +48,9 @@ export default function Corrections() {
   const qc = useQueryClient()
   const [status, setStatus] = useState('pending')
   const [note, setNote] = useState('')
+  /* Amending a register, as opposed to asking for it to be amended. */
+  const mayDecide = useCan()('academics.attendance.write.any')
+
   const [done, setDone] = useState('')
 
   /* Raising one. The register for a section and a day, so the teacher points
@@ -166,7 +173,7 @@ export default function Corrections() {
                   {(register.data?.items ?? []).map((m) => (
                     <tr key={m.id}>
                       <Td className="font-medium">
-                        {m.full_name}
+                        {m.student_name}
                         <div className="font-mono text-[12px] text-muted-foreground">
                           {m.admission_no}
                         </div>
@@ -189,7 +196,7 @@ export default function Corrections() {
                           <Input
                             value={why[m.id] ?? ''}
                             onChange={(v) => setWhy((w) => ({ ...w, [m.id]: v }))}
-                            srLabel={`Why ${m.full_name}'s mark is wrong`}
+                            srLabel={`Why ${m.student_name}'s mark is wrong`}
                             placeholder="Came in late with a note"
                           />
                         </div>
@@ -262,7 +269,16 @@ export default function Corrections() {
                   <Td className="text-muted-foreground">{c.requested_by || '—'}</Td>
                   <Td><StatusPill status={c.status} /></Td>
                   <Td>
-                    {c.status === 'pending' && (
+                    {/* Approving is somebody else's job.
+
+                        The two buttons were shown to whoever opened the
+                        screen, so the teacher who raised the correction was
+                        offered Approve on her own request — which makes the
+                        whole workflow pointless, and would have failed anyway:
+                        deciding needs attendance.write.any, which no teacher
+                        holds. The register is amended by somebody who can
+                        amend registers; a teacher asks. */}
+                    {c.status === 'pending' && mayDecide && (
                       <span className="flex gap-2">
                         <Button
                           size="sm"
