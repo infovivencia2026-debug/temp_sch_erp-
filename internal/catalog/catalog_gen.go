@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 304 features.
+// Roles is the catalog: 13 roles, 306 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -796,6 +796,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "admissions.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -834,6 +842,14 @@ var Roles = []Role{
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "front_office.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "front_office.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school."},
 				},
 			},
 			{

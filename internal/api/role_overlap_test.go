@@ -54,6 +54,18 @@ func grantableRoles() map[string]map[[2]string]bool {
 				continue
 			}
 			for _, f := range sec.Features {
+				/* The staff address book, for the same reason.
+
+				   Every employee can write to every other employee; it is one
+				   screen and one capability, held as a colleague rather than
+				   as a receptionist or a head of department. Two roles both
+				   carrying it are not the same job, and counting it says they
+				   are. Only this one feature, not the whole communication
+				   section — circulars and grievances are genuinely a
+				   principal's work and not a teacher's. */
+				if f.Slug == "messages" {
+					continue
+				}
 				set[[2]string{sec.Slug, f.Slug}] = true
 			}
 		}

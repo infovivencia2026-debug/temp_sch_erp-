@@ -147,7 +147,17 @@ function FeatureRoute() {
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
           </PageBody>
         )}
-        <Component />
+        {/* Keyed by the feature, not just by the component.
+
+            Several catalogue entries share one component — the funnel serves
+            assign leads, campus visits and the waiting list; the applications
+            ladder serves the forms and the verification queue. Without a key,
+            walking from one to another keeps the same mounted instance and
+            therefore its state: the tab it was on, the filter it had, the row
+            it had open. Each screen carries a guard for that, and every screen
+            added later would need to remember one. A key ends it at the
+            router, where the change actually happens. */}
+        <Component key={feature.key} />
       </Suspense>
     </ChunkBoundary>
   )

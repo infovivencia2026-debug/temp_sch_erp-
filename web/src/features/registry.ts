@@ -176,6 +176,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
   'front_office.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
   'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
+  'admissions.communication.messages': screen(() => import('./comms/StaffMessages')),
+  'front_office.communication.messages': screen(() => import('./comms/StaffMessages')),
   'admissions.enquiries.assign_leads': screen(() => import('./admissions/Funnel')),
   'admissions.enquiries.campus_visits': screen(() => import('./admissions/Funnel')),
 

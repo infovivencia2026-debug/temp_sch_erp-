@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 304 features. */
+/** 13 roles, 306 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -749,6 +749,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -787,6 +795,14 @@ export const ROLES: Role[] = [
         workspace: 'Front Desk',
         features: [
           { key: 'front_office.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'front_office.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school.' },
         ],
       },
       {
