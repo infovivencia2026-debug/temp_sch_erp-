@@ -1140,13 +1140,22 @@ export const en = {
      a supporting figure, the word for a state, and the line that says which
      period the figure is true for.
 
+     AN EYEBROW IS A CAPTION, NOT A SENTENCE. These are set uppercase and
+     tracked at 8-12px above the figure, and at that treatment a clause stops
+     being read: "Of those marked — the only rate this page can state honestly"
+     occupied two lines of a 264px card in spaced capitals, which is neither
+     legible nor a caption. Two or three words, naming what was counted. The
+     reasoning that used to live in them belongs in this file's comments, where
+     it is read by whoever changes the number rather than by everyone who
+     glances at the card.
+
      A FACT LABEL IS A NOUN, NOT A SENTENCE. It sits at 9.5px beside a bold
      figure and has to survive a 264px card, so every one of these is short
      enough to read at a glance and specific enough to say what was counted.
      "of the roll" rather than "%", because a bare percent sign beside a
      number is the shape of a claim with its subject missing. */
-  'bento.principal.prov_as_of_now': 'As of now',
-  'bento.principal.prov_this_year': 'This academic year',
+  'bento.principal.prov_as_of_now': 'Now',
+  'bento.principal.prov_this_year': 'This year',
   'bento.principal.fact_sections': 'sections',
   'bento.principal.fact_per_section': 'per section',
   'bento.principal.fact_staff': 'staff',
@@ -1185,7 +1194,7 @@ export const en = {
      one dot is worth: a dot grid whose unit is unstated is decoration, and at
      a roll of four hundred one dot is never one child. */
   'bento.principal.card_pulse_title': 'Attendance today',
-  'bento.principal.card_pulse_sub': 'Against the last 30 days',
+  'bento.principal.card_pulse_sub': 'Last 30 days',
   'bento.principal.card_pulse_month_sr': 'Attendance for each of the last 28 days, {days} of them marked',
   'bento.principal.card_pulse_short_sr': 'Attendance over the last ten marked days',
   /* Short enough to survive a 1x1 row label at 8px. The full words are in the
@@ -1474,7 +1483,7 @@ export const en = {
      `_sr` is what a screen reader is told the drawing shows. A sentence that
      states a share names the total it was taken from, because on this board
      there is no proportion without one. */
-  'bento.principal.syllabus_sub': 'Delivered against the calendar',
+  'bento.principal.syllabus_sub': 'Against the calendar',
   'bento.principal.syllabus_change':
     'Of {total} class subjects · {lag} points behind · {short} of {units} units to teach',
   'bento.principal.syllabus_level': 'Level with the calendar · {delivered} of {units} units taught',
@@ -1488,13 +1497,13 @@ export const en = {
   'bento.principal.moderation_dist_sr':
     'How the averages of {count} papers are spread, 0 to 100 percent',
   'bento.principal.moderation_low_sr': 'The {count} papers with the lowest average, in percent',
-  'bento.principal.pass_rate_sub': 'Candidates passed',
+  'bento.principal.pass_rate_sub': 'Passed',
   'bento.principal.pass_rate_change': '{passed} of {total} candidates with marks',
   'bento.principal.pass_rate_none': 'No results entered yet',
   'bento.principal.pass_rate_gauge_sr': 'Candidates passed, of {total} candidates with marks',
   'bento.principal.pass_rate_dist_sr': 'How pass rates are spread across {count} papers',
   'bento.principal.pass_rate_low_sr': 'The {count} papers with the lowest pass rate',
-  'bento.principal.at_risk_sub': 'Below pass, paper by paper',
+  'bento.principal.at_risk_sub': 'Below pass',
   'bento.principal.at_risk_change': 'Of {total} candidates, counted by the summary and not the list',
   'bento.principal.at_risk_gauge_sr': 'Students at risk, of {total} candidates with marks',
   'bento.principal.at_risk_dist_sr': 'Candidates below the pass mark in each of {count} papers',
@@ -1505,13 +1514,13 @@ export const en = {
   'bento.principal.setup_gauge_sr': 'Setup steps done, of {total}',
   'bento.principal.setup_rows_left_sr': 'Steps still to do, by area of the school',
   'bento.principal.setup_rows_done_sr': 'Steps done, by area of the school',
-  'bento.principal.cover_sub': 'Periods left by absences',
+  'bento.principal.cover_sub': 'Left by absences',
   'bento.principal.cover_change': '{covered} of {periods} covered · {away} away today',
   'bento.principal.cover_states_sr':
     '{covered} periods covered, {open} still open, {stuck} with nobody free',
   'bento.principal.cover_day_sr': 'Periods across the day, {from} to {to}, on {date}',
   'bento.principal.cover_class_sr': 'Uncovered periods by class',
-  'bento.principal.grievances_sub': 'Age of the queue',
+  'bento.principal.grievances_sub': 'Queue age',
   'bento.principal.grievances_change': 'Of {count} tickets fetched · oldest {oldest} days',
   'bento.principal.grievances_capped':
     'The queue is cut at {count} tickets — what is drawn is the oldest {count}, not the whole of it',
@@ -1520,7 +1529,7 @@ export const en = {
     'How long {count} open tickets have been open, none to {oldest} days',
   'bento.principal.grievances_cat_rows_sr': 'Open tickets by category',
   'bento.principal.grievances_dept_rows_sr': 'Open tickets by department',
-  'bento.principal.grv_late_sub': 'Past the resolution deadline',
+  'bento.principal.grv_late_sub': 'Past deadline',
   'bento.principal.grv_late_change': 'Of {count} tickets still open',
   'bento.principal.grv_late_capped':
     'Of {open} open in the oldest {count} fetched — the queue is cut there',
@@ -1528,7 +1537,7 @@ export const en = {
   'bento.principal.grv_late_hours_sr':
     'How far past deadline {count} tickets are, none to {worst} hours',
   'bento.principal.grv_late_dept_rows_sr': 'Tickets past deadline, by department',
-  'bento.principal.my_leave_sub': 'Days left of what was granted',
+  'bento.principal.my_leave_sub': 'Days left',
   'bento.principal.my_leave_change': 'Of {entitled} days granted across {types} types',
   'bento.principal.my_leave_none': 'No leave entitlement on record',
   'bento.principal.my_leave_left': 'Left',
@@ -1715,7 +1724,7 @@ export const en = {
   'bento.hod.failed': 'That did not load. No period is listed as uncovered because nothing was read, not because every lesson has a teacher.',
 
   'bento.hod.uncovered': 'Nobody in front of them',
-  'bento.hod.uncovered_sub': 'Periods today whose teacher is out and who has no cover',
+  'bento.hod.uncovered_sub': 'No cover found',
   'bento.hod.uncovered_sr': 'Absent staff, and how many of their periods are uncovered',
   'bento.hod.of_periods': 'of {n} periods lost today',
   'bento.hod.uncovered_of': '{u} of {p} uncovered',
@@ -1724,7 +1733,7 @@ export const en = {
   'bento.hod.cue_cover': 'Arrange substitutions',
 
   'bento.hod.waiting': 'Waiting on you',
-  'bento.hod.waiting_sub': 'Four queues, all of them yours to clear',
+  'bento.hod.waiting_sub': 'Four queues',
   'bento.hod.waiting_sr': 'Approvals waiting, by queue',
   'bento.hod.across_queues': 'across {n} queues',
   'bento.hod.nothing_waiting': 'Every queue is clear.',
@@ -1735,23 +1744,23 @@ export const en = {
   'bento.hod.cue_approvals': 'Open approvals',
 
   'bento.hod.registers': 'Registers not taken',
-  'bento.hod.registers_sub': 'Of your sections, how many are still unopened today',
+  'bento.hod.registers_sub': 'Still unopened',
   'bento.hod.registers_sr': 'Registers not taken as a share of the department\u2019s sections',
   'bento.hod.of_sections': 'of {n} sections',
   'bento.hod.no_sections': 'No sections are allocated to this department.',
   'bento.hod.cue_registers': 'Open the register',
 
   'bento.hod.absent': 'Staff out today',
-  'bento.hod.absent_sub': 'Teachers of yours not in',
+  'bento.hod.absent_sub': 'Not in today',
   'bento.hod.absent_note': 'Out of {n} teachers. A level against a level is not a fraction, so it is not drawn as one.',
   'bento.hod.cue_leave': 'Open leave',
 
-  'bento.hod.marks_sub': 'Submitted and not yet moderated',
+  'bento.hod.marks_sub': 'Not yet moderated',
   'bento.hod.marks_note': 'A queue, not a share: this page carries no total to divide it by, and a percentage of nothing is worse than a number.',
   'bento.hod.cue_marks': 'Open moderation',
 
   'bento.hod.department': 'Teachers',
-  'bento.hod.department_sub': 'The size of what you head',
+  'bento.hod.department_sub': 'Your department',
   'bento.hod.department_note': 'Across {s} sections and {d} departments.',
   'bento.hod.cue_allocation': 'Open allocation',
 
@@ -1762,39 +1771,39 @@ export const en = {
   'bento.hr.failed': 'That did not load. Nobody is listed as away because nothing was read, not because everybody is in.',
 
   'bento.hr.away': 'Not in today',
-  'bento.hr.away_sub': 'Marked absent this morning, or approved to be away before it',
+  'bento.hr.away_sub': 'Absent or on leave',
   'bento.hr.away_sr': 'Staff away today and why',
   'bento.hr.away_returning': '{n} back on a later date',
   'bento.hr.everyone_in': 'Nobody is marked away and no leave covers today.',
   'bento.hr.cue_cover': 'Arrange cover',
 
   'bento.hr.register': 'Register taken',
-  'bento.hr.register_sub': 'Staff marked either way in today\u2019s register',
+  'bento.hr.register_sub': 'Marked today',
   'bento.hr.register_sr': 'Staff marked today as a share of active staff',
   'bento.hr.of_staff': 'of {n} on the staff',
   'bento.hr.no_staff': 'No active staff on record.',
   'bento.hr.cue_register': 'Open the register',
 
   'bento.hr.present': 'In today',
-  'bento.hr.present_sub': 'Of those marked \u2014 the only rate this page can state honestly',
+  'bento.hr.present_sub': 'Of those marked',
   'bento.hr.present_sr': 'Present as a share of staff marked today',
   'bento.hr.of_marked': 'of {n} marked so far',
   'bento.hr.register_not_taken': 'The register has not been taken yet, so there is no rate to state.',
 
   'bento.hr.attention': 'Waiting on you',
-  'bento.hr.attention_sub': 'Paperwork lapsing, and decisions nobody has made',
+  'bento.hr.attention_sub': 'Lapsing and undecided',
   'bento.hr.attention_sr': 'Items needing attention',
   'bento.hr.urgent': '{n} already overdue',
   'bento.hr.nothing_waiting': 'Nothing is lapsing and nothing is waiting.',
   'bento.hr.cue_attention': 'Open staff records',
 
   'bento.hr.leave': 'Leave to decide',
-  'bento.hr.leave_sub': 'Staff requests nobody has answered',
+  'bento.hr.leave_sub': 'Unanswered',
   'bento.hr.leave_note': 'A queue rather than a share: nothing on this page is the number of requests it could have been out of.',
   'bento.hr.cue_leave': 'Open leave',
 
   'bento.hr.joiners': 'Joined this month',
-  'bento.hr.joiners_sub': 'Employees whose start date falls in the last 30 days',
+  'bento.hr.joiners_sub': 'Started in 30 days',
   'bento.hr.joiners_note': 'Across {n} departments. A period count against a level is not a fraction, so it is not drawn as one.',
   'bento.hr.cue_records': 'Open staff records',
 
@@ -1805,7 +1814,7 @@ export const en = {
   'bento.admissions.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
 
   'bento.admissions.funnel': 'Applications to students',
-  'bento.admissions.funnel_sub': 'Every application on record, and how far each got',
+  'bento.admissions.funnel_sub': 'Every application',
   'bento.admissions.funnel_sr': 'Applications, of which offered, of which enrolled',
   'bento.admissions.stage_applied': 'Applied',
   'bento.admissions.stage_offered': 'Offered',
@@ -1815,7 +1824,7 @@ export const en = {
   'bento.admissions.cue_applications': 'Open applications',
 
   'bento.admissions.follow_ups': 'Follow-ups due',
-  'bento.admissions.follow_ups_sub': 'Due today or already past, and not yet applied or lost',
+  'bento.admissions.follow_ups_sub': 'Due or overdue',
   'bento.admissions.follow_ups_sr': 'Overdue follow-ups, oldest first',
   'bento.admissions.oldest_days': 'oldest {n} days past',
   'bento.admissions.days_short': '{n}d',
@@ -1823,24 +1832,24 @@ export const en = {
   'bento.admissions.cue_follow_ups': 'Open follow-ups',
 
   'bento.admissions.new_enquiries': 'Not yet touched',
-  'bento.admissions.new_enquiries_sub': 'Enquiries still at new — nobody has rung them',
+  'bento.admissions.new_enquiries_sub': 'Nobody has rung',
   'bento.admissions.new_enquiries_sr': 'Untouched enquiries as a share of all enquiries',
   'bento.admissions.of_enquiries': 'of {n} enquiries',
   'bento.admissions.no_enquiries': 'No enquiries on record yet.',
   'bento.admissions.cue_enquiries': 'Open enquiries',
 
   'bento.admissions.incomplete': 'Left unfinished',
-  'bento.admissions.incomplete_sub': 'Applications still in draft — a family that started and stopped',
+  'bento.admissions.incomplete_sub': 'Still in draft',
   'bento.admissions.incomplete_sr': 'Draft applications as a share of all applications',
   'bento.admissions.cue_incomplete': 'Open applications',
 
   'bento.admissions.offered': 'Offers made',
-  'bento.admissions.offered_sub': 'Applications at offered',
+  'bento.admissions.offered_sub': 'At offered',
   'bento.admissions.offered_note': 'Shown as a stage in the funnel above rather than as a share: offered and enrolled test different columns, and an application can reach a student without passing through offered.',
   'bento.admissions.cue_offers': 'Open offers',
 
   'bento.admissions.sources': 'Where they came from',
-  'bento.admissions.sources_sub': 'The six commonest sources on the enquiries this page could read',
+  'bento.admissions.sources_sub': 'Top six sources',
   'bento.admissions.sources_sr': 'Enquiries by source',
   'bento.admissions.sources_partial': 'across the {n} most recent',
   'bento.admissions.cue_sources': 'Open enquiries',
@@ -1933,7 +1942,7 @@ export const en = {
   // support.
   'bento.finance.as_of_today': 'As of today',
   'bento.finance.all_time': 'All time',
-  'bento.finance.no_target_sub': 'No billed total is recorded',
+  'bento.finance.no_target_sub': 'No billed total',
   'bento.finance.per_day_short': 'Per day',
   'bento.finance.today_rows_sr':
     'Collected today, the mean per elapsed day, and the total for {label} — all three in rupees.',
