@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 306 features. */
+/** 13 roles, 313 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -347,6 +347,19 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.exams.question_paper_approval', slug: 'question_paper_approval', name: 'Question paper approval', scope: 'institution', tier: 'core', summary: 'Every paper waiting to be read, across the school, with who set it and when the exam is.' },
           { key: 'institution_admin.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'institution', tier: 'core', summary: 'The same paper-by-paper view across every department, and the record of who moderated what.' },
+        ],
+      },
+      {
+        slug: 'hostel',
+        name: 'Hostel',
+        workspace: 'Hostel',
+        features: [
+          { key: 'institution_admin.hostel.hostel_rooms', slug: 'hostel_rooms', name: 'Hostel & rooms', scope: 'institution', tier: 'core', summary: 'Blocks, rooms and who sleeps where, with the roll call taken against it.' },
+          { key: 'institution_admin.hostel.outpasses_mess', slug: 'outpasses_mess', name: 'Outpasses & mess', scope: 'institution', tier: 'core', summary: 'Leave out of the hostel, complaints raised from it, and the week’s mess menu.' },
+          { key: 'institution_admin.hostel.night_study_attendance', slug: 'night_study_attendance', name: 'Night study attendance', scope: 'institution', tier: 'core', summary: 'Who was in the study hall, taken the way the register is.' },
+          { key: 'institution_admin.hostel.room_inventory_checklists', slug: 'room_inventory_checklists', name: 'Room inventory checklists', scope: 'institution', tier: 'core', summary: 'What each room holds and what condition it is in — checked in, checked out.' },
+          { key: 'institution_admin.hostel.hostel_visitor_log', slug: 'hostel_visitor_log', name: 'Hostel visitor log', scope: 'institution', tier: 'core', summary: 'Who came to see a boarder, when they arrived and when they left.' },
+          { key: 'institution_admin.hostel.boarder_laundry', slug: 'boarder_laundry', name: 'Boarder laundry', scope: 'institution', tier: 'core', summary: 'Bundles out and back, so a missing shirt has a record rather than an argument.' },
         ],
       },
     ],
@@ -754,6 +767,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school.' },
+          { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Tell a family their offer is out, what paperwork is still missing, or when the entrance test is — by SMS, WhatsApp or email, to the families behind the applications you choose.' },
         ],
       },
       {

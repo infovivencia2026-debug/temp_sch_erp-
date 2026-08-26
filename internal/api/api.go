@@ -526,6 +526,19 @@ func (s *Server) Routes() http.Handler {
 			/* Which rungs of the ladder this school actually uses. Readable by
 			   anyone who can see admissions, because the screens have to draw
 			   themselves accordingly; writable only with admissions.write. */
+			/* Telling a family where their application stands.
+
+			   On admissions.write rather than comms.messages.send. The general
+			   sending right also opens absence alerts, which are about enrolled
+			   children and are not the admissions desk's business — and the
+			   desk that cannot tell a family their offer is out is the reason
+			   this all happens on somebody personal WhatsApp instead.
+
+			   Narrow enough to be safe on the smaller right: it writes only to
+			   the families behind applications, only in one of four fixed
+			   admission templates, and never to a free-typed audience. */
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).
+				Post("/applicant-messages", s.sendApplicantMessages)
 			r.Get("/applications/{id}/fees", s.getAdmissionFees)
 			r.Get("/applications/{id}/documents", s.listApplicationDocuments)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).

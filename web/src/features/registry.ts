@@ -2,7 +2,6 @@ import { screen } from '@/lib/screen'
 import { type ComponentType, type LazyExoticComponent } from 'react'
 import { financeKeys } from './finance/keys'
 import { facultyCommsKeys } from './faculty/keys'
-import { healthKeys } from './operations/health-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
 import { parentKeys } from './portal/parent-keys'
 import { familyKeys } from './portal/family-keys'
@@ -176,6 +175,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
   'front_office.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
   'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
+  'institution_admin.hostel.hostel_rooms': screen(() => import('./operations/Hostel')),
+  'institution_admin.hostel.outpasses_mess': screen(() => import('./operations/HostelLife')),
+  'institution_admin.hostel.night_study_attendance': screen(() => import('./operations/HostelNightStudy')),
+  'institution_admin.hostel.room_inventory_checklists': screen(() => import('./operations/HostelRoomChecks')),
+  'institution_admin.hostel.hostel_visitor_log': screen(() => import('./operations/HostelVisitors')),
+  'institution_admin.hostel.boarder_laundry': screen(() => import('./operations/HostelLaundry')),
+  'admissions.communication.applicant_communication': screen(() => import('./admissions/ApplicantMessages')),
   'admissions.communication.messages': screen(() => import('./comms/StaffMessages')),
   'front_office.communication.messages': screen(() => import('./comms/StaffMessages')),
   'admissions.enquiries.assign_leads': screen(() => import('./admissions/Funnel')),
@@ -293,21 +299,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   /* Operations. Four screens for the school's physical side, each collapsing
      the catalogue's many entries onto the one place the work happens. */
-  'institution_admin.hostel.buildings_rooms': screen(() => import('./operations/Hostel')),
-  'institution_admin.hostel.hostel_building_room_setup': screen(() => import('./operations/Hostel')),
-  'institution_admin.hostel.room_allocation': screen(() => import('./operations/Hostel')),
-  'institution_admin.hostel.room_allocation_engine': screen(() => import('./operations/Hostel')),
-  'institution_admin.hostel.roll_call': screen(() => import('./operations/Hostel')),
-  'institution_admin.hostel.hostel_roll_call_attendance': screen(() => import('./operations/Hostel')),
 
   /* The rest of a warden's evening: who is off campus, what is broken, and
      what is being served. Kept apart from the bed list because allocation is
      a termly job and these three are daily ones. */
-  'institution_admin.hostel.outpass_leave': screen(() => import('./operations/HostelLife')),
-  'institution_admin.hostel.digital_outpass_approval': screen(() => import('./operations/HostelLife')),
-  'institution_admin.hostel.complaints': screen(() => import('./operations/HostelLife')),
-  'institution_admin.hostel.hostel_complaint_ticketing': screen(() => import('./operations/HostelLife')),
-  'institution_admin.hostel.mess_menu_meal_management': screen(() => import('./operations/HostelLife')),
 
   'institution_admin.stores.item_category_store_setup': screen(() => import('./operations/Stores')),
   'institution_admin.stores.department_stock_issuance': screen(() => import('./operations/Stores')),
@@ -459,7 +454,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...financeKeys,
 
   ...facultyCommsKeys,
-  ...healthKeys,
   ...hrLifecycleKeys,
   ...parentKeys,
   ...rollupKeys,

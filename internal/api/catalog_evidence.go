@@ -49,6 +49,20 @@ func (s *Server) evidenceFor(r *http.Request, sc *scope.Resolved, key string) bo
 			     AND (ta.valid_to IS NULL OR ta.valid_to >= CURRENT_DATE))`,
 			sc.StudentIDs)
 
+	case "institution_admin.hostel.hostel_rooms",
+		"institution_admin.hostel.outpasses_mess",
+		"institution_admin.hostel.night_study_attendance",
+		"institution_admin.hostel.room_inventory_checklists",
+		"institution_admin.hostel.hostel_visitor_log",
+		"institution_admin.hostel.boarder_laundry":
+		/* Only a school that boards children.
+
+		   A room is the fact, not an allocation: a school that has built its
+		   hostel and not yet put anybody in it still needs these screens —
+		   that is precisely when it needs them. A school with no rooms has no
+		   hostel, which is a permanent state and not a setup step. */
+		return s.anyRow(r, `SELECT EXISTS (SELECT 1 FROM hostel_rooms)`)
+
 	case "parent.academics.iep_progress_goal_tracker":
 		/* Only a parent whose child actually has a support plan.
 
@@ -77,9 +91,26 @@ func (s *Server) anyRow(r *http.Request, sql string, args ...any) bool {
 	return ok
 }
 
-/* evidenceKeys is the list itself, so the catalogue only pays for a probe on
-   the features that need one. Every other entry costs nothing. */
+/*
+evidenceKeys is the list itself, so the catalogue only pays for a probe on
+
+	the features that need one. Every other entry costs nothing.
+*/
 var evidenceKeys = map[string]bool{
 	"parent.academics.iep_progress_goal_tracker": true,
 	"parent.my_childs_bus.live_bus_tracking":     true,
+
+	/* A boarding menu at a day school.
+
+	   Most schools on this installation have no hostel and never will, and six
+	   entries standing permanently empty is what makes a product feel like
+	   somebody else's. Two schools have twenty-four rooms each and could not
+	   reach any of these screens at all, which is the other half of the same
+	   fault. */
+	"institution_admin.hostel.hostel_rooms":              true,
+	"institution_admin.hostel.outpasses_mess":            true,
+	"institution_admin.hostel.night_study_attendance":    true,
+	"institution_admin.hostel.room_inventory_checklists": true,
+	"institution_admin.hostel.hostel_visitor_log":        true,
+	"institution_admin.hostel.boarder_laundry":           true,
 }

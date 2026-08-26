@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 306 features.
+// Roles is the catalog: 13 roles, 313 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -394,6 +394,19 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "institution_admin.exams.question_paper_approval", Slug: "question_paper_approval", Name: "Question paper approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every paper waiting to be read, across the school, with who set it and when the exam is."},
 					{Key: "institution_admin.exams.mark_moderation", Slug: "mark_moderation", Name: "Mark moderation", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The same paper-by-paper view across every department, and the record of who moderated what."},
+				},
+			},
+			{
+				Slug: "hostel",
+				Name: "Hostel",
+				Workspace: "Hostel",
+				Features: []Feature{
+					{Key: "institution_admin.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Blocks, rooms and who sleeps where, with the roll call taken against it."},
+					{Key: "institution_admin.hostel.outpasses_mess", Slug: "outpasses_mess", Name: "Outpasses & mess", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave out of the hostel, complaints raised from it, and the week’s mess menu."},
+					{Key: "institution_admin.hostel.night_study_attendance", Slug: "night_study_attendance", Name: "Night study attendance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who was in the study hall, taken the way the register is."},
+					{Key: "institution_admin.hostel.room_inventory_checklists", Slug: "room_inventory_checklists", Name: "Room inventory checklists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each room holds and what condition it is in — checked in, checked out."},
+					{Key: "institution_admin.hostel.hostel_visitor_log", Slug: "hostel_visitor_log", Name: "Hostel visitor log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who came to see a boarder, when they arrived and when they left."},
+					{Key: "institution_admin.hostel.boarder_laundry", Slug: "boarder_laundry", Name: "Boarder laundry", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Bundles out and back, so a missing shirt has a record rather than an argument."},
 				},
 			},
 		},
@@ -801,6 +814,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "admissions.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school."},
+					{Key: "admissions.communication.applicant_communication", Slug: "applicant_communication", Name: "Applicant communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Tell a family their offer is out, what paperwork is still missing, or when the entrance test is — by SMS, WhatsApp or email, to the families behind the applications you choose."},
 				},
 			},
 			{

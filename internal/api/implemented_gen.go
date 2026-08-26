@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 313 of the catalog's features are implemented.
+// 305 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
@@ -14,6 +14,7 @@ var implementedFeatures = map[string]bool{
 	"admissions.admissions.waitlist":                                                 true,
 	"admissions.applications.application_forms":                                      true,
 	"admissions.applications.document_verification":                                  true,
+	"admissions.communication.applicant_communication":                               true,
 	"admissions.communication.messages":                                              true,
 	"admissions.enquiries.assign_leads":                                              true,
 	"admissions.enquiries.campus_visits":                                             true,
@@ -147,20 +148,11 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.fees.fee_default":                                             true,
 	"institution_admin.getting_started.school_setup":                                 true,
 	"institution_admin.home.dashboard":                                               true,
-	"institution_admin.hostel.boarder_laundry_tracking":                              true,
-	"institution_admin.hostel.buildings_rooms":                                       true,
-	"institution_admin.hostel.complaints":                                            true,
-	"institution_admin.hostel.digital_outpass_approval":                              true,
-	"institution_admin.hostel.hostel_building_room_setup":                            true,
-	"institution_admin.hostel.hostel_complaint_ticketing":                            true,
-	"institution_admin.hostel.hostel_roll_call_attendance":                           true,
+	"institution_admin.hostel.boarder_laundry":                                       true,
+	"institution_admin.hostel.hostel_rooms":                                          true,
 	"institution_admin.hostel.hostel_visitor_log":                                    true,
-	"institution_admin.hostel.mess_menu_meal_management":                             true,
-	"institution_admin.hostel.night_study_room_attendance":                           true,
-	"institution_admin.hostel.outpass_leave":                                         true,
-	"institution_admin.hostel.roll_call":                                             true,
-	"institution_admin.hostel.room_allocation":                                       true,
-	"institution_admin.hostel.room_allocation_engine":                                true,
+	"institution_admin.hostel.night_study_attendance":                                true,
+	"institution_admin.hostel.outpasses_mess":                                        true,
 	"institution_admin.hostel.room_inventory_checklists":                             true,
 	"institution_admin.library.annual_book_stock_verification":                       true,
 	"institution_admin.library.digital_library_usage":                                true,
