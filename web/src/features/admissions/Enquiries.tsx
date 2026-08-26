@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Phone, Plus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -7,6 +7,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, Select, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { formatDate } from '@/lib/utils'
 
@@ -38,6 +39,7 @@ const STATUSES = ['new', 'contacted', 'visit_scheduled', 'applied', 'lost']
 
 export default function Enquiries() {
   const qc = useQueryClient()
+  const nav = useNavigate()
   const [status, setStatus] = useState('')
   const [adding, setAdding] = useState(false)
   /* Which of the two doors somebody came through.
@@ -104,6 +106,12 @@ export default function Enquiries() {
     ? all.filter((e) => e.next_follow_up && e.next_follow_up <= today
                         && !['applied', 'lost'].includes(e.status))
     : all
+
+  /* A counsellor looks for a lead by the parent's name or the number on a
+     scrap of paper, not by scrolling. Over what is loaded, which for a term's
+     enquiries is the whole list. */
+  const { q: term, setQ: setTerm, shown } = useSearch(items,
+    (e) => [e.student_name, e.parent_name, e.phone, e.source, e.status])
 
   const overdue = items.filter(
     (e) => e.next_follow_up && e.next_follow_up < today && !['applied', 'lost'].includes(e.status),
@@ -190,14 +198,30 @@ export default function Enquiries() {
             title="Enquiries"
             description="Overdue first, then by follow-up date"
             action={
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={[
-                  { value: '', label: 'All statuses' },
-                  ...STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') })),
-                ]}
-              />
+              <span className="flex flex-wrap items-center gap-2">
+                <Showing shown={shown.length} total={items.length} noun="enquiries" />
+                <SearchBox value={term} onChange={setTerm} placeholder="Name, parent or phone" />
+                <Select
+                  value={status}
+                  onChange={setStatus}
+                  options={[
+                    { value: '', label: 'All statuses' },
+                    ...STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') })),
+                  ]}
+                />
+                <ExportRows
+                  rows={shown}
+                  name="enquiries"
+                  columns={[
+                    { header: 'Student', value: (e) => e.student_name },
+                    { header: 'Parent', value: (e) => e.parent_name },
+                    { header: 'Phone', value: (e) => e.phone },
+                    { header: 'Source', value: (e) => e.source },
+                    { header: 'Follow-up', value: (e) => e.next_follow_up },
+                    { header: 'Status', value: (e) => e.status },
+                  ]}
+                />
+              </span>
             }
           />
           <FormNotice error={update.error} ok={note} />
@@ -209,10 +233,10 @@ export default function Enquiries() {
             <Table
               wide
               head={['Student', 'Parent', 'Phone', 'Source', 'Follow-up', 'Status', '']}
-              empty={!items.length}
-              emptyLabel="No enquiries yet."
+              empty={!shown.length}
+              emptyLabel={term ? 'No enquiry matches that.' : 'No enquiries yet.'}
             >
-              {[...items]
+              {[...shown]
                 .sort((a, b) => (a.next_follow_up ?? '9999').localeCompare(b.next_follow_up ?? '9999'))
                 .map((e) => {
                   const late = e.next_follow_up && e.next_follow_up < today &&
@@ -252,6 +276,32 @@ export default function Enquiries() {
                               onClick={() => update.mutate({ id: e.id, status: 'visit_scheduled' })}
                             >
                               Visit booked
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={update.isPending}
+                              title="Open the application form with this lead filled in"
+                              onClick={() => {
+                                /* The names and the number were taken on the
+                                   phone; retyping them is how they end up
+                                   spelled two ways in two tables. The server
+                                   marks the enquiry converted when the
+                                   application is filed against it. */
+                                const q = new URLSearchParams({
+                                  from: e.id,
+                                  student: e.student_name,
+                                  parent: e.parent_name ?? '',
+                                  phone: e.phone,
+                                })
+                                /* /go resolves the workspace at the moment it is opened, which is
+                                   the only moment anybody knows it — the same
+                                   counsellor may hold the admissions role or the
+                                   front-office one, and the path differs. */
+                                nav(`/go/application_forms?${q}`)
+                              }}
+                            >
+                              Convert
                             </Button>
                             <Button
                               size="sm"

@@ -197,6 +197,17 @@ type createApplicationRequest struct {
 	Address     string `json:"address,omitempty"`
 	PrevSchool  string `json:"previous_school,omitempty"`
 	IsRTE       bool   `json:"is_rte"`
+
+	// The form fee in paise, omitted where the school charges none. Paise
+	// rather than rupees because every other money field here is, and a
+	// receipt that disagrees with the ledger by a rounding is worse than no
+	// receipt. Zero is a real answer meaning "waived", distinct from absent.
+	FormFeePaise *int64 `json:"form_fee_paise,omitempty"`
+	// Whether it was taken across the counter as the form was handed in,
+	// which is the ordinary case — the clerk should not have to file the
+	// application and then go and mark it paid.
+	FormFeePaid    bool   `json:"form_fee_paid,omitempty"`
+	FormFeeReceipt string `json:"form_fee_receipt_no,omitempty"`
 }
 
 // createApplication converts an enquiry into a formal application.
@@ -237,14 +248,17 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 			                          first_name, middle_name, last_name, date_of_birth,
 			                          gender, category, class_sought, parent_name,
 			                          parent_phone, parent_email, address, previous_school,
-			                          is_rte, status)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::date,$9,$10,$11,$12,$13,$14::citext,$15,$16,$17,'submitted')
+			                          is_rte, status,
+			                          form_fee_paise, form_fee_paid_at, form_fee_receipt_no)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::date,$9,$10,$11,$12,$13,$14::citext,$15,$16,$17,'submitted',
+			        $18, CASE WHEN $19::boolean AND $18::bigint IS NOT NULL THEN now() END, $20)
 			RETURNING id::text`,
 			instID, campusID, nullString(req.EnquiryID), appNo,
 			req.FirstName, nullString(req.MiddleName), nullString(req.LastName),
 			nullString(req.DateOfBirth), nullString(req.Gender), nullString(req.Category),
 			classID, req.ParentName, req.ParentPhone, nullString(req.ParentEmail),
-			nullString(req.Address), nullString(req.PrevSchool), req.IsRTE).Scan(&appID); err != nil {
+			nullString(req.Address), nullString(req.PrevSchool), req.IsRTE,
+			req.FormFeePaise, req.FormFeePaid, nullString(req.FormFeeReceipt)).Scan(&appID); err != nil {
 			return err
 		}
 

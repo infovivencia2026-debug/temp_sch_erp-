@@ -229,6 +229,11 @@ type applicationRow struct {
 	IsRTE         bool    `json:"is_rte"`
 	Status        string  `json:"status"`
 	CreatedAt     string  `json:"created_at"`
+
+	// Absent where the school charges no form fee, so the column can be
+	// hidden entirely rather than showing a row of dashes.
+	FormFeePaise  *int64  `json:"form_fee_paise,omitempty"`
+	FormFeePaidAt *string `json:"form_fee_paid_at,omitempty"`
 }
 
 // listApplications powers admissions.admissions_workspace.applications.
@@ -237,16 +242,25 @@ func (s *Server) listApplications(w http.ResponseWriter, r *http.Request) {
 		SELECT a.id::text, a.application_no,
 		       concat_ws(' ', a.first_name, a.middle_name, a.last_name),
 		       c.name, a.parent_name, a.parent_phone, a.is_rte, a.status,
-		       to_char(a.created_at,'YYYY-MM-DD')
+		       to_char(a.created_at,'YYYY-MM-DD'),
+		       a.form_fee_paise, to_char(a.form_fee_paid_at,'YYYY-MM-DD')
 		  FROM applications a
 		  LEFT JOIN classes c ON c.id = a.class_sought
 		 WHERE ($1::text IS NULL OR a.status = $1)
+		   -- 'unpaid' is the clerk's question at the end of the day, and it is
+		   -- only askable of forms that carry a fee at all.
+		   AND ($2::text IS NULL
+		        OR ($2 = 'unpaid' AND a.form_fee_paise IS NOT NULL AND a.form_fee_paid_at IS NULL)
+		        OR ($2 = 'paid'   AND a.form_fee_paid_at IS NOT NULL))
 		 ORDER BY a.created_at DESC
-		 LIMIT 300`, []any{nullString(r.URL.Query().Get("status"))},
+		 LIMIT 300`,
+		[]any{nullString(r.URL.Query().Get("status")),
+			nullString(r.URL.Query().Get("fee"))},
 		func(rows pgx.Rows) (applicationRow, error) {
 			var v applicationRow
 			return v, rows.Scan(&v.ID, &v.ApplicationNo, &v.Name, &v.ClassSought,
-				&v.ParentName, &v.ParentPhone, &v.IsRTE, &v.Status, &v.CreatedAt)
+				&v.ParentName, &v.ParentPhone, &v.IsRTE, &v.Status, &v.CreatedAt,
+				&v.FormFeePaise, &v.FormFeePaidAt)
 		})
 	respond(w, r, items, err)
 }
