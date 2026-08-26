@@ -277,7 +277,7 @@ const FIG_CLASS =
   'text-[length:min(var(--card-fig,clamp(26px,3.6vh,40px)),15cqw)]'
 
 const LABEL_CLASS =
-  'bento-label text-[length:var(--card-sub,10px)] font-semibold uppercase leading-tight tracking-[0.08em] ' +
+  'bento-label text-[length:var(--card-sub,10px)] font-normal uppercase leading-tight tracking-[0.08em] ' +
   'text-[var(--bento-muted)]'
 
 /** The whisper above the figure. One copy of the markup three cells were
@@ -429,7 +429,7 @@ function SeverityLadder({
             />
             {showLabels && (
               <p
-                className="mt-1 truncate text-[length:var(--card-note,8.5px)] font-semibold uppercase leading-none tracking-[0.06em]"
+                className="mt-1 truncate text-[length:var(--card-note,8.5px)] font-normal uppercase leading-none tracking-[0.06em]"
                 style={{
                   color: lit ? SEVERITY_MARK[rung] : 'var(--bento-muted)',
                   opacity: lit ? 1 : 0.6,
@@ -462,7 +462,7 @@ function SeverityScale({
 }) {
   return (
     <div aria-hidden="true" className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
-      <p className="text-[length:var(--card-sub,9px)] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--bento-muted)]">
+      <p className="text-[length:var(--card-sub,9px)] font-normal uppercase leading-none tracking-[0.08em] text-[var(--bento-muted)]">
         {heading}
       </p>
       {SEVERITY_ORDER.map((rung) => {
@@ -475,7 +475,7 @@ function SeverityScale({
             />
             <div className="min-w-0">
               <p
-                className="text-[length:var(--card-note,9.5px)] font-semibold uppercase leading-none tracking-[0.06em]"
+                className="text-[length:var(--card-note,9.5px)] font-normal uppercase leading-none tracking-[0.06em]"
                 style={{
                   color: lit ? SEVERITY_MARK[rung] : 'var(--bento-muted)',
                   opacity: lit ? 1 : 0.65,
@@ -507,10 +507,10 @@ function SeverityScale({
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-[length:min(var(--card-sub,8.5px),12px)] font-semibold uppercase leading-none tracking-[0.07em] text-[var(--bento-muted)]">
+      <p className="truncate text-[length:min(var(--card-sub,8.5px),12px)] font-normal uppercase leading-none tracking-[0.07em] text-[var(--bento-muted)]">
         {label}
       </p>
-      <p className="mt-1 truncate text-[length:min(var(--card-change,12px),16px)] font-semibold leading-none tabular-nums">{value}</p>
+      <p className="mt-1 truncate text-[length:min(var(--card-change,12px),16px)] leading-none tabular-nums [font-weight:650]">{value}</p>
     </div>
   )
 }
@@ -734,7 +734,7 @@ function AttentionCell({
       </p>
       <span
         aria-hidden="true"
-        className="rounded-full border px-1.5 py-0.5 text-[length:var(--card-sub,9px)] font-semibold uppercase
+        className="rounded-full border px-1.5 py-0.5 text-[length:var(--card-sub,9px)] font-normal uppercase
                    leading-none tracking-[0.06em]"
         style={{
           borderColor: severity ? SEVERITY_MARK[severity] : SEVERITY_TRACK,
@@ -812,7 +812,7 @@ function AttentionCell({
       className="mt-2 truncate text-[length:var(--card-action,10.5px)] leading-none"
       title={action}
     >
-      <span className="font-semibold uppercase tracking-[0.07em] text-[var(--bento-muted)] text-[length:var(--card-sub,8.5px)]">
+      <span className="font-normal uppercase tracking-[0.07em] text-[var(--bento-muted)] text-[length:var(--card-sub,8.5px)]">
         {t('bento.principal.attention_next_label')}
       </span>{' '}
       <span className="font-semibold">{action}</span>
@@ -1082,7 +1082,7 @@ function FactField({ facts, mode }: { facts: Fact[]; mode: 'row' | 'stacked' | '
             {f.value}
           </span>
           <span
-            className="truncate text-[length:var(--card-note,9.5px)] font-semibold uppercase leading-none
+            className="truncate text-[length:var(--card-note,9.5px)] font-normal uppercase leading-none
                        tracking-[0.06em] text-[var(--bento-muted)]"
           >
             {f.label}
@@ -1102,7 +1102,7 @@ function FactField({ facts, mode }: { facts: Fact[]; mode: 'row' | 'stacked' | '
 function Provenance({ children }: { children: ReactNode }) {
   return (
     <p
-      className="mt-1.5 flex items-center gap-1.5 text-[length:var(--card-sub,9.5px)] font-semibold uppercase
+      className="mt-1.5 flex items-center gap-1.5 text-[length:var(--card-sub,9.5px)] font-normal uppercase
                  leading-none tracking-[0.07em] text-[var(--bento-muted)]"
     >
       <span
@@ -1124,7 +1124,7 @@ function StateTag({ children }: { children: ReactNode }) {
     <span
       aria-hidden="true"
       className="rounded-full border border-[var(--bento-line)] px-1.5 py-0.5 text-[length:var(--card-sub,9px)]
-                 font-semibold uppercase leading-none tracking-[0.06em] text-[var(--bento-muted)]"
+                 font-normal uppercase leading-none tracking-[0.06em] text-[var(--bento-muted)]"
     >
       {children}
     </span>

@@ -124,7 +124,18 @@ export function CardShell({
           less the card's own padding. */}
       <div className="flex min-w-0 items-start justify-between gap-2 pr-11">
         <div className="min-w-0">
-          <p className="truncate font-bold leading-tight text-[length:var(--card-title,13px)]">
+          {/* NOT BOLD. Only the figure is.
+
+              A card holds one number and everything else on it is there to say
+              what that number is. When the title is bold too, the eye has two
+              things to land on and picks the one at the top — so a board of
+              twelve cards reads as twelve headings with numbers under them,
+              rather than as twelve numbers with names on them.
+
+              Medium, not regular: the title still has to separate from the
+              eyebrow directly beneath it, and it does that at 500 with the
+              size difference doing the rest. */}
+          <p className="truncate font-medium leading-tight text-[length:var(--card-title,13px)]">
             {title}
           </p>
           {/* THE MICRO-LABEL. Monospace, uppercase, widely tracked and dim --
@@ -139,8 +150,8 @@ export function CardShell({
               className={cn(
                 'mt-1 truncate opacity-55 text-[length:var(--card-sub,10px)]',
                 isLatin(sub)
-                  ? 'font-semibold uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
-                  : 'font-semibold leading-tight',
+                  ? 'font-normal uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
+                  : 'font-normal leading-tight',
               )}
             >
               {sub}
@@ -185,9 +196,14 @@ export function CardShell({
       </div>
       {/* Two lines, not an ellipsis. This is the sentence that carries the
           reading — "12% of billed, owed by 30 students" — and truncating it
-          cut the half that says who. */}
+          cut the half that says who.
+
+          THIN. A description set at the same weight as the thing it describes
+          stops being subordinate to it. 300 against the figure's 650 is the
+          widest gap this typeface offers, and it is what leaves the number the
+          only bold thing on the card. */}
       {change ? (
-        <p className="line-clamp-2 leading-tight opacity-65
+        <p className="line-clamp-2 font-light leading-tight opacity-70
                       text-[length:var(--card-change,11px)]">
           {change}
         </p>
@@ -457,8 +473,8 @@ export function Rows({ items, srLabel, formatValue }: {
             className={cn(
               'truncate text-[length:min(9px,var(--card-note,9px))] leading-none opacity-70',
               isLatin(it.label)
-                ? 'font-medium uppercase tracking-[0.07em]'
-                : 'font-medium',
+                ? 'font-normal uppercase tracking-[0.07em]'
+                : 'font-normal',
             )}
           >
             {it.label}
@@ -852,8 +868,8 @@ export function Segments({
         {shown.map((p, i) => (
           <li key={p.label} className="flex items-center gap-1">
             <span className="h-2 w-2 shrink-0" style={{ background: ink(88 - i * 20) }} />
-            <span className="truncate">{p.label}</span>
-            <b className="tabular-nums [font-weight:500]">
+            <span className="truncate font-light">{p.label}</span>
+            <b className="tabular-nums [font-weight:650]">
               {Math.round((num(p.value) / sum) * 100)}%
             </b>
           </li>
@@ -894,7 +910,7 @@ export function Ladder({
               background: ink(88 - i * 14),
             }}
           />
-          <span className="truncate text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-60">
+          <span className="truncate font-light text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-60">
             {s.label}
           </span>
         </div>
@@ -1006,7 +1022,7 @@ export function Ranked({
                         text-[length:min(var(--card-fig,22px),22px)] [font-weight:650]">
             {String(i + 1).padStart(2, '0')}
           </b>
-          <span className="mt-0.5 block truncate text-[length:min(8px,var(--card-note,8px))]
+          <span className="mt-0.5 block truncate font-light text-[length:min(8px,var(--card-note,8px))]
                            uppercase leading-none tracking-[0.07em] opacity-60">
             {it.label}
           </span>
