@@ -628,7 +628,6 @@ type feeOverviewView struct {
 	Year     string            `json:"academic_year"`
 	Totals   feeOverviewTotals `json:"totals"`
 	ByClass  []feeClassRow     `json:"by_class"`
-	AsOfNote string            `json:"as_of_note"`
 }
 
 /*
@@ -664,12 +663,6 @@ func (s *Server) getFeeOverview(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	out := feeOverviewView{
 		ByClass: []feeClassRow{},
-		AsOfNote: "Every figure here is this year's bills only: demanded is what " +
-			"was billed for the year, collected is what has been applied to those " +
-			"bills, outstanding is the unpaid remainder of them as of now. Debt " +
-			"carried in from earlier years is not counted here — the ageing table " +
-			"below and the executive dashboard both include it, which is why " +
-			"their outstanding figure is the larger one.",
 	}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {

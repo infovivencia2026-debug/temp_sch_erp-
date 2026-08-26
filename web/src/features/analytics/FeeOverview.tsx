@@ -27,7 +27,7 @@ interface ClassRow {
   demanded_paise: number; collected_paise: number
   outstanding_paise: number; concession_paise: number; collected_pct?: number
 }
-interface Overview { academic_year: string; totals: Totals; by_class: ClassRow[]; as_of_note: string }
+interface Overview { academic_year: string; totals: Totals; by_class: ClassRow[] }
 interface AgeingRow { bucket: string; invoices: number; students: number; amount_paise: number }
 interface ConcessionRow {
   kind: string; students: number; awards: number; pending_approval: number
@@ -82,7 +82,20 @@ export default function FeeOverview() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Demanded" value={formatPaise(t.demanded_paise)} period={d.academic_year} />
+          {/* The scope rides on each figure rather than in a paragraph under
+              them all. A four-line note explaining that these are this year's
+              bills, that the ageing table counts earlier years too, and that
+              this is why the two outstanding figures differ, was doing the job
+              of three labels — and a reader who skips prose (which is most of
+              them, on a screen of numbers) got none of it. Each stat carries
+              its own scope now, in the hint slot that already exists for
+              exactly this. */}
+          <Stat
+            label="Demanded"
+            value={formatPaise(t.demanded_paise)}
+            hint="Billed for this year"
+            period={d.academic_year}
+          />
           {/* "Collected" alone is the word the executive dashboard uses for
               receipts banked in a period, and a month's receipts can exceed a
               year's applied collection — which is exactly how "this month
@@ -97,7 +110,7 @@ export default function FeeOverview() {
           <Stat
             label="Outstanding this year"
             value={formatPaise(t.outstanding_paise)}
-            hint={`${t.defaulters} past due · this year's bills only`}
+            hint={`${t.defaulters} past due · this year only, ageing counts earlier`}
             period="As of now"
           />
           <Stat
@@ -107,8 +120,6 @@ export default function FeeOverview() {
             period={d.academic_year}
           />
         </CellGrid>
-        <p className="text-[13px] text-muted-foreground">{d.as_of_note}</p>
-
         <Card>
           <CardHeader
             title="By class"
