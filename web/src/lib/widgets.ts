@@ -661,7 +661,7 @@ export const BOARD_ROWS = 3
    which is shorter than the text inside them. Three gives roughly 4:3 tiles,
    which is the proportion iOS widgets actually use. */
 export const PHONE_COLS = 2
-export const PHONE_ROWS = 3
+export const PHONE_ROWS = 4
 
 /** Where one widget ended up: which page, and where on it. */
 export interface Spot {
@@ -726,7 +726,24 @@ export function paginate(
 
   for (const item of items) {
     const w = Math.min(Math.max(1, item.w), cols)
-    const h = Math.min(Math.max(1, item.h), rows)
+    /* HEIGHT IS ALWAYS ONE ROW ON A PHONE.
+
+       A widget that asks for two rows was given two, so a 2x2 card filled half
+       a 844px screen on its own and a page held two cards. Screenshot at
+       390x844: one card 470px tall with its figure, a five-word sentence and
+       620px of nothing under it, and a second card below the fold.
+
+       A card is not improved by being 470px tall. Its type scale is a fraction
+       of its own height, so everything in it inflated at the same time — a
+       26px title reading at 40 — and the drawing, sized to what is left, had
+       more room than any drawing on this board is designed to use.
+
+       Four rows of one, then: four cards a page at ~200px each, which is the
+       height these cards are built for and roughly what an iPhone home screen
+       gives a widget. The stored layout is untouched — this is how the phone
+       READS it, and the desktop board still honours every two-row card. */
+    const h = 1
+    void item.h
     let spot: { row: number; col: number } | null = null
     for (let r = 0; !spot && r <= rows - h; r++) {
       for (let c = 0; c <= cols - w; c++) {

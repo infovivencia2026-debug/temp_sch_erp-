@@ -1603,6 +1603,26 @@ html[data-layout='bento'] body {
   [data-layout='bento'] .bento-board {
     grid-auto-rows: minmax(190px, auto);
   }
+
+  /* TWO CARDS ACROSS, NOT ONE.
+
+     The board is two columns here and most widgets ask for two of them, so
+     `sm:col-span-2` made almost every card the full 820px — one card per row,
+     its content occupying the left half and the right half empty, because a
+     card's content is laid out for the width a card actually needs rather than
+     for whatever width it is handed. Screenshot at 820px: five cards, five
+     full-width rows, half of every one of them blank.
+
+     Every cell takes one column in this band. Two per row at ~400px each is
+     the width these cards were designed for, and it is what a tablet is for —
+     more than a phone shows at once, laid out like a page rather than a list.
+
+     The row span is left alone: a card that wants two rows still gets them,
+     and vertical space is the one thing a tablet has plenty of. */
+  [data-layout='bento'] .bento-board > .bento-widget,
+  [data-layout='bento'] .bento-board > .bento-cell {
+    grid-column: span 1 !important;
+  }
 }
 
 /* Below 640 the board is a single column and the same reasoning applies, with
@@ -1805,7 +1825,13 @@ html[data-layout='bento'] body {
     display: grid !important;
     grid-template-columns: none !important;
     grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
-    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    /* FOUR, matching PHONE_ROWS in web/src/lib/widgets.ts. Three rows with
+       two-row cards allowed put two cards on an 844px screen, each 470px tall
+       and mostly empty. Four rows of one-row cards is ~200px each — the height
+       these cards are built for. The two numbers must agree: the pager's
+       inline grid-row comes from PHONE_ROWS and the track count comes from
+       here, and a mismatch silently drops the last row off the page. */
+    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--bento-gap) !important;
