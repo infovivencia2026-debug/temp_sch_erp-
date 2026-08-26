@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, Clock, Plus, Send, Users } from 'lucide-react'
+import { BookOpen, CheckCircle2, Clock, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Field, FormGrid, FormNotice, Input, Select,
+  Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -34,6 +35,11 @@ interface Homework {
   strength: number
   submitted: boolean
   teacher?: string
+  /* What the teacher attached, and what this reader turned in. */
+  files?: { file_id: string; name: string; content_type?: string; size_bytes?: number }[]
+  my_answer?: string
+  my_file_id?: string
+  my_file_name?: string
 }
 
 interface Filters {
@@ -99,9 +105,22 @@ export default function Homework() {
     queryFn: () => api.get<List<Homework>>('/api/v1/homework' + (query ? `?${query}` : '')),
   })
 
+  /* Which task is open for answering, and what has been written into it. */
+  const [answering, setAnswering] = useState<string | null>(null)
+  const [answer, setAnswer] = useState('')
+  const [attached, setAttached] = useState<UploadedFile | null>(null)
+
   const submit = useMutation({
-    mutationFn: (id: string) => api.post(`/api/v1/homework/${id}/submit`, { text_answer: 'Submitted' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['homework'] }),
+    mutationFn: (id: string) => api.post(`/api/v1/homework/${id}/submit`, {
+      text_answer: answer.trim() || undefined,
+      file_id: attached?.file_id,
+    }),
+    onSuccess: () => {
+      setAnswering(null)
+      setAnswer('')
+      setAttached(null)
+      qc.invalidateQueries({ queryKey: ['homework'] })
+    },
   })
 
   if (isLoading) return <Loading />
@@ -250,9 +269,16 @@ export default function Homework() {
                         Turned in
                       </Badge>
                     ) : isStudent ? (
-                      <Button size="sm" disabled={submit.isPending} onClick={() => submit.mutate(h.id)}>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setAnswering(answering === h.id ? null : h.id)
+                          setAnswer('')
+                          setAttached(null)
+                        }}
+                      >
                         <Send className="h-3.5 w-3.5" />
-                        Turn in
+                        {answering === h.id ? 'Close' : 'Turn in'}
                       </Button>
                     ) : (
                       /* A parent sees the state and cannot change it. Saying
@@ -264,6 +290,93 @@ export default function Homework() {
                     )}
                   </div>
                  </div>
+                  {/* The worksheet the teacher set.
+
+                      homework_attachments existed from the first migration and
+                      nothing ever wrote to it, so "here is the sheet" — which
+                      is most of what setting homework means — had nowhere to
+                      live. */}
+                  {!!h.files?.length && (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                      {h.files.map((f) => (
+                        <a
+                          key={f.file_id}
+                          href={`/api/v1/files/${f.file_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px] text-primary hover:bg-accent"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {f.name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* What this child turned in, once they have. */}
+                  {h.submitted && (h.my_answer || h.my_file_id) && (
+                    <div className="mt-3 border-t pt-3 text-[13px]">
+                      <p className="text-muted-foreground">What you turned in</p>
+                      {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
+                      {h.my_file_id && (
+                        <a
+                          href={`/api/v1/files/${h.my_file_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-flex items-center gap-1.5 text-primary"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {h.my_file_name ?? 'your file'}
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Answering it.
+
+                      This used to post the literal word "Submitted". The child
+                      pressed a button and the system recorded that they had
+                      pressed it — nothing they wrote, nothing they photographed,
+                      nothing a teacher could mark. */}
+                  {answering === h.id && (
+                    <div className="mt-3 border-t pt-4">
+                      <label className="flex flex-col gap-1.5 text-[13px]">
+                        <span className="text-muted-foreground">Your answer</span>
+                        <Textarea
+                          value={answer}
+                          onChange={setAnswer}
+                          rows={4}
+                          placeholder="Type your answer, or attach a photo of the page below."
+                        />
+                      </label>
+                      <div className="mt-3 max-w-sm">
+                        <FilePicker
+                          value={attached}
+                          onChange={setAttached}
+                          purpose="homework_submission"
+                          label="Attach your work"
+                          hint="A photo of the page is fine."
+                        />
+                      </div>
+                      <FormNotice error={submit.error} />
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Button
+                          disabled={submit.isPending || (!answer.trim() && !attached)}
+                          onClick={() => submit.mutate(h.id)}
+                        >
+                          {submit.isPending ? 'Turning in…' : 'Turn it in'}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setAnswering(null)}>Cancel</Button>
+                        {!answer.trim() && !attached && (
+                          <span className="text-[12.5px] text-muted-foreground">
+                            Write something or attach a page &mdash; an empty submission
+                            tells your teacher nothing.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {openRegister === h.id && <Register homeworkId={h.id} />}
                 </li>
               ))}
@@ -311,11 +424,17 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
     due_on: tomorrow(),
     kind: 'homework',
   })
+  /* The worksheet. Uploaded first, linked on publish — the file store checks
+     the size and refuses a program before this screen ever sees an id. */
+  const [sheet, setSheet] = useState<UploadedFile | null>(null)
 
   const toast = useToast()
 
   const publish = useMutation({
-    mutationFn: () => api.post('/api/v1/homework', f),
+    mutationFn: () => api.post('/api/v1/homework', {
+      ...f,
+      file_ids: sheet ? [sheet.file_id] : undefined,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['homework'] })
       toast.ok('Homework published to the class and their parents')
@@ -372,6 +491,18 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
           </Field>
           <Field label="Due on">
             <Input type="date" value={f.due_on} onChange={(x) => setF({ ...f, due_on: x })} />
+          </Field>
+          <Field
+            label="Worksheet"
+            hint="The sheet, the reading, a photo of the board. Optional."
+            wide
+          >
+            <FilePicker
+              value={sheet}
+              onChange={setSheet}
+              purpose="homework_attachment"
+              label="Attach the sheet"
+            />
           </Field>
           <Field label="Kind">
             <Select
@@ -547,7 +678,7 @@ function Register({ homeworkId }: { homeworkId: string }) {
           {rows.length - done.length > 0 && ` · ${rows.length - done.length} still owing`}
         </span>
       </div>
-      <Table head={['Roll', 'Name', 'Status', 'When']}>
+      <Table wide head={['Roll', 'Name', 'Status', 'What they turned in', 'When']}>
         {rows.map((x) => (
           <tr key={x.student_id} className="border-t">
             <Td className="tabular-nums">{x.roll_no ?? '—'}</Td>
@@ -557,6 +688,30 @@ function Register({ homeworkId }: { homeworkId: string }) {
                 <Badge tone="warning">Not turned in</Badge>
               ) : (
                 <Badge tone="success">{x.status}</Badge>
+              )}
+            </Td>
+            <Td>
+              {/* The work itself, beside the tick.
+
+                  A register that says only who pressed the button is a
+                  register of button presses; the teacher opened it to mark
+                  something. */}
+              {x.text_answer && (
+                <span className="block max-w-md whitespace-pre-wrap">{x.text_answer}</span>
+              )}
+              {x.file_id && (
+                <a
+                  href={`/api/v1/files/${x.file_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-primary"
+                >
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {x.file_name ?? 'their file'}
+                </a>
+              )}
+              {!x.text_answer && !x.file_id && (
+                <span className="text-muted-foreground">&mdash;</span>
               )}
             </Td>
             <Td className="text-muted-foreground">
@@ -570,6 +725,8 @@ function Register({ homeworkId }: { homeworkId: string }) {
 }
 
 interface Submitter {
+  file_id?: string
+  file_name?: string
   student_id: string
   roll_no?: string
   full_name: string

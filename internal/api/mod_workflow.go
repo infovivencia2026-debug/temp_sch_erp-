@@ -813,6 +813,10 @@ type homeworkRequest struct {
 	// cannot turn in is the less useful default, and the flag is easy to
 	// forget; an explicit false still switches submissions off.
 	AllowSubmission *bool `json:"allow_submission,omitempty"`
+
+	// The worksheet. Ids from the file store, so the upload has already
+	// happened and been checked by the time this is called.
+	FileIDs []string `json:"file_ids,omitempty"`
 }
 
 // publishHomework sets homework for a section.
@@ -884,6 +888,33 @@ func (s *Server) publishHomework(w http.ResponseWriter, r *http.Request) {
 			req.Title, nullString(req.Instructions), nullString(req.DueOn),
 			req.MaxMarks, allow, id.UserID).Scan(&newID); err != nil {
 			return err
+		}
+
+		/* The worksheet, if there is one.
+
+		   homework_attachments has been in the schema since the first
+		   migration, keyed to the shared files table with its row-level
+		   security in place, and no Go code has ever written to it — so the
+		   place to put the worksheet was built and nothing was wired to it.
+		   That is the whole of what a teacher means by "set homework": here
+		   is the sheet.
+
+		   The rows are only linked, not uploaded here: the file went to the
+		   store first, where it was size-checked and its type refused if it
+		   was a program. */
+		for _, fid := range req.FileIDs {
+			if strings.TrimSpace(fid) == "" {
+				continue
+			}
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO homework_attachments (institution_id, homework_id, file_id)
+				SELECT $1, $2::uuid, $3::uuid
+				 WHERE EXISTS (SELECT 1 FROM files WHERE id = $3::uuid
+				                 AND deleted_at IS NULL)
+				ON CONFLICT DO NOTHING`,
+				id.InstitutionID, newID, fid); err != nil {
+				return err
+			}
 		}
 
 		/* And tell the family.
@@ -1000,6 +1031,15 @@ func (s *Server) publishHomework(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID, "title": req.Title})
 }
 
+// homeworkFile is one attachment on a task: the worksheet, the reading, the
+// photograph of the board.
+type homeworkFile struct {
+	FileID string `json:"file_id"`
+	Name   string `json:"name"`
+	Type   string `json:"content_type,omitempty"`
+	Size   int64  `json:"size_bytes,omitempty"`
+}
+
 type homeworkRow struct {
 	ID           string  `json:"id"`
 	Title        string  `json:"title"`
@@ -1013,6 +1053,12 @@ type homeworkRow struct {
 	Overdue      bool    `json:"overdue"`
 	Submissions  int     `json:"submissions"`
 	Strength     int     `json:"strength"`
+	// The worksheet the teacher attached, and what this reader turned in.
+	// Both empty for a task with neither, so a screen can hide the section.
+	Files      []homeworkFile `json:"files,omitempty"`
+	MyAnswer   *string        `json:"my_answer,omitempty"`
+	MyFileID   *string        `json:"my_file_id,omitempty"`
+	MyFileName *string        `json:"my_file_name,omitempty"`
 	// Submitted answers the only question a student has about a task they
 	// can see: have I turned this in? Always false for staff, who are asked
 	// the different question of how many of the class have.
@@ -1107,7 +1153,37 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 		         WHERE e.section_id = h.section_id AND e.status = 'active')::int,
 		       EXISTS (SELECT 1 FROM homework_submissions hs
 		                WHERE hs.homework_id = h.id AND hs.student_id = ANY($1::uuid[])),
-		       u.full_name
+		       u.full_name,
+		       /* The worksheet, as json rather than a second round trip: a
+		          list of twenty tasks would otherwise be twenty-one queries,
+		          and the attachment is two short strings. */
+		       COALESCE((
+		         SELECT json_agg(json_build_object(
+		                  'file_id', f.id::text, 'name', f.original_name,
+		                  'content_type', f.content_type, 'size_bytes', f.size_bytes)
+		                ORDER BY f.created_at)
+		           FROM homework_attachments ha
+		           JOIN files f ON f.id = ha.file_id AND f.deleted_at IS NULL
+		          WHERE ha.homework_id = h.id), '[]'::json),
+		       /* Scalar, not a join.
+
+		          A guardian's scope holds every one of their children, so
+		          joining the submissions on student_id = ANY(...) multiplied
+		          each task by the number of children who had turned it in — a
+		          parent of two would have seen Tuesday's maths twice. LIMIT 1
+		          picks one child's answer, which is the right answer for the
+		          student reading their own list and harmless for a parent, who
+		          is shown the register per child elsewhere. */
+		       (SELECT hs.text_answer FROM homework_submissions hs
+		         WHERE hs.homework_id = h.id AND hs.student_id = ANY($1::uuid[])
+		         ORDER BY hs.submitted_at DESC NULLS LAST LIMIT 1),
+		       (SELECT hs.file_id::text FROM homework_submissions hs
+		         WHERE hs.homework_id = h.id AND hs.student_id = ANY($1::uuid[])
+		         ORDER BY hs.submitted_at DESC NULLS LAST LIMIT 1),
+		       (SELECT f2.original_name FROM homework_submissions hs
+		          JOIN files f2 ON f2.id = hs.file_id AND f2.deleted_at IS NULL
+		         WHERE hs.homework_id = h.id AND hs.student_id = ANY($1::uuid[])
+		         ORDER BY hs.submitted_at DESC NULLS LAST LIMIT 1)
 		  FROM homework h
 		  JOIN sections sec ON sec.id = h.section_id
 		  JOIN classes  c   ON c.id = sec.class_id
@@ -1121,7 +1197,8 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 			var v homeworkRow
 			return v, rows.Scan(&v.ID, &v.Title, &v.Kind, &v.Subject, &v.ClassName,
 				&v.SectionName, &v.AssignedOn, &v.DueOn, &v.Instructions,
-				&v.Overdue, &v.Submissions, &v.Strength, &v.Submitted, &v.Teacher)
+				&v.Overdue, &v.Submissions, &v.Strength, &v.Submitted, &v.Teacher,
+				&v.Files, &v.MyAnswer, &v.MyFileID, &v.MyFileName)
 		})
 	respond(w, r, items, err)
 }
@@ -1129,6 +1206,10 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 type submitHomeworkRequest struct {
 	StudentID  string `json:"student_id,omitempty"`
 	TextAnswer string `json:"text_answer,omitempty"`
+	// A photograph of the worked page, which is what children actually hand
+	// in. The column has been on homework_submissions since the beginning and
+	// nothing has ever set it.
+	FileID string `json:"file_id,omitempty"`
 }
 
 // submitHomework records a student's submission.
@@ -1191,12 +1272,18 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO homework_submissions (institution_id, homework_id, student_id,
-			                                  submitted_at, text_answer, status)
-			VALUES ($1,$2,$3, now(), $4, 'submitted')
+			                                  submitted_at, text_answer, file_id, status)
+			VALUES ($1,$2,$3, now(), $4, NULLIF($5,'')::uuid, 'submitted')
 			ON CONFLICT (homework_id, student_id)
-			DO UPDATE SET submitted_at = now(), text_answer = EXCLUDED.text_answer,
+			DO UPDATE SET submitted_at = now(),
+			              text_answer = EXCLUDED.text_answer,
+			              /* A resubmission with no new file keeps the old one:
+			                 a child fixing a typo in their written answer has
+			                 not withdrawn the photograph they sent yesterday. */
+			              file_id = COALESCE(EXCLUDED.file_id, homework_submissions.file_id),
 			              status = 'submitted'`,
-			id.InstitutionID, hid, target, nullString(req.TextAnswer)); err != nil {
+			id.InstitutionID, hid, target, nullString(req.TextAnswer),
+			req.FileID); err != nil {
 			return err
 		}
 
@@ -1247,6 +1334,8 @@ type homeworkSubmitterRow struct {
 	Status      string  `json:"status"`
 	SubmittedAt *string `json:"submitted_at,omitempty"`
 	TextAnswer  *string `json:"text_answer,omitempty"`
+	FileID      *string `json:"file_id,omitempty"`
+	FileName    *string `json:"file_name,omitempty"`
 }
 
 /*
@@ -1301,18 +1390,19 @@ func (s *Server) listHomeworkSubmissions(w http.ResponseWriter, r *http.Request)
 		       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
 		       COALESCE(hs.status, 'pending'),
 		       to_char(hs.submitted_at, 'YYYY-MM-DD"T"HH24:MI'),
-		       hs.text_answer
+		       hs.text_answer, hs.file_id::text, f.original_name
 		  FROM enrollments e
 		  JOIN students st ON st.id = e.student_id
 		  LEFT JOIN homework_submissions hs
 		         ON hs.homework_id = $1 AND hs.student_id = st.id
+		  LEFT JOIN files f ON f.id = hs.file_id AND f.deleted_at IS NULL
 		 WHERE e.section_id = $2 AND e.status = 'active'
 		 ORDER BY e.roll_no NULLS LAST, st.first_name`,
 		[]any{hid, sectionID},
 		func(rows pgx.Rows) (homeworkSubmitterRow, error) {
 			var v homeworkSubmitterRow
 			return v, rows.Scan(&v.StudentID, &v.RollNo, &v.FullName, &v.Status,
-				&v.SubmittedAt, &v.TextAnswer)
+				&v.SubmittedAt, &v.TextAnswer, &v.FileID, &v.FileName)
 		})
 	respond(w, r, items, err)
 }
