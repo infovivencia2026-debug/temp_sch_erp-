@@ -524,7 +524,7 @@ function NewLessonPlan() {
   const [file, setFile] = useState<UploadedFile | null>(null)
 
   const sections = useQuery({
-    queryKey: ['sections'],
+    queryKey: ['sections', 'mine'],
     queryFn: () => api.get<List<{ id: string; name: string; class_name: string }>>('/api/v1/academics/sections?mine=true'),
   })
 

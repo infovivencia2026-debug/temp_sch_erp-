@@ -75,7 +75,7 @@ export default function ReportCards() {
     queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
   })
   const sections = useQuery({
-    queryKey: ['sections'],
+    queryKey: ['sections', 'class_teacher'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
   })
   const cards = useQuery({

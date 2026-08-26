@@ -407,7 +407,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
   // anyway: it records at the point of use which data a family may not read,
   // and keeps a future refactor from quietly issuing a 403 on a child's screen.
   const { data: sections } = useQuery({
-    queryKey: ['sections'],
+    queryKey: ['sections', 'mine'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
     enabled: canPublish,
   })
@@ -564,7 +564,7 @@ function FilterBar({
   onChange: (f: Filters) => void
 }) {
   const { data: sections } = useQuery({
-    queryKey: ['sections'],
+    queryKey: ['sections', 'mine'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
     enabled: canPublish,
   })

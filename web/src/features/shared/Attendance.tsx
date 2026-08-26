@@ -39,7 +39,7 @@ export default function Attendance() {
   const [draft, setDraft] = useState<Record<string, Status>>({})
 
   const sections = useQuery({
-    queryKey: ['sections'],
+    queryKey: ['sections', 'mine'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
   })
 
