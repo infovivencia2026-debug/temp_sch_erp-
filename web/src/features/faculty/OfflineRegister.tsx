@@ -165,6 +165,11 @@ export default function OfflineRegister() {
               </Field>
             </FormGrid>
           </div>
+          {/* A roll of sixty with a dropdown on every row runs past the end of
+              the screen, and the button that saves the whole thing sits under
+              it. The table pages at ten, and this keeps even those ten from
+              pushing Save out of reach on a phone. */}
+          <div className="max-h-[30rem] overflow-y-auto">
           <Table
             head={['Adm no', 'Child', 'Mark']}
             empty={!sectionID || children.length === 0}
@@ -185,6 +190,7 @@ export default function OfflineRegister() {
               </tr>
             ))}
           </Table>
+          </div>
           <div className="p-5 space-y-5">
             <FormGrid>
               <Field label="Diary kind">
@@ -256,13 +262,25 @@ export default function OfflineRegister() {
         <Card>
           <CardHeader
             title="Conflicts"
-            description="A mark somebody else entered while you were offline. Yours was not applied."
           />
+          {/* Said where it shows.
+
+              Card descriptions are no longer drawn, and "Conflicts" is not a
+              word a teacher can work out from the column headings — it is the
+              one card on this screen whose title explains nothing on its own.
+              An empty table under a word nobody understands reads as a broken
+              screen rather than as good news. */}
+          <p className="border-b px-5 py-3 text-[13px] text-muted-foreground">
+            When you mark a register with no signal and somebody marks the same child
+            on the server before your device syncs, both answers exist and only one
+            can stand. The server&rsquo;s is kept and yours is listed here to accept or
+            discard &mdash; nothing you took offline is thrown away silently.
+          </p>
           <FormNotice error={resolve.error} />
           <Table
             head={['Date', 'Child', 'On the device', 'On the server', 'Entered by', '']}
             empty={openConflicts.length === 0}
-            emptyLabel="Nothing in dispute."
+            emptyLabel="Nothing in dispute — every mark you took offline was accepted."
           >
             {openConflicts.map((c) => (
               <tr key={c.id}>
