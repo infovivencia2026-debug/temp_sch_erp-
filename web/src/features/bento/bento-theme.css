@@ -77,8 +77,20 @@
      Both are still multiplied by their own axis. Corners at 4 gives back the
      rounded card, density at 1.7 gives back the airy board; the DEFAULT is now
      the sheet rather than the tray. */
-  --bento-radius: calc(0px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(0px * var(--radius-scale, 1));
+  /* THE AXIS HAS TO BE ABLE TO MOVE IT.
+
+     `calc(0px * var(--radius-scale))` is zero for every value the Corners
+     preference can take — multiplying a base of nothing by anything is still
+     nothing — so setting the default to a square corner silently disabled the
+     setting. Same mistake in miniature as the border below.
+
+     Offset instead of multiplied. --radius-scale is 0.35 at 'sharp', 1 at the
+     default and 1.6 at 'round', with a continuous slider in between, so
+     subtracting 0.9 puts the default at a 1px corner (square to the eye, which
+     is the look this board wants) and 'round' at 7px, which is the card it used
+     to be. max() keeps 'sharp' from going negative. */
+  --bento-radius: max(0px, calc(10px * (var(--radius-scale, 1) - 0.9)));
+  --bento-radius-sm: max(0px, calc(7px * (var(--radius-scale, 1) - 0.9)));
   --bento-gap: calc(1px * var(--bento-density, 1));
   --bento-dock: 72px;
   /* A hairline. At 1px a card is outlined; at 0.5 it is edged, which is what
@@ -87,8 +99,14 @@
      can have it. */
   --bento-border-w: calc(0.5px * var(--border-scale, 1));
 
-  --bento-depth-sm: 0 2px 10px rgba(0,0,0,0.03);
-  --bento-depth: 0 4px 20px rgba(0,0,0,0.04);
+  /* Flat by default, because the board is one ruled sheet and a shadow under
+     every cell of a sheet is a contradiction — it says the cells are separate
+     objects when the whole point is that they are not. The Shadow axis still
+     supplies 'lifted' and 'deep' for anyone who wants the tray back; this is
+     the value it starts from. --bento-depth-lg keeps a real shadow because it
+     is the dock and the dialogs, which genuinely do float. */
+  --bento-depth-sm: none;
+  --bento-depth: none;
   --bento-depth-lg: 0 8px 30px rgba(0,0,0,0.06);
 
   --bento-shadow: var(--bento-depth);
@@ -285,14 +303,19 @@ html.dark[data-layout='bento'] {
      edges reads as a 2px trough, which is exactly the soft, tray-like look
      this is trying to leave behind. The Borders axis still adds one back for
      anyone who wants it; it is simply not the default. */
-  border-width: calc(var(--bento-border-w) - 0.5px);
+  border-width: max(0px, calc(var(--bento-border-w) - 0.5px));
   border-style: solid;
   /* Was rgba(0,0,0,0.14): a fixed black wash that no palette could move and
      that vanished entirely on the two dark schemes. `--bento-line` is the
      hairline the palettes actually ship, and it is what every hover and focus
      rule below already mixes against. */
   border-color: var(--bento-line);
-  box-shadow: none;
+  /* Reads the token, so the Shadow preference still reaches this cell. It was
+     hardcoded to `none` to get the flat sheet, which also meant 'lifted' and
+     'deep' did nothing at all. The DEFAULT is none — see --bento-depth-sm
+     below — and that is the right way to make a default: move the value the
+     axis reads, never bypass the axis. */
+  box-shadow: var(--bento-shadow-sm);
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
   /* The crosshair below is positioned against this. */
   position: relative;
@@ -481,8 +504,8 @@ html[data-skin='focus'] [data-layout='bento'] {
   /* Focus keeps a slightly softer corner than the classic board -- it is the
      calmer of the two skins and always has been -- but it was at 10px, which
      is a pill next to the 3px the rest of the product now draws. */
-  --bento-radius: calc(0px * var(--radius-scale, 1));
-  --bento-radius-sm: calc(0px * var(--radius-scale, 1));
+  --bento-radius: max(0px, calc(12px * (var(--radius-scale, 1) - 0.85)));
+  --bento-radius-sm: max(0px, calc(9px * (var(--radius-scale, 1) - 0.85)));
   --bento-gap: calc(1px * var(--bento-density, 1));
   /* Hairline here too. This block set 1px flat, which also dropped the Borders
      axis on the floor: whatever the slider said, this frame drew one pixel. */
