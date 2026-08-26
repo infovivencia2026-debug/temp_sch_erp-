@@ -112,7 +112,7 @@ Faculty / Teacher,Home,Home,Today's classes,"Next/current classes with one-click
 Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,Student Behavior & Demerits,"Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",Assigned classes/subjects,Must-Have,core
+Faculty / Teacher,My Classes,My Classes,Behaviour,"Award a badge for what a child did well, or record a concern and what was done about it — one record per child, read in order, with whether the family was told.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My students,"Every child in the class with attendance, marks and guardian contact in one place.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student details,"One child's full record: profile, guardians, attendance, marks and remarks.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Take attendance,Fast daily or period/subject-wise attendance for assigned students.,Self + assigned classes/subjects,Must-Have,core

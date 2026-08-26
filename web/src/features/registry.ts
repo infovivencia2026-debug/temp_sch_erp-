@@ -274,7 +274,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      accommodations agreed for a child who needs them hang off the same row,
      because they are what a teacher does with the flag. */
   'faculty.my_classes.student_progress': screen(() => import('./faculty/MyClasses')),
-  'faculty.my_classes.student_behavior_demerits': screen(() => import('./faculty/MyClasses')),
+  'faculty.my_classes.behaviour': screen(() => import('./faculty/Behaviour')),
   'faculty.my_classes.my_students': screen(() => import('./shared/Students')),
   'faculty.my_classes.student_details': screen(() => import('./shared/StudentProfile')),
   'faculty.marks_report_cards.report_cards': screen(() => import('./exams/ReportCards')),
