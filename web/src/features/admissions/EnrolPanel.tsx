@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useCan } from '@/lib/session'
 import {
   Badge, Button, Card, CardHeader, FormNotice, Input, Loading, Select, Table, Td,
 } from '@/components/ui'
@@ -44,6 +45,10 @@ export default function EnrolPanel({
   onDone: () => void
 }) {
   const qc = useQueryClient()
+  const can = useCan()
+  /* Setting a price is finance's, not the front desk's. */
+  const mayPrice = can('finance.fees.write')
+
   const [sectionId, setSectionId] = useState('')
   const [concession, setConcession] = useState('')
   const [why, setWhy] = useState('')
@@ -59,7 +64,8 @@ export default function EnrolPanel({
   const waived = Math.round(Number(concession || 0) * 100)
   /* Never below zero, and never more than the bill. A waiver larger than the
      fee would otherwise read as the school owing the family money. */
-  const due = Math.max(0, (f?.total_paise ?? 0) - Math.min(waived, f?.total_paise ?? 0))
+  const due = Math.max(0, (f?.total_paise ?? 0) -
+    (mayPrice ? Math.min(waived, f?.total_paise ?? 0) : 0))
 
   const enrol = useMutation({
     mutationFn: () => api.post<{ admission_no: string; student_id: string }>(
@@ -67,8 +73,9 @@ export default function EnrolPanel({
       {
         section_id: sectionId,
         fee_structure_id: f?.fee_structure_id || undefined,
-        concession_paise: waived > 0 ? Math.min(waived, f?.total_paise ?? 0) : undefined,
-        concession_reason: waived > 0 ? (why.trim() || undefined) : undefined,
+        concession_paise: mayPrice && waived > 0
+          ? Math.min(waived, f?.total_paise ?? 0) : undefined,
+        concession_reason: mayPrice && waived > 0 ? (why.trim() || undefined) : undefined,
       },
     ),
     onSuccess: (r) => {
@@ -173,14 +180,37 @@ export default function EnrolPanel({
           </Table>
 
           <div className="flex flex-wrap items-end gap-4 border-t p-5">
-            <label className="flex flex-col gap-1.5 text-[13px]">
-              <span className="text-muted-foreground">Concession (&#8377;)</span>
-              <Input value={concession} onChange={setConcession} placeholder="0" />
-            </label>
-            <label className="flex flex-col gap-1.5 text-[13px]">
-              <span className="text-muted-foreground">Reason</span>
-              <Input value={why} onChange={setWhy} placeholder="RTE, sibling, scholarship…" />
-            </label>
+            {/* Whoever collects the money does not set it.
+
+                The desk enrolling the child holds students.write; deciding
+                what a family pays needs fees.write, and the two are held by
+                different people on purpose. An officer who can waive a fee at
+                the counter can waive one for a friend, or collect the full
+                amount against a reduced invoice and keep the difference.
+
+                So the control is not shown to somebody who cannot use it —
+                offering it and refusing on submit is worse than not offering
+                it, because it reads as the product being broken rather than as
+                the rule it is. */}
+            {mayPrice ? (
+              <>
+                <label className="flex flex-col gap-1.5 text-[13px]">
+                  <span className="text-muted-foreground">Concession (&#8377;)</span>
+                  <Input value={concession} onChange={setConcession} placeholder="0" />
+                </label>
+                <label className="flex flex-col gap-1.5 text-[13px]">
+                  <span className="text-muted-foreground">Reason</span>
+                  <Input value={why} onChange={setWhy} placeholder="RTE, sibling, scholarship…" />
+                </label>
+              </>
+            ) : (
+              <p className="max-w-md text-[13px] text-muted-foreground">
+                The fee is set by accounts and cannot be changed here. If this family
+                is owed a concession &mdash; RTE, a sibling, a staff ward &mdash; enrol
+                them and ask accounts to record it; the invoice is adjusted without
+                the admission waiting.
+              </p>
+            )}
             <div className="ml-auto text-right">
               <p className="text-[13px] text-muted-foreground">Due now</p>
               <p className="num text-[22px] font-medium">&#8377;{rupees(due)}</p>

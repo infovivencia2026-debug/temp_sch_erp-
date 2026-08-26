@@ -10,6 +10,7 @@ import (
 
 	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Module 2 — Admissions.
@@ -548,6 +549,23 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 	var req enrolRequest
 	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	/* Who sets a price and who collects it are different people.
+
+	   Enrolling needs students.write, which the admissions desk holds. Deciding
+	   what a family pays needs fees.write, which it does not — and this handler
+	   accepted a concession in rupees from whoever called it. An officer could
+	   have waived four thousand off a friend's admission with nobody's approval
+	   and nothing to review, or collected the full fee against a reduced
+	   invoice and kept the difference.
+
+	   The discount book already has a two-person control: raised on fees.write,
+	   approved on refunds.write. This route must not be a way around it. */
+	if req.ConcessionPaise != 0 && !httpx.IdentityFrom(r.Context()).Can(rbac.FeesWrite) {
+		httpx.Error(w, r, http.StatusForbidden, "not_your_price",
+			"you can enrol this child, but not decide what they pay. Ask accounts "+
+				"to record the concession — the admission does not have to wait for it.")
 		return
 	}
 	sectionID, err := uuid.Parse(req.SectionID)
