@@ -179,10 +179,17 @@ export function CardShell({
                    still occupies more width than the same string set
                    proportionally, so it still wants to be a shade smaller than
                    the supporting size — that was never the wrong idea, only
-                   the wrong way to express it. */
+                   the wrong way to express it.
+
+                   TRACKING IS 0.04em, down from 0.22 and then 0.1. The wide
+                   setting was borrowed from a reference whose labels are set
+                   at 10px on a 210px-tall card; these run from 6.4px on a
+                   phone, and at that size a tenth of an em is a visible gap
+                   between every pair of letters — the word comes apart. Just
+                   enough to keep the capitals from touching, and no more. */
                 'mt-1 truncate opacity-55',
                 isLatin(sub)
-                  ? 'font-normal uppercase leading-none tracking-[0.1em] text-[length:calc(var(--card-sub,10px)*0.92)]'
+                  ? 'font-normal uppercase leading-none tracking-[0.04em] text-[length:calc(var(--card-sub,10px)*0.92)]'
                   : 'font-normal leading-tight text-[length:var(--card-sub,10px)]',
               )}
             >

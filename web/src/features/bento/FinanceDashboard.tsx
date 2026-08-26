@@ -310,7 +310,7 @@ function Part({ grow = 1, children }: { grow?: number; children: ReactNode }) {
 /** A caption above a drawing, at the sizes with room for one. */
 function Head({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-1 truncate text-[length:var(--card-sub,8.5px)] font-normal uppercase leading-none tracking-[0.06em] opacity-55">
+    <p className="mb-1 truncate text-[length:var(--card-sub,8.5px)] font-normal uppercase leading-none tracking-[0.04em] opacity-55">
       {children}
     </p>
   )

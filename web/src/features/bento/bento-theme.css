@@ -1646,7 +1646,7 @@ html[data-layout='bento'] body {
 
 [data-layout='bento'] .bento-cell {
   --card-title: clamp(11px, 5.4cqh, 18px);
-  --card-sub: clamp(8px, 3.6cqh, 12px);
+  --card-sub: clamp(7px, 2.6cqh, 9.5px);
   --card-fig: clamp(30px, 22cqh, 96px);
   --card-change: clamp(9.5px, 4.4cqh, 14px);
   --card-note: clamp(8.5px, 4cqh, 13px);
@@ -1672,7 +1672,7 @@ html[data-layout='bento'] body {
      the cell's own height — the figure taking 22% of a card rather than 16%
      is the same decision expressed for a cell that has room. */
   --card-title: calc(clamp(11px, 5.4cqh, 18px) * var(--bento-text, 1));
-  --card-sub: calc(clamp(8px, 3.6cqh, 12px) * var(--bento-text, 1));
+  --card-sub: calc(clamp(7px, 2.6cqh, 9.5px) * var(--bento-text, 1));
   --card-fig: calc(clamp(30px, 22cqh, 96px) * var(--bento-text, 1));
   --card-change: calc(clamp(9.5px, 4.4cqh, 14px) * var(--bento-text, 1));
   --card-note: calc(clamp(8.5px, 4cqh, 13px) * var(--bento-text, 1));

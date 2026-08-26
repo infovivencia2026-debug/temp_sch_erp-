@@ -4,7 +4,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Printer, X,
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff,
+  Maximize2, Printer, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -507,7 +508,9 @@ export function Table({
      under it is furniture, not navigation. */
   const rows = Children.toArray(children)
   const [page, setPage] = useState(0)
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const [full, setFull] = useState(false)
+  const size = full ? PAGE_SIZE * 4 : PAGE_SIZE
+  const pages = Math.max(1, Math.ceil(rows.length / size))
 
   /* Snap back when the rows change underneath.
 
@@ -522,9 +525,35 @@ export function Table({
   }
 
   const at = Math.min(page, pages - 1)
-  const from = at * PAGE_SIZE
-  const shown = rows.length > PAGE_SIZE ? rows.slice(from, from + PAGE_SIZE) : rows
-  return (
+
+  /* FULL SCREEN, AND MORE ROWS WHILE IT IS.
+
+     A table lives inside a card inside a page, so it gets whatever width is
+     left after the sidebar and whatever height is left after the header — and
+     ten rows at a time, which is the right page size for a card and a poor one
+     for somebody actually working a register. A wide table then scrolls
+     sideways inside a box narrower than the table, which is the worst way to
+     read anything.
+
+     Full screen fixes both at once. The same table, the same rows, the same
+     sorting — 40 to a page instead of 10, because the room is there and the
+     page size only ever existed to fit the card. */
+  const start = at * size
+  const shown = rows.length > size ? rows.slice(start, start + size) : rows
+
+  useEffect(() => {
+    if (!full) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false) }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [full])
+
+  const body = (
     /* `.scroll-x`, not a bare overflow-x-auto: it draws the bar and the edge
        shadow that say the table continues past the card. See index.css.
 
@@ -603,13 +632,13 @@ export function Table({
         </tbody>
       </table>
 
-        {rows.length > PAGE_SIZE && (
+        {rows.length > size && (
           <div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
                 numbers answer it directly. */}
             <p className="text-[12.5px] tabular-nums text-muted-foreground">
-              {from + 1}–{Math.min(from + PAGE_SIZE, rows.length)} of {rows.length}
+              {start + 1}–{Math.min(start + size, rows.length)} of {rows.length}
             </p>
             <div className="flex items-center gap-1.5">
               <Button size="sm" variant="secondary" disabled={at === 0}
@@ -623,6 +652,48 @@ export function Table({
             </div>
           </div>
         )}
+    </div>
+  )
+
+  if (!full) {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setFull(true)}
+          aria-label="View full screen"
+          title="View full screen"
+          className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-[3px]
+                     border border-border bg-card text-muted-foreground opacity-0
+                     transition-opacity hover:text-foreground focus-visible:opacity-100
+                     group-hover/table:opacity-100 max-md:opacity-60"
+        >
+          <Maximize2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Table, full screen"
+      className="fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
+    >
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+        <p className="text-[13px] tabular-nums text-muted-foreground">
+          {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+        </p>
+        <Button size="sm" variant="secondary" onClick={() => setFull(false)}>
+          <X className="h-3.5 w-3.5" />
+          Close
+        </Button>
+      </div>
+      {/* The one part that is genuinely different full screen: the table gets
+          the height, so the scroll happens inside it and the header stays. */}
+      <div className="min-h-0 flex-1 overflow-auto rounded-[3px] border">{body}</div>
     </div>
   )
 }
