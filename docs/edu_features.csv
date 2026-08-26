@@ -110,7 +110,6 @@ Librarian,Library,Library,Reservations,"Holds placed by students and staff, and 
 Librarian,Library,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
 Faculty / Teacher,Home,Home,Today's classes,"Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,Home,Home,My day,"Today's periods, what is pending and anything about this class that needs attention.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student Behavior & Demerits,"Award positive behavior badges (Kindness, Curiosity) or log disciplinary demerit points.",Assigned classes/subjects,Must-Have,core

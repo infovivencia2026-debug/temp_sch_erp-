@@ -269,7 +269,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.communication.circulars': screen(() => import('./comms/Circulars')),
 
   // Class Teacher — one section, and the pastoral load that comes with it.
-  'faculty.home.my_day': screen(() => import('./faculty/MyWork')),
   /* One row per child across attendance, marks, homework and conduct, with
      the reason wherever something needs attention. The conduct file and the
      accommodations agreed for a child who needs them hang off the same row,

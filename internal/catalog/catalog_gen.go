@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 313 features.
+// Roles is the catalog: 13 roles, 312 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -520,7 +520,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.home.todays_classes", Slug: "todays_classes", Name: "Today's classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Next/current classes with one-click Take Attendance, Open Class and Add Homework actions."},
 					{Key: "faculty.home.my_work", Slug: "my_work", Name: "My work", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Assignments to review, marks pending, substitutions, leave status and announcements."},
-					{Key: "faculty.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Today's periods, what is pending and anything about this class that needs attention."},
 				},
 			},
 			{
