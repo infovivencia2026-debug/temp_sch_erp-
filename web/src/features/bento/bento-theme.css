@@ -1537,6 +1537,39 @@ html[data-layout='bento'] body {
   container-name: cell;
 }
 
+/* THE ROW MUST BE DEFINITE, or size containment collapses the card to nothing.
+
+   `container-type: size` is `contain: size` — the element's own contents no
+   longer contribute to its size. Above 1024px that is harmless, because the
+   board is a fixed fifteen-slot grid whose rows come from the measured
+   `--board-h`, so every cell already has a definite height to contain against.
+
+   Between 640 and 1023 the board is two columns of AUTO rows, and an auto row
+   asks its contents how tall they are. Size containment answers "nothing".
+   Measured on the finance board at 900px: rows of 13.5px and 28px, cells 28px
+   tall, every card's contents 115px and all of it clipped — six boards showing
+   a row of slivers instead of cards. `cqh` compounded it, resolving against a
+   zero height, so every clamp fell to its floor as well.
+
+   A definite row fixes both. 190px is the height a 1x1 needs for a header, a
+   figure, a sentence and a drawing that is still worth drawing — the same
+   proportion the desktop grid gives a single slot. `auto` as the maximum lets
+   a card that genuinely wants more take it, which matters for the ones that
+   render a list. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  [data-layout='bento'] .bento-board {
+    grid-auto-rows: minmax(190px, auto);
+  }
+}
+
+/* Below 640 the board is a single column and the same reasoning applies, with
+   more height per card because there is only one of them across. */
+@media (max-width: 639px) {
+  [data-layout='bento'] .bento-board:not([data-pager]) {
+    grid-auto-rows: minmax(200px, auto);
+  }
+}
+
 [data-layout='bento'] .bento-cell {
   --card-title: clamp(13px, 7.5cqh, 26px);
   --card-sub: clamp(10px, 5.4cqh, 17px);
