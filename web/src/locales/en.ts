@@ -2084,9 +2084,14 @@ export const en = {
   'bento.settings.signout': 'Sign out',
   'bento.settings.frame': 'Frame',
   'bento.settings.density': 'Density',
+  /* Named for what the board LOOKS like at each step, not for an abstract
+     amount. "Hairline" tells you the cards will butt together; "Compact" does
+     not. */
+  'bento.settings.density.hairline': 'Hairline',
   'bento.settings.density.compact': 'Compact',
   'bento.settings.density.comfortable': 'Comfortable',
   'bento.settings.density.relaxed': 'Relaxed',
+  'bento.settings.density.spacious': 'Spacious',
   'bento.settings.corners': 'Corners',
   'bento.settings.corners.sharp': 'Sharp',
   'bento.settings.corners.default': 'Default',

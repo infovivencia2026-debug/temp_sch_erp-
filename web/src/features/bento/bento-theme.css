@@ -943,15 +943,26 @@ html[data-shadow='deep'][data-layout='bento'] {
 
 /* DENSITY — the gap between cards, and the padding inside them. */
 :root { --bento-density: 1; }
-/* The unit is now ONE PIXEL rather than six, so these multipliers changed with
-   it. Compact is the hairline sheet the reference draws; comfortable is a 4px
-   gutter, which still reads as ruled; spacious gives back the 10px tray for
-   anyone who wants air between the cards. The names still mean what they say —
-   only the scale under them moved. */
-:root[data-density='compact'] { --bento-density: 1; }
-:root[data-density='comfortable'] { --bento-density: 4; }
-:root[data-density='spacious'],
-:root[data-density='relaxed'] { --bento-density: 10; }
+/* FIVE STEPS OVER A ONE-PIXEL UNIT.
+
+   The unit went from 6px to 1px when the cells were made to butt together, and
+   three steps over it was too coarse to be a preference — 'compact' and
+   'comfortable' differed by two pixels, which nobody can see, and there was no
+   step at all for the hairline sheet the board now defaults to.
+
+   Each step is roughly double the last, because a gutter is judged against its
+   neighbours rather than in pixels: 1 and 3 look different, 8 and 10 do not.
+
+     hairline     the ruled sheet — cards butt, the gap IS the rule
+     compact      a visible seam, still one surface
+     comfortable  cards read as cards
+     relaxed      air between them
+     spacious     a tray of tiles, which is where this board started */
+:root[data-density='hairline'] { --bento-density: 1; }
+:root[data-density='compact'] { --bento-density: 3; }
+:root[data-density='comfortable'] { --bento-density: 6; }
+:root[data-density='relaxed'] { --bento-density: 12; }
+:root[data-density='spacious'] { --bento-density: 20; }
 
 /* SHADOW — Focus calls its own depth tokens, so the axis has to move those
    rather than the classic --lift-* pair. */

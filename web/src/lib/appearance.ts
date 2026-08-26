@@ -18,7 +18,16 @@ import { typefaceById, ensureFont } from './typefaces'
    and it deliberately does not invent one — a migration for a radius
    multiplier is a migration to regret. */
 
-export type Density = 'compact' | 'comfortable' | 'relaxed'
+/* FIVE STEPS, NOT THREE.
+
+   The board's gutter unit went from 6px to 1px when the cells were made to butt
+   together, and three named steps over that unit is too coarse to be a
+   preference: 'compact' and 'comfortable' were a two-pixel difference nobody
+   could see, and there was no step at all for the hairline sheet the board now
+   defaults to. Five gives a person the two ends they actually want — a ruled
+   sheet, and cards with real air between them — plus somewhere to stand in
+   between. */
+export type Density = 'hairline' | 'compact' | 'comfortable' | 'relaxed' | 'spacious'
 export type Corners = 'sharp' | 'default' | 'round'
 export type TextSize = 'small' | 'default' | 'large' | 'larger'
 /** A typeface id from lib/typefaces. A string rather than a union because
@@ -31,7 +40,7 @@ export type Contrast = 'normal' | 'medium' | 'high'
 export type DockSize = 'compact' | 'default' | 'large'
 export type IconSize = 'small' | 'default' | 'large'
 
-export const DENSITIES: readonly Density[] = ['compact', 'comfortable', 'relaxed'] as const
+export const DENSITIES: readonly Density[] = ['hairline', 'compact', 'comfortable', 'relaxed', 'spacious'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
 export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'larger'] as const
 
@@ -76,7 +85,16 @@ export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step:
      of this axis rather than the bottom of it — and the top of the axis is
      genuinely large rather than merely legible. */
   text: { min: 0.5, max: 2.0, step: 0.01 },
-  density: { min: 0, max: 3, step: 0.01 },
+  /* 0 to 20, not 0 to 3.
+
+     This slider multiplies --bento-density, and that variable's unit changed
+     from 6px to 1px when the board became a sheet. Nobody moved the range with
+     it, so a slider at maximum gave a 3px gutter while the named 'spacious'
+     step gave 20 — the continuous control could not reach two thirds of the
+     axis it was meant to control, and dragging it to the end looked broken.
+     Twenty pixels is the airiest this board should ever be; the range now ends
+     where the last named step does. */
+  density: { min: 0, max: 20, step: 0.5 },
   corners: { min: 0, max: 3.5, step: 0.01 },
   borders: { min: 0, max: 5, step: 0.01 },
   shadow: { min: 0, max: 4, step: 0.01 },

@@ -22,6 +22,7 @@ import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
+import { useAppearance, DENSITIES } from '@/lib/appearance'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { markFor, hueFor } from '@/features/bento/BentoLauncher'
@@ -289,23 +290,26 @@ export function Shell({
      and could not be reached. A clerk working a 400-row ledger all day wants
      more rows on screen; a head of school glancing at a dashboard does not.
 
-     Three steps, not a slider: the useful range is small and a slider invites
-     fiddling with something that should be set once. */
-  const [density, setDensity] = useState(() => {
-    try {
-      return localStorage.getItem('erp.density') ?? 'comfortable'
-    } catch {
-      return 'comfortable'
-    }
-  })
-  useEffect(() => {
-    document.documentElement.dataset.density = density
-    try {
-      localStorage.setItem('erp.density', density)
-    } catch {
-      /* private browsing; the default returns next time */
-    }
-  }, [density])
+     ONE SOURCE FOR THIS SETTING, not two that disagree. This kept its own
+     useState, read `erp.density` from localStorage RAW, and stamped
+     data-density itself. web/src/lib/appearance.ts writes the same key as JSON
+     -- "compact", quote characters included -- and stamps the parsed value. So
+     once anybody touched the appearance screen this component read the quoted
+     string back and stamped data-density WITH the quotes in it, matching no
+     selector in either stylesheet: the setting silently stopped working, and
+     index.html's boot script (which does parse) was overwritten a moment later
+     by this effect.
+
+     It reads the appearance module now, which owns the key, the parsing and
+     the attribute. The cycle walks DENSITIES, so this button and the
+     appearance screen offer the same five steps -- it used to cycle through a
+     'spacious' the module's own list did not contain. */
+  const { appearance, set } = useAppearance()
+  const density = appearance.density
+  const cycleDensity = () => {
+    const i = DENSITIES.indexOf(density)
+    set('density', DENSITIES[(i + 1) % DENSITIES.length])
+  }
 
   /* The rail's workspaces, and the one on screen.
 
@@ -897,11 +901,7 @@ export function Shell({
             {/* Cycles compact → comfortable → spacious. One control rather
                 than three, because it is a preference set once. */}
             <button
-              onClick={() =>
-                setDensity((d) =>
-                  d === 'compact' ? 'comfortable' : d === 'comfortable' ? 'spacious' : 'compact',
-                )
-              }
+              onClick={cycleDensity}
               title={`Row height: ${density}`}
               aria-label={`Row height: ${density}. Click to change.`}
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
