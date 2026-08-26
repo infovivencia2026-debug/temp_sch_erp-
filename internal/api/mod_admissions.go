@@ -207,7 +207,7 @@ type createApplicationRequest struct {
 	// which is the ordinary case — the clerk should not have to file the
 	// application and then go and mark it paid.
 	FormFeePaid    bool   `json:"form_fee_paid,omitempty"`
-	FormFeeReceipt string `json:"form_fee_receipt_no,omitempty"`
+	FormFeeReceipt string `json:"form_fee_receipt,omitempty"`
 }
 
 // createApplication converts an enquiry into a formal application.
@@ -249,7 +249,7 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 			                          gender, category, class_sought, parent_name,
 			                          parent_phone, parent_email, address, previous_school,
 			                          is_rte, status,
-			                          form_fee_paise, form_fee_paid_at, form_fee_receipt_no)
+			                          form_fee_paise, form_fee_paid_at, form_fee_receipt)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::date,$9,$10,$11,$12,$13,$14::citext,$15,$16,$17,'submitted',
 			        $18, CASE WHEN $19::boolean AND $18::bigint IS NOT NULL THEN now() END, $20)
 			RETURNING id::text`,

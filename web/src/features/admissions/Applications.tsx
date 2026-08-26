@@ -115,7 +115,7 @@ export default function Applications() {
     class_sought: '', parent_name: '', parent_phone: '', parent_email: '',
     address: '', previous_school: '', is_rte: false,
     /* Rupees here, paise on the wire. A clerk types 500, not 50000. */
-    form_fee: '', form_fee_paid: false, form_fee_receipt_no: '',
+    form_fee: '', form_fee_paid: false, form_fee_receipt: '',
     /* Set when the application came from an enquiry: the server marks that
        enquiry converted, which is what makes the funnel countable. */
     enquiry_id: '',
@@ -225,7 +225,7 @@ export default function Applications() {
         ? Math.round(Number(form.form_fee) * 100)
         : undefined,
       form_fee_paid: form.form_fee.trim() ? form.form_fee_paid : undefined,
-      form_fee_receipt_no: form.form_fee_receipt_no || undefined,
+      form_fee_receipt: form.form_fee_receipt || undefined,
       /* Sent only when filled: the server takes an empty date as a bad date
          rather than as "not answered". */
       date_of_birth: form.date_of_birth || undefined,
@@ -364,8 +364,8 @@ export default function Applications() {
               <label className="flex flex-col gap-1.5 text-[13px]">
                 <span className="text-muted-foreground">Receipt no.</span>
                 <Input
-                  value={form.form_fee_receipt_no}
-                  onChange={set('form_fee_receipt_no')}
+                  value={form.form_fee_receipt}
+                  onChange={set('form_fee_receipt')}
                 />
               </label>
               <div className="flex items-end gap-4 lg:col-span-2">
