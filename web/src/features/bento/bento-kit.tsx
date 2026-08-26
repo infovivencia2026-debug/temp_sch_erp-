@@ -651,18 +651,23 @@ export function Cue({
 
        The label does not disappear, it moves to the accessible name: the
        control still announces "Substitutions" to a screen reader and shows it
-       on hover, and the arrow is the same glyph the pill carried. A 32px
-       target, which is the smallest this may be and still be pressed. */
+       on hover, and the arrow is the same glyph the pill carried.
+
+       40px, not 32. The corner is the whole affordance now — there is no
+       second, larger control to fall back on — so it has to be findable at a
+       glance and comfortable under a thumb. 32 met the letter of the 44px
+       guidance badly; 40 with the card's own padding around it is what a
+       phone actually needs, and at rest it is still only a hairline. */
     <Link
       to={to}
       aria-label={label}
       title={label}
       className={cn(
-        `bento-cue absolute right-0 top-0 z-10 grid size-8 place-items-center`,
+        `bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center`,
         still ? '' : 'transition-colors duration-150',
       )}
     >
-      <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+      <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
     </Link>
   )
 }

@@ -106,8 +106,11 @@ export function CardShell({
            top of a control. The drawing row is the only fraction and is the
            one that gives way, which is the rule this shell has always stated
            and could not previously keep. */
-        'grid h-full min-h-0 gap-y-1.5 overflow-hidden',
-        'grid-rows-[auto_auto_minmax(clamp(26px,20cqh,220px),1fr)_auto]',
+        /* THREE rows now, not four. The action no longer holds a band of its
+           own — see below — so the drawing gets that height back. `relative`
+           is what the corner mark is positioned against. */
+        'relative grid h-full min-h-0 gap-y-1.5 overflow-hidden',
+        'grid-rows-[auto_auto_minmax(clamp(26px,20cqh,220px),1fr)]',
         className,
       )}
     >
@@ -190,19 +193,30 @@ export function CardShell({
       )}
       <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
       {action && (
-        <div className="flex min-w-0 shrink-0 justify-start">
-          {/* A real control, sized to be pressed. It was the smallest text on
-              the card at 11px in a 2px-padded chip — a footnote wearing a
-              border. */}
-          <span
-            className="inline-flex max-w-full items-center gap-1.5 rounded-[3px] border
-                       px-3.5 py-[0.6em] font-semibold text-[length:var(--card-action,15px)]"
-            style={{ borderColor: ink(34), background: ink(8) }}
-          >
-            <span className="truncate">{action.label}</span>
-            <span aria-hidden="true" className="opacity-70">↗</span>
-          </span>
-        </div>
+        /* THE SAME CORNER SQUARE THE CUE USES.
+
+           This was a full-width chip along the bottom edge — the second of the
+           two bottom-left buttons on this board, and the one that survived
+           when the cue moved, because it is rendered here rather than by
+           `Cue`. Two different components drawing the same affordance two
+           different ways is how that happened, and it is why half the cards
+           changed and half did not.
+
+           Its callers wrap the WHOLE card in a link, so this was never
+           interactive: a span with a border, costing a card's fourth row to
+           say "this opens". As a corner mark it says the same thing, costs
+           nothing, and matches the cue exactly — one affordance, one shape,
+           wherever it comes from.
+
+           `aria-hidden`, because the enclosing link already carries the label.
+           A second announcement of the same name is noise to a screen reader,
+           not help. */
+        <span
+          aria-hidden="true"
+          className="bento-cue absolute right-0 top-0 z-10 grid size-10 place-items-center"
+        >
+          <span className="text-[15px] leading-none">↗</span>
+        </span>
       )}
     </div>
   )
