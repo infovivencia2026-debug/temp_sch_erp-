@@ -163,10 +163,27 @@ export function CardShell({
           {sub && (
             <p
               className={cn(
-                'mt-1 truncate opacity-55 text-[length:var(--card-sub,10px)]',
+                /* ONE font-size declaration, not two.
+
+                   This carried `text-[length:var(--card-sub)]` AND
+                   `[font-size:0.92em]`. Both set font-size, the arbitrary
+                   property came later in the class list, and it won — so the
+                   eyebrow ignored the card's own scale entirely and resolved
+                   0.92em against its PARENT instead. Measured on the live
+                   board: 12.88px on a 622x513 cell, 12.88px on a 308x253 cell
+                   and 12.88px on a 182x175 phone card, where the title beside
+                   it is 11. The one line on the card that is meant to be the
+                   quietest was the largest, at every size, on every board.
+
+                   The 0.92 is inside the token now. A tracked uppercase run
+                   still occupies more width than the same string set
+                   proportionally, so it still wants to be a shade smaller than
+                   the supporting size — that was never the wrong idea, only
+                   the wrong way to express it. */
+                'mt-1 truncate opacity-55',
                 isLatin(sub)
-                  ? 'font-normal uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
-                  : 'font-normal leading-tight',
+                  ? 'font-normal uppercase leading-none tracking-[0.1em] text-[length:calc(var(--card-sub,10px)*0.92)]'
+                  : 'font-normal leading-tight text-[length:var(--card-sub,10px)]',
               )}
             >
               {sub}
