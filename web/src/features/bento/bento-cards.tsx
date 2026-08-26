@@ -132,10 +132,12 @@ export function CardShell({
               twelve cards reads as twelve headings with numbers under them,
               rather than as twelve numbers with names on them.
 
-              Medium, not regular: the title still has to separate from the
-              eyebrow directly beneath it, and it does that at 500 with the
-              size difference doing the rest. */}
-          <p className="truncate font-medium leading-tight text-[length:var(--card-title,13px)]">
+              Regular, not medium. It was medium while the type scale was
+              tight and the title needed weight to separate from the eyebrow
+              beneath it. With the figure at 96 and the title at 18 the size
+              does that work, and the weight is free to come down with
+              everything else that is not the number. */}
+          <p className="truncate font-normal leading-tight text-[length:var(--card-title,13px)]">
             {title}
           </p>
           {/* THE MICRO-LABEL. Monospace, uppercase, widely tracked and dim --
