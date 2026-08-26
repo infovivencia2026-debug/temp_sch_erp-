@@ -165,21 +165,37 @@
      ghost. A plain white button with black text reads at 21:1 against its own
      face on every ground there is, and the hairline is what separates it from
      a white card rather than the fill. */
-  /* The palette pair, not a fixed white-on-black. `--bento-card` and
-     `--bento-ink` are the one pairing every shipped palette guarantees
-     outright, so the button keeps its 21:1-ish face on every ground there is
-     AND changes when the scheme changes — which the fixed white did not. */
-  background: var(--bento-card);
-  color: var(--bento-ink);
-  border: 1px solid var(--bento-line);
-  border-radius: 8px;
+  /* CURRENTCOLOR, not the board's card/ink pair — and this is a correctness
+     fix, not a preference.
+
+     `--bento-card` and `--bento-ink` describe the DEFAULT card. They say
+     nothing about the one this button is actually sitting on, and this product
+     tints cells twelve ways by domain and lets a school pick any ground it
+     likes from a colour wheel. On such a cell the pair can resolve to the same
+     colour, and it did: a white capsule with white text on the magenta cover
+     card — a button with no visible label at all.
+
+     `currentColor` cannot collapse, because the cell has already resolved its
+     own ink against its own ground, and it is what every mark in
+     bento-cards.tsx already inherits. A hairline of it, a 10% wash of it, and
+     the label in it: one button that is legible on the pale tint, the dark
+     cell and the gradient anchor alike, with no branch and nothing to measure
+     per palette. This is what the Focus skin has always done; the difference
+     was never intentional.
+
+     The radius follows the cards down to 3px. When every control is a capsule
+     the capsule stops meaning anything, and these sit inside a square card. */
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
+  border-radius: var(--bento-radius-sm);
   padding: 10px 18px;
   font-weight: 600;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 [data-layout='bento'] .bento-cue:hover {
-  background: color-mix(in srgb, var(--bento-ink) 5%, var(--bento-card));
-  border-color: color-mix(in srgb, var(--bento-ink) 25%, var(--bento-line));
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  border-color: color-mix(in srgb, currentColor 55%, transparent);
 }
 
 html.dark[data-layout='bento'] {

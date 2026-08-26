@@ -40,6 +40,7 @@ import {
   Rows as CardRows,
   Scale,
   Stack as StackCols,
+  Nil
 } from './bento-cards'
 
 /* THE HEAD'S PAGE, IN THE BENTO LANGUAGE.
@@ -1657,20 +1658,18 @@ function Fit({ children }: { children: ReactNode }) {
     as one row of type. Clamped at three lines: the drawing row on a 1x1 is
     about 69px and four lines of this size is 56 plus the leading. */
 function Say({ children }: { children: ReactNode }) {
-  return (
-    /* Centred in the row, not pinned to the foot of it.
+  /* The sentence AND an empty measure, not the sentence alone.
 
-       `items-end` put the sentence on the floor of the drawing row, so a cell
-       whose whole content IS that sentence showed a hole above it and a line
-       of small text at the bottom — the dead space this row exists to remove.
-       Centred, and set at the card's own note size so it grows with the cell,
-       the sentence occupies the space it was given. */
-    <div className="flex h-full min-h-0 items-center overflow-hidden">
-      <p className="line-clamp-4 leading-snug opacity-75 text-[length:var(--card-note,10.5px)]">
-        {children}
-      </p>
-    </div>
-  )
+     Every drawing returns null when its data has no signal, so a cell at zero
+     used to be a short line of text floating in a large empty rectangle —
+     which reads as a card that failed to load rather than as a queue that is
+     clear. `Nil` puts an empty track under the sentence: it says the cell is a
+     measure, that the measure is genuinely at nought, and it shows the shape
+     the card will take tomorrow when there is something in it.
+
+     One change here fixes every zero state on this board, which is why it is
+     done at Say rather than at each of the call sites. */
+  return <Nil>{children}</Nil>
 }
 
 /** The halves of a two-part drawing row that are REALLY there.
@@ -2583,18 +2582,28 @@ function CoverCell({
   const open = Math.max(0, uncovered - stuck)
 
   if (periods === 0) {
+    /* The sentence was printed TWICE — once as the card's own change line and
+       again as the drawing — so a day with no cover to arrange showed "No
+       cover needed today." above "No cover needed today.". The value was an em
+       dash on top of that, which the shell renders muted at the supporting
+       size, so the cell had three ways of saying nothing and no figure at all.
+
+       Zero periods IS the figure. It is printed as a nought like every other
+       count on this board, the sentence is said once, and the drawing is the
+       empty measure — which is what the reader needs to recognise this card
+       tomorrow when it is not empty. */
     return (
       <FeatureCard
         span={span}
         domain="academics"
         title={label}
         sub={t('bento.principal.cover_sub')}
-        value="—"
+        value={0}
         change={t('bento.principal.cover_none_needed')}
         href={href}
         cue={cue}
       >
-        <Say>{t('bento.principal.cover_none_needed')}</Say>
+        <Nil />
       </FeatureCard>
     )
   }

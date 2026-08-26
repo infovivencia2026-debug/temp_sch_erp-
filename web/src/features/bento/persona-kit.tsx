@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import { Cell, useBoardHeight, type CellSpan } from './bento-kit'
-import { CardShell } from './bento-cards'
+import { CardShell, Nil } from './bento-cards'
 import { WidgetLayer } from './WidgetLayer'
 
 /* THE PERSONA KIT — what the student, parent and faculty boards need that
@@ -295,10 +295,26 @@ export function Titled({ head, children }: { head: string; children: ReactNode }
     "No day has been marked yet" is a fact; an empty chart is not a way of
     saying it, and a chart of zeroes is a lie. */
 export function Say({ children }: { children: ReactNode }) {
+  /* The sentence AND an empty measure, not the sentence alone.
+
+     Every drawing in bento-cards.tsx returns null when its data carries no
+     signal — which is right, because an all-zero series is not a small series
+     and drawing one invents activity that did not happen. The cost was that a
+     cell at zero became a short line of text floating in a large empty
+     rectangle, and "0 pending approvals" filling a 2x2 tile with nothing reads
+     as a card that failed to load rather than as a queue that is clear.
+
+     `Nil` puts an empty track under the sentence. It says the cell is a
+     measure, that the measure is genuinely at nought, and it shows the shape
+     the card takes tomorrow when there IS something — which is what makes the
+     same card legible then.
+
+     Done here rather than at each call site because the four persona boards
+     share this one component: it is roughly forty zero states in one edit. */
   return (
-    <p className="text-[length:var(--card-note,10px)] leading-snug opacity-75" role="note">
-      {children}
-    </p>
+    <div role="note" className="h-full min-h-0">
+      <Nil>{children}</Nil>
+    </div>
   )
 }
 

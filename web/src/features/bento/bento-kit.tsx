@@ -658,14 +658,32 @@ export function Cue({
            worked in dark, which is where it was designed. Inverted it measures
            17.7:1 and 16.6:1, and in dark mode it is still the white pill with
            near-black text it was meant to be. */
-        `bento-cue mt-auto inline-flex w-fit items-center gap-1.5 rounded-full
-         bg-[var(--bento-ink)] px-3 py-1.5 text-[12px] font-semibold
-         text-[var(--bento-card)] shadow-sm`,
+        /* AN OUTLINE IN THE CARD'S OWN INK, not a filled pill in the board's.
+
+           The filled version paired `--bento-ink` with `--bento-card`, and both
+           of those are BOARD tokens: they describe the default card, not the
+           one this cue is actually sitting on. On a domain-tinted cell — and
+           on any card tinted from the open colour wheel — the pair can collapse
+           to the same colour, which is exactly what happened: a white button
+           with white text on the magenta cell, an empty capsule with an
+           invisible label.
+
+           `currentColor` cannot collapse. The cell has already resolved its own
+           ink against its own ground — black on a pale tint, white on a dark
+           one — and it is what every mark in bento-cards.tsx already inherits.
+           So the cue borrows it too: a hairline border and the label in that
+           same ink, over a wash of it at 10%, which lifts the control off the
+           ground without inventing a second colour that has to be measured.
+
+           Square-ish rather than a capsule, to match the cards it sits on. */
+        `bento-cue mt-auto inline-flex w-fit items-center gap-1.5 rounded-[3px]
+         border border-current/35 bg-current/10 px-3 py-1.5 text-[12px]
+         font-semibold`,
         still ? '' : 'transition-transform duration-150 hover:scale-[1.03]',
       )}
     >
       {label}
-      <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden="true" />
+      <ArrowUpRight className="h-3.5 w-3.5 opacity-70" strokeWidth={1.75} aria-hidden="true" />
     </Link>
   )
 }

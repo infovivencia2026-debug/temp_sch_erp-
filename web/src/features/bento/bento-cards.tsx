@@ -1183,3 +1183,47 @@ export function Matrix({
     </div>
   )
 }
+
+/** NOTHING TO SHOW, drawn rather than left blank.
+
+    Every drawing in this file returns null when its data carries no signal,
+    and that is the right rule — an all-zero series is not a small series, and
+    drawing one invents activity that did not happen. But it left the cells
+    that matter most on a good day as a short sentence floating in a large
+    empty rectangle: "0 pending approvals" occupying a 2x2 tile with nothing
+    in it, which reads as a card that failed to load rather than as a queue
+    that is clear.
+
+    So zero gets a drawing of its own. An empty track with its slots marked
+    says two things a blank box does not: that this cell is a measure, and
+    that the measure is genuinely at nought. The reader learns the shape the
+    card takes when there IS something, which is what makes the same card
+    legible tomorrow when there is.
+
+    Deliberately quiet — track ink, no fill anywhere. It must never be
+    mistaken at a glance for a small non-zero reading, which is exactly what a
+    single faint bar would be. Slots, not a bar: an empty row of compartments
+    is unambiguous. */
+export function Nil({ children, slots = 12 }: { children?: ReactNode; slots?: number }) {
+  const { w, h } = useWidgetSize()
+  const count = Math.max(5, Math.min(slots, densityFor(w, h, 9)))
+  return (
+    <div className="flex h-full min-h-0 flex-col justify-center gap-2 overflow-hidden">
+      {children && (
+        <p className="line-clamp-3 leading-snug opacity-70 text-[length:var(--card-note,10.5px)]">
+          {children}
+        </p>
+      )}
+      <div aria-hidden="true" className="shrink-0">
+        <div className="flex h-[7px] items-stretch gap-[2px]">
+          {Array.from({ length: count }, (_, i) => (
+            <span key={i} className="min-w-0 flex-1" style={{ background: TRACK }} />
+          ))}
+        </div>
+        {/* The floor. Without it the slots read as a dotted line rather than as
+            an empty measure sitting on an axis. */}
+        <div className="mt-[3px] h-px w-full" style={{ background: ink(16) }} />
+      </div>
+    </div>
+  )
+}

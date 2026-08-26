@@ -20,6 +20,7 @@ import {
   Gauge,
   Rows,
   Scale,
+  Nil
 } from './bento-cards'
 import { Widget, WidgetLayer } from './WidgetLayer'
 
@@ -329,7 +330,18 @@ function Titled({ head, children }: { head: string; children: ReactNode }) {
     drawn in. Never a zero: "we could not ask" and "there is none" are
     different sentences and are printed as different sentences. */
 function Say({ children }: { children: ReactNode }) {
-  return <p className="text-[length:var(--card-note,10px)] leading-snug opacity-70">{children}</p>
+  /* The sentence AND an empty measure, not the sentence alone.
+
+     Every drawing returns null when its data has no signal, so a cell at zero
+     used to be a short line of text floating in a large empty rectangle —
+     which reads as a card that failed to load rather than as a queue that is
+     clear. `Nil` puts an empty track under the sentence: it says the cell is a
+     measure, that the measure is genuinely at nought, and it shows the shape
+     the card will take tomorrow when there is something in it.
+
+     One change here fixes every zero state on this board, which is why it is
+     done at Say rather than at each of the call sites. */
+  return <Nil>{children}</Nil>
 }
 
 // --- the cells ----------------------------------------------------------

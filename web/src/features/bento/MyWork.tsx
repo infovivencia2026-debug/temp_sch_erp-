@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import { WidgetLayer, Widget } from './WidgetLayer'
 import { type CellSpan } from './bento-kit'
-import { CardShell, Compare, Facts, Distribution, Rows } from './bento-cards'
+import { CardShell, Compare, Facts, Distribution, Rows, Nil } from './bento-cards'
 
 /* MY WORK, IN THE EDITORIAL CARD LANGUAGE.
 
@@ -227,7 +227,18 @@ function Titled({ head, children }: { head: string; children: ReactNode }) {
 /** A sentence in the drawing row — the state a drawing must not be drawn in.
     "Nothing is late" is a fact; an empty chart is not a way of saying it. */
 function Say({ children }: { children: ReactNode }) {
-  return <p className="text-[length:var(--card-note,10.5px)] leading-snug opacity-75">{children}</p>
+  /* The sentence AND an empty measure, not the sentence alone.
+
+     Every drawing returns null when its data has no signal, so a cell at zero
+     used to be a short line of text floating in a large empty rectangle —
+     which reads as a card that failed to load rather than as a queue that is
+     clear. `Nil` puts an empty track under the sentence: it says the cell is a
+     measure, that the measure is genuinely at nought, and it shows the shape
+     the card will take tomorrow when there is something in it.
+
+     One change here fixes every zero state on this board, which is why it is
+     done at Say rather than at each of the call sites. */
+  return <Nil>{children}</Nil>
 }
 
 // --- the three cells ----------------------------------------------------
