@@ -526,6 +526,9 @@ func (s *Server) Routes() http.Handler {
 			/* Which rungs of the ladder this school actually uses. Readable by
 			   anyone who can see admissions, because the screens have to draw
 			   themselves accordingly; writable only with admissions.write. */
+			r.Get("/applications/{id}/documents", s.listApplicationDocuments)
+			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).
+				Post("/applications/{id}/documents/{docID}", s.decideApplicationDocument)
 			r.Get("/stages", s.getAdmissionStages)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Put("/stages", s.saveAdmissionStages)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications", s.createApplication)

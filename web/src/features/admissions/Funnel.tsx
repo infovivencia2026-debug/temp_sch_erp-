@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CalendarHeart, ListOrdered, Megaphone, ScrollText, Users } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -103,8 +104,33 @@ const TABS = [
 
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 
+/* Which tab each menu entry means.
+ *
+ * Four entries opened this screen and all four landed on Leads, so "Campus
+ * Visits" showed a counsellor assignment form and the open-day diary it names
+ * was two clicks away behind a tab nobody knew to press. The tabs were right
+ * all along; the doors all led to the same one. */
+const OPENS_ON: Record<string, (typeof TABS)[number][0]> = {
+  assign_leads: 'leads',
+  campus_visits: 'opendays',
+  waitlist: 'waitlist',
+  applicant_communication: 'leads',
+}
+
 export default function Funnel() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('leads')
+  const { featureSlug } = useParams()
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(
+    OPENS_ON[featureSlug ?? ''] ?? 'leads')
+
+  /* Walking between two entries that both render this component changes a
+     route parameter and nothing else — React keeps it mounted and the initial
+     state above never runs again, so the heading would say Campus Visits over
+     the leads list. Adjusted during render, so it is right on first paint. */
+  const [lastSlug, setLastSlug] = useState(featureSlug)
+  if (featureSlug !== lastSlug) {
+    setLastSlug(featureSlug)
+    setTab(OPENS_ON[featureSlug ?? ''] ?? 'leads')
+  }
 
   const leads = useQuery({
     queryKey: ['leads'],

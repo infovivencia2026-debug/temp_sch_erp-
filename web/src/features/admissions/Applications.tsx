@@ -7,6 +7,7 @@ import {
   Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
+import Documents from './Documents'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -589,6 +590,10 @@ export default function Applications() {
               </div>
             ) : (
               <div className="flex flex-col gap-5 p-5">
+                {/* The paperwork first: a decision taken before the birth
+                    certificate is checked is a decision taken twice. */}
+                <Documents applicationId={open.id} canWrite={mayWrite} />
+
                 {/* Assessment — schedule or score a test or interview. */}
                 {mayWrite && (usesTest || usesInterview) && stage < stageIndex('offered') && (
                   <div>

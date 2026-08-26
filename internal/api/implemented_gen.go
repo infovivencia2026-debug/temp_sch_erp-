@@ -6,26 +6,19 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 321 of the catalog's features are implemented.
+// 311 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
-	"admissions.admissions.id_compliance":                                            true,
 	"admissions.admissions.rte_quota":                                                true,
 	"admissions.admissions.seat_allotment":                                           true,
+	"admissions.admissions.waitlist":                                                 true,
 	"admissions.applications.application_forms":                                      true,
 	"admissions.applications.document_verification":                                  true,
-	"admissions.applications.entrance_tests":                                         true,
-	"admissions.applications.interviews":                                             true,
-	"admissions.applications.principal_approval":                                     true,
-	"admissions.communication.applicant_communication":                               true,
 	"admissions.enquiries.assign_leads":                                              true,
 	"admissions.enquiries.campus_visits":                                             true,
 	"admissions.enquiries.enquiries":                                                 true,
 	"admissions.enquiries.follow_up_calls":                                           true,
-	"admissions.front_desk.daily_call_log":                                           true,
-	"admissions.front_desk.dispatch_courier":                                         true,
-	"admissions.front_desk.parent_appointments":                                      true,
-	"admissions.front_desk.visitors_log":                                             true,
+	"admissions.front_desk.front_desk":                                               true,
 	"admissions.home.dashboard":                                                      true,
 	"admissions.my_profile.my_pay":                                                   true,
 	"admissions.reports.admission_reports":                                           true,
@@ -77,10 +70,7 @@ var implementedFeatures = map[string]bool{
 	"finance.home.dashboard":                                                         true,
 	"finance.my_profile.my_pay":                                                      true,
 	"finance.student_dues.automated_fee_reminders":                                   true,
-	"front_office.front_desk.daily_call_log":                                         true,
-	"front_office.front_desk.dispatch_courier":                                       true,
-	"front_office.front_desk.parent_appointments":                                    true,
-	"front_office.front_desk.visitors_log":                                           true,
+	"front_office.front_desk.front_desk":                                             true,
 	"front_office.my_profile.my_pay":                                                 true,
 	"hod.academics.faculty_allocation":                                               true,
 	"hod.academics.language_subject_allocation":                                      true,

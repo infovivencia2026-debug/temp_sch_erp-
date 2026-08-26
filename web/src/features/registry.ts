@@ -134,7 +134,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_quota': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.fee_enrollment': screen(() => import('./admissions/Pipeline')),
-  'admissions.admissions.id_compliance': screen(() => import('./admissions/Funnel')),
   /* The receptionist's own workspace.
    *
    * front_office is a role a school can actually hand out — it sits in the
@@ -143,16 +142,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * desk: the same screen the admissions clerk uses for it, because it is the
    * same desk, and none of the admissions decisions, which are not this
    * person's to make. */
-  'front_office.front_desk.visitors_log': screen(() => import('./admissions/FrontDesk')),
-  'front_office.front_desk.parent_appointments': screen(() => import('./admissions/FrontDesk')),
-  'front_office.front_desk.daily_call_log': screen(() => import('./admissions/FrontDesk')),
-  'front_office.front_desk.dispatch_courier': screen(() => import('./admissions/FrontDesk')),
   'front_office.my_profile.my_pay': screen(() => import('./me/MyPay')),
-
-  'admissions.front_desk.visitors_log': screen(() => import('./admissions/FrontDesk')),
-  'admissions.front_desk.parent_appointments': screen(() => import('./admissions/FrontDesk')),
-  'admissions.front_desk.daily_call_log': screen(() => import('./admissions/FrontDesk')),
-  'admissions.front_desk.dispatch_courier': screen(() => import('./admissions/FrontDesk')),
   'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
   'student.home.my_day': screen(() => import('./portal/Portal')),
   'student.attendance.attendance': screen(() => import('./portal/Portal')),
@@ -183,9 +173,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* The admissions funnel: where leads came from, who is chasing them, the
      quota register an inspection reads, the waiting list, open days and the
      prospectus cash book. */
+  'admissions.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
+  'front_office.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
+  'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
   'admissions.enquiries.assign_leads': screen(() => import('./admissions/Funnel')),
   'admissions.enquiries.campus_visits': screen(() => import('./admissions/Funnel')),
-  'admissions.communication.applicant_communication': screen(() => import('./admissions/Funnel')),
 
   'parent.consent.consent_acknowledgement': screen(() => import('./portal/Consent')),
 
@@ -368,10 +360,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      be taken and never moved. Distinct from Pipeline, which is merit ranking
      and seat matrix -- a different question about the same applicants. */
   'admissions.applications.application_forms': screen(() => import('./admissions/Applications')),
-  'admissions.applications.principal_approval': screen(() => import('./admissions/Applications')),
   'admissions.applications.document_verification': screen(() => import('./admissions/Applications')),
-  'admissions.applications.entrance_tests': screen(() => import('./admissions/Applications')),
-  'admissions.applications.interviews': screen(() => import('./admissions/Applications')),
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries': screen(() => import('./admissions/Enquiries')),

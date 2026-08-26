@@ -107,6 +107,16 @@ export default function LostLeads() {
     onError: (e) => toast.error(errText(e)),
   })
 
+  /* Before the early returns below.
+
+     React counts hooks per render and this one sat under three `if (…) return`
+     lines, so the loading render called five hooks and the loaded render six.
+     That is React error #310, and it took the whole screen out rather than
+     just the search box. Reading straight from the query keeps it above them. */
+  const { q: term, setQ: setTerm, shown } = useSearch(lost.data?.items ?? [],
+    (r) => [r.student_name, r.parent_name, r.class_sought, r.source, r.counsellor,
+            r.reason_label, r.note])
+
   if (reasons.isLoading || leads.isLoading) return <Loading />
   if (reasons.error) return <ErrorState error={reasons.error} />
   if (leads.error) return <ErrorState error={leads.error} />
@@ -114,11 +124,6 @@ export default function LostLeads() {
   const reasonOptions = reasons.data?.items ?? []
   const openLeads = (leads.data?.items ?? []).filter((l) => l.status !== 'lost')
   const lostRows = lost.data?.items ?? []
-  /* Somebody reviewing why families walked away looks for a family, a
-     counsellor or a reason — none of which a date-ordered list surfaces. */
-  const { q: term, setQ: setTerm, shown } = useSearch(lostRows,
-    (r) => [r.student_name, r.parent_name, r.class_sought, r.source, r.counsellor,
-            r.reason_label, r.note])
   const analysisRows = analysis.data?.items ?? []
   const unrecorded = lostRows.filter((r) => !r.reason).length
   const topRow = [...analysisRows].sort((a, b) => b.lost - a.lost)[0]

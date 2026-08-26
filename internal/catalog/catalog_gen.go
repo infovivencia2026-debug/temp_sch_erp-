@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 314 features.
+// Roles is the catalog: 13 roles, 304 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -784,17 +784,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "admissions.applications.application_forms", Slug: "application_forms", Name: "Application Forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered."},
 					{Key: "admissions.applications.document_verification", Slug: "document_verification", Name: "Document Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told."},
-					{Key: "admissions.applications.entrance_tests", Slug: "entrance_tests", Name: "Entrance & Tests", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due to sit the test: the slot, the hall ticket number, and the marks. A candidate who clears the cut-off moves to the interview round."},
-					{Key: "admissions.applications.interviews", Slug: "interviews", Name: "Interviews", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applicants due an interview or a parent interaction: book the slot, write what was said, and record the outcome."},
-					{Key: "admissions.applications.principal_approval", Slug: "principal_approval", Name: "Principal Approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Applications waiting on the principal's word, oldest first: the child, the scores, the interview note, and one decision. Approving is what opens the fee counter for that family."},
-				},
-			},
-			{
-				Slug: "communication",
-				Name: "Communication",
-				Workspace: "Communication",
-				Features: []Feature{
-					{Key: "admissions.communication.applicant_communication", Slug: "applicant_communication", Name: "Applicant communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Send status updates, reminders and admission instructions."},
 				},
 			},
 			{
@@ -821,8 +810,8 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
 					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},
+					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
 					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section — without anybody typing the child's details a second time."},
-					{Key: "admissions.admissions.id_compliance", Slug: "id_compliance", Name: "ID & Compliance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Aadhaar, APAAR and the PEN each child needs, checked for shape as they are typed, and the export UDISE+ expects. A missing one found now is not found at reporting time."},
 				},
 			},
 			{
@@ -830,10 +819,7 @@ var Roles = []Role{
 				Name: "Front Desk",
 				Workspace: "Front Desk",
 				Features: []Feature{
-					{Key: "admissions.front_desk.visitors_log", Slug: "visitors_log", Name: "Visitors log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is on campus right now and who has been: name, phone, who they are here to see, and the time in. Checking somebody out is a button on their row, and a pass prints from the same place."},
-					{Key: "admissions.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: the slots on offer, who has taken one, and who turned up."},
-					{Key: "admissions.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out with who took them and what was said — the register the front office keeps by the phone."},
-					{Key: "admissions.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+					{Key: "admissions.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen."},
 				},
 			},
 		},
@@ -847,10 +833,7 @@ var Roles = []Role{
 				Name: "Front Desk",
 				Workspace: "Front Desk",
 				Features: []Feature{
-					{Key: "front_office.front_desk.visitors_log", Slug: "visitors_log", Name: "Visitors log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is on the premises right now and who has been: name, phone, who they are here to see, and the time in. Signing somebody out is a button on their row, and the pass prints from the same place. The block list is checked as the pass is issued."},
-					{Key: "front_office.front_desk.parent_appointments", Slug: "parent_appointments", Name: "Parent appointments", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings booked with a teacher or the office: who is expected, when, and who turned up."},
-					{Key: "front_office.front_desk.daily_call_log", Slug: "daily_call_log", Name: "Daily call log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Calls in and out, who took them and what was said — the register the front office keeps by the phone, and the messages still waiting to be passed on."},
-					{Key: "front_office.front_desk.dispatch_courier", Slug: "dispatch_courier", Name: "Dispatch & courier", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post and parcels in and out: tracking number, who sent it, who it is for, and whether it has been handed over."},
+					{Key: "front_office.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen."},
 				},
 			},
 			{
