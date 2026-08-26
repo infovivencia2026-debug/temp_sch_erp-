@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 315 features.
+// Roles is the catalog: 13 roles, 314 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -820,7 +820,6 @@ var Roles = []Role{
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
-					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
 					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},
 					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section — without anybody typing the child's details a second time."},
 					{Key: "admissions.admissions.id_compliance", Slug: "id_compliance", Name: "ID & Compliance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Aadhaar, APAAR and the PEN each child needs, checked for shape as they are typed, and the export UDISE+ expects. A missing one found now is not found at reporting time."},

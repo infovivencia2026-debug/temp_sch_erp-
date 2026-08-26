@@ -134,7 +134,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_quota': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.fee_enrollment': screen(() => import('./admissions/Pipeline')),
-  'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
   'admissions.admissions.id_compliance': screen(() => import('./admissions/Funnel')),
   /* The receptionist's own workspace.
    *
