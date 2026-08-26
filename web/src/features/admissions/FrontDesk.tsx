@@ -8,6 +8,7 @@ import {
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { formatDate } from '@/lib/utils'
 
 /* The front desk.
@@ -277,6 +278,10 @@ function useStudents() {
 }
 
 function Visitors({ rows }: { rows: Visitor[] }) {
+  /* Over the rows the screen already holds — this list is one day, or one
+     month, so there is nothing to fetch and nothing to page. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (v) => [v.pass_no, v.full_name, v.phone, v.purpose, v.host, v.student])
   const qc = useQueryClient()
   const staff = useStaff()
   const students = useStudents()
@@ -371,8 +376,30 @@ function Visitors({ rows }: { rows: Visitor[] }) {
         <CardHeader
           title="Today"
           description="Still inside first, longest first — the order the desk needs at closing time."
+          action={
+            <span className="flex flex-wrap items-center gap-2">
+              <Showing shown={shown.length} total={rows.length} noun="visitors" />
+              <SearchBox value={term} onChange={setTerm} placeholder="Name, pass, phone or host" />
+              <ExportRows
+                rows={shown}
+                name="visitors"
+                columns={[
+                  { header: 'Pass no', value: (v) => v.pass_no },
+                  { header: 'Visitor', value: (v) => v.full_name },
+                  { header: 'Phone', value: (v) => v.phone },
+                  { header: 'ID type', value: (v) => v.id_type },
+                  { header: 'Purpose', value: (v) => v.purpose },
+                  { header: 'To see', value: (v) => v.host },
+                  { header: 'Student', value: (v) => v.student },
+                  { header: 'In', value: (v) => v.in_at },
+                  { header: 'Out', value: (v) => v.out_at },
+                  { header: 'Minutes on site', value: (v) => v.minutes_on_site },
+                ]}
+              />
+            </span>
+          }
         />
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <EmptyState title="Nobody yet" body="Passes issued today appear here." />
         ) : (
           <Table
@@ -386,7 +413,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
               { label: '' },
             ]}
           >
-            {rows.map((v) => (
+            {shown.map((v) => (
               <tr key={v.id}>
                 <Td className="font-mono">{v.pass_no}</Td>
                 <Td className="font-medium">
@@ -455,6 +482,10 @@ function Appointments() {
 
   const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
   const rows = list.data?.items ?? []
+  /* Over the rows the screen already holds — this list is one day, or one
+     month, so there is nothing to fetch and nothing to page. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (a) => [a.visitor_name, a.phone, a.with, a.student, a.purpose, a.status])
 
   return (
     <>
@@ -525,8 +556,30 @@ function Appointments() {
         <CardHeader
           title="The next thirty days"
           description="A diary looks forward. Every other list here reports on what has happened; this one would be useless if it did."
+          action={
+            <span className="flex flex-wrap items-center gap-2">
+              <Showing shown={shown.length} total={rows.length} noun="meetings" />
+              <SearchBox value={term} onChange={setTerm} placeholder="Visitor, staff or student" />
+              <ExportRows
+                rows={shown}
+                name="appointments"
+                columns={[
+                  { header: 'Date', value: (a) => a.on_date },
+                  { header: 'Time', value: (a) => a.starts_at },
+                  { header: 'Minutes', value: (a) => a.minutes },
+                  { header: 'Visitor', value: (a) => a.visitor_name },
+                  { header: 'Phone', value: (a) => a.phone },
+                  { header: 'With', value: (a) => a.with },
+                  { header: 'Student', value: (a) => a.student },
+                  { header: 'Purpose', value: (a) => a.purpose },
+                  { header: 'Status', value: (a) => a.status },
+                  { header: 'Outcome', value: (a) => a.outcome },
+                ]}
+              />
+            </span>
+          }
         />
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <EmptyState title="Nothing booked" body="Meetings appear here in date order." />
         ) : (
           <Table
@@ -539,7 +592,7 @@ function Appointments() {
               { label: '' },
             ]}
           >
-            {rows.map((a) => (
+            {shown.map((a) => (
               <tr key={a.id}>
                 <Td className="text-muted-foreground">
                   {formatDate(a.on_date)}
@@ -630,6 +683,10 @@ function Appointments() {
 }
 
 function Calls({ rows }: { rows: Call[] }) {
+  /* Over the rows the screen already holds — this list is one day, or one
+     month, so there is nothing to fetch and nothing to page. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (c) => [c.caller_name, c.phone, c.student, c.about, c.for, c.direction])
   const qc = useQueryClient()
   const staff = useStaff()
   const students = useStudents()
@@ -715,8 +772,29 @@ function Calls({ rows }: { rows: Call[] }) {
         <CardHeader
           title="This month"
           description="Messages that have not reached the person they were for come first — that is the desk's own outstanding work."
+          action={
+            <span className="flex flex-wrap items-center gap-2">
+              <Showing shown={shown.length} total={rows.length} noun="calls" />
+              <SearchBox value={term} onChange={setTerm} placeholder="Caller, phone, child or subject" />
+              <ExportRows
+                rows={shown}
+                name="call-log"
+                columns={[
+                  { header: 'At', value: (c) => c.at_time },
+                  { header: 'Direction', value: (c) => c.direction },
+                  { header: 'Caller', value: (c) => c.caller_name },
+                  { header: 'Phone', value: (c) => c.phone },
+                  { header: 'Student', value: (c) => c.student },
+                  { header: 'About', value: (c) => c.about },
+                  { header: 'For', value: (c) => c.for },
+                  { header: 'Passed on', value: (c) => c.passed_on_at },
+                  { header: 'Action taken', value: (c) => c.action_taken },
+                ]}
+              />
+            </span>
+          }
         />
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <EmptyState title="No calls logged" body="Calls appear here newest first." />
         ) : (
           <Table
@@ -728,7 +806,7 @@ function Calls({ rows }: { rows: Call[] }) {
               { label: '' },
             ]}
           >
-            {rows.map((c) => (
+            {shown.map((c) => (
               <tr key={c.id}>
                 <Td className="text-muted-foreground">
                   {formatDate(c.at_time)}
@@ -774,6 +852,10 @@ function Calls({ rows }: { rows: Call[] }) {
 }
 
 function PostLog({ rows }: { rows: Post[] }) {
+  /* Over the rows the screen already holds — this list is one day, or one
+     month, so there is nothing to fetch and nothing to page. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (x) => [x.courier, x.tracking_no, x.from_party, x.to_party, x.description, x.received_by])
   const qc = useQueryClient()
   const [form, setForm] = useState<Record<string, string>>({ direction: 'in' })
   const [handing, setHanding] = useState<string | null>(null)
@@ -853,8 +935,30 @@ function PostLog({ rows }: { rows: Post[] }) {
         <CardHeader
           title="This month"
           description="Anything received and still sitting at the desk comes first."
+          action={
+            <span className="flex flex-wrap items-center gap-2">
+              <Showing shown={shown.length} total={rows.length} noun="items" />
+              <SearchBox value={term} onChange={setTerm} placeholder="Courier, tracking, sender or addressee" />
+              <ExportRows
+                rows={shown}
+                name="post-log"
+                columns={[
+                  { header: 'Date', value: (x) => x.on_date },
+                  { header: 'Direction', value: (x) => x.direction },
+                  { header: 'Courier', value: (x) => x.courier },
+                  { header: 'Tracking no', value: (x) => x.tracking_no },
+                  { header: 'From', value: (x) => x.from_party },
+                  { header: 'To', value: (x) => x.to_party },
+                  { header: 'Description', value: (x) => x.description },
+                  { header: 'Received by', value: (x) => x.received_by },
+                  { header: 'Handed over', value: (x) => x.handed_over_at },
+                  { header: 'Charges', value: (x) => (x.charges_paise == null ? '' : x.charges_paise / 100) },
+                ]}
+              />
+            </span>
+          }
         />
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <EmptyState title="Nothing recorded" body="Inward and outward post appears here." />
         ) : (
           <Table
@@ -867,7 +971,7 @@ function PostLog({ rows }: { rows: Post[] }) {
               { label: '' },
             ]}
           >
-            {rows.map((p) => (
+            {shown.map((p) => (
               <tr key={p.id}>
                 <Td className="text-muted-foreground">{formatDate(p.on_date)}</Td>
                 <Td className="font-medium">

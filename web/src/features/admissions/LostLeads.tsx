@@ -8,6 +8,7 @@ import {
   Loading, ErrorState, EmptyState, RangePicker, rangeQuery, useRange,
   type RangeOption,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import {
   ADMISSIONS_BASE as A, LOST_DIMENSIONS, errText, labelOf, useLeads, useLostReasons,
@@ -113,6 +114,11 @@ export default function LostLeads() {
   const reasonOptions = reasons.data?.items ?? []
   const openLeads = (leads.data?.items ?? []).filter((l) => l.status !== 'lost')
   const lostRows = lost.data?.items ?? []
+  /* Somebody reviewing why families walked away looks for a family, a
+     counsellor or a reason — none of which a date-ordered list surfaces. */
+  const { q: term, setQ: setTerm, shown } = useSearch(lostRows,
+    (r) => [r.student_name, r.parent_name, r.class_sought, r.source, r.counsellor,
+            r.reason_label, r.note])
   const analysisRows = analysis.data?.items ?? []
   const unrecorded = lostRows.filter((r) => !r.reason).length
   const topRow = [...analysisRows].sort((a, b) => b.lost - a.lost)[0]
@@ -250,14 +256,33 @@ export default function LostLeads() {
             title="The leads themselves"
             description="How long each was worked before the school gave up."
             action={
-              <div className="w-[220px]">
+              <span className="flex flex-wrap items-center gap-2">
+                <Showing shown={shown.length} total={lostRows.length} noun="leads" />
+                <SearchBox value={term} onChange={setTerm} placeholder="Family, counsellor or reason" />
+                <ExportRows
+                  rows={shown}
+                  name="lost-leads"
+                  columns={[
+                    { header: 'Student', value: (r) => r.student_name },
+                    { header: 'Parent', value: (r) => r.parent_name },
+                    { header: 'Class sought', value: (r) => r.class_sought },
+                    { header: 'Source', value: (r) => r.source },
+                    { header: 'Counsellor', value: (r) => r.counsellor },
+                    { header: 'Reason', value: (r) => r.reason_label },
+                    { header: 'Note', value: (r) => r.note },
+                    { header: 'Days worked', value: (r) => r.days_worked },
+                    { header: 'Lost on', value: (r) => r.lost_on },
+                  ]}
+                />
+                <div className="w-[220px]">
                 <Select
                   value={reasonFilter}
                   onChange={setReasonFilter}
                   options={reasonOptions}
                   placeholder="Every reason"
                 />
-              </div>
+                </div>
+              </span>
             }
           />
           {lost.error ? (
@@ -270,10 +295,12 @@ export default function LostLeads() {
                 'Parent', 'Class sought', 'Source', 'Counsellor', 'Reason', 'Note',
                 { label: 'Worked for', align: 'right' }, 'Lost on', '',
               ]}
-              empty={!lost.isLoading && lostRows.length === 0}
-              emptyLabel="Nothing closed as lost in this period."
+              empty={!lost.isLoading && shown.length === 0}
+              emptyLabel={term
+                ? 'No lost lead matches that.'
+                : 'Nothing closed as lost in this period.'}
             >
-              {lostRows.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.id}>
                   <Td>
                     {r.student_name}

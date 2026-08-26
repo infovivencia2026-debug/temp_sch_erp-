@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Loading, ErrorState, ExportButton,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 
 interface Merit {
@@ -71,6 +72,10 @@ export default function Pipeline() {
 
   const stages = funnel.data?.items ?? []
   const rows = merit.data?.items ?? []
+  /* A merit list is read to find one child on it — the parent on the phone
+     asking where their son came — which is exactly what ranking makes hard. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (m) => [m.application_no, m.name, m.class_sought, m.category, m.status])
 
   return (
     <>
@@ -129,11 +134,37 @@ export default function Pipeline() {
         </Card>
 
         <Card>
-          <CardHeader title="Merit list" description={`${rows.length} applicants, weighted and ranked`} />
+          <CardHeader
+            title="Merit list"
+            description={`${rows.length} applicants, weighted and ranked`}
+            action={
+              <span className="flex flex-wrap items-center gap-2">
+                <Showing shown={shown.length} total={rows.length} noun="applicants" />
+                <SearchBox value={term} onChange={setTerm} placeholder="Name, application no. or class" />
+                <ExportRows
+                  rows={shown}
+                  name="merit-list"
+                  columns={[
+                    { header: 'Rank', value: (m) => m.rank },
+                    { header: 'Application no', value: (m) => m.application_no },
+                    { header: 'Applicant', value: (m) => m.name },
+                    { header: 'Class', value: (m) => m.class_sought },
+                    { header: 'Category', value: (m) => m.category },
+                    { header: 'RTE', value: (m) => (m.is_rte ? 'yes' : 'no') },
+                    { header: 'Entrance %', value: (m) => m.test_percent },
+                    { header: 'Interview %', value: (m) => m.interview_percent },
+                    { header: 'Merit', value: (m) => m.merit_score },
+                    { header: 'Status', value: (m) => m.status },
+                  ]}
+                />
+              </span>
+            }
+          />
           {merit.isLoading ? <Loading /> : merit.error ? <ErrorState error={merit.error} /> : (
             <Table head={['Rank', 'Application', 'Applicant', 'Class', 'Entrance', 'Interview', 'Merit', 'Status', '']}
-              empty={!rows.length} emptyLabel="No applications yet.">
-              {rows.map((m) => (
+              empty={!shown.length}
+              emptyLabel={term ? 'No applicant matches that.' : 'No applications yet.'}>
+              {shown.map((m) => (
                 <tr key={m.application_id}>
                   <Td className="font-medium">#{m.rank}</Td>
                   <Td className="font-mono text-[12px]">{m.application_no}</Td>
