@@ -408,22 +408,37 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
     background-color 140ms var(--ease-out, ease);
 }
 
-[data-layout='bento'] .bento-cell:hover {
-  /* A border appears. That is the whole effect, and it is the same on every
-     cell — actionable or not.
+/* A THIN DARK LINE APPEARS AROUND THE CARD.
 
-     The wash and the lift are gone. A tinted ground shifting under the pointer
-     competes with the card's own colour, which now carries meaning, and a
-     shadow on a near-black page is invisible anyway. An edge that was not
-     there and now is reads instantly at any size, on paper, on a coloured
-     ground and on an inverted cell, because it is drawn from the cell's own
-     ink rather than from a colour that has to survive twelve backgrounds. */
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
-}
+   This used to change `border-color` alone, which stopped working the moment
+   the cells lost their borders: recolouring an edge that is zero pixels wide
+   is a no-op, so the whole board became inert under the pointer while the rule
+   sat there looking correct.
 
+   An INSET RING instead, drawn as a shadow rather than a border. A border
+   would change the cell's box and shove every neighbour by a pixel the instant
+   the pointer landed — in a grid with one-pixel gutters that ripples across
+   the whole row. An inset ring is painted inside the box the cell already has,
+   so nothing moves.
+
+   Inset rather than outset for a second reason: the gutters ARE the rules on
+   this board, and a ring drawn outside the cell would land in the gutter and
+   read as the seam thickening rather than as the card answering.
+
+   currentColor, so it is a dark line on a pale tint and a light one on a dark
+   cell — legible on all twelve domain grounds and on anything a school picks
+   from the wheel, which a fixed dark line would not be. 55% is a definite line
+   without being a selection.
+
+   No lift, no wash, no scale. A tinted ground shifting under the pointer
+   competes with the card's own colour, which carries meaning here, and a card
+   that grows in a packed grid moves the thing the cursor is on. */
+[data-layout='bento'] .bento-cell:hover,
 [data-layout='bento'] .bento-cell:focus-within {
-  /* Keyboard gets exactly what the pointer gets. */
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 55%, transparent),
+    var(--bento-shadow-sm, none);
+  border-color: color-mix(in srgb, currentColor 55%, transparent);
 }
 
 /* The state change stays; only its animation goes. Somebody who asked for less

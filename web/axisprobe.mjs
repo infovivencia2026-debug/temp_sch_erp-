@@ -20,6 +20,17 @@ const AXES=[
 for (const [attr, values, prop] of AXES) {
   const seen=[]
   for (const v of values) {
+    /* Settle first. box-shadow carries a 140ms transition, and reading the
+       moment the attribute changes catches the transparent first frame — which
+       is how 'lifted' and 'deep' both reported as an empty shadow while
+       actually being applied. A probe that races the thing it measures is
+       worse than none: it reports a fault that is not there and hides one that
+       is. */
+    await p.evaluate(({attr,v})=>{
+      const r=document.documentElement
+      if(v) r.setAttribute(`data-${attr}`,v); else r.removeAttribute(`data-${attr}`)
+    },{attr,v})
+    await p.waitForTimeout(320)
     const got=await p.evaluate(({attr,v,prop})=>{
       const r=document.documentElement
       if(v) r.setAttribute(`data-${attr}`,v); else r.removeAttribute(`data-${attr}`)

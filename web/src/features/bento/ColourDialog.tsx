@@ -506,7 +506,7 @@ export function ColourPanel({
             the product is. Not a swatch — a swatch tells you the colour and not
             what it does to a screen made of five regions. */}
         <div className={cn('border-t px-5 py-4', SEAM)}>
-          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
+          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>
             {t('bento.colour.preview')}
           </p>
           <div
@@ -579,7 +579,7 @@ export function ColourPanel({
         {channel !== 'accent' && (
           <div className={cn('border-t px-5 py-4', SEAM)}>
             <div className="mb-2 flex items-center justify-between">
-              <p className={cn('text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
+              <p className={cn('text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>
                 {t('bento.colour.select_element')}
               </p>
               <button
@@ -617,7 +617,7 @@ export function ColourPanel({
 
         {/* Palettes */}
         <div className={cn('border-t px-5 py-4', SEAM)}>
-          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.1em]', INK)}>
+          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>
             {t('bento.colour.saved')}
           </p>
           <div className="flex gap-2">

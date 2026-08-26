@@ -283,7 +283,7 @@ export function Part({ grow = 1, children }: { grow?: number; children: ReactNod
 export function Titled({ head, children }: { head: string; children: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <p className="mb-1 truncate text-[length:var(--card-sub,8px)] font-semibold uppercase leading-none tracking-[0.1em] opacity-55">
+      <p className="mb-1 truncate text-[length:var(--card-sub,8px)] font-semibold uppercase leading-none tracking-[0.06em] opacity-55">
         {head}
       </p>
       <div className="min-h-0 flex-1">{children}</div>

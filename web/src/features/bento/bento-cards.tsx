@@ -137,7 +137,7 @@ export function CardShell({
               className={cn(
                 'mt-1 truncate opacity-55 text-[length:var(--card-sub,10px)]',
                 isLatin(sub)
-                  ? 'font-medium uppercase leading-none tracking-[0.22em] [font-family:var(--bento-mono)] [font-size:0.92em]'
+                  ? 'font-medium uppercase leading-none tracking-[0.1em] [font-size:0.92em]'
                   : 'font-medium leading-tight',
               )}
             >
@@ -418,7 +418,7 @@ export function Rows({ items, srLabel, formatValue }: {
             className={cn(
               'truncate text-[length:min(9px,var(--card-note,9px))] leading-none opacity-70',
               isLatin(it.label)
-                ? 'font-medium uppercase tracking-[0.12em] [font-family:var(--bento-mono)]'
+                ? 'font-medium uppercase tracking-[0.07em]'
                 : 'font-medium',
             )}
           >
@@ -968,8 +968,7 @@ export function Ranked({
             {String(i + 1).padStart(2, '0')}
           </b>
           <span className="mt-0.5 block truncate text-[length:min(8px,var(--card-note,8px))]
-                           uppercase leading-none tracking-[0.12em] opacity-60
-                           [font-family:var(--bento-mono)]">
+                           uppercase leading-none tracking-[0.07em] opacity-60">
             {it.label}
           </span>
           <span className="mt-1.5 block h-[4px]" style={{ background: TRACK }}>
@@ -1199,7 +1198,7 @@ export function Matrix({
       {rows.flatMap((row) => [
         <span key={`${row.label}-l`}
               className="self-center truncate pr-1 text-[length:min(8px,var(--card-note,8px))]
-                         leading-none opacity-55 [font-family:var(--bento-mono)]">
+                         leading-none opacity-55">
           {row.label}
         </span>,
         ...Array.from({ length: cols }, (_, c) => {

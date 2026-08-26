@@ -562,7 +562,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                 the card's ink. On the page it is the wrong ground's ink, and
                 the muted tone is the ink anyway — the difference is carried by
                 size and weight, which is where it already was. */}
-            <p className="text-[11px] uppercase tracking-[0.14em]">
+            <p className="text-[11px] uppercase tracking-[0.08em]">
               {role.name}
             </p>
             <h2 className="text-[22px] font-semibold">{t('bento.launcher.title')}</h2>
@@ -828,7 +828,7 @@ function Heading({
 }) {
   return (
     <h3
-      className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]"
+      className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.08em]"
       /* On the tint the heading was drawn in `--dom-<hue>` — the domain colour
          — on a panel mixed from that same domain colour. In the shipped
          palettes that name is a dark ink and it read; under the default palette
