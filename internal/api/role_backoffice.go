@@ -234,6 +234,13 @@ type applicationRow struct {
 	// hidden entirely rather than showing a row of dashes.
 	FormFeePaise  *int64  `json:"form_fee_paise,omitempty"`
 	FormFeePaidAt *string `json:"form_fee_paid_at,omitempty"`
+
+	// The paperwork, counted over the required documents only. The optional
+	// ones — a caste certificate for a child not claiming one — must not make
+	// a complete application look incomplete forever.
+	DocsRequired int `json:"docs_required"`
+	DocsVerified int `json:"docs_verified"`
+	DocsRejected int `json:"docs_rejected"`
 }
 
 // listApplications powers admissions.admissions_workspace.applications.
@@ -243,7 +250,14 @@ func (s *Server) listApplications(w http.ResponseWriter, r *http.Request) {
 		       concat_ws(' ', a.first_name, a.middle_name, a.last_name),
 		       c.name, a.parent_name, a.parent_phone, a.is_rte, a.status,
 		       to_char(a.created_at,'YYYY-MM-DD'),
-		       a.form_fee_paise, to_char(a.form_fee_paid_at,'YYYY-MM-DD')
+		       a.form_fee_paise, to_char(a.form_fee_paid_at,'YYYY-MM-DD'),
+		       (SELECT count(*) FROM application_documents d
+		         WHERE d.application_id = a.id AND d.is_required),
+		       (SELECT count(*) FROM application_documents d
+		         WHERE d.application_id = a.id AND d.is_required
+		           AND d.status = 'verified'),
+		       (SELECT count(*) FROM application_documents d
+		         WHERE d.application_id = a.id AND d.status = 'rejected')
 		  FROM applications a
 		  LEFT JOIN classes c ON c.id = a.class_sought
 		 WHERE ($1::text IS NULL OR a.status = $1)
@@ -260,7 +274,8 @@ func (s *Server) listApplications(w http.ResponseWriter, r *http.Request) {
 			var v applicationRow
 			return v, rows.Scan(&v.ID, &v.ApplicationNo, &v.Name, &v.ClassSought,
 				&v.ParentName, &v.ParentPhone, &v.IsRTE, &v.Status, &v.CreatedAt,
-				&v.FormFeePaise, &v.FormFeePaidAt)
+				&v.FormFeePaise, &v.FormFeePaidAt,
+				&v.DocsRequired, &v.DocsVerified, &v.DocsRejected)
 		})
 	respond(w, r, items, err)
 }

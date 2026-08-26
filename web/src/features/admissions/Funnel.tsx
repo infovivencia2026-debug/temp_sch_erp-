@@ -110,15 +110,35 @@ const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractio
  * Visits" showed a counsellor assignment form and the open-day diary it names
  * was two clicks away behind a tab nobody knew to press. The tabs were right
  * all along; the doors all led to the same one. */
-const OPENS_ON: Record<string, (typeof TABS)[number][0]> = {
-  assign_leads: 'leads',
-  campus_visits: 'opendays',
-  waitlist: 'waitlist',
-  applicant_communication: 'leads',
+const VIEWS: Record<string, {
+  tab: (typeof TABS)[number][0]
+  title: string
+  description: string
+}> = {
+  assign_leads: {
+    tab: 'leads',
+    title: 'Assign leads',
+    description: 'Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they all get an owner and a date.',
+  },
+  campus_visits: {
+    tab: 'opendays',
+    title: 'Campus visits',
+    description: 'Open houses, tours and counselling days: the slots on offer, who has booked, and who turned up.',
+  },
+  waitlist: {
+    tab: 'waitlist',
+    title: 'Waiting list',
+    description: 'Who is next if a seat is given up, in order, with the date they went on.',
+  },
 }
+
+const OPENS_ON = Object.fromEntries(
+  Object.entries(VIEWS).map(([k, v]) => [k, v.tab]),
+) as Record<string, (typeof TABS)[number][0]>
 
 export default function Funnel() {
   const { featureSlug } = useParams()
+  const view = VIEWS[featureSlug ?? '']
   const [tab, setTab] = useState<(typeof TABS)[number][0]>(
     OPENS_ON[featureSlug ?? ''] ?? 'leads')
 
@@ -161,8 +181,14 @@ export default function Funnel() {
     <>
       <PageHead
         eyebrow="Admissions"
-        title="The funnel"
-        description="Where enquiries came from, who is chasing them, and the quota register an inspection reads."
+        /* Named for the entry that was opened.
+
+           Three entries render this screen and each lands on its own tab, but
+           the shell above the tabs was identical — same heading, same four
+           totals — so two of them read as the same page with something moved.
+           A screen that does not say what you asked for has not answered you. */
+        title={view?.title ?? 'The funnel'}
+        description={view?.description ?? 'Where enquiries came from, who is chasing them, and the quota register an inspection reads.'}
       />
       <PageBody>
         <CellGrid cols={4}>

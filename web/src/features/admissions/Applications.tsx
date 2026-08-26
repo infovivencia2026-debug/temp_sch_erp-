@@ -39,6 +39,12 @@ interface Application {
      rather than showing a row of dashes. */
   form_fee_paise?: number
   form_fee_paid_at?: string
+  /* Counted over the required documents only: an optional caste certificate
+     for a child not claiming one must not leave an application looking
+     incomplete for ever. */
+  docs_required: number
+  docs_verified: number
+  docs_rejected: number
 }
 
 /* The ladder, in order. Anything not listed — withdrawn, rejected — is a
@@ -64,22 +70,26 @@ function stageIndex(status: string) {
  * menu grows entries that lead nowhere new. A person who clicks "Document
  * check" has already told you what they want to see.
  */
-const OPENS_ON: Record<string, string> = {
-  document_check: 'documents_pending',
-  entrance_exams: 'test_scheduled',
-  interviews: 'interviewed',
-  approvals_queue: 'under_review',
-}
+/* Which rung an entry opens on, by real slug.
 
+   Only the forms list opens unfiltered. Document verification deliberately
+   does NOT filter to documents_pending: an application can be short of a
+   birth certificate at any stage, and filtering to one status hid most of the
+   queue the screen exists to show. It sorts by outstanding paperwork instead. */
+const OPENS_ON: Record<string, string> = {}
+
+/* Keyed by the slug the catalogue actually generates.
+
+   These were written against slugs that do not exist — document_check for
+   document_verification, entrance_exams for entrance_tests — so neither the
+   heading nor the opening filter ever matched anything, and every entry showed
+   "Applications" over the unfiltered list. That is why two entries looked
+   identical: they were. */
 const TITLES: Record<string, [string, string]> = {
-  document_check: ['Document check',
-    'Applications waiting on paperwork. Mark a document verified as it arrives.'],
-  entrance_exams: ['Entrance exams',
-    'Applicants due to sit the test: book the date, then record the score.'],
-  interviews: ['Interviews',
-    'Applicants due an interview: book the slot, then record what was said.'],
-  approvals_queue: ['Approvals queue',
-    'Applications sitting at a stage that needs a decision. The work, rather than the archive.'],
+  application_forms: ['Application forms',
+    'Every form submitted, and where it has got to on the ladder.'],
+  document_verification: ['Document verification',
+    'What each applicant still owes the office. Attach what they bring, verify it, or send it back with a reason.'],
 }
 
 export default function Applications() {
@@ -93,6 +103,10 @@ export default function Applications() {
   const can = useCan()
   const mayWrite = can('admissions.write')
   const mayEnrol = can('students.write')
+
+  /* The paperwork queue is a different question from the application list,
+     and shares only its rows. */
+  const checking = featureSlug === 'document_verification'
 
   const [status, setStatus] = useState(OPENS_ON[featureSlug ?? ''] ?? '')
 
@@ -276,6 +290,13 @@ export default function Applications() {
      every row, so the column appears only once some form has a fee on it. */
   const anyFee = items.some((a) => a.form_fee_paise != null)
 
+  /* Required paperwork all verified. Zero required documents counts as done
+     rather than as outstanding — an application raised before the checklist
+     existed has none, and it is not the clerk's fault. */
+  const fullyChecked = (a: Application) =>
+    a.docs_required === 0 || a.docs_verified >= a.docs_required
+  const shortOfDocs = items.filter((a) => !fullyChecked(a))
+
   const count = (s: string) => items.filter((a) => a.status === s).length
   const live = items.filter((a) => !['rejected', 'withdrawn'].includes(a.status))
 
@@ -297,10 +318,29 @@ export default function Applications() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Live applications" value={live.length} />
-          <Stat label="Awaiting documents" value={count('documents_pending')} />
-          <Stat label="Offered" value={count('offered')} hint="Waiting on the parent" />
-          <Stat label="Accepted" value={count('accepted')} hint={count('accepted') ? 'Ready to enrol' : undefined} />
+          {checking ? (
+            <>
+              <Stat label="Applications" value={live.length} />
+              <Stat
+                label="Short of a document"
+                value={shortOfDocs.length}
+                hint={shortOfDocs.length ? 'These cannot be given a seat yet' : 'Nothing outstanding'}
+              />
+              <Stat
+                label="Rejected documents"
+                value={items.filter((a) => a.docs_rejected > 0).length}
+                hint={items.some((a) => a.docs_rejected > 0) ? 'The parent has to bring these back' : undefined}
+              />
+              <Stat label="Fully verified" value={items.filter(fullyChecked).length} />
+            </>
+          ) : (
+            <>
+              <Stat label="Live applications" value={live.length} />
+              <Stat label="Awaiting documents" value={count('documents_pending')} />
+              <Stat label="Offered" value={count('offered')} hint="Waiting on the parent" />
+              <Stat label="Accepted" value={count('accepted')} hint={count('accepted') ? 'Ready to enrol' : undefined} />
+            </>
+          )}
         </CellGrid>
 
         <FormNotice
@@ -308,7 +348,7 @@ export default function Applications() {
           ok={note}
         />
 
-        {mayWrite && (
+        {mayWrite && !checking && (
           <Card>
             <CardHeader
               title="Which steps this school uses"
@@ -487,7 +527,7 @@ export default function Applications() {
                     { header: 'Fee paid on', value: (a) => a.form_fee_paid_at },
                   ]}
                 />
-                {mayWrite && (
+                {mayWrite && !checking && (
                   <Button size="sm" onClick={() => setAdding((v) => !v)}>
                     <Plus className="h-3.5 w-3.5" />
                     New application
@@ -503,12 +543,20 @@ export default function Applications() {
           ) : (
             <Table
               wide
-              head={['Application', 'Applicant', 'Class', 'Parent', 'Status', 'Applied',
+              head={['Application', 'Applicant', 'Class', 'Parent',
+                     ...(checking ? ['Documents'] : ['Status']), 'Applied',
                      ...(anyFee ? ['Form fee'] : []), '']}
               empty={!shown.length}
               emptyLabel={term ? 'No application matches that.' : 'No applications yet.'}
             >
-              {shown.map((a) => (
+              {(checking
+                /* Outstanding first, and among those the ones with something
+                   rejected — a parent already sent away once. */
+                ? [...shown].sort((x, y) =>
+                    Number(fullyChecked(x)) - Number(fullyChecked(y)) ||
+                    y.docs_rejected - x.docs_rejected)
+                : shown
+              ).map((a) => (
                 <tr key={a.id} className={cn(open?.id === a.id && 'bg-accent')}>
                   <Td className="font-mono text-[12px]">{a.application_no}</Td>
                   <Td className="font-medium">
@@ -526,7 +574,23 @@ export default function Applications() {
                       {a.parent_phone}
                     </a>
                   </Td>
-                  <Td><StatusPill status={a.status} /></Td>
+                  <Td>
+                    {checking ? (
+                      a.docs_rejected > 0 ? (
+                        <Badge tone="danger">
+                          {a.docs_rejected} rejected
+                        </Badge>
+                      ) : fullyChecked(a) ? (
+                        <Badge tone="success">all verified</Badge>
+                      ) : (
+                        <Badge tone="warning">
+                          {a.docs_verified} of {a.docs_required} verified
+                        </Badge>
+                      )
+                    ) : (
+                      <StatusPill status={a.status} />
+                    )}
+                  </Td>
                   <Td className="text-muted-foreground">{formatDate(a.created_at)}</Td>
                   {anyFee && (
                     <Td className="num">

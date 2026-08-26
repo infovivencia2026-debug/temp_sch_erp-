@@ -84,7 +84,7 @@ func (s *Server) listApplicationDocuments(w http.ResponseWriter, r *http.Request
 		rows, err := tx.Query(r.Context(), `
 			SELECT d.id::text, d.doc_type, d.is_required, d.status, d.note,
 			       d.file_id::text, f.original_name, f.content_type, f.size_bytes,
-			       concat_ws(' ', u.first_name, u.last_name),
+			       u.full_name,
 			       to_char(d.verified_at, 'YYYY-MM-DD')
 			  FROM application_documents d
 			  LEFT JOIN files f ON f.id = d.file_id AND f.deleted_at IS NULL

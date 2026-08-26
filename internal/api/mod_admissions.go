@@ -262,6 +262,22 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* The paperwork checklist, raised with the application.
+		
+		   Seeded here as well as lazily on first open, so the verification
+		   queue can say "2 of 4 verified" for an application nobody has opened
+		   yet — which is the whole point of a queue. */
+		for _, d := range defaultChecklist {
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO application_documents
+				       (institution_id, application_id, doc_type, is_required, status)
+				VALUES ($1, $2::uuid, $3, $4, 'pending')
+				ON CONFLICT DO NOTHING`,
+				instID, appID, d.Type, d.Required); err != nil {
+				return err
+			}
+		}
+
 		if req.EnquiryID != "" {
 			_, err = tx.Exec(r.Context(),
 				`UPDATE enquiries SET status = 'applied', updated_at = now() WHERE id = $1`,
