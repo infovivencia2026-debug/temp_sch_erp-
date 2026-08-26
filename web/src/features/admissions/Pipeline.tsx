@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Loading, ErrorState, ExportButton,
 } from '@/components/ui'
+import EnrolPanel from './EnrolPanel'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 
@@ -73,7 +74,6 @@ export default function Pipeline() {
   const qc = useQueryClient()
   const [testWeight, setTestWeight] = useState('70')
   const [enrolFor, setEnrolFor] = useState<string | null>(null)
-  const [sectionId, setSectionId] = useState('')
 
   const merit = useQuery({
     queryKey: ['merit', testWeight],
@@ -101,11 +101,6 @@ export default function Pipeline() {
     mutationFn: ({ id, decision }: { id: string; decision: string }) =>
       api.post(`/api/v1/admissions/workflow/applications/${id}/decision`, { decision }),
     onSuccess: refresh,
-  })
-  const enrol = useMutation({
-    mutationFn: (id: string) =>
-      api.post(`/api/v1/admissions/workflow/applications/${id}/enrol`, { section_id: sectionId }),
-    onSuccess: () => { setEnrolFor(null); refresh() },
   })
 
   const stages = funnel.data?.items ?? []
@@ -238,7 +233,7 @@ export default function Pipeline() {
                         )}
                         {m.status === 'offered' && (
                           <Button size="sm" variant="secondary"
-                            onClick={() => { setEnrolFor(m.application_id); setSectionId('') }}>
+                            onClick={() => setEnrolFor(m.application_id)}>
                             Enrol
                           </Button>
                         )}
@@ -290,35 +285,16 @@ export default function Pipeline() {
         {order.map((card, i) => <Fragment key={i}>{card}</Fragment>)}
 
         {enrolFor && (
-          <Card>
-            <CardHeader
-              title="Enrol applicant"
-              description="Creates the student record, the enrolment and the guardian link in one step."
-            />
-            <div className="flex flex-wrap items-end gap-3 p-5">
-              <label>
-                <span className="text-[13px] text-muted-foreground">
-                  Section{enrolling?.class_sought ? ` in ${enrolling.class_sought}` : ''}
-                </span>
-                <div className="mt-1">
-                  <Select value={sectionId} onChange={setSectionId} placeholder="Select section"
-                    options={openSections.map((s) => ({
-                      value: s.id, label: `${s.class_name}-${s.name}`,
-                    }))} />
-                </div>
-              </label>
-              <Button disabled={!sectionId || enrol.isPending} onClick={() => enrol.mutate(enrolFor)}>
-                {enrol.isPending ? 'Enrolling…' : 'Confirm enrolment'}
-              </Button>
-              <Button variant="ghost" onClick={() => setEnrolFor(null)}>Cancel</Button>
-              {enrol.isError && (
-                <p className="text-[13px] text-destructive">
-                  {enrol.error instanceof Error ? enrol.error.message : 'Enrolment failed'}
-                </p>
-              )}
-            </div>
-          </Card>
+          <EnrolPanel
+            applicationId={enrolFor}
+            classSought={enrolling?.class_sought}
+            sections={openSections.map((x) => ({
+              id: x.id, label: `${x.class_name}-${x.name}`,
+            }))}
+            onDone={() => { setEnrolFor(null); refresh() }}
+          />
         )}
+
       </PageBody>
     </>
   )

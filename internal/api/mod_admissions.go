@@ -263,7 +263,7 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 		}
 
 		/* The paperwork checklist, raised with the application.
-		
+
 		   Seeded here as well as lazily on first open, so the verification
 		   queue can say "2 of 4 verified" for an application nobody has opened
 		   yet — which is the whole point of a queue. */
@@ -517,7 +517,20 @@ var errNoSeats = errors.New("no seats available")
 type enrolRequest struct {
 	SectionID      string `json:"section_id"`
 	AcademicYearID string `json:"academic_year_id,omitempty"`
+	// Which price list to bill against. Omitted, the newest active structure
+	// for the class is used, which is what the desk sees on the screen.
 	FeeStructureID string `json:"fee_structure_id,omitempty"`
+
+	// A waiver agreed at the counter: RTE, a sibling, a scholarship the
+	// principal has approved. Recorded against the invoice rather than
+	// silently reducing the amount, so the concession is auditable and the
+	// full fee is still on the record.
+	ConcessionPaise  int64  `json:"concession_paise,omitempty"`
+	ConcessionReason string `json:"concession_reason,omitempty"`
+
+	// Skip billing entirely. For a school that raises its fees in one run at
+	// the start of term rather than per admission.
+	NoInvoice bool `json:"no_invoice,omitempty"`
 }
 
 // enrolApplicant is the handoff: an admitted applicant becomes a student.
@@ -628,6 +641,90 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO student_guardians (student_id, guardian_id, institution_id, is_primary)
 			VALUES ($1::uuid,$2::uuid,$3,true)`, studentID, guardianID, instID); err != nil {
 			return err
+		}
+
+		/* The fee account, opened with the child.
+
+		   In this transaction rather than after it: a student who exists with
+		   no invoice is the state that lets somebody sit in class for free,
+		   and it is invisible — nothing looks wrong on either screen. If the
+		   billing fails the admission rolls back with it, which is recoverable;
+		   a half-admitted child is not.
+
+		   A class with no priced structure is not an error. Plenty of schools
+		   bill in one run at the start of term, and refusing the admission
+		   because the price list is not ready would be the software telling a
+		   school how to run its office. */
+		if !req.NoInvoice {
+			structureID := req.FeeStructureID
+			if structureID == "" {
+				err := tx.QueryRow(r.Context(), `
+					SELECT id::text FROM fee_structures
+					 WHERE class_id = $1 AND is_active
+					 ORDER BY created_at DESC LIMIT 1`, classID).Scan(&structureID)
+				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+			}
+			if structureID != "" {
+				invoiceNo, err := fees.NextNumber(r.Context(), tx, instID, "invoice")
+				if err != nil {
+					return err
+				}
+				var invoiceID string
+				if err := tx.QueryRow(r.Context(), `
+					INSERT INTO invoices (institution_id, campus_id, student_id,
+					                      academic_year_id, invoice_no, instalment_no,
+					                      issued_on, due_on, gross_paise, discount_paise,
+					                      status)
+					VALUES ($1,$2,$3::uuid,$4::uuid,$5,1,CURRENT_DATE,CURRENT_DATE,0,0,'unpaid')
+					RETURNING id::text`,
+					instID, campusID, studentID, yearID, invoiceNo).Scan(&invoiceID); err != nil {
+					return err
+				}
+
+				if _, err := tx.Exec(r.Context(), `
+					INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id,
+					                           description, amount_paise, discount_paise)
+					SELECT $1, $2::uuid, fsi.fee_head_id, fh.name, fsi.amount_paise, 0
+					  FROM fee_structure_items fsi
+					  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
+					 WHERE fsi.fee_structure_id = $3::uuid AND fsi.instalment_no = 1`,
+					instID, invoiceID, structureID); err != nil {
+					return err
+				}
+
+				/* The waiver lands on the largest line rather than being spread.
+
+				   Spreading it across heads would change what each head
+				   collected, and the heads are what the accounts are cut by —
+				   a concession on tuition must not quietly reduce the caution
+				   deposit, which is refundable money held for the family. */
+				if req.ConcessionPaise > 0 {
+					if _, err := tx.Exec(r.Context(), `
+						UPDATE invoice_lines l
+						   SET discount_paise = LEAST(l.amount_paise, $2::bigint),
+						       description = l.description ||
+						           CASE WHEN btrim($3) = '' THEN ''
+						                ELSE ' (' || btrim($3) || ')' END
+						 WHERE l.id = (
+						   SELECT id FROM invoice_lines
+						    WHERE invoice_id = $1::uuid
+						    ORDER BY amount_paise DESC LIMIT 1)`,
+						invoiceID, req.ConcessionPaise, req.ConcessionReason); err != nil {
+						return err
+					}
+				}
+
+				// net_paise is generated from these, so only the inputs are written.
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE invoices SET
+					    gross_paise    = COALESCE((SELECT sum(amount_paise)   FROM invoice_lines WHERE invoice_id = $1::uuid), 0),
+					    discount_paise = COALESCE((SELECT sum(discount_paise) FROM invoice_lines WHERE invoice_id = $1::uuid), 0)
+					 WHERE id = $1::uuid`, invoiceID); err != nil {
+					return err
+				}
+			}
 		}
 
 		if _, err := tx.Exec(r.Context(), `

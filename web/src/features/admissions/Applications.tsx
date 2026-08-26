@@ -317,31 +317,35 @@ export default function Applications() {
         description={description}
       />
       <PageBody>
-        <CellGrid cols={4}>
-          {checking ? (
-            <>
-              <Stat label="Applications" value={live.length} />
-              <Stat
-                label="Short of a document"
-                value={shortOfDocs.length}
-                hint={shortOfDocs.length ? 'These cannot be given a seat yet' : 'Nothing outstanding'}
-              />
-              <Stat
-                label="Rejected documents"
-                value={items.filter((a) => a.docs_rejected > 0).length}
-                hint={items.some((a) => a.docs_rejected > 0) ? 'The parent has to bring these back' : undefined}
-              />
-              <Stat label="Fully verified" value={items.filter(fullyChecked).length} />
-            </>
-          ) : (
-            <>
-              <Stat label="Live applications" value={live.length} />
-              <Stat label="Awaiting documents" value={count('documents_pending')} />
-              <Stat label="Offered" value={count('offered')} hint="Waiting on the parent" />
-              <Stat label="Accepted" value={count('accepted')} hint={count('accepted') ? 'Ready to enrol' : undefined} />
-            </>
-          )}
-        </CellGrid>
+        {/* Two grids rather than one holding a conditional.
+
+            CellGrid counts its children with Children.toArray to lay the
+            tracks out, and a fragment counts as one child however many Stats
+            are inside it — so the four cards planned themselves as a single
+            column and stacked down the page. */}
+        {checking ? (
+          <CellGrid cols={4}>
+            <Stat label="Applications" value={live.length} />
+            <Stat
+              label="Short of a document"
+              value={shortOfDocs.length}
+              hint={shortOfDocs.length ? 'These cannot be given a seat yet' : 'Nothing outstanding'}
+            />
+            <Stat
+              label="Rejected documents"
+              value={items.filter((a) => a.docs_rejected > 0).length}
+              hint={items.some((a) => a.docs_rejected > 0) ? 'The parent has to bring these back' : undefined}
+            />
+            <Stat label="Fully verified" value={items.filter(fullyChecked).length} />
+          </CellGrid>
+        ) : (
+          <CellGrid cols={4}>
+            <Stat label="Live applications" value={live.length} />
+            <Stat label="Awaiting documents" value={count('documents_pending')} />
+            <Stat label="Offered" value={count('offered')} hint="Waiting on the parent" />
+            <Stat label="Accepted" value={count('accepted')} hint={count('accepted') ? 'Ready to enrol' : undefined} />
+          </CellGrid>
+        )}
 
         <FormNotice
           error={assess.error || decide.error || enrol.error || create.error}
