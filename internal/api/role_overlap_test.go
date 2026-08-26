@@ -8,22 +8,24 @@ import (
 	"github.com/school-erp/erp/internal/catalog"
 )
 
-/* No two grantable roles may be the same workspace twice.
+/*
+No two grantable roles may be the same workspace twice.
 
-   The rule was written from two pairs somebody noticed. This computes it from
-   the catalogue instead, so a role that grows into duplicating another is
-   caught the day it grows rather than the day a school complains that one
-   person has the front desk listed twice.
+	The rule was written from two pairs somebody noticed. This computes it from
+	the catalogue instead, so a role that grows into duplicating another is
+	caught the day it grows rather than the day a school complains that one
+	person has the front desk listed twice.
 
-   Measured against the SMALLER role, which is the question a person actually
-   has: "does this second role show me anything the first one did not". A
-   receptionist whose five entries are all inside admissions adds nothing,
-   however large admissions is.
+	Measured against the SMALLER role, which is the question a person actually
+	has: "does this second role show me anything the first one did not". A
+	receptionist whose five entries are all inside admissions adds nothing,
+	however large admissions is.
 
-   The threshold is half. Below it the shared entries are My pay and the
-   profile — the ones every role carries because every role is held by a
-   person — and pairs like hod+institution_admin, at 31%, are a vice-principal
-   who genuinely does two jobs. Above it the second role is a copy.
+	Personal entries are excluded outright rather than tolerated: My pay and
+	my leave are held by the employee, not by the role, and two roles sharing
+	them share nothing about the job. Of what remains, the threshold is half —
+	pairs like hod+institution_admin, at 31%, are a vice-principal who genuinely
+	does two jobs. Above it the second role is a copy.
 */
 const overlapCeiling = 50
 
@@ -40,6 +42,17 @@ func grantableRoles() map[string]map[[2]string]bool {
 		}
 		set := map[[2]string]bool{}
 		for _, sec := range role.Sections {
+			/* What somebody holds as a person, not as a role.
+
+			   My pay, my leave, my profile: every role carries these because
+			   every role is held by an employee, and two roles sharing them
+			   share nothing about the job. Left in, they were harmless while
+			   the smallest role had a dozen entries — and the moment the front
+			   desk collapsed to one screen plus My pay, that one shared entry
+			   was half the role and four honest pairs failed. */
+			if sec.Slug == "my_profile" {
+				continue
+			}
 			for _, f := range sec.Features {
 				set[[2]string{sec.Slug, f.Slug}] = true
 			}
