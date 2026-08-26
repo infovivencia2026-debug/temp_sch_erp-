@@ -20,12 +20,19 @@ import type { CommsSummary, PTMNote, Remark } from './comms'
    Rolling them into one total hides the private half, and the private half is
    the one a head of year asks about. */
 
+/* Through /go, which resolves the workspace when the link is opened.
+
+   These were hand-written paths into a section called teaching_workspace,
+   which this role does not have — every one of the five landed somewhere that
+   is not the screen it names, and four of them named screens that were built
+   and never put in the catalogue at all. A path assembled here is a second
+   opinion about where a feature lives; /go asks the catalogue. */
 const ROUTES = {
-  remarks: '/faculty/teaching_workspace/remarks',
-  anecdotal: '/faculty/teaching_workspace/anecdotal_records',
-  cards: '/faculty/teaching_workspace/class_teacher_remarks',
-  ptm: '/faculty/teaching_workspace/ptm_notes_action_items',
-  broadcast: '/faculty/teaching_workspace/classroom_communication_broadcasting',
+  remarks: '/go/remarks',
+  anecdotal: '/go/anecdotal_records',
+  cards: '/go/class_teacher_remarks',
+  ptm: '/go/ptm_notes_action_items',
+  broadcast: '/go/classroom_communication',
 }
 
 export default function Communication() {

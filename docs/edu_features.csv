@@ -134,6 +134,10 @@ Faculty / Teacher,Assessments,Question Papers & Online Tests,Ved AI Assessment A
 Faculty / Teacher,Assessments,Question Papers & Online Tests,Objective Online Test Creation,"Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers.",Assigned classes/subjects,Must-Have,advanced
 Faculty / Teacher,Communication,Communication,Communication,"Announcements/messages to assigned classes, students or parents based on policy.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Communication,Communication,Remarks,Add permitted academic/class remarks and observations.,Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Communication,Communication,Anecdotal records,Private notes on how a child is growing — never shown to the parent.,Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Communication,Communication,Class teacher remarks,"The term-end line printed on the report card, and the principal’s summary beside it.",Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Communication,Communication,PTM notes & action items,"Who came to the parents’ meeting, what they raised, and what was agreed.",Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Communication,Communication,Classroom communication,"A notice to a whole class, or to one child’s parent.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Communication,Communication,Messages,"One colleague at a time. The staff address book, and the thread you have with each of them.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Profile,"Own profile, password and leave.",Assigned classes/subjects,Must-Have,core

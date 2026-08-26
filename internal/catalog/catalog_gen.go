@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 312 features.
+// Roles is the catalog: 13 roles, 316 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -600,6 +600,10 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Announcements/messages to assigned classes, students or parents based on policy."},
 					{Key: "faculty.communication.remarks", Slug: "remarks", Name: "Remarks", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Add permitted academic/class remarks and observations."},
+					{Key: "faculty.communication.anecdotal_records", Slug: "anecdotal_records", Name: "Anecdotal records", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Private notes on how a child is growing — never shown to the parent."},
+					{Key: "faculty.communication.class_teacher_remarks", Slug: "class_teacher_remarks", Name: "Class teacher remarks", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "The term-end line printed on the report card, and the principal’s summary beside it."},
+					{Key: "faculty.communication.ptm_notes_action_items", Slug: "ptm_notes_action_items", Name: "PTM notes & action items", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Who came to the parents’ meeting, what they raised, and what was agreed."},
+					{Key: "faculty.communication.classroom_communication", Slug: "classroom_communication", Name: "Classroom communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A notice to a whole class, or to one child’s parent."},
 					{Key: "faculty.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them."},
 				},
 			},
