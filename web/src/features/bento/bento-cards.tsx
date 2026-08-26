@@ -675,3 +675,511 @@ export function Flow({ rows, srLabel }: { rows: number[]; srLabel: string }) {
     </div>
   )
 }
+/* ── THE REFERENCE VOCABULARY ────────────────────────────────────────────
+   Eleven more drawings, taken from the brutalist bento reference. Same two
+   rules as everything above: every mark is `currentColor` at some strength,
+   and every measure is a rectangle rather than a lozenge, because the reader
+   is comparing lengths and a rounded cap eats a meaningful part of a short
+   one.
+
+   What they add over the thirteen already here is SHAPE OF DATA. A gauge says
+   one proportion; a heatmap says which weeks were bad. A bar row says how much;
+   a waterfall says what added and what took away. Every one of these answers a
+   question the number above it cannot.
+
+   The reference's own greyscale is deliberately not carried over: the twelve
+   domains in this product mean something, and a monochrome board makes them
+   indistinguishable. What is carried over is the construction — hairline
+   gridlines, a stated axis, a dashed rule where a forecast begins, a legend
+   that names its shares. */
+
+/** How dense a mark set can be before it stops being readable at this size. */
+function densityFor(w: number, h: number, base: number) {
+  const area = Math.max(1, w * h)
+  return Math.max(4, Math.round(base * Math.min(2, Math.sqrt(area / 2))))
+}
+
+/** CALENDAR OR COHORT DENSITY. Which weeks were bad, not how bad on average.
+
+    Rows are the series, columns are the periods. Cells carry ink in proportion
+    to their value — a five-step ramp rather than a continuous one, because the
+    eye cannot rank a continuous ramp and five steps it can. An absent value is
+    the track, and reads as "nothing happened" rather than as zero. */
+export function Heat({ rows, srLabel }: { rows: (number | null)[][]; srLabel: string }) {
+  const flat = rows.flat().filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (!rows.length || !flat.length || !hasSignal(flat)) return null
+  const hi = Math.max(...flat) || 1
+  const cols = Math.max(...rows.map((r) => r.length))
+  return (
+    <div
+      className="grid h-full w-full gap-[2px]"
+      style={{
+        gridTemplateRows: `repeat(${rows.length}, minmax(0,1fr))`,
+        gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))`,
+      }}
+      role="img"
+      aria-label={srLabel}
+    >
+      {rows.flatMap((row, r) =>
+        Array.from({ length: cols }, (_, c) => {
+          const v = row[c]
+          const step =
+            typeof v === 'number' && Number.isFinite(v)
+              ? Math.min(4, Math.floor((v / hi) * 4.999))
+              : -1
+          return (
+            <span
+              key={`${r}-${c}`}
+              style={{ background: step < 0 ? TRACK : ink(14 + step * 19) }}
+            />
+          )
+        }),
+      )}
+    </div>
+  )
+}
+
+/** ONE WHOLE, SPLIT. A single bar carrying every share end to end.
+
+    Use when the parts sum to something meaningful and there are few enough to
+    tell apart — four or five. Beyond that the slivers are unreadable and a
+    ranked list says more. Shares under 2% are dropped rather than drawn as a
+    hairline that cannot be seen but still shifts everything after it. */
+export function Segments({
+  parts,
+  srLabel,
+}: {
+  parts: { label: string; value: number }[]
+  srLabel: string
+}) {
+  const total = parts.reduce((a, p) => a + num(p.value), 0)
+  if (!parts.length || total <= 0) return null
+  const shown = parts.filter((p) => num(p.value) / total >= 0.02)
+  if (!shown.length) return null
+  const sum = shown.reduce((a, p) => a + num(p.value), 0)
+  return (
+    <div className="flex h-full min-h-0 flex-col justify-center gap-2" role="img" aria-label={srLabel}>
+      <div className="flex h-3 w-full overflow-hidden" style={{ border: `1px solid ${ink(26)}` }}>
+        {shown.map((p, i) => (
+          <span
+            key={p.label}
+            style={{
+              width: `${(num(p.value) / sum) * 100}%`,
+              background: ink(88 - i * 20),
+            }}
+          />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[length:min(9px,var(--card-note,9px))] leading-none opacity-70">
+        {shown.map((p, i) => (
+          <li key={p.label} className="flex items-center gap-1">
+            <span className="h-2 w-2 shrink-0" style={{ background: ink(88 - i * 20) }} />
+            <span className="truncate">{p.label}</span>
+            <b className="tabular-nums [font-weight:500]">
+              {Math.round((num(p.value) / sum) * 100)}%
+            </b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** A NARROWING. Each stage as a width, each width a share of the first.
+
+    Different from `Funnel` above, which draws stages as rows of a table. This
+    is the shape — the eye reads the taper without reading a single number, and
+    a stage that loses most of its intake is visible as a step rather than as a
+    percentage somebody has to compute. */
+export function Ladder({
+  stages,
+  srLabel,
+}: {
+  stages: { label: string; value: number }[]
+  srLabel: string
+}) {
+  if (!stages.length || !hasSignal(stages.map((s) => s.value))) return null
+  const hi = Math.max(...stages.map((s) => num(s.value))) || 1
+  return (
+    <div
+      className="grid h-full min-h-0 content-center gap-[3px]"
+      style={{ gridTemplateRows: `repeat(${stages.length}, minmax(0,1fr))` }}
+      role="img"
+      aria-label={srLabel}
+    >
+      {stages.map((s, i) => (
+        <div key={s.label} className="flex min-h-0 items-center gap-1.5">
+          <span
+            className="h-[min(9px,100%)] shrink-0"
+            style={{
+              width: `${Math.max(2, (num(s.value) / hi) * 100)}%`,
+              background: ink(88 - i * 14),
+            }}
+          />
+          <span className="truncate text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-60">
+            {s.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** WHAT ADDED AND WHAT TOOK AWAY, in order, against a running total.
+
+    A net figure of +12,700 hides that something removed 3,500 on the way. Each
+    bar floats at the running total it started from, so the drawing is the
+    arithmetic. Additions carry full ink, subtractions the quiet end — they are
+    the same measure, not two series, so they must not be two colours. */
+export function Waterfall({
+  steps,
+  srLabel,
+}: {
+  steps: { label: string; delta: number }[]
+  srLabel: string
+}) {
+  const deltas = steps.map((s) => num(s.delta))
+  if (!steps.length || !hasSignal(deltas)) return null
+  let run = 0
+  const spans = deltas.map((d) => {
+    const from = run
+    run += d
+    return { from: Math.min(from, run), to: Math.max(from, run), up: d >= 0 }
+  })
+  const lo = Math.min(0, ...spans.map((s) => s.from))
+  const hi = Math.max(0, ...spans.map((s) => s.to))
+  const range = hi - lo || 1
+  const zero = ((hi - 0) / range) * 100
+  return (
+    <div className="relative h-full min-h-0" role="img" aria-label={srLabel}>
+      {/* The zero line, because a waterfall without one is a row of floating
+          rectangles and the reader cannot tell which way any of them went. */}
+      <span
+        className="absolute left-0 right-0 h-px"
+        style={{ top: `${zero}%`, background: ink(24) }}
+      />
+      <div className="flex h-full items-stretch gap-[2px]">
+        {spans.map((s, i) => (
+          <span key={i} className="relative min-w-0 flex-1">
+            <span
+              className="absolute left-0 right-0"
+              style={{
+                top: `${((hi - s.to) / range) * 100}%`,
+                height: `${Math.max(1.5, ((s.to - s.from) / range) * 100)}%`,
+                background: s.up ? MARK : QUIET,
+              }}
+            />
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** A RUN OF PERIODS, one stripe each. Uptime, streaks, days open.
+
+    Not a bar chart: every stripe is the same height, and only its ink varies.
+    That is the right drawing when the question is "how many, and were they
+    consecutive" rather than "how much" — a run of pale stripes in the middle
+    of a dark band is a bad week, and no bar chart shows a run as clearly. */
+export function Stripes({ values, srLabel }: { values: number[]; srLabel: string }) {
+  // Before the early return: a hook cannot be called conditionally, and this
+  // drawing returns null for a series with no signal.
+  const { w, h } = useWidgetSize()
+  if (!values.length || !hasSignal(values)) return null
+  const cap = densityFor(w, h, 24)
+  const shown = values.slice(-cap)
+  const hi = Math.max(...shown) || 1
+  return (
+    <div className="flex h-full items-stretch gap-[1.5px]" role="img" aria-label={srLabel}>
+      {shown.map((v, i) => (
+        <span
+          key={i}
+          className="min-w-0 flex-1"
+          style={{ background: ink(10 + (num(v) / hi) * 78) }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** THE TOP FEW, as columns with their rank set large.
+
+    The rank is the figure here, not the value — "01" at display size with the
+    name under it, and the bar only calibrating how far ahead first is. Reads
+    at a glance from across a room, which a table of four numbers does not. */
+export function Ranked({
+  items,
+  srLabel,
+}: {
+  items: { label: string; value: number }[]
+  srLabel: string
+}) {
+  // Before the early return, for the same reason as every other hook here.
+  const { w } = useWidgetSize()
+  if (!items.length || !hasSignal(items.map((i) => i.value))) return null
+  const shown = items.slice(0, w >= 3 ? 4 : w >= 2 ? 3 : 2)
+  const hi = Math.max(...shown.map((i) => num(i.value))) || 1
+  return (
+    <div className="flex h-full items-end gap-2" role="img" aria-label={srLabel}>
+      {shown.map((it, i) => (
+        <div key={it.label} className="min-w-0 flex-1">
+          <b className="block leading-none tracking-[-0.04em] tabular-nums
+                        text-[length:min(var(--card-fig,22px),22px)] [font-weight:350]">
+            {String(i + 1).padStart(2, '0')}
+          </b>
+          <span className="mt-0.5 block truncate text-[length:min(8px,var(--card-note,8px))]
+                           uppercase leading-none tracking-[0.12em] opacity-60
+                           [font-family:var(--bento-mono)]">
+            {it.label}
+          </span>
+          <span className="mt-1.5 block h-[4px]" style={{ background: TRACK }}>
+            <span
+              className="block h-full"
+              style={{ width: `${(num(it.value) / hi) * 100}%`, background: MARK }}
+            />
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** NESTED PROPORTIONS. Concentric arcs, outermost first.
+
+    For two to four shares of DIFFERENT wholes — enrolled of applied, paid of
+    billed, present of enrolled — which a single stacked bar would imply are
+    parts of one thing. Each ring is its own denominator, and the label says
+    which. Thin strokes and butt caps for the reason the gauge uses them: a
+    round cap paints past the true end of a short arc. */
+export function Rings({
+  arcs,
+  srLabel,
+}: {
+  arcs: { label: string; value: number; total: number }[]
+  srLabel: string
+}) {
+  const usable = arcs.filter((a) => num(a.total) > 0).slice(0, 4)
+  if (!usable.length) return null
+  return (
+    <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
+      <div className="relative grid aspect-square h-full max-h-[112px] place-items-center">
+        <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
+          {usable.map((a, i) => {
+            const r = 45 - i * 13
+            const pct = Math.max(0, Math.min(100, (num(a.value) / num(a.total)) * 100))
+            return (
+              <Fragment key={a.label}>
+                <circle cx="50" cy="50" r={r} fill="none" stroke={TRACK} strokeWidth={5} />
+                {pct > 0 && (
+                  <circle
+                    cx="50" cy="50" r={r} fill="none"
+                    stroke={ink(88 - i * 18)} strokeWidth={5} strokeLinecap="butt"
+                    pathLength={100} strokeDasharray={`${pct} ${100 - pct}`}
+                  />
+                )}
+              </Fragment>
+            )
+          })}
+        </svg>
+        <span className="relative text-[13px] tabular-nums tracking-[-0.03em] [font-weight:350]">
+          {Math.round((num(usable[0].value) / num(usable[0].total)) * 100)}
+          <span className="ml-px align-baseline text-[0.55em] opacity-60
+                           [font-family:var(--bento-mono)]">%</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** WHAT HAPPENED, AND WHAT IS ONLY PROJECTED — with the join marked.
+
+    The dashed rule is the whole point and the reason this is a drawing of its
+    own rather than a `Line` with extra points: everything left of it was
+    measured and everything right of it was computed, and a single unbroken
+    line asserts the same confidence in both. The projected part is drawn in
+    the quiet ink inside a band, so its width says how uncertain it is. */
+export function Forecast({
+  actual,
+  projected,
+  spread = 0.12,
+  srLabel,
+}: {
+  actual: number[]
+  projected: number[]
+  /** Half-width of the uncertainty band as a fraction of each value. */
+  spread?: number
+  srLabel: string
+}) {
+  const all = [...actual, ...projected]
+  if (actual.length < 2 || !projected.length || !hasSignal(all)) return null
+  const w = 400
+  const h = 150
+  const lo = Math.min(...all, ...projected.map((v) => v * (1 - spread)))
+  const hi = Math.max(...all, ...projected.map((v) => v * (1 + spread)))
+  const range = hi - lo || 1
+  const x = (i: number) => (i * w) / (all.length - 1 || 1)
+  const y = (v: number) => h - 5 - ((v - lo) / range) * (h - 20)
+  const path = (vs: number[], from: number) =>
+    vs.map((v, i) => `${i ? 'L' : 'M'} ${x(from + i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
+  const joinIndex = actual.length - 1
+  // The band is drawn from the join so it starts at the last measured value
+  // rather than opening abruptly one step later.
+  const band = [actual[joinIndex], ...projected]
+  const upper = band.map((v, i) => `${i ? 'L' : 'M'} ${x(joinIndex + i).toFixed(1)} ${y(v * (1 + spread)).toFixed(1)}`).join(' ')
+  const lower = [...band].reverse().map((v, i) =>
+    `L ${x(joinIndex + band.length - 1 - i).toFixed(1)} ${y(v * (1 - spread)).toFixed(1)}`).join(' ')
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-full w-full"
+         role="img" aria-label={srLabel}>
+      <line x1="0" y1={h - 1} x2={w} y2={h - 1} stroke={ink(22)} strokeWidth={1}
+            vectorEffect="non-scaling-stroke" />
+      <path d={`${upper} ${lower} Z`} fill={ink(12)} stroke="none" />
+      <path d={path(actual, 0)} fill="none" stroke={MARK} strokeWidth={1.4}
+            strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path d={path(band, joinIndex)} fill="none" stroke={QUIET} strokeWidth={1.4}
+            strokeDasharray="5 4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {/* Where measurement stops. */}
+      <line x1={x(joinIndex)} y1="4" x2={x(joinIndex)} y2={h - 1} stroke={ink(34)}
+            strokeWidth={1} strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+/** ABOVE OR BELOW, period by period. Bars off a centre axis.
+
+    For anything that can go either way — variance against target, net joiners,
+    a balance that moves. Drawing these as ordinary bottom-aligned bars forces
+    the reader to check a sign on every one; here the direction is the shape.
+    Both directions carry the SAME ink at different strengths, because a red/
+    green split would claim that below is bad, and for net transfers it is not. */
+export function Diverging({ values, srLabel }: { values: number[]; srLabel: string }) {
+  if (!values.length || !hasSignal(values)) return null
+  const mag = Math.max(...values.map((v) => Math.abs(num(v)))) || 1
+  return (
+    <div className="relative h-full min-h-0" role="img" aria-label={srLabel}>
+      <span className="absolute left-0 right-0 top-1/2 h-px" style={{ background: ink(24) }} />
+      <div className="flex h-full items-center gap-[2px]">
+        {values.map((raw, i) => {
+          const v = num(raw)
+          const pct = (Math.abs(v) / mag) * 50
+          return (
+            <span key={i} className="relative h-full min-w-0 flex-1">
+              <span
+                className="absolute left-0 right-0"
+                style={{
+                  height: `${Math.max(1.5, pct)}%`,
+                  top: v >= 0 ? `${50 - Math.max(1.5, pct)}%` : '50%',
+                  background: v >= 0 ? MARK : QUIET,
+                }}
+              />
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** SEVERAL MEASURES AT ONCE, on one shape. A radar.
+
+    Honest about its limits, which are real: the area a radar encloses depends
+    on the ORDER of its axes, so it can only be read as a silhouette against
+    the same axes in the same order — never as an area compared with another
+    card's. Use it where the axes are fixed and familiar (the six subjects, the
+    five SQAA domains) and never where they are a top-N that changes. */
+export function Radar({
+  axes,
+  srLabel,
+}: {
+  axes: { label: string; value: number; max?: number }[]
+  srLabel: string
+}) {
+  if (axes.length < 3 || !hasSignal(axes.map((a) => a.value))) return null
+  const n = axes.length
+  const cx = 50
+  const cy = 50
+  const R = 40
+  const at = (i: number, r: number) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2
+    return [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r] as const
+  }
+  const poly = axes
+    .map((a, i) => {
+      const max = num(a.max, 100) || 100
+      const r = Math.max(0, Math.min(1, num(a.value) / max)) * R
+      const [x, y] = at(i, r)
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  return (
+    <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
+      <svg viewBox="0 0 100 100" className="h-full max-h-full" style={{ aspectRatio: '1' }}>
+        {[0.5, 1].map((f) => (
+          <polygon
+            key={f}
+            points={axes.map((_, i) => at(i, R * f).map((v) => v.toFixed(1)).join(',')).join(' ')}
+            fill="none" stroke={ink(16)} strokeWidth={0.6}
+          />
+        ))}
+        {axes.map((_, i) => {
+          const [x, y] = at(i, R)
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={ink(12)} strokeWidth={0.6} />
+        })}
+        <polygon points={poly} fill={ink(14)} stroke={MARK} strokeWidth={1}
+                 vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  )
+}
+
+/** A COHORT GRID. Rows are intakes, columns are how long since.
+
+    The retention shape: read across a row for one cohort's decay, down a
+    column to compare cohorts at the same age. A triangle, because a cohort
+    that started in June has no twelfth month yet — the empty corner is
+    information, not a gap to fill. */
+export function Matrix({
+  rows,
+  srLabel,
+}: {
+  rows: { label: string; values: (number | null)[] }[]
+  srLabel: string
+}) {
+  const flat = rows.flatMap((r) => r.values).filter((v): v is number => typeof v === 'number')
+  if (!rows.length || !flat.length || !hasSignal(flat)) return null
+  const hi = Math.max(...flat) || 1
+  const cols = Math.max(...rows.map((r) => r.values.length))
+  return (
+    <div className="grid h-full min-h-0 gap-[2px]"
+         style={{
+           gridTemplateRows: `repeat(${rows.length}, minmax(0,1fr))`,
+           gridTemplateColumns: `minmax(0,auto) repeat(${cols}, minmax(0,1fr))`,
+         }}
+         role="img" aria-label={srLabel}>
+      {rows.flatMap((row) => [
+        <span key={`${row.label}-l`}
+              className="self-center truncate pr-1 text-[length:min(8px,var(--card-note,8px))]
+                         leading-none opacity-55 [font-family:var(--bento-mono)]">
+          {row.label}
+        </span>,
+        ...Array.from({ length: cols }, (_, c) => {
+          const v = row.values[c]
+          return (
+            <span
+              key={`${row.label}-${c}`}
+              style={{
+                background:
+                  typeof v === 'number' && Number.isFinite(v)
+                    ? ink(12 + (v / hi) * 76)
+                    : 'transparent',
+                outline: typeof v === 'number' ? undefined : `1px solid ${ink(7)}`,
+                outlineOffset: '-1px',
+              }}
+            />
+          )
+        }),
+      ])}
+    </div>
+  )
+}

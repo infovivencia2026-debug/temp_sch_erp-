@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
-import { Bars, Compare, Distribution, Gauge, Rows, Scale } from './bento-cards'
+import { Bars, Compare, Distribution, Gauge, Rows, Scale, Segments } from './bento-cards'
 import {
   Facts, Part, PersonaCard, PersonaPage, Say, Split, Titled,
   cut, hhmm, lengthOf, mins, useNowMinutes, useShape,
@@ -514,9 +514,25 @@ export function WorkCell({ span, data, to }: { span: CellSpan; data: MyWorkView;
     tall ? 4 : 3,
   )
 
+  /* WHAT THE DAY IS MADE OF, as one bar rather than a ranked list.
+
+     These segments are shares of a single whole — every piece of work waiting
+     on this teacher, split by kind — and `Rows` drew them as four independent
+     bars on a shared scale, which is the drawing for "which is biggest", not
+     for "what is it made of". A segmented bar with a legend answers the second
+     question in a third of the height, and it is the drawing the reference
+     uses for exactly this shape of data.
+
+     The fallback to `Rows` is not laziness: at one column the legend wraps to
+     four lines and the bar itself is 60px, so the shares stop being
+     distinguishable and a ranked list says more. */
   const kinds = segments.length ? (
     <Titled head={t('bento.faculty_today.head_kinds')}>
-      <Rows items={tall ? segments : cut(segments, 3)} srLabel={t('bento.faculty_today.kinds_sr')} />
+      {wide ? (
+        <Segments parts={segments} srLabel={t('bento.faculty_today.kinds_sr')} />
+      ) : (
+        <Rows items={tall ? segments : cut(segments, 3)} srLabel={t('bento.faculty_today.kinds_sr')} />
+      )}
     </Titled>
   ) : (
     <Say>{t('bento.faculty_today.work_none')}</Say>

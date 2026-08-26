@@ -48,13 +48,19 @@
      table cell, and it is what lets the board look drawn rather than
      poured. Both are still multiplied by the Corners axis, so anybody who
      wants the round version turns the slider up and gets it. */
-  /* The label face. Its own token so a palette or skin can change it, and so
-     the one place that needs a fallback chain keeps it: `ui-monospace` is
-     absent on most Android browsers, which is a majority of this product's
-     traffic, and without the tail it silently falls back to the serif default
-     the spec mandates for an unknown generic. */
-  --bento-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas,
-                'Roboto Mono', 'DejaVu Sans Mono', monospace;
+  /* The label face. IBM Plex Mono leads because the product already ships it —
+     index.css imports weights 400, 500 and 600 — so the micro-labels render in
+     the same face on every device rather than in whatever each platform calls
+     monospace, which is Menlo here, Consolas there and Droid Sans Mono on a
+     cheap Android. A tracked uppercase label is exactly where that
+     inconsistency shows.
+
+     The tail is still there and still matters: `ui-monospace` is absent on most
+     Android browsers, which are a majority of this product's traffic, and
+     without a concrete fallback the spec sends an unknown generic to the SERIF
+     default. */
+  --bento-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo,
+                Consolas, 'Roboto Mono', 'DejaVu Sans Mono', monospace;
   --bento-radius: calc(3px * var(--radius-scale, 1));
   --bento-radius-sm: calc(2px * var(--radius-scale, 1));
   --bento-gap: calc(6px * var(--bento-density, 1));

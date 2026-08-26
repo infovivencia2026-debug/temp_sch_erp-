@@ -839,7 +839,7 @@ export function Sparkline({
         d={d}
         fill="none"
         stroke={`url(#${gid}-line)`}
-        strokeWidth={2.75}
+        strokeWidth={1.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -855,24 +855,29 @@ export function Sparkline({
           2x cell. A round cap is a screen-space circle whatever the transform
           does, which is the same reason every stroke in this file is
           non-scaling. Two passes: the halo, then the dot. */}
+      {/* A SQUARE terminal mark, not a haloed dot.
+
+          It was two round-capped zero-length lines, 11 units of halo under 6
+          of ink — a bubble wider than the line is long between two readings,
+          which is why the sparkline read as a decoration rather than as a
+          measurement. The square is the same mark the trend cells use in
+          bento-cards.tsx, so a sparkline and a full-size Area now end the same
+          way and the board looks drawn by one hand.
+
+          Sized in screen units through a non-scaling stroke rather than as a
+          <rect> in user units, because this viewBox is stretched: a rect would
+          come out wide on a 2x1 cell and tall on a 1x2. A butt cap on a
+          zero-length line paints nothing at all, so the mark is a short
+          horizontal run of a square-capped stroke — 2 units wide, which after
+          the cap extension is a 5px square whatever the transform does. */}
       <line
-        x1={last.x}
+        x1={last.x - 1}
         y1={last.y}
-        x2={last.x}
-        y2={last.y}
-        stroke={wash(accent, 26)}
-        strokeWidth={11}
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      <line
-        x1={last.x}
-        y1={last.y}
-        x2={last.x}
+        x2={last.x + 1}
         y2={last.y}
         stroke={mark(accent)}
-        strokeWidth={6}
-        strokeLinecap="round"
+        strokeWidth={5}
+        strokeLinecap="square"
         vectorEffect="non-scaling-stroke"
       />
     </svg>
@@ -1099,9 +1104,9 @@ export function ReservoirArt({ fill }: { fill: number }) {
         d={`M${left},${top} L${left},${bottom} L${right},${bottom} L${right},${top}`}
         fill="none"
         stroke={ART_LINE}
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth={1}
+        strokeLinecap="butt"
+        strokeLinejoin="miter"
         vectorEffect="non-scaling-stroke"
       />
       {/* The water: what has been collected. Mint, because it arrived. */}
@@ -1112,15 +1117,17 @@ export function ReservoirArt({ fill }: { fill: number }) {
         height={bottom - level}
         fill={`url(#${gid}-water)`}
       />
-      {/* The waterline, which is the figure. */}
+      {/* The waterline, which is the figure — so it ends where the value ends.
+          A round cap put half its own width past both edges of the vessel,
+          which on a narrow cell is visibly wider than the thing it measures. */}
       <line
         x1={left}
         y1={level}
         x2={right}
         y2={level}
         stroke={artMark('mint')}
-        strokeWidth={2.5}
-        strokeLinecap="round"
+        strokeWidth={1.4}
+        strokeLinecap="butt"
         vectorEffect="non-scaling-stroke"
       />
     </ArtSvg>
@@ -1160,16 +1167,16 @@ export function BlockedFlowArt({ moved }: { moved: number }) {
           <stop offset="100%" stopColor={wash('mint', 8)} />
         </linearGradient>
       </defs>
-      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={top} x2={x1} y2={top} stroke={ART_LINE} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
+      <line x1={x0} y1={bot} x2={x1} y2={bot} stroke={ART_LINE} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       {/* What moved. Mint: it arrived. */}
       <rect x={x0} y={top} width={Math.max(0, stop - x0)} height={bot - top} fill={`url(#${gid}-flow)`} />
       {/* Where it stopped. Orange: the caution, and the one mark in this
           drawing that is neither arrived nor outstanding. */}
-      <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={artMark('orange')} strokeWidth={3.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <line x1={stop} y1={top - 6} x2={stop} y2={bot + 6} stroke={artMark('orange')} strokeWidth={2} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       {/* What did not. Pink: money out, still outstanding. */}
       {hatch.map((x) => (
-        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={artMark('pink')} strokeWidth={1.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <line key={x} x1={x} y1={top} x2={x} y2={bot} stroke={artMark('pink')} strokeWidth={1} strokeLinecap="butt" vectorEffect="non-scaling-stroke" />
       ))}
     </ArtSvg>
   )
