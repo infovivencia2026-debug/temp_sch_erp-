@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 
 interface Paper {
@@ -218,6 +219,10 @@ export default function Gradebook() {
   const toast = useToast()
 
   const rows = book.data?.items ?? []
+  /* A class of sixty is scrolled, and a mark typed against the wrong row is
+     the error nobody catches until a report card is printed. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (x) => [x.admission_no, x.full_name])
 
   /** Absent as the teacher has left it: their override, else the record. */
   const isAbsent = (r: Row) => absent[r.student_id] ?? r.is_absent
@@ -427,8 +432,24 @@ export default function Gradebook() {
                   </Button>
                 }
               />
-              <Table head={['Admission no.', 'Student', 'Marks', 'Absent', 'Grade']} empty={!rows.length}>
-                {rows.map((r) => (
+              <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+                <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
+                <Showing shown={shown.length} total={rows.length} noun="students" />
+                <ExportRows
+                  rows={shown}
+                  name="marks"
+                  columns={[
+                    { header: 'Admission no', value: (x) => x.admission_no },
+                    { header: 'Student', value: (x) => x.full_name },
+                    { header: 'Marks', value: (x) => x.marks_obtained },
+                    { header: 'Out of', value: (x) => x.max_marks },
+                    { header: 'Absent', value: (x) => (x.is_absent ? 'yes' : 'no') },
+                    { header: 'Grade', value: (x) => x.grade },
+                  ]}
+                />
+              </div>
+              <Table head={['Admission no.', 'Student', 'Marks', 'Absent', 'Grade']} empty={!shown.length}>
+                {shown.map((r) => (
                   <tr key={r.student_id}>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>

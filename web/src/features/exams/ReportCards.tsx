@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
+import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
 
 /* One report card, for everybody who has to look at one.
@@ -266,6 +267,28 @@ export default function ReportCards() {
               needle
                 ? `${rows.length} matching "${find.trim()}". Open a row for the subject breakdown.`
                 : 'Roll order. Open a row for the subject breakdown.'
+            }
+            action={
+              /* The sheet a class teacher takes into a parents' evening, and
+                 the one a head of department asks for at the end of term. */
+              <ExportRows
+                rows={rows}
+                name="report-cards"
+                columns={[
+                  { header: 'Roll', value: (r) => r.roll_no },
+                  { header: 'Admission no', value: (r) => r.admission_no },
+                  { header: 'Student', value: (r) => r.full_name },
+                  { header: 'Class', value: (r) => r.class_name },
+                  { header: 'Section', value: (r) => r.section_name },
+                  { header: 'Total', value: (r) => r.total_marks },
+                  { header: 'Out of', value: (r) => r.max_marks },
+                  { header: 'Percentage', value: (r) => r.percentage },
+                  { header: 'Grade', value: (r) => r.grade },
+                  { header: 'Rank in section', value: (r) => r.rank_in_section },
+                  { header: 'Attendance %', value: (r) => r.attendance_percent },
+                  { header: 'Published', value: (r) => (r.is_published ? 'yes' : 'no') },
+                ]}
+              />
             }
           />
           {cards.isLoading ? <Loading /> : cards.error ? <ErrorState error={cards.error} /> : (

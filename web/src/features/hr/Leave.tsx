@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Select, Loading, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton, PrintButton,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -187,6 +188,10 @@ export default function Leave() {
   })
   const all = everything.data?.items ?? []
   const items = q.data?.items ?? []
+  /* Who asked, and why. A book of thirty requests is read looking for one
+     person's, and read again at the end of term to count them. */
+  const { q: term, setQ: setTerm, shown } = useSearch(items,
+    (l) => [l.who, l.leave_type, l.reason, l.status])
   /* Approving on the self-service screen would be the same confusion the other
    * way round: this door is "my leave", and deciding somebody else's belongs
    * behind the entry that says so. */
@@ -339,12 +344,31 @@ export default function Leave() {
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (
+            <>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+              <SearchBox value={term} onChange={setTerm} placeholder="Name, type or reason" />
+              <Showing shown={shown.length} total={items.length} noun="requests" />
+              <ExportRows
+                rows={shown}
+                name="leave"
+                columns={[
+                  { header: 'Who', value: (l) => l.who },
+                  { header: 'Type', value: (l) => l.leave_type },
+                  { header: 'From', value: (l) => l.from_date },
+                  { header: 'To', value: (l) => l.to_date },
+                  { header: 'Days', value: (l) => l.days },
+                  { header: 'Reason', value: (l) => l.reason },
+                  { header: 'Status', value: (l) => l.status },
+                ]}
+              />
+            </div>
             <Table
               head={['Who', 'Type', 'From', 'To', 'Days', 'Reason', 'Status', '']}
-              empty={!items.length}
-              emptyLabel={status === 'pending' ? 'Nothing awaiting a decision.' : 'No requests.'}
+              empty={!shown.length}
+              emptyLabel={term ? 'No request matches that.'
+                : status === 'pending' ? 'Nothing awaiting a decision.' : 'No requests.'}
             >
-              {items.map((l) => (
+              {shown.map((l) => (
                 <tr key={l.id}>
                   <Td className="font-medium">
                     {l.who}
@@ -395,6 +419,7 @@ export default function Leave() {
                 </tr>
               ))}
             </Table>
+            </>
           )}
         </Card>
       </PageBody>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type AttendanceRow, type Page, type Student } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -77,6 +78,10 @@ export default function Attendance() {
 
   const existing = new Map((marks.data?.items ?? []).map((m) => [m.student_id, m.status]))
   const students = roster.data?.items ?? []
+  /* Sixty names in roll order, and the child being marked is somewhere in the
+     middle of them. */
+  const { q: term, setQ: setTerm, shown } = useSearch(students,
+    (s) => [s.admission_no, s.full_name])
   const dirty = Object.keys(draft).length > 0
 
   const markAll = (status: Status) =>
@@ -137,8 +142,23 @@ export default function Attendance() {
             </div>
           )}
 
-          <Table head={['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!students.length}>
-            {students.map((s) => {
+          <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+            <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
+            <Showing shown={shown.length} total={students.length} noun="students" />
+            {/* The register as it stands, which is what a school hands to an
+                inspector asking who was in on a given day. */}
+            <ExportRows
+              rows={students}
+              name="attendance"
+              columns={[
+                { header: 'Admission no', value: (s) => s.admission_no },
+                { header: 'Student', value: (s) => s.full_name },
+                { header: 'Mark', value: (s) => existing.get(s.id) ?? draft[s.id] ?? 'not marked' },
+              ]}
+            />
+          </div>
+          <Table head={['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length}>
+            {shown.map((s) => {
               const saved = existing.get(s.id)
               const value = draft[s.id] ?? (saved as Status | undefined) ?? ''
               return (

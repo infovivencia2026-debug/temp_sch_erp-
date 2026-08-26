@@ -6,6 +6,7 @@ import { api, type Page, type Student, type List, type Section } from '@/lib/api
 import {
   Card, CardHeader, Table, Td, Badge, Button, Input, Select, Skeleton, ErrorState,
 } from '@/components/ui'
+import { ExportRows } from '@/components/rows'
 import { cn, formatDate } from '@/lib/utils'
 import StudentProfile from './StudentProfile'
 
@@ -81,6 +82,25 @@ export default function Students() {
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))}
+            />
+            {/* What is on screen, which for a paged list is this page. Said on
+                the button rather than left for somebody to discover when a
+                class of sixty comes out as fifty. */}
+            <ExportRows
+              rows={rows}
+              name="students"
+              label={data && data.total > rows.length ? 'Export this page' : 'Export'}
+              columns={[
+                { header: 'Admission no', value: (s) => s.admission_no },
+                { header: 'Name', value: (s) => s.full_name },
+                { header: 'Class', value: (s) => s.class_name },
+                { header: 'Section', value: (s) => s.section_name },
+                { header: 'Roll', value: (s) => s.roll_no },
+                { header: 'Gender', value: (s) => s.gender },
+                { header: 'Date of birth', value: (s) => s.date_of_birth },
+                { header: 'Admitted', value: (s) => s.admission_date },
+                { header: 'Status', value: (s) => s.status },
+              ]}
             />
           </div>
         }
