@@ -28,6 +28,9 @@ type admissionFeeLine struct {
 	Description string `json:"description,omitempty"`
 	AmountPaise int64  `json:"amount_paise"`
 	Refundable  bool   `json:"is_refundable"`
+	// 'transport' or 'hostel' where the fee is owed for taking a service
+	// rather than for being enrolled. Empty for the ordinary heads.
+	Service *string `json:"service,omitempty"`
 }
 
 type admissionFees struct {
@@ -84,7 +87,8 @@ func (s *Server) getAdmissionFees(w http.ResponseWriter, r *http.Request) {
 		}
 
 		rows, err := tx.Query(r.Context(), `
-			SELECT fh.name, COALESCE(fh.code, ''), fsi.amount_paise, fh.is_refundable
+			SELECT fh.name, COALESCE(fh.code, ''), fsi.amount_paise, fh.is_refundable,
+			       fh.service
 			  FROM fee_structure_items fsi
 			  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
 			 WHERE fsi.fee_structure_id = $1::uuid
@@ -96,11 +100,18 @@ func (s *Server) getAdmissionFees(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		for rows.Next() {
 			var l admissionFeeLine
-			if err := rows.Scan(&l.Head, &l.Description, &l.AmountPaise, &l.Refundable); err != nil {
+			if err := rows.Scan(&l.Head, &l.Description, &l.AmountPaise, &l.Refundable,
+				&l.Service); err != nil {
 				return err
 			}
 			out.Lines = append(out.Lines, l)
-			out.TotalPaise += l.AmountPaise
+			/* The total is what an ordinary child owes. A service the family
+			   has not asked for is quoted on its own line and added only when
+			   they take it — quoting a bus fee to somebody who walks is how a
+			   parent is asked for money the school never meant to charge. */
+			if l.Service == nil {
+				out.TotalPaise += l.AmountPaise
+			}
 		}
 		if err := rows.Err(); err != nil {
 			return err

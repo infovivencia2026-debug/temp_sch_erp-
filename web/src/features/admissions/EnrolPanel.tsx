@@ -11,7 +11,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import {
-  Badge, Button, Card, CardHeader, FormNotice, Input, Loading, Select, Table, Td,
+  Badge, Button, Card, CardHeader, Checkbox, FormNotice, Input, Loading, Select,
+  Table, Td,
 } from '@/components/ui'
 
 interface FeeLine {
@@ -19,6 +20,9 @@ interface FeeLine {
   description?: string
   amount_paise: number
   is_refundable: boolean
+  /* 'transport' or 'hostel' where the fee is for a service the family opts
+     into rather than for being enrolled. */
+  service?: string
 }
 interface Fees {
   fee_structure_id?: string
@@ -29,6 +33,17 @@ interface Fees {
   total_paise: number
   priced: boolean
 }
+
+/* The same list the fee counter offers, because it is the same payment. */
+const MODES = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'upi', label: 'UPI' },
+  { value: 'card', label: 'Card' },
+  { value: 'neft', label: 'NEFT / IMPS' },
+  { value: 'netbanking', label: 'Net banking' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'dd', label: 'Demand draft' },
+]
 
 const rupees = (p: number) =>
   (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
@@ -49,10 +64,23 @@ export default function EnrolPanel({
   /* Setting a price is finance's, not the front desk's. */
   const mayPrice = can('finance.fees.write')
 
+  /* Taking the money is a different right from enrolling. Where one person
+     does both — a small school whose admissions desk is the cash counter — the
+     payment step appears here; where they are two people, it does not. */
+  const mayTakeMoney = can('finance.payments.write')
+
   const [sectionId, setSectionId] = useState('')
+  const [services, setServices] = useState<string[]>([])
   const [concession, setConcession] = useState('')
   const [why, setWhy] = useState('')
-  const [done, setDone] = useState<{ admission_no: string } | null>(null)
+  const [done, setDone] = useState<{ admission_no: string; student_id: string } | null>(null)
+
+  const [mode, setMode] = useState('cash')
+  const [paid, setPaid] = useState('')
+  const [reference, setReference] = useState('')
+  const [bank, setBank] = useState('')
+  const [chequeDate, setChequeDate] = useState('')
+  const [receipt, setReceipt] = useState('')
 
   const fees = useQuery({
     queryKey: ['admission-fees', applicationId],
@@ -61,11 +89,17 @@ export default function EnrolPanel({
   })
 
   const f = fees.data
+  /* Optional lines are quoted, not charged, until they are ticked. */
+  const optional = (f?.lines ?? []).filter((l) => l.service)
+  const optedTotal = optional
+    .filter((l) => services.includes(l.service!))
+    .reduce((n, l) => n + l.amount_paise, 0)
+
   const waived = Math.round(Number(concession || 0) * 100)
   /* Never below zero, and never more than the bill. A waiver larger than the
      fee would otherwise read as the school owing the family money. */
-  const due = Math.max(0, (f?.total_paise ?? 0) -
-    (mayPrice ? Math.min(waived, f?.total_paise ?? 0) : 0))
+  const billed = (f?.total_paise ?? 0) + optedTotal
+  const due = Math.max(0, billed - (mayPrice ? Math.min(waived, billed) : 0))
 
   const enrol = useMutation({
     mutationFn: () => api.post<{ admission_no: string; student_id: string }>(
@@ -73,8 +107,9 @@ export default function EnrolPanel({
       {
         section_id: sectionId,
         fee_structure_id: f?.fee_structure_id || undefined,
+        services: services.length ? services : undefined,
         concession_paise: mayPrice && waived > 0
-          ? Math.min(waived, f?.total_paise ?? 0) : undefined,
+          ? Math.min(waived, billed) : undefined,
         concession_reason: mayPrice && waived > 0 ? (why.trim() || undefined) : undefined,
       },
     ),
@@ -85,6 +120,24 @@ export default function EnrolPanel({
       qc.invalidateQueries({ queryKey: ['funnel'] })
     },
   })
+
+  const collect = useMutation({
+    mutationFn: () => api.post<{ payment_id: string; receipt_no: string }>(
+      '/api/v1/fees/payments',
+      {
+        student_id: done!.student_id,
+        // Rupees in the box, paise on the wire: the API never sees a decimal.
+        amount_paise: Math.round(parseFloat(paid || '0') * 100),
+        mode,
+        reference_no: reference || undefined,
+        bank_name: bank || undefined,
+        cheque_date: chequeDate || undefined,
+      },
+    ),
+    onSuccess: (r) => setReceipt(r.receipt_no),
+  })
+
+  const needsInstrument = mode === 'cheque' || mode === 'dd'
 
   if (done) {
     return (
@@ -99,13 +152,80 @@ export default function EnrolPanel({
             <p className="text-[13px] text-muted-foreground">Admission number</p>
             <p className="font-mono text-[20px] font-medium">{done.admission_no}</p>
           </div>
-          {due > 0 && (
+          {due > 0 && !mayTakeMoney && (
             <div className="text-[14px] text-muted-foreground">
               &#8377;{rupees(due)} is now outstanding. Take the payment at the fee
               counter, which issues the receipt.
             </div>
           )}
         </div>
+
+        {/* The receipt, once it exists.
+
+            Shown rather than announced and dismissed: this number is read back
+            across the counter and written on the parent's copy, and a toast
+            that has already faded is no use to the person holding the cash. */}
+        {receipt ? (
+          <div className="border-t p-5">
+            <p className="text-[13px] text-muted-foreground">Receipt issued</p>
+            <p className="font-mono text-[20px] font-medium">{receipt}</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              &#8377;{rupees(Math.round(parseFloat(paid || '0') * 100))} taken by{' '}
+              {MODES.find((m) => m.value === mode)?.label.toLowerCase()}. The full
+              receipt, with every fee head on it, is on the fee counter.
+            </p>
+          </div>
+        ) : due > 0 && mayTakeMoney ? (
+          <div className="border-t p-5">
+            <p className="eyebrow mb-3">Take the payment</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">Amount (&#8377;)</span>
+                <div className="w-32"><Input value={paid} onChange={setPaid} /></div>
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">How</span>
+                <div className="w-44">
+                  <Select value={mode} onChange={setMode} options={MODES} />
+                </div>
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">
+                  {needsInstrument ? 'Cheque / DD number' : 'Reference'}
+                </span>
+                <div className="w-44"><Input value={reference} onChange={setReference} /></div>
+              </label>
+              {needsInstrument && (
+                <>
+                  <label className="flex flex-col gap-1.5 text-[13px]">
+                    <span className="text-muted-foreground">Bank</span>
+                    <div className="w-44"><Input value={bank} onChange={setBank} /></div>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[13px]">
+                    <span className="text-muted-foreground">Instrument date</span>
+                    <div className="w-40">
+                      <Input type="date" value={chequeDate} onChange={setChequeDate} />
+                    </div>
+                  </label>
+                </>
+              )}
+              <Button
+                disabled={!(parseFloat(paid || '0') > 0) || collect.isPending}
+                onClick={() => collect.mutate()}
+              >
+                {collect.isPending ? 'Recording…' : 'Record payment'}
+              </Button>
+              <Button variant="ghost" onClick={() => setPaid(rupees(due))}>
+                Pay all &#8377;{rupees(due)}
+              </Button>
+            </div>
+            <FormNotice error={collect.error} />
+            <p className="mt-3 text-[12.5px] text-muted-foreground">
+              Recorded against the same receipt series as the fee counter, so the
+              day&rsquo;s collection reconciles as one.
+            </p>
+          </div>
+        ) : null}
       </Card>
     )
   }
@@ -156,25 +276,47 @@ export default function EnrolPanel({
       ) : (
         <>
           <Table head={['Fee head', { label: 'Amount', align: 'right' }]}>
-            {f.lines.map((l, i) => (
-              <tr key={`${l.head}-${i}`}>
-                <Td>
-                  {l.head}
-                  {l.is_refundable && (
-                    <span className="ml-2">
-                      <Badge tone="neutral">refundable</Badge>
-                    </span>
-                  )}
-                </Td>
-                <Td className="num text-right">&#8377;{rupees(l.amount_paise)}</Td>
-              </tr>
-            ))}
+            {f.lines.map((l, i) => {
+              const opted = !l.service || services.includes(l.service)
+              return (
+                <tr key={`${l.head}-${i}`} className={opted ? '' : 'text-muted-foreground'}>
+                  <Td>
+                    {l.service ? (
+                      <Checkbox
+                        checked={services.includes(l.service)}
+                        onChange={(v) => setServices((xs) =>
+                          v ? [...xs, l.service!] : xs.filter((x) => x !== l.service))}
+                        label={l.head}
+                        hint={l.service === 'transport'
+                          ? 'Only if the child travels by school bus'
+                          : 'Only if the child boards'}
+                      />
+                    ) : (
+                      <>
+                        {l.head}
+                        {l.is_refundable && (
+                          <span className="ml-2">
+                            <Badge tone="neutral">refundable</Badge>
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Td>
+                  <Td className="num text-right">
+                    &#8377;{rupees(l.amount_paise)}
+                    {!opted && (
+                      <span className="ml-1.5 text-[12px]">not taken</span>
+                    )}
+                  </Td>
+                </tr>
+              )
+            })}
             <tr>
               <Td className="font-medium">
                 {f.fee_structure_name ?? 'Total'} &middot; instalment {f.instalment_no}
               </Td>
               <Td className="num text-right font-medium">
-                &#8377;{rupees(f.total_paise)}
+                &#8377;{rupees(billed)}
               </Td>
             </tr>
           </Table>

@@ -532,6 +532,11 @@ type enrolRequest struct {
 	// Skip billing entirely. For a school that raises its fees in one run at
 	// the start of term rather than per admission.
 	NoInvoice bool `json:"no_invoice,omitempty"`
+
+	// Services this family has actually asked for: 'transport', 'hostel'.
+	// A fee head marked for a service is billed only when it is named here,
+	// so a child who walks to school is not quoted a bus.
+	Services []string `json:"services,omitempty"`
 }
 
 // enrolApplicant is the handoff: an admitted applicant becomes a student.
@@ -711,8 +716,9 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					SELECT $1, $2::uuid, fsi.fee_head_id, fh.name, fsi.amount_paise, 0
 					  FROM fee_structure_items fsi
 					  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
-					 WHERE fsi.fee_structure_id = $3::uuid AND fsi.instalment_no = 1`,
-					instID, invoiceID, structureID); err != nil {
+					 WHERE fsi.fee_structure_id = $3::uuid AND fsi.instalment_no = 1
+					   AND (fh.service IS NULL OR fh.service = ANY($4::text[]))`,
+					instID, invoiceID, structureID, req.Services); err != nil {
 					return err
 				}
 
