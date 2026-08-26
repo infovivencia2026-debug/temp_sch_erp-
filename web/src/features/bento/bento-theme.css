@@ -1976,6 +1976,26 @@ html[data-layout='bento'] body {
   }
 }
 
+/* THE BAR IS OPAQUE, AND NOTHING SITS UNDER IT.
+
+   Screenshot at 390px: the bar was a pale translucent strip with the board
+   showing through, a card's figures legible behind the icons and the
+   assistant's round button trapped underneath it — visible, half-drawn, and
+   impossible to press because the bar is z-50 and it is z-40.
+
+   A phone's bottom bar is chrome, not a pane. It takes the card's own solid
+   ground, a hairline along its top edge to separate it from the board, and the
+   assistant moves above it. --dock-h already carries the bar's height
+   including the home-indicator strip, so one variable places both. */
+@media (max-width: 767px) {
+  [data-layout='bento'] .bento-dock {
+    background: var(--bento-card) !important;
+    backdrop-filter: none !important;
+    border-top: 1px solid var(--bento-line);
+    box-shadow: none !important;
+  }
+}
+
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
   .bento-dot { transition: none; }
 }

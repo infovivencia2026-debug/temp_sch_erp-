@@ -252,7 +252,19 @@ export function AssistantTab() {
              busy screen. It lifts and deepens its shadow now, and the orb wakes
              at the same moment. Keyboard focus wakes it too, or the effect
              would exist only for a mouse. */
-          `fixed bottom-6 right-6 z-40 grid size-16 place-items-center rounded-full
+          /* ABOVE THE DOCK, NOT UNDER IT.
+
+             At 24px from the bottom this button sat inside the phone bar's own
+             band — the bar is roughly 90px tall once the home-indicator strip
+             is counted, and it is z-50 to this button's z-40. So on a phone the
+             assistant was drawn, half covered, and could not be pressed at all:
+             every tap landed on the bar behind it.
+
+             `--dock-h` is the bar's measured height including the safe area, so
+             this follows it rather than guessing, and falls back to the old
+             24px wherever the bar is not pinned to the edge — which is every
+             width above 767. */
+          `fixed right-6 z-40 grid size-16 place-items-center rounded-full
            border bg-card shadow-xl
            transition-[transform,box-shadow,background-color]
            hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
@@ -260,6 +272,7 @@ export function AssistantTab() {
            focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',
         )}
+        style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
       >
         <AssistantOrb state={state} size={44} awake={hover} />
       </button>

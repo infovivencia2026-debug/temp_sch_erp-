@@ -9,12 +9,13 @@ for (const [name,w,h] of [['phone',390,844],['tablet',820,1180]]) {
   await p.fill('input[name="identifier"]','institution_admin@vivencia.test'); await p.fill('input[name="password"]',PW)
   await Promise.all([p.waitForNavigation({waitUntil:'networkidle'}).catch(()=>{}),p.click('button[type="submit"]')])
   await p.waitForTimeout(3000)
-  await p.screenshot({path:`${OUT}/${name}.png`})
-  // The launcher: the menu behind "All features", which is where every screen
-  // that is not a widget actually lives on a phone.
-  const opener = await p.$('[aria-label*="feature" i], [aria-label*="All features" i], button:has-text("All features")')
-  if (opener) { await opener.click().catch(()=>{}); await p.waitForTimeout(1200); await p.screenshot({path:`${OUT}/${name}-menu.png`}) }
-  console.log(name, 'ok')
+  const btns = await p.$$('.bento-dock button, .bento-dock a')
+  console.log(name, 'dock controls:', btns.length)
+  for (const [i,btn] of btns.entries()) {
+    const lbl = await btn.getAttribute('aria-label') || (await btn.getAttribute('data-tip')) || (await btn.innerText()).trim().slice(0,20)
+    console.log('   ', i, JSON.stringify(lbl))
+  }
+  if (btns[2]) { await btns[2].click().catch(()=>{}); await p.waitForTimeout(1500); await p.screenshot({path:`${OUT}/${name}-menu.png`}) }
   await ctx.close()
 }
 await b.close()

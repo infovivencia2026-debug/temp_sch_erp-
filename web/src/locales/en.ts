@@ -2424,6 +2424,10 @@ export const en = {
   'bento.settings.layout.classic': 'Sidebar',
   'bento.settings.layout.bento': 'Focus',
   'bento.dock.home': 'Home',
+  /* The phone bar's word for the launcher. "All features" is right on a wide
+     bar where it is the only labelled item; as one tab of five it is twice
+     its neighbours' width and reads as a mistake rather than as emphasis. */
+  'bento.dock.browse': 'Browse',
   'bento.settings.skin.premium': 'Soft',
   'bento.settings.skin.focus': 'Focus',
   'bento.settings.theme.system': 'Match system',

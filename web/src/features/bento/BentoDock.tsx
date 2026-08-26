@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
@@ -208,6 +209,31 @@ export function BentoDock() {
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
   const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }
 
+  /* ON A PHONE THE ICONS CARRY THEIR NAMES.
+
+     The bar was five unlabelled glyphs, and the only thing telling a person
+     what the four-square meant was a `data-tip` — a hover tooltip, on a device
+     with no hover. Tapping it opened a tooltip AND the thing at once, which is
+     how a screenshot of this bar ended up with a black "Work" flag floating
+     over the board.
+
+     Every phone bar a person already knows names its tabs: the label is not
+     decoration, it is the only affordance a touch device has. Two lines, icon
+     over word, at the smallest size that still reads.
+
+     Not on tablet or desktop. There the bar is a floating pill of twelve
+     workspaces and there IS a pointer, so the tooltip works and twelve labels
+     would not fit. */
+  const tab = phone
+    ? 'flex h-auto w-auto min-w-[54px] flex-col items-center gap-1 rounded-[6px] px-1 py-1.5'
+    : ''
+  const tabLabel = (text: string) =>
+    phone ? (
+      <span className="max-w-[62px] truncate text-[9.5px] font-medium leading-none opacity-80">
+        {text}
+      </span>
+    ) : null
+
   /* THE ONE CONTROL IN HERE THAT IS NOT OURS.
 
      `CommandSearch` is the classic layout's component, mounted here so ⌘K
@@ -279,11 +305,13 @@ export function BentoDock() {
                 navigate(homeHref)
               }
             }}
-            className={item}
-            data-tip={t('bento.dock.home')}
+            className={cn(item, tab)}
+            style={phone ? undefined : btnStyle}
+            data-tip={phone ? undefined : t('bento.dock.home')}
             aria-label={t('bento.dock.home')}
           >
             <House className="size-[17px]" aria-hidden="true" />
+            {tabLabel(t('bento.dock.home'))}
           </button>
         )}
 
@@ -295,11 +323,13 @@ export function BentoDock() {
           <button
             type="button"
             onClick={() => navigate(workHref)}
-            className={item}
-            data-tip={t('bento.dock.work')}
+            className={cn(item, tab)}
+            style={phone ? undefined : btnStyle}
+            data-tip={phone ? undefined : t('bento.dock.work')}
             aria-label={t('bento.dock.work')}
           >
             <Inbox className="size-[17px]" aria-hidden="true" />
+            {tabLabel(t('bento.dock.work'))}
           </button>
         )}
 
@@ -388,18 +418,16 @@ export function BentoDock() {
              opens announces its own name the moment it does. */
           className={
             phone
-              ? item
+              ? cn(item, tab)
               : `flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
                  transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]
                  focus-visible:outline-none focus-visible:ring-2
                  focus-visible:ring-[var(--ink-here)]`
           }
-          style={phone ? btnStyle : undefined}
-          data-tip={phone ? t('bento.launcher.title') : undefined}
-          aria-label={phone ? t('bento.launcher.title') : undefined}
+          aria-label={t('bento.launcher.title')}
         >
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
-          {!phone && t('bento.launcher.title')}
+          {phone ? tabLabel(t('bento.dock.browse')) : t('bento.launcher.title')}
         </button>
 
         {!phone && <span className={rule} aria-hidden="true" />}
