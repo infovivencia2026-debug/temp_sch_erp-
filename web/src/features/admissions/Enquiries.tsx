@@ -207,6 +207,7 @@ export default function Enquiries() {
             <ErrorState error={q.error} />
           ) : (
             <Table
+              wide
               head={['Student', 'Parent', 'Phone', 'Source', 'Follow-up', 'Status', '']}
               empty={!items.length}
               emptyLabel="No enquiries yet."
@@ -246,7 +247,7 @@ export default function Enquiries() {
                             </Button>
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="secondary"
                               disabled={update.isPending}
                               onClick={() => update.mutate({ id: e.id, status: 'visit_scheduled' })}
                             >
@@ -254,7 +255,7 @@ export default function Enquiries() {
                             </Button>
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="secondary"
                               tone="danger"
                               disabled={update.isPending}
                               onClick={() => {
