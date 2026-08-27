@@ -98,6 +98,14 @@ interface MyDuty {
   notes?: string
 }
 
+/* Who supplies each figure, said in the teacher's own terms. */
+const SCORED_BY: Record<string, string> = {
+  reviewer: 'your reviewer scores this',
+  attendance: 'taken from the register',
+  results: 'taken from the results',
+  '360': 'from the 360 feedback',
+}
+
 const STATUS_LABEL: Record<string, string> = {
   not_started: 'Yours to fill in',
   self_submitted: 'Self-assessment sent',
@@ -398,20 +406,36 @@ function MyAppraisalForm({
               </Td>
               <Td className="text-right tabular-nums">{r.weight}</Td>
               <Td className="text-right">
-                {editable ? (
+                {/* Only the ones this school said the employee scores.
+
+                    Every KPI carries a source — 'self' is scored by the
+                    employee and confirmed by the reviewer, 'reviewer' is the
+                    reviewer's alone, and attendance and results are computed.
+                    The box was offered on all of them, so a teacher rated her
+                    own classroom practice, saw a number go in, and it counted
+                    for nothing: the final score is the moderated or reviewer
+                    figure and never the self one. Asking for a number nobody
+                    will read is worse than not asking. */}
+                {editable && r.source === 'self' ? (
                   <Input
                     type="number"
                     srLabel={`My score out of ${max} for ${r.title}`}
                     value={scores[r.kpi_id] ?? ''}
                     onChange={(v) => setScores({ ...scores, [r.kpi_id]: v })}
                   />
+                ) : r.self_score != null ? (
+                  <span className="tabular-nums">{r.self_score.toFixed(2)}</span>
                 ) : (
-                  <span className="tabular-nums">
-                    {r.self_score != null ? r.self_score.toFixed(2) : '—'}
+                  <span className="text-[12.5px] text-muted-foreground">
+                    {SCORED_BY[r.source] ?? 'not yours to score'}
                   </span>
                 )}
               </Td>
               <Td>
+                {/* The note stays open on every row. Evidence is hers to give
+                    even where the score is not hers to set — "took the Class 9
+                    remedial group all year" is exactly what a reviewer scoring
+                    classroom practice needs and would not otherwise know. */}
                 {editable ? (
                   <Input
                     srLabel={`My note for ${r.title}`}
