@@ -298,6 +298,20 @@ class TrackerRepository @Inject constructor(
                     failure.detail
                         ?: "This bus already has a run open. Close it, or take it over.",
                 )
+                // A 409 with a code this app does not know now arrives as
+                // Rejected rather than TripAlreadyOpen. On trip start the only
+                // conflict the server defines is the open run, so it still
+                // means what it used to -- but it carries the server's own
+                // sentence, so a conflict added later reads correctly here
+                // instead of claiming a run that is not there.
+                is ApiFailure.Rejected -> if (failure.status == 409) {
+                    StartOutcome.AlreadyOpen(
+                        failure.detail
+                            ?: "This bus already has a run open. Close it, or take it over.",
+                    )
+                } else {
+                    StartOutcome.Failed(failure.reason)
+                }
                 is ApiFailure.Unauthorized -> StartOutcome.NotPaired
                 else -> StartOutcome.Failed(failure.reason)
             }

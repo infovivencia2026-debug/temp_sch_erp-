@@ -83,7 +83,21 @@ object ApiFailures {
             code == ErrorCodes.TRIP_ALREADY_OPEN -> ApiFailure.TripAlreadyOpen(parsed?.error?.message)
             code == ErrorCodes.SKEWED_CLOCK -> ApiFailure.SkewedClock(parsed?.serverTime)
             code == ErrorCodes.TOO_FAST -> ApiFailure.TooFast(parsed?.retryAfter ?: retryAfterHeader)
-            status == 409 -> ApiFailure.TripAlreadyOpen(parsed?.error?.message)
+            /* A 409 IS NOT ALWAYS A TRIP.
+             *
+               This blanket line read every 409 as "a run is already open",
+               which is how a driver with no bus assigned to him was told that
+               his bus had a run in progress. The server had said `no_vehicle`
+               and said it clearly; the classifier threw the code away and kept
+               the status, and then the sign-in screen could not match the
+               shape it got and fell through to "Could not sign in
+               (trip_already_open)" -- a sentence that sends the office looking
+               for a stuck trip that has never existed.
+
+               A 409 whose code this app does not recognise is now carried
+               through with its code and the server's own sentence, which is
+               always more use than a guess at what it meant. */
+            status == 409 -> ApiFailure.Rejected(status, code, parsed?.error?.message)
             status == 429 -> ApiFailure.TooFast(parsed?.retryAfter ?: retryAfterHeader)
             // The only 422 this contract defines is the clock. Treating an
             // unlabelled one the same way is the safe read: both mean this
