@@ -819,6 +819,12 @@ func (s *Server) mountWhatsApp(r chi.Router) {
 	// The mapping from this product's templates to approved WhatsApp ones.
 	r.With(read).Get("/whatsapp/templates", s.listWhatsAppTemplates)
 	r.With(config).Put("/whatsapp/templates", s.saveWhatsAppTemplate)
+	/* Submitting to Meta for approval, from the screen that lists them.
+	   Gated on integrations.write rather than settings.write: it spends the
+	   school's own Meta credential and creates something under their business
+	   account, which is the same rung as storing the token was. */
+	r.With(creds).Post("/whatsapp/templates/submit", s.submitWhatsAppTemplates)
+	r.With(creds).Post("/whatsapp/templates/{code}/submit", s.submitWhatsAppTemplates)
 
 	// What has gone out, and what the guard held back.
 	r.With(logRead).Get("/whatsapp/log", s.listWhatsAppLog)
