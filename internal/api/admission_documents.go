@@ -141,7 +141,7 @@ func (s *Server) decideApplicationDocument(w http.ResponseWriter, r *http.Reques
 	}
 	if req.Status == "rejected" && strings.TrimSpace(req.Note) == "" {
 		httpx.BadRequest(w, r,
-			"say what is wrong with it — the parent has to know what to bring back")
+			"say what is wrong with it. The parent has to know what to bring back")
 		return
 	}
 

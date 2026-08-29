@@ -77,7 +77,7 @@ import (
 ErrProviderNotConfigured is what every caller gets instead of a pretend send.
 
 	Returned by name rather than as a string so a fan-out can tell "this school
-	has not set up email yet" — an operator's job — apart from "the mail server
+	has not set up email yet". An operator's job — apart from "the mail server
 	rejected us", which is an incident. The screen shows the first as a prompt
 	and the second as a fault.
 */
@@ -238,7 +238,7 @@ func (p smtpProvider) Why() string {
 	case p.cfg.Port <= 0:
 		return "no SMTP port set"
 	case strings.TrimSpace(p.cfg.FromAddress) == "":
-		return "no From address set — a message with no sender is rejected by every recipient"
+		return "no From address set. A message with no sender is rejected by every recipient"
 	}
 	return ""
 }
@@ -403,11 +403,11 @@ func (p gatewayProvider) Configured() bool { return p.Why() == "" }
 func (p gatewayProvider) Why() string {
 	switch {
 	case strings.TrimSpace(p.cfg.Endpoint) == "":
-		return "no gateway endpoint set — blocked on a vendor account"
+		return "no gateway endpoint set. Blocked on a vendor account"
 	case !strings.HasPrefix(p.cfg.Endpoint, "http://") && !strings.HasPrefix(p.cfg.Endpoint, "https://"):
 		return "gateway endpoint must be an http or https URL"
 	case p.apiKey == "" && strings.TrimSpace(p.cfg.AuthHeader) == "":
-		return "no API key stored — blocked on a vendor account"
+		return "no API key stored. Blocked on a vendor account"
 	}
 	return ""
 }
@@ -508,7 +508,7 @@ sealSecret encrypts a provider password for integrations.credentials.
 func sealSecret(plain string) ([]byte, error) {
 	key := os.Getenv("CREDENTIAL_KEY")
 	if strings.TrimSpace(key) == "" {
-		return nil, errors.New("CREDENTIAL_KEY is not set — refusing to store a password in clear")
+		return nil, errors.New("CREDENTIAL_KEY is not set. Refusing to store a password in clear")
 	}
 	sum := sha256.Sum256([]byte(key))
 	block, err := aes.NewCipher(sum[:])
@@ -552,7 +552,7 @@ func openSecret(sealed []byte) (string, error) {
 	}
 	out, err := gcm.Open(nil, sealed[:gcm.NonceSize()], sealed[gcm.NonceSize():], nil)
 	if err != nil {
-		return "", errors.New("stored credential will not decrypt — CREDENTIAL_KEY may have changed")
+		return "", errors.New("stored credential will not decrypt, CREDENTIAL_KEY may have changed")
 	}
 	return string(out), nil
 }
@@ -643,7 +643,7 @@ func (s *Server) loadProviders(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (
 // find until procurement finishes.
 func notSetUpReason(channel string) string {
 	if channel == "sms" || channel == "whatsapp" {
-		return "not set up — awaiting a vendor account and its credentials"
+		return "not set up. Awaiting a vendor account and its credentials"
 	}
 	return "not set up yet"
 }
@@ -2090,7 +2090,7 @@ func (s *Server) runTriggerRules(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 			// Not a fault. The rule is waiting for whichever feature emits
 			// this event to call EmitMessageEvent; saying so is what stops an
 			// administrator concluding the rule is broken.
-			res.Error = "no sweep for this event — it fires only when a feature reports it"
+			res.Error = "no sweep for this event. It fires only when a feature reports it"
 			out = append(out, res)
 			continue
 		}
@@ -2723,7 +2723,7 @@ func (s *Server) saveTriggerRule(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case req.Name == "":
-		httpx.BadRequest(w, r, "a rule needs a name — it is how the school finds it again")
+		httpx.BadRequest(w, r, "a rule needs a name. It is how the school finds it again")
 		return
 	case !eventShape.MatchString(req.Event):
 		httpx.BadRequest(w, r, "event must look like student.absent")
@@ -2919,7 +2919,7 @@ func (s *Server) emitOneEvent(w http.ResponseWriter, r *http.Request, req sweepR
 		// sweep, because the feature that reports it does so from its own
 		// code. Saying which events can be found unaided is the useful answer.
 		httpx.BadRequest(w, r,
-			"no sweep can find that event on its own — it fires when the feature that owns it reports it")
+			"no sweep can find that event on its own. It fires when the feature that owns it reports it")
 		return
 	}
 

@@ -539,7 +539,7 @@ func (s *Server) listReportRemarks(w http.ResponseWriter, r *http.Request) {
 	}
 	termID, err := uuid.Parse(rawTerm)
 	if err != nil {
-		httpx.BadRequest(w, r, "term_id must be a uuid — a remark with no term "+
+		httpx.BadRequest(w, r, "term_id must be a uuid. A remark with no term "+
 			"cannot be printed on the right card")
 		return
 	}
@@ -615,7 +615,7 @@ func (s *Server) saveReportRemark(w http.ResponseWriter, r *http.Request) {
 	}
 	termID, err := uuid.Parse(req.TermID)
 	if err != nil {
-		httpx.BadRequest(w, r, "term_id must be a uuid — a remark with no term "+
+		httpx.BadRequest(w, r, "term_id must be a uuid. A remark with no term "+
 			"cannot be printed on the right card")
 		return
 	}
@@ -1320,7 +1320,7 @@ func (s *Server) notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx,
 	id := httpx.IdentityFrom(r.Context())
 	for _, p := range parents {
 		if err := notify(r, tx, inst, p, &studentID, "student_remark",
-			title, summary+" — "+from, "/go/remarks", "student_remark",
+			title, summary+" - "+from, "/go/remarks", "student_remark",
 			&remarkID); err != nil {
 			return err
 		}

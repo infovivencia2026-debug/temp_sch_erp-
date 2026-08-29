@@ -603,14 +603,14 @@ func (s *Server) generateTimetableDraft(w http.ResponseWriter, r *http.Request) 
 	})
 	switch {
 	case errors.Is(err, errNoAcademicYear):
-		httpx.BadRequest(w, r, "no academic year — create one before generating a timetable")
+		httpx.BadRequest(w, r, "no academic year. Create one before generating a timetable")
 		return
 	case errors.Is(err, errNoPeriods):
 		httpx.BadRequest(w, r, "no teaching periods are configured; set the day's periods first")
 		return
 	case errors.Is(err, errNothingToPlace):
 		httpx.BadRequest(w, r,
-			"no subject has a weekly period requirement yet — set periods per week before generating")
+			"no subject has a weekly period requirement yet. Set periods per week before generating")
 		return
 	case err != nil:
 		httpx.Internal(w, r, err)
@@ -1782,7 +1782,7 @@ func (s *Server) createCoverRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(body.Reason) == "" {
-		httpx.BadRequest(w, r, "reason is required — the approver has to know why")
+		httpx.BadRequest(w, r, "reason is required. The approver has to know why")
 		return
 	}
 	from, to, ok := coverRange(w, r, body.FromDate, body.ToDate)

@@ -102,7 +102,7 @@ func schedulerEntries(env Envelope) []cronEntry {
 		{"*/5 * * * *", TypeDiaryReminders, Envelope{},
 			Options(QueueDefault, 3, 2*time.Minute)},
 
-		{"*/5 * * * *", TypeMessageDispatch,
+		{"* * * * *", TypeMessageDispatch,
 			MessageDispatchPayload{Envelope: env, Limit: 50},
 			Options(QueueDefault, 3, 10*time.Minute)},
 

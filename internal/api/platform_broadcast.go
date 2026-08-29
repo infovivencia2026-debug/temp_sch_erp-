@@ -96,7 +96,7 @@ func (s *Server) raisePlatformBroadcast(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
-		httpx.BadRequest(w, r, "a notice needs a title — it is the only part most people read")
+		httpx.BadRequest(w, r, "a notice needs a title. It is the only part most people read")
 		return
 	}
 	switch req.Severity {

@@ -514,18 +514,18 @@ func validateReportDefinition(req *reportDefinitionRequest) (reportSubject, erro
 			return subj, fmt.Errorf("%q is not a column of %s", c, subj.Name)
 		case !grouped && isMeasure:
 			return subj, fmt.Errorf(
-				"%q is a total — group the report by something before you can show it", c)
+				"%q is a total. Group the report by something before you can show it", c)
 		case grouped && isDim && !inGroup[c]:
 			// The alternative is silently wrapping it in min(), which answers
 			// a question nobody asked.
 			return subj, fmt.Errorf(
-				"%q is not grouped, so there is no single value for it — group by it or drop it", c)
+				"%q is not grouped, so there is no single value for it. Group by it or drop it", c)
 		}
 	}
 	// Every grouped column has to be shown, or the rows are indistinguishable.
 	for _, g := range req.GroupBy {
 		if !seen[g] {
-			return subj, fmt.Errorf("%q is grouped but not shown — the rows would be unreadable", g)
+			return subj, fmt.Errorf("%q is grouped but not shown. The rows would be unreadable", g)
 		}
 	}
 
@@ -536,7 +536,7 @@ func validateReportDefinition(req *reportDefinitionRequest) (reportSubject, erro
 	}
 
 	if req.SortColumn != "" && !seen[req.SortColumn] {
-		return subj, fmt.Errorf("cannot sort by %q — it is not one of the shown columns", req.SortColumn)
+		return subj, fmt.Errorf("cannot sort by %q. It is not one of the shown columns", req.SortColumn)
 	}
 	switch req.SortDir {
 	case "":
@@ -1147,7 +1147,7 @@ func (s *Server) saveReportDefinition(w http.ResponseWriter, r *http.Request) {
 		httpx.NotFound(w, r)
 	case isUniqueViolation(err):
 		httpx.Error(w, r, http.StatusConflict, "duplicate_name",
-			"a report of that name already exists — two reports with one name is how a school stops trusting both")
+			"a report of that name already exists. Two reports with one name is how a school stops trusting both")
 	case err != nil:
 		httpx.BadRequest(w, r, err.Error())
 	default:

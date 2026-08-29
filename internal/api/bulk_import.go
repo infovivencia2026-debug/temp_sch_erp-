@@ -138,7 +138,7 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 		`SELECT id FROM classes WHERE institution_id = $1 AND lower(name) = $2`,
 		c.inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("no class called %q — create the classes first", name)
+		return uuid.Nil, fmt.Errorf("no class called %q. Create the classes first", name)
 	}
 	if err != nil {
 		return uuid.Nil, err
@@ -170,7 +170,7 @@ var importSpecs = map[string]importSpec{
 		Sample:   []string{"Grade 6", "6", ""},
 		Check: func(row map[string]string) error {
 			if n, err := strconv.Atoi(strings.TrimSpace(row["level"])); err != nil || n <= 0 {
-				return errors.New("level must be a whole number above zero — it is what orders the classes")
+				return errors.New("level must be a whole number above zero. It is what orders the classes")
 			}
 			return nil
 		},
@@ -279,7 +279,7 @@ var importSpecs = map[string]importSpec{
 		Sample:   []string{"1", "P1", "09:00", "09:45", "N"},
 		Check: func(row map[string]string) error {
 			if n, err := strconv.Atoi(strings.TrimSpace(row["sequence"])); err != nil || n <= 0 {
-				return errors.New("sequence must be a whole number above zero — it is what orders the day")
+				return errors.New("sequence must be a whole number above zero. It is what orders the day")
 			}
 			for _, k := range []string{"starts_at", "ends_at"} {
 				if v := strings.TrimSpace(row[k]); v != "" {
@@ -493,7 +493,7 @@ var importSpecs = map[string]importSpec{
 				   AND (upper(code) = upper($2) OR lower(name) = lower($2))`,
 				c.inst, want).Scan(&subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("no subject called %q — add the subjects first", want)
+					return fmt.Errorf("no subject called %q. Add the subjects first", want)
 				}
 				return err
 			}
@@ -543,7 +543,7 @@ var importSpecs = map[string]importSpec{
 				`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
 				c.inst, email).Scan(&teacher); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("no member of staff with the email %q — import the staff first", email)
+					return fmt.Errorf("no member of staff with the email %q. Import the staff first", email)
 				}
 				return err
 			}
@@ -623,7 +623,7 @@ var importSpecs = map[string]importSpec{
 				   AND (upper(sub.code) = upper($2) OR lower(sub.name) = lower($2))`,
 				sectionID, code, c.inst).Scan(&csID, &subjectID); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("%s does not study %q — map the subject to the class first",
+					return fmt.Errorf("%s does not study %q. Map the subject to the class first",
 						row["class"], code)
 				}
 				return err
@@ -675,7 +675,7 @@ var importSpecs = map[string]importSpec{
 					return err
 				}
 				if !exists {
-					return fmt.Errorf("no subject called %q — check the Subjects step for the exact name", want)
+					return fmt.Errorf("no subject called %q. Check the Subjects step for the exact name", want)
 				}
 			}
 			return nil
@@ -733,7 +733,7 @@ var importSpecs = map[string]importSpec{
 					 WHERE upper(code) = upper($1) OR lower(name) = lower($1)
 					 LIMIT 1`, want).Scan(&subjectID); err != nil {
 					if errors.Is(err, pgx.ErrNoRows) {
-						return fmt.Errorf("no subject called %q — add the subjects first", want)
+						return fmt.Errorf("no subject called %q. Add the subjects first", want)
 					}
 					return err
 				}
@@ -797,7 +797,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 	// upload later and see what was actually in it.
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20))
 	if err != nil {
-		httpx.BadRequest(w, r, "could not read the file — is it larger than 8 MB?")
+		httpx.BadRequest(w, r, "could not read the file. Is it larger than 8 MB?")
 		return
 	}
 
@@ -1178,7 +1178,7 @@ func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, erro
 		  LIMIT 1`,
 		c.inst, classID, strings.ToLower(strings.TrimSpace(sectionName))).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("%s has no section %q — create the sections first",
+		return uuid.Nil, fmt.Errorf("%s has no section %q. Create the sections first",
 			className, sectionName)
 	}
 	if err != nil {
@@ -1203,7 +1203,7 @@ func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
 		`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
 		c.inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("no member of staff with the email %q — import the staff first", email)
+		return uuid.Nil, fmt.Errorf("no member of staff with the email %q. Import the staff first", email)
 	}
 	if err != nil {
 		return uuid.Nil, err

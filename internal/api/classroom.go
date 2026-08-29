@@ -1476,7 +1476,7 @@ func (s *Server) syncCapturedRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(in.ClientBatchRef) == "" {
-		httpx.BadRequest(w, r, "client_batch_ref is required — it is what makes a replay safe")
+		httpx.BadRequest(w, r, "client_batch_ref is required. It is what makes a replay safe")
 		return
 	}
 	onDate, err := time.Parse("2006-01-02", strings.TrimSpace(in.OnDate))

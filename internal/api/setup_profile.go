@@ -58,7 +58,7 @@ func requireInstitution(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	httpx.BadRequest(w, r,
-		"this screen belongs to a school. Sign in against one, or pick a school first — "+
+		"this screen belongs to a school. Sign in against one, or pick a school first - "+
 			"a platform operator's account is not attached to any.")
 	return false
 }
@@ -228,7 +228,7 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 		}
 		if !ok {
 			httpx.BadRequest(w, r,
-				"that is not one of your "+kindLabels[f.kind]+" — add it to the list first, then choose it")
+				"that is not one of your "+kindLabels[f.kind]+". Add it to the list first, then choose it")
 			return
 		}
 	}

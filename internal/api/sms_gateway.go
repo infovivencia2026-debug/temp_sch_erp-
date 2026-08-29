@@ -232,7 +232,7 @@ func (p phoneGatewayProvider) Send(ctx context.Context, _ OutboundMessage) (stri
 		return "", fmt.Errorf("sms: %w: %s", ErrProviderNotConfigured, p.reason)
 	}
 	if p.tx == nil {
-		return "", errors.New("the phone gateway cannot be tested from an unsaved draft — pair a handset first, then send a test")
+		return "", errors.New("the phone gateway cannot be tested from an unsaved draft. Pair a handset first, then send a test")
 	}
 	// Bookkeeping, not correctness: the outbox claim treats a lapsed lease as
 	// takeable on its own, so re-delivery never waits on this. What the sweep
@@ -332,11 +332,11 @@ func smsGatewayReason(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (string, e
 	}
 	switch {
 	case paired == 0:
-		return "no phone is paired — pair the office handset to start sending SMS", nil
+		return "no phone is paired. Pair the office handset to start sending SMS", nil
 	case active == 0:
-		return "every paired phone is paused — switch one back on to start sending", nil
+		return "every paired phone is paused. Switch one back on to start sending", nil
 	case lastSeen == nil:
-		return "the paired phone has never reported in — open the gateway app on the handset", nil
+		return "the paired phone has never reported in. Open the gateway app on the handset", nil
 	}
 	silent := time.Since(*lastSeen)
 	if silent > smsGatewayHeartbeatWindow {
@@ -676,7 +676,7 @@ func (s *Server) requireSMSGatewayDevice(next http.Handler) http.Handler {
 		   told what to go and do. */
 		if approved == nil {
 			httpx.Error(w, r, http.StatusForbidden, "awaiting_approval",
-				"this phone is enrolled but not yet approved — ask an administrator "+
+				"this phone is enrolled but not yet approved, ask an administrator "+
 					"to approve it on the SMS gateway screen")
 			return
 		}
@@ -691,7 +691,7 @@ func (s *Server) requireSMSGatewayDevice(next http.Handler) http.Handler {
 // information the caller has not earned.
 func smsGatewayUnauthorized(w http.ResponseWriter, r *http.Request) {
 	httpx.Error(w, r, http.StatusUnauthorized, "device_unauthenticated",
-		"this device is not paired with any school — pair it again from the SMS gateway screen")
+		"this device is not paired with any school. Pair it again from the SMS gateway screen")
 }
 
 // --- rate limiting the public surface ----------------------------------------
@@ -929,7 +929,7 @@ claimSMSGatewayPairCode exchanges a code for a device token, with no credential.
 func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request) {
 	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
 		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many pairing attempts from this network — wait a few minutes and try again")
+			"too many pairing attempts from this network. Wait a few minutes and try again")
 		return
 	}
 
@@ -1041,7 +1041,7 @@ func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request)
 // One sentence for invalid, expired and already-used alike, naming no school.
 func smsGatewayClaimRefused(w http.ResponseWriter, r *http.Request) {
 	httpx.Error(w, r, http.StatusUnauthorized, "pair_code_invalid",
-		"that pairing code is not usable — ask the school office for a new one")
+		"that pairing code is not usable. Ask the school office for a new one")
 }
 
 func nullIfBlank(s string) *string {
@@ -1293,7 +1293,7 @@ func (s *Server) smsGatewayReceipts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Receipts) > 200 {
-		httpx.BadRequest(w, r, "too many receipts in one call — send at most 200")
+		httpx.BadRequest(w, r, "too many receipts in one call. Send at most 200")
 		return
 	}
 
@@ -1599,7 +1599,7 @@ smsGatewayAdvisory is the sentence that has to appear in the product.
 	fee campaign to nine hundred families from a personal SIM and have the
 	number disconnected, and the first they will know is that nothing arrives.
 */
-const smsGatewayAdvisory = "This is not a licensed bulk-SMS service. Indian commercial SMS requires a DLT-registered sender id and pre-approved templates; a personal SIM sending in bulk will be throttled by the carrier and may be disconnected. Use this for tens of messages a day to a few hundred parents — for a fee campaign to the whole school, buy a licensed gateway."
+const smsGatewayAdvisory = "This is not a licensed bulk-SMS service. Indian commercial SMS requires a DLT-registered sender id and pre-approved templates; a personal SIM sending in bulk will be throttled by the carrier and may be disconnected. Use this for tens of messages a day to a few hundred parents. For a fee campaign to the whole school, buy a licensed gateway."
 
 /*
 getSMSGatewayOverview is the whole admin screen in one call.

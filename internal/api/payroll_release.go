@@ -160,7 +160,7 @@ func (s *Server) setPayrollState(w http.ResponseWriter, r *http.Request) {
 				VALUES ($1, $2, 'payslip', $3, $4, '/go/my_profile/my_pay')`,
 				id.InstitutionID, p.user,
 				fmt.Sprintf("Your payslip for %s is ready", month),
-				fmt.Sprintf("%s %d — take-home %s. Open My pay to see what was taken off.",
+				fmt.Sprintf("%s %d. Take-home %s. Open My pay to see what was taken off.",
 					month, in.Year, rupeesFromPaise(p.net))); err != nil {
 				return err
 			}

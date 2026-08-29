@@ -60,7 +60,7 @@ type provisionResult struct {
 }
 
 var errNoAdminContact = errors.New(
-	"give the administrator an email, a phone number or a username — " +
+	"give the administrator an email, a phone number or a username - " +
 		"without one of the three they cannot sign in")
 
 // validate checks what the database cannot. A NOT NULL constraint will catch a

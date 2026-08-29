@@ -960,7 +960,7 @@ func (s *Server) raiseBoardAmendment(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 	case draft:
 		httpx.Error(w, r, http.StatusConflict, "not_submitted",
-			"this candidate has not been sent yet — correct the draft instead")
+			"this candidate has not been sent yet. Correct the draft instead")
 	case duplicate:
 		httpx.Error(w, r, http.StatusConflict, "already_open",
 			"a correction to that field is already with the board; settle it before raising another")
@@ -1428,7 +1428,7 @@ func parseBoardResultCSV(text string) ([]boardResultLine, error) {
 	}
 	if known == 0 {
 		return nil, errors.New(
-			"none of the columns could be recognised — the file needs at least a hall " +
+			"none of the columns could be recognised. The file needs at least a hall " +
 				"ticket number, a registration number or a candidate name")
 	}
 
@@ -1837,7 +1837,7 @@ func (s *Server) publishBoardResults(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, http.StatusConflict, "unreconciled",
 			"this file has "+itoa(unmatched)+" line(s) that match no candidate here and omits "+
 				itoa(missing)+" candidate(s) the school entered. Match or explain each one, "+
-				"or publish again acknowledging them — a child missing from the file hears "+
+				"or publish again acknowledging them. A child missing from the file hears "+
 				"nothing on the day everybody else does.")
 	case err != nil:
 		httpx.Internal(w, r, err)
@@ -1969,7 +1969,7 @@ func (s *Server) getBaselineAnalysis(w http.ResponseWriter, r *http.Request) {
 			case 1:
 				first := t[0]
 				cohorts[i].Baseline = &first
-				cohorts[i].Note = "only one assessment so far this year — " +
+				cohorts[i].Note = "only one assessment so far this year - " +
 					"growth needs a second to measure against"
 			default:
 				first, last := t[0], t[len(t)-1]

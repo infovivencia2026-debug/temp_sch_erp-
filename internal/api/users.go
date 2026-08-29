@@ -322,7 +322,7 @@ func (s *Server) setRoles(w http.ResponseWriter, r *http.Request) {
 		}
 		if !hasAdmin {
 			httpx.BadRequest(w, r,
-				"you cannot remove your own administrator role — ask another administrator")
+				"you cannot remove your own administrator role, ask another administrator")
 			return
 		}
 	}
@@ -487,7 +487,7 @@ func checkGrantable(keys []string, platformAdmin bool) error {
 	for _, pair := range overlappingRoles {
 		if held[pair[0]] && held[pair[1]] {
 			return errors.New("a person cannot hold both " + pair[0] + " and " +
-				pair[1] + " — they draw the same screens. " + overlapRemedy[pair])
+				pair[1] + ". They draw the same screens. " + overlapRemedy[pair])
 		}
 	}
 	for _, k := range keys {
@@ -628,7 +628,7 @@ var AllOperationalRoles = []string{
 var rolePresets = []rolePreset{
 	{
 		Key:  "sole_maintainer",
-		Name: "Everything — one person runs the school",
+		Name: "Everything. One person runs the school",
 		Description: "Every staff role on one account. The person switches " +
 			"workspaces from the left rail; the roles stay separate.",
 		RoleKeys:    AllOperationalRoles,
@@ -643,7 +643,7 @@ var rolePresets = []rolePreset{
 	{
 		Key:         "office",
 		Name:        "Office staff",
-		Description: "Admissions, the front desk and the fee counter — the usual front-office bundle.",
+		Description: "Admissions, the front desk and the fee counter. The usual front-office bundle.",
 		/* admissions, not admissions+front_office: the receptionist's five
 		   entries are all inside admissions, so granting both would give this
 		   person the front desk twice. */
@@ -721,7 +721,7 @@ var rolePresets = []rolePreset{
 	{
 		Key:  "principal_hr",
 		Name: "Principal & payroll",
-		Description: "Runs the school and keeps the staff records and salaries — the small-school " +
+		Description: "Runs the school and keeps the staff records and salaries, the small-school " +
 			"arrangement where the head does both.",
 		RoleKeys: []string{"institution_admin", "hr"},
 	},

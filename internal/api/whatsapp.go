@@ -151,11 +151,11 @@ func (p whatsappCloudProvider) Configured() bool { return p.Why() == "" }
 func (p whatsappCloudProvider) Why() string {
 	switch {
 	case strings.TrimSpace(p.cfg.PhoneNumberID) == "":
-		return "no WhatsApp phone number id set — copy it from Meta's WhatsApp Manager"
+		return "no WhatsApp phone number id set. Copy it from Meta's WhatsApp Manager"
 	case !waAllDigits(strings.TrimSpace(p.cfg.PhoneNumberID)):
 		return "the WhatsApp phone number id must be the numeric id, not the phone number"
 	case strings.TrimSpace(p.token) == "":
-		return "no access token stored — paste a long-lived System User token"
+		return "no access token stored. Paste a long-lived System User token"
 	}
 	return ""
 }
@@ -233,7 +233,7 @@ func (p whatsappCloudProvider) Send(ctx context.Context, m OutboundMessage) (str
 		// message_log would then carry 'sent' for something that may never
 		// have been accepted, and the provider message id is what a delivery
 		// receipt is later matched against.
-		return "", errors.New("whatsapp: the API answered 200 with no message id — the send cannot be confirmed")
+		return "", errors.New("whatsapp: the API answered 200 with no message id. The send cannot be confirmed")
 	}
 
 	// The recipient is never logged in full. Last four, as banking.go does.
@@ -290,7 +290,7 @@ func (p whatsappCloudProvider) body(to string, m OutboundMessage) (map[string]an
 		return nil, fmt.Errorf(
 			"whatsapp: %w: no approved template is mapped for this message, "+
 				"and WhatsApp accepts free text only inside a 24-hour window opened by the "+
-				"parent's own reply — which this product cannot observe, having no inbound "+
+				"parent's own reply. Which this product cannot observe, having no inbound "+
 				"webhook. Map this template to an approved WhatsApp template name",
 			ErrProviderNotConfigured)
 	}
@@ -371,34 +371,34 @@ metaAdvice is what to do about each error code, in a sentence.
 	text, which is at least the vendor's own words rather than ours.
 */
 var metaAdvice = map[int]string{
-	0:      "the request was malformed — this is a fault in the product, not in the account",
-	4:      "the app's request quota for this hour is spent — sends will resume automatically; reduce the dispatch rate if it recurs",
-	10:     "this app does not hold the whatsapp_business_messaging permission — grant it to the System User in Business Settings",
-	33:     "the phone number id is not one this token can see — check the id and that the token belongs to the same business",
-	100:    "a parameter was rejected — usually the phone number id or the recipient number",
-	190:    "the access token is not valid or has been revoked — generate a new long-lived System User token and paste it in",
-	200:    "the token lacks permission on this WhatsApp Business Account — grant the System User access to the WABA",
-	368:    "the account is temporarily blocked for a policy violation — Meta's Business Support decides when it lifts",
-	80007:  "the rate limit for this account has been hit — the queue will drain more slowly",
-	130429: "the number's throughput limit has been hit — messages are being sent faster than the tier allows",
+	0:      "the request was malformed. This is a fault in the product, not in the account",
+	4:      "the app's request quota for this hour is spent. Sends will resume automatically; reduce the dispatch rate if it recurs",
+	10:     "this app does not hold the whatsapp_business_messaging permission. Grant it to the System User in Business Settings",
+	33:     "the phone number id is not one this token can see. Check the id and that the token belongs to the same business",
+	100:    "a parameter was rejected. Usually the phone number id or the recipient number",
+	190:    "the access token is not valid or has been revoked: generate a new long-lived System User token and paste it in",
+	200:    "the token lacks permission on this WhatsApp Business Account. Grant the System User access to the WABA",
+	368:    "the account is temporarily blocked for a policy violation, Meta's Business Support decides when it lifts",
+	80007:  "the rate limit for this account has been hit. The queue will drain more slowly",
+	130429: "the number's throughput limit has been hit. Messages are being sent faster than the tier allows",
 	131005: "access denied to this resource",
 	131008: "a required parameter is missing from the request",
-	131009: "a parameter value is not accepted — check the template parameter values for newlines or tabs, which WhatsApp rejects",
+	131009: "a parameter value is not accepted. Check the template parameter values for newlines or tabs, which WhatsApp rejects",
 	131016: "the service is temporarily unavailable at Meta's end",
 	131021: "the recipient number is the same as the sender number",
-	131026: "the message cannot be delivered — the recipient may not have WhatsApp, or the number may be wrong",
+	131026: "the message cannot be delivered. The recipient may not have WhatsApp, or the number may be wrong",
 	131031: "this WhatsApp Business Account has been locked or restricted",
-	131042: "the business account has no valid payment method — add one in Business Settings or nothing will send",
-	131047: "outside the 24-hour window, so free text was refused — send an approved template instead",
-	131048: "the number's spam rate is too high and sending is restricted — Meta lifts this as the rating recovers",
-	131049: "Meta withheld this message to protect user engagement — a marketing-category send throttled by policy",
+	131042: "the business account has no valid payment method. Add one in Business Settings or nothing will send",
+	131047: "outside the 24-hour window, so free text was refused. Send an approved template instead",
+	131048: "the number's spam rate is too high and sending is restricted, Meta lifts this as the rating recovers",
+	131049: "Meta withheld this message to protect user engagement. A marketing-category send throttled by policy",
 	131051: "this message type is not supported",
 	131052: "a media file could not be downloaded",
 	131056: "too many messages to this same recipient in a short time",
-	132000: "the number of parameters sent does not match the approved template — check the stored parameter mapping",
-	132001: "no such approved template in that language — check the template name and the language code in WhatsApp Manager",
-	132005: "the hydrated template text is too long — shorten the parameter values",
-	132007: "the template text violates the format policy — usually a newline, tab or four consecutive spaces in a parameter",
+	132000: "the number of parameters sent does not match the approved template. Check the stored parameter mapping",
+	132001: "no such approved template in that language. Check the template name and the language code in WhatsApp Manager",
+	132005: "the hydrated template text is too long. Shorten the parameter values",
+	132007: "the template text violates the format policy. Usually a newline, tab or four consecutive spaces in a parameter",
 	132012: "a template parameter format does not match what was approved",
 	132015: "the template is paused for poor quality and cannot be sent until it recovers",
 	132016: "the template has been disabled for quality reasons and must be re-created",
@@ -406,9 +406,9 @@ var metaAdvice = map[int]string{
 	133004: "the WhatsApp Business Account server is temporarily unavailable",
 	133005: "the two-step verification PIN is wrong",
 	133006: "the phone number needs to be verified before it can send",
-	133008: "too many wrong two-step PIN attempts — wait before retrying",
+	133008: "too many wrong two-step PIN attempts, wait before retrying",
 	133009: "the two-step PIN was entered too quickly after the last attempt",
-	133010: "this phone number is not registered on the WhatsApp Business platform — register it in WhatsApp Manager",
+	133010: "this phone number is not registered on the WhatsApp Business platform. Register it in WhatsApp Manager",
 	133015: "the number is being deregistered or moved and cannot send",
 }
 
@@ -433,7 +433,7 @@ func explainMetaError(status int, raw []byte) error {
 
 	advice := metaAdvice[e.Code]
 	if advice == "" {
-		advice = "unrecognised error code — see Meta's cloud API error reference"
+		advice = "unrecognised error code. See Meta's cloud API error reference"
 	}
 
 	parts := []string{fmt.Sprintf("whatsapp: %s (code %d", advice, e.Code)}
@@ -442,7 +442,7 @@ func explainMetaError(status int, raw []byte) error {
 	}
 	parts = append(parts, "): ", e.Message)
 	if d := strings.TrimSpace(e.ErrorData.Details); d != "" && d != e.Message {
-		parts = append(parts, " — ", d)
+		parts = append(parts, " - ", d)
 	}
 	if e.FBTraceID != "" {
 		parts = append(parts, " [trace ", e.FBTraceID, "]")
@@ -506,7 +506,7 @@ func (s *Server) whatsappSendFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		v, present := vars[name]
 		if !present {
 			return nil, fmt.Errorf(
-				"whatsapp template %q expects a value for %q and this message carries none — "+
+				"whatsapp template %q expects a value for %q and this message carries none - "+
 					"the stored parameter mapping and the template body disagree", m.Name, name)
 		}
 		text := waCleanParam(fmt.Sprint(v))
@@ -659,13 +659,13 @@ func (g recipientGuard) permits(channel, recipient string) (bool, string) {
 	}
 	key := normaliseRecipient(recipient)
 	if key == "" {
-		return false, "not on the allowlist — the recipient could not be read as a number or an address"
+		return false, "not on the allowlist. The recipient could not be read as a number or an address"
 	}
 	if g.allowed[key] {
 		return true, ""
 	}
 	if len(g.allowed) == 0 {
-		return false, "not on the allowlist — this school is in allowlist mode and the list is empty, so nothing is being sent to anybody"
+		return false, "not on the allowlist. This school is in allowlist mode and the list is empty, so nothing is being sent to anybody"
 	}
 	return false, "not on the allowlist"
 }
@@ -1508,7 +1508,7 @@ func (s *Server) readRecipientPolicy(ctx context.Context, tx pgx.Tx, inst uuid.U
 		v.Explanation = "Live. Every parent, guardian and member of staff this school messages will receive it."
 	case len(v.Items) == 0:
 		v.Sending = false
-		v.Explanation = "Nothing is being sent to anybody. This school is in allowlist mode and the list is empty — every outbound message on every channel is being recorded as suppressed instead of sent."
+		v.Explanation = "Nothing is being sent to anybody. This school is in allowlist mode and the list is empty. Every outbound message on every channel is being recorded as suppressed instead of sent."
 	default:
 		v.Sending = false
 		v.Explanation = fmt.Sprintf(
@@ -1540,7 +1540,7 @@ func (s *Server) setRecipientMode(w http.ResponseWriter, r *http.Request) {
 	}
 	if mode == "everyone" && strings.TrimSpace(req.Confirm) != "everyone" {
 		httpx.BadRequest(w, r,
-			"turning the guard off messages every real parent — type 'everyone' to confirm")
+			"turning the guard off messages every real parent. Type 'everyone' to confirm")
 		return
 	}
 
@@ -1594,7 +1594,7 @@ func (s *Server) addAllowedRecipient(w http.ResponseWriter, r *http.Request) {
 		norm = waNormalisePhone(raw)
 		if norm == "" {
 			httpx.BadRequest(w, r,
-				"that is not a phone number this can read — a ten-digit Indian mobile, or an international number")
+				"that is not a phone number this can read. A ten-digit Indian mobile, or an international number")
 			return
 		}
 	}

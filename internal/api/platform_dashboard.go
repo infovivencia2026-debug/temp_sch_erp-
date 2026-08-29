@@ -221,7 +221,7 @@ func (s *Server) getPlatformDashboard(w http.ResponseWriter, r *http.Request) {
 		if c.Students == 0 {
 			out.Alerts = append(out.Alerts, platformAlert{
 				Severity: "low", Kind: "setup", School: &school,
-				Message: "No students enrolled — setup may be unfinished",
+				Message: "No students enrolled. Setup may be unfinished",
 			})
 		}
 	}

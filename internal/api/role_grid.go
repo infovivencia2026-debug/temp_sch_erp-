@@ -299,7 +299,7 @@ func (s *Server) setRoleGrid(w http.ResponseWriter, r *http.Request) {
 	})
 	switch {
 	case errors.Is(err, errSystemRole):
-		httpx.Denied(w, r, "built-in roles cannot be edited — copy this role first, "+
+		httpx.Denied(w, r, "built-in roles cannot be edited. Copy this role first, "+
 			"otherwise the next upgrade would restore it")
 		return
 	case errors.Is(err, pgx.ErrNoRows):

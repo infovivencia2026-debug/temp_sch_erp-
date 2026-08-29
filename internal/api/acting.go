@@ -89,7 +89,7 @@ func ActingInstitution(db *database.DB) func(http.Handler) http.Handler {
 					   this tab was the cause. */
 					httpx.Error(w, r, http.StatusNotFound, "no_such_school",
 						"there is no school with id "+want.String()+
-							". Pick a school again — this tab is holding one that no longer exists.")
+							". Pick a school again. This tab is holding one that no longer exists.")
 					return
 				}
 				httpx.Internal(w, r, err)

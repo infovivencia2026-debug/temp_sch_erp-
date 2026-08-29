@@ -577,13 +577,13 @@ func (s *Server) getToday(w http.ResponseWriter, r *http.Request) {
 		rowsOut := []line{}
 		for _, v := range out.StaffAbsent {
 			rowsOut = append(rowsOut, line{"Staff away", v.FullName,
-				strCell(v.Department), fmt.Sprintf("%s — %d of %d periods uncovered",
+				strCell(v.Department), fmt.Sprintf("%s, %d of %d periods uncovered",
 					v.Status, v.Uncovered, v.Periods)})
 		}
 		for _, v := range out.Gaps {
 			rowsOut = append(rowsOut, line{"Uncovered period",
 				v.Period + " " + v.StartsAt, v.Class + "-" + v.Section,
-				v.Subject + " — " + v.Reason})
+				v.Subject + " - " + v.Reason})
 		}
 		for _, v := range out.Visitors {
 			rowsOut = append(rowsOut, line{"Visitor expected", v.At, v.Title, v.With})

@@ -299,7 +299,7 @@ func (s *Server) claimLostFoundItem(w http.ResponseWriter, r *http.Request) {
 	req.Answer = strings.TrimSpace(req.Answer)
 	if len(req.Answer) < 10 {
 		httpx.BadRequest(w, r,
-			"describe something about the item the photo does not show — a few words is not enough to tell one bottle from another")
+			"describe something about the item the photo does not show. A few words is not enough to tell one bottle from another")
 		return
 	}
 
@@ -676,7 +676,7 @@ func (s *Server) postToWall(w http.ResponseWriter, r *http.Request) {
 	req.Body = strings.TrimSpace(req.Body)
 	if len(req.Body) < 10 {
 		httpx.BadRequest(w, r,
-			"say what they actually did — a wall of one-word compliments is a popularity contest")
+			"say what they actually did. A wall of one-word compliments is a popularity contest")
 		return
 	}
 	if len(req.Body) > 500 {
@@ -834,7 +834,7 @@ func (s *Server) moderateWallPost(w http.ResponseWriter, r *http.Request) {
 	}
 	if (action == "reject" || action == "remove") && req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"give a reason — a takedown a child cannot be told the reason for is one nobody will defend")
+			"give a reason. A takedown a child cannot be told the reason for is one nobody will defend")
 		return
 	}
 
@@ -2069,7 +2069,7 @@ func (s *Server) removeForumContent(w http.ResponseWriter, r *http.Request, kind
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"give a reason — a child whose question vanishes without one learns the forum is arbitrary")
+			"give a reason. A child whose question vanishes without one learns the forum is arbitrary")
 		return
 	}
 	res, err := s.resolveScope(r)

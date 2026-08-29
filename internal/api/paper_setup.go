@@ -67,7 +67,7 @@ func (s *Server) setPaperSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.MaxMarks != nil && in.PassMarks != nil && *in.PassMarks > *in.MaxMarks {
 		httpx.BadRequest(w, r,
-			"The pass mark cannot be higher than what the paper is out of — nobody could pass it.")
+			"The pass mark cannot be higher than what the paper is out of. Nobody could pass it.")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (s *Server) setPaperSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, errMarksAlreadyIn) {
 		httpx.Error(w, r, http.StatusConflict, "marks_already_entered",
-			"this paper already has marks entered, so what it is out of can no longer change — 45 out of 50 is a distinction and 45 out of 100 is a fail. Clear the marks first, or set the maximum on a new paper.")
+			"this paper already has marks entered, so what it is out of can no longer change, 45 out of 50 is a distinction and 45 out of 100 is a fail. Clear the marks first, or set the maximum on a new paper.")
 		return
 	}
 	if err != nil {

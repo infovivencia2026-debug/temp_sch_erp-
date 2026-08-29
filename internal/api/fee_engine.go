@@ -371,7 +371,7 @@ func (s *Server) saveStructureVersion(w http.ResponseWriter, r *http.Request) {
 		if draftExists {
 			// Two open drafts on one structure is two people revising the same
 			// fee without knowing about each other.
-			return refusal("this structure already has a draft revision open — finish or discard it first")
+			return refusal("this structure already has a draft revision open. Finish or discard it first")
 		}
 
 		if err := tx.QueryRow(r.Context(), `
@@ -489,7 +489,7 @@ func (s *Server) setStructureVersionItems(w http.ResponseWriter, r *http.Request
 			return err
 		}
 		if status != "draft" {
-			return refusef("this version is %s — an invoice may already have been raised under it. Open a new revision instead.", status)
+			return refusef("this version is %s. An invoice may already have been raised under it. Open a new revision instead.", status)
 		}
 
 		if _, err := tx.Exec(r.Context(),
@@ -564,7 +564,7 @@ func (s *Server) activateStructureVersion(w http.ResponseWriter, r *http.Request
 		if lines == 0 {
 			// An empty active version bills nothing and looks like a
 			// configuration that worked.
-			return refusal("this revision has no fee lines — it would bill nothing")
+			return refusal("this revision has no fee lines. It would bill nothing")
 		}
 
 		// Close the outgoing version the day before this one starts, so the two
@@ -615,7 +615,7 @@ func (s *Server) discardStructureVersion(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return refusal("only a draft revision can be discarded — an activated version is part of the record")
+			return refusal("only a draft revision can be discarded. An activated version is part of the record")
 		}
 		return nil
 	})
@@ -743,7 +743,7 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case req.Name == "":
-		httpx.BadRequest(w, r, "a rule needs a name — it is how the school finds it again")
+		httpx.BadRequest(w, r, "a rule needs a name. It is how the school finds it again")
 		return
 	case req.Kind != "fixed" && req.Kind != "per_day" && req.Kind != "percent":
 		httpx.BadRequest(w, r, "kind must be fixed, per_day or percent")
@@ -763,7 +763,7 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 	case req.Kind == "per_day" && req.Compound != "none":
 		// The DB refuses this too; saying so here gives the form a sentence
 		// rather than a constraint name.
-		httpx.BadRequest(w, r, "a per-day rule already grows with time — compounding it as well would charge the same days twice")
+		httpx.BadRequest(w, r, "a per-day rule already grows with time. Compounding it as well would charge the same days twice")
 		return
 	case req.CapPaise != nil && *req.CapPaise < 0:
 		httpx.BadRequest(w, r, "a cap cannot be negative")
@@ -1171,7 +1171,7 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.InvoiceIDs) == 0 {
-		httpx.BadRequest(w, r, "name the invoices to fine — applying to everything at once is not offered")
+		httpx.BadRequest(w, r, "name the invoices to fine. Applying to everything at once is not offered")
 		return
 	}
 	asOf, err := parseDate(req.AsOf, nowInIndia())
@@ -1342,7 +1342,7 @@ func (s *Server) waiveFineCharge(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Reason == "" {
-		httpx.BadRequest(w, r, "a waiver needs a reason — it reverses money a parent was told they owed")
+		httpx.BadRequest(w, r, "a waiver needs a reason. It reverses money a parent was told they owed")
 		return
 	}
 
@@ -1609,11 +1609,11 @@ func (s *Server) saveHeadGSTTreatment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.IsTaxable && req.GSTRateBP == 0 {
-		httpx.BadRequest(w, r, "a taxable head needs a rate — zero-rated and exempt are not the same thing on a return")
+		httpx.BadRequest(w, r, "a taxable head needs a rate. Zero-rated and exempt are not the same thing on a return")
 		return
 	}
 	if req.IsTaxable && strings.TrimSpace(req.HSNSAC) == "" {
-		httpx.BadRequest(w, r, "a taxable head needs its HSN/SAC code — the invoice cannot be filed without one")
+		httpx.BadRequest(w, r, "a taxable head needs its HSN/SAC code. The invoice cannot be filed without one")
 		return
 	}
 
@@ -1660,7 +1660,7 @@ func feeEngineFail(w http.ResponseWriter, r *http.Request, err error) {
 	case strings.Contains(msg, "fee_structure_version_items_line"):
 		httpx.BadRequest(w, r, "the same fee head appears twice for one instalment")
 	case strings.Contains(msg, "fee_fine_rules_one_active_per_target"):
-		httpx.BadRequest(w, r, "an active rule already covers that campus, structure and head — edit it, or retire it first")
+		httpx.BadRequest(w, r, "an active rule already covers that campus, structure and head. Edit it, or retire it first")
 	case strings.Contains(msg, "fee_fine_rules_per_day_not_compounded"):
 		httpx.BadRequest(w, r, "a per-day rule cannot also compound")
 	case strings.Contains(msg, "fee_fine_rules_complete_check"):

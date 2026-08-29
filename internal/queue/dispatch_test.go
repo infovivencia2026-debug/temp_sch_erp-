@@ -86,8 +86,8 @@ func TestSchedulerRegistersMessageDispatch(t *testing.T) {
 			continue
 		}
 		found = true
-		if e.spec != "*/5 * * * *" {
-			t.Errorf("dispatch cron spec = %q, want every 5 minutes", e.spec)
+		if e.spec != "* * * * *" {
+			t.Errorf("dispatch cron spec = %q, want every 1 minute", e.spec)
 		}
 		p, ok := e.payload.(MessageDispatchPayload)
 		if !ok {

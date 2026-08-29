@@ -1688,7 +1688,7 @@ func (s *Server) verifyCampusPass(w http.ResponseWriter, r *http.Request) {
 	// tells the guard to ask the parent to refresh their screen rather than
 	// turning away somebody whose child is inside.
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"valid": false, "reason": "code has expired — ask for a refreshed screen",
+		"valid": false, "reason": "code has expired. Ask for a refreshed screen",
 		"serial": serial})
 }
 

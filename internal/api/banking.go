@@ -530,7 +530,7 @@ func (s *Server) saveBankAccount(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "an account number is 6 to 20 letters or digits, with no spaces")
 		return
 	case !validIFSC(req.IFSC):
-		httpx.BadRequest(w, r, "IFSC must be eleven characters: four letters, a zero, then six more — SBIN0001234")
+		httpx.BadRequest(w, r, "IFSC must be eleven characters: four letters, a zero, then six more, SBIN0001234")
 		return
 	}
 
@@ -1769,7 +1769,7 @@ func (s *Server) matchStatementLine(w http.ResponseWriter, r *http.Request) {
 		case "payment", "vendor_payment", "payout_item", "refund":
 		default:
 			httpx.BadRequest(w, r,
-				"say what this line is: a payment, vendor_payment, payout_item or refund — or explain it instead")
+				"say what this line is: a payment, vendor_payment, payout_item or refund. Or explain it instead")
 			return
 		}
 	}
@@ -1827,7 +1827,7 @@ func (s *Server) matchStatementLine(w http.ResponseWriter, r *http.Request) {
 	}
 	if clash {
 		httpx.BadRequest(w, r,
-			"another statement line is already matched to that book entry — unmatch it first")
+			"another statement line is already matched to that book entry, unmatch it first")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -2324,7 +2324,7 @@ func (s *Server) createPayoutBatch(w http.ResponseWriter, r *http.Request) {
 		httpx.NotFound(w, r)
 	case notPayable:
 		httpx.BadRequest(w, r,
-			"that account is not marked for payouts. Enable payouts on it first — "+
+			"that account is not marked for payouts. Enable payouts on it first - "+
 				"it stops a collection account being debited by accident.")
 	case err != nil && strings.Contains(err.Error(), "payout_batches_no_once"):
 		httpx.BadRequest(w, r, "a batch with that number already exists")
@@ -2504,7 +2504,7 @@ func (s *Server) addPayoutItems(w http.ResponseWriter, r *http.Request) {
 	case duplicate:
 		httpx.BadRequest(w, r,
 			"one of those documents is already in a live payout batch. "+
-				"Paying it twice is the failure this refuses — remove it, or cancel the other batch.")
+				"Paying it twice is the failure this refuses. Remove it, or cancel the other batch.")
 	case notDraft:
 		httpx.Error(w, r, http.StatusConflict, "not_draft",
 			"this batch has already been submitted. A batch cannot change after a checker has seen it.")
@@ -3098,7 +3098,7 @@ func (s *Server) saveStudentBankAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	case !validIFSC(req.IFSC):
 		httpx.BadRequest(w, r,
-			"IFSC must be eleven characters: four letters, a zero, then six more — SBIN0001234")
+			"IFSC must be eleven characters: four letters, a zero, then six more, SBIN0001234")
 		return
 	}
 	// The database says the same thing; said here so the message names the two

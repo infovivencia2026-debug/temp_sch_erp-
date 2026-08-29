@@ -1884,7 +1884,7 @@ func (s *Server) approveVendorBill(w http.ResponseWriter, r *http.Request) {
 
 		entryID, no, err := postVoucher(r.Context(), tx, id.InstitutionID, id.UserID,
 			"purchase", "PJ", billDate,
-			fmt.Sprintf("%s — bill %s", vendorName, billNo), "vendor_bill", &billID, lines)
+			fmt.Sprintf("%s, bill %s", vendorName, billNo), "vendor_bill", &billID, lines)
 		if err != nil {
 			return err
 		}
@@ -2268,7 +2268,7 @@ func (s *Server) decidePettyCash(w http.ResponseWriter, r *http.Request) {
 
 		entryID, no, err := postVoucher(r.Context(), tx, id.InstitutionID, id.UserID,
 			"payment", "PV", date,
-			fmt.Sprintf("Petty cash — %s (%s)", particulars, payee),
+			fmt.Sprintf("Petty cash, %s (%s)", particulars, payee),
 			"petty_cash", &voucherID,
 			[]voucherLine{
 				{AccountID: expenseID, Debit: amount, Memo: payee},
@@ -3645,7 +3645,7 @@ func (s *Server) feePosting(w http.ResponseWriter, r *http.Request, preview bool
 		}
 
 		for _, v := range payments {
-			ref := "—"
+			ref := "-"
 			if v.receipt != nil {
 				ref = *v.receipt
 			}
@@ -3734,7 +3734,7 @@ func (s *Server) feePosting(w http.ResponseWriter, r *http.Request, preview bool
 		}
 
 		for _, v := range bounces {
-			ref := "—"
+			ref := "-"
 			if v.receipt != nil {
 				ref = *v.receipt
 			}
@@ -3752,7 +3752,7 @@ func (s *Server) feePosting(w http.ResponseWriter, r *http.Request, preview bool
 			}
 			src := v.id
 			if _, _, err := postVoucher(r.Context(), tx, id.InstitutionID, id.UserID,
-				"journal", "JV", time.Now(), "Cheque dishonoured — receipt "+ref,
+				"journal", "JV", time.Now(), "Cheque dishonoured, receipt "+ref,
 				"fee_payment_reversal", &src, []voucherLine{
 					{AccountID: c.FeeReceivable, Debit: v.amount, Memo: ref},
 					{AccountID: from, Credit: v.amount},

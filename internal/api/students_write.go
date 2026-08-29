@@ -79,7 +79,7 @@ func (s *Server) checkVocabulary(r *http.Request, req *studentWriteRequest) erro
 		}
 		if !ok {
 			return errors.New("that is not one of your " + kindLabels[f.kind] +
-				" — add it to the list first, then choose it")
+				". Add it to the list first, then choose it")
 		}
 	}
 	return nil
@@ -400,7 +400,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	// read back the way every other importer's can.
 	raw, rerr := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20))
 	if rerr != nil {
-		httpx.BadRequest(w, r, "could not read the file — is it larger than 8 MB?")
+		httpx.BadRequest(w, r, "could not read the file. Is it larger than 8 MB?")
 		return
 	}
 
@@ -437,7 +437,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	_, hasFirst := col["first_name"]
 	if !hasFull && !hasFirst {
 		httpx.BadRequest(w, r,
-			"the CSV needs a full_name column (or first_name) — everything else is optional")
+			"the CSV needs a full_name column (or first_name). Everything else is optional")
 		return
 	}
 

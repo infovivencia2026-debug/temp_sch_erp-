@@ -391,7 +391,7 @@ func (s *Server) getTallyConnector(w http.ResponseWriter, r *http.Request) {
 		"live_push_available": false,
 		"live_push_note": "Tally Prime has no cloud API. Its gateway runs on the " +
 			"accountant's own machine, on the school network, only while Tally is " +
-			"open — a hosted server cannot reach it. Export the XML and import it " +
+			"open. A hosted server cannot reach it. Export the XML and import it " +
 			"in Tally: Gateway of Tally, then Import, then Vouchers.",
 	})
 }
@@ -847,7 +847,7 @@ func (s *Server) getTallyExportSettings(w http.ResponseWriter, r *http.Request) 
 		"configured":          set.CompanyName != "",
 		"deliveries":          tallyDeliveries(),
 		"live_push_available": false,
-		"live_push_note": "This produces a file you import in Tally Prime — Gateway of " +
+		"live_push_note": "This produces a file you import in Tally Prime, Gateway of " +
 			"Tally, then Import, then Vouchers. There is no direct push: Tally's " +
 			"gateway runs on the accountant's own machine on the school network, " +
 			"only while Tally is open, and a hosted server cannot reach it.",

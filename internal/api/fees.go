@@ -189,6 +189,7 @@ func (s *Server) getStudentLedger(w http.ResponseWriter, r *http.Request) {
 			         rf.reason, rf.amount_paise, 0::bigint, rf.status, rf.mode
 			    FROM refunds rf
 			   WHERE rf.student_id = '`+studentID.String()+`'::uuid
+			     AND rf.status IN ('approved', 'processed')
 			) x ORDER BY d DESC, kind`,
 			func(rows pgx.Rows) error {
 				var e ledgerEntry

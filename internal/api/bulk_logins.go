@@ -395,7 +395,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 		out.Note += " Every password here is new: the ones handed out before this " +
 			"have stopped working."
 	} else {
-		out.Note += " Anybody who already had a login kept it — their password is " +
+		out.Note += " Anybody who already had a login kept it, their password is " +
 			"not shown and has not been changed."
 	}
 	httpx.JSON(w, http.StatusOK, out)

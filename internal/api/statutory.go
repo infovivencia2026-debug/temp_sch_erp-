@@ -163,7 +163,7 @@ func resolveAcademicYear(r *http.Request, tx pgx.Tx, want string) (uuid.UUID, st
 	}
 	err := tx.QueryRow(r.Context(), sql, args...).Scan(&id, &name, &starts, &ends)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return id, "", starts, ends, errors.New("no academic year exists yet — create one first")
+		return id, "", starts, ends, errors.New("no academic year exists yet, create one first")
 	}
 	return id, name, starts, ends, err
 }
@@ -357,7 +357,7 @@ type locSubmissionRequest struct {
 
 var (
 	errLOCDraftExists = errors.New(
-		"a draft List of Candidates already exists for this board, exam and stage — " +
+		"a draft List of Candidates already exists for this board, exam and stage - " +
 			"finish or cancel that one rather than starting a second, or half the roll gets filed twice")
 	errLOCFrozen = errors.New(
 		"this List of Candidates has been filed. What was sent to the board cannot be " +
@@ -709,11 +709,11 @@ func locProblems(src locSource, rules map[string]*locRule, feePerCandidate int64
 	}
 	if blank(src.FatherName) {
 		out = append(out, locBlocker("father_missing", "father_name",
-			"father's name missing — it is printed on the hall ticket and the certificate"))
+			"father's name missing. It is printed on the hall ticket and the certificate"))
 	}
 	if blank(src.MotherName) {
 		out = append(out, locBlocker("mother_missing", "mother_name",
-			"mother's name missing — it is printed on the hall ticket and the certificate"))
+			"mother's name missing. It is printed on the hall ticket and the certificate"))
 	}
 	if !src.HasPhoto {
 		out = append(out, locBlocker("photo_missing", "photo_file_id",
@@ -1046,7 +1046,7 @@ func (s *Server) fileLOCSubmission(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if count == 0 {
-			return errors.New("no candidates on this list — nothing to file")
+			return errors.New("no candidates on this list, nothing to file")
 		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE loc_submissions
@@ -2033,7 +2033,7 @@ func (s *Server) addSQAAEvidence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Caption == "" {
-		httpx.BadRequest(w, r, "caption is required — an unlabelled document proves nothing")
+		httpx.BadRequest(w, r, "caption is required. An unlabelled document proves nothing")
 		return
 	}
 	var fileArg any
@@ -2441,7 +2441,7 @@ func parseChildInfoCSV(text string) ([]childInfoLine, error) {
 	}
 	if known == 0 {
 		return nil, errors.New(
-			"none of the columns could be recognised — the extract needs at least a " +
+			"none of the columns could be recognised. The extract needs at least a " +
 				"Child Info ID or an admission number, and a student name")
 	}
 
@@ -3086,7 +3086,7 @@ func (s *Server) resolveChildInfoDifference(w http.ResponseWriter, r *http.Reque
 			col, ok := childInfoWritable[*field]
 			if !ok || col == "" {
 				return errors.New(
-					"this field cannot be corrected from here — change it on the student " +
+					"this field cannot be corrected from here. Change it on the student " +
 						"record, where the rest of what depends on it moves with it")
 			}
 			// The column name comes from the allow-list above, never from the
@@ -3808,7 +3808,7 @@ func (s *Server) saveWorkingDayAdjustment(w http.ResponseWriter, r *http.Request
 	req.OnDate = strings.TrimSpace(req.OnDate)
 	if req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"a reason is required — an adjustment nobody can explain is one an inspection will ask about")
+			"a reason is required. An adjustment nobody can explain is one an inspection will ask about")
 		return
 	}
 	if req.OnDate == "" {
@@ -4037,7 +4037,7 @@ func (s *Server) fileWorkingDaysReturn(w http.ResponseWriter, r *http.Request) {
 			if isUniqueViolation(err) {
 				return errors.New(
 					"a return with that title already exists for this year. " +
-						"Give this one its own name — a filed return is never replaced")
+						"Give this one its own name. A filed return is never replaced")
 			}
 			return err
 		}

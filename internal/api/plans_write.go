@@ -49,7 +49,7 @@ type planWriteRequest struct {
 // validate checks the parts a vendor can get wrong, in the words they used.
 func (p *planWriteRequest) validate() error {
 	if strings.TrimSpace(p.Name) == "" {
-		return errors.New("a plan needs a name — it is what a school sees on its invoice")
+		return errors.New("a plan needs a name. It is what a school sees on its invoice")
 	}
 	if p.PricePaise < 0 {
 		return errors.New("a price cannot be negative")
@@ -110,7 +110,7 @@ func (s *Server) createPlan(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errPlanCodeTaken) {
 		httpx.Error(w, r, http.StatusConflict, "code_taken",
-			"a plan with that code already exists. The code is permanent — pick another, or edit the existing plan.")
+			"a plan with that code already exists. The code is permanent. Pick another, or edit the existing plan.")
 		return
 	}
 	if err != nil {
@@ -136,7 +136,7 @@ func (s *Server) updatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Code != "" && strings.ToLower(req.Code) != code {
 		httpx.BadRequest(w, r,
-			"a plan's code cannot be changed — every subscription points at it. Create a new plan and move the schools across.")
+			"a plan's code cannot be changed. Every subscription points at it. Create a new plan and move the schools across.")
 		return
 	}
 	if err := req.validate(); err != nil {

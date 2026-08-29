@@ -799,7 +799,7 @@ func (s *Server) bookOpenDay(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errSlotFull) {
 		httpx.Error(w, r, http.StatusConflict, "slot_full",
-			"that slot is full — offer them another time")
+			"that slot is full. Offer them another time")
 		return
 	}
 	if err != nil {

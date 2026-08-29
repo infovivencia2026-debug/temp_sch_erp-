@@ -827,7 +827,7 @@ func (s *Server) previewPlan(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 				   parents are on file and neither has signed in. */
 				view.Collapsed++
 				row.Outcome = "covered"
-				row.Reason = "shares a message with another guardian of the same child — neither has a portal login, so the send is keyed on the child"
+				row.Reason = "shares a message with another guardian of the same child. Neither has a portal login, so the send is keyed on the child"
 			case strings.TrimSpace(address) == "":
 				view.NoAddress++
 				row.Outcome = "no address"
@@ -1190,7 +1190,7 @@ func (s *Server) saveReminderPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		httpx.BadRequest(w, r, "give the plan a name — it is what appears beside every message it sends")
+		httpx.BadRequest(w, r, "give the plan a name. It is what appears beside every message it sends")
 		return
 	}
 	if !knownChannel(req.Channel) {
@@ -1206,7 +1206,7 @@ func (s *Server) saveReminderPlan(w http.ResponseWriter, r *http.Request) {
 		req.MaxAttempts = 1
 	}
 	if req.MaxAttempts > 12 {
-		httpx.BadRequest(w, r, "twelve chases is the most this will send — beyond that it is not a reminder")
+		httpx.BadRequest(w, r, "twelve chases is the most this will send. Beyond that it is not a reminder")
 		return
 	}
 	if req.RepeatDays < 0 || req.RepeatDays > 365 {
@@ -1217,7 +1217,7 @@ func (s *Server) saveReminderPlan(w http.ResponseWriter, r *http.Request) {
 	// a sentence the person filling in the form can act on.
 	if req.RepeatDays > 0 && req.MaxAttempts < 2 {
 		httpx.BadRequest(w, r,
-			"a repeat with one attempt only ever sends once — either raise the cap or set the repeat to 0")
+			"a repeat with one attempt only ever sends once. Either raise the cap or set the repeat to 0")
 		return
 	}
 	if req.FirstAfter < 0 || req.FirstAfter > 365 {

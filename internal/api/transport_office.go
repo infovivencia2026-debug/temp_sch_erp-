@@ -116,7 +116,7 @@ func (s *Server) saveTransportStaff(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.LicenceNo != "" && req.LicenceExpiry == "" {
 		httpx.BadRequest(w, r,
-			"a licence number needs its expiry date — a licence on file with no expiry is a gap that hides itself")
+			"a licence number needs its expiry date. A licence on file with no expiry is a gap that hides itself")
 		return
 	}
 
@@ -723,7 +723,7 @@ func (s *Server) saveTransportIncident(w http.ResponseWriter, r *http.Request) {
 	// Closing one out.
 	if req.ID != "" {
 		if strings.TrimSpace(req.Resolution) == "" {
-			httpx.BadRequest(w, r, "say how it ended — a breakdown closed with no note cannot be reviewed")
+			httpx.BadRequest(w, r, "say how it ended. A breakdown closed with no note cannot be reviewed")
 			return
 		}
 		incID, err := uuid.Parse(req.ID)

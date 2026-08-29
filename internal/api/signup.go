@@ -173,7 +173,7 @@ func (sp *SignupPages) Start(w http.ResponseWriter, r *http.Request) {
 	case v.Contact == "":
 		v.Error = "Please tell us who will administer the system."
 	case !looksLikeEmail(v.Email):
-		v.Error = "Please give a working email address — the sign-in details go there."
+		v.Error = "Please give a working email address. The sign-in details go there."
 	case v.Username != "" && !validUsername(v.Username):
 		v.Error = "A username may use letters, numbers, dots and underscores, and must be at least four characters."
 	}
@@ -375,7 +375,7 @@ func (sp *SignupPages) Callback(w http.ResponseWriter, r *http.Request) {
 			                         provider, provider_msg_id, sent_at)
 			VALUES ($1,'email','signup_welcome',$2,$3,$4,$5,'sent','simulated',$6,now())`,
 			res.InstitutionID, o.Email, res.UserID,
-			"Your school is ready — "+o.School,
+			"Your school is ready - "+o.School,
 			welcomeBody(o.School, o.Contact, res.SignInAs),
 			paymentRef)
 		return err

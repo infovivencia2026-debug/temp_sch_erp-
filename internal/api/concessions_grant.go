@@ -95,7 +95,7 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 	}
 	if percent != "" && req.AmountPaise != nil {
 		httpx.BadRequest(w, r,
-			"give a percent or an amount, not both — two discounts on one row cannot be applied unambiguously")
+			"give a percent or an amount, not both. Two discounts on one row cannot be applied unambiguously")
 		return
 	}
 	if req.AmountPaise != nil && *req.AmountPaise < 0 {

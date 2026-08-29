@@ -276,7 +276,7 @@ func (s *Server) requireBusTracker(next http.Handler) http.Handler {
 		   paired. */
 		if approved == nil {
 			httpx.Error(w, r, http.StatusForbidden, "awaiting_approval",
-				"this phone is registered but not yet approved — ask the principal "+
+				"this phone is registered but not yet approved, ask the principal "+
 					"to approve it on the transport screen")
 			return
 		}

@@ -214,7 +214,7 @@ func (s *Server) allocateSeats(w http.ResponseWriter, r *http.Request) {
 		}
 		candidates = len(ids)
 		if candidates == 0 {
-			return errors.New("this exam has no candidates — check its classes and papers")
+			return errors.New("this exam has no candidates. Check its classes and papers")
 		}
 		if candidates > capacity {
 			return errNoRoom

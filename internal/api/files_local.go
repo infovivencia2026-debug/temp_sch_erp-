@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Files, on the disk that is actually here.
@@ -90,7 +91,7 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	// refused while it arrives rather than after it has been written to disk.
 	r.Body = http.MaxBytesReader(w, r.Body, maxLocalUploadBytes+(1<<20))
 	if err := r.ParseMultipartForm(8 << 20); err != nil {
-		httpx.BadRequest(w, r, "could not read the upload — is it larger than 64 MB?")
+		httpx.BadRequest(w, r, "could not read the upload. Is it larger than 64 MB?")
 		return
 	}
 	src, header, err := r.FormFile("file")
@@ -109,7 +110,7 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	ext := strings.ToLower(filepath.Ext(original))
 	if blockedUploadExtensions[ext] {
 		httpx.BadRequest(w, r,
-			"files of type "+ext+" cannot be uploaded — they are programs, "+
+			"files of type "+ext+" cannot be uploaded, they are programs, "+
 				"and this is a school's document store")
 		return
 	}
@@ -217,10 +218,55 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 
 	var key, name, contentType string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
-			SELECT object_key, original_name, content_type
-			  FROM files WHERE id = $1 AND deleted_at IS NULL`, fileID).
-			Scan(&key, &name, &contentType)
+		var studentOwner, appOwner, empOwner, hwOwner *uuid.UUID
+		err := tx.QueryRow(r.Context(), `
+			SELECT f.object_key, f.original_name, f.content_type,
+			       (SELECT student_id FROM student_documents WHERE file_id = f.id LIMIT 1),
+			       (SELECT application_id FROM application_documents WHERE file_id = f.id LIMIT 1),
+			       (SELECT employee_id FROM employee_documents WHERE file_id = f.id LIMIT 1),
+			       (SELECT homework_id FROM homework_attachments WHERE file_id = f.id LIMIT 1)
+			  FROM files f WHERE f.id = $1 AND f.deleted_at IS NULL`, fileID).
+			Scan(&key, &name, &contentType, &studentOwner, &appOwner, &empOwner, &hwOwner)
+		if err != nil {
+			return err
+		}
+
+		if studentOwner != nil {
+			res, err := s.resolveScope(r)
+			if err != nil { return err }
+			pred, args := res.StudentPredicate("st", 2)
+			var ok bool
+			if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM students st WHERE st.id = $1 AND `+pred+`)`, append([]any{*studentOwner}, args...)...).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok { return pgx.ErrNoRows }
+		} else if appOwner != nil {
+			if !id.Can(rbac.AdmissionsRead) { return pgx.ErrNoRows }
+		} else if empOwner != nil {
+			if !id.Can(rbac.EmployeesRead) {
+				var isSelf bool
+				if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM employees WHERE id = $1 AND user_id = $2)`, *empOwner, id.UserID).Scan(&isSelf); err != nil {
+					return err
+				}
+				if !isSelf { return pgx.ErrNoRows }
+			}
+		} else if hwOwner != nil {
+			res, err := s.resolveScope(r)
+			if err != nil { return err }
+			pred, args := res.TimetablePredicate("hw.section_id", 2)
+			var ok bool
+			
+			qargs := []any{*hwOwner}
+			if args != nil {
+				qargs = append(qargs, args)
+			}
+			if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM homework hw WHERE hw.id = $1 AND `+pred+`)`, qargs...).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok { return pgx.ErrNoRows }
+		}
+		// A file with no owner keeps today's institution-only behaviour.
+		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.NotFound(w, r)

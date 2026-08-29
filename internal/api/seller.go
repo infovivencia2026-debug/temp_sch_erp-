@@ -257,7 +257,7 @@ func (s *Server) provisionTenant(w http.ResponseWriter, r *http.Request) {
 		"sign_in_as":     out.SignInAs,
 		"password":       out.Password,
 		"note": "Hand these to the school. The password is shown once and is not " +
-			"stored — if it is lost, reset it rather than looking it up. They are " +
+			"stored. If it is lost, reset it rather than looking it up. They are " +
 			"asked to change it on first sign-in.",
 	})
 }

@@ -114,7 +114,7 @@ func (s *Server) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Level <= 0 {
-		httpx.BadRequest(w, r, "level must be a positive number — it orders every class list")
+		httpx.BadRequest(w, r, "level must be a positive number. It orders every class list")
 		return
 	}
 
@@ -694,7 +694,7 @@ func (s *Server) deleteFeeStructure(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"deleted": name,
-		"note":    "Invoices already raised are unaffected — this was the price list, not the bills.",
+		"note":    "Invoices already raised are unaffected. This was the price list, not the bills.",
 	})
 }
 
@@ -1239,7 +1239,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 
 	steps := []setupStep{
 		{"profile", "Confirm the school's details", c.ProfileDone, 0,
-			"Name, board, district and mandal — the header on every document.", true},
+			"Name, board, district and mandal. The header on every document.", true},
 		{"campus", "Add your campus", c.Campuses > 0, c.Campuses,
 			"Address, and the campus every class belongs to.", true},
 		{"academic_year", "Open the academic year", c.Years > 0, c.Years,
@@ -1247,7 +1247,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"classes", "Create classes", c.Classes > 0, c.Classes,
 			"Grade 1 to 10, with a level that orders them.", true},
 		{"sections", "Add sections", c.Sections > 0, c.Sections,
-			"A, B, C — each with a capacity.", true},
+			"A, B, C. Each with a capacity.", true},
 		{"subjects", "Add subjects", c.Subjects > 0, c.Subjects,
 			"Scholastic and co-scholastic.", true},
 		{"class_subjects", "Map subjects to classes", c.ClassSubjects > 0, c.ClassSubjects,
@@ -1255,7 +1255,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"periods", "Define the school day", c.Periods > 0, c.Periods,
 			"Periods and breaks, in order.", false},
 		{"staff", "Add staff", c.Teachers > 0, c.Teachers,
-			"Teachers, the office, accounts and HR — each with the role that "+
+			"Teachers, the office, accounts and HR. Each with the role that "+
 				"matches the job.", true},
 		{"students", "Enrol students", c.Students > 0, c.Students,
 			"Admit individually or import from a spreadsheet.", true},
@@ -1378,7 +1378,7 @@ func (s *Server) deleteGradingScale(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, errScaleInUse):
 		httpx.BadRequest(w, r,
-			"an exam has been graded against this scale — removing it would leave "+
+			"an exam has been graded against this scale. Removing it would leave "+
 				"marked papers whose grades cannot be explained. Edit the bands instead.")
 		return
 	case errors.Is(err, pgx.ErrNoRows):

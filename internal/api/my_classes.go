@@ -341,7 +341,7 @@ func (s *Server) recordDisciplineNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Description) == "" {
-		httpx.BadRequest(w, r, "say what happened — a note with a category and no words is unusable at a parent meeting")
+		httpx.BadRequest(w, r, "say what happened. A note with a category and no words is unusable at a parent meeting")
 		return
 	}
 	student, err := uuid.Parse(req.StudentID)

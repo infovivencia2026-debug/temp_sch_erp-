@@ -55,7 +55,7 @@ type familyLoginResponse struct {
 }
 
 var errNoFamilyContact = errors.New(
-	"this person has no email or phone on their record — add one first, or " +
+	"this person has no email or phone on their record. Add one first, or " +
 		"they will have nothing to sign in with and nowhere to receive a reset")
 
 /*
@@ -99,7 +99,7 @@ func uniqueUsername(ctx context.Context, tx pgx.Tx, inst uuid.UUID, base string)
 			return candidate, nil
 		}
 	}
-	return "", errors.New("could not find a free username — try setting one by hand")
+	return "", errors.New("could not find a free username. Try setting one by hand")
 }
 
 // issueStudentLogin gives one child their own account.
@@ -227,7 +227,7 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if out.Existing && !reset {
-		out.Note = "This child already has a login — the one whoever created it " +
+		out.Note = "This child already has a login. The one whoever created it " +
 			"handed over. The password cannot be read back; if it has been lost, " +
 			"reset it, which replaces the old one."
 		httpx.JSON(w, http.StatusOK, out)
@@ -330,7 +330,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 			id.InstitutionID, username, email, phone, fullName, hash).Scan(&newID); err != nil {
 			if isUniqueViolation(err) {
 				return errors.New(
-					"that email or phone already belongs to another account — " +
+					"that email or phone already belongs to another account - " +
 						"if this parent already has a login for a sibling, use that one")
 			}
 			return err

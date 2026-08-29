@@ -60,7 +60,7 @@ func (s *Server) importStaffLogins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Rows) > 2000 {
-		httpx.BadRequest(w, r, "that is more rows than a school has staff — check the file")
+		httpx.BadRequest(w, r, "that is more rows than a school has staff, check the file")
 		return
 	}
 

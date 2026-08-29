@@ -21,14 +21,10 @@
       {{if .Sent}}
         <p class="fineprint">Sent to {{.Sent}}.</p>
       {{end}}
-      {{if .Link}}
-        <p class="fineprint">
-          This school has no {{if eq .Channel "whatsapp"}}WhatsApp{{else}}email{{end}}
-          provider set up, so nothing was actually delivered. Rather than
-          pretend otherwise, here is the link:
-        </p>
-        <p><a class="cta" href="{{.Link}}">Choose a new password</a></p>
-      {{end}}
+      {{/* SECURITY: reset links are never shown on screen. If the school
+           has no delivery channel, the notice above tells the user to
+           contact the office. The .Link field is no longer populated by
+           the handler; this block is removed as defense-in-depth. */}}
       <p class="fineprint"><a href="/login">Back to sign in</a></p>
     {{else}}
       <form method="post" action="/forgot" autocomplete="on">

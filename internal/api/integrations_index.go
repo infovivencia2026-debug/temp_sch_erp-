@@ -386,7 +386,7 @@ func (s *Server) institutionIntegrations(r *http.Request, inst uuid.UUID) ([]int
 			e.LastError = st.lastError
 			// Named for what it is. integrations.last_ok_at is written by
 			// testMessagingProvider and by nothing else in this codebase.
-			e.LastOKLabel = "last successful Test connection — not a delivery receipt"
+			e.LastOKLabel = "last successful Test connection. Not a delivery receipt"
 
 			failed := counts[ch.key][2]
 			e.FailedRecently = &failed
@@ -670,7 +670,7 @@ func (s *Server) platformIntegrations(r *http.Request) ([]integrationEntry, erro
 
 			e := integrationEntry{
 				Key:   "child_info." + row.ID,
-				Label: "Child Info — " + row.StateCode + " · " + row.Name,
+				Label: "Child Info - " + row.StateCode + " · " + row.Name,
 				Group: "Statutory", Scope: "platform",
 				Provider:   row.Provider,
 				Enabled:    row.IsEnabled,

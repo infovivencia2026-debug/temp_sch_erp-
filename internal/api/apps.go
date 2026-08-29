@@ -97,7 +97,7 @@ var appCatalogue = []appInfo{
 		Needs: []string{
 			"Android 8.0 or newer",
 			"A SIM with data, and location switched on",
-			"Left on charge in the cab — it reports for the whole run",
+			"Left on charge in the cab. It reports for the whole run",
 		},
 		Contract: "docs/BUS_TRACKER_CONTRACT.md",
 	},
@@ -109,7 +109,7 @@ var appCatalogue = []appInfo{
 		Needs: []string{
 			"Android 8.0 or newer",
 			"A SIM with an SMS pack on it",
-			"Left plugged in — it works whenever the school queues a message",
+			"Left plugged in. It works whenever the school queues a message",
 		},
 		Contract: "docs/SMS_GATEWAY_CONTRACT.md",
 	},

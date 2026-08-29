@@ -86,7 +86,7 @@ func adminOpsFail(w http.ResponseWriter, r *http.Request, err error) {
 	case strings.Contains(msg, "evaluation_reviewees_one_per_cycle"):
 		httpx.BadRequest(w, r, "that member of staff is already in this cycle")
 	case strings.Contains(msg, "fee_regulatory_filings_one_live"):
-		httpx.BadRequest(w, r, "a live filing already exists for that year — withdraw it before opening another")
+		httpx.BadRequest(w, r, "a live filing already exists for that year. Withdraw it before opening another")
 	case strings.Contains(msg, "fee_regulatory_filing_lines_one_per_head"):
 		httpx.BadRequest(w, r, "that fee head appears twice for the same class and instalment")
 	case strings.Contains(msg, "fee_regulatory_filings_no_unique"):
@@ -1392,7 +1392,7 @@ func (s *Server) recordGoodsReceipt(w http.ResponseWriter, r *http.Request) {
 			}
 			if alreadyIn+l.Received > ordered {
 				return refusef(
-					"line %d: %d ordered, %d already received — you cannot receive %d more",
+					"line %d: %d ordered, %d already received. You cannot receive %d more",
 					lineNo, ordered, alreadyIn, l.Received)
 			}
 
@@ -1594,7 +1594,7 @@ func (s *Server) recordInvoiceMatch(w http.ResponseWriter, r *http.Request) {
 		}
 		if status == "matched" && invoiced != receivedVal {
 			return refusef(
-				"the bill is %s and the goods received come to %s — accept the variance, with a reason, or block it",
+				"the bill is %s and the goods received come to %s. Accept the variance, with a reason, or block it",
 				formatPaise(invoiced), formatPaise(receivedVal))
 		}
 
@@ -1918,7 +1918,7 @@ func (s *Server) getMDMUtilisation(w http.ResponseWriter, r *http.Request) {
 			sev = "fail"
 		}
 		add("serving_days", sev, "Meals not served on every working day",
-			fmt.Sprintf("%d serving days against %d working days — %d days unexplained. "+
+			fmt.Sprintf("%d serving days against %d working days, %d days unexplained. "+
 				"The return needs a reason for the gap.",
 				servedDays, workingDays, workingDays-servedDays))
 	}
@@ -2200,7 +2200,7 @@ func (s *Server) finaliseMDMReturn(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if cur != "draft" {
-			return refusal("this return is already " + cur + " — reopen it first")
+			return refusal("this return is already " + cur + ", reopen it first")
 		}
 		_, err := tx.Exec(r.Context(), `
 			UPDATE mdm_monthly_returns
@@ -2725,7 +2725,7 @@ func (s *Server) saveEvaluationCycle(w http.ResponseWriter, r *http.Request) {
 		// The database refuses this too. Said here in a sentence, because
 		// "check constraint violated" does not explain why it matters.
 		httpx.BadRequest(w, r,
-			"the anonymity floor cannot be below 2 — with one response, the average names the person who gave it")
+			"the anonymity floor cannot be below 2. With one response, the average names the person who gave it")
 		return
 	}
 	year, yerr := aoOptUUID(req.AcademicYearID)
@@ -2752,7 +2752,7 @@ func (s *Server) saveEvaluationCycle(w http.ResponseWriter, r *http.Request) {
 				// Raising the floor mid-cycle would be fine; lowering it would
 				// retrospectively expose responses given under a promise. The
 				// simple rule is the defensible one.
-				return refusal("this cycle is open — its terms cannot be changed once people have been asked")
+				return refusal("this cycle is open. Its terms cannot be changed once people have been asked")
 			}
 			_, err := tx.Exec(r.Context(), `
 				UPDATE evaluation_cycles
@@ -2835,7 +2835,7 @@ func (s *Server) setEvaluationQuestions(w http.ResponseWriter, r *http.Request) 
 		if status != "draft" {
 			// Changing the questions after answers exist means the stored
 			// answers no longer say what they were given in reply to.
-			return refusal("this cycle has opened — the questions can no longer be changed")
+			return refusal("this cycle has opened. The questions can no longer be changed")
 		}
 		if _, err := tx.Exec(r.Context(),
 			`DELETE FROM evaluation_questions WHERE cycle_id = $1`, cycleID); err != nil {
@@ -3226,7 +3226,7 @@ func (s *Server) getEvaluationResults(w http.ResponseWriter, r *http.Request) {
 		case oversight && (cycleStatus == "closed" || cycleStatus == "released"):
 		case oversight:
 			denied = true
-			deniedWhy = "results are not readable until the cycle is closed — " +
+			deniedWhy = "results are not readable until the cycle is closed - " +
 				"watching an average move as each response arrives identifies the respondent"
 			return nil
 		case isSubject && released:
@@ -3785,7 +3785,7 @@ func (s *Server) saveFeeFiling(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			if status != "draft" {
-				return refusal("this filing has been submitted — what was filed cannot be changed")
+				return refusal("this filing has been submitted. What was filed cannot be changed")
 			}
 			if _, err := tx.Exec(r.Context(), `
 				UPDATE fee_regulatory_filings
@@ -4151,7 +4151,7 @@ func (s *Server) attachFeeFilingDocument(w http.ResponseWriter, r *http.Request)
 	}
 	fileID, ferr := uuid.Parse(strings.TrimSpace(req.FileID))
 	if ferr != nil {
-		httpx.BadRequest(w, r, "file_id must be a uuid — upload the document first")
+		httpx.BadRequest(w, r, "file_id must be a uuid. Upload the document first")
 		return
 	}
 	if strings.TrimSpace(req.DocType) == "" {
@@ -4353,8 +4353,8 @@ func (s *Server) getFilingVariance(w http.ResponseWriter, r *http.Request) {
 		"never_filed":    unfiled,
 		"exposure_paise": totalExposure,
 		"summary":        summary,
-		"basis": "Charged figures are invoice_lines.amount_paise — what students were actually " +
-			"billed — before concessions, because a concession is the school remitting an " +
+		"basis": "Charged figures are invoice_lines.amount_paise. What students were actually " +
+			"billed. Before concessions, because a concession is the school remitting an " +
 			"approved fee and not a lower fee.",
 	})
 }

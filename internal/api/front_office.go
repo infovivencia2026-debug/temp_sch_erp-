@@ -229,7 +229,7 @@ func (s *Server) addToBlocklist(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Reason) == "" {
 		httpx.BadRequest(w, r,
-			"a block needs a name and a reason — a list nobody can defend is worse than none")
+			"a block needs a name and a reason. A list nobody can defend is worse than none")
 		return
 	}
 	var newID string
@@ -331,7 +331,7 @@ func (s *Server) saveAppointment(w http.ResponseWriter, r *http.Request) {
 	if req.ID != "" {
 		if req.Status == "met" && strings.TrimSpace(req.Outcome) == "" {
 			httpx.BadRequest(w, r,
-				"say what was agreed — a meeting recorded with nothing said is a record that somebody clicked a button")
+				"say what was agreed. A meeting recorded with nothing said is a record that somebody clicked a button")
 			return
 		}
 		apptID, err := uuid.Parse(req.ID)
@@ -567,7 +567,7 @@ func (s *Server) saveCourier(w http.ResponseWriter, r *http.Request) {
 	if req.ID != "" {
 		if req.HandOver && strings.TrimSpace(req.ReceivedBy) == "" {
 			httpx.BadRequest(w, r,
-				"say who took it — an envelope signed for by nobody is the one that goes missing")
+				"say who took it. An envelope signed for by nobody is the one that goes missing")
 			return
 		}
 		itemID, err := uuid.Parse(req.ID)

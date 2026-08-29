@@ -1186,7 +1186,7 @@ func (s *Server) recordClaimSanction(w http.ResponseWriter, r *http.Request) {
 			reason := strings.TrimSpace(ln.DisallowedReason)
 			if ln.SanctionedPaise < claimed && reason == "" {
 				return refusal(
-					"the order gave this child less than was claimed — record the " +
+					"the order gave this child less than was claimed, record the " +
 						"reason it names, or there is nothing to appeal with")
 			}
 			if _, err := tx.Exec(r.Context(), `
@@ -2138,7 +2138,7 @@ func (s *Server) importScholarshipDisbursements(w http.ResponseWriter, r *http.R
 
 	if cols == nil {
 		httpx.BadRequest(w, r,
-			"no header row was recognised — the file needs a row naming an amount "+
+			"no header row was recognised. The file needs a row naming an amount "+
 				"column and either an application id or an admission number")
 		return
 	}

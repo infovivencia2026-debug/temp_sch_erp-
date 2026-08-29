@@ -342,7 +342,7 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 		}
 		if !mayWrite {
 			httpx.Forbidden(w, r,
-				"academics.marks.write for this paper — you are neither its subject teacher nor the class teacher of these students")
+				"academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students")
 			return
 		}
 	}
@@ -513,7 +513,7 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 	}
 	if !res.IsClassTeacherOf(sectionID) {
 		httpx.Forbidden(w, r,
-			"academics.reportcards.generate for this section — report cards are built by its class teacher")
+			"academics.reportcards.generate for this section. Report cards are built by its class teacher")
 		return
 	}
 

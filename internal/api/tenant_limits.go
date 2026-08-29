@@ -104,7 +104,7 @@ func (s *Server) setTenantLimits(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, v := range []*int{req.Students, req.Storage} {
 		if v != nil && *v < 0 {
-			httpx.BadRequest(w, r, "a limit cannot be negative — leave it blank for the plan's own")
+			httpx.BadRequest(w, r, "a limit cannot be negative. Leave it blank for the plan's own")
 			return
 		}
 	}

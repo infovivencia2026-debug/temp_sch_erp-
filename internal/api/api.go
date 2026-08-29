@@ -121,6 +121,7 @@ func (s *Server) Routes() http.Handler {
 		s.mountHRGrowth(r)
 		s.mountClassroom(r)
 		s.mountComms(r)
+		s.mountDirectSend(r)
 		s.mountSMSGateway(r)
 		s.mountBusTrackerAdmin(r)
 		/* The office's side of tracking: the live map, the stop-arrival

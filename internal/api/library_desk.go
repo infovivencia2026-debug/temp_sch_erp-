@@ -383,7 +383,7 @@ func (s *Server) saveStockAudit(w http.ResponseWriter, r *http.Request) {
 	if req.Close {
 		if strings.TrimSpace(req.Remarks) == "" {
 			httpx.BadRequest(w, r,
-				"say what the audit found — an audit that ends with missing books and no note is not an audit")
+				"say what the audit found. An audit that ends with missing books and no note is not an audit")
 			return
 		}
 		auditID, err := uuid.Parse(req.ID)

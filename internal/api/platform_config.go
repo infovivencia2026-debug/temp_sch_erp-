@@ -648,10 +648,10 @@ func (s *Server) deleteOwnedRow(w http.ResponseWriter, r *http.Request, table st
 // school is affiliated to. This is which rule set the exam and report-card
 // logic follows, and Telangana's two state boards are separate answers.
 var platBoards = []option{
-	{"bse_ts_ssc", "BSE Telangana — SSC (class X)"},
-	{"tsbie", "TSBIE — Intermediate (classes XI–XII)"},
+	{"bse_ts_ssc", "BSE Telangana, SSC (class X)"},
+	{"tsbie", "TSBIE, Intermediate (classes XI–XII)"},
 	{"cbse", "CBSE"},
-	{"icse", "CISCE — ICSE / ISC"},
+	{"icse", "CISCE, ICSE / ISC"},
 	{"igcse", "Cambridge IGCSE"},
 	{"ib", "International Baccalaureate"},
 	{"other", "Other"},
@@ -3151,7 +3151,7 @@ func (s *Server) openImpersonation(w http.ResponseWriter, r *http.Request) {
 	req.Reason = strings.TrimSpace(req.Reason)
 	if len(req.Reason) < 8 {
 		httpx.BadRequest(w, r,
-			"say why you are entering this school — at least a few words, "+
+			"say why you are entering this school. At least a few words, "+
 				"because the school's administrator reads this")
 		return
 	}

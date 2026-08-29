@@ -986,7 +986,7 @@ type storeVariantRequest struct {
 }
 
 /*
-colVariantLabel is what goes on the receipt: "White shirt — 32 / White".
+colVariantLabel is what goes on the receipt: "White shirt, 32 / White".
 
 	Built in SQL as well as here would be two labels that drift apart, so the
 	SQL returns the parts and this assembles them. An empty label for a book

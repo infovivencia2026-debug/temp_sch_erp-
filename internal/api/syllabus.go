@@ -336,7 +336,7 @@ type planDecisionRequest struct {
 	DeliveredOn string `json:"delivered_on,omitempty"`
 }
 
-var errReturnNeedsRemarks = errors.New("say why it is being returned — a plan sent back without remarks tells the teacher nothing")
+var errReturnNeedsRemarks = errors.New("say why it is being returned. A plan sent back without remarks tells the teacher nothing")
 
 func (s *Server) decideLessonPlan(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

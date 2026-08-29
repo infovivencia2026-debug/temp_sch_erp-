@@ -143,10 +143,10 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 				Kind: "marks", Count: expected - entered,
 				/* Said as the job, not as a result.
 
-				   "Grade 6 English — Formative Assessment 1" reads like a
+				   "Grade 6 English, Formative Assessment 1" reads like a
 				   grade the teacher has been given, in a list headed
 				   Outstanding; it is a register she has not filled in. */
-				Title:  "Enter marks — " + class + " " + subject + ", " + exam,
+				Title:  "Enter marks - " + class + " " + subject + ", " + exam,
 				Detail: itoa(entered) + " of " + itoa(expected) + " marks entered",
 				Due:    dueP, Overdue: late,
 			})
@@ -231,7 +231,7 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 			}
 			items = append(items, workItem{
 				Kind: "leave", Count: 1,
-				Title:  "Leave " + status + " — " + span,
+				Title:  "Leave " + status + " - " + span,
 				Detail: days + " day(s). " + reason,
 				// Only a decision still outstanding is urgent.
 				Overdue: status == "pending",

@@ -81,8 +81,23 @@ export default function TabStrip() {
               setMenu({ path: t.path, title: t.title, x: e.clientX, y: e.clientY })
             }}
             className={cn(
-              `group flex min-w-0 max-w-[220px] items-center gap-1.5 border-b-2 px-3 py-2
-               text-[12.5px] transition-colors`,
+              /* THE STRIP SCROLLS; THE TABS DO NOT SHRINK.
+
+                 The container is `overflow-x-auto`, which says the intent was
+                 for a long row of tabs to scroll. It never did: a flex item
+                 shrinks below its content by default, so with no floor here
+                 the tabs divided the width between them instead — and because
+                 each one truncates, eight open screens gave eight titles cut
+                 to a few characters and a strip that never scrolled at all.
+                 "Fee overview" and "Fee structure" both become "Fee…".
+
+                 `shrink-0` with a floor is what makes the overflow real. 132px
+                 is about eighteen characters at this size, which is enough to
+                 tell two screens apart; past that the title truncates as it
+                 always did, and past the strip's width the row scrolls, which
+                 is what the container was always asking for. */
+              `group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
+               border-b-2 px-3 py-2 text-[12.5px] transition-colors`,
               shown
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:bg-accent',

@@ -183,7 +183,7 @@ func (s *Server) createStaffRemark(w http.ResponseWriter, r *http.Request) {
 			body = body[:237] + "…"
 		}
 		return notify(r, tx, id.InstitutionID, subject, nil, "staff_remark",
-			"A remark about your work", body+" — "+author,
+			"A remark about your work", body+" - "+author,
 			"/faculty/my_profile/remarks_about_me", "staff_remark", &newID)
 	})
 	switch {

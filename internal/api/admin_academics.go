@@ -298,7 +298,7 @@ func (s *Server) saveCalendarEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		httpx.BadRequest(w, r, "give the entry a name — a dated blank tells the next reader nothing")
+		httpx.BadRequest(w, r, "give the entry a name. A dated blank tells the next reader nothing")
 		return
 	}
 	if strings.TrimSpace(req.OnDate) == "" {
@@ -588,7 +588,7 @@ func (s *Server) approveExamMarks(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errNothingToApprove) {
 		httpx.Error(w, r, http.StatusConflict, "marks_incomplete",
-			"every paper here still has marks missing — chase the entry before signing it off")
+			"every paper here still has marks missing. Chase the entry before signing it off")
 		return
 	}
 	if err != nil {
@@ -1809,7 +1809,7 @@ func (s *Server) updateIncident(w http.ResponseWriter, r *http.Request) {
 		}
 		if !recorded {
 			httpx.BadRequest(w, r,
-				"say what was done before closing it — a closed incident with no action recorded answers nothing later")
+				"say what was done before closing it. A closed incident with no action recorded answers nothing later")
 			return
 		}
 	}
@@ -2137,7 +2137,7 @@ func (s *Server) saveCouncilMember(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errCouncilFull) {
 		httpx.Error(w, r, http.StatusConflict, "position_full",
-			"every seat on that post is taken — raise the seat count or end somebody's term first")
+			"every seat on that post is taken. Raise the seat count or end somebody's term first")
 		return
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -2173,7 +2173,7 @@ func (s *Server) saveCouncilDuty(w http.ResponseWriter, r *http.Request) {
 	req.Duty = strings.TrimSpace(req.Duty)
 	if req.Duty == "" {
 		httpx.BadRequest(w, r,
-			"say what the duty was — \"she was head girl\" is worth nothing in a testimonial and \"she ran the assembly rota\" is")
+			"say what the duty was, \"she was head girl\" is worth nothing in a testimonial and \"she ran the assembly rota\" is")
 		return
 	}
 
@@ -2667,7 +2667,7 @@ func duplicateKey(err error) (string, bool) {
 		return "", false
 	}
 	if pge.ConstraintName == "alumni_contributions_receipt" {
-		return "that receipt number is already against another gift — check the counterfoil", true
+		return "that receipt number is already against another gift, check the counterfoil", true
 	}
 	return "that already exists: " + pge.ConstraintName, true
 }

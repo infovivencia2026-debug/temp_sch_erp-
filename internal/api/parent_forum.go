@@ -1206,7 +1206,7 @@ func (s *Server) moderateParentForumThread(w http.ResponseWriter, r *http.Reques
 	}
 	if pfNeedsReason[action] && req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"give a reason — a parent whose post disappears without one concludes the school is hiding something, which is worse than the post was")
+			"give a reason. A parent whose post disappears without one concludes the school is hiding something, which is worse than the post was")
 		return
 	}
 	res, err := s.resolveScope(r)
@@ -1328,7 +1328,7 @@ func (s *Server) moderateParentForumPost(w http.ResponseWriter, r *http.Request)
 	}
 	if pfNeedsReason[action] && req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"give a reason — a takedown a parent cannot be told the reason for is one nobody will defend")
+			"give a reason. A takedown a parent cannot be told the reason for is one nobody will defend")
 		return
 	}
 	res, err := s.resolveScope(r)
@@ -1449,7 +1449,7 @@ func (s *Server) convertParentForumThread(w http.ResponseWriter, r *http.Request
 	req.Note = strings.TrimSpace(req.Note)
 	if req.Note == "" {
 		httpx.BadRequest(w, r,
-			"say why this belongs in the grievance queue — the parent reads this note, and a post that vanishes into a case number with no explanation is a takedown wearing a better word")
+			"say why this belongs in the grievance queue. The parent reads this note, and a post that vanishes into a case number with no explanation is a takedown wearing a better word")
 		return
 	}
 	category := strings.TrimSpace(req.Category)

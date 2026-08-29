@@ -181,7 +181,7 @@ type outpassDecision struct {
 }
 
 var (
-	errRejectNeedsNote = errors.New("say why it is being refused — a rejection with no reason is an argument the warden has to have twice")
+	errRejectNeedsNote = errors.New("say why it is being refused. A rejection with no reason is an argument the warden has to have twice")
 	errNoConsent       = errors.New("the guardian has not consented yet; a warden's permission alone is not enough to let a boarder off campus")
 )
 
@@ -416,7 +416,7 @@ func (s *Server) resolveHostelComplaint(w http.ResponseWriter, r *http.Request) 
 	}
 	if (req.Status == "resolved" || req.Status == "closed") &&
 		strings.TrimSpace(req.Resolution) == "" {
-		httpx.BadRequest(w, r, "say what was done — a complaint closed silently is one raised again next week")
+		httpx.BadRequest(w, r, "say what was done. A complaint closed silently is one raised again next week")
 		return
 	}
 

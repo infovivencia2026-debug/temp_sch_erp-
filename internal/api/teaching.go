@@ -626,7 +626,7 @@ func (s *Server) createTeachingMaterial(w http.ResponseWriter, r *http.Request) 
 	// thirty children when they tap it.
 	if strings.TrimSpace(req.FileID) == "" && strings.TrimSpace(req.ExternalURL) == "" {
 		httpx.BadRequest(w, r,
-			"give either an uploaded file_id or an external_url — file storage is "+
+			"give either an uploaded file_id or an external_url, file storage is "+
 				"unconfigured on this deployment, so a link is the working option")
 		return
 	}
@@ -1512,7 +1512,7 @@ func (s *Server) createBankQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Stem = strings.TrimSpace(req.Stem)
 	if req.Stem == "" {
-		httpx.BadRequest(w, r, "stem is required — a question needs asking")
+		httpx.BadRequest(w, r, "stem is required. A question needs asking")
 		return
 	}
 	if verr := validateBankQuestion(&req, true); verr != nil {
@@ -2186,7 +2186,7 @@ func (s *Server) setOnlineTestQuestions(w http.ResponseWriter, r *http.Request) 
 		return
 	case errors.Is(err, errSubjectiveOnObjectiveTest):
 		httpx.BadRequest(w, r,
-			"only mcq, true_false and fill_blank questions can be auto-graded — "+
+			"only mcq, true_false and fill_blank questions can be auto-graded - "+
 				"a short or long answer cannot go on an objective test")
 		return
 	case err != nil:

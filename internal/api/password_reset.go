@@ -245,9 +245,20 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view := resetView{Notice: sameAnswer, Channel: channel, Sent: sentTo}
+	view := resetView{Channel: channel, Sent: sentTo}
 	if !queued || p.EmailReady == nil || !p.EmailReady(r, owner, channel) {
-		view.Link = link
+		/* SECURITY: never show the link on screen.
+		   The previous behaviour printed a clickable reset URL whenever the
+		   school had no email provider, which let anybody who knew an
+		   identifier reset any account from a shared computer. The link is
+		   still created and stored — it can be consumed if the school
+		   configures delivery later within 15 minutes — but the page no
+		   longer hands it over without verification. */
+		view.Notice = "This school does not have a delivery channel " +
+			"(email or WhatsApp) configured yet. Please ask your school " +
+			"office to reset your password."
+	} else {
+		view.Notice = sameAnswer
 	}
 	p.render(w, r, "forgot.gohtml", http.StatusOK, view)
 }

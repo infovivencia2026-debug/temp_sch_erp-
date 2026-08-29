@@ -1166,7 +1166,7 @@ func (s *Server) issueBook(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, errCopyHeld) {
 		httpx.Error(w, r, http.StatusConflict, "held_for_another",
-			"that copy is behind the counter for a reader who reserved it — issue a different copy")
+			"that copy is behind the counter for a reader who reserved it. Issue a different copy")
 		return
 	}
 	if err != nil {

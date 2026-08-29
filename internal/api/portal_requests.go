@@ -282,7 +282,7 @@ func (s *Server) reportChildAbsence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Reason) == "" {
-		httpx.BadRequest(w, r, "say why — an absence with no reason is still an unexplained absence")
+		httpx.BadRequest(w, r, "say why. An absence with no reason is still an unexplained absence")
 		return
 	}
 
@@ -297,12 +297,12 @@ func (s *Server) reportChildAbsence(w http.ResponseWriter, r *http.Request) {
 	}
 	if on.After(today) {
 		httpx.BadRequest(w, r,
-			"this button is for today — to book a day off ahead, apply for leave")
+			"this button is for today. To book a day off ahead, apply for leave")
 		return
 	}
 	if on.Before(today.AddDate(0, 0, -7)) {
 		httpx.BadRequest(w, r,
-			"that is more than a week ago — the office has to amend the register by hand now")
+			"that is more than a week ago. The office has to amend the register by hand now")
 		return
 	}
 
@@ -472,7 +472,7 @@ func (s *Server) authorisePickup(w http.ResponseWriter, r *http.Request) {
 	// standing arrangement is what the guardian list is for.
 	if on.After(today.AddDate(0, 0, 30)) {
 		httpx.BadRequest(w, r,
-			"a pickup pass is good for a month at most — add them as a guardian instead")
+			"a pickup pass is good for a month at most. Add them as a guardian instead")
 		return
 	}
 
@@ -624,7 +624,7 @@ func (s *Server) releasePickup(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.Error(w, r, http.StatusConflict, "not_live",
-			"that pass is not good today — it has been used, cancelled or is for another date")
+			"that pass is not good today. It has been used, cancelled or is for another date")
 		return
 	}
 	if err != nil {
@@ -1516,7 +1516,7 @@ func (s *Server) raisePortalRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Reason) == "" {
-		httpx.BadRequest(w, r, "say what it is for — the office writes the purpose on it")
+		httpx.BadRequest(w, r, "say what it is for. The office writes the purpose on it")
 		return
 	}
 

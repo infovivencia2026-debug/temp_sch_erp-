@@ -400,7 +400,7 @@ func (s *Server) saveDeclaration(w http.ResponseWriter, r *http.Request) {
 	if req.ID != "" {
 		if req.Status == "rejected" && strings.TrimSpace(req.Remarks) == "" {
 			httpx.BadRequest(w, r,
-				"say why it was rejected — an employee cannot fix a proof nobody explained")
+				"say why it was rejected. An employee cannot fix a proof nobody explained")
 			return
 		}
 		if req.Status == "verified" && req.Verified == nil {

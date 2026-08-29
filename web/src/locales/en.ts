@@ -80,7 +80,7 @@ export const en = {
   'portal.documents.stat_unchecked': 'Still to be checked',
   'portal.documents.card_title': 'Documents',
   'portal.documents.card_description':
-    'Anything missing has to go to the office — the portal does not accept uploads yet.',
+    'Anything missing has to go to the office. The portal does not accept uploads yet.',
   'portal.documents.col_document': 'Document',
   'portal.documents.col_child': 'Child',
   'portal.documents.col_given_on': 'Given on',
@@ -96,7 +96,7 @@ export const en = {
   'portal.reminders.eyebrow': 'Reminders',
   'portal.reminders.title': 'Waiting on you',
   'portal.reminders.description':
-    'Homework not turned in, fees not paid, notices not acknowledged — only the things that still need an action.',
+    'Homework not turned in, fees not paid, notices not acknowledged. Only what still needs an action.',
   'portal.reminders.empty_title': 'Nothing outstanding',
   'portal.reminders.empty_body':
     'Everything the school has asked of you is done. This list stays empty until something needs doing.',
@@ -121,7 +121,7 @@ export const en = {
   'portal.parent_id_card.guardian_of_many': 'Guardian of {count} children',
   'portal.parent_id_card.pass_number': 'Pass number {serial}',
   'portal.parent_id_card.gate_note':
-    'Read out the pass number and the code at the gate. A screenshot will not work for long — the code changes, which is what stops it being passed on.',
+    'Read out the pass number and the code at the gate. A screenshot will not work for long. The code changes, which is what stops it being passed on.',
 
   // --- portal / Forum.tsx -----------------------------------------------
   // The parents' class board. Extracted because this screen is parent-facing
@@ -132,7 +132,7 @@ export const en = {
   'portal.forum.eyebrow': 'Messages',
   'portal.forum.title': 'Class parent forum',
   'portal.forum.description':
-    'For coordinating between the parents of one class — the trip, the concert, who is driving.',
+    'For coordinating between the parents of one class: the trip, the concert, who is driving.',
   'portal.forum.stat_threads': 'Threads',
   'portal.forum.stat_mine': 'Started by you',
   'portal.forum.stat_class': 'Class',
@@ -186,7 +186,7 @@ export const en = {
     'The school moved this into the concerns queue, where it is tracked and answered. You can follow it under Concerns.',
   'portal.forum.taken_down': 'Taken down: {reason}',
   'portal.forum.report_explainer':
-    'Report something a member of staff should read. Reporting does not hide it — a person decides.',
+    'Report something a member of staff should read. Reporting does not hide it; a person decides.',
   'portal.forum.report_label': 'What is wrong with it',
   'portal.forum.report_placeholder': 'What is wrong with it',
   'portal.forum.report_confirm': 'Report',
@@ -318,7 +318,7 @@ export const en = {
      thing that happens when you press it, not the thing two taps later. */
   'portal.receipts.action_download': 'Save as PDF',
   'portal.receipts.download_hint':
-    'Opens your device’s print sheet — choose “Save as PDF” to keep a copy.',
+    'Opens your device’s print sheet. Choose “Save as PDF” to keep a copy.',
   'portal.receipts.detail_received_from': 'Received from',
   'portal.receipts.detail_admission_no': 'Admission number',
   'portal.receipts.detail_class': 'Class',
@@ -392,7 +392,7 @@ export const en = {
     'Your account is not linked to a student yet. Ask the school office to connect it.',
   'portal.results.none_title': 'No results published yet',
   'portal.results.none_body':
-    'Your school has not released any results yet. They appear here as soon as it does — nothing provisional is shown.',
+    'Your school has not released any results yet. They appear here as soon as it does. Nothing provisional is shown.',
   'portal.results.published_title': 'Published results',
   'portal.results.published_description': 'Report cards the school has released for {name}.',
   'portal.results.stat_latest': 'Latest',
@@ -452,7 +452,7 @@ export const en = {
   'portal.alerts.eyebrow': 'Home',
   'portal.alerts.title': 'Alerts',
   'portal.alerts.description':
-    'Circulars, absences, fees and homework — in the order they happened.',
+    'Circulars, absences, fees and homework, in the order they happened.',
   'portal.alerts.action_mark_all_read': 'Mark all read',
   'portal.alerts.stat_unread': 'Unread',
   'portal.alerts.stat_fee_alerts': 'Fee alerts',
@@ -652,7 +652,7 @@ export const en = {
   // translate, and the two are free to diverge.
   'portal.requests.docs_title': 'Documents the school holds',
   'portal.requests.docs_description':
-    '{count} on file, {unchecked} still to be checked. Anything missing has to go to the office — the portal does not accept uploads yet.',
+    '{count} on file, {unchecked} still to be checked. Anything missing has to go to the office. The portal does not accept uploads yet.',
   'portal.requests.docs_description_empty':
     'Nothing on file yet. Documents given to the office appear here.',
   'portal.requests.docs_col_document': 'Document',
@@ -691,7 +691,7 @@ export const en = {
   'portal.leave_requests.withdraw_question': 'The school will no longer see this application.',
   'portal.leave_requests.form_title': 'Ask for time off',
   'portal.leave_requests.form_description':
-    'The class teacher decides. Tell them why — an application with no reason usually comes back.',
+    'The class teacher decides. Tell them why: an application with no reason usually comes back.',
   'portal.leave_requests.field_child': 'Child',
   'portal.leave_requests.choose_child': 'Choose a child',
   'portal.leave_requests.field_first_day': 'First day away',
@@ -699,7 +699,7 @@ export const en = {
   'portal.leave_requests.field_last_day_hint': 'Leave blank for a single day.',
   'portal.leave_requests.field_half_day': 'Half day',
   'portal.leave_requests.half_day_label': 'Only half the day',
-  'portal.leave_requests.half_day_hint': 'A half day is one day — the school counts it as 0.5.',
+  'portal.leave_requests.half_day_hint': 'A half day is one day. The school counts it as 0.5.',
   'portal.leave_requests.field_reason': 'Reason',
   'portal.leave_requests.reason_placeholder': "Sister's wedding in Warangal",
   'portal.leave_requests.sending': 'Sending…',
@@ -804,12 +804,12 @@ export const en = {
   'portal.iep_goals.now': 'Now {value}',
   'portal.iep_goals.target': 'Target {value}',
   'portal.iep_goals.progress_of_the_way': '{percent}% of the way',
-  'portal.iep_goals.lower_is_better': ' — for this goal a lower number is better',
+  'portal.iep_goals.lower_is_better': '. For this goal a lower number is better',
   'portal.iep_goals.recorded_in_words':
-    'Recorded in words rather than numbers — see the notes below.',
+    'Recorded in words rather than numbers. See the notes below.',
   'portal.iep_goals.not_measured': 'Not measured yet.',
   'portal.iep_goals.footnote':
-    'Some goals may be recorded but not shared here — a school may withhold a goal written from a clinical referral. Ask the class teacher if something you expected is missing.',
+    'Some goals may be recorded but not shared here. A school may withhold a goal written from a clinical referral. Ask the class teacher if something you expected is missing.',
 
   // --- portal / EventPasses.tsx -----------------------------------------
   'portal.event_passes.loading': 'Looking up your passes…',
@@ -886,7 +886,7 @@ export const en = {
   'portal.concerns.raise_ok': 'Raised. The office can see it now.',
   'portal.concerns.list_title': 'Your concerns',
   'portal.concerns.list_description':
-    'Only yours — not those raised by anyone else in the parent.',
+    'Only yours. Not those raised by anyone else in the parent.',
   'portal.concerns.empty_title': 'Nothing raised',
   'portal.concerns.empty_body':
     "When you raise something, it stays here with the school's answer.",
@@ -906,7 +906,7 @@ export const en = {
   'portal.teacher_messages.field_teacher': 'Teacher',
   'portal.teacher_messages.teacher_placeholder': 'Choose a teacher',
   'portal.teacher_messages.teacher_placeholder_none': 'No teachers listed yet',
-  'portal.teacher_messages.option_class_teacher': '{name} — class teacher',
+  'portal.teacher_messages.option_class_teacher': '{name}, class teacher',
   'portal.teacher_messages.option_unread': ' · {count} unread',
   // The empty state that asks the same question the picker's placeholder does,
   // kept separate: one is a prompt inside a control, the other a whole screen.
@@ -917,7 +917,7 @@ export const en = {
     "Once the timetable is set for your child's class, their teachers appear here.",
   'portal.teacher_messages.thread_title': 'Conversation',
   'portal.teacher_messages.thread_class_teacher':
-    'Class teacher — the person who knows the whole day.',
+    'Class teacher. The person who knows the whole day.',
   'portal.teacher_messages.thread_teaches': 'Teaches {subject}.',
   'portal.teacher_messages.thread_loading': 'Opening the conversation…',
   'portal.teacher_messages.empty_thread_title': 'Nothing said yet',
@@ -925,7 +925,7 @@ export const en = {
   'portal.teacher_messages.sender_you': 'You',
   'portal.teacher_messages.not_read': ' · not read yet',
   'portal.teacher_messages.draft_placeholder':
-    'Ravi has been finding the algebra homework hard — could we talk about it?',
+    'Ravi has been finding the algebra homework hard. Could we talk about it?',
   'portal.teacher_messages.sending': 'Sending…',
   'portal.teacher_messages.action_send': 'Send',
   'portal.teacher_messages.badge_to': 'to {name}',
@@ -997,7 +997,7 @@ export const en = {
   'bento.my_work.largest_none': 'No marks queue on this list.',
   'bento.my_work.largest_unit': '{count} missing',
   // Says out loud why there is no ranking across the kinds.
-  'bento.my_work.units_note': 'Only marks papers are ranked against each other — marks, lessons and notices are different units.',
+  'bento.my_work.units_note': 'Only marks papers are ranked against each other. Marks, lessons and notices are different units.',
   'bento.my_work.dated_note': '{dated} of {count} outstanding items carry a date.',
   'bento.my_work.cap_note': 'Listed ten at a time ({kinds}), so these are at least the figures shown.',
   // Overdue — the ageing of the queue.
@@ -1120,7 +1120,7 @@ export const en = {
   'bento.principal.bars_label': 'Attendance, last 10 school days',
   'bento.principal.bars_sr':
     'Attendance across the last {count} school days, ranging from {low}% to {high}% present. The most recent day is highlighted.',
-  'bento.principal.bar_title': '{date} — {pct}% present',
+  'bento.principal.bar_title': '{date}, {pct}% present',
   'bento.principal.bars_none': 'No attendance has been marked yet.',
   'bento.principal.unassigned': 'Unassigned subjects',
   'bento.principal.unassigned_note': 'No teacher timetabled',
@@ -1212,7 +1212,7 @@ export const en = {
   'bento.principal.card_range_receipts': "Receipts banked in this period, whatever year's bill they settle",
   'bento.principal.card_money_three_sr': 'Billed this year, collected against it and the balance still due, on one scale',
   'bento.principal.card_owed_by_sr': 'Arrears spread across {count} students, one dot per {unit}',
-  'bento.principal.card_money_pair_sr': 'Receipts in this period and arrears of every year, drawn on one scale — neither is a share of the other',
+  'bento.principal.card_money_pair_sr': 'Receipts in this period and arrears of every year, drawn on one scale. Neither is a share of the other',
   'bento.principal.card_arrears_split_sr': "Billed this year, the total owed, this year's share of it and the debt carried in from earlier years",
   'bento.principal.card_roll': '{sections} sections · {staff} staff',
   'bento.principal.card_roll_wide': '{sections} sections, {per} each · {staff} staff, {load} each',
@@ -1523,7 +1523,7 @@ export const en = {
   'bento.principal.grievances_sub': 'Queue age',
   'bento.principal.grievances_change': 'Of {count} tickets fetched · oldest {oldest} days',
   'bento.principal.grievances_capped':
-    'The queue is cut at {count} tickets — what is drawn is the oldest {count}, not the whole of it',
+    'The queue is cut at {count} tickets. What is drawn is the oldest {count}, not the whole of it',
   'bento.principal.grievances_none': 'Nothing open',
   'bento.principal.grievances_days_sr':
     'How long {count} open tickets have been open, none to {oldest} days',
@@ -1532,7 +1532,7 @@ export const en = {
   'bento.principal.grv_late_sub': 'Past deadline',
   'bento.principal.grv_late_change': 'Of {count} tickets still open',
   'bento.principal.grv_late_capped':
-    'Of {open} open in the oldest {count} fetched — the queue is cut there',
+    'Of {open} open in the oldest {count} fetched. The queue is cut there',
   'bento.principal.grv_late_compare_sr': '{late} tickets past deadline, of {open} open',
   'bento.principal.grv_late_hours_sr':
     'How far past deadline {count} tickets are, none to {worst} hours',
@@ -1692,7 +1692,7 @@ export const en = {
      count drawn from a capped page is not the size of the queue, and a
      dashboard that prints it as though it were is wrong on the one number
      the cell exists to give. */
-  'bento.principal.grv_capped': 'First {count} of the queue — there may be more',
+  'bento.principal.grv_capped': 'First {count} of the queue. There may be more',
   'bento.principal.grv_capped_short': 'First {count} only',
   'bento.principal.my_leave_sr': 'Leave days remaining, of the days entitled',
   'bento.principal.my_leave_type_sr': 'Days of {type} remaining, of the days entitled',
@@ -1887,7 +1887,7 @@ export const en = {
   'bento.finance.ageing': 'Overdue, by age',
   'bento.finance.ageing_sr': 'Overdue money and invoice counts, by how far past the due date each invoice is',
   'bento.finance.ageing_loading': 'Ageing the overdue invoices…',
-  'bento.finance.ageing_failed': 'The overdue invoices did not load, so the ageing is unknown — not zero.',
+  'bento.finance.ageing_failed': 'The overdue invoices did not load, so the ageing is unknown, not zero.',
   'bento.finance.ageing_none': 'Nothing overdue.',
   'bento.finance.ageing_count': 'Across {count} overdue invoices, with their counts at the right.',
   'bento.finance.ageing_capped': 'The server returns the 300 most recent overdue invoices, so these cover {covered} of the {total} overdue.',
@@ -1914,7 +1914,7 @@ export const en = {
   'bento.finance.outstanding': 'Outstanding',
   'bento.finance.overdue_note': '{amount} of it overdue.',
   'bento.finance.overdue_note_loading': '{amount} of it overdue. Ageing the invoices…',
-  'bento.finance.overdue_ageing_failed': '{amount} of it overdue. The invoice list did not load, so the ageing is unknown — not zero.',
+  'bento.finance.overdue_ageing_failed': '{amount} of it overdue. The invoice list did not load, so the ageing is unknown, not zero.',
   'bento.finance.concentration': 'The largest {n} carry {pct}% of the {listed} listed.',
   'bento.finance.ranked_title': 'Largest {n} of {total} listed',
   'bento.finance.ranked_sr': 'The {n} largest overdue invoices, largest first, each with what is still due on it and how far past due it is',
@@ -1945,7 +1945,7 @@ export const en = {
   'bento.finance.no_target_sub': 'No billed total',
   'bento.finance.per_day_short': 'Per day',
   'bento.finance.today_rows_sr':
-    'Collected today, the mean per elapsed day, and the total for {label} — all three in rupees.',
+    'Collected today, the mean per elapsed day, and the total for {label}. All three in rupees.',
   'bento.finance.today_day_none': '{label} does not include today.',
   // The four open-item counts. One dot per item, and the caption says so —
   // there is no population on this response to put any of them over.
@@ -2014,7 +2014,7 @@ export const en = {
     '{name}’s week did not load. Nothing here is a figure you can rely on until it does.',
   'bento.parent_week.no_link': 'No student record is linked to this account yet.',
   'bento.parent_week.switcher_sr': 'Which child this dashboard is about',
-  'bento.parent_week.one_of_many': '{name} · {form} — one of your {count} children',
+  'bento.parent_week.one_of_many': '{name} · {form}. One of your {count} children',
   'bento.parent_week.week_label': 'Attendance this year',
   'bento.parent_week.week_cue': 'The full register',
   'bento.parent_week.week_note': '{name} was present {present} of {total} marked days',
@@ -2332,7 +2332,7 @@ export const en = {
   'bento.principal.card_range_receipts_no_year': 'Receipts this period · no year on any invoice',
   'bento.widgets.add': 'Add:',
   'bento.widgets.add_count': 'Add a card ({count})',
-  'bento.widgets.full': 'The board is full — remove a card to make room.',
+  'bento.widgets.full': 'The board is full. Remove a card to make room.',
   'bento.widgets.reset': 'Reset layout',
   'bento.widgets.remove': 'Remove',
   'bento.widgets.hint': 'Drag to reorder · set width and height on each card',

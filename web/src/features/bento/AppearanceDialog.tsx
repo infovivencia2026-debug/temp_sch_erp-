@@ -392,11 +392,18 @@ export function AppearanceDialog({
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }, [open, initialTab])
 
+  const handleClose = () => {
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {})
+    }
+    onClose()
+  }
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       // The crosshair swallows the first Escape; the dialog takes the second.
-      if (e.key === 'Escape' && !picking) onClose()
+      if (e.key === 'Escape' && !picking) handleClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -414,7 +421,7 @@ export function AppearanceDialog({
         'appearance-overlay fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4 sm:p-6',
         picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
       )}
-      onClick={picking ? undefined : onClose}
+      onClick={picking ? undefined : handleClose}
       role="dialog"
       aria-modal="true"
       aria-label={t('bento.appearance.title')}
@@ -460,7 +467,7 @@ export function AppearanceDialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label={t('bento.launcher.close')}
             className={cn(
               'grid size-8 shrink-0 place-items-center rounded-[8px] transition-colors',
@@ -725,8 +732,10 @@ function DialogActions({ onClose }: { onClose: () => void }) {
        The dialog closes on the way in: going full screen to look at the
        dashboard and finding a settings window over it is not what anybody
        meant by the button. */
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-    else {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {})
+      onClose()
+    } else {
       void document.documentElement.requestFullscreen().catch(() => {})
       onClose()
     }

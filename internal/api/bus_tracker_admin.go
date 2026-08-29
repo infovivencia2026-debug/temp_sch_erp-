@@ -172,7 +172,7 @@ func (s *Server) updateTracker(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
 		httpx.BadRequest(w, r, "give the handset a name somebody will recognise "+
-			"when this bus stops reporting — \"Ravi's phone\", not a blank")
+			"when this bus stops reporting, \"Ravi's phone\", not a blank")
 		return
 	}
 	if req.PingSeconds != nil && (*req.PingSeconds < 5 || *req.PingSeconds > 300) {
@@ -249,7 +249,7 @@ func (s *Server) revokeTracker(w http.ResponseWriter, r *http.Request) {
 	}
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
-		httpx.BadRequest(w, r, "say why this phone is being unpaired — the next "+
+		httpx.BadRequest(w, r, "say why this phone is being unpaired, the next "+
 			"person on this desk has to decide whether to re-pair it")
 		return
 	}
@@ -345,7 +345,7 @@ func validateTrackingPolicy(b trackingPolicyBody) string {
 		{b.SpeedLimitKmph, 10, 120, "speed_limit_kmph",
 			"this is the speed above which you want to be told, not the road's limit"},
 		{b.SpeedingHoldSecs, 5, 300, "speeding_hold_secs",
-			"how long the bus must stay over before it counts — too short and " +
+			"how long the bus must stay over before it counts, too short and " +
 				"every flyover raises an alert nobody reads by the second week"},
 		{b.TripTimeoutMins, 5, 240, "trip_timeout_mins",
 			"how long a run may go unheard before the server closes it; too long " +
@@ -359,7 +359,7 @@ func validateTrackingPolicy(b trackingPolicyBody) string {
 			"how long the breadcrumb trail is kept; an incident enquiry needs weeks"},
 	} {
 		if l.value < l.lo || l.value > l.hi {
-			return fmt.Sprintf("%s must be between %d and %d — %s",
+			return fmt.Sprintf("%s must be between %d and %d, %s",
 				l.field, l.lo, l.hi, l.guidance)
 		}
 	}

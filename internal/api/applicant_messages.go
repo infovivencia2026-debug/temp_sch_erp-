@@ -108,7 +108,7 @@ func (s *Server) sendApplicantMessages(w http.ResponseWriter, r *http.Request) {
 	   what is missing, which is the errand it was supposed to save. */
 	if (req.Kind == "documents" || req.Kind == "test") && strings.TrimSpace(req.Detail) == "" {
 		httpx.BadRequest(w, r,
-			"say which documents, or when the test is — without it the message "+
+			"say which documents, or when the test is. Without it the message "+
 				"only tells the family to come and ask")
 		return
 	}
@@ -161,7 +161,7 @@ func (s *Server) sendApplicantMessages(w http.ResponseWriter, r *http.Request) {
 				   what they need is which three, because each one is a family
 				   who will not hear and has to be rung instead. */
 				out.Skipped = append(out.Skipped,
-					t.no+" "+t.child+" — no "+channelNoun(channel)+" on the application")
+					t.no+" "+t.child+", no "+channelNoun(channel)+" on the application")
 				continue
 			}
 			appID, err := uuid.Parse(t.id)
@@ -189,12 +189,12 @@ func (s *Server) sendApplicantMessages(w http.ResponseWriter, r *http.Request) {
 				OccurrenceKey: strings.TrimSpace(req.Detail),
 			})
 			if err != nil {
-				out.Skipped = append(out.Skipped, t.no+" "+t.child+" — "+err.Error())
+				out.Skipped = append(out.Skipped, t.no+" "+t.child+" - "+err.Error())
 				continue
 			}
 			if res.Duplicate {
 				out.Skipped = append(out.Skipped,
-					t.no+" "+t.child+" — already told this")
+					t.no+" "+t.child+", already told this")
 				continue
 			}
 			out.Sent++

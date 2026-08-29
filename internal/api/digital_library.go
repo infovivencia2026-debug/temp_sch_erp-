@@ -431,7 +431,7 @@ func (s *Server) openDigitalHolding(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, errProviderUnavailable):
 		httpx.Error(w, r, http.StatusServiceUnavailable, "provider_unavailable",
-			"this title sits behind a subscription that is not connected on this deployment — "+
+			"this title sits behind a subscription that is not connected on this deployment - "+
 				"ask the librarian for the institutional login")
 		return
 	}
@@ -462,7 +462,7 @@ func (s *Server) openDigitalHolding(w http.ResponseWriter, r *http.Request) {
 		// The file was deleted out from under the catalogue entry. Better to
 		// say so than to hand back a response with nothing in it.
 		httpx.Error(w, r, http.StatusConflict, "no_copy",
-			"the uploaded copy of this title is no longer on file — tell the librarian")
+			"the uploaded copy of this title is no longer on file, tell the librarian")
 		return
 	}
 	if h.AccessModel == "single_copy_loan" {
@@ -499,7 +499,7 @@ func resolveDigitalProvider(h digitalHoldingRow) error {
 
 func strDeref(p *string) string {
 	if p == nil {
-		return "—"
+		return "-"
 	}
 	return *p
 }
@@ -549,7 +549,7 @@ func (s *Server) borrowDigitalHolding(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.AccessModel != "single_copy_loan" || h.LibraryTitleID == nil {
 		httpx.BadRequest(w, r,
-			"this title is not lent one reader at a time — open it directly")
+			"this title is not lent one reader at a time, open it directly")
 		return
 	}
 	titleID, err := uuid.Parse(*h.LibraryTitleID)
@@ -596,7 +596,7 @@ func (s *Server) borrowDigitalHolding(w http.ResponseWriter, r *http.Request) {
 				employee = emp
 			default:
 				return errors.New(
-					"your account is not a reader on the library's register — ask the librarian to borrow this for you")
+					"your account is not a reader on the library's register. Ask the librarian to borrow this for you")
 			}
 		}
 
@@ -889,7 +889,7 @@ func (s *Server) deleteDigitalHolding(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if lent {
-			return errors.New("that e-book is on loan — take it back first, or withdraw it instead")
+			return errors.New("that e-book is on loan. Take it back first, or withdraw it instead")
 		}
 		tag, err := tx.Exec(r.Context(), `DELETE FROM digital_holdings WHERE id = $1`, holdingID)
 		n = tag.RowsAffected()

@@ -698,7 +698,12 @@ export function Table({
         <p className="text-[13px] tabular-nums text-muted-foreground">
           {rows.length} {rows.length === 1 ? 'row' : 'rows'}
         </p>
-        <Button size="sm" variant="secondary" onClick={() => setFull(false)}>
+        <Button size="sm" variant="secondary" onClick={() => {
+          setFull(false)
+          if (typeof document !== 'undefined' && document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => {})
+          }
+        }}>
           <X className="h-3.5 w-3.5" />
           Close
         </Button>

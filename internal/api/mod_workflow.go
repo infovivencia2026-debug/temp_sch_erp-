@@ -80,7 +80,7 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 		/* Leave has to be leave of some kind.
 
 		   leave_type_id was optional, so most applications carried none and
-		   the Type column read "—" down the whole list. That is not cosmetic:
+		   the Type column read "-" down the whole list. That is not cosmetic:
 		   casual, sick and loss-of-pay are counted differently and deducted
 		   differently, and a leave with no kind cannot be counted against a
 		   balance at all — which is what the balance tiles beside it claim to
@@ -201,7 +201,7 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 			for _, to := range approvers {
 				if err := notify(r, tx, id.InstitutionID, to.id, nil, "leave_request",
 					who+" has applied for leave",
-					span+" — "+req.Reason+". Approve or reject it from Approvals.",
+					span+" - "+req.Reason+". Approve or reject it from Approvals.",
 					"/go/approvals/approvals",
 					"leave_request", &leaveID); err != nil {
 					return err
@@ -212,7 +212,7 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errLeaveKindMissing) {
 		httpx.BadRequest(w, r,
-			"choose the kind of leave — casual, sick, or whichever it is. It decides what the days are counted against.")
+			"choose the kind of leave. Casual, sick, or whichever it is. It decides what the days are counted against.")
 		return
 	}
 	if errors.Is(err, errNotYourChild) {
@@ -398,7 +398,7 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 			// Still pending, so the guard is what refused: it is somebody
 			// else's to answer.
 			httpx.Error(w, r, http.StatusForbidden, "not_your_request",
-				"this request is not yours to answer — it belongs to that student's class teacher.")
+				"this request is not yours to answer. It belongs to that student's class teacher.")
 		}
 		return
 	}
@@ -609,7 +609,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					}
 					out = append(out, approvalItem{
 						ID: lid, Kind: "leave",
-						Title:     who + " — " + kind,
+						Title:     who + " - " + kind,
 						Detail:    span + ". " + reason,
 						Requester: by, RaisedAt: raised,
 						DecideURL: "/api/v1/workflow/leave/" + lid + "/decide",
@@ -661,7 +661,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					}
 					out = append(out, approvalItem{
 						ID: lid, Kind: "leave",
-						Title:     who + " — " + kind,
+						Title:     who + " - " + kind,
 						Detail:    span + ". " + reason,
 						Requester: by, RaisedAt: raised,
 						DecideURL: "/api/v1/workflow/leave/" + lid + "/decide",
@@ -693,7 +693,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					}
 					out = append(out, approvalItem{
 						ID: cid, Kind: "attendance_correction",
-						Title:     who + " — attendance on " + on,
+						Title:     who + ", attendance on " + on,
 						Detail:    from + " to " + to + ". " + reason,
 						Requester: by, RaisedAt: raised,
 						DecideURL: "/api/v1/attendance-workflow/corrections/" + cid + "/decide",
@@ -724,7 +724,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 					}
 					out = append(out, approvalItem{
 						ID: cid, Kind: "fee_concession",
-						Title:    who + " — " + kind + " concession",
+						Title:    who + " - " + kind + " concession",
 						Detail:   reason,
 						RaisedAt: raised, Amount: amount,
 						DecideURL: "/api/v1/workflow/concessions/" + cid + "/decide",
@@ -993,7 +993,7 @@ func (s *Server) publishHomework(w http.ResponseWriter, r *http.Request) {
 			student := t.student
 			if err := notify(r, tx, id.InstitutionID, t.user, &student, "homework",
 				label+" set for "+t.name,
-				req.Title+" — due "+due, "/go/homework", "homework", &hwID); err != nil {
+				req.Title+", due "+due, "/go/homework", "homework", &hwID); err != nil {
 				return err
 			}
 			// Email, not SMS: a school that texts every family every evening

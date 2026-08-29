@@ -215,14 +215,14 @@ func (s *Server) getMyPay(w http.ResponseWriter, r *http.Request) {
 					word = "day"
 				}
 				out.Reasons = append(out.Reasons, payReason{
-					Text: fmt.Sprintf("%g unpaid %s in %s — leave taken beyond what you had left, or days not covered by an approved leave.",
+					Text: fmt.Sprintf("%g unpaid %s in %s. Leave taken beyond what you had left, or days not covered by an approved leave.",
 						lop, word, time.Month(p.Month).String()),
 				})
 			}
 		}
 		if out.LateThisMonth > 0 {
 			out.Reasons = append(out.Reasons, payReason{
-				Text: fmt.Sprintf("%d late arrivals recorded this month. Your school's policy sets how many make one unpaid day — it is on the leave and attendance policy.",
+				Text: fmt.Sprintf("%d late arrivals recorded this month. Your school's policy sets how many make one unpaid day. It is on the leave and attendance policy.",
 					out.LateThisMonth),
 			})
 		}

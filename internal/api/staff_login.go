@@ -44,7 +44,7 @@ type staffLoginResponse struct {
 }
 
 var errNoContact = errors.New(
-	"this person has no email, phone or username on their record — add one first, " +
+	"this person has no email, phone or username on their record, add one first, " +
 		"or they will have nothing to sign in with")
 
 // issueStaffLogin gives one member of staff a password they can sign in with.
@@ -166,7 +166,7 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if out.Existing {
-		out.Note = "This person already has a working login — the one whoever " +
+		out.Note = "This person already has a working login, the one whoever " +
 			"created it handed over. The password cannot be read back; reset it only " +
 			"if it has been lost, because that stops the one they are using."
 		httpx.JSON(w, http.StatusOK, out)

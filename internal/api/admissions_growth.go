@@ -357,7 +357,7 @@ func (s *Server) updateAdmissionForm(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, errFormNotPublished):
 		httpx.Error(w, r, http.StatusConflict, "not_published",
-			"publish a version before opening the form — an open form with no definition is a broken link on a poster")
+			"publish a version before opening the form. An open form with no definition is a broken link on a poster")
 	case errors.Is(err, pgx.ErrNoRows):
 		httpx.NotFound(w, r)
 	case isUniqueViolation(err):
@@ -727,7 +727,7 @@ func respondVersionEdit(w http.ResponseWriter, r *http.Request, err error, body 
 	switch {
 	case errors.Is(err, errVersionFrozen):
 		httpx.Error(w, r, http.StatusConflict, "version_published",
-			"this version is live and cannot be edited. Take a draft from it — applications already submitted must keep rendering as they were answered.")
+			"this version is live and cannot be edited. Take a draft from it. Applications already submitted must keep rendering as they were answered.")
 	case errors.Is(err, pgx.ErrNoRows):
 		httpx.NotFound(w, r)
 	case isUniqueViolation(err):
@@ -1036,7 +1036,7 @@ func (s *Server) publishAdmissionFormVersion(w http.ResponseWriter, r *http.Requ
 			}
 		}
 		if total == 0 {
-			return errors.New("this version has no fields — publishing it would put an empty form on a poster")
+			return errors.New("this version has no fields. Publishing it would put an empty form on a poster")
 		}
 		var missing []string
 		for _, code := range requiredReserved {
@@ -1046,7 +1046,7 @@ func (s *Server) publishAdmissionFormVersion(w http.ResponseWriter, r *http.Requ
 		}
 		if len(missing) > 0 {
 			return fmt.Errorf(
-				"an application cannot be created without %s — add %s as field codes before publishing",
+				"an application cannot be created without %s. Add %s as field codes before publishing",
 				strings.Join(missing, ", "), strings.Join(missing, " and "))
 		}
 		// Retire first: the one-live partial unique index would otherwise
@@ -1468,7 +1468,7 @@ func validateSubmission(def formDefinition, req publicSubmission) ([]checkedAnsw
 				urlRaw := strings.TrimSpace(req.URLs[f.Code])
 				if fileRaw == "" && urlRaw == "" {
 					if f.IsRequired {
-						errs = append(errs, f.Label+" is required — attach a file or give a link to it")
+						errs = append(errs, f.Label+" is required. Attach a file or give a link to it")
 					}
 					continue
 				}
@@ -1894,7 +1894,7 @@ func (s *Server) saveCampaignStep(w http.ResponseWriter, r *http.Request) {
 	}
 	if (req.QuietFrom == "") != (req.QuietTo == "") {
 		httpx.BadRequest(w, r,
-			"set both ends of the quiet window or neither — a half-set window is one the author thinks they set")
+			"set both ends of the quiet window or neither. A half-set window is one the author thinks they set")
 		return
 	}
 	stepID, err := optionalUUID(req.ID)
@@ -2075,14 +2075,14 @@ func (s *Server) enrolLeadsOnCampaign(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if !active {
-			return errors.New("this sequence is paused — activate it before enrolling anyone")
+			return errors.New("this sequence is paused. Activate it before enrolling anyone")
 		}
 		steps, err := loadCampaignSteps(r.Context(), tx, cid)
 		if err != nil {
 			return err
 		}
 		if len(steps) == 0 {
-			return errors.New("this sequence has no touches yet — add at least one before enrolling anyone")
+			return errors.New("this sequence has no touches yet. Add at least one before enrolling anyone")
 		}
 
 		// Only leads still in play, and only leads who have not asked to be
@@ -2509,7 +2509,7 @@ func stopReasonFor(leadStatus string, optOut, converted bool) string {
 	case converted:
 		return "the parent has been offered a seat or accepted one"
 	case leadStatus == "applied":
-		return "the lead converted — an application was made"
+		return "the lead converted. An application was made"
 	case leadStatus == "lost":
 		return "the lead was closed as lost"
 	}
@@ -2588,7 +2588,7 @@ func (s *Server) markLeadLost(w http.ResponseWriter, r *http.Request) {
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Reason == "" {
 		httpx.BadRequest(w, r,
-			"say why this lead was lost — the reason is the whole point of closing it here rather than deleting it")
+			"say why this lead was lost. The reason is the whole point of closing it here rather than deleting it")
 		return
 	}
 	// "Other" without a note is a row that tells the school nothing next
@@ -2789,7 +2789,7 @@ type lostAnalysisRow struct {
 	Total int      `json:"total"`
 	Share *float64 `json:"share_percent,omitempty"`
 	// The largest single reason in this bucket, which is the sentence a
-	// principal actually wants: "Class 1 — 38% lost, mostly on fees".
+	// principal actually wants: "Class 1, 38% lost, mostly on fees".
 	TopReason *string `json:"top_reason,omitempty"`
 	TopCount  int     `json:"top_reason_count,omitempty"`
 }

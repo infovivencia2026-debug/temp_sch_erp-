@@ -164,7 +164,7 @@ func resolveRange(r *http.Request) dateRange {
 		return mk(today.AddDate(0, 0, -off), today, "This week", period)
 	case "last_month":
 		first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc).AddDate(0, -1, 0)
-		return mk(first, first.AddDate(0, 1, -1), "Last month — "+first.Format("January 2006"), period)
+		return mk(first, first.AddDate(0, 1, -1), "Last month - "+first.Format("January 2006"), period)
 	case "this_quarter":
 		q := (int(now.Month()) - 1) / 3
 		first := time.Date(now.Year(), time.Month(q*3+1), 1, 0, 0, 0, 0, loc)
@@ -175,11 +175,11 @@ func resolveRange(r *http.Request) dateRange {
 		return mk(academicYearStart(now), today, "This term", period)
 	case "this_year":
 		s := academicYearStart(now)
-		return mk(s, today, "This academic year — "+s.Format("2006")+"-"+
+		return mk(s, today, "This academic year - "+s.Format("2006")+"-"+
 			s.AddDate(1, 0, 0).Format("06"), period)
 	case "last_year":
 		s := academicYearStart(now).AddDate(-1, 0, 0)
-		return mk(s, s.AddDate(1, 0, -1), "Last academic year — "+s.Format("2006")+"-"+
+		return mk(s, s.AddDate(1, 0, -1), "Last academic year - "+s.Format("2006")+"-"+
 			s.AddDate(1, 0, 0).Format("06"), period)
 	case "fin_year":
 		s := financialYearStart(now)
@@ -188,5 +188,5 @@ func resolveRange(r *http.Request) dateRange {
 	}
 
 	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
-	return mk(first, today, "This month — "+first.Format("January 2006"), "this_month")
+	return mk(first, today, "This month - "+first.Format("January 2006"), "this_month")
 }

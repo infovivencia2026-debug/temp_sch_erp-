@@ -661,7 +661,7 @@ export default function BentoMyWork() {
       {/* Four columns, 20px gaps, one 2x2 anchor. The ids, sizes and indexes
           are the board's tiling and are not touched. */}
       <WidgetLayer dashboard="mywork">
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
         <Widget id="outstanding" label={t('bento.my_work.outstanding')} size="large" index={0}>
           {(span) => <OutstandingCell span={span} data={d} />}
         </Widget>

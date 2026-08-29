@@ -83,7 +83,7 @@ func (s *Server) getPlatformUsage(w http.ResponseWriter, r *http.Request) {
 	out.NotMeasured = "CPU, memory and bandwidth are not attributed per school: " +
 		"one process serves every tenant and nothing tags a request with the school " +
 		"it was for. The fixed monthly bill below is therefore apportioned by roll, " +
-		"not measured — it is an allocation, and a school doing nothing this month " +
+		"not measured. It is an allocation, and a school doing nothing this month " +
 		"still carries its share."
 
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {

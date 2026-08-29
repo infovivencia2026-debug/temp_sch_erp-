@@ -569,7 +569,7 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 	// input into a credential.
 	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
 		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many attempts from this network — wait a few minutes and try again")
+			"too many attempts from this network. Wait a few minutes and try again")
 		return
 	}
 
@@ -781,7 +781,7 @@ func (s *Server) issueStaffPIN(w http.ResponseWriter, r *http.Request) {
 			// an account: issuing a login is a decision with its own audit
 			// trail and its own permission check, and it should stay one act.
 			return errors.New(
-				"this person has no account yet — issue their login first, then a PIN")
+				"this person has no account yet. Issue their login first, then a PIN")
 		}
 		if phone == nil || normalisePhone(*phone) == "" {
 			return errNoPhoneForPIN
@@ -811,7 +811,7 @@ func (s *Server) issueStaffPIN(w http.ResponseWriter, r *http.Request) {
 			// the second is being given a PIN, which would make a sign-in
 			// ambiguous about which of them is driving.
 			return errors.New(
-				"another member of staff already has a PIN on this phone number — " +
+				"another member of staff already has a PIN on this phone number - " +
 					"give this person their own number first")
 		}
 		return err
@@ -842,7 +842,7 @@ func (s *Server) issueStaffPIN(w http.ResponseWriter, r *http.Request) {
 }
 
 var errNoPhoneForPIN = errors.New(
-	"this person has no ten-digit mobile number on their record — add one first, " +
+	"this person has no ten-digit mobile number on their record, add one first, " +
 		"because the number is what they sign in with")
 
 // temporaryPIN is four digits from crypto/rand, uniformly.
@@ -923,7 +923,7 @@ enrolBusTracker attaches a driver's own phone to the bus they are standing next 
 func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
 		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many attempts from this network — wait a few minutes and try again")
+			"too many attempts from this network. Wait a few minutes and try again")
 		return
 	}
 
@@ -993,7 +993,7 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 			    device_model, android_version, app_version, token_sealed,
 			    enrolled_by, ping_seconds)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-			device, who.Institution, vehicle, truncate(who.Name+" — "+plate, 80),
+			device, who.Institution, vehicle, truncate(who.Name+" - "+plate, 80),
 			nullIfBlank(req.DeviceModel), nullIfBlank(req.AndroidVersion),
 			nullIfBlank(req.AppVersion), sealed, who.UserID,
 			policy.PingSeconds); err != nil {
@@ -1029,7 +1029,7 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 		// secret and getting it wrong is the likeliest thing a tired driver
 		// does; "no such bus" is what lets them look again at the plate.
 		httpx.Error(w, r, http.StatusNotFound, "no_such_vehicle",
-			"no bus with that number at your school — check the plate and type it again")
+			"no bus with that number at your school. Check the plate and type it again")
 		return
 	}
 	if err != nil {

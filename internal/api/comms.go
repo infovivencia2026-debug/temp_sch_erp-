@@ -433,7 +433,7 @@ type feedbackTriageRequest struct {
 }
 
 var errFeedbackSelfRoute = errors.New(
-	"this grievance is about that member of staff — it cannot be assigned to them")
+	"this grievance is about that member of staff. It cannot be assigned to them")
 
 /*
 triageParentFeedback categorises a case and gives it an owner and a deadline.
@@ -651,7 +651,7 @@ func (s *Server) addFeedbackUpdate(w http.ResponseWriter, r *http.Request) {
 	req.NewStatus = strings.TrimSpace(req.NewStatus)
 	if req.NewStatus != "" && !feedbackOpenStatuses[req.NewStatus] {
 		httpx.BadRequest(w, r,
-			"status must be open, in_progress or waiting — use resolve to close a case")
+			"status must be open, in_progress or waiting. Use resolve to close a case")
 		return
 	}
 
@@ -761,7 +761,7 @@ func (s *Server) escalateParentFeedback(w http.ResponseWriter, r *http.Request) 
 	}
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Reason == "" {
-		httpx.BadRequest(w, r, "say why this is being escalated — it is the record of the decision")
+		httpx.BadRequest(w, r, "say why this is being escalated. It is the record of the decision")
 		return
 	}
 
@@ -2223,7 +2223,7 @@ func (s *Server) openCounselorThread(w http.ResponseWriter, r *http.Request) {
 		guardian, err := uuid.Parse(strings.TrimSpace(req.GuardianUserID))
 		if err != nil {
 			httpx.BadRequest(w, r,
-				"guardian_user_id must be a uuid — a counselling thread has a parent in it")
+				"guardian_user_id must be a uuid. A counselling thread has a parent in it")
 			return
 		}
 		studentID, parentUser = sid, guardian

@@ -570,7 +570,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	if req.ConcessionPaise != 0 && !httpx.IdentityFrom(r.Context()).Can(rbac.FeesWrite) {
 		httpx.Error(w, r, http.StatusForbidden, "not_your_price",
 			"you can enrol this child, but not decide what they pay. Ask accounts "+
-				"to record the concession — the admission does not have to wait for it.")
+				"to record the concession. The admission does not have to wait for it.")
 		return
 	}
 	sectionID, err := uuid.Parse(req.SectionID)

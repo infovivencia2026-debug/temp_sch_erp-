@@ -227,7 +227,7 @@ func (s *Server) recordInfirmaryVisit(w http.ResponseWriter, r *http.Request) {
 	}
 	if (req.Outcome == "referred" || req.Outcome == "hospitalised") &&
 		strings.TrimSpace(req.ReferredTo) == "" {
-		httpx.BadRequest(w, r, "name where the child was sent — a referral to nobody is not a referral")
+		httpx.BadRequest(w, r, "name where the child was sent. A referral to nobody is not a referral")
 		return
 	}
 
@@ -350,7 +350,7 @@ type medicationRequest struct {
 var (
 	medicationRoutes     = []string{"oral", "topical", "inhaled", "drops", "injection", "other"}
 	medicationAuthority  = []string{"doctor_prescription", "parent_consent", "standing_order", "emergency"}
-	errNoAuthority       = errors.New("say who authorised this dose — a parent by name or the prescribing doctor")
+	errNoAuthority       = errors.New("say who authorised this dose. A parent by name or the prescribing doctor")
 	errNoPrescriptProof  = errors.New("a prescription needs its number or a scan attached; 'the doctor said so' is not a record")
 	errEmergencyNoReason = errors.New("an emergency dose given without anyone's permission must say in the notes why it could not wait")
 	errNotToldOfIncident = errors.New("a refusal or a reaction has to be told to the parent before it is filed")
@@ -828,7 +828,7 @@ func (s *Server) recordCampAttendance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Referred && strings.TrimSpace(req.ReferredTo) == "" {
-		httpx.BadRequest(w, r, "name where the child was referred — a referral to nobody is not a referral")
+		httpx.BadRequest(w, r, "name where the child was referred. A referral to nobody is not a referral")
 		return
 	}
 
@@ -1305,7 +1305,7 @@ var (
 	errHostelVisitorBlocked = errors.New(
 		"this visitor is on the school's block list and must not be admitted or given a boarder")
 	errReleaseNeedsTime = errors.New(
-		"say when the boarder is due back — a child let off the premises with no hour named is discovered missing at lights-out")
+		"say when the boarder is due back. A child let off the premises with no hour named is discovered missing at lights-out")
 )
 
 /*
@@ -1537,7 +1537,7 @@ func (s *Server) sendLaundry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Items <= 0 {
-		httpx.BadRequest(w, r, "count the items going out — a bundle with no count settles no argument")
+		httpx.BadRequest(w, r, "count the items going out. A bundle with no count settles no argument")
 		return
 	}
 	if req.SentOn == "" {
@@ -1572,7 +1572,7 @@ func (s *Server) sendLaundry(w http.ResponseWriter, r *http.Request) {
 
 var (
 	errShortNeedsNote = errors.New(
-		"say what is missing — a bundle counted back short with no note is an argument the warden loses next week")
+		"say what is missing. A bundle counted back short with no note is an argument the warden loses next week")
 	errMoreBackThanSent = errors.New("more came back than was ever sent out")
 )
 
