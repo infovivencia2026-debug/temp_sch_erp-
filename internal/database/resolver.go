@@ -125,9 +125,27 @@ func (s *Shard) inTenant(ctx context.Context, sc Scope, fn func(pgx.Tx) error) e
 	if sc.InstitutionID != uuid.Nil {
 		inst = sc.InstitutionID.String()
 	}
+	/* The clock, as well as the tenant.
+
+	   Every to_char over a timestamptz renders in the SESSION timezone, and the
+	   server's is UTC. So a notification written at 16:22 IST was sent to the
+	   browser as the string "10:52" with no zone on it, the browser read that
+	   as local time, and a parent saw a message arrive five and a half hours
+	   before it was written. Same for every date this product formats in SQL —
+	   which, near midnight, moves things onto the wrong day entirely.
+
+	   Set here rather than fixed at each query because there are hundreds of
+	   them and the next one written would have the same hole. LOCAL, so it
+	   lasts the transaction: a pooled connection handed on afterwards is
+	   unchanged.
+
+	   Asia/Kolkata rather than a per-school setting: this product is sold into
+	   Indian schools, every date it prints is an Indian date, and a timezone
+	   column nobody sets would just be UTC wearing a different name. */
 	if _, err := tx.Exec(ctx,
 		`SELECT set_config('app.institution_id', $1, true),
-		        set_config('app.is_platform_admin', $2, true)`,
+		        set_config('app.is_platform_admin', $2, true),
+		        set_config('timezone', 'Asia/Kolkata', true)`,
 		inst, admin); err != nil {
 		return fmt.Errorf("set tenant scope: %w", err)
 	}

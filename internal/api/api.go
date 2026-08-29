@@ -381,6 +381,9 @@ func (s *Server) Routes() http.Handler {
 			// would be a promise the product never keeps.
 			r.Get("/notes", s.listDisciplineNotes)
 			r.Get("/results", s.getFamilyResults)
+			// The card itself, on the school's own design. Published cards
+			// only, and only for a child this caller is attached to.
+			r.Get("/results/card", s.renderFamilyReportCard)
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
 			s.mountParentForum(r)

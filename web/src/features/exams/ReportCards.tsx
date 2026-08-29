@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
+import CardViewer from '@/components/CardViewer'
 import { useCan } from '@/lib/session'
 
 /* One report card, for everybody who has to look at one.
@@ -127,12 +128,70 @@ function ImportDesign({
   )
 }
 
+/* Who is told, and how — beside every button that publishes.
+
+   It lived only in the per-section bar, and the head publishes from the
+   school-wide queue at the top of the page: they pressed "Publish all" having
+   never seen the choice, and the cards went out on the defaults. A control
+   that governs an action has to be next to it, or it is a setting somebody
+   discovers afterwards.
+
+   Buttons rather than a dropdown for the audience, because the choice is
+   three-way and visible at a glance matters more than a line of the strip.
+*/
+function TellWho({
+  to,
+  setTo,
+  channels,
+  setChannels,
+}: {
+  to: 'both' | 'students' | 'parents'
+  setTo: (v: 'both' | 'students' | 'parents') => void
+  channels: Record<string, boolean>
+  setChannels: (v: Record<string, boolean>) => void
+}) {
+  const who = [
+    { value: 'both', label: 'Students & parents' },
+    { value: 'students', label: 'Students' },
+    { value: 'parents', label: 'Parents' },
+  ] as const
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+      <span className="text-muted-foreground">Tell</span>
+      {who.map((o) => (
+        <label key={o.value} className="flex items-center gap-1.5">
+          <input
+            type="radio"
+            name="report-card-audience"
+            checked={to === o.value}
+            onChange={() => setTo(o.value)}
+          />
+          {o.label}
+        </label>
+      ))}
+      {/* The in-app alert always goes to whoever is named above — it costs
+          nothing and it is the copy still there next week. These three cost
+          money per message, so they are ticked per release. */}
+      <span className="text-muted-foreground">in the app, and by</span>
+      {(['sms', 'whatsapp', 'email'] as const).map((ch) => (
+        <label key={ch} className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={!!channels[ch]}
+            onChange={(e) => setChannels({ ...channels, [ch]: e.target.checked })}
+          />
+          {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
+        </label>
+      ))}
+    </div>
+  )
+}
+
 export default function ReportCards() {
   const nav = useRouteFeature()
   const qc = useQueryClient()
   const [sectionId, setSectionId] = useState('')
   const [examId, setExamId] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
   /* Finding one child in a section of forty.
    *
    * A principal opens this because a parent is on the telephone or the board
@@ -262,7 +321,7 @@ export default function ReportCards() {
     }>('/api/v1/exams/report-cards/template'),
   })
   const [showTemplate, setShowTemplate] = useState(false)
-  const [preview, setPreview] = useState<{ html: string; css?: string } | null>(null)
+  const [preview, setPreview] = useState<{ html: string; css?: string; name?: string } | null>(null)
 
   const importTemplate = useMutation({
     mutationFn: (v: { name: string; template_html: string }) =>
@@ -495,6 +554,7 @@ export default function ReportCards() {
           </>
         }
       />
+      {preview && <CardViewer card={preview} onClose={() => setPreview(null)} />}
       <PageBody>
         {generate.error && <FormNotice error={generate.error} />}
         {/* Above the panel, because the import button is now in the action row
@@ -611,19 +671,6 @@ export default function ReportCards() {
           </Card>
         )}
 
-        {preview && (
-          <Card>
-            <CardHeader
-              title="Preview"
-              description="One child's card, on the design that is live."
-              action={<Button variant="ghost" onClick={() => setPreview(null)}>Close</Button>}
-            />
-            <div className="overflow-x-auto px-5 pb-5">
-              {preview.css && <style>{preview.css}</style>}
-              <div dangerouslySetInnerHTML={{ __html: preview.html }} />
-            </div>
-          </Card>
-        )}
 
         {/* The whole school's queue, for the head.
 
@@ -676,7 +723,10 @@ export default function ReportCards() {
                 </li>
               ))}
             </ul>
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-3">
+            <div className="border-t px-5 pb-2 pt-3">
+              <TellWho to={to} setTo={setTo} channels={channels} setChannels={setChannels} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
               <Button
                 disabled={act.isPending || !releasing.length}
                 onClick={() =>
@@ -725,27 +775,7 @@ export default function ReportCards() {
               )}
               {mayPublish && toDecide.length > 0 && (
                 <>
-                  <Select
-                    value={to}
-                    onChange={(v) => setTo(v as 'both' | 'students' | 'parents')}
-                    options={[
-                      { value: 'both', label: 'Tell students and parents' },
-                      { value: 'parents', label: 'Tell the parents only' },
-                      { value: 'students', label: 'Tell the students only' },
-                    ]}
-                  />
-                  {/* The app alert always goes. These cost money per message,
-                      so they are chosen per release rather than assumed. */}
-                  {(['sms', 'whatsapp', 'email'] as const).map((ch) => (
-                    <label key={ch} className="flex items-center gap-1.5 text-[13px]">
-                      <input
-                        type="checkbox"
-                        checked={!!channels[ch]}
-                        onChange={(e) => setChannels({ ...channels, [ch]: e.target.checked })}
-                      />
-                      {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
-                    </label>
-                  ))}
+                  <TellWho to={to} setTo={setTo} channels={channels} setChannels={setChannels} />
                   <Button
                     disabled={act.isPending}
                     onClick={() => act.mutate({ verb: 'publish', ids: toDecide.map((r) => r.id) })}
@@ -903,27 +933,16 @@ export default function ReportCards() {
                         onClick={async () => {
                           const v = await api.get<{ html: string; css?: string }>(
                             `/api/v1/exams/report-cards/render?id=${r.id}`)
-                          setPreview(v)
+                          setPreview({ ...v, name: `${r.full_name} — report card` })
                         }}
                       >
+                        {/* Before publishing this is the check that the design
+                            and the marks are right; after publishing it is the
+                            copy the school prints and hands over. Same card. */}
                         Card
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setOpen(open === r.student_id ? null : r.student_id)}
-                      >
-                        {open === r.student_id ? 'Close' : 'Open'}
                       </Button>
                     </Td>
                   </tr>
-                  {open === r.student_id && (
-                    <tr key={`${r.student_id}-subjects`}>
-                      <Td colSpan={mayPublish || mayGenerate ? 10 : 9} className="bg-muted/30">
-                        <SubjectBreakdown subjects={r.subjects} />
-                      </Td>
-                    </tr>
-                  )}
                 </>
               ))}
             </Table>
@@ -931,53 +950,5 @@ export default function ReportCards() {
         </Card>
       </PageBody>
     </>
-  )
-}
-
-/**
- * The card itself: one line per subject, with what it was out of.
- *
- * A percentage with nothing underneath it tells a parent their child got 62%
- * and not which subject to help them with, which is the only reason anybody
- * reads a report card at home.
- *
- * A subject with no mark says so rather than showing a zero. The two look the
- * same in a total and mean opposite things.
- */
-function SubjectBreakdown({ subjects }: { subjects: SubjectMark[] }) {
-  if (!subjects?.length) {
-    return (
-      <p className="px-2 py-2 text-[13px] text-muted-foreground">
-        No papers are attached to this exam for this class yet.
-      </p>
-    )
-  }
-  return (
-    <table className="w-full text-[13px]">
-      <thead>
-        <tr className="text-left text-muted-foreground">
-          <th className="py-1.5 font-medium">Subject</th>
-          <th className="py-1.5 font-medium">Marks</th>
-          <th className="py-1.5 font-medium">Percentage</th>
-          <th className="py-1.5 font-medium">Grade</th>
-        </tr>
-      </thead>
-      <tbody>
-        {subjects.map((s) => (
-          <tr key={s.subject} className="border-t">
-            <td className="py-1.5">{s.subject}</td>
-            <td className="py-1.5 tabular-nums">
-              {s.is_absent
-                ? 'absent'
-                : s.marks_obtained == null
-                  ? 'not marked'
-                  : `${s.marks_obtained} / ${s.max_marks}`}
-            </td>
-            <td className="py-1.5 tabular-nums">{s.percent != null ? `${s.percent}%` : '—'}</td>
-            <td className="py-1.5">{s.grade ?? '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   )
 }

@@ -168,6 +168,9 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 }
 
 type familyResult struct {
+	// The card itself, so the family can open the school's own design rather
+	// than only the figures this row carries.
+	ID          string   `json:"id"`
 	Exam        string   `json:"exam"`
 	Term        *string  `json:"term,omitempty"`
 	Total       *float64 `json:"total_marks,omitempty"`
@@ -203,7 +206,7 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 	subjects := []familySubjectMark{}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			SELECT COALESCE(t.name, ay.name, 'Result'), t.name,
+			SELECT rc.id::text, COALESCE(t.name, ay.name, 'Result'), t.name,
 			       rc.total_marks, rc.max_marks, rc.percentage, rc.grade, rc.gpa,
 			       rc.rank_in_section, rc.attendance_percent, rc.class_teacher_remarks,
 			       to_char(rc.published_at,'YYYY-MM-DD')
@@ -217,7 +220,7 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 		}
 		for rows.Next() {
 			var v familyResult
-			if err := rows.Scan(&v.Exam, &v.Term, &v.Total, &v.Max, &v.Percentage,
+			if err := rows.Scan(&v.ID, &v.Exam, &v.Term, &v.Total, &v.Max, &v.Percentage,
 				&v.Grade, &v.GPA, &v.RankSection, &v.Attendance, &v.Remarks,
 				&v.PublishedAt); err != nil {
 				rows.Close()

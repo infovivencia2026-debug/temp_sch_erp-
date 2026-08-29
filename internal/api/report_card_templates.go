@@ -536,3 +536,70 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 	}
 	return c, rows.Err()
 }
+
+/*
+The family's copy, on the school's own design.
+
+	The portal listed the figures — total, percentage, grade — and the card the
+	school actually issued existed only on a member of staff's screen. A parent
+	asking for "the report card" means the document with the crest on it, and a
+	school that has designed one wants the family looking at that rather than at
+	a table this product drew.
+
+	Narrower than the staff renderer in two ways that matter: the card must be
+	PUBLISHED, and it must belong to a child this caller is attached to. Neither
+	is a property of the screen — a parent who edits the id in the address bar
+	gets a 403 rather than somebody else's child.
+*/
+func (s *Server) renderFamilyReportCard(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	cardID, err := uuid.Parse(strings.TrimSpace(r.URL.Query().Get("id")))
+	if err != nil {
+		httpx.BadRequest(w, r, "id must be a uuid")
+		return
+	}
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if len(res.StudentIDs) == 0 {
+		httpx.Forbidden(w, r, "this is not a report card you can open")
+		return
+	}
+	tpl, err := s.loadReportCardTemplate(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	var body string
+	var allowed bool
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			  SELECT 1 FROM report_cards rc
+			   WHERE rc.id = $1 AND rc.is_published AND rc.student_id = ANY($2))`,
+			cardID, res.StudentIDs).Scan(&allowed); err != nil {
+			return err
+		}
+		if !allowed {
+			return nil
+		}
+		c, err := s.gatherReportCard(r, tx, cardID)
+		if err != nil {
+			return err
+		}
+		body = fillReportCard(tpl.HTML, c)
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !allowed {
+		httpx.Forbidden(w, r, "this is not a report card you can open")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"html": body, "css": tpl.CSS})
+}

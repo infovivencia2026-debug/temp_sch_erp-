@@ -4,10 +4,11 @@ import { Award, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Select, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import CardViewer from '@/components/CardViewer'
 
 /* Results, as a family sees them.
 
@@ -22,6 +23,7 @@ import { useT } from '@/lib/i18n'
    not mean to say. */
 
 interface Card_ {
+  id: string
   exam: string
   term?: string
   total_marks?: number
@@ -63,6 +65,9 @@ export default function PortalResults() {
   })
   const kids = children.data?.items ?? []
   const [picked, setPicked] = useState('')
+  /* The card itself, full screen. Read by scaling it to fit rather than by
+     dragging a 190mm sheet sideways inside a phone-width panel. */
+  const [card, setCard] = useState<{ html: string; css?: string; name?: string } | null>(null)
   const child = picked || kids[0]?.student_id || ''
 
   const { data, isLoading, error } = useQuery({
@@ -116,6 +121,7 @@ export default function PortalResults() {
 
   return (
     <>
+      {card && <CardViewer card={card} onClose={() => setCard(null)} />}
       <PageHead
         eyebrow={t('portal.results.eyebrow')}
         title={d.published ? t('portal.results.published_title') : t('portal.results.none_title')}
@@ -183,6 +189,7 @@ export default function PortalResults() {
                 t('portal.results.col_grade'),
                 t('portal.results.col_rank'),
                 t('portal.results.col_published'),
+                '',
               ]}
             >
               {d.cards.map((c, i) => (
@@ -197,6 +204,25 @@ export default function PortalResults() {
                   <Td>{c.grade ? <Badge tone="primary">{c.grade}</Badge> : '—'}</Td>
                   <Td className="tabular-nums">{c.rank_in_section ?? '—'}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.published_at)}</Td>
+                  <Td>
+                    {/* The document with the crest on it, not this table.
+
+                        A family asking for "the report card" means the sheet
+                        the school issues, on the school's own design — the
+                        figures here are the summary, and the card is the
+                        thing they keep and print. */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        const v = await api.get<{ html: string; css?: string }>(
+                          `/api/v1/portal/results/card?id=${c.id}`)
+                        setCard({ ...v, name: c.term ?? c.exam })
+                      }}
+                    >
+                      Open the card
+                    </Button>
+                  </Td>
                 </tr>
               ))}
             </Table>
