@@ -336,7 +336,16 @@ func parentForumSource(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("reading parent_forum.go: %v", err)
 	}
-	return string(b)
+	/* Line endings normalised before anything is matched against it.
+
+	   Every assertion below is a literal containing a newline, and a checkout
+	   on Windows has CRLF — so all of them missed at once and the suite
+	   reported that the predicate keeping a parent inside their own child's
+	   sections had been deleted. It had not. That is the worse of the two
+	   failures: a guard that cannot run looks exactly like the thing it
+	   guards against, and the only way to tell them apart is to open the file
+	   it is accusing. */
+	return strings.ReplaceAll(string(b), "\r\n", "\n")
 }
 
 // functionBody returns the text from a function's signature to the next

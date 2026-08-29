@@ -55,6 +55,8 @@ type platformDashboard struct {
 
 	CollectedPaise   int64 `json:"collected_paise"`
 	OutstandingPaise int64 `json:"outstanding_paise"`
+	// Everything ever billed across the group, cancellations aside.
+	BilledPaise int64 `json:"billed_paise"`
 
 	// The admission funnel, end to end, across every school.
 	Enquiries    int `json:"enquiries"`
@@ -97,6 +99,12 @@ func (s *Server) getPlatformDashboard(w http.ResponseWriter, r *http.Request) {
 			                    AND paid_on BETWEEN $1 AND $2), 0),
 			       COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices
 			                  WHERE status IN ('unpaid','partial','overdue')), 0),
+			       /* What the group has billed, ever, cancellations aside.
+			          Collected answers "how did this month go" and outstanding
+			          answers "what is owed"; neither answers "how big is this
+			          business", which is the figure an operator is asked for. */
+			       COALESCE((SELECT sum(net_paise) FROM invoices
+			                  WHERE status <> 'cancelled'), 0),
 			       (SELECT count(*) FROM enquiries
 			         WHERE created_at::date BETWEEN $1 AND $2)::int,
 			       (SELECT count(*) FROM applications
@@ -109,7 +117,7 @@ func (s *Server) getPlatformDashboard(w http.ResponseWriter, r *http.Request) {
 			           AND created_at::date BETWEEN $1 AND $2)::int`,
 			out.Range.From, out.Range.To).
 			Scan(&out.Schools, &out.Campuses, &out.Students, &out.Staff,
-				&out.CollectedPaise, &out.OutstandingPaise,
+				&out.CollectedPaise, &out.OutstandingPaise, &out.BilledPaise,
 				&out.Enquiries, &out.Applications, &out.Offered, &out.Enrolled); err != nil {
 			return err
 		}

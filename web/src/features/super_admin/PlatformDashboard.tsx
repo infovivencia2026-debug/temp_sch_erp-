@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, Building2, IndianRupee, Users, X } from 'lucide-react'
+import { AlertTriangle, Building2, IndianRupee, Users, X } from 'lucide-react'
 import { api, setActingInstitution } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -46,10 +46,8 @@ interface Dashboard {
   staff: number
   collected_paise: number
   outstanding_paise: number
-  enquiries: number
-  applications: number
-  offered: number
-  enrolled: number
+  /* Everything ever billed across the group, cancellations aside. */
+  billed_paise: number
   campuses_detail: CampusCard[]
   alerts: Alert[]
   attendance_trend: { date: string; percent: number; marked: number }[]
@@ -83,7 +81,6 @@ export default function PlatformDashboard() {
   const d = data!
 
   // Conversion is the number a trust actually manages the funnel by.
-  const conversion = d.applications > 0 ? Math.round((d.enrolled / d.applications) * 100) : 0
 
   return (
     <>
@@ -102,12 +99,22 @@ export default function PlatformDashboard() {
         width="wide"
       />
       <PageBody width="wide">
+        {/* The whole group in four figures.
+
+            How many children, how many staff, what has been billed and what is
+            still owed. An operator is asked those four and nothing else; the
+            funnel and the daily alerts belong to the people running a school,
+            and both have screens of their own. */}
         <CellGrid cols={4}>
           <Stat label="Students" value={d.students} icon={Users}
             hint={`${d.schools} schools · ${d.campuses} campuses`} />
           <Stat label="Staff" value={d.staff} />
-          <Stat label="Collected" value={formatPaise(d.collected_paise)}
-            icon={IndianRupee} period={d.range.label} />
+          {/* Billed, not collected. Collected answers how a month went;
+              this answers how big the group is, which is the one an operator
+              is actually asked for. Collection is a campus question and sits
+              on the campus cards below. */}
+          <Stat label="Total fee billed" value={formatPaise(d.billed_paise)}
+            icon={IndianRupee} period="all time" />
           {/* A balance is true now, not over a period. Saying so on the card
               stops anyone reporting it as a period figure. */}
           <Stat label="Outstanding" value={formatPaise(d.outstanding_paise)}
@@ -137,32 +144,6 @@ export default function PlatformDashboard() {
             </ul>
           </Card>
         )}
-
-        <Card>
-          <CardHeader
-            title="Admission funnel"
-            description={`Across every school · ${d.range.label}`}
-          />
-          <div className="grid gap-px bg-border sm:grid-cols-4">
-            {[
-              { label: 'Enquiries', value: d.enquiries },
-              { label: 'Applications', value: d.applications },
-              { label: 'Offered', value: d.offered },
-              { label: 'Enrolled', value: d.enrolled },
-            ].map((step, i) => (
-              <div key={step.label} className="bg-card px-5 py-4">
-                <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                  {step.label}
-                  {i < 3 && <ArrowRight className="h-3 w-3" />}
-                </p>
-                <p className="mt-1 text-[24px] font-semibold tabular-nums">{step.value}</p>
-              </div>
-            ))}
-          </div>
-          <p className="border-t px-5 py-3 text-[13px] text-muted-foreground">
-            {conversion}% of applications became enrolments.
-          </p>
-        </Card>
 
         <Card>
           <CardHeader
