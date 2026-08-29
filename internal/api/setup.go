@@ -1015,6 +1015,14 @@ func (s *Server) createGradingScale(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+/* A phone number already used by somebody else at this school.
+
+   Reported as a 409 rather than a 500 because it is a correctable mistake, and
+   named rather than absorbed because two people sharing an email address is a
+   school with one office mailbox while two sharing a mobile number is somebody
+   typing the wrong one. */
+var errPhoneInUse = errors.New("that phone number already belongs to somebody at this school")
+
 // --- staff ------------------------------------------------------------------
 
 type employeeRequest struct {
@@ -1031,6 +1039,38 @@ type employeeRequest struct {
 	EmploymentType string `json:"employment_type,omitempty"`
 	CreateLogin    bool   `json:"create_login"`
 	RoleKey        string `json:"role_key,omitempty"`
+	/* MORE THAN ONE ROLE, because that is how a school of forty actually runs.
+
+	   A head of department also teaches. A principal also keeps the accounts.
+	   The front desk is also the person who adds a student. Until now this
+	   took a single role, so a school with one person doing two jobs either
+	   picked the smaller role and left them unable to do the other, or handed
+	   out institution_admin -- which is every fee record and every salary as a
+	   side effect.
+
+	   user_roles has always been a join table; nothing in the schema believed
+	   a person had one role. Only this form did.
+
+	   RoleKey stays for the callers that send one, and is folded into the list
+	   below rather than handled separately: two code paths for the same thing
+	   is how one of them stops being tested. */
+	RoleKeys []string `json:"role_keys,omitempty"`
+}
+
+// roles returns every role this appointment asks for, deduplicated, with the
+// singular field folded in.
+func (req employeeRequest) roles() []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, k := range append([]string{req.RoleKey}, req.RoleKeys...) {
+		k = strings.TrimSpace(k)
+		if k == "" || seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, k)
+	}
+	return out
 }
 
 // createEmployee adds a staff member and, optionally, their login.
@@ -1053,11 +1093,15 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 	   could appoint somebody Seller Admin. Checked here rather than only in
 	   the list, because a rule enforced by what the UI happens to show is not
 	   a rule: the request can be made without the UI. */
-	if platformOnlyRoles[req.RoleKey] && !id.PlatformAdmin {
-		httpx.Error(w, r, http.StatusForbidden, "platform_role",
-			"that role belongs to the people who operate this installation, "+
-				"not to a school. Pick one of your own school's roles.")
-		return
+	// Every role asked for, not just the first: a request naming faculty and
+	// seller_admin must be refused as firmly as one naming seller_admin alone.
+	for _, k := range req.roles() {
+		if platformOnlyRoles[k] && !id.PlatformAdmin {
+			httpx.Error(w, r, http.StatusForbidden, "platform_role",
+				"that role belongs to the people who operate this installation, "+
+					"not to a school. Pick one of your own school's roles.")
+			return
+		}
 	}
 
 	var empID, userID string
@@ -1070,6 +1114,12 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 		empID, userID, created, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
 		return err
 	})
+	if errors.Is(err, errPhoneInUse) {
+		httpx.Error(w, r, http.StatusConflict, "phone_in_use",
+			"that phone number already belongs to somebody at this school. "+
+				"Check the number, or leave it blank if this person does not need one")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -1136,9 +1186,29 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 			RETURNING id::text`,
 			instID, req.Email, nullString(req.Phone),
 			strings.TrimSpace(req.FirstName+" "+req.LastName)).Scan(&userID); err != nil {
+			/* THE TABLE HAS TWO UNIQUE CONSTRAINTS AND THIS ANTICIPATED ONE.
+
+			   users carries a unique index on (institution_id, email) and
+			   another on (institution_id, phone). The ON CONFLICT above names
+			   the first, so a duplicate email is absorbed and a duplicate
+			   PHONE raises 23505 -- which this handler turned into a 500, and
+			   the Add staff form renders a 500 as "something went wrong".
+
+			   Measured on the live box: a clerk typing a number already held
+			   by somebody at that school got that sentence, three times, with
+			   nothing anywhere naming the number as the problem.
+
+			   Not absorbed like the email. Two people sharing an email address
+			   is a school with one office mailbox; two people sharing a mobile
+			   number is somebody typing the wrong one, and quietly attaching
+			   this appointment to whoever already has it would be worse than
+			   refusing. Named, so the fix takes five seconds. */
+			if uniqueViolationOn(err, "users_institution_phone") {
+				return "", "", false, errPhoneInUse
+			}
 			return "", "", false, err
 		}
-		if req.RoleKey != "" {
+		for _, roleKey := range req.roles() {
 			/* Install the role if this school has not got it yet.
 
 			   Librarian, transport manager and the receptionist are not seeded
@@ -1147,14 +1217,14 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 			   appointment to one of them matched no row, inserted nothing, and
 			   reported success — the staff member existed with no role and
 			   signed in to an empty rail. Silent, because nothing failed. */
-			if _, _, err = installOptionalRole(ctx, tx, instID, req.RoleKey); err != nil {
+			if _, _, err = installOptionalRole(ctx, tx, instID, roleKey); err != nil {
 				return "", "", false, err
 			}
 			if _, err = tx.Exec(ctx, `
 				INSERT INTO user_roles (institution_id, user_id, role_id)
 				SELECT $1, $2::uuid, r.id FROM roles r
 				 WHERE r.key = $3 AND (r.institution_id = $1 OR r.institution_id IS NULL)
-				ON CONFLICT DO NOTHING`, instID, userID, req.RoleKey); err != nil {
+				ON CONFLICT DO NOTHING`, instID, userID, roleKey); err != nil {
 				return "", "", false, err
 			}
 		}

@@ -33,7 +33,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
 
   const blank = {
     employee_code: '', first_name: '', last_name: '',
-    email: '', phone: '', role_key: 'faculty', create_login: true,
+    email: '', phone: '', role_key: 'faculty', role_keys: [] as string[], create_login: true,
   }
   const [f, setF] = useState(blank)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
@@ -81,7 +81,15 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
             <Input value={f.employee_code} onChange={set('employee_code')} placeholder="T-014" />
           </Field>
           <Field label="Role" hint="Every role your school has, including any you have created.">
-            <RoleSelect value={f.role_key} onChange={set('role_key')} />
+            {/* Same control as the setup wizard: one main role, plus any
+                other hats. A school of forty has one person doing two jobs
+                more often than not. */}
+            <RoleSelect
+              value={f.role_key}
+              onChange={(x) => setF((p) => ({ ...p, role_key: x, role_keys: p.role_keys.filter((k) => k !== x) }))}
+              extra={f.role_keys}
+              onExtra={(v) => setF((p) => ({ ...p, role_keys: v }))}
+            />
           </Field>
           <Field label="First name" required>
             <Input value={f.first_name} onChange={set('first_name')} />

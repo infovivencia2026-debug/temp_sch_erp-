@@ -1232,6 +1232,7 @@ function StaffPanel({ onDone }: PanelProps) {
     email: '',
     phone: '',
     role_key: 'faculty',
+    role_keys: [] as string[],
     create_login: true,
   })
   /* WHAT ACTUALLY HAPPENED, said out loud.
@@ -1280,7 +1281,12 @@ function StaffPanel({ onDone }: PanelProps) {
           <Input value={f.employee_code} onChange={(x) => setF({ ...f, employee_code: x })} placeholder="T-014" />
         </Field>
         <Field label="Role" hint="Every role your school has, including any you have created.">
-          <RoleSelect value={f.role_key} onChange={(x) => setF({ ...f, role_key: x })} />
+          <RoleSelect
+            value={f.role_key}
+            onChange={(x) => setF({ ...f, role_key: x, role_keys: f.role_keys.filter((k) => k !== x) })}
+            extra={f.role_keys}
+            onExtra={(v) => setF({ ...f, role_keys: v })}
+          />
         </Field>
         <Field label="First name" required>
           <Input value={f.first_name} onChange={(x) => setF({ ...f, first_name: x })} />

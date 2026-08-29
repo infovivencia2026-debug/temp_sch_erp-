@@ -29,9 +29,18 @@ interface Role {
 export default function RoleSelect({
   value,
   onChange,
+  extra,
+  onExtra,
 }: {
   value: string
   onChange: (v: string) => void
+  /* MORE THAN ONE ROLE, because that is how a school of forty runs.
+     A head of department also teaches; a principal also keeps the accounts;
+     the front desk is also the person who adds a student. Passing these two
+     turns the control into a primary role plus any number of others.
+     Omitted, it behaves exactly as it did. */
+  extra?: string[]
+  onExtra?: (v: string[]) => void
 }) {
   const qc = useQueryClient()
   const can = useCan()
@@ -94,7 +103,11 @@ export default function RoleSelect({
     )
   }
 
+  const multi = Boolean(onExtra)
+  const chosen = extra ?? []
+
   return (
+    <div className={multi ? 'space-y-2' : undefined}>
     <Select
       value={value}
       onChange={(v) => {
@@ -113,5 +126,49 @@ export default function RoleSelect({
         ...(mayCreate && items.length ? [{ value: '__add_role__', label: '+ Add your own role…' }] : []),
       ]}
     />
+
+    {/* THE OTHER HATS.
+
+        Ticks rather than a second dropdown: a person's roles are a set, and a
+        set of five with two chosen is read faster as five lines than as a list
+        that has to be opened to see what is in it.
+
+        The primary role is hidden from the list rather than shown ticked and
+        disabled. It is already named in the control above, and a row that
+        cannot be changed invites somebody to try. */}
+    {multi && items.length > 0 && (
+      <details className="rounded-[3px] border px-3 py-2">
+        <summary className="cursor-pointer text-[13px] text-muted-foreground">
+          {chosen.length
+            ? `Also: ${chosen.length} more ${chosen.length === 1 ? 'role' : 'roles'}`
+            : 'Does this person do a second job?'}
+        </summary>
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {items
+            .filter((r) => r.key !== value)
+            .map((r) => (
+              <label key={r.key} className="flex items-center gap-2 text-[13.5px]">
+                <input
+                  type="checkbox"
+                  checked={chosen.includes(r.key)}
+                  onChange={(e) =>
+                    onExtra!(
+                      e.target.checked
+                        ? [...chosen, r.key]
+                        : chosen.filter((k) => k !== r.key),
+                    )
+                  }
+                />
+                <span className="truncate">{r.name}</span>
+              </label>
+            ))}
+        </div>
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          They get everything all of these can do, added together. A teacher who
+          is also head of department sees both.
+        </p>
+      </details>
+    )}
+    </div>
   )
 }

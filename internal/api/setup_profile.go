@@ -307,6 +307,22 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pge) && pge.Code == "23505"
 }
 
+/*
+uniqueViolationOn reports a 23505 raised by one named index.
+
+	A table with two unique indexes needs the caller to tell them apart: users
+	has one on (institution_id, email) and another on (institution_id, phone),
+	and "you already have one of those" is a different sentence for each. Named
+	rather than positional, because the constraint name is what Postgres
+	actually reports and matching on anything else drifts the first time an
+	index is renamed.
+*/
+func uniqueViolationOn(err error, constraint string) bool {
+	var pge *pgconn.PgError
+	return errors.As(err, &pge) && pge.Code == "23505" &&
+		pge.ConstraintName == constraint
+}
+
 func isDigits(s string, n int) bool {
 	if len(s) != n {
 		return false
