@@ -48,14 +48,18 @@ type staffRemarkRequest struct {
 }
 
 type staffRemarkRow struct {
-	ID          string  `json:"id"`
-	SubjectID   string  `json:"subject_user_id"`
-	SubjectName string  `json:"subject_name"`
-	AuthorName  string  `json:"author_name"`
-	AuthorRole  string  `json:"author_role"`
-	Kind        string  `json:"kind"`
-	Body        string  `json:"body"`
-	ObservedOn  string  `json:"observed_on"`
+	ID          string `json:"id"`
+	SubjectID   string `json:"subject_user_id"`
+	SubjectName string `json:"subject_name"`
+	AuthorName  string `json:"author_name"`
+	AuthorRole  string `json:"author_role"`
+	Kind        string `json:"kind"`
+	Body        string `json:"body"`
+	ObservedOn  string `json:"observed_on"`
+	// When it was written down. A remark about Tuesday typed on Friday is a
+	// different fact from one typed the same afternoon, and the person it is
+	// about is entitled to know which.
+	RecordedAt  string  `json:"recorded_at"`
 	StudentName *string `json:"student_name,omitempty"`
 	// Mine marks a remark written by the caller, so the author's own list can
 	// show what they said without a second query.
@@ -225,6 +229,7 @@ func (s *Server) listStaffRemarks(w http.ResponseWriter, r *http.Request) {
 		SELECT sr.id::text, sr.subject_user_id::text, su.full_name, au.full_name,
 		       sr.author_role, sr.kind, sr.body,
 		       to_char(sr.observed_on,'YYYY-MM-DD'),
+		       to_char(sr.created_at,'YYYY-MM-DD"T"HH24:MI'),
 		       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
 		       sr.author_user_id = $1
 		  FROM staff_remarks sr
@@ -238,7 +243,8 @@ func (s *Server) listStaffRemarks(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (staffRemarkRow, error) {
 			var v staffRemarkRow
 			return v, rows.Scan(&v.ID, &v.SubjectID, &v.SubjectName, &v.AuthorName,
-				&v.AuthorRole, &v.Kind, &v.Body, &v.ObservedOn, &v.StudentName, &v.Mine)
+				&v.AuthorRole, &v.Kind, &v.Body, &v.ObservedOn, &v.RecordedAt,
+				&v.StudentName, &v.Mine)
 		})
 	respond(w, r, items, err)
 }

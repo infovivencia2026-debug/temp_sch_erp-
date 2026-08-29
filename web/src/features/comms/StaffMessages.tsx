@@ -61,6 +61,10 @@ interface ParentThread {
   last_message?: string
   last_at?: string
   unread: number
+  /* Sent only to a reader seeing threads that are not their own — a head of
+     department or the principal. A teacher's inbox has one teacher in it. */
+  teacher_user_id?: string
+  teacher_name?: string
 }
 
 export default function StaffMessages() {
@@ -106,17 +110,27 @@ export default function StaffMessages() {
     queryKey: ['parent-threads'],
     queryFn: () => api.get<List<ParentThread>>('/api/v1/teaching/parent-messages'),
   })
-  const parentMessages = useQuery({
-    queryKey: ['parent-messages', openChild, openWith],
-    queryFn: () =>
-      api.get<List<Message>>(
-        `/api/v1/teaching/parent-messages/thread?student_id=${openChild}&parent_user_id=${openWith}`,
-      ),
-    enabled: box === 'parents' && !!openChild && !!openWith,
-  })
   const openParent = (parentThreads.data?.items ?? []).find(
     (t) => t.student_id === openChild && t.parent_user_id === openWith,
   )
+  const parentMessages = useQuery({
+    /* The teacher is part of the identity of a thread.
+
+       A head can hold two conversations with the same parent about the same
+       child — one with the class teacher, one with the maths teacher — and
+       without this they share a cache entry, so opening the second shows the
+       first. */
+    queryKey: ['parent-messages', openChild, openWith, openParent?.teacher_user_id],
+    queryFn: () =>
+      api.get<List<Message>>(
+        `/api/v1/teaching/parent-messages/thread?student_id=${openChild}` +
+        `&parent_user_id=${openWith}` +
+        /* Named only when reading somebody else's thread; the server ignores
+           it without comms.messages.read.all, so it can never widen. */
+        (openParent?.teacher_user_id ? `&teacher_user_id=${openParent.teacher_user_id}` : ''),
+      ),
+    enabled: box === 'parents' && !!openChild && !!openWith,
+  })
 
   const replyToParent = useMutation({
     // The same endpoint the parent writes with: it already had a branch for a
@@ -250,6 +264,11 @@ export default function StaffMessages() {
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
                         {t.student_name}
                         {t.class_name ? ` · ${t.class_name}` : ''}
+                        {/* And which teacher, for somebody reading other
+                            people's threads. Without it a head sees a list of
+                            parents and cannot tell who at the school each one
+                            was talking to, which is most of the question. */}
+                        {t.teacher_name ? ` → ${t.teacher_name}` : ''}
                       </span>
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
                         {t.last_message ?? ''}

@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormGrid,
   FormNotice, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 
 /* Remarks about staff — one screen, read differently by whoever opens it.
  *
@@ -34,6 +34,7 @@ interface Remark {
   kind: string
   body: string
   observed_on: string
+  recorded_at: string
   student_name?: string
   mine: boolean
 }
@@ -127,7 +128,8 @@ export default function StaffRemarks({ canWrite = true }: { canWrite?: boolean }
                     <Badge tone={TONE[x.kind] ?? 'neutral'}>{x.kind}</Badge>
                     {canWrite && <span className="font-medium">{x.subject_name}</span>}
                     <span className="text-[13px] text-muted-foreground">
-                      {formatDate(x.observed_on)} · {x.mine ? 'you' : x.author_name} (
+                      {formatDateTime(x.recorded_at) || formatDate(x.observed_on)}{' '}
+                      · {x.mine ? 'you' : x.author_name} (
                       {x.author_role})
                     </span>
                     {x.student_name && (

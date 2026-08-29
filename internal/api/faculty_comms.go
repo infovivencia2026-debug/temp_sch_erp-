@@ -1287,14 +1287,29 @@ func (s *Server) notifyGuardiansOfRemark(r *http.Request, tx pgx.Tx,
 		return err
 	}
 
+	/* The child as well as the family.
+
+	   This told the guardians and never the pupil, so a teacher commending a
+	   fifteen-year-old for the work they did that week informed their parents
+	   and left the child to hear about it at home — or not at all, for the many
+	   families where nobody opens the app. A remark the school is willing to
+	   show a family is one the child may read.
+
+	   The same list either way, so the private check upstream still governs
+	   both: nothing here reaches anybody for a staff-only note. */
 	rows, err := tx.Query(r.Context(), `
 		SELECT g.user_id
 		  FROM student_guardians sg
 		  JOIN guardians g ON g.id = sg.guardian_id
-		 WHERE sg.student_id = $1 AND g.user_id IS NOT NULL`, studentID)
+		 WHERE sg.student_id = $1 AND g.user_id IS NOT NULL
+		UNION
+		SELECT st.user_id
+		  FROM students st
+		 WHERE st.id = $1 AND st.user_id IS NOT NULL`, studentID)
 	if err != nil {
 		return err
 	}
+	// Guardians and the child, in one list: everybody who may be told.
 	var parents []uuid.UUID
 	for rows.Next() {
 		var uid uuid.UUID

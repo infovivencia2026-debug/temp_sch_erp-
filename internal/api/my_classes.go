@@ -371,7 +371,7 @@ func (s *Server) recordDisciplineNote(w http.ResponseWriter, r *http.Request) {
 	}
 	var newID string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO discipline_records
 			    (institution_id, student_id, occurred_on, category, is_positive,
 			     description, action_taken, visible_to_student, parent_notified, recorded_by)
@@ -380,7 +380,103 @@ func (s *Server) recordDisciplineNote(w http.ResponseWriter, r *http.Request) {
 			RETURNING id::text`,
 			id.InstitutionID, student, req.OccurredOn, req.Category, req.IsPositive,
 			req.Description, req.ActionTaken, req.VisibleToStudent,
-			req.ParentNotified, id.UserID).Scan(&newID)
+			req.ParentNotified, id.UserID).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* Told, because the screen said they would be.
+
+		   The form asks whether the child may see this and whether the parents
+		   should be told, stores both answers, and until now informed nobody
+		   at all — so a teacher who ticked "Tell the parents", under a sentence
+		   saying a concern a family first hears at the parents' evening is one
+		   they cannot help with, told them nothing.
+
+		   Both flags honoured separately. A note with neither ticked is a
+		   staff record and stays one; nothing here invents an audience. */
+		if !req.VisibleToStudent && !req.ParentNotified {
+			return nil
+		}
+		noteID, perr := uuid.Parse(newID)
+		if perr != nil {
+			return perr
+		}
+
+		var child, from string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT trim(first_name || ' ' || COALESCE(last_name,''))
+			  FROM students WHERE id = $1`, student).Scan(&child); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(),
+			`SELECT full_name FROM users WHERE id = $1`, id.UserID).Scan(&from); err != nil {
+			return err
+		}
+
+		title := "About " + child + "’s conduct"
+		if req.IsPositive {
+			title = child + " was commended"
+		}
+		summary := strings.TrimSpace(req.Description)
+		if len(summary) > 240 {
+			summary = summary[:237] + "…"
+		}
+		summary += " — " + from
+
+		/* Who is told, from the two flags rather than from one list.
+
+		   A child may be shown something the school has decided not to send
+		   home, and a family may be told something before the child is spoken
+		   to. The screen offers them as separate questions because they are. */
+		var tell []uuid.UUID
+		if req.VisibleToStudent {
+			rows, err := tx.Query(r.Context(),
+				`SELECT user_id FROM students WHERE id = $1 AND user_id IS NOT NULL`, student)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var u uuid.UUID
+				if err := rows.Scan(&u); err != nil {
+					rows.Close()
+					return err
+				}
+				tell = append(tell, u)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+		if req.ParentNotified {
+			rows, err := tx.Query(r.Context(), `
+				SELECT g.user_id FROM student_guardians sg
+				  JOIN guardians g ON g.id = sg.guardian_id
+				 WHERE sg.student_id = $1 AND g.user_id IS NOT NULL`, student)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var u uuid.UUID
+				if err := rows.Scan(&u); err != nil {
+					rows.Close()
+					return err
+				}
+				tell = append(tell, u)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+
+		for _, u := range tell {
+			if err := notify(r, tx, id.InstitutionID, u, &student, "student_conduct",
+				title, summary, "/go/remarks", "discipline_record", &noteID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())

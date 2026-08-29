@@ -49,6 +49,37 @@ type teacherThreadRow struct {
 	TeacherName *string `json:"teacher_name,omitempty"`
 }
 
+/*
+May this reader open threads belonging to that teacher?
+
+	The counterpart of the narrowing on the list, factored out so the two cannot
+	drift: a rule that decides which threads are listed and a different rule
+	deciding which may be opened is how a screen shows you a row you are then
+	refused.
+
+	A head of department is checked against the departments they head; anybody
+	holding the right with no department — the principal — reads the school.
+*/
+func (s *Server) mayReadTeachersThreads(r *http.Request, teacher uuid.UUID) (bool, error) {
+	res, err := s.resolveScope(r)
+	if err != nil {
+		return false, err
+	}
+	if len(res.DepartmentIDs) == 0 {
+		return true, nil
+	}
+	id := httpx.IdentityFrom(r.Context())
+	var ok bool
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			  SELECT 1 FROM employees emp
+			   WHERE emp.user_id = $1 AND emp.department_id = ANY($2))`,
+			teacher, res.DepartmentIDs).Scan(&ok)
+	})
+	return ok, err
+}
+
 // listTeacherParentThreads is the teacher's inbox of family conversations, and
 // the head's view of their teachers'.
 func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request) {
@@ -132,23 +163,55 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	/* Only a thread this teacher is an end of.
+	/* Whose end of the thread is being read.
 
-	   Not "may this teacher write to this family" — that is a different and
+	   A teacher reads their own, always: the id comes from the session and the
+	   client cannot move it. A head reading their teachers' correspondence
+	   names the teacher, and that is honoured only on
+	   comms.messages.read.all — so the parameter can pick a thread out of the
+	   set the reader is already entitled to and can never widen it.
+
+	   Narrowed the same way the list is: a head of department is checked
+	   against their own departments, a principal has none and reads the school.
+	   Without the check, naming any teacher's id would have handed the whole
+	   staffroom's post to whoever guessed a uuid. */
+	teacher := id.UserID
+	if asked := strings.TrimSpace(q.Get("teacher_user_id")); asked != "" &&
+		id.Can(rbac.MessagesReadAll) {
+		other, perr := uuid.Parse(asked)
+		if perr != nil {
+			httpx.BadRequest(w, r, "teacher_user_id must be a uuid")
+			return
+		}
+		ok, cerr := s.mayReadTeachersThreads(r, other)
+		if cerr != nil {
+			httpx.Internal(w, r, cerr)
+			return
+		}
+		if !ok {
+			// The same answer as a thread that does not exist: a head probing
+			// for another department's teachers learns nothing either way.
+			httpx.NotFound(w, r)
+			return
+		}
+		teacher = other
+	}
+
+	/* Not "may this teacher write to this family" — that is a different and
 	   stricter question, asked by teacherMayWrite when they reply. A teacher
 	   who has since stopped taking the class must still be able to read what
 	   was said to them, or a handover loses the conversation. */
 	items, err := collect(s, r, `
 		SELECT m.id::text, m.body,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
-		       m.sender_user_id = $3,
+		       m.sender_user_id = $4,
 		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI')
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
 		 WHERE m.student_id = $1 AND m.parent_user_id = $2
 		   AND m.teacher_user_id = $3
 		 ORDER BY m.sent_at
-		 LIMIT 500`, []any{sid, parentID, id.UserID},
+		 LIMIT 500`, []any{sid, parentID, teacher, id.UserID},
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
 			return v, rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.ReadAt)

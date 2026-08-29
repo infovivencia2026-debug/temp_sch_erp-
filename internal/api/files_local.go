@@ -134,7 +134,18 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 		time.Now().Format("2006-01"), fileID.String()+ext))
 	full := filepath.Join(dir, filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
-		httpx.Internal(w, r, err)
+		/* Named, because nobody using the product can act on "refused".
+
+		   The store sat on a path the service was not permitted to write —
+		   systemd hardening listing only the log directory — so every upload
+		   in the product failed and every screen said the same four words. An
+		   internal error is opaque on purpose and this one is not the reader's
+		   fault to interpret: what they need is that it is the school's
+		   installation and not their file, so they stop trying other files. */
+		httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unwritable",
+			"the school's file storage cannot be written to. Nothing is wrong "+
+				"with your file — this needs whoever runs the server.")
+		httpx.LogError(r, err)
 		return
 	}
 

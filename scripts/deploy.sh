@@ -230,12 +230,19 @@ RestartSec=5s
 ${extra}
 
 # The binaries embed their templates and static assets, so they need no write
-# access to their own directory. Everything user-uploaded goes to R2.
+# access to their own directory.
+#
+# The file store does need it. This said "everything user-uploaded goes to R2"
+# and listed only the log directory as writable, which was true when it was
+# written and stopped being true when the local store landed — so every upload
+# in the product failed with "read-only file system" and the screen said only
+# that the upload was refused. A worksheet, a birth certificate, a photograph
+# of a worked page: none of them could be attached to anything, on any screen.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log/${SERVICE}
+ReadWritePaths=/var/log/${SERVICE} ${FILE_STORE_DIR}
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

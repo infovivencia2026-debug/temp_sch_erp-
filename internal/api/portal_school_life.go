@@ -1896,6 +1896,22 @@ func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request)
 				return err
 			}
 		}
+		/* A notification addressed to you is yours, child or no child.
+
+		   The feed required every alert to carry either no student or one of
+		   the caller's own children. That is right for a guardian — it is how
+		   switching child filters the list — and it silently emptied the bell
+		   for everybody else, because a member of staff has no children on the
+		   roll and almost every alert names a pupil.
+
+		   So a parent wrote to a teacher, the notification was written and
+		   addressed to that teacher correctly, and this line threw it away
+		   before the teacher ever saw it. Same for a remark reaching the child
+		   it is about, and for anything else the school tells a member of
+		   staff about a particular pupil.
+
+		   The child filter now applies only to somebody who has children to
+		   filter by. Everyone else gets what was sent to them. */
 		// The feed narrows to the requested child when one was named, and
 		// always keeps the alerts that belong to no particular child.
 		rows, err := tx.Query(r.Context(), `
@@ -1906,7 +1922,12 @@ func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request)
 			  FROM notifications n
 			  LEFT JOIN students st ON st.id = n.student_id
 			 WHERE n.user_id = $1
-			   AND (n.student_id IS NULL OR n.student_id = ANY($2))
+			   /* Expressed in SQL rather than by swapping the predicate, so
+			      the parameter list stays the same shape either way: a $2 the
+			      statement no longer mentions is a bind error, not a filter. */
+			   AND (cardinality($2::uuid[]) = 0
+			        OR n.student_id IS NULL
+			        OR n.student_id = ANY($2))
 			   AND n.kind <> ALL($3)
 			 ORDER BY n.created_at DESC
 			 LIMIT 200`, id.UserID, kids, hiddenNotificationKinds(id))
