@@ -74,6 +74,11 @@ export default function CardViewer({
           while this is open. */}
       <style>{`
         @media print {
+          /* The global print stylesheet hides [role='dialog'] outright, which
+             is right for every other overlay and made this one print a blank
+             sheet. An id beats an attribute selector when both are important,
+             so this wins without touching the rule that protects the rest. */
+          #rc-viewer { display: flex !important; }
           body > *:not(#rc-viewer) { display: none !important; }
           #rc-viewer { position: static !important; }
           #rc-viewer .rc-chrome { display: none !important; }

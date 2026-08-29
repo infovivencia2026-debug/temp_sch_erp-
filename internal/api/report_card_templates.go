@@ -37,6 +37,8 @@ import (
 // listed but not substituted prints as literal braces on a school's card.
 var reportCardPlaceholders = []map[string]string{
 	{"token": "{{school_name}}", "means": "the school's name"},
+	{"token": "{{school_logo}}", "means": "the school's crest, where one is configured"},
+	{"token": "{{school_motto}}", "means": "the school's tagline, where one is configured"},
 	{"token": "{{academic_year}}", "means": "the academic year, e.g. 2024 - 2025"},
 	{"token": "{{exam_name}}", "means": "which examination this card is for"},
 	{"token": "{{photo}}", "means": "the child's photograph, where one is on file"},
@@ -73,7 +75,9 @@ defaultReportCardHTML is the card a school gets before it imports its own.
 */
 const defaultReportCardHTML = `<div class="card">
   <header>
+    <div class="crest">{{school_logo}}</div>
     <h1>{{school_name}}</h1>
+    <div class="motto">{{school_motto}}</div>
     <div class="rule"></div>
     <h2>REPORT CARD</h2>
     <div class="meta">{{academic_year}} &nbsp;·&nbsp; {{exam_name}}</div>
@@ -136,6 +140,13 @@ const defaultReportCardCSS = `
         border: 2px solid #1e3a5f; font: 11pt/1.45 Georgia, 'Times New Roman', serif;
         color: #14213d; background: #fff; }
 .card header { text-align: center; }
+/* The crest, where the school has one. The block collapses to nothing when it
+   is empty, so a school that has not set one gets a title where the title
+   belongs rather than a gap above it. */
+.card .crest:empty { display: none; }
+.card .crest img { height: 18mm; width: auto; margin-bottom: 2mm; }
+.card .motto:empty { display: none; }
+.card .motto { font-size: 9.5pt; font-style: italic; color: #4a5568; margin-top: 1mm; }
 .card h1 { margin: 0; font-size: 20pt; letter-spacing: .5px; text-transform: uppercase; }
 .card h2 { margin: 3mm 0 1mm; font-size: 12pt; letter-spacing: 3px;
            background: #1e3a5f; color: #fff; display: inline-block; padding: 1.5mm 8mm; }
@@ -330,16 +341,16 @@ func fillReportCard(tpl string, c renderedCard) string {
 	}
 	out := strings.ReplaceAll(tpl, "{{subject_rows}}", rows.String())
 
-	// The photo is markup, and the only value that is. Empty when the child has
-	// none, so the frame prints blank rather than showing a broken image.
-	photo := ""
-	if v := c.values["photo_file_id"]; v != "" {
-		photo = `<img src="/api/v1/files/` + html.EscapeString(v) + `" alt="">`
-	}
-	out = strings.ReplaceAll(out, "{{photo}}", photo)
+	/* The two values that are markup, and the only two.
+
+	   Empty when there is nothing on file, so the frame prints blank rather
+	   than showing a browser's broken-image icon on a document a family
+	   keeps. */
+	out = strings.ReplaceAll(out, "{{photo}}", imgTag(c.values["photo_file_id"]))
+	out = strings.ReplaceAll(out, "{{school_logo}}", imgTag(c.values["logo_file_id"]))
 
 	for k, v := range c.values {
-		if k == "photo_file_id" {
+		if k == "photo_file_id" || k == "logo_file_id" {
 			continue
 		}
 		out = strings.ReplaceAll(out, "{{"+k+"}}", html.EscapeString(v))
@@ -350,6 +361,20 @@ func fillReportCard(tpl string, c renderedCard) string {
 	   parent keeps is worse than a blank, and the misspelling is visible on the
 	   preview either way. */
 	return stripUnknownPlaceholders(out)
+}
+
+/*
+imgTag renders a stored file as an image, or nothing at all.
+
+	The id is checked for shape rather than trusted: logo_key is a free-text
+	column an operator types into, and anything that is not a file id would
+	otherwise become a request for a path of somebody's choosing.
+*/
+func imgTag(id string) string {
+	if _, err := uuid.Parse(strings.TrimSpace(id)); err != nil {
+		return ""
+	}
+	return `<img src="/api/v1/files/` + html.EscapeString(strings.TrimSpace(id)) + `" alt="">`
 }
 
 func stripUnknownPlaceholders(s string) string {
@@ -408,9 +433,16 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		roll, dob, admitted, photo, father, mother, guardian                *string
 		total, obtained, pct, attendance                                    *float64
 		grade, remark, examName, year, classTeacher, principalName, rankStr *string
+		logoKey, motto                                                      *string
 	)
 	err := tx.QueryRow(r.Context(), `
-		SELECT i.name,
+		SELECT i.name, i.logo_key,
+		       /* The school's own words under its own name. Read from the
+		          institution-wide branding row rather than a campus one: a
+		          report card carries the school's motto, and a campus that has
+		          overridden its login banner has not changed the school. */
+		       (SELECT b.tagline FROM branding_profiles b
+		         WHERE b.campus_id IS NULL LIMIT 1),
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 		       COALESCE(c.name,''), COALESCE(sec.name,''), st.admission_no,
 		       e.roll_no::text,
@@ -448,7 +480,8 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		  LEFT JOIN classes c    ON c.id = sec.class_id
 		  LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
 		 WHERE rc.id = $1`, cardID).Scan(
-		&school, &student, &class, &section, &admissionNo, &roll, &dob, &admitted,
+		&school, &logoKey, &motto,
+		&student, &class, &section, &admissionNo, &roll, &dob, &admitted,
 		&photo, &father, &mother, &guardian,
 		&total, &obtained, &pct, &attendance, &grade, &remark,
 		&examName, &year, &classTeacher, &principalName, &rankStr)
@@ -471,6 +504,7 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 
 	c.values = map[string]string{
 		"school_name": school, "student_name": student,
+		"logo_file_id": str(logoKey), "school_motto": str(motto),
 		"class": class, "section": section, "admission_no": admissionNo,
 		"roll_no": str(roll), "date_of_birth": str(dob), "admission_date": str(admitted),
 		"photo_file_id": str(photo),
