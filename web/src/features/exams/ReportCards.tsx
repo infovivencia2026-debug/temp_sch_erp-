@@ -320,7 +320,6 @@ export default function ReportCards() {
       default_html: string
     }>('/api/v1/exams/report-cards/template'),
   })
-  const [showTemplate, setShowTemplate] = useState(false)
   const [preview, setPreview] = useState<{ html: string; css?: string; name?: string } | null>(null)
 
   const importTemplate = useMutation({
@@ -540,9 +539,20 @@ export default function ReportCards() {
                   label={importTemplate.isPending ? 'Importing…' : 'Import design'}
                   onPick={(v) => importTemplate.mutate(v)}
                 />
-                <Button variant="ghost" onClick={() => setShowTemplate((v) => !v)}>
-                  {showTemplate ? 'Hide the design' : 'Report card design'}
-                </Button>
+                {/* Only once a school has imported one, and only as the way
+                    back. A panel explaining what a design is belonged to
+                    somebody setting this up for the first time, and it sat on
+                    the screen for everybody who prints results every term. */}
+                {template.data && !template.data.template.is_built_in && (
+                  <Button
+                    variant="ghost"
+                    disabled={resetTemplate.isPending}
+                    onClick={() => resetTemplate.mutate()}
+                    title={`Printing on "${template.data.template.name}". This goes back to the standard design.`}
+                  >
+                    Back to standard
+                  </Button>
+                )}
               </>
             )}
             {rows.length > 0 && (
@@ -560,7 +570,25 @@ export default function ReportCards() {
         {/* Above the panel, because the import button is now in the action row
             and a refusal shown only inside a closed panel is a button that
             appears to do nothing. */}
-        {importTemplate.error && !showTemplate && <FormNotice error={importTemplate.error} />}
+        {importTemplate.error && (
+          <>
+            <FormNotice error={importTemplate.error} />
+            {/* The vocabulary, at the one moment somebody needs it. It used to
+                sit in a panel on the screen permanently, in front of everybody
+                who prints results every term and never touches a design. */}
+            <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+              {(template.data?.placeholders ?? []).map((ph) => (
+                <span
+                  key={ph.token}
+                  title={ph.means}
+                  className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]"
+                >
+                  {ph.token}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
         {outcome && <FormNotice ok={outcome} />}
         {/* Nothing is claimed until an exam is chosen.
         
@@ -616,60 +644,6 @@ export default function ReportCards() {
           </Card>
         )}
 
-        {showTemplate && (mayGenerate || mayPublish) && (
-          <Card>
-            <CardHeader
-              title={template.data?.template.is_built_in
-                ? 'Printing on the standard design'
-                : `Printing on "${template.data?.template.name}"`}
-              description={
-                template.data?.template.is_built_in
-                  ? 'Every card prints on the design this product ships with. Import your school\'s own and every card generated from then on uses it, until you import another.'
-                  : `Imported${template.data?.template.updated_by ? ` by ${template.data.template.updated_by}` : ''}${template.data?.template.updated_at ? ` on ${template.data.template.updated_at.replace('T', ' ')}` : ''}. Every card prints on this until it is replaced.`
-              }
-              action={
-                <div className="flex flex-wrap items-center gap-2">
-                  <ImportDesign
-                    label="Import a design"
-                    onPick={(v) => importTemplate.mutate(v)}
-                  />
-                  {!template.data?.template.is_built_in && (
-                    <Button
-                      variant="ghost"
-                      disabled={resetTemplate.isPending}
-                      onClick={() => resetTemplate.mutate()}
-                    >
-                      Back to standard
-                    </Button>
-                  )}
-                </div>
-              }
-            />
-            {importTemplate.error && <FormNotice error={importTemplate.error} />}
-            <div className="px-5 pb-5">
-              <p className="mb-2 text-[13px] text-muted-foreground">
-                An HTML file. Put these where the school's design wants them —
-                anything else is left blank rather than printed as braces.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {(template.data?.placeholders ?? []).map((ph) => (
-                  <span
-                    key={ph.token}
-                    title={ph.means}
-                    className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]"
-                  >
-                    {ph.token}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-[13px] text-muted-foreground">
-                A photograph comes from the child's own record — open Student 360,
-                Edit, and set the photo there. {'{{photo}}'} then prints it, and
-                a child with none prints an empty frame rather than a broken image.
-              </p>
-            </div>
-          </Card>
-        )}
 
 
         {/* The whole school's queue, for the head.
