@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/utils'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CloudOff, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
@@ -233,7 +234,7 @@ export default function OfflineRegister() {
               <tr key={b.client_batch_ref}>
                 <Td>{b.section_name || '—'}</Td>
                 <Td>{b.on_date}</Td>
-                <Td>{new Date(b.captured_at).toLocaleString()}</Td>
+                <Td>{formatDateTime(b.captured_at)}</Td>
                 <Td>{b.marks.length}</Td>
                 <Td>
                   {b.error ? (

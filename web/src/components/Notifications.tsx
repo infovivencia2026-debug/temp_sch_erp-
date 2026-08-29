@@ -73,7 +73,7 @@ function dayOf(iso: string): string {
   if (days <= 0) return 'Today'
   if (days === 1) return 'Yesterday'
   if (days < 7) return `${days} days ago`
-  return then.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+  return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
 }
 
 function timeOf(iso: string): string {

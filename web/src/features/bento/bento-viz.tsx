@@ -722,7 +722,7 @@ export function Timeline({
   const stackHeight = laneStep * tiers
 
   const dateText = (t: number) =>
-    new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    new Date(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 
   return (
     <div

@@ -44,7 +44,7 @@ const DOT: Record<string, string> = {
 function groupByMonth(days: { date: string; status: string }[]) {
   const out: { label: string; days: typeof days; present: number; absent: number; marked: number }[] = []
   for (const d of days) {
-    const label = new Date(d.date + 'T00:00:00').toLocaleDateString(undefined, {
+    const label = new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', {
       month: 'long', year: 'numeric',
     })
     let bucket = out.find((b) => b.label === label)
