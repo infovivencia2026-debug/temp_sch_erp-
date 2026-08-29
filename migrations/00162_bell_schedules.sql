@@ -1,6 +1,26 @@
 -- +goose Up
 -- +goose StatementBegin
 
+/* THE BACKFILL BELOW READS `periods`, WHICH FORCES ROW-LEVEL SECURITY.
+ *
+ * A migration runs with no tenant set, so every RLS-forced table reads as
+ * empty. The INSERT that creates one schedule per campus selects FROM periods
+ * — it saw nothing, created nothing, the UPDATE that follows matched nothing,
+ * and SET NOT NULL then failed on the forty-two rows it had left null. The
+ * error names the column and says nothing about the cause, and the whole
+ * deploy stops on it.
+ *
+ * app_is_platform_admin is the switch every one of these policies already
+ * reads, so this asks for the standing the platform has rather than lifting
+ * policies off tables and putting them back. LOCAL: it lasts this transaction
+ * and no longer.
+ *
+ * Migration 00150 was fixed for exactly this and left a comment saying so;
+ * this is the second time, which is what makes it worth repeating here rather
+ * than in a note somewhere else.
+ */
+SET LOCAL app.is_platform_admin = 'on';
+
 /* PRIMARY DOES NOT GO HOME WHEN CLASS TEN DOES.
 
    `periods` has been scoped to (institution_id, campus_id) since the baseline:
