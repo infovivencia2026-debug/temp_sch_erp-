@@ -810,6 +810,10 @@ func (s *Server) Routes() http.Handler {
 			r.Put("/limits", s.setTenantLimits)
 			r.Get("/tickets", s.listTickets)
 			r.Get("/enquiries", s.listSalesEnquiries)
+			/* The write half. Leads have had a five-stage status since 00013
+			   and nothing could ever move one, so every enquiry this product
+			   received was permanently 'new'. See seller_crm.go. */
+			s.mountSellerCRM(r)
 			// One notice to every school at once — see platform_broadcast.go.
 			// What each school uses, and what the installation costs to
 			// provide it — see platform_usage.go.

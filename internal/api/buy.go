@@ -258,6 +258,16 @@ type salesEnquiryRow struct {
 	Source      string  `json:"source"`
 	CreatedAt   string  `json:"created_at"`
 	Provisioned bool    `json:"provisioned"`
+	// The pipeline half, added in 00161. Owner and NextFollowUp are what turn
+	// a list of leads into a list of today's work; Notes is a count rather than
+	// the notes themselves, because a board draws two hundred rows and the
+	// history is only read one lead at a time.
+	Owner        *string `json:"owner,omitempty"`
+	OwnerID      *string `json:"owner_user_id,omitempty"`
+	NextFollowUp *string `json:"next_follow_up,omitempty"`
+	LostReason   *string `json:"lost_reason,omitempty"`
+	ValuePaise   *int64  `json:"value_paise,omitempty"`
+	Notes        int     `json:"notes"`
 }
 
 // listSalesEnquiries is the sales desk: who has asked to buy, and which of
@@ -268,12 +278,20 @@ func (s *Server) listSalesEnquiries(w http.ResponseWriter, r *http.Request) {
 	items := []salesEnquiryRow{}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			SELECT id::text, school_name, contact_name, email::text, phone, district,
-			       students, plan_code, message, status, source,
-			       to_char(created_at, 'YYYY-MM-DD'),
-			       provisioned_institution_id IS NOT NULL
-			  FROM purchase_enquiries
-			 ORDER BY created_at DESC
+			SELECT e.id::text, e.school_name, e.contact_name, e.email::text, e.phone,
+			       e.district, e.students, e.plan_code, e.message, e.status, e.source,
+			       to_char(e.created_at, 'YYYY-MM-DD'),
+			       e.provisioned_institution_id IS NOT NULL,
+			       u.full_name, e.owner_user_id::text,
+			       to_char(e.next_follow_up, 'YYYY-MM-DD'),
+			       e.lost_reason, e.value_paise,
+			       (SELECT count(*) FROM purchase_enquiry_notes n
+			         WHERE n.enquiry_id = e.id)::int
+			  FROM purchase_enquiries e
+			  LEFT JOIN users u ON u.id = e.owner_user_id
+			 /* Oldest follow-up first, then newest lead. The morning question
+			    is what is overdue, not what arrived last night. */
+			 ORDER BY e.next_follow_up NULLS LAST, e.created_at DESC
 			 LIMIT 200`)
 		if err != nil {
 			return err
@@ -283,7 +301,9 @@ func (s *Server) listSalesEnquiries(w http.ResponseWriter, r *http.Request) {
 			var v salesEnquiryRow
 			if err := rows.Scan(&v.ID, &v.School, &v.Contact, &v.Email, &v.Phone,
 				&v.District, &v.Students, &v.Plan, &v.Message, &v.Status,
-				&v.Source, &v.CreatedAt, &v.Provisioned); err != nil {
+				&v.Source, &v.CreatedAt, &v.Provisioned,
+				&v.Owner, &v.OwnerID, &v.NextFollowUp, &v.LostReason,
+				&v.ValuePaise, &v.Notes); err != nil {
 				return err
 			}
 			items = append(items, v)

@@ -2442,6 +2442,7 @@ export const en = {
      bar where it is the only labelled item; as one tab of five it is twice
      its neighbours' width and reads as a mistake rather than as emphasis. */
   'bento.dock.browse': 'Browse',
+  'bento.dock.alerts': 'Alerts',
   'bento.settings.skin.premium': 'Soft',
   'bento.settings.skin.focus': 'Focus',
   'bento.settings.theme.system': 'Match system',

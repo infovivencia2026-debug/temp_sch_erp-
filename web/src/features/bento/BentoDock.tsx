@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
+import Notifications from '@/components/Notifications'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
@@ -264,6 +265,28 @@ export function BentoDock() {
     `[&_button:has(kbd)_kbd]:!border-[color-mix(in_srgb,var(--ink-here)_38%,transparent)] ` +
     `[&_button:has(kbd):hover]:!bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]`
 
+  /* THE BELL, ADOPTED ONTO THE DOCK'S FACE.
+
+     Notifications lived only in the classic top bar, and Focus has no top bar
+     — so switching to Focus silently cost you every notification the product
+     raises: a fee reminder, a leave decision, a child marked absent. The
+     feature was built, mounted and answering; it just had nowhere to be drawn.
+
+     Same treatment as CommandSearch beside it, and for the same reason. The
+     component is painted in the classic layout's semantic tokens —
+     `text-muted-foreground`, `hover:bg-surface-hover` — which resolve against
+     a white card. On the near-black dock that is grey on near-black: the bell
+     was invisible before the tokens were overridden, not merely dim.
+
+     The unread badge is deliberately NOT overridden. It is
+     `bg-destructive` with white text, which is the one thing on the dock that
+     should keep its own colour whatever the dock is painted, because a count
+     nobody notices is a count that does not work. */
+  const adoptBell =
+    `[&_button[aria-label*='Notification']]:!text-[var(--ink-here)] ` +
+    `[&_button[aria-label*='Notification']:hover]:!bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] ` +
+    `[&_button[aria-label*='Notification']:hover]:!text-[var(--ink-here)]`
+
   /* The hairline between groups, on the dock's face rather than on the card's.
 
      `bg-border` is `--bento-line`, which the default palette writes as black
@@ -278,7 +301,7 @@ export function BentoDock() {
         className={`bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
                    -translate-x-1/2 items-center gap-2 rounded-[14px] border-none
                    bg-[var(--bento-dock-bg,var(--bento-card))]
-                   text-[var(--ink-here)] shadow-2xl ${adoptSearch}`}
+                   text-[var(--ink-here)] shadow-2xl ${adoptSearch} ${adoptBell}`}
         style={
           {
             padding: 'var(--dock-pad, 8px)',
@@ -431,6 +454,27 @@ export function BentoDock() {
         </button>
 
         {!phone && <span className={rule} aria-hidden="true" />}
+        {/* Beside the settings gear, at the end of the bar. The dock's left
+            half is places you go; its right half is the state of your own
+            account, and an unread count belongs with the second.
+
+            ON A PHONE IT GETS A WORD, like every other tab. The component
+            renders its own 36px button, which among 54px labelled tabs is both
+            the odd one out and under the 44px touch target — so the phone
+            branch stacks the label beneath it and stretches the button to
+            match. The badge is positioned inside that button, so it stays
+            anchored to the bell rather than to this wrapper. */}
+        {phone ? (
+          <span
+            className="flex min-w-[54px] flex-col items-center gap-1
+                       [&_button]:!h-11 [&_button]:!w-11 [&_button]:!rounded-[6px]"
+          >
+            <Notifications />
+            {tabLabel(t('bento.dock.alerts'))}
+          </span>
+        ) : (
+          <Notifications />
+        )}
         <BentoSettings placement="dock" />
       </div>
 
