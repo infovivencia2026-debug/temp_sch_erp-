@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Building2, IndianRupee, Users, X } from 'lucide-react'
+import { Building2, IndianRupee, Users, X } from 'lucide-react'
 import { api, setActingInstitution } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -53,12 +54,6 @@ interface Dashboard {
   attendance_trend: { date: string; percent: number; marked: number }[]
 }
 
-const SEVERITY: Record<string, 'danger' | 'warning' | 'neutral'> = {
-  high: 'danger',
-  medium: 'warning',
-  low: 'neutral',
-}
-
 export default function PlatformDashboard() {
   /* Which campus is open, if any. State rather than a route: the panel is read
      and dismissed in about four seconds, and a page you have to navigate back
@@ -103,12 +98,15 @@ export default function PlatformDashboard() {
 
             How many children, how many staff, what has been billed and what is
             still owed. An operator is asked those four and nothing else; the
-            funnel and the daily alerts belong to the people running a school,
-            and both have screens of their own. */}
+            funnel and the daily alerts belong to the people running a school
+            and have screens of their own — an operator reading a group-wide
+            alert cannot act on it, and a warning nobody acts on is noise that
+            teaches people to skip the panel it lives in. */}
         <CellGrid cols={4}>
-          <Stat label="Students" value={d.students} icon={Users}
+          <Stat label="Total students" value={d.students} icon={Users}
             hint={`${d.schools} schools · ${d.campuses} campuses`} />
-          <Stat label="Staff" value={d.staff} />
+          <Stat label="Total staff" value={d.staff}
+            hint="Every active employee, across every campus" />
           {/* Billed, not collected. Collected answers how a month went;
               this answers how big the group is, which is the one an operator
               is actually asked for. Collection is a campus question and sits
@@ -121,29 +119,6 @@ export default function PlatformDashboard() {
             period="as of today"
             delta={d.outstanding_paise > 0 ? { value: 'Owed to the group', positive: false } : undefined} />
         </CellGrid>
-
-        {d.alerts.length > 0 && (
-          <Card>
-            <CardHeader
-              title="Needs attention"
-              description="Recomputed each time this opens, so an alert disappears when the thing it describes is fixed"
-              action={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
-            />
-            <ul className="divide-y">
-              {d.alerts.map((a, i) => (
-                <li key={i} className="flex items-start gap-3 px-5 py-3">
-                  <Badge tone={SEVERITY[a.severity]}>{a.severity}</Badge>
-                  <div className="min-w-0">
-                    <p className="text-[14px]">{a.message}</p>
-                    {a.school && (
-                      <p className="mt-0.5 text-[13px] text-muted-foreground">{a.school}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
 
         <Card>
           <CardHeader
@@ -271,7 +246,18 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  /* Into the body, not into the page.
+
+     `position: fixed` stops meaning "the viewport" the moment any ancestor
+     carries a transform, and this product scales cards by 0.99 on :active as
+     a deliberate touch. The panel is rendered from inside the page body, so
+     pressing a campus card put an ancestor into that state and the overlay
+     re-anchored to it mid-press — it opened somewhere other than over the
+     screen, which reads as the card doing nothing at all.
+
+     Same fault and same fix as the full-screen table. Parented to the body,
+     nothing above it can be its containing block. */
+  return createPortal(
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
       role="dialog"
@@ -353,6 +339,7 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
