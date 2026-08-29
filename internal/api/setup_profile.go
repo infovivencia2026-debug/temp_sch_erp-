@@ -119,6 +119,22 @@ type option struct {
 	Label string `json:"label"`
 }
 
+/* A list of names as options, where the stored value IS the name.
+
+   Most vocabularies here carry a short code and a longer label, because the
+   code is what other tables reference. A state and a district do not: nothing
+   joins on them, they are what a school types on a government return, and
+   inventing "TG" for Telangana would mean every report had to translate it
+   back. So value and label are the same string, and this exists so that saying
+   so takes one line rather than thirty-three. */
+func optionsOf(names ...string) []option {
+	out := make([]option, 0, len(names))
+	for _, n := range names {
+		out = append(out, option{Value: n, Label: n})
+	}
+	return out
+}
+
 var managementTypes = []option{
 	{"government", "Government"},
 	{"aided", "Aided"},
@@ -147,6 +163,27 @@ var affiliationBoards = []option{
 	{"Other State Board", "Other state board"},
 }
 
+/* The states and union territories, so the field is a list rather than a box.
+
+   "State" was a free-text input with a placeholder reading "Telangana", which
+   is a hint rather than a choice: every school typed it, and typed it
+   differently. "Telangana", "TELANGANA", "Telengana" and "TS" are four values
+   for one state, and every report that groups by state then shows four rows.
+
+   All thirty-six, because a product sold in Telangana is still installed by a
+   chain with a branch in Andhra Pradesh, and refusing the second one to keep
+   the list short is a worse trade than a longer list. */
+var indianStates = []string{
+	"Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+	"Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+	"Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+	"Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+	"Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+	"Andaman and Nicobar Islands", "Chandigarh",
+	"Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir",
+	"Ladakh", "Lakshadweep", "Puducherry",
+}
+
 // telanganaDistricts is offered as a suggestion list, not a constraint: a
 // school in another state must still be able to type its own district.
 var telanganaDistricts = []string{
@@ -166,6 +203,7 @@ func (s *Server) getInstitutionOptions(w http.ResponseWriter, r *http.Request) {
 		"school_categories":   schoolCategories,
 		"affiliation_boards":  affiliationBoards,
 		"telangana_districts": telanganaDistricts,
+		"states":              indianStates,
 	})
 }
 

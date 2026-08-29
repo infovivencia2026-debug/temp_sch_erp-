@@ -183,6 +183,8 @@ interface Options {
   school_categories: Opt[]
   affiliation_boards: Opt[]
   telangana_districts: string[]
+  /** Every state and union territory, so the field is a choice not a hint. */
+  states: string[]
 }
 interface Profile {
   name: string
@@ -240,24 +242,52 @@ function ProfilePanel({ onDone }: PanelProps) {
         <Field label="Affiliation number" hint="Leave blank if the application is still pending.">
           <Input value={v.affiliation_no ?? ''} onChange={(x) => set('affiliation_no', x)} />
         </Field>
+        {/* A LIST, NOT A HINT.
+
+            State was a free-text box whose placeholder read "Telangana", and
+            district was an input with a <datalist> behind it. A datalist is a
+            suggestion, not a choice: nothing shows until you start typing, and
+            on Android Chrome — which is most of the people filling this in —
+            it frequently does not appear at all. So the thirty-three districts
+            were served, correct and effectively invisible, and everybody typed.
+
+            Typed is how one state becomes four values: "Telangana",
+            "TELANGANA", "Telengana", "TS". Every report grouping by state then
+            shows four rows for one place, and no join against a district
+            master will ever line up.
+
+            Both are real dropdowns now. The Select carries `kind`, which is
+            this product's escape hatch for school-defined additions — a school
+            in a district we have not listed adds its own from the bottom of
+            the list rather than being blocked by it. That is the same
+            behaviour the board and management fields already have. */}
         <Field label="State" required>
-          <Input value={v.state ?? ''} onChange={(x) => set('state', x)} placeholder="Telangana" />
+          <Select
+            kind="state"
+            addLabel="Add another state"
+            value={v.state ?? ''}
+            onChange={(x) => set('state', x)}
+            placeholder="Choose a state"
+            options={(opts?.states ?? []).map((o: string) => ({ value: o, label: o }))}
+          />
         </Field>
-        <Field label="District" required hint="Type any district; Telangana's are suggested.">
-          <>
-            <Input
-              value={v.district ?? ''}
-              onChange={(x) => set('district', x)}
-              className="w-full"
-              list="districts"
-              placeholder="Medchal-Malkajgiri"
-            />
-            <datalist id="districts">
-              {(opts?.telangana_districts ?? []).map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </>
+        <Field
+          label="District"
+          required
+          hint={
+            (v.state ?? '') === 'Telangana' || !v.state
+              ? "Telangana's thirty-three. Add your own if you are elsewhere."
+              : 'Add your own district from the bottom of the list.'
+          }
+        >
+          <Select
+            kind="district"
+            addLabel="Add another district"
+            value={v.district ?? ''}
+            onChange={(x) => set('district', x)}
+            placeholder="Choose a district"
+            options={(opts?.telangana_districts ?? []).map((d) => ({ value: d, label: d }))}
+          />
         </Field>
         <Field label="Mandal">
           <Input value={v.mandal ?? ''} onChange={(x) => set('mandal', x)} placeholder="Quthbullapur" />

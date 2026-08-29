@@ -47,6 +47,16 @@ var customisableKinds = map[string][]option{
 	"leaving_reason":    nil,
 	"concession_reason": nil,
 
+	/* Where the school is. Both were free-text boxes until the setup form
+	   started offering them as real lists, and both need the escape hatch for
+	   the same reason every other kind here does: the built-in list is
+	   Telangana's thirty-three districts and India's thirty-six states, and a
+	   product sold beyond either must not be a product somebody cannot finish
+	   setting up. A school in a district we have not listed adds it from the
+	   bottom of the dropdown, exactly as it would a board. */
+	"state":    optionsOf(indianStates...),
+	"district": optionsOf(telanganaDistricts...),
+
 	// Vocabulary the rest of the product asks for. Each is a list a school
 	// genuinely disagrees about — a designation one school calls "Senior
 	// Assistant" and another calls "Head Clerk" — as distinct from the state
@@ -143,6 +153,8 @@ var kindLabels = map[string]string{
 	"staff_designation": "Staff designations",
 	"leaving_reason":    "Reasons for leaving",
 	"concession_reason": "Concession reasons",
+	"state":             "States and union territories",
+	"district":          "Districts",
 	"employee_type":     "Employment types",
 	"qualification":     "Qualifications",
 	"department_type":   "Department types",
