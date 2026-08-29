@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, Clock, Eye, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { BookOpen, CheckCircle2, ChevronLeft, Clock, Eye, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -337,58 +338,6 @@ export default function Homework() {
                     )}
                   </div>
                  </div>
-                  {/* THE WHOLE TASK, when View is pressed.
-
-                      Not a dialog: the row it belongs to stays on screen above
-                      it, so a child comparing two tasks does not lose the list
-                      to read one of them. Everything the row had to clip is
-                      here at full length. */}
-                  {viewing === h.id && (
-                    <div className="mt-3 rounded-[3px] border bg-muted/30 p-4 text-[14px]">
-                      <p className="font-medium leading-snug">{h.title}</p>
-                      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-                        {h.subject && <span>{h.subject}</span>}
-                        {h.class_name && (
-                          <span>
-                            {h.class_name}
-                            {h.section_name && `-${h.section_name}`}
-                          </span>
-                        )}
-                        <span>set {formatDate(h.assigned_on)}</span>
-                        <span className={h.overdue ? 'text-destructive' : undefined}>
-                          {h.due_on ? `${h.overdue ? 'was due' : 'due'} ${formatDate(h.due_on)}` : 'no due date'}
-                        </span>
-                        {h.teacher && <span>set by {h.teacher}</span>}
-                      </p>
-                      {h.instructions ? (
-                        <p className="mt-3 whitespace-pre-wrap leading-relaxed">{h.instructions}</p>
-                      ) : (
-                        <p className="mt-3 text-[13px] text-muted-foreground">
-                          No further instructions were given.
-                        </p>
-                      )}
-                      {!!h.files?.length && (
-                        <div className="mt-3">
-                          <p className="mb-1.5 text-[13px] text-muted-foreground">Worksheets</p>
-                          <div className="flex flex-wrap gap-2">
-                            {h.files.map((f) => (
-                              <a
-                                key={f.file_id}
-                                href={`/api/v1/files/${f.file_id}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px] text-primary hover:bg-accent"
-                              >
-                                <Paperclip className="h-3.5 w-3.5" />
-                                {f.name}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* The worksheet the teacher set.
 
                       homework_attachments existed from the first migration and
@@ -481,6 +430,34 @@ export default function Homework() {
               ))}
             </ul>
           )}
+          {/* THE WHOLE TASK, NEARLY FULL SCREEN.
+
+              It was an inline panel under its own row, which kept the list in
+              view and made the thing you opened compete with it for width. A
+              worksheet title, the instructions and three attachments do not
+              read well in a 34rem box that is already scrolling.
+
+              A sheet at 94vw by 92vh instead, with the two controls a person
+              actually wants there: Back to the list, and Done to hand the work
+              in without going back for it. Escape closes it and the page
+              behind is scroll-locked, so a phone does not lose its place. */}
+          {viewing && (() => {
+            const h = items.find((x) => x.id === viewing)
+            if (!h) return null
+            return (
+              <HomeworkSheet
+                h={h}
+                canSubmit={!canPublish && !h.submitted}
+                pending={submit.isPending}
+                onDone={() => {
+                  setAnswering(h.id)
+                  setViewing(null)
+                }}
+                onClose={() => setViewing(null)}
+              />
+            )
+          })()}
+
           {submit.isError && (
             <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
               {submit.error instanceof Error ? submit.error.message : 'Could not submit'}
@@ -499,6 +476,140 @@ export default function Homework() {
  * link. A teacher knows they teach Class 6 maths — they do not know, and
  * should not have to look up, the row that joins those two together.
  */
+/** One task, nearly full screen.
+
+    Portalled to the body rather than rendered in the list. The list is a
+    scrolling box with its own max height, and a panel inside it inherits that
+    clip — the very thing this exists to escape.
+
+    Two controls, because there are two things a person wants from here. Back
+    returns to the list, which is where they came from and what the browser's
+    own back button will NOT do (this opened no route). Done hands the work in,
+    so a child who has just read the instructions does not have to find the row
+    again to act on them.
+*/
+function HomeworkSheet({
+  h, canSubmit, pending, onDone, onClose,
+}: {
+  h: Homework
+  canSubmit: boolean
+  pending: boolean
+  onDone: () => void
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={h.title}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-2 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-[92vh] w-[94vw] max-w-[900px] flex-col overflow-hidden rounded-[4px]
+                   border bg-card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Back
+          </Button>
+          {h.submitted ? (
+            <Badge tone="success">
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Done
+            </Badge>
+          ) : canSubmit ? (
+            <Button size="sm" disabled={pending} onClick={onDone}>
+              <Send className="h-3.5 w-3.5" />
+              Done
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <p className="text-[18px] font-medium leading-snug">{h.title}</p>
+          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13.5px] text-muted-foreground">
+            {h.subject && <span>{h.subject}</span>}
+            {h.class_name && (
+              <span>
+                {h.class_name}
+                {h.section_name && `-${h.section_name}`}
+              </span>
+            )}
+            <span>set {formatDate(h.assigned_on)}</span>
+            <span className={h.overdue ? 'text-destructive' : undefined}>
+              {h.due_on ? `${h.overdue ? 'was due' : 'due'} ${formatDate(h.due_on)}` : 'no due date'}
+            </span>
+            {h.teacher && <span>set by {h.teacher}</span>}
+          </p>
+
+          {h.instructions ? (
+            <p className="mt-5 whitespace-pre-wrap text-[15px] leading-relaxed">{h.instructions}</p>
+          ) : (
+            <p className="mt-5 text-[14px] text-muted-foreground">
+              No further instructions were given.
+            </p>
+          )}
+
+          {!!h.files?.length && (
+            <div className="mt-6">
+              <p className="mb-2 text-[13px] text-muted-foreground">Worksheets</p>
+              <div className="flex flex-wrap gap-2">
+                {h.files.map((f) => (
+                  <a
+                    key={f.file_id}
+                    href={`/api/v1/files/${f.file_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-[3px] border px-3 py-2 text-[14px] text-primary hover:bg-accent"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    {f.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {h.submitted && (h.my_answer || h.my_file_id) && (
+            <div className="mt-6 border-t pt-4">
+              <p className="text-[13px] text-muted-foreground">What you sent</p>
+              {h.my_answer && <p className="mt-1 whitespace-pre-wrap text-[15px]">{h.my_answer}</p>}
+              {h.my_file_id && (
+                <a
+                  href={`/api/v1/files/${h.my_file_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-[14px] text-primary"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  {h.my_file_name ?? 'your file'}
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => void }) {
   const qc = useQueryClient()
   // The section and subject lists are staff-only. Gating them on canPublish is
