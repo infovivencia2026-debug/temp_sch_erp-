@@ -82,7 +82,6 @@ export default function Homework() {
      A parent needs to see what was set and whether it has been turned in.
      Doing it for them is not a convenience; it is the one part of homework
      that only means something if the child did it. */
-  const isStudent = session?.user?.roles?.includes('student') ?? false
 
   /* A teacher's diary is the work that teacher set.
 
@@ -286,25 +285,30 @@ export default function Homework() {
                         <CheckCircle2 className="mr-1 h-3 w-3" />
                         Turned in
                       </Badge>
-                    ) : isStudent ? (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setAnswering(answering === h.id ? null : h.id)
-                          setAnswer('')
-                          setAttached(null)
-                        }}
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                        {answering === h.id ? 'Close' : 'Turn in'}
-                      </Button>
                     ) : (
-                      /* A parent sees the state and cannot change it. Saying
-                         "not turned in yet" is the useful half; the button was
-                         never theirs to press. */
-                      <Badge tone={h.overdue ? 'danger' : 'warning'}>
-                        {h.overdue ? 'Overdue' : 'Not turned in yet'}
-                      </Badge>
+                      /* The child, or the family on their behalf.
+
+                         A parent used to see the state and nothing else, on
+                         the grounds that handing work in for a child is not a
+                         convenience. True, and it did not stop the work being
+                         done for them — it stopped it being handed in, from a
+                         house where the phone belongs to a parent and the
+                         nine-year-old has no login. The row records who
+                         submitted, so a teacher can still tell. */
+                      <span className="flex items-center gap-2">
+                        {h.overdue && !h.submitted && <Badge tone="danger">Overdue</Badge>}
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setAnswering(answering === h.id ? null : h.id)
+                            setAnswer('')
+                            setAttached(null)
+                          }}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          {answering === h.id ? 'Close' : 'Turn in'}
+                        </Button>
+                      </span>
                     )}
                   </div>
                  </div>
@@ -717,6 +721,16 @@ function Register({ homeworkId }: { homeworkId: string }) {
               {x.text_answer && (
                 <span className="block max-w-md whitespace-pre-wrap">{x.text_answer}</span>
               )}
+              {/* Whose hands it came from, where that is not the child's.
+
+                  A parent may hand work in now, and a teacher marking it is
+                  entitled to know which of the thirty came that way — that is
+                  the whole of what the old rule was protecting. */}
+              {x.submitted_by && (
+                <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                  handed in by {x.submitted_by}
+                </span>
+              )}
               {x.file_id && (
                 <a
                   href={`/api/v1/files/${x.file_id}`}
@@ -745,6 +759,8 @@ function Register({ homeworkId }: { homeworkId: string }) {
 interface Submitter {
   file_id?: string
   file_name?: string
+  /* Present only where a guardian handed it in. Absent means the child. */
+  submitted_by?: string
   student_id: string
   roll_no?: string
   full_name: string

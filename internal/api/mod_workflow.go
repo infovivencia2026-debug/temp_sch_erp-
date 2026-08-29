@@ -1230,33 +1230,26 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	/* The child turns their own work in, and nobody else.
+	/* The child, or somebody who is allowed to act for them.
 
-	   This accepted a guardian, because a guardian has the child in scope —
-	   so a parent was handed the same button and could mark homework done. A
-	   parent needs to see what was set and whether it has been turned in;
-	   doing it for them is not a convenience, it is the one part of homework
-	   that only means anything if the child did it.
+	   This was the child's alone, and the reasoning was right as far as it
+	   went: doing homework for a child is not a convenience, it is the one
+	   part of it that only means anything if they did it. What it missed is
+	   that a nine-year-old has no login, the phone in the house belongs to a
+	   parent, and a family photographing a worked page at eight in the evening
+	   is the ordinary case rather than the suspicious one — so the rule did
+	   not stop work being done for a child, it stopped it being handed in.
 
-	   Checked on the role rather than on the scope: scope answers "whose
-	   records may you see", which is a wider question and the wrong one here. */
+	   The guard moves accordingly: not who may press the button, but whether
+	   anybody can tell afterwards. The row records who submitted and the
+	   register shows the teacher, which is what the original rule was actually
+	   protecting.
+
+	   Scope still decides whose homework: a guardian reaches their own
+	   children and nobody else's, and StudentIDs is that list. */
 	if len(res.StudentIDs) == 0 {
-		httpx.BadRequest(w, r, "only the student can submit homework")
-		return
-	}
-	var isStudent bool
-	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(),
-			`SELECT EXISTS (SELECT 1 FROM students WHERE user_id = $1)`,
-			id.UserID).Scan(&isStudent)
-	}); err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	if !isStudent {
 		httpx.Denied(w, r,
-			"only the student can turn their own homework in. You can see what was set and "+
-				"whether it has been handed in.")
+			"only a student or their guardian can turn homework in.")
 		return
 	}
 	target := res.StudentIDs[0]
@@ -1272,10 +1265,12 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO homework_submissions (institution_id, homework_id, student_id,
-			                                  submitted_at, text_answer, file_id, status)
-			VALUES ($1,$2,$3, now(), $4, NULLIF($5,'')::uuid, 'submitted')
+			                                  submitted_at, text_answer, file_id, status,
+			                                  submitted_by)
+			VALUES ($1,$2,$3, now(), $4, NULLIF($5,'')::uuid, 'submitted', $6)
 			ON CONFLICT (homework_id, student_id)
 			DO UPDATE SET submitted_at = now(),
+			              submitted_by = EXCLUDED.submitted_by,
 			              text_answer = EXCLUDED.text_answer,
 			              /* A resubmission with no new file keeps the old one:
 			                 a child fixing a typo in their written answer has
@@ -1283,7 +1278,7 @@ func (s *Server) submitHomework(w http.ResponseWriter, r *http.Request) {
 			              file_id = COALESCE(EXCLUDED.file_id, homework_submissions.file_id),
 			              status = 'submitted'`,
 			id.InstitutionID, hid, target, nullString(req.TextAnswer),
-			req.FileID); err != nil {
+			req.FileID, id.UserID); err != nil {
 			return err
 		}
 
@@ -1336,6 +1331,9 @@ type homeworkSubmitterRow struct {
 	TextAnswer  *string `json:"text_answer,omitempty"`
 	FileID      *string `json:"file_id,omitempty"`
 	FileName    *string `json:"file_name,omitempty"`
+	// Set where a guardian handed it in rather than the child. Absent means
+	// the child, which is what absence meant before the column existed.
+	SubmittedBy *string `json:"submitted_by,omitempty"`
 }
 
 /*
@@ -1390,19 +1388,26 @@ func (s *Server) listHomeworkSubmissions(w http.ResponseWriter, r *http.Request)
 		       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
 		       COALESCE(hs.status, 'pending'),
 		       to_char(hs.submitted_at, 'YYYY-MM-DD"T"HH24:MI'),
-		       hs.text_answer, hs.file_id::text, f.original_name
+		       hs.text_answer, hs.file_id::text, f.original_name,
+		       /* Named only when it was not the child. A column reading "the
+		          child" against thirty rows is noise; the exception is the
+		          fact. */
+		       CASE WHEN hs.submitted_by IS NOT NULL
+		                 AND hs.submitted_by <> st.user_id
+		            THEN sub.full_name END
 		  FROM enrollments e
 		  JOIN students st ON st.id = e.student_id
 		  LEFT JOIN homework_submissions hs
 		         ON hs.homework_id = $1 AND hs.student_id = st.id
 		  LEFT JOIN files f ON f.id = hs.file_id AND f.deleted_at IS NULL
+		  LEFT JOIN users sub ON sub.id = hs.submitted_by
 		 WHERE e.section_id = $2 AND e.status = 'active'
 		 ORDER BY e.roll_no NULLS LAST, st.first_name`,
 		[]any{hid, sectionID},
 		func(rows pgx.Rows) (homeworkSubmitterRow, error) {
 			var v homeworkSubmitterRow
 			return v, rows.Scan(&v.StudentID, &v.RollNo, &v.FullName, &v.Status,
-				&v.SubmittedAt, &v.TextAnswer, &v.FileID, &v.FileName)
+				&v.SubmittedAt, &v.TextAnswer, &v.FileID, &v.FileName, &v.SubmittedBy)
 		})
 	respond(w, r, items, err)
 }

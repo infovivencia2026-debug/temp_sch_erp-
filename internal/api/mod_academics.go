@@ -121,17 +121,57 @@ func (s *Server) decideCorrection(w http.ResponseWriter, r *http.Request) {
 			Scan(&attID, &toStatus); err != nil {
 			return err
 		}
-		if req.Decision != "approved" {
+		if req.Decision == "approved" {
+			// The register keeps the previous value in corrected_from, so the
+			// audit trail survives on the row itself as well as in the
+			// correction record.
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE student_attendance
+				   SET corrected_from = status, status = $2,
+				       corrected_by = $3, corrected_at = now()
+				 WHERE id = $1`, attID, toStatus, id.UserID); err != nil {
+				return err
+			}
+		}
+
+		/* And tell whoever asked.
+
+		   She raised it because a mark was wrong and then heard nothing either
+		   way, so an approval looked exactly like a request nobody had read —
+		   she checks the screen again, or asks in the corridor, or marks it a
+		   second time, which is what the approval exists to prevent.
+
+		   A rejection matters more than an approval here: the register still
+		   says the thing she believes is wrong, and she is the only person who
+		   can raise it again with a better reason. */
+		var asked *uuid.UUID
+		var child string
+		var onDate string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT ac.requested_by,
+			       trim(st.first_name || ' ' || COALESCE(st.last_name,'')),
+			       to_char(sa.on_date, 'YYYY-MM-DD')
+			  FROM attendance_corrections ac
+			  JOIN student_attendance sa ON sa.id = ac.attendance_id
+			  JOIN students st ON st.id = sa.student_id
+			 WHERE ac.id = $1`, cid).Scan(&asked, &child, &onDate); err != nil {
+			return err
+		}
+		// Not to somebody deciding their own request: a head of department who
+		// raises one and approves it does not need telling twice.
+		if asked == nil || *asked == id.UserID {
 			return nil
 		}
-		// The register keeps the previous value in corrected_from, so the audit
-		// trail survives on the row itself as well as in the correction record.
-		_, err := tx.Exec(r.Context(), `
-			UPDATE student_attendance
-			   SET corrected_from = status, status = $2,
-			       corrected_by = $3, corrected_at = now()
-			 WHERE id = $1`, attID, toStatus, id.UserID)
-		return err
+		verb := "approved"
+		body := "The register for " + onDate + " has been amended."
+		if req.Decision != "approved" {
+			verb = "not approved"
+			body = "The mark for " + onDate + " stands as it was. " +
+				"Raise it again if it is still wrong."
+		}
+		return notify(r, tx, id.InstitutionID, *asked, nil, "correction_decided",
+			"Your correction for "+child+" was "+verb, body,
+			"/go/attendance_correction", "attendance_correction", &cid)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.Error(w, r, http.StatusNotFound, "not_found", "no pending correction with that id")

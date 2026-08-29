@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -302,7 +303,69 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 			ChequeDate: chequeDate, Remarks: req.Remarks,
 			CollectedBy: id.UserID, InvoiceIDs: invoiceIDs,
 		})
-		return err
+		if err != nil {
+			return err
+		}
+
+		/* And tell the family it arrived.
+
+		   A receipt is the one thing a parent wants confirmation of, and this
+		   recorded the payment in silence: the counter handed over a slip and
+		   the app the family is told to use said nothing. A parent unsure
+		   whether a cheque cleared rings the office, which is the call the
+		   software was bought to stop.
+
+		   The child as well as the guardians — a boarder or a sixth-former
+		   often pays their own and is the one asking.
+
+		   Inside the transaction, so a payment that rolls back cannot leave a
+		   family told about money the ledger never took. */
+		rows, qerr := tx.Query(r.Context(), `
+			SELECT g.user_id FROM student_guardians sg
+			  JOIN guardians g ON g.id = sg.guardian_id
+			 WHERE sg.student_id = $1 AND g.user_id IS NOT NULL
+			UNION
+			SELECT st.user_id FROM students st
+			 WHERE st.id = $1 AND st.user_id IS NOT NULL`, studentID)
+		if qerr != nil {
+			return qerr
+		}
+		var tell []uuid.UUID
+		for rows.Next() {
+			var u uuid.UUID
+			if serr := rows.Scan(&u); serr != nil {
+				rows.Close()
+				return serr
+			}
+			tell = append(tell, u)
+		}
+		rows.Close()
+		if rerr := rows.Err(); rerr != nil {
+			return rerr
+		}
+
+		/* The exact figure, not the dashboard's abbreviation.
+
+		   rupees() renders ₹1.20L, which is right on a tile summarising a
+		   term's collection and wrong on a receipt: a parent checks the number
+		   against what they handed over, and 1.20L is not a number anybody
+		   handed over. */
+		amount := "₹" + strconv.FormatFloat(float64(receipt.AmountPaise)/100, 'f', 2, 64)
+		body := amount + " received, receipt " + receipt.ReceiptNo + "."
+		if !receipt.Cleared {
+			// A cheque is not money yet, and saying "received" alone would
+			// have a family believe the fee is settled a week before it is.
+			body = amount + " taken by " + req.Mode + ", receipt " +
+				receipt.ReceiptNo + ". It counts once it clears."
+		}
+		for _, u := range tell {
+			if nerr := notify(r, tx, instID, u, &studentID, "fee_receipt",
+				"Fee received", body,
+				"/go/fee_receipts", "payment", &receipt.PaymentID); nerr != nil {
+				return nerr
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.NotFound(w, r)
