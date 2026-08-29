@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { openTab } from '@/lib/tabs'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
 import { Cell, useBoardHeight, type CellSpan } from './bento-kit'
@@ -180,6 +181,7 @@ export function PersonaCard({
   children?: ReactNode
 }) {
   const { tall } = useShape()
+  const here = useLocation().pathname
   /* `Gauge` punches its centre with `--bento-card`: left at the plain card
      tone it would draw a pale disc in the middle of a coloured card. */
   const style = ground
@@ -216,6 +218,10 @@ export function PersonaCard({
           <Link
             to={to}
             aria-label={cueLabel}
+            /* Same as Cue in bento-kit: opening a card opens a tab, so a
+               person can have fees and attendance side by side instead of one
+               replacing the other. Desktop only, because the strip is. */
+            onClick={() => openTab(to, cueLabel, here)}
             className="relative block min-h-0 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
           >
             {body}

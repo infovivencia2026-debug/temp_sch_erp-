@@ -40,6 +40,19 @@ export type Contrast = 'normal' | 'medium' | 'high'
 export type DockSize = 'compact' | 'default' | 'large'
 export type IconSize = 'small' | 'default' | 'large'
 
+/* HOW A TIME OF DAY IS WRITTEN.
+
+   Every time in this product was rendered as the raw HH:MM the API sends, so a
+   period beginning at half past two read "14:30". That is correct, unambiguous
+   and not how anybody in an Indian school says it: a bell is at 2:30 pm, a
+   parent is told to come at 11 am, and a teacher reading "14:30" translates
+   before understanding it.
+
+   Twelve-hour is the default for that reason, and it is a preference rather
+   than a rule because a school that keeps its timetable in 24-hour notation
+   should not have to re-learn its own day. */
+export type Clock = '12h' | '24h'
+
 export const DENSITIES: readonly Density[] = ['hairline', 'compact', 'comfortable', 'relaxed', 'spacious'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
 export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'larger'] as const
@@ -50,6 +63,7 @@ export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'n
 export const CONTRASTS: readonly Contrast[] = ['normal', 'medium', 'high'] as const
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
+export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
 
 /* The continuous axes.
 
@@ -117,6 +131,7 @@ export interface Appearance {
   iconSize: IconSize
   /** Comma-separated list of workspace names hidden from the dock */
   hiddenDockItems: string
+  clock: Clock
   scales: Scales
 }
 
@@ -131,6 +146,7 @@ const DEFAULTS: Appearance = {
   contrast: 'normal',
   dockSize: 'default',
   iconSize: 'default',
+  clock: '12h',
   scales: SCALE_DEFAULTS,
   hiddenDockItems: '',
 }
@@ -147,6 +163,7 @@ const KEYS = {
   dockSize: 'erp.dockSize',
   iconSize: 'erp.iconSize',
   hiddenDockItems: 'erp.hiddenDockItems',
+  clock: 'erp.clock',
 } as const
 
 function readRaw(key: string): string | undefined {
@@ -204,6 +221,7 @@ function read(): Appearance {
     contrast: one(KEYS.contrast, CONTRASTS, DEFAULTS.contrast),
     dockSize: one(KEYS.dockSize, DOCK_SIZES, DEFAULTS.dockSize),
     iconSize: one(KEYS.iconSize, ICON_SIZES, DEFAULTS.iconSize),
+    clock: one(KEYS.clock, CLOCKS, DEFAULTS.clock),
     hiddenDockItems: readRaw(KEYS.hiddenDockItems) ?? '',
     scales: readScales(),
   }
@@ -242,6 +260,12 @@ export function applyAppearance(next: Appearance) {
     if (value === dflt) root.removeAttribute(attr)
     else root.setAttribute(attr, value)
   }
+  /* Stamped even though no stylesheet reads it: formatTime in lib/utils.ts
+     does. A plain formatting function cannot call a hook, and reading the
+     attribute is how it sees a preference that lives in this module -- the
+     same route data-density takes to reach the CSS. Default removed like every
+     other axis, so the absence of the attribute means twelve-hour. */
+  stamp('data-clock', next.clock, '12h')
   stamp('data-corners', next.corners, 'default')
   stamp('data-text', next.text, 'default')
   /* The face is applied as a stack rather than an attribute, because the list
@@ -293,7 +317,8 @@ export function applyAppearance(next: Appearance) {
     // runs, and changing the format here would blank it for one paint.
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
-                     'contrast', 'dockSize', 'iconSize', 'hiddenDockItems'] as const) {
+                     'contrast', 'dockSize', 'iconSize', 'hiddenDockItems',
+                     'clock'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
     /* The continuous scales, under the same keys readScales() looks for.

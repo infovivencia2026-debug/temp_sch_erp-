@@ -1214,10 +1214,34 @@ function StaffPanel({ onDone }: PanelProps) {
     role_key: 'faculty',
     create_login: true,
   })
-  const save = useSave(async (body: typeof f) => api.post('/api/v1/setup/employees', body), () => {
-    setF({ ...f, employee_code: '', first_name: '', last_name: '', email: '', phone: '' })
-    onDone()
-  })
+  /* WHAT ACTUALLY HAPPENED, said out loud.
+
+     The endpoint upserts on employee code, and this form reported success for
+     both outcomes. A clerk typing a code already in use -- T-014 is somebody
+     who left last year -- pressed Add, saw the fields clear, and no new person
+     existed; the old employee had quietly been renamed to the new one.
+
+     "Add staff is not working" is what that looks like from the office, and it
+     was true: nothing was added. The server now says which it did, and this
+     says so. */
+  const [outcome, setOutcome] = useState<string | null>(null)
+  const save = useSave(
+    async (body: typeof f) =>
+      api.post<{ created: boolean; employee_code: string }>('/api/v1/setup/employees', body),
+    () => {
+      setF({ ...f, employee_code: '', first_name: '', last_name: '', email: '', phone: '' })
+      onDone()
+    },
+  )
+  useEffect(() => {
+    const d = save.data as { created?: boolean; employee_code?: string } | undefined
+    if (!d) return
+    setOutcome(
+      d.created
+        ? `Added ${d.employee_code}.`
+        : `${d.employee_code} already existed — that record was updated, not added.`,
+    )
+  }, [save.data])
 
   return (
     <form
@@ -1252,6 +1276,11 @@ function StaffPanel({ onDone }: PanelProps) {
         </Field>
       </FormGrid>
       <SaveRow pending={save.isPending} error={save.error} label="Add staff member" />
+      {outcome && (
+        <p className="mt-2 text-[13.5px] text-muted-foreground" role="status">
+          {outcome}
+        </p>
+      )}
       {(teachers?.items.length ?? 0) > 0 && <StaffLogins staff={teachers!.items} />}
       <Assignments onDone={onDone} />
           <div className="mt-5 border-t pt-5">

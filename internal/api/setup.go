@@ -1061,20 +1061,40 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var empID, userID string
+	var created bool
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		campus, err := ensureCampus(r, tx, id.InstitutionID)
 		if err != nil {
 			return err
 		}
-		empID, userID, _, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
+		empID, userID, created, err = appointEmployee(r.Context(), tx, id.InstitutionID, campus, req)
 		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
+	/* SAY WHICH IT WAS.
+
+	   appointEmployee upserts on (institution_id, employee_code) and has always
+	   returned `(xmax = 0)` to say whether it inserted or updated. This handler
+	   discarded it into `_`, so the response was identical either way and the
+	   Add staff form reported success for both.
+
+	   That is what "add staff is not working" looks like from the office: a
+	   clerk types a code that is already in use -- T-014 is somebody who left
+	   last year -- presses Add, gets no complaint, and no new person exists.
+	   Worse, the existing employee has just been silently renamed to the person
+	   they were trying to add.
+
+	   The upsert itself stays. The bulk staff sheet is re-run deliberately to
+	   correct a spelling, and turning that into a duplicate-key error would
+	   break the import that a hundred rows depend on. What was missing was
+	   telling the caller which of the two happened, so a form can say "added"
+	   or "updated T-014" and a person can tell them apart. */
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": empID, "user_id": nullOrString(userID), "employee_code": req.EmployeeCode,
+		"created": created,
 	})
 }
 

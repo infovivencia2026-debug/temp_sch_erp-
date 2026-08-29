@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { openTab } from '@/lib/tabs'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
 import { CornerMark } from './bento-cards'
@@ -632,6 +633,7 @@ export function Cue({
   dark?: boolean
 }) {
   const still = useReduceMotion()
+  const here = useLocation().pathname
   void tone; void dark
   return (
     /* AN ARROW IN THE CORNER, not a pill along the bottom edge.
@@ -663,6 +665,20 @@ export function Cue({
       to={to}
       aria-label={label}
       title={label}
+      /* OPENING A CARD OPENS A TAB.
+
+         The tab strip has existed the whole time, `openTab` has existed the
+         whole time, and the board never called it -- only the employee list
+         and the record shell did. So every screen reached from home replaced
+         the last one in a single tab, while a strip capable of holding eight
+         sat above it doing nothing. Somebody opening fees, then attendance,
+         then a child's file had no way back to the first two except the
+         browser's own history.
+
+         The strip is `lg:flex`, so this is a desktop behaviour and a phone is
+         unaffected -- which is right: tabs are for a person with a keyboard
+         working several things at once, not for a parent on a bus. */
+      onClick={() => openTab(to, label, here)}
       className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >
       {/* The Link is `display: contents` so the mark itself is the box — one
