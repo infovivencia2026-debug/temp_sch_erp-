@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
@@ -567,6 +567,19 @@ function ClassesPanel({ onDone }: PanelProps) {
         promotion moves a student along.
       </p>
 
+      {/* Headers, because two time boxes side by side with nothing above them
+          is a guess about which is which — and the wrong guess writes a period
+          that ends before it starts. Hidden when the list is empty, where they
+          would be a table header over no table. */}
+      {rows.length > 0 && (
+        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_6rem_6rem_5rem] gap-2
+                        px-1 text-[12px] font-medium text-muted-foreground">
+          <span>Period</span>
+          <span>Starts</span>
+          <span>Ends</span>
+          <span>Break</span>
+        </div>
+      )}
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
@@ -1065,6 +1078,41 @@ function PeriodsPanel({ onDone }: PanelProps) {
   const [rows, setRows] = useState<P[]>([])
   const save = useSave((periods: P[]) => api.put('/api/v1/setup/periods', { periods }), onDone)
 
+  /* THE SAVED DAY HAS TO ARRIVE IN THE FORM.
+
+     The query above has always fetched the school's periods, and the form has
+     always started at []. So a school that had already defined its day opened
+     this panel to an empty box with no times in it anywhere — the saved bells
+     were rendered underneath as read-only chips, which reads as "there is
+     nothing here to edit" rather than as "your day is below but you cannot
+     touch it". The only way to see a time field at all was to press the preset,
+     which overwrites the real day with a generic one.
+
+     Seeded once, and only while the form is untouched. `seeded` is a ref rather
+     than a dependency so that a refetch — after saving, or on window focus —
+     cannot discard what somebody is halfway through typing. That is the trap
+     with this pattern: an effect keyed on `data` looks correct and silently
+     reverts an edit the moment React Query revalidates. */
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (seeded.current || !data?.items?.length) return
+    seeded.current = true
+    setRows(
+      data.items.map((p, i) => ({
+        name: p.name,
+        sequence: p.sequence ?? i + 1,
+        // internal/api/timetable.go:72 formats these as to_char(...,'HH24:MI'),
+        // so they arrive as HH:MM already. Sliced anyway: a time input handed
+        // seconds shows nothing at all rather than complaining, and this panel
+        // has just spent a release being empty for exactly that class of
+        // reason.
+        starts_at: (p.starts_at ?? '').slice(0, 5),
+        ends_at: (p.ends_at ?? '').slice(0, 5),
+        is_break: p.is_break,
+      })),
+    )
+  }, [data])
+
   const standard = () => {
     const start = 9 * 60 // 09:00, the usual first bell
     const plan: [string, number, boolean][] = [
@@ -1120,6 +1168,12 @@ function PeriodsPanel({ onDone }: PanelProps) {
           </div>
         ))}
       </div>
+      {rows.length === 0 && (
+        <p className="rounded-[3px] border border-dashed px-4 py-6 text-center text-[13.5px]
+                      text-muted-foreground">
+          No periods yet. Start from the seven-period day above, or add them one at a time.
+        </p>
+      )}
       <button
         type="button"
         onClick={() =>
