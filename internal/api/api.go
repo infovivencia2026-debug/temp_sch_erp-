@@ -643,6 +643,15 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Get("/report-cards/pending", s.listPendingReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/publish", s.publishReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/return", s.returnReportCards)
+			// Taking a released set back when it was wrong. Same right as
+			// releasing one: whoever may put results in front of a family is
+			// the person who may take them away again.
+			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/withdraw", s.withdrawReportCards)
+			/* Anybody's own signature, on the exams routes because that is
+			   where the documents it signs are. No user id in the request:
+			   a signature somebody else can attach is not a signature. */
+			r.Get("/my-signature", s.getMySignature)
+			r.Put("/my-signature", s.setMySignature)
 
 			/* Exam day: halls, seating and the ticket.
 

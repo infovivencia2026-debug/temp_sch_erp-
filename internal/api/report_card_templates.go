@@ -60,9 +60,10 @@ var reportCardPlaceholders = []map[string]string{
 	{"token": "{{result}}", "means": "PASS or FAIL, on the school's own pass mark"},
 	{"token": "{{rank}}", "means": "rank in the section"},
 	{"token": "{{attendance}}", "means": "attendance percentage"},
-	{"token": "{{remarks}}", "means": "the class teacher's remark"},
-	{"token": "{{class_teacher}}", "means": "the class teacher's name"},
-	{"token": "{{principal}}", "means": "the principal's name"},
+	{"token": "{{class_teacher}}", "means": "the class teacher who sent it for approval"},
+	{"token": "{{class_teacher_sign}}", "means": "their signature, once they have sent it up"},
+	{"token": "{{principal}}", "means": "the head who approved it"},
+	{"token": "{{principal_sign}}", "means": "their signature, once they have approved it"},
 	{"token": "{{issued_on}}", "means": "today's date"},
 }
 
@@ -120,15 +121,16 @@ const defaultReportCardHTML = `<div class="card">
     <div><span>Attendance</span><strong>{{attendance}}</strong></div>
   </section>
 
-  <section class="remarks">
-    <h3>Class teacher's remarks</h3>
-    <p>{{remarks}}</p>
-  </section>
-
   <footer>
-    <div class="sign"><span></span>{{class_teacher}}<em>Class teacher</em></div>
+    <div class="sign">
+      <div class="ink">{{class_teacher_sign}}</div>
+      <span></span>{{class_teacher}}<em>Class teacher</em>
+    </div>
     <div class="issued">Issued {{issued_on}}</div>
-    <div class="sign"><span></span>{{principal}}<em>Principal</em></div>
+    <div class="sign">
+      <div class="ink">{{principal_sign}}</div>
+      <span></span>{{principal}}<em>Principal</em>
+    </div>
   </footer>
 </div>`
 
@@ -137,7 +139,12 @@ const defaultReportCardHTML = `<div class="card">
 // underneath would fight it.
 const defaultReportCardCSS = `
 .card { width: 190mm; margin: 0 auto; padding: 8mm; box-sizing: border-box;
-        border: 2px solid #1e3a5f; font: 11pt/1.45 Georgia, 'Times New Roman', serif;
+        border: 2px solid #1e3a5f;
+        /* Arial first, then Calibri, then Times New Roman. What a school
+           already prints on: the fonts on every office machine in the country,
+           and the three a head asked for by name. Georgia was a web font
+           choice on a document that is read on paper. */
+        font: 11pt/1.45 Arial, Calibri, 'Times New Roman', sans-serif;
         color: #14213d; background: #fff; }
 .card header { text-align: center; }
 /* The crest, where the school has one. The block collapses to nothing when it
@@ -171,9 +178,14 @@ const defaultReportCardCSS = `
 .card .summary span { display: block; font-size: 8.5pt; color: #4a5568;
                       text-transform: uppercase; letter-spacing: .5px; }
 .card .summary strong { font-size: 12pt; }
-.card .remarks h3 { font-size: 9.5pt; text-transform: uppercase; letter-spacing: 1px;
-                    margin: 0 0 1.5mm; color: #4a5568; }
-.card .remarks p { margin: 0; min-height: 14mm; border: 1px solid #cbd5e0; padding: 2.5mm; }
+/* The signature sits ON the line, not above a gap. Fixed height so a tall
+   scan and a wide one both land in the same place and the two feet of the card
+   stay level. Empty until the person has actually signed — a card still with
+   the class teacher shows one line signed and one blank, which is exactly what
+   it is. */
+.card footer .ink { height: 12mm; display: flex; align-items: flex-end;
+                    justify-content: center; }
+.card footer .ink img { max-height: 12mm; max-width: 45mm; }
 .card footer { display: flex; align-items: flex-end; justify-content: space-between;
                margin-top: 10mm; font-size: 9.5pt; }
 .card footer .sign { text-align: center; }
@@ -348,9 +360,13 @@ func fillReportCard(tpl string, c renderedCard) string {
 	   keeps. */
 	out = strings.ReplaceAll(out, "{{photo}}", imgTag(c.values["photo_file_id"]))
 	out = strings.ReplaceAll(out, "{{school_logo}}", imgTag(c.values["logo_file_id"]))
+	out = strings.ReplaceAll(out, "{{class_teacher_sign}}", imgTag(c.values["teacher_sign_file_id"]))
+	out = strings.ReplaceAll(out, "{{principal_sign}}", imgTag(c.values["principal_sign_file_id"]))
 
 	for k, v := range c.values {
-		if k == "photo_file_id" || k == "logo_file_id" {
+		switch k {
+		case "photo_file_id", "logo_file_id",
+			"teacher_sign_file_id", "principal_sign_file_id":
 			continue
 		}
 		out = strings.ReplaceAll(out, "{{"+k+"}}", html.EscapeString(v))
@@ -434,6 +450,7 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		total, obtained, pct, attendance                                    *float64
 		grade, remark, examName, year, classTeacher, principalName, rankStr *string
 		logoKey, motto                                                      *string
+		teacherSign, principalSign                                          *string
 	)
 	err := tx.QueryRow(r.Context(), `
 		SELECT i.name, i.logo_key,
@@ -469,8 +486,20 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		         WHERE ex.academic_year_id = rc.academic_year_id
 		         ORDER BY ex.created_at DESC LIMIT 1),
 		       ay.name,
-		       (SELECT u.full_name FROM users u WHERE u.id = sec.class_teacher_id),
+		       /* Who actually signed, not who holds the post.
+
+		          The class teacher line is the person who SENT IT UP, read from
+		          submitted_by, falling back to whoever the section's class
+		          teacher is while it is still a draft. The head's line is
+		          decided_by and has no fallback: a card nobody has approved must
+		          not carry a head's name, because the whole point of the
+		          signature is that they read it. */
+		       COALESCE(
+		         (SELECT u.full_name FROM users u WHERE u.id = rc.submitted_by),
+		         (SELECT u.full_name FROM users u WHERE u.id = sec.class_teacher_id)),
 		       (SELECT u2.full_name FROM users u2 WHERE u2.id = rc.decided_by),
+		       (SELECT u.signature_file_id::text FROM users u WHERE u.id = rc.submitted_by),
+		       (SELECT u2.signature_file_id::text FROM users u2 WHERE u2.id = rc.decided_by),
 		       rc.rank_in_section::text
 		  FROM report_cards rc
 		  JOIN students st       ON st.id = rc.student_id
@@ -484,7 +513,8 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		&student, &class, &section, &admissionNo, &roll, &dob, &admitted,
 		&photo, &father, &mother, &guardian,
 		&total, &obtained, &pct, &attendance, &grade, &remark,
-		&examName, &year, &classTeacher, &principalName, &rankStr)
+		&examName, &year, &classTeacher, &principalName,
+		&teacherSign, &principalSign, &rankStr)
 	if err != nil {
 		return c, err
 	}
@@ -505,7 +535,9 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 	c.values = map[string]string{
 		"school_name": school, "student_name": student,
 		"logo_file_id": str(logoKey), "school_motto": str(motto),
-		"class": class, "section": section, "admission_no": admissionNo,
+		"teacher_sign_file_id":   str(teacherSign),
+		"principal_sign_file_id": str(principalSign),
+		"class":                  class, "section": section, "admission_no": admissionNo,
 		"roll_no": str(roll), "date_of_birth": str(dob), "admission_date": str(admitted),
 		"photo_file_id": str(photo),
 		"father_name":   str(father), "mother_name": str(mother),
@@ -636,4 +668,60 @@ func (s *Server) renderFamilyReportCard(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"html": body, "css": tpl.CSS})
+}
+
+/*
+Somebody's own signature.
+
+	Their own, always: the endpoint takes no user id, so there is no shape of
+	request that sets somebody else's. A signature that another person can
+	attach is not a signature.
+
+	Read back through submitted_by and decided_by on each report card rather
+	than copied onto the document, so replacing a poor scan corrects every card
+	rendered afterwards — and a card nobody has approved cannot show a head's
+	signature, because there is no decided_by to read one from.
+*/
+func (s *Server) setMySignature(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var req struct {
+		FileID string `json:"file_id"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	var file *uuid.UUID
+	if v := strings.TrimSpace(req.FileID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "file_id must be a uuid")
+			return
+		}
+		file = &parsed
+	}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(),
+			`UPDATE users SET signature_file_id = $1 WHERE id = $2`, file, id.UserID)
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"saved": true})
+}
+
+func (s *Server) getMySignature(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var file *string
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(),
+			`SELECT signature_file_id::text FROM users WHERE id = $1`,
+			id.UserID).Scan(&file)
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"file_id": file})
 }

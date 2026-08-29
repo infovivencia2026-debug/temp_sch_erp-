@@ -9,6 +9,7 @@ import {
 import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
 import CardViewer from '@/components/CardViewer'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { useCan } from '@/lib/session'
 
 /* One report card, for everybody who has to look at one.
@@ -349,15 +350,37 @@ export default function ReportCards() {
   const [channels, setChannels] = useState<Record<string, boolean>>({})
   const chosenChannels = Object.keys(channels).filter((k) => channels[k])
 
+  /* The signature this person puts on what they sign.
+
+     Theirs and only theirs — the endpoint takes no user id. It is read back
+     through submitted_by and decided_by when a card is rendered rather than
+     stamped onto the document, so replacing a poor scan corrects every card
+     printed afterwards, and a card nobody has approved shows no head's
+     signature because there is nobody to read one from. */
+  const signature = useQuery({
+    queryKey: ['my-signature'],
+    queryFn: () => api.get<{ file_id?: string }>('/api/v1/exams/my-signature'),
+  })
+  const [signFile, setSignFile] = useState<UploadedFile | null>(null)
+  const [showSign, setShowSign] = useState(false)
+  const saveSignature = useMutation({
+    mutationFn: (fileID: string) =>
+      api.put('/api/v1/exams/my-signature', { file_id: fileID }),
+    onSuccess: () => {
+      setSignFile(null)
+      qc.invalidateQueries({ queryKey: ['my-signature'] })
+    },
+  })
+
   const act = useMutation({
     mutationFn: (v: {
-      verb: 'submit' | 'publish' | 'return'
+      verb: 'submit' | 'publish' | 'return' | 'withdraw'
       ids?: string[]
       section_ids?: string[]
       note?: string
     }) =>
       api.post<{
-        submitted?: number; published?: number; returned?: number
+        submitted?: number; published?: number; returned?: number; withdrawn?: number
         messages_queued?: number; delivery_error?: string
       }>(
         `/api/v1/exams/report-cards/${v.verb}`,
@@ -368,7 +391,7 @@ export default function ReportCards() {
         },
       ),
     onSuccess: (r, v) => {
-      const n = r.submitted ?? r.published ?? r.returned ?? 0
+      const n = r.submitted ?? r.published ?? r.returned ?? r.withdrawn ?? 0
       const noun = `${n} report ${n === 1 ? 'card' : 'cards'}`
       const told = to === 'both' ? 'the students and their parents'
         : to === 'students' ? 'the students' : 'the parents'
@@ -381,7 +404,9 @@ export default function ReportCards() {
           : v.verb === 'publish'
             ? `${noun} published — ${told} have been told in the app.${sent}` +
               (r.delivery_error ? ` The cards are out, but sending failed: ${r.delivery_error}` : '')
-            : `${noun} sent back to the class teacher with your note.`,
+            : v.verb === 'withdraw'
+              ? `${noun} taken back. They are drafts with the class teacher again and the families can no longer open them.`
+              : `${noun} sent back to the class teacher with your note.`,
       )
       setPicked({})
       setPickedSections({})
@@ -533,6 +558,9 @@ export default function ReportCards() {
             )}
             {(mayGenerate || mayPublish) && (
               <>
+                <Button variant="ghost" onClick={() => setShowSign((v) => !v)}>
+                  {signature.data?.file_id ? 'My signature' : 'Add my signature'}
+                </Button>
                 {/* Straight at it. Somebody who already has the school's design
                     should not have to open a panel to find the button. */}
                 <ImportDesign
@@ -646,6 +674,51 @@ export default function ReportCards() {
 
 
 
+        {showSign && (
+          <Card>
+            <CardHeader
+              title="My signature"
+              description="Printed on every report card you sign — where you send a section up as its class teacher, and where you approve one as the head. Replacing it corrects every card printed afterwards."
+              action={<Button variant="ghost" onClick={() => setShowSign(false)}>Close</Button>}
+            />
+            <div className="flex flex-wrap items-start gap-4 px-5 pb-5">
+              <div className="flex h-[16mm] w-[50mm] shrink-0 items-end justify-center rounded border bg-white p-1">
+                {signature.data?.file_id && (
+                  <img
+                    src={`/api/v1/files/${signature.data.file_id}`}
+                    alt="My signature"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                )}
+              </div>
+              <div className="min-w-[16rem] flex-1">
+                <FilePicker
+                  value={signFile}
+                  onChange={(f) => {
+                    setSignFile(f)
+                    // Saved as soon as it is up. A signature chosen and then
+                    // left unsaved is a card that prints an empty line.
+                    if (f) saveSignature.mutate(f.file_id)
+                  }}
+                  purpose="signature"
+                  label={signature.data?.file_id ? 'Replace it' : 'Upload a signature'}
+                  hint="A scan or a photograph of your signature on white paper. PNG with a transparent background prints best."
+                />
+                {saveSignature.error && <FormNotice error={saveSignature.error} />}
+                {signature.data?.file_id && (
+                  <Button
+                    variant="ghost"
+                    disabled={saveSignature.isPending}
+                    onClick={() => saveSignature.mutate('')}
+                  >
+                    Remove it
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* The whole school's queue, for the head.
 
             Sits above everything else because on the day results go out it is
@@ -724,14 +797,20 @@ export default function ReportCards() {
             The class teacher sends the set to the principal; the principal
             releases it to the children and their parents, or sends it back
             saying what is wrong. Whoever is looking sees only their half. */}
-        {examId && (toSubmit.length > 0 || (mayPublish && awaiting.length > 0)) && (
+        {examId && (toSubmit.length > 0 || (mayPublish && (awaiting.length > 0 || published > 0))) && (
           <Card>
             <CardHeader
-              title={mayPublish && awaiting.length ? 'Waiting for your approval' : 'Send for approval'}
+              title={
+                mayPublish && awaiting.length ? 'Waiting for your approval'
+                  : toSubmit.length ? 'Send for approval'
+                    : 'Released'
+              }
               description={
                 mayPublish && awaiting.length
                   ? `${awaiting.length} ${awaiting.length === 1 ? 'card is' : 'cards are'} signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave everything unticked to act on all.`
-                  : 'The principal approves before a card reaches a family. Tick rows to send only those, or leave everything unticked to send the section.'
+                  : toSubmit.length
+                    ? 'The principal approves before a card reaches a family. Tick rows to send only those, or leave everything unticked to send the section.'
+                    : `${published} ${published === 1 ? 'card is' : 'cards are'} with the families. Taking them back makes them drafts with the class teacher again and closes them to students and parents.`
               }
             />
             <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
@@ -775,6 +854,24 @@ export default function ReportCards() {
                     Send back
                   </Button>
                 </>
+              )}
+              {/* Results go out wrong: a paper was unmarked, the wrong
+                  section was released. Back to draft with the class teacher,
+                  so the way back out is the ordinary way — fix it, send it up,
+                  release it again. */}
+              {mayPublish && published > 0 && (
+                <Button
+                  variant="ghost"
+                  disabled={act.isPending}
+                  onClick={() => {
+                    const back = (ticked.length ? ticked : all).filter(
+                      (x) => x.status === 'published')
+                    if (back.length) act.mutate({ verb: 'withdraw', ids: back.map((x) => x.id) })
+                  }}
+                  title="Take them back from the families and return them to the class teacher as drafts"
+                >
+                  Take back {(ticked.length ? ticked : all).filter((x) => x.status === 'published').length}
+                </Button>
               )}
               {ticked.length > 0 && (
                 <Button variant="ghost" onClick={() => setPicked({})}>
