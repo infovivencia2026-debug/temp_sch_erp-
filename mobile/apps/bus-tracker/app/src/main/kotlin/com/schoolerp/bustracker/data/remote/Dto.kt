@@ -119,7 +119,10 @@ object InstitutionSerializer : KSerializer<Institution> {
 @Serializable
 data class DriverSignInRequest(
     val phone: String,
-    val pin: String,
+    /* The driver's ordinary login password -- the one the office issues from
+       the staff record, not a separate numeric code. The server still accepts
+       a PIN in this field for handsets issued one. */
+    val password: String,
     @SerialName("device_model") val deviceModel: String? = null,
     @SerialName("android_version") val androidVersion: String? = null,
     @SerialName("app_version") val appVersion: String? = null,

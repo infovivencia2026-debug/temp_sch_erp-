@@ -16,7 +16,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class PairUiState(
-    val baseUrl: String = "",
+    /* NOT THE DRIVER'S PROBLEM.
+     *
+       A driver gets a download link and the number and PIN the office issued
+       him. He does not get told a URL, and he should not be shown a field he
+       can only get wrong: every school on this deployment answers on the same
+       host, and the sign-in resolves which school from his own PIN. So the
+       address is compiled in and only a debug build lets anyone edit it. */
+    val baseUrl: String = BuildConfig.DEFAULT_BASE_URL,
     val pairCode: String = "",
     /* THE ORDINARY WAY IN.
      *
@@ -30,6 +37,10 @@ data class PairUiState(
     val phone: String = "",
     val pin: String = "",
     val usePairCode: Boolean = false,
+    /** Pair codes are a fallback for a bus with no driver assigned yet, and
+     *  belong to whoever is debugging -- not to the man beside the bus. */
+    val pairCodeAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
+    val baseUrlEditable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
     val submitting: Boolean = false,
     val error: String? = null,
     /** The registration the server echoed back. Shown before anything reports. */
@@ -44,7 +55,7 @@ data class PairUiState(
             usePairCode -> PairCode.isComplete(pairCode)
             // The server's own shape, so an obviously wrong entry never
             // becomes a failed attempt counting towards the PIN lockout.
-            else -> phone.length == 10 && pin.length >= 4
+            else -> phone.length == 10 && pin.isNotEmpty()
         }
 }
 
@@ -61,7 +72,9 @@ class PairViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsStore.settings.first()
             _state.value = _state.value.copy(
-                baseUrl = settings.baseUrl,
+                // A phone that paired before this build keeps its address;
+                // a fresh install starts on the one that was compiled in.
+                baseUrl = settings.baseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL },
                 allowInsecureHttp = settings.allowInsecureHttp,
             )
         }
@@ -75,8 +88,14 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(phone = value.filter(Char::isDigit).take(10), error = null)
     }
 
+    /* NOT DIGITS ANY MORE.
+     *
+       This is the driver's ordinary login password, so it can contain anything
+       a password contains. Stripping non-digits here -- which is what this did
+       when the credential was a four-digit PIN -- silently deleted most of a
+       real password and then reported that it did not match. */
     fun onPinChanged(value: String) {
-        _state.value = _state.value.copy(pin = value.filter(Char::isDigit).take(6), error = null)
+        _state.value = _state.value.copy(pin = value.take(72), error = null)
     }
 
     fun usePairCode(on: Boolean) {

@@ -515,7 +515,10 @@ func (s *Server) requireBusTrackerDriver(next http.Handler) http.Handler {
 // --- the SMS gateway enrols by signing in ------------------------------------
 
 type gatewayEnrolRequest struct {
-	Phone          string `json:"phone"`
+	Phone string `json:"phone"`
+	// The ordinary login password. "pin" is still read so an already-installed
+	// handset keeps working after the server updates.
+	Password       string `json:"password"`
 	PIN            string `json:"pin"`
 	DeviceName     string `json:"device_name"`
 	AndroidVersion string `json:"android_version"`
@@ -577,7 +580,13 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	who, err := s.authenticatePIN(r.Context(), req.Phone, req.PIN)
+	// The office phone enrols on the ordinary login of whoever is holding it,
+	// same as the bus tracker: one credential per person, not one per app.
+	secret := req.Password
+	if secret == "" {
+		secret = req.PIN
+	}
+	who, err := s.authenticateStaffLogin(r.Context(), req.Phone, secret)
 	if err != nil {
 		deviceLoginRejected(w, r, err)
 		return

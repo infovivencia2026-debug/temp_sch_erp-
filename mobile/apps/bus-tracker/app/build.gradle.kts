@@ -43,18 +43,39 @@ android {
         }
     }
 
+    /* THE SERVER, BAKED IN.
+
+       The pairing screen asked the driver for the school's server address.
+       That is a testing affordance that shipped: a driver standing beside a
+       bus at six in the morning does not know a URL, cannot be told one over
+       the phone reliably, and a typo produces "that address is not usable"
+       with no way to tell whether the address or the network is wrong.
+
+       One installation, one address. It is not per-school -- every school on
+       this deployment answers on the same host and the sign-in resolves which
+       school from the driver's own PIN -- so there is exactly one correct
+       value and the build is the place for it.
+
+       Overridable at build time for a different deployment:
+         ./gradlew assembleRelease -PtrackerBaseUrl=https://erp.example.in
+    */
+    val trackerBaseUrl = (project.findProperty("trackerBaseUrl") as String?)
+        ?: "https://temperp.187-127-178-100.sslip.io"
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             // Only a debug build may talk to a plain-HTTP server, and only when
             // the operator also flips the in-app developer switch.
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
             signingConfig = signingConfigs.findByName("release")
         }
     }

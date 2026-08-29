@@ -44,23 +44,33 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Pair this phone", style = MaterialTheme.typography.headlineSmall)
+        Text("Sign in", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "This phone becomes the tracker for one bus. It reports where the bus is " +
-                "only while a run is open — nothing before you press Start Run, nothing " +
-                "after you press End Run.",
+            "Use the login the school office gave you. Your bus and your route are " +
+                "already set — there is nothing to choose. This phone reports where " +
+                "the bus is only while a run is open: nothing before you press Start " +
+                "Run, nothing after you press End Run.",
             style = MaterialTheme.typography.bodyMedium,
         )
 
-        OutlinedTextField(
-            value = state.baseUrl,
-            onValueChange = viewModel::onBaseUrlChanged,
-            label = { Text("School server address") },
-            placeholder = { Text("https://school.example.in") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        /* NO ADDRESS FIELD.
+         *
+           A driver is handed a download link and a login, and that is all he
+           should ever have to hold. He does not know a server address, cannot
+           be told one over the phone reliably, and a typo produced a failure
+           indistinguishable from a wrong password. The address is compiled in
+           -- one deployment, one host, and the sign-in works out which school
+           from the driver's own login. Only a debug build may edit it. */
+        if (state.baseUrlEditable) {
+            OutlinedTextField(
+                value = state.baseUrl,
+                onValueChange = viewModel::onBaseUrlChanged,
+                label = { Text("Server address (debug)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         /* THE DRIVER'S OWN DETAILS, first.
          *
@@ -84,15 +94,17 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             OutlinedTextField(
                 value = state.pin,
                 onValueChange = viewModel::onPinChanged,
-                label = { Text("PIN") },
-                supportingText = { Text("The PIN the office gave you. Same one as your school login.") },
+                label = { Text("Password") },
+                supportingText = { Text("The same password you use to sign in to the school website.") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
-            TextButton(onClick = { viewModel.usePairCode(true) }) {
-                Text("I was given a pairing code instead")
+            if (state.pairCodeAvailable) {
+                TextButton(onClick = { viewModel.usePairCode(true) }) {
+                    Text("I was given a pairing code instead")
+                }
             }
         } else {
         OutlinedTextField(

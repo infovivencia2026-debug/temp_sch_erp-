@@ -78,7 +78,7 @@ class TrackerRepository @Inject constructor(
      * downstream -- the service, the buffer, the trip -- a handset that signed
      * in and a handset that used a code are the same thing.
      */
-    suspend fun driverSignIn(rawBaseUrl: String, phone: String, pin: String): PairOutcome {
+    suspend fun driverSignIn(rawBaseUrl: String, phone: String, password: String): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
             .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
@@ -88,7 +88,7 @@ class TrackerRepository @Inject constructor(
                 baseUrl,
                 DriverSignInRequest(
                     phone = phone,
-                    pin = pin,
+                    password = password,
                     deviceModel = device.deviceModel(),
                     androidVersion = device.androidVersion(),
                     appVersion = device.appVersion(),
@@ -123,11 +123,11 @@ class TrackerRepository @Inject constructor(
 
     private fun driverSignInMessage(failure: ApiFailure): String = when (failure) {
         is ApiFailure.Unauthorized ->
-            "That number and PIN did not match. Ask the office to check the number they have for you."
+            "That number and password did not match. Ask the office to check the number they have for you."
         is ApiFailure.Rejected -> when (failure.status) {
             409 -> failure.detail
                 ?: "No bus is assigned to you yet. Ask the office to put you against a vehicle."
-            429 -> "Too many wrong PINs. Wait a few minutes, or ask the office to unlock it."
+            429 -> "Too many wrong attempts. Wait a few minutes, or ask the office to unlock it."
             else -> failure.detail ?: "Could not sign in."
         }
         is ApiFailure.Malformed ->

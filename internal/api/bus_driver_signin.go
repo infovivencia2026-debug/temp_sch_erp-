@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -56,7 +58,10 @@ var (
 
 type driverSignInRequest struct {
 	Phone string `json:"phone"`
-	PIN   string `json:"pin"`
+	// The driver's ordinary login password. "pin" is still read, so a handset
+	// built before this change goes on working after the server updates.
+	Password string `json:"password"`
+	PIN      string `json:"pin"`
 	// The handset, for the transport screen. All optional: a driver who
 	// declines the permission still gets a working tracker.
 	DeviceModel    string `json:"device_model,omitempty"`
@@ -82,7 +87,11 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 	   place for a PIN. A per-connection limit on top would let somebody lock
 	   every driver in a school out of their phones by typing rubbish from one
 	   address. */
-	who, err := s.authenticatePIN(r.Context(), req.Phone, req.PIN)
+	secret := req.Password
+	if secret == "" {
+		secret = req.PIN
+	}
+	who, err := s.authenticateStaffLogin(r.Context(), req.Phone, secret)
 	if err != nil {
 		deviceLoginRejected(w, r, err)
 		return
@@ -235,4 +244,75 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		   failing over a setup step the office has not reached. */
 		"routes": routes,
 	})
+}
+
+/*
+authenticateStaffLogin turns whatever the office wrote on a slip of paper into
+a person.
+
+	The credential is the driver's ordinary login -- the same one HR issues from
+	"give login" on the staff record, typed into the same kind of box he would
+	type it into on the website. That is the whole point: a school hands a
+	driver one set of credentials, not one set for the website and a second,
+	numeric one for the phone.
+
+	It matters more than tidiness. Nothing in the HR flow ever writes pin_hash;
+	only a deliberate PIN-issuing step does. So a driver given a login today has
+	no PIN at all, and a PIN-only sign-in rejects him with "that number and PIN
+	do not match" -- which reads as a wrong password and sends the office
+	looking for a typo that is not there.
+
+	The PIN stays as a second attempt, for the handsets and the drivers already
+	carrying one, and because a four-digit code is genuinely easier at six in
+	the morning than a password with a capital letter in it. Password first
+	because it is the one that always exists.
+
+	Identifier is a phone number, but not necessarily only that: users match on
+	email or username too, so a school that put a driver in by email still
+	works. A wrong password here does NOT touch the PIN lockout counter -- the
+	two credentials have to fail independently, or typing a password into a
+	phone that wanted a PIN would lock the account.
+*/
+func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret string) (staffIdentity, error) {
+	if strings.TrimSpace(identifier) == "" || secret == "" {
+		return staffIdentity{}, errBadPIN
+	}
+
+	var out staffIdentity
+	var hash *string
+	// Same rule the website's sign-in uses: an identifier that matches a user
+	// in two tenants is refused rather than guessed at, because authenticating
+	// whichever row sorted first signs the driver into the wrong school -- and
+	// here that puts a bus on another school's map.
+	var matches int
+	err := s.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `
+			SELECT count(*) FROM users
+			 WHERE status = 'active'
+			   AND (email = $1::citext OR phone = $1 OR username = $1::citext
+			        OR right(regexp_replace(phone, '\D', '', 'g'), 10) = $1)`,
+			identifier).Scan(&matches); err != nil {
+			return err
+		}
+		if matches != 1 {
+			return pgx.ErrNoRows
+		}
+		return tx.QueryRow(ctx, `
+			SELECT id, institution_id, COALESCE(full_name,''), password_hash
+			  FROM users
+			 WHERE status = 'active'
+			   AND (email = $1::citext OR phone = $1 OR username = $1::citext
+			        OR right(regexp_replace(phone, '\D', '', 'g'), 10) = $1)`,
+			identifier).Scan(&out.UserID, &out.Institution, &out.Name, &hash)
+	})
+	if err == nil && hash != nil && s.Hasher.Verify(*hash, secret) == nil {
+		return out, nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return staffIdentity{}, err
+	}
+
+	// Not a password, or no password set. Try it as a PIN -- and only now, so
+	// a mistyped password never counts towards the PIN lockout.
+	return s.authenticatePIN(ctx, identifier, secret)
 }
