@@ -376,7 +376,20 @@ export function BentoDock() {
             so nine categories and the three fixed items come to about 430px:
             the bar fits on any screen wide enough to be running the desktop
             layout at all. */}
-        <span className="flex items-center gap-0.5">
+        {/* THE MARKS ARE THE PART THAT GIVES WAY.
+
+            The bar is `max-w-[calc(100vw-6rem)]` with no wrap, and every item
+            in it could shrink. Adding the bell pushed the row past the width
+            available at 1440px, so flex compressed the last items instead of
+            the middle: measured, the bell rendered 14px wide against its 36px
+            box and the settings gear was off the end of the bar entirely.
+
+            `min-w-0` here and `shrink-0` on the group after it inverts that.
+            The workspace marks are the only thing in the bar that has another
+            way in — every one of them is in the launcher behind All features —
+            so they are the right thing to lose first, and losing them is
+            invisible rather than broken. */}
+        <span className="flex min-w-0 items-center gap-0.5 overflow-hidden">
           {(phone ? [] : categories.filter(c => !hidden.has(c.name))).map((c) => {
             const Mark = markFor(c.name)
             return (
@@ -453,6 +466,9 @@ export function BentoDock() {
           {phone ? tabLabel(t('bento.dock.browse')) : t('bento.launcher.title')}
         </button>
 
+        {/* Everything from here on keeps its size. These are the controls a
+            person reaches for by position rather than by name, and a bell
+            crushed to 14px is not a control. */}
         {!phone && <span className={rule} aria-hidden="true" />}
         {/* Beside the settings gear, at the end of the bar. The dock's left
             half is places you go; its right half is the state of your own
@@ -473,9 +489,15 @@ export function BentoDock() {
             {tabLabel(t('bento.dock.alerts'))}
           </span>
         ) : (
-          <Notifications />
+          /* shrink-0: the component's own button carries no guard, and it is
+             the item the bar was crushing. */
+          <span className="shrink-0">
+            <Notifications />
+          </span>
         )}
-        <BentoSettings placement="dock" />
+        <span className="shrink-0">
+          <BentoSettings placement="dock" />
+        </span>
       </div>
 
       {/* The account, at the edge of the screen rather than in the middle of
