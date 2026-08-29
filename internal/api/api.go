@@ -616,6 +616,7 @@ func (s *Server) Routes() http.Handler {
 			   up; releasing it to families is a separate right, held by the
 			   head, so nobody signs off their own results. */
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/submit", s.submitReportCards)
+			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Get("/report-cards/pending", s.listPendingReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/publish", s.publishReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/return", s.returnReportCards)
 

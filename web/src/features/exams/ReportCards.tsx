@@ -55,6 +55,12 @@ interface ReportCard {
   subjects: SubjectMark[]
 }
 
+/** A section waiting on the head, as one line. */
+interface Pending {
+  section_id: string; section_name: string; class_name: string
+  cards: number; submitted_by?: string; submitted_at?: string
+}
+
 /** A child on the roll, whether or not a report card exists for them yet. */
 interface Pupil {
   id: string; admission_no: string; full_name: string; roll_no?: number
@@ -94,9 +100,20 @@ export default function ReportCards() {
     queryKey: ['exam-list'],
     queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
   })
+  /* Whose sections this person is choosing between.
+
+     A class teacher builds cards for the section they answer for, so the list
+     is theirs alone. The head approves for the whole school and is class
+     teacher of nothing — with mine=class_teacher they got an empty dropdown,
+     could never pick a section, and the approval queue was unreachable by the
+     only person who can act on it. */
+  const canPublishSections = useCan()('academics.reportcards.publish')
   const sections = useQuery({
-    queryKey: ['sections', 'class_teacher'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    queryKey: ['sections', canPublishSections ? 'all' : 'class_teacher'],
+    queryFn: () => api.get<List<Section>>(
+      canPublishSections
+        ? '/api/v1/academics/sections'
+        : '/api/v1/academics/sections?mine=class_teacher'),
   })
   const cards = useQuery({
     queryKey: ['report-cards', sectionId, examId],
@@ -160,10 +177,33 @@ export default function ReportCards() {
   const [picked, setPicked] = useState<Record<string, boolean>>({})
   const [note, setNote] = useState('')
 
+  /* Everything waiting on the head, across the school.
+
+     The rest of this screen is one section at a time, which is right for
+     reading thirty cards and wrong for the afternoon a term's results go out:
+     eleven sections are waiting and the answer to all of them is yes. Only
+     fetched for somebody who can act on it. */
+  const pending = useQuery({
+    queryKey: ['report-cards-pending'],
+    enabled: mayPublish,
+    queryFn: () => api.get<List<Pending>>('/api/v1/exams/report-cards/pending'),
+  })
+  const waiting = pending.data?.items ?? []
+  const [pickedSections, setPickedSections] = useState<Record<string, boolean>>({})
+  const chosen = waiting.filter((x) => pickedSections[x.section_id])
+  // Nothing chosen means all of them, the same rule as the rows below.
+  const releasing = chosen.length ? chosen : waiting
+
   const act = useMutation({
-    mutationFn: (v: { verb: 'submit' | 'publish' | 'return'; ids: string[]; note?: string }) =>
+    mutationFn: (v: {
+      verb: 'submit' | 'publish' | 'return'
+      ids?: string[]
+      section_ids?: string[]
+      note?: string
+    }) =>
       api.post<{ submitted?: number; published?: number; returned?: number }>(
-        `/api/v1/exams/report-cards/${v.verb}`, { ids: v.ids, note: v.note },
+        `/api/v1/exams/report-cards/${v.verb}`,
+        { ids: v.ids ?? [], section_ids: v.section_ids ?? [], note: v.note },
       ),
     onSuccess: (r, v) => {
       const n = r.submitted ?? r.published ?? r.returned ?? 0
@@ -176,8 +216,10 @@ export default function ReportCards() {
             : `${noun} sent back to the class teacher with your note.`,
       )
       setPicked({})
+      setPickedSections({})
       setNote('')
       qc.invalidateQueries({ queryKey: ['report-cards', sectionId, examId] })
+      qc.invalidateQueries({ queryKey: ['report-cards-pending'] })
     },
     onError: () => setOutcome(''),
   })
@@ -387,6 +429,76 @@ export default function ReportCards() {
           </Card>
         )}
 
+        {/* The whole school's queue, for the head.
+
+            Sits above everything else because on the day results go out it is
+            the only thing on this screen that matters, and because it is the
+            one view that does not make somebody pick a section first. */}
+        {mayPublish && waiting.length > 0 && (
+          <Card>
+            <CardHeader
+              title={`${waiting.reduce((a, x) => a + x.cards, 0)} report cards waiting for you`}
+              description={`Across ${waiting.length} ${waiting.length === 1 ? 'section' : 'sections'}. Tick sections to release only those, or leave them unticked to publish everything waiting.`}
+            />
+            <ul className="divide-y">
+              {waiting.map((x) => (
+                <li key={x.section_id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={!!pickedSections[x.section_id]}
+                    onChange={(e) =>
+                      setPickedSections({ ...pickedSections, [x.section_id]: e.target.checked })}
+                    aria-label={`Select ${x.class_name}-${x.section_name}`}
+                  />
+                  <span className="min-w-[7rem] font-medium">
+                    {x.class_name}-{x.section_name}
+                  </span>
+                  <span className="flex-1 text-[13px] text-muted-foreground">
+                    {/* Who sent it up: a head returning a section replies to a
+                        person, not to a row. */}
+                    {x.submitted_by ?? 'the class teacher'}
+                    {x.submitted_at ? ` · sent ${x.submitted_at.replace('T', ' ')}` : ''}
+                  </span>
+                  <span className="text-[13px] tabular-nums text-muted-foreground">
+                    {x.cards} {x.cards === 1 ? 'card' : 'cards'}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={act.isPending}
+                    onClick={() => { setSectionId(x.section_id) }}
+                  >
+                    Read them
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={act.isPending}
+                    onClick={() => act.mutate({ verb: 'publish', section_ids: [x.section_id] })}
+                  >
+                    Publish
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-3">
+              <Button
+                disabled={act.isPending || !releasing.length}
+                onClick={() =>
+                  act.mutate({ verb: 'publish', section_ids: releasing.map((x) => x.section_id) })}
+              >
+                {chosen.length
+                  ? `Publish ${chosen.length} selected ${chosen.length === 1 ? 'section' : 'sections'}`
+                  : `Publish all ${waiting.reduce((a, x) => a + x.cards, 0)} cards`}
+              </Button>
+              {chosen.length > 0 && (
+                <Button variant="ghost" onClick={() => setPickedSections({})}>
+                  Clear selection
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Up, then out.
 
             The class teacher sends the set to the principal; the principal
@@ -408,7 +520,11 @@ export default function ReportCards() {
                   disabled={act.isPending}
                   onClick={() => act.mutate({ verb: 'submit', ids: toSubmit.map((r) => r.id) })}
                 >
-                  Send {toSubmit.length} for approval
+                  {/* The default is the whole section, and the button says
+                      so rather than making somebody count. */}
+                  {ticked.length
+                    ? `Send ${toSubmit.length} ticked for approval`
+                    : `Send all ${toSubmit.length} for approval`}
                 </Button>
               )}
               {mayPublish && toDecide.length > 0 && (
@@ -418,7 +534,9 @@ export default function ReportCards() {
                     onClick={() => act.mutate({ verb: 'publish', ids: toDecide.map((r) => r.id) })}
                     title={ready ? undefined : 'Some papers are still unmarked'}
                   >
-                    Approve &amp; publish {toDecide.length}
+                    {ticked.length
+                      ? `Approve & publish ${toDecide.length} ticked`
+                      : `Approve & publish all ${toDecide.length}`}
                   </Button>
                   {/* The reason travels with the card. A set sent back without
                       one is a class teacher walking to the office to ask. */}
