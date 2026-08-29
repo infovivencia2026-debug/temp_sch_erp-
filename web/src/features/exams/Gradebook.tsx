@@ -20,7 +20,10 @@ interface Paper {
 interface Row {
   student_id: string; admission_no: string; full_name: string
   marks_obtained?: number; max_marks: number; grade?: string; is_absent: boolean
+  section: string
 }
+
+interface SectionRow { id: string; name: string; class_id: string; class_name: string }
 
 /* Reading a marks sheet the exam cell already has.
 
@@ -199,6 +202,7 @@ export default function Gradebook() {
      way to tell the school a child had in fact sat the paper. Undefined means
      "as the server has it"; true and false are the teacher overruling it. */
   const [absent, setAbsent] = useState<Record<string, boolean>>({})
+  const [sectionID, setSectionID] = useState('')
 
   /* Switching paper empties the sheet.
      Marks are keyed by student and a class sits every subject, so the sheet a
@@ -207,13 +211,32 @@ export default function Gradebook() {
      against the Science paper. */
   const pickPaper = (id: string) => {
     setESID(id)
+    // The sections belong to the old paper's class; keeping one would filter
+    // the new sheet down to nobody.
+    setSectionID('')
     setDraft({})
     setAbsent({})
   }
 
+  /* A paper is set for a class, a teacher stands in front of a section.
+
+     Grade 6 has 6-A, 6-B and 6-C, so the roster for one Maths paper is all
+     three interleaved by admission number. The teacher who taught 6-B was
+     typing their marks down a sheet two thirds of which was somebody else's.
+     Empty means the whole class, which is what the exam cell wants when it is
+     checking whether a paper is fully entered. */
+  const sections = useQuery({
+    queryKey: ['sections', 'mine'],
+    queryFn: () => api.get<List<SectionRow>>('/api/v1/academics/sections?mine=true'),
+  })
+  const paper = (papers.data?.items ?? []).find((p) => p.id === esID)
+  const ofClass = (sections.data?.items ?? []).filter((x) => x.class_id === paper?.class_id)
+
   const book = useQuery({
-    queryKey: ['gradebook', esID],
-    queryFn: () => api.get<List<Row>>(`/api/v1/exams/gradebook?exam_subject_id=${esID}`),
+    queryKey: ['gradebook', esID, sectionID],
+    queryFn: () => api.get<List<Row>>(
+      `/api/v1/exams/gradebook?exam_subject_id=${esID}` +
+      (sectionID ? `&section_id=${sectionID}` : '')),
     enabled: !!esID,
   })
 
@@ -348,6 +371,21 @@ export default function Gradebook() {
                 label: `${p.subject} · ${p.exam_name} — ${p.marks_entered}/${p.students} entered`,
               }))}
             />
+            {/* Only once a paper is chosen: before that there is no class, so
+                there is no set of sections to offer. Hidden rather than
+                disabled when the class has one section — a choice with one
+                option is a control that does nothing. */}
+            {esID && ofClass.length > 1 && (
+              <Select
+                value={sectionID}
+                onChange={(v) => { setSectionID(v); setDraft({}); setAbsent({}) }}
+                placeholder="All sections"
+                options={[
+                  { value: '', label: 'All sections' },
+                  ...ofClass.map((x) => ({ value: x.id, label: `${x.class_name}-${x.name}` })),
+                ]}
+              />
+            )}
           </div>
         }
       />
@@ -462,11 +500,18 @@ export default function Gradebook() {
                   ]}
                 />
               </div>
-              <Table head={['Admission no.', 'Student', 'Marks', 'Absent', 'Grade']} empty={!shown.length}>
+              {/* The section column only when the sheet mixes them. Filtered to
+                  one, every row would carry the same value the picker above
+                  already shows. */}
+              <Table
+                head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']), 'Marks', 'Absent', 'Grade']}
+                empty={!shown.length}
+              >
                 {shown.map((r) => (
                   <tr key={r.student_id}>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
+                    {!sectionID && <Td className="text-muted">{r.section || '—'}</Td>}
                     <Td>
                       <input
                         type="number" min={0} max={r.max_marks}

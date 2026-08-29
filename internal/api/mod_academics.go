@@ -11,6 +11,7 @@ import (
 	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/queue"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Modules 3-5 — attendance corrections and alerts, examinations and report
@@ -474,6 +475,9 @@ type gradebookRow struct {
 	MaxMarks    float64  `json:"max_marks"`
 	Grade       *string  `json:"grade,omitempty"`
 	IsAbsent    bool     `json:"is_absent"`
+	// Which section the child sits in. Shown on the row so a mixed-class sheet
+	// still says whose child each line is.
+	Section string `json:"section"`
 }
 
 // getGradebook returns the roster for a paper with any marks already entered,
@@ -484,21 +488,42 @@ func (s *Server) getGradebook(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "exam_subject_id is required")
 		return
 	}
+	/* A paper belongs to a class; a teacher stands in front of a section.
+
+	   A paper is set per class-subject, so the roster for one is every child in
+	   Grade 6 — 6-A, 6-B and 6-C in one list, ordered by admission number, which
+	   interleaves the three. The teacher who taught 6-B then types their marks
+	   down a sheet two thirds of which is somebody else's, and a mark landing on
+	   the wrong row is the error nobody catches until a report card prints.
+
+	   Optional, and empty means the whole class: the exam cell checking whether a
+	   paper is fully entered wants all of Grade 6 in one view, and a school with
+	   one section per class never has to touch the filter. */
+	sectionID := strings.TrimSpace(r.URL.Query().Get("section_id"))
+	if sectionID != "" {
+		if _, err := uuid.Parse(sectionID); err != nil {
+			httpx.BadRequest(w, r, "section_id must be a uuid")
+			return
+		}
+	}
 	items, err := collect(s, r, `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-		       m.marks_obtained, es.max_marks, m.grade, COALESCE(m.is_absent, false)
+		       m.marks_obtained, es.max_marks, m.grade, COALESCE(m.is_absent, false),
+		       COALESCE(sec.name, '')
 		  FROM exam_subjects es
 		  JOIN class_subjects cs ON cs.id = es.class_subject_id
 		  JOIN enrollments e     ON e.class_id = cs.class_id AND e.status = 'active'
 		  JOIN students st       ON st.id = e.student_id
+		  LEFT JOIN sections sec ON sec.id = e.section_id
 		  LEFT JOIN marks m      ON m.exam_subject_id = es.id AND m.student_id = st.id
 		 WHERE es.id = $1::uuid
-		 ORDER BY st.admission_no`, []any{esID},
+		   AND ($2 = '' OR e.section_id = $2::uuid)
+		 ORDER BY sec.name, st.admission_no`, []any{esID, sectionID},
 		func(rows pgx.Rows) (gradebookRow, error) {
 			var v gradebookRow
 			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName,
-				&v.Marks, &v.MaxMarks, &v.Grade, &v.IsAbsent)
+				&v.Marks, &v.MaxMarks, &v.Grade, &v.IsAbsent, &v.Section)
 		})
 	respond(w, r, items, err)
 }
@@ -536,6 +561,19 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 	sectionID, err := uuid.Parse(req.SectionID)
 	if err != nil {
 		httpx.BadRequest(w, r, "section_id must be a uuid")
+		return
+	}
+
+	/* Building the cards and releasing them are different jobs.
+
+	   Generate-and-publish in one press is the head's shortcut, not the class
+	   teacher's: a teacher who may generate sends the set up for approval and
+	   somebody else decides it may leave the building. Without this the whole
+	   approval workflow is one checkbox away from being skipped. */
+	if req.Publish && !id.Can(rbac.ReportCardsPublish) {
+		httpx.Forbidden(w, r,
+			"you can build these cards but not release them — generate, then send "+
+				"them for approval")
 		return
 	}
 
@@ -597,14 +635,18 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			)
 			INSERT INTO report_cards (institution_id, student_id, academic_year_id, enrollment_id,
 			                          total_marks, max_marks, percentage, grade,
-			                          rank_in_section, attendance_percent, is_published, published_at)
+			                          rank_in_section, attendance_percent, is_published, published_at,
+			                          status)
 			SELECT $3, r.student_id, r.academic_year_id, r.enrollment_id,
 			       r.total, r.max_total, r.pct,
 			       (SELECT gb.grade FROM grade_bands gb
 			         WHERE gb.grading_scale_id = (SELECT grading_scale_id FROM exams WHERE id = $1)
 			           AND r.pct BETWEEN gb.min_percent AND gb.max_percent LIMIT 1),
 			       r.rnk, r.attendance, $4,
-			       CASE WHEN $4 THEN now() ELSE NULL END
+			       CASE WHEN $4 THEN now() ELSE NULL END,
+			       -- status and is_published are one fact with two spellings and a
+			       -- constraint that says so; writing one without the other fails.
+			       CASE WHEN $4 THEN 'published' ELSE 'draft' END
 			  FROM ranked r
 			-- term_id is NULL for an annual card, and NULLs do not conflict, so
 			-- the target must be the partial index that excludes it.
@@ -615,7 +657,15 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			       grade       = EXCLUDED.grade,
 			       rank_in_section = EXCLUDED.rank_in_section,
 			       attendance_percent = EXCLUDED.attendance_percent,
-			       is_published = EXCLUDED.is_published`,
+			       /* Regenerating refreshes the marks; it does not withdraw a card
+			          a family has already read. Plain assignment sent a published
+			          card back to draft the moment a subject teacher fixed one mark
+			          and the class teacher pressed Generate — the parent's copy
+			          vanished with nobody told. */
+			       is_published = report_cards.is_published OR EXCLUDED.is_published,
+			       status = CASE WHEN EXCLUDED.is_published THEN 'published'
+			                     ELSE report_cards.status END,
+			       published_at = COALESCE(report_cards.published_at, EXCLUDED.published_at)`,
 			examID, sectionID, id.InstitutionID, req.Publish)
 		if err != nil {
 			return err
@@ -822,6 +872,10 @@ func (s *Server) getReportCardReadiness(w http.ResponseWriter, r *http.Request) 
 }
 
 type reportCardRow struct {
+	// The card itself. Everything else on this row describes a child; the
+	// approval actions act on the card, and without its id the screen has
+	// nothing to send.
+	ID          string   `json:"id"`
 	StudentID   string   `json:"student_id"`
 	AdmissionNo string   `json:"admission_no"`
 	RollNo      *int     `json:"roll_no,omitempty"`
@@ -835,6 +889,13 @@ type reportCardRow struct {
 	Rank        *int     `json:"rank_in_section,omitempty"`
 	Attendance  *float64 `json:"attendance_percent,omitempty"`
 	Published   bool     `json:"is_published"`
+	/* Where it has got to: draft, submitted, returned, published.
+
+	   is_published is kept in step by a constraint, so this is the same fact
+	   said more precisely — a card can be draft or waiting on the head or sent
+	   back, and "not published" collapses all three. */
+	Status     string  `json:"status"`
+	ReturnNote *string `json:"return_note,omitempty"`
 	// Subjects is the breakdown the card is actually made of. The row carried
 	// a total and a grade and nothing to explain either, so "62%" arrived at a
 	// parent with no indication of which subject produced it.
@@ -906,11 +967,12 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items, err := collect(s, r, `
-		SELECT st.id::text, st.admission_no, e.roll_no,
+		SELECT rc.id::text, st.id::text, st.admission_no, e.roll_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 		       c.name, sec.name,
 		       rc.total_marks, rc.max_marks, rc.percentage, rc.grade,
 		       rc.rank_in_section, rc.attendance_percent, rc.is_published,
+		       rc.status, rc.return_note,
 		       COALESCE((
 		         SELECT json_agg(json_build_object(
 		                  'subject',        sub.name,
@@ -945,10 +1007,10 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY e.roll_no NULLS LAST, st.admission_no`, args,
 		func(rows pgx.Rows) (reportCardRow, error) {
 			var v reportCardRow
-			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.RollNo, &v.FullName,
+			return v, rows.Scan(&v.ID, &v.StudentID, &v.AdmissionNo, &v.RollNo, &v.FullName,
 				&v.ClassName, &v.SectionName,
 				&v.Total, &v.MaxMarks, &v.Percentage, &v.Grade, &v.Rank,
-				&v.Attendance, &v.Published, &v.Subjects)
+				&v.Attendance, &v.Published, &v.Status, &v.ReturnNote, &v.Subjects)
 		})
 	respond(w, r, items, err)
 }

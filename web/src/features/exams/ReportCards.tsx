@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
+import { useCan } from '@/lib/session'
 
 /* One report card, for everybody who has to look at one.
  *
@@ -41,11 +42,16 @@ interface SubjectMark {
 }
 
 interface ReportCard {
-  student_id: string; admission_no: string; roll_no?: number; full_name: string
+  id: string; student_id: string; admission_no: string; roll_no?: number; full_name: string
   class_name?: string; section_name?: string
   total_marks?: number; max_marks?: number; percentage?: number
   grade?: string; rank_in_section?: number; attendance_percent?: number
   is_published: boolean
+  /* draft → submitted → published, with returned as the way back.
+     is_published only says whether a family can read it; this says whose desk
+     the card is sitting on. */
+  status: 'draft' | 'submitted' | 'returned' | 'published'
+  return_note?: string
   subjects: SubjectMark[]
 }
 
@@ -117,6 +123,42 @@ export default function ReportCards() {
     onError: () => setOutcome(''),
   })
 
+  /* Building a card and releasing it are different jobs, held by different
+     people. The class teacher generates and sends up; the head signs off and
+     the families are told. Both buttons used to be on every screen, so a
+     teacher without the right filled the form and was refused on submit. */
+  const can = useCan()
+  const mayGenerate = can('academics.reportcards.generate')
+  const mayPublish = can('academics.reportcards.publish')
+
+  /* Ticked rows, so a head can act on the whole section, on the ones they
+     picked, or on one child — the same three shapes as any other list, and
+     one endpoint behind all of them: what is ticked is what is sent. */
+  const [picked, setPicked] = useState<Record<string, boolean>>({})
+  const [note, setNote] = useState('')
+
+  const act = useMutation({
+    mutationFn: (v: { verb: 'submit' | 'publish' | 'return'; ids: string[]; note?: string }) =>
+      api.post<{ submitted?: number; published?: number; returned?: number }>(
+        `/api/v1/exams/report-cards/${v.verb}`, { ids: v.ids, note: v.note },
+      ),
+    onSuccess: (r, v) => {
+      const n = r.submitted ?? r.published ?? r.returned ?? 0
+      const noun = `${n} report ${n === 1 ? 'card' : 'cards'}`
+      setOutcome(
+        v.verb === 'submit'
+          ? `${noun} sent to the principal for approval.`
+          : v.verb === 'publish'
+            ? `${noun} published — the students and their parents have been told.`
+            : `${noun} sent back to the class teacher with your note.`,
+      )
+      setPicked({})
+      setNote('')
+      qc.invalidateQueries({ queryKey: ['report-cards', sectionId, examId] })
+    },
+    onError: () => setOutcome(''),
+  })
+
   const all = cards.data?.items ?? []
   const needle = find.trim().toLowerCase()
   const rows = needle
@@ -130,6 +172,15 @@ export default function ReportCards() {
   // Counted over the whole section, not the search. A section average that
   // changes as somebody types a name is not a section average.
   const published = all.filter((r) => r.is_published).length
+  const awaiting = all.filter((r) => r.status === 'submitted')
+  const sendable = all.filter((r) => r.status === 'draft' || r.status === 'returned')
+  const ticked = all.filter((r) => picked[r.id])
+  /* Nothing ticked means the whole section — "approve all" and "approve the
+     ones I picked" are the same action with a different list, so there is one
+     button rather than two that disagree about what "all" meant. */
+  const toSubmit = (ticked.length ? ticked : sendable).filter(
+    (r) => r.status === 'draft' || r.status === 'returned')
+  const toDecide = (ticked.length ? ticked : awaiting).filter((r) => r.status === 'submitted')
   const avg = all.length
     ? (all.reduce((a, r) => a + (r.percentage ?? 0), 0) / all.length).toFixed(1)
     : '—'
@@ -174,22 +225,29 @@ export default function ReportCards() {
                 value: e.id, label: `${e.name} (${e.papers} papers)`,
               }))}
             />
-            <Button variant="secondary" disabled={!sectionId || !examId || generate.isPending}
-              onClick={() => generate.mutate(false)}>
-              {generate.isPending ? 'Generating…' : 'Generate'}
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={!sectionId || !examId || generate.isPending}
-              onClick={() => generate.mutate(true)}
-              title={
-                ready
-                  ? 'Publish to the parents and the students'
-                  : 'Some papers are still unmarked — publishing now prints them as zero'
-              }
-            >
-              Generate &amp; publish
-            </Button>
+            {mayGenerate && (
+              <Button variant="secondary" disabled={!sectionId || !examId || generate.isPending}
+                onClick={() => generate.mutate(false)}>
+                {generate.isPending ? 'Generating…' : 'Generate'}
+              </Button>
+            )}
+            {/* The head's shortcut, and only theirs: a class teacher builds the
+                cards and sends them up. The server refuses this either way; the
+                button is hidden so nobody fills a form to be told no. */}
+            {mayGenerate && mayPublish && (
+              <Button
+                variant="secondary"
+                disabled={!sectionId || !examId || generate.isPending}
+                onClick={() => generate.mutate(true)}
+                title={
+                  ready
+                    ? 'Publish to the parents and the students'
+                    : 'Some papers are still unmarked — publishing now prints them as zero'
+                }
+              >
+                Generate &amp; publish
+              </Button>
+            )}
             {rows.length > 0 && (
               <Button variant="ghost" onClick={() => window.print()}>
                 <Printer className="h-3.5 w-3.5" />
@@ -256,6 +314,65 @@ export default function ReportCards() {
           </Card>
         )}
 
+        {/* Up, then out.
+
+            The class teacher sends the set to the principal; the principal
+            releases it to the children and their parents, or sends it back
+            saying what is wrong. Whoever is looking sees only their half. */}
+        {examId && (toSubmit.length > 0 || (mayPublish && awaiting.length > 0)) && (
+          <Card>
+            <CardHeader
+              title={mayPublish && awaiting.length ? 'Waiting for your approval' : 'Send for approval'}
+              description={
+                mayPublish && awaiting.length
+                  ? `${awaiting.length} ${awaiting.length === 1 ? 'card is' : 'cards are'} signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave everything unticked to act on all.`
+                  : 'The principal approves before a card reaches a family. Tick rows to send only those, or leave everything unticked to send the section.'
+              }
+            />
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
+              {mayGenerate && toSubmit.length > 0 && (
+                <Button
+                  disabled={act.isPending}
+                  onClick={() => act.mutate({ verb: 'submit', ids: toSubmit.map((r) => r.id) })}
+                >
+                  Send {toSubmit.length} for approval
+                </Button>
+              )}
+              {mayPublish && toDecide.length > 0 && (
+                <>
+                  <Button
+                    disabled={act.isPending}
+                    onClick={() => act.mutate({ verb: 'publish', ids: toDecide.map((r) => r.id) })}
+                    title={ready ? undefined : 'Some papers are still unmarked'}
+                  >
+                    Approve &amp; publish {toDecide.length}
+                  </Button>
+                  {/* The reason travels with the card. A set sent back without
+                      one is a class teacher walking to the office to ask. */}
+                  <Input
+                    value={note}
+                    onChange={setNote}
+                    placeholder="Why it is going back"
+                    className="w-72"
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={act.isPending || !note.trim()}
+                    onClick={() => act.mutate({ verb: 'return', ids: toDecide.map((r) => r.id), note })}
+                  >
+                    Send back
+                  </Button>
+                </>
+              )}
+              {ticked.length > 0 && (
+                <Button variant="ghost" onClick={() => setPicked({})}>
+                  Clear {ticked.length} ticked
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
         <Card>
           {/* The search belongs to the table it filters.
               It sat in the page's action row between Generate and Print, where
@@ -293,7 +410,10 @@ export default function ReportCards() {
           />
           {cards.isLoading ? <Loading /> : cards.error ? <ErrorState error={cards.error} /> : (
             <Table
-              head={['Roll', 'Admission no.', 'Student', 'Total', 'Percentage', 'Grade', 'Attendance', 'State', '']}
+              head={[
+                ...(mayPublish || mayGenerate ? [''] : []),
+                'Roll', 'Admission no.', 'Student', 'Total', 'Percentage', 'Grade', 'Attendance', 'State', '',
+              ]}
               empty={!rows.length}
               emptyLabel={
                 needle
@@ -306,6 +426,16 @@ export default function ReportCards() {
               {rows.map((r) => (
                 <>
                   <tr key={r.student_id}>
+                    {(mayPublish || mayGenerate) && (
+                      <Td>
+                        <input
+                          type="checkbox"
+                          checked={!!picked[r.id]}
+                          onChange={(e) => setPicked({ ...picked, [r.id]: e.target.checked })}
+                          aria-label={`Select the report card for ${r.full_name}`}
+                        />
+                      </Td>
+                    )}
                     <Td className="font-medium tabular-nums">{r.roll_no ?? '—'}</Td>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
@@ -320,11 +450,45 @@ export default function ReportCards() {
                       )}
                     </Td>
                     <Td>
-                      <Badge tone={r.is_published ? 'success' : 'neutral'}>
-                        {r.is_published ? 'published' : 'draft'}
+                      <Badge
+                        tone={
+                          r.status === 'published' ? 'success'
+                            : r.status === 'submitted' ? 'primary'
+                              : r.status === 'returned' ? 'warning' : 'neutral'
+                        }
+                      >
+                        {r.status === 'submitted' ? 'with principal' : r.status}
                       </Badge>
+                      {/* Sent back means somebody said why, and the person who
+                          has to fix it should not have to go and ask. */}
+                      {r.status === 'returned' && r.return_note && (
+                        <div className="mt-1 max-w-[16rem] text-[12px] text-muted-foreground">
+                          {r.return_note}
+                        </div>
+                      )}
                     </Td>
-                    <Td>
+                    <Td className="whitespace-nowrap">
+                      {/* One card on its own: the same endpoint as the bar
+                          above, with a list of one. */}
+                      {mayPublish && r.status === 'submitted' && (
+                        <Button
+                          size="sm"
+                          disabled={act.isPending}
+                          onClick={() => act.mutate({ verb: 'publish', ids: [r.id] })}
+                        >
+                          Publish
+                        </Button>
+                      )}
+                      {mayGenerate && !mayPublish && (r.status === 'draft' || r.status === 'returned') && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={act.isPending}
+                          onClick={() => act.mutate({ verb: 'submit', ids: [r.id] })}
+                        >
+                          Send up
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -336,7 +500,7 @@ export default function ReportCards() {
                   </tr>
                   {open === r.student_id && (
                     <tr key={`${r.student_id}-subjects`}>
-                      <Td colSpan={9} className="bg-muted/30">
+                      <Td colSpan={mayPublish || mayGenerate ? 10 : 9} className="bg-muted/30">
                         <SubjectBreakdown subjects={r.subjects} />
                       </Td>
                     </tr>

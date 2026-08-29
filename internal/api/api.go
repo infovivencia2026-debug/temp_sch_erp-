@@ -607,6 +607,12 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsApprove)).Get("/moderation", s.listMarkModeration)
 			r.With(httpx.RequirePermission(rbac.ExamsApprove)).Post("/moderation", s.moderateMarks)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/generate", s.generateReportCards)
+			/* Up, then out. The class teacher who generated the set sends it
+			   up; releasing it to families is a separate right, held by the
+			   head, so nobody signs off their own results. */
+			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/submit", s.submitReportCards)
+			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/publish", s.publishReportCards)
+			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/return", s.returnReportCards)
 
 			/* Exam day: halls, seating and the ticket.
 
