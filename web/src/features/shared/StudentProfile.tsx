@@ -123,6 +123,25 @@ export default function StudentProfile() {
     enabled: !!selected && editing,
   })
 
+  /* Everything written about this child, newest first.
+
+     Fetched here rather than folded into the profile payload: it is one tab of
+     seven and most readers open the overview and leave.
+
+     ABOVE THE EARLY RETURNS, and it must stay there. It sat next to the tab
+     that draws it, which is below `if (profile.isLoading) return <Loading/>` —
+     so the hook ran on the render where the profile had arrived and not on the
+     one before it. React counts hooks by position: the count changed between
+     renders and the whole screen came down with error #310, showing a stack
+     trace instead of the child. Same fault as LostLeads, same fix. */
+  const remarks = useQuery({
+    queryKey: ['student-remarks', selected],
+    enabled: !!selected,
+    queryFn: () => api.get<List<Remark>>(
+      `/api/v1/teaching/remarks?student_id=${selected}`),
+  })
+  const remarkRows = remarks.data?.items ?? []
+
   const qc = useQueryClient()
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -328,18 +347,6 @@ export default function StudentProfile() {
       </div>
     </Card>
   )
-
-  /* Everything written about this child, newest first.
-
-     Fetched here rather than folded into the profile payload: it is one tab of
-     seven and most readers open the overview and leave. */
-  const remarks = useQuery({
-    queryKey: ['student-remarks', selected],
-    enabled: !!selected,
-    queryFn: () => api.get<List<Remark>>(
-      `/api/v1/teaching/remarks?student_id=${selected}`),
-  })
-  const remarkRows = remarks.data?.items ?? []
 
   const tabs: RecordTab[] = [
     {
