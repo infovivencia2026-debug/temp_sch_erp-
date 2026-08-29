@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, Clock, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { BookOpen, CheckCircle2, Clock, Eye, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -58,6 +58,17 @@ export default function Homework() {
   const [composing, setComposing] = useState(false)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [openRegister, setOpenRegister] = useState<string | null>(null)
+  /* WHICH ROW IS OPEN IN FULL.
+
+     The list is `max-h-[34rem] overflow-y-auto` with every row truncated to
+     fit, so a task whose title is "complete ex : 4.2 1 to 9 problems" is cut
+     mid-sentence and the instructions under it are never shown at all. That is
+     right for a list — twenty tasks each showing three lines is not a list —
+     but it left nowhere to read the whole thing.
+
+     View opens one row in full: the title unclipped, the instructions the
+     teacher wrote, every worksheet, and what was sent back. */
+  const [viewing, setViewing] = useState<string | null>(null)
 
   /* Filtering happens on the server, and the query key carries the filters so
      the cache does not serve one narrowing's answer to another's question.
@@ -267,6 +278,17 @@ export default function Homework() {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {/* Always offered, to everybody. A teacher checking what
+                        they set and a child checking what was asked are the
+                        same need, and the row shows neither in full. */}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setViewing(viewing === h.id ? null : h.id)}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      {viewing === h.id ? 'Close' : 'View'}
+                    </Button>
                     {canPublish ? (
                       /* The count was the whole answer, and "14 of 32" tells a
                          teacher that eighteen children have not done the work
@@ -281,9 +303,12 @@ export default function Homework() {
                         {h.submissions}/{h.strength} submitted
                       </Button>
                     ) : h.submitted ? (
+                      /* "Done", matching the button that gets you here. A
+                         child who presses Done and is then told "Turned in"
+                         has to work out that those are the same word. */
                       <Badge tone="success">
                         <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Turned in
+                        Done
                       </Badge>
                     ) : (
                       /* The child, or the family on their behalf.
@@ -306,12 +331,64 @@ export default function Homework() {
                           }}
                         >
                           <Send className="h-3.5 w-3.5" />
-                          {answering === h.id ? 'Close' : 'Turn in'}
+                          {answering === h.id ? 'Close' : 'Done'}
                         </Button>
                       </span>
                     )}
                   </div>
                  </div>
+                  {/* THE WHOLE TASK, when View is pressed.
+
+                      Not a dialog: the row it belongs to stays on screen above
+                      it, so a child comparing two tasks does not lose the list
+                      to read one of them. Everything the row had to clip is
+                      here at full length. */}
+                  {viewing === h.id && (
+                    <div className="mt-3 rounded-[3px] border bg-muted/30 p-4 text-[14px]">
+                      <p className="font-medium leading-snug">{h.title}</p>
+                      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                        {h.subject && <span>{h.subject}</span>}
+                        {h.class_name && (
+                          <span>
+                            {h.class_name}
+                            {h.section_name && `-${h.section_name}`}
+                          </span>
+                        )}
+                        <span>set {formatDate(h.assigned_on)}</span>
+                        <span className={h.overdue ? 'text-destructive' : undefined}>
+                          {h.due_on ? `${h.overdue ? 'was due' : 'due'} ${formatDate(h.due_on)}` : 'no due date'}
+                        </span>
+                        {h.teacher && <span>set by {h.teacher}</span>}
+                      </p>
+                      {h.instructions ? (
+                        <p className="mt-3 whitespace-pre-wrap leading-relaxed">{h.instructions}</p>
+                      ) : (
+                        <p className="mt-3 text-[13px] text-muted-foreground">
+                          No further instructions were given.
+                        </p>
+                      )}
+                      {!!h.files?.length && (
+                        <div className="mt-3">
+                          <p className="mb-1.5 text-[13px] text-muted-foreground">Worksheets</p>
+                          <div className="flex flex-wrap gap-2">
+                            {h.files.map((f) => (
+                              <a
+                                key={f.file_id}
+                                href={`/api/v1/files/${f.file_id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px] text-primary hover:bg-accent"
+                              >
+                                <Paperclip className="h-3.5 w-3.5" />
+                                {f.name}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* The worksheet the teacher set.
 
                       homework_attachments existed from the first migration and
@@ -338,7 +415,7 @@ export default function Homework() {
                   {/* What this child turned in, once they have. */}
                   {h.submitted && (h.my_answer || h.my_file_id) && (
                     <div className="mt-3 border-t pt-3 text-[13px]">
-                      <p className="text-muted-foreground">What you turned in</p>
+                      <p className="text-muted-foreground">What you sent</p>
                       {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
                       {h.my_file_id && (
                         <a
