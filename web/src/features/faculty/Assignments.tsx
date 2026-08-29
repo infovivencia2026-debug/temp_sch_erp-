@@ -7,6 +7,7 @@ import {
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
 import {
@@ -33,6 +34,10 @@ export default function Assignments() {
   if (list.isLoading) return <Loading />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
+  /* A term's assignments across four subjects is a long list, and the question
+     is nearly always about one of them. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (a) => [a.title, a.subject, a.class_name, a.section, a.kind])
   const waiting = rows.reduce((n, r) => n + r.awaiting_marking, 0)
 
   return (
@@ -72,10 +77,28 @@ export default function Assignments() {
               body="Work you set for your classes appears here, with a count of who has handed in."
             />
           ) : (
+            <>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+              <SearchBox value={term} onChange={setTerm} placeholder="Title, subject or class" />
+              <Showing shown={shown.length} total={rows.length} noun="assignments" />
+              <ExportRows
+                rows={shown}
+                name="assignments"
+                columns={[
+                  { header: 'Title', value: (a) => a.title },
+                  { header: 'Kind', value: (a) => a.kind },
+                  { header: 'Class', value: (a) => `${a.class_name} ${a.section ?? ''}`.trim() },
+                  { header: 'Subject', value: (a) => a.subject },
+                  { header: 'Due', value: (a) => a.due_on },
+                  { header: 'Handed in', value: (a) => a.submitted },
+                  { header: 'On roll', value: (a) => a.roll },
+                ]}
+              />
+            </div>
             <Table
               head={['Title', 'Class', 'Subject', 'Due', 'Handed in', 'To mark', '']}
             >
-              {rows.map((a) => (
+              {shown.map((a) => (
                 <tr key={a.id}>
                   <Td>
                     <span className="font-medium">{a.title}</span>
@@ -105,6 +128,7 @@ export default function Assignments() {
                 </tr>
               ))}
             </Table>
+            </>
           )}
         </Card>
 

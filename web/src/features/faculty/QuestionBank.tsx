@@ -7,6 +7,7 @@ import {
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import {
   BLOOM_LEVELS, DIFFICULTIES, OBJECTIVE_KINDS, QUESTION_KINDS,
@@ -61,6 +62,12 @@ export default function QuestionBank() {
   if (list.isLoading) return <Loading />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
+  /* A bank exists to be reused, and one that cannot be searched is one where
+     the same question is typed again next term. Over the stem, the chapter and
+     the subject — the three things somebody half-remembers about a question
+     they know they have written before. */
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (x) => [x.stem, x.chapter, x.subject, x.class_name, x.kind, x.difficulty])
   const banks = summary.data?.items ?? []
   const total = banks.reduce((n, b) => n + b.total, 0)
   const higher = banks.reduce((n, b) => n + b.higher_order, 0)
@@ -160,8 +167,29 @@ export default function QuestionBank() {
               body="Add one, or widen the filters."
             />
           ) : (
+            <>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+              <SearchBox value={term} onChange={setTerm} placeholder="Stem, chapter or subject" />
+              <Showing shown={shown.length} total={rows.length} noun="questions" />
+              <ExportRows
+                rows={shown}
+                name="question-bank"
+                columns={[
+                  { header: 'Question', value: (x) => x.stem },
+                  { header: 'Class', value: (x) => x.class_name },
+                  { header: 'Subject', value: (x) => x.subject },
+                  { header: 'Chapter', value: (x) => x.chapter },
+                  { header: 'Kind', value: (x) => x.kind },
+                  { header: 'Difficulty', value: (x) => x.difficulty },
+                  { header: 'Bloom level', value: (x) => x.bloom_level },
+                  { header: 'Marks', value: (x) => x.default_marks },
+                  { header: 'Times used', value: (x) => x.used_on_tests },
+                  { header: 'Answer', value: (x) => x.options.join(' | ') },
+                ]}
+              />
+            </div>
             <Table head={['Question', 'Class', 'Subject', 'Chapter', 'Kind', 'Difficulty', "Bloom's", 'Marks', 'Used', '']}>
-              {rows.map((q) => (
+              {shown.map((q) => (
                 <tr key={q.id}>
                   <Td>
                     <span className="font-medium">{q.stem}</span>
@@ -191,6 +219,7 @@ export default function QuestionBank() {
                 </tr>
               ))}
             </Table>
+            </>
           )}
         </Card>
       </PageBody>

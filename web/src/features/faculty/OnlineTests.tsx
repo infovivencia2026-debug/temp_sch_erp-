@@ -7,6 +7,7 @@ import {
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
 import {
@@ -35,6 +36,8 @@ export default function OnlineTests() {
   if (list.isLoading) return <Loading />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
+  const { q: term, setQ: setTerm, shown } = useSearch(rows,
+    (t) => [t.title, t.subject, t.class_name, t.section, t.status])
 
   return (
     <>
@@ -66,8 +69,25 @@ export default function OnlineTests() {
               body="Create one, add questions from the bank, then publish it."
             />
           ) : (
+            <>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+              <SearchBox value={term} onChange={setTerm} placeholder="Title, subject or class" />
+              <Showing shown={shown.length} total={rows.length} noun="tests" />
+              <ExportRows
+                rows={shown}
+                name="online-tests"
+                columns={[
+                  { header: 'Title', value: (t) => t.title },
+                  { header: 'Class', value: (t) => `${t.class_name} ${t.section ?? ''}`.trim() },
+                  { header: 'Subject', value: (t) => t.subject },
+                  { header: 'Opens', value: (t) => t.opens_at },
+                  { header: 'Minutes', value: (t) => t.duration_minutes },
+                  { header: 'Status', value: (t) => t.status },
+                ]}
+              />
+            </div>
             <Table head={['Title', 'Class', 'Subject', 'Opens', 'Questions', 'Marks', 'Status', '']}>
-              {rows.map((t) => (
+              {shown.map((t) => (
                 <tr key={t.id}>
                   <Td>
                     <span className="font-medium">{t.title}</span>
@@ -104,6 +124,7 @@ export default function OnlineTests() {
                 </tr>
               ))}
             </Table>
+            </>
           )}
         </Card>
 
