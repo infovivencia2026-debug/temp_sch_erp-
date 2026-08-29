@@ -55,6 +55,16 @@ interface ReportCard {
   subjects: SubjectMark[]
 }
 
+/** The design the school prints on. */
+interface Template {
+  name: string
+  template_html: string
+  is_built_in: boolean
+  css?: string
+  updated_at?: string
+  updated_by?: string
+}
+
 /** A section waiting on the head, as one line. */
 interface Pending {
   section_id: string; section_name: string; class_name: string
@@ -194,6 +204,49 @@ export default function ReportCards() {
   // Nothing chosen means all of them, the same rule as the rows below.
   const releasing = chosen.length ? chosen : waiting
 
+  /* The school's own report card design.
+
+     Read by everybody, because the preview is part of reading a card; written
+     by the class teacher as well as the head, because the person who notices
+     the subject column is in the wrong order is the one printing thirty. */
+  const template = useQuery({
+    queryKey: ['report-card-template'],
+    queryFn: () => api.get<{
+      template: Template
+      placeholders: { token: string; means: string }[]
+      default_html: string
+    }>('/api/v1/exams/report-cards/template'),
+  })
+  const [showTemplate, setShowTemplate] = useState(false)
+  const [preview, setPreview] = useState<{ html: string; css?: string } | null>(null)
+
+  const importTemplate = useMutation({
+    mutationFn: (v: { name: string; template_html: string }) =>
+      api.post('/api/v1/exams/report-cards/template', v),
+    onSuccess: (_r, v) => {
+      setOutcome(`"${v.name}" is now the design every report card prints on.`)
+      qc.invalidateQueries({ queryKey: ['report-card-template'] })
+    },
+  })
+  const resetTemplate = useMutation({
+    mutationFn: () => api.post('/api/v1/exams/report-cards/template/reset', {}),
+    onSuccess: () => {
+      setOutcome('Back to the standard design.')
+      qc.invalidateQueries({ queryKey: ['report-card-template'] })
+    },
+  })
+
+  /* Who is told when a card goes out, and how.
+
+     A school does not always tell both: a board class is told through the
+     child, a primary class through the parents, and a school running a
+     parents' evening tells nobody by message because the card is being handed
+     over. The in-app alert always goes to whoever is named — it costs nothing
+     and it is the copy still there next week. */
+  const [to, setTo] = useState<'both' | 'students' | 'parents'>('both')
+  const [channels, setChannels] = useState<Record<string, boolean>>({})
+  const chosenChannels = Object.keys(channels).filter((k) => channels[k])
+
   const act = useMutation({
     mutationFn: (v: {
       verb: 'submit' | 'publish' | 'return'
@@ -201,18 +254,31 @@ export default function ReportCards() {
       section_ids?: string[]
       note?: string
     }) =>
-      api.post<{ submitted?: number; published?: number; returned?: number }>(
+      api.post<{
+        submitted?: number; published?: number; returned?: number
+        messages_queued?: number; delivery_error?: string
+      }>(
         `/api/v1/exams/report-cards/${v.verb}`,
-        { ids: v.ids ?? [], section_ids: v.section_ids ?? [], note: v.note },
+        {
+          ids: v.ids ?? [], section_ids: v.section_ids ?? [], note: v.note,
+          // Only meaningful on publish; harmless on the other two.
+          to, channels: chosenChannels,
+        },
       ),
     onSuccess: (r, v) => {
       const n = r.submitted ?? r.published ?? r.returned ?? 0
       const noun = `${n} report ${n === 1 ? 'card' : 'cards'}`
+      const told = to === 'both' ? 'the students and their parents'
+        : to === 'students' ? 'the students' : 'the parents'
+      const sent = r.messages_queued
+        ? ` ${r.messages_queued} ${chosenChannels.join(' / ')} ${r.messages_queued === 1 ? 'message' : 'messages'} queued.`
+        : ''
       setOutcome(
         v.verb === 'submit'
           ? `${noun} sent to the principal for approval.`
           : v.verb === 'publish'
-            ? `${noun} published — the students and their parents have been told.`
+            ? `${noun} published — ${told} have been told in the app.${sent}` +
+              (r.delivery_error ? ` The cards are out, but sending failed: ${r.delivery_error}` : '')
             : `${noun} sent back to the class teacher with your note.`,
       )
       setPicked({})
@@ -363,6 +429,11 @@ export default function ReportCards() {
                 Generate &amp; publish
               </Button>
             )}
+            {(mayGenerate || mayPublish) && (
+              <Button variant="ghost" onClick={() => setShowTemplate((v) => !v)}>
+                {showTemplate ? 'Hide the design' : 'Report card design'}
+              </Button>
+            )}
             {rows.length > 0 && (
               <Button variant="ghost" onClick={() => window.print()}>
                 <Printer className="h-3.5 w-3.5" />
@@ -426,6 +497,94 @@ export default function ReportCards() {
                 ))}
               </ul>
             )}
+          </Card>
+        )}
+
+        {showTemplate && (mayGenerate || mayPublish) && (
+          <Card>
+            <CardHeader
+              title={template.data?.template.is_built_in
+                ? 'Printing on the standard design'
+                : `Printing on "${template.data?.template.name}"`}
+              description={
+                template.data?.template.is_built_in
+                  ? 'Every card prints on the design this product ships with. Import your school\'s own and every card generated from then on uses it, until you import another.'
+                  : `Imported${template.data?.template.updated_by ? ` by ${template.data.template.updated_by}` : ''}${template.data?.template.updated_at ? ` on ${template.data.template.updated_at.replace('T', ' ')}` : ''}. Every card prints on this until it is replaced.`
+              }
+              action={
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
+                    Import a design
+                    <input
+                      type="file"
+                      accept=".html,.htm,.txt,text/html,text/plain"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        e.target.value = ''
+                        if (!f) return
+                        /* Read here rather than uploaded: the design is text
+                           the server has to substitute into, not a file to be
+                           handed back later, and a round trip through the file
+                           store would leave a second copy nobody maintains. */
+                        const reader = new FileReader()
+                        reader.onload = () => importTemplate.mutate({
+                          name: f.name.replace(/\.[^.]+$/, ''),
+                          template_html: String(reader.result ?? ''),
+                        })
+                        reader.readAsText(f)
+                      }}
+                    />
+                  </label>
+                  {!template.data?.template.is_built_in && (
+                    <Button
+                      variant="ghost"
+                      disabled={resetTemplate.isPending}
+                      onClick={() => resetTemplate.mutate()}
+                    >
+                      Back to standard
+                    </Button>
+                  )}
+                </div>
+              }
+            />
+            {importTemplate.error && <FormNotice error={importTemplate.error} />}
+            <div className="px-5 pb-5">
+              <p className="mb-2 text-[13px] text-muted-foreground">
+                An HTML file. Put these where the school's design wants them —
+                anything else is left blank rather than printed as braces.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {(template.data?.placeholders ?? []).map((ph) => (
+                  <span
+                    key={ph.token}
+                    title={ph.means}
+                    className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]"
+                  >
+                    {ph.token}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-3 text-[13px] text-muted-foreground">
+                A photograph comes from the child's own record — open Student 360,
+                Edit, and set the photo there. {'{{photo}}'} then prints it, and
+                a child with none prints an empty frame rather than a broken image.
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {preview && (
+          <Card>
+            <CardHeader
+              title="Preview"
+              description="One child's card, on the design that is live."
+              action={<Button variant="ghost" onClick={() => setPreview(null)}>Close</Button>}
+            />
+            <div className="overflow-x-auto px-5 pb-5">
+              {preview.css && <style>{preview.css}</style>}
+              <div dangerouslySetInnerHTML={{ __html: preview.html }} />
+            </div>
           </Card>
         )}
 
@@ -529,6 +688,27 @@ export default function ReportCards() {
               )}
               {mayPublish && toDecide.length > 0 && (
                 <>
+                  <Select
+                    value={to}
+                    onChange={(v) => setTo(v as 'both' | 'students' | 'parents')}
+                    options={[
+                      { value: 'both', label: 'Tell students and parents' },
+                      { value: 'parents', label: 'Tell the parents only' },
+                      { value: 'students', label: 'Tell the students only' },
+                    ]}
+                  />
+                  {/* The app alert always goes. These cost money per message,
+                      so they are chosen per release rather than assumed. */}
+                  {(['sms', 'whatsapp', 'email'] as const).map((ch) => (
+                    <label key={ch} className="flex items-center gap-1.5 text-[13px]">
+                      <input
+                        type="checkbox"
+                        checked={!!channels[ch]}
+                        onChange={(e) => setChannels({ ...channels, [ch]: e.target.checked })}
+                      />
+                      {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
+                    </label>
+                  ))}
                   <Button
                     disabled={act.isPending}
                     onClick={() => act.mutate({ verb: 'publish', ids: toDecide.map((r) => r.id) })}
@@ -680,6 +860,17 @@ export default function ReportCards() {
                           Send up
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          const v = await api.get<{ html: string; css?: string }>(
+                            `/api/v1/exams/report-cards/render?id=${r.id}`)
+                          setPreview(v)
+                        }}
+                      >
+                        Card
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"

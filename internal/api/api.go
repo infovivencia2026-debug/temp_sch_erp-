@@ -621,6 +621,16 @@ func (s *Server) Routes() http.Handler {
 			/* Up, then out. The class teacher who generated the set sends it
 			   up; releasing it to families is a separate right, held by the
 			   head, so nobody signs off their own results. */
+			/* The design the school prints on.
+
+			   Readable by anybody who may see a report card, because the
+			   preview is part of reading one. Written by the class teacher as
+			   well as the head: the person who discovers the subject column is
+			   in the wrong order is the one printing thirty of them. */
+			r.Get("/report-cards/template", s.getReportCardTemplate)
+			r.Get("/report-cards/render", s.renderReportCard)
+			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/template", s.saveReportCardTemplate)
+			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/template/reset", s.resetReportCardTemplate)
 			r.With(httpx.RequirePermission(rbac.ReportCardsGenerate)).Post("/report-cards/submit", s.submitReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Get("/report-cards/pending", s.listPendingReportCards)
 			r.With(httpx.RequirePermission(rbac.ReportCardsPublish)).Post("/report-cards/publish", s.publishReportCards)
