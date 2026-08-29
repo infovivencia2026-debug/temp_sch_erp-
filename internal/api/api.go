@@ -46,6 +46,12 @@ func (s *Server) Routes() http.Handler {
 	// The driver's phone, for the same reason: it holds a device token and no
 	// session, and the claim has no credential at all until it succeeds.
 	s.mountBusTrackerDevice(r)
+	/* The message test link. No session, by design: somebody checking whether
+	   SMS works wants to open it on the phone they are testing against. What
+	   stands in for one is a key in the URL plus the recipient allowlist, and
+	   the endpoint refuses to exist at all on a school whose guard has been
+	   opened. See message_test_link.go. */
+	r.Post("/public/message-test", s.sendPublicTestMessage)
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)

@@ -825,6 +825,9 @@ func (s *Server) mountWhatsApp(r chi.Router) {
 	   account, which is the same rung as storing the token was. */
 	r.With(creds).Post("/whatsapp/templates/submit", s.submitWhatsAppTemplates)
 	r.With(creds).Post("/whatsapp/templates/{code}/submit", s.submitWhatsAppTemplates)
+	/* The keyed test link. Reading it needs the same rung as storing the
+	   credentials it exercises; using it needs only the key. */
+	r.With(creds).Get("/messaging/test-link", s.getMessageTestLink)
 
 	// What has gone out, and what the guard held back.
 	r.With(logRead).Get("/whatsapp/log", s.listWhatsAppLog)

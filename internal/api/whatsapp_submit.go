@@ -120,6 +120,31 @@ func buildSubmission(code, body string) waSubmission {
 		examples = append(examples, waExample(p))
 	}
 
+	/* META REFUSES A BODY THAT BEGINS OR ENDS WITH A VARIABLE.
+
+	   Not documented anywhere prominent; found by submitting eleven and
+	   reading which three survived. `attendance.absent` ends "...contact the
+	   school office." and was accepted; `fees.overdue` ends "{{school_name}}"
+	   and came back 100/2388293 "Invalid parameter", which names nothing and
+	   sends you looking at the phone number id.
+
+	   The reason is a reviewer's: a template that is only variables cannot be
+	   judged for whether it is utility or marketing, because its actual text
+	   is unknown until it is sent.
+
+	   So the submitted body is padded to satisfy the rule. This is the ONE
+	   place a message may differ between channels -- a full stop after the
+	   school's name on WhatsApp that the same message does not carry over SMS
+	   -- and it is a smaller price than the channel not working. */
+	if strings.HasSuffix(strings.TrimSpace(out), "}}") {
+		out = strings.TrimSpace(out) + "."
+	}
+	if strings.HasPrefix(strings.TrimSpace(out), "{{") {
+		// A lead-in rather than a bare character: "Notice: Holiday on Friday"
+		// reads as a message, ". Holiday on Friday" reads as a mistake.
+		out = "Notice: " + strings.TrimSpace(out)
+	}
+
 	cat := waCategories[code]
 	if cat == "" {
 		cat = "UTILITY"
