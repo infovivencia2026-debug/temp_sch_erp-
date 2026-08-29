@@ -105,6 +105,11 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/import", s.importStudents)
+			/* The photograph. Nothing has ever written students.photo_file_id,
+			   so the ID card, the statutory return and the report card all read
+			   a column no screen could fill. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}/photo", s.setStudentPhoto)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/photos/import", s.importStudentPhotos)
 		})
 
 		/* --- Syllabus, lesson plans and coverage --------------------------

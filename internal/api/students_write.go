@@ -733,6 +733,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			rollNo                                                 *int32
 			isRTE, isCWSN                                          bool
 			admissionDate                                          string
+			photoFileID                                            *string
 		)
 		if err := tx.QueryRow(r.Context(), `
 			SELECT st.admission_no,
@@ -744,7 +745,8 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			          JOIN guardians g ON g.id = sg.guardian_id
 			         WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1),
 			       st.city, st.prior_school, st.is_rte, st.is_cwsn,
-			       to_char(st.admission_date,'YYYY-MM-DD')
+			       to_char(st.admission_date,'YYYY-MM-DD'),
+			       st.photo_file_id::text
 			  FROM students st
 			  LEFT JOIN LATERAL (
 			      SELECT e.class_id, e.section_id, e.roll_no FROM enrollments e
@@ -756,7 +758,8 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			append([]any{sid}, args...)...).
 			Scan(&admissionNo, &fullName, &status, &className, &sectionName, &rollNo,
 				&gender, &dob, &medium, &blood, &motherTongue, &apaar, &childInfo,
-				&phone, &city, &priorSchl, &isRTE, &isCWSN, &admissionDate); err != nil {
+				&phone, &city, &priorSchl, &isRTE, &isCWSN, &admissionDate,
+				&photoFileID); err != nil {
 			return err
 		}
 		out["id"] = sid.String()
@@ -779,6 +782,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 		out["is_rte"] = isRTE
 		out["is_cwsn"] = isCWSN
 		out["admission_date"] = admissionDate
+		out["photo_file_id"] = photoFileID
 
 		var present, total int
 		var duesPaise, paidPaise int64

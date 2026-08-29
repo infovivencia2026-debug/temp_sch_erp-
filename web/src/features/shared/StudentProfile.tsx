@@ -16,6 +16,7 @@ import { useActiveRole } from '@/lib/catalog'
 import { useSession } from '@/lib/session'
 import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -35,6 +36,7 @@ interface Profile {
   mother_tongue?: string; apaar_id?: string; child_info_id?: string
   primary_phone?: string; city?: string; prior_school?: string
   is_rte: boolean; is_cwsn: boolean; admission_date: string
+  photo_file_id?: string
   attendance: { present: number; total: number; percent: number; below_threshold: boolean }
   fees: { outstanding_paise: number; paid_paise: number }
   guardians: { id?: string; full_name: string; relation: string; phone: string; email: string; is_primary: boolean }[]
@@ -142,6 +144,22 @@ export default function StudentProfile() {
       `/api/v1/teaching/remarks?student_id=${selected}`),
   })
   const remarkRows = remarks.data?.items ?? []
+
+  /* The child's photograph.
+
+     students.photo_file_id has been in the schema since the beginning and
+     nothing ever wrote to it: the ID card reads it, the statutory return
+     checks for it and the report card prints it, and all three saw an empty
+     column because no screen could fill one. */
+  const [photoFile, setPhotoFile] = useState<UploadedFile | null>(null)
+  const savePhoto = useMutation({
+    mutationFn: (fileID: string) =>
+      api.put(`/api/v1/students/${selected}/photo`, { file_id: fileID }),
+    onSuccess: () => {
+      setPhotoFile(null)
+      qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+    },
+  })
 
   /* The tab says which child it is holding.
 
@@ -391,6 +409,57 @@ export default function StudentProfile() {
               </div>
             </Card>
           ) : null}
+          {/* The photograph, above the details, because it is how somebody
+              at the desk checks they have the right child in front of them. */}
+          <Card>
+            <CardHeader
+              title="Photograph"
+              description={
+                p.photo_file_id
+                  ? 'Printed on the ID card and on the report card.'
+                  : 'None on file, so the ID card and the report card print an empty frame.'
+              }
+            />
+            <div className="flex flex-wrap items-start gap-4 px-5 pb-5">
+              <div className="h-[34mm] w-[28mm] shrink-0 overflow-hidden rounded border bg-muted/30">
+                {p.photo_file_id && (
+                  <img
+                    src={`/api/v1/files/${p.photo_file_id}`}
+                    alt={`Photograph of ${p.full_name}`}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+              {can('students.write') && (
+                <div className="min-w-[16rem] flex-1">
+                  <FilePicker
+                    value={photoFile}
+                    onChange={(f) => {
+                      setPhotoFile(f)
+                      // Saved as soon as it is up: a photograph chosen and
+                      // then left unsaved is the commonest way this column
+                      // stays empty.
+                      if (f) savePhoto.mutate(f.file_id)
+                    }}
+                    purpose="student_photo"
+                    label={p.photo_file_id ? 'Replace the photograph' : 'Add a photograph'}
+                    hint="A portrait, in any image format. Passport size prints best."
+                  />
+                  {savePhoto.error && <FormNotice error={savePhoto.error} />}
+                  {p.photo_file_id && (
+                    <Button
+                      variant="ghost"
+                      disabled={savePhoto.isPending}
+                      onClick={() => savePhoto.mutate('')}
+                    >
+                      Remove it
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
           <Card>
             <CardHeader title="Details" />
             <dl className="divide-y text-[14px]">

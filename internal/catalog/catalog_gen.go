@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 316 features.
+// Roles is the catalog: 13 roles, 317 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -300,6 +300,7 @@ var Roles = []Role{
 				Workspace: "Students",
 				Features: []Feature{
 					{Key: "institution_admin.students.student_360", Slug: "student_360", Name: "Student 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One child, whole: attendance, marks, fees, conduct and who to ring, on one page. The screen a school opens when a parent is at the desk."},
+					{Key: "institution_admin.students.student_photographs", Slug: "student_photographs", Name: "Student photographs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The photographer's folder attached to children in one go, matched by admission number. Photographs print on the ID card and on the report card."},
 					{Key: "institution_admin.students.certificates_transfers", Slug: "certificates_transfers", Name: "Certificates & transfers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from."},
 					{Key: "institution_admin.students.class_promotion", Slug: "class_promotion", Name: "Class Promotion", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child's history survives the promotion."},
 					{Key: "institution_admin.students.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},

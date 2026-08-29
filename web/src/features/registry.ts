@@ -54,6 +54,7 @@ import { trackerKeys } from './super_admin/tracker-keys'
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
   'institution_admin.students.student_360': screen(() => import('./shared/StudentProfile')),
+  'institution_admin.students.student_photographs': screen(() => import('./students/StudentPhotos')),
   /* The principal's own way in to setting the school up.
      The wizard carried every form a new school needs -- academic year,
      classes, sections, subjects, the school day, staff, students, grading,
