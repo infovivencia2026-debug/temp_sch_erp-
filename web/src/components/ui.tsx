@@ -675,7 +675,19 @@ export function Table({
     )
   }
 
-  return (
+  /* Into the body, or the Close button cannot be clicked.
+
+     `:where(.card, .cell, …):active` scales by 0.99 on press — a deliberate
+     touch, and a transform on an ancestor makes `position: fixed` resolve
+     against that ancestor instead of the viewport. The dialog renders inside
+     the card holding the table, so pressing Close put the card into :active,
+     the dialog re-anchored to the card's box mid-press, and it jumped out from
+     under the cursor before mouseup. The click never completed and the screen
+     appeared stuck.
+
+     No ancestor can be a containing block for something parented to the body,
+     which also settles the z-index and the clipping in one move. */
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -694,7 +706,8 @@ export function Table({
       {/* The one part that is genuinely different full screen: the table gets
           the height, so the scroll happens inside it and the header stays. */}
       <div className="min-h-0 flex-1 overflow-auto rounded-[3px] border">{body}</div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
