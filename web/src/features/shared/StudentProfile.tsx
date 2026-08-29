@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
-import { api, type Page, type Student } from '@/lib/api'
+import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
   Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState,
@@ -14,7 +14,8 @@ import {
 import { StatusPill } from '@/components/NeedsAttention'
 import { useActiveRole } from '@/lib/catalog'
 import { useSession } from '@/lib/session'
-import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { ExportRows } from '@/components/rows'
+import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
@@ -63,6 +64,18 @@ const DOT: Record<string, string> = {
  * class, who do we call, are they attending, what do they owe, how are they
  * doing.
  */
+/* One thing a member of staff wrote about a child. */
+interface Remark {
+  id: string
+  kind: string
+  body: string
+  subject?: string
+  private: boolean
+  observed_on: string
+  recorded_at: string
+  recorded_by?: string
+}
+
 export default function StudentProfile() {
   const [search, setSearch] = useState('')
 
@@ -316,6 +329,18 @@ export default function StudentProfile() {
     </Card>
   )
 
+  /* Everything written about this child, newest first.
+
+     Fetched here rather than folded into the profile payload: it is one tab of
+     seven and most readers open the overview and leave. */
+  const remarks = useQuery({
+    queryKey: ['student-remarks', selected],
+    enabled: !!selected,
+    queryFn: () => api.get<List<Remark>>(
+      `/api/v1/teaching/remarks?student_id=${selected}`),
+  })
+  const remarkRows = remarks.data?.items ?? []
+
   const tabs: RecordTab[] = [
     {
       key: 'overview', label: 'Overview',
@@ -525,6 +550,68 @@ export default function StudentProfile() {
               </tr>
             ))}
           </Table>
+        </Card>
+      ),
+    },
+    {
+      key: 'remarks', label: 'Remarks', badge: remarkRows.length || undefined,
+      render: () => (
+        <Card>
+          <CardHeader
+            title="What staff have written"
+            action={
+              <ExportRows
+                rows={remarkRows}
+                name="remarks"
+                columns={[
+                  { header: 'Observed on', value: (x) => x.observed_on },
+                  { header: 'Written at', value: (x) => x.recorded_at },
+                  { header: 'By', value: (x) => x.recorded_by },
+                  { header: 'Kind', value: (x) => x.kind },
+                  { header: 'Subject', value: (x) => x.subject },
+                  { header: 'Remark', value: (x) => x.body },
+                  { header: 'Seen by family', value: (x) => (x.private ? 'no' : 'yes') },
+                ]}
+              />
+            }
+          />
+          {remarks.isLoading ? (
+            <Loading />
+          ) : remarkRows.length === 0 ? (
+            <EmptyState
+              title="Nothing written yet"
+              body="Observations a teacher records about this child appear here, newest first."
+            />
+          ) : (
+            <ul className="divide-y">
+              {remarkRows.map((x) => (
+                <li key={x.id} className="px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={x.kind === 'concern' ? 'warning' : 'neutral'}>
+                      {x.kind}
+                    </Badge>
+                    {x.subject && (
+                      <span className="text-[13px] text-muted-foreground">{x.subject}</span>
+                    )}
+                    {/* Said plainly, because the difference decides whether
+                        somebody can quote it to a parent. */}
+                    {x.private && <Badge tone="danger">staff only</Badge>}
+                  </div>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[14px]">{x.body}</p>
+                  {/* Both dates, and the author. A remark observed on Tuesday
+                      and typed on Friday is a different fact from one typed as
+                      it happened, and after a complaint a head wants to know
+                      which it was. */}
+                  <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                    {x.recorded_by ?? 'unknown'} &middot; observed {formatDate(x.observed_on)}
+                    {x.recorded_at && (
+                      <> &middot; written {formatDateTime(x.recorded_at)}</>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       ),
     },

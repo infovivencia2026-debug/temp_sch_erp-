@@ -215,6 +215,12 @@ type remarkRow struct {
 	// because the screen has to say "staff only" rather than "not visible".
 	Private    bool    `json:"private"`
 	ObservedOn string  `json:"observed_on"`
+	/* When it was written down, as opposed to the day it is about.
+
+	   A remark observed on Tuesday and typed on Friday is a different fact
+	   from one typed as it happened, and a head reading a file after a
+	   complaint wants both. */
+	RecordedAt string  `json:"recorded_at"`
 	RecordedBy *string `json:"recorded_by,omitempty"`
 	// Mine drives whether the row offers an edit control. Only the author
 	// amends a remark; everyone else reads it.
@@ -254,7 +260,8 @@ func (s *Server) listRemarks(w http.ResponseWriter, r *http.Request) {
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 		       c.name, sec.name, sub.name, t.name,
 		       sr.kind, sr.body, NOT sr.visible_to_family,
-		       to_char(sr.observed_on,'YYYY-MM-DD'), u.full_name,
+		       to_char(sr.observed_on,'YYYY-MM-DD'),
+		       to_char(sr.created_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       sr.recorded_by = $`+itoa(len(args)+1)+`
 		  FROM student_remarks sr
 		  JOIN students st ON st.id = sr.student_id
@@ -275,7 +282,7 @@ func (s *Server) listRemarks(w http.ResponseWriter, r *http.Request) {
 			var v remarkRow
 			return v, rows.Scan(&v.ID, &v.StudentID, &v.AdmissionNo, &v.StudentName,
 				&v.ClassName, &v.SectionName, &v.Subject, &v.Term, &v.Kind, &v.Body,
-				&v.Private, &v.ObservedOn, &v.RecordedBy, &v.Mine)
+				&v.Private, &v.ObservedOn, &v.RecordedAt, &v.RecordedBy, &v.Mine)
 		})
 	respond(w, r, items, err)
 }

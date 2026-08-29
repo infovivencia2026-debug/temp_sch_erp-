@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* The teacher's half of the conversation.
@@ -41,18 +42,49 @@ type teacherThreadRow struct {
 	LastMessage string `json:"last_message"`
 	LastAt      string `json:"last_at"`
 	Unread      int    `json:"unread"`
+
+	// Whose conversation this is. Sent only to a reader seeing somebody
+	// else's threads; a teacher's own inbox has one teacher in it.
+	TeacherID   *string `json:"teacher_user_id,omitempty"`
+	TeacherName *string `json:"teacher_name,omitempty"`
 }
 
-// listTeacherParentThreads is the teacher's inbox of family conversations.
+// listTeacherParentThreads is the teacher's inbox of family conversations, and
+// the head's view of their teachers'.
 func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
+
+	/* Whose threads may this person read?
+
+	   Their own, always. Everybody's, on comms.messages.read.all — narrowed to
+	   the departments they head, because a head of department answers for their
+	   own subject and not for the school's whole postbag. A principal heads no
+	   department, so the narrowing does not apply and they see all of it. */
+	whose, args := "m.teacher_user_id = $1", []any{id.UserID}
+	if id.Can(rbac.MessagesReadAll) {
+		res, err := s.resolveScope(r)
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if len(res.DepartmentIDs) > 0 {
+			args = append(args, res.DepartmentIDs)
+			whose = `m.teacher_user_id IN (
+			           SELECT emp.user_id FROM employees emp
+			            WHERE emp.department_id = ANY($2) AND emp.user_id IS NOT NULL)`
+		} else {
+			whose = "TRUE"
+		}
+	}
+
 	items, err := collect(s, r, `
-		SELECT DISTINCT ON (m.student_id, m.parent_user_id)
+		SELECT DISTINCT ON (m.student_id, m.parent_user_id, m.teacher_user_id)
 		       m.student_id::text,
 		       concat_ws(' ', st.first_name, st.last_name),
 		       COALESCE(c.name, '') || COALESCE('-' || sec.name, ''),
 		       m.parent_user_id::text, pu.full_name,
 		       m.body, to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
+		       m.teacher_user_id::text, tu.full_name,
 		       (SELECT count(*)::int FROM parent_teacher_messages un
 		         WHERE un.student_id = m.student_id
 		           AND un.parent_user_id = m.parent_user_id
@@ -60,6 +92,7 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 		           AND un.sender_user_id <> $1 AND un.read_at IS NULL)
 		  FROM parent_teacher_messages m
 		  JOIN users pu ON pu.id = m.parent_user_id
+		  LEFT JOIN users tu ON tu.id = m.teacher_user_id
 		  JOIN students st ON st.id = m.student_id
 		  LEFT JOIN LATERAL (
 		      SELECT e.class_id, e.section_id FROM enrollments e
@@ -67,13 +100,14 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 		  ) en ON true
 		  LEFT JOIN classes c ON c.id = en.class_id
 		  LEFT JOIN sections sec ON sec.id = en.section_id
-		 WHERE m.teacher_user_id = $1
-		 ORDER BY m.student_id, m.parent_user_id, m.sent_at DESC
-		 LIMIT 200`, []any{id.UserID},
+		 WHERE `+whose+`
+		 ORDER BY m.student_id, m.parent_user_id, m.teacher_user_id, m.sent_at DESC
+		 LIMIT 200`, args,
 		func(rows pgx.Rows) (teacherThreadRow, error) {
 			var v teacherThreadRow
 			return v, rows.Scan(&v.StudentID, &v.StudentName, &v.ClassName,
-				&v.ParentID, &v.ParentName, &v.LastMessage, &v.LastAt, &v.Unread)
+				&v.ParentID, &v.ParentName, &v.LastMessage, &v.LastAt,
+				&v.TeacherID, &v.TeacherName, &v.Unread)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

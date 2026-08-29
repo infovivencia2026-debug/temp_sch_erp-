@@ -295,6 +295,16 @@ var Groups = []Group{
 		ScopeNote: "Every send is metered and logged against the school.",
 	},
 	{
+		Key: "message_oversight", Name: "Reading staff–family messages", Band: BandOptional,
+		Blurb:  "What teachers and families said to each other, read by somebody who was not party to it.",
+		View:   []string{MessagesReadAll},
+		Scopes: fixed("institution"),
+		ScopeNote: "A head of department is narrowed to their own department's teachers; " +
+			"a principal sees the school. Kept apart from students.read.all, which the " +
+			"librarian and the transport manager hold and which is no reason to read a " +
+			"family's correspondence.",
+	},
+	{
 		Key: "transport", Name: "Transport", Band: BandOptional,
 		Blurb:     "Vehicles, routes, stops, allocation and GPS.",
 		View:      []string{TransportRead},

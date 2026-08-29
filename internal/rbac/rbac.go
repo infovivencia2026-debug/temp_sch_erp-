@@ -88,6 +88,14 @@ const (
 	// comms
 	AnnouncementsWrite = "comms.announcements.write"
 	MessagesSend       = "comms.messages.send"
+	/* Reading correspondence somebody else is party to.
+
+	   Deliberately its own right rather than folded into students.read.all,
+	   which the librarian, the transport manager and the nurse all hold — they
+	   have every reason to look up a child and none at all to read what that
+	   child's mother wrote to their class teacher. A head who has to answer for
+	   what the school said to a family does. */
+	MessagesReadAll = "comms.messages.read.all"
 
 	// institution / admin / access / platform / self
 	InstitutionRead    = "institution.read"
@@ -181,6 +189,7 @@ var All = []Permission{
 
 	{AnnouncementsWrite, "comms", "Publish announcements"},
 	{MessagesSend, "comms", "Send SMS, email and push messages"},
+	{MessagesReadAll, "comms", "Read messages between staff and families"},
 
 	{InstitutionRead, "institution", "View institution profile"},
 	{InstitutionWrite, "institution", "Edit institution profile"},
@@ -330,6 +339,11 @@ var SystemRoles = []Role{
 		AttendanceRead, AttendanceWrite, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
 		EmployeesRead, LeaveApprove, AnnouncementsWrite,
+		/* What their own teachers said to families, and what families said
+		   back. A head answering for a subject has to be able to see the
+		   conversation that led to a complaint; the scope resolver narrows it
+		   to their department, so this is not the school's whole postbag. */
+		MessagesReadAll,
 		SelfProfileRead, SelfProfileWrite}},
 	// Operations covers every specialism; the sub-role a user actually performs
 	// is decided by which of these they are granted, not by a separate role.
