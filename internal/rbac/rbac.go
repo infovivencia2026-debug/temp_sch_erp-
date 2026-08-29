@@ -367,6 +367,16 @@ var SystemRoles = []Role{
 	{"faculty", "Faculty / Teacher", []string{
 		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
+		/* Being a section's class teacher is a fact about the section, not a
+		   role somebody is given. A teacher who is class teacher of 6-B held
+		   the plain "teacher" role and met "missing permission" on the report
+		   card screen for their own section — the workflow that has them send
+		   results up to the head was unreachable by the people it is for.
+
+		   Safe to grant here because the handler checks
+		   res.IsClassTeacherOf(sectionID) regardless of the permission: a
+		   teacher who is class teacher of nothing can generate nothing. */
+		ReportCardsGenerate,
 		SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,

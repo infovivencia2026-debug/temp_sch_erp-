@@ -1333,6 +1333,8 @@ export function Input({
   className,
   list,
   srLabel,
+  onFocus,
+  onBlur,
 }: {
   value: string
   onChange: (v: string) => void
@@ -1348,6 +1350,10 @@ export function Input({
      not a substitute — it is not an accessible name, and it disappears the
      moment anything is typed. Same contract as Checkbox's srLabel. */
   srLabel?: string
+  /* For a box that opens a suggestion list: it has to know when the person
+     arrived and when they left. */
+  onFocus?: () => void
+  onBlur?: () => void
 }) {
   /* A password can be looked at.
    *
@@ -1365,6 +1371,8 @@ export function Input({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       list={list}
+      onFocus={onFocus}
+      onBlur={onBlur}
       aria-label={srLabel || undefined}
       className={cn('field', isPassword && 'pr-10', className)}
     />

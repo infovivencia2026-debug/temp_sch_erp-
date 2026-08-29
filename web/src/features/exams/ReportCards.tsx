@@ -75,6 +75,15 @@ export default function ReportCards() {
    * number, name and admission number all match, because which of the three
    * somebody has to hand depends on who rang. */
   const [find, setFind] = useState('')
+  /* Two letters, then the names.
+
+     Typing into the box narrowed the table underneath and said nothing until
+     it matched — so somebody who half-remembers a name types "nik" and reads
+     "Nobody in this section matches", with no way to tell whether they have
+     the spelling wrong or the wrong section. The suggestions answer that: they
+     show who is actually here. One letter would offer half the section, which
+     is the roll list they can already see. */
+  const [suggesting, setSuggesting] = useState(false)
 
   const exams = useQuery({
     queryKey: ['exam-list'],
@@ -169,6 +178,10 @@ export default function ReportCards() {
           r.admission_no.toLowerCase().includes(needle),
       )
     : all
+  /* At most eight, because a list longer than the screen is one nobody reads
+     to the end — and if eight children match, the word typed is not the one
+     that finds anybody. */
+  const suggestions = needle.length >= 2 && rows.length !== all.length ? rows.slice(0, 8) : []
   // Counted over the whole section, not the search. A section average that
   // changes as somebody types a name is not a section average.
   const published = all.filter((r) => r.is_published).length
@@ -207,12 +220,45 @@ export default function ReportCards() {
           <>
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
-            <Input
-              value={find}
-              onChange={setFind}
-              placeholder="Search roll no, name or admission no"
-              className="w-64"
-            />
+            <div className="relative">
+              <Input
+                value={find}
+                onChange={(v) => { setFind(v); setSuggesting(true) }}
+                onFocus={() => setSuggesting(true)}
+                // A blur that fires before the click would close the list out
+                // from under the finger that was reaching for it.
+                onBlur={() => window.setTimeout(() => setSuggesting(false), 150)}
+                placeholder="Search roll no, name or admission no"
+                className="w-64"
+              />
+              {suggesting && suggestions.length > 0 && (
+                <ul className="absolute left-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-md border bg-surface shadow-lg">
+                  {suggestions.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        className="flex w-full items-baseline gap-2 px-3 py-2 text-left text-[13px] hover:bg-muted/60"
+                        onClick={() => {
+                          // The admission number, not the name: it is unique, so
+                          // picking a child leaves exactly that child in the table
+                          // even where two of them share a first name.
+                          setFind(r.admission_no)
+                          setSuggesting(false)
+                        }}
+                      >
+                        <span className="w-6 shrink-0 tabular-nums text-muted-foreground">
+                          {r.roll_no ?? '—'}
+                        </span>
+                        <span className="flex-1 font-medium">{r.full_name}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {r.admission_no}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <Select value={sectionId} onChange={setSectionId} placeholder="Section"
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
