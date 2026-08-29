@@ -39,6 +39,10 @@ export interface Tab {
   path: string
   /** What to show on the tab. Captured at open time. */
   title: string
+  /** The screen named this one itself, so navigation must not rename it back.
+
+      Set by setTabTitle. See there for why. */
+  named?: boolean
 }
 
 /** Above this, the strip stops being readable and starts being a row of
@@ -58,6 +62,7 @@ function read(): Tab[] {
     return v
       .filter((t): t is Tab =>
         !!t && typeof (t as Tab).path === 'string' && typeof (t as Tab).title === 'string')
+      .map((t) => ({ path: t.path, title: t.title, named: t.named === true }))
       .slice(0, MAX_TABS)
   } catch {
     return []
@@ -115,8 +120,10 @@ export function claimTabs(userID: string) {
 export function openTab(path: string, title: string, activePath: string) {
   const at = tabs.findIndex((t) => t.path === path)
   if (at >= 0) {
-    // Already open: refresh its title, which may have loaded since.
-    if (tabs[at].title !== title) {
+    /* Already open: refresh its title, which may have loaded since — unless
+       the screen named it, in which case the catalogue's generic name would
+       overwrite the useful one every time somebody came back to it. */
+    if (tabs[at].title !== title && !tabs[at].named) {
       const next = [...tabs]
       next[at] = { path, title }
       write(next)
@@ -160,4 +167,27 @@ export function useTabs() {
   const value = useSyncExternalStore(subscribe, () => tabs, () => [])
   const open = useCallback(openTab, [])
   return { tabs: value, open, close: closeTab, closeOthers, closeAll }
+}
+
+/** Let a screen name its own tab, once it knows what it is looking at.
+
+    The catalogue names a tab by its path, which is right for a screen that
+    shows one thing and wrong for one that shows a different record each time.
+    Student 360 opened three times for three children gave three tabs all
+    reading "My students" — a strip of identical labels, where the only way to
+    find the child you were reading is to click them one at a time.
+
+    The query string is deliberately part of a tab's identity (see openTab), so
+    the tabs were right; only their names were wrong. Nothing happens if the
+    path is not open — a screen that finishes loading after its tab was closed
+    should not reopen it.
+*/
+export function setTabTitle(path: string, title: string) {
+  const t = title.trim()
+  if (!t) return
+  const at = tabs.findIndex((x) => x.path === path)
+  if (at < 0 || (tabs[at].title === t && tabs[at].named)) return
+  const next = [...tabs]
+  next[at] = { path, title: t, named: true }
+  write(next)
 }

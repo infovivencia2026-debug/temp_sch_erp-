@@ -132,7 +132,12 @@ export default function TabStrip() {
         )
       })}
       {tabs.length >= MAX_TABS && (
-        <span className="self-center pl-1 text-[11px] text-muted-foreground">
+        /* shrink-0, or the strip squeezes it.
+
+            It is the last flex item in a row of tabs that refuse to shrink, so
+            it took the whole shortfall itself: two characters wide, with "8
+            max" wrapped down the right-hand edge one letter per line. */
+        <span className="shrink-0 self-center whitespace-nowrap pl-1 text-[11px] text-muted-foreground">
           {MAX_TABS} max
         </span>
       )}

@@ -55,6 +55,11 @@ interface ReportCard {
   subjects: SubjectMark[]
 }
 
+/** A child on the roll, whether or not a report card exists for them yet. */
+interface Pupil {
+  id: string; admission_no: string; full_name: string; roll_no?: number
+}
+
 interface Readiness {
   subject: string
   teacher?: string
@@ -100,6 +105,15 @@ export default function ReportCards() {
         `/api/v1/exams/report-cards?section_id=${sectionId}${examId ? `&exam_id=${examId}` : ''}`,
       ),
     enabled: !!sectionId,
+  })
+  /* Who is in this section, whatever state their card is in. Named `roster`
+     rather than folded into `cards` because the two answer different
+     questions: this one is "who is here", that one is "whose card exists". */
+  const roster = useQuery({
+    queryKey: ['section-roster', sectionId],
+    enabled: !!sectionId,
+    queryFn: () => api.get<List<Pupil>>(
+      `/api/v1/students?section_id=${sectionId}&limit=200`),
   })
   const readiness = useQuery({
     queryKey: ['report-readiness', sectionId, examId],
@@ -178,10 +192,23 @@ export default function ReportCards() {
           r.admission_no.toLowerCase().includes(needle),
       )
     : all
-  /* At most eight, because a list longer than the screen is one nobody reads
-     to the end — and if eight children match, the word typed is not the one
-     that finds anybody. */
-  const suggestions = needle.length >= 2 && rows.length !== all.length ? rows.slice(0, 8) : []
+  /* The suggestions come from the SECTION, not from the report cards.
+
+     They were drawn from the rows in the table, which is the list of cards
+     that have been generated — so on a section whose cards do not exist yet,
+     the table is empty, the search matches nothing, and the dropdown that was
+     supposed to say who is actually there had nothing to say either. Exactly
+     the case somebody is in when they cannot find a child.
+
+     At most eight: a list longer than the screen is one nobody reads to the
+     end, and if eight children match, the word typed is not the one that finds
+     anybody. */
+  const suggestions = needle.length < 2 ? [] : (roster.data?.items ?? [])
+    .filter((r) =>
+      String(r.roll_no ?? '') === needle ||
+      r.full_name.toLowerCase().includes(needle) ||
+      r.admission_no.toLowerCase().includes(needle))
+    .slice(0, 8)
   // Counted over the whole section, not the search. A section average that
   // changes as somebody types a name is not a section average.
   const published = all.filter((r) => r.is_published).length

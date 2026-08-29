@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
@@ -15,6 +15,7 @@ import { StatusPill } from '@/components/NeedsAttention'
 import { useActiveRole } from '@/lib/catalog'
 import { useSession } from '@/lib/session'
 import { ExportRows } from '@/components/rows'
+import { setTabTitle } from '@/lib/tabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -141,6 +142,21 @@ export default function StudentProfile() {
       `/api/v1/teaching/remarks?student_id=${selected}`),
   })
   const remarkRows = remarks.data?.items ?? []
+
+  /* The tab says which child it is holding.
+
+     The strip names a tab from the catalogue, by path — right for a screen
+     that shows one thing, wrong for one that shows a different child each
+     time. Three children opened gave three tabs all reading "My students",
+     and the only way to find the one you were reading was to click them one
+     at a time.
+
+     Named once the child has loaded, so nothing flickers; the store refuses
+     to rename a tab that is no longer open. */
+  const named = profile.data?.full_name
+  useEffect(() => {
+    if (named) setTabTitle(window.location.pathname + window.location.search, named)
+  }, [named])
 
   const qc = useQueryClient()
   const save = useMutation({
