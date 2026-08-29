@@ -401,13 +401,13 @@ export default function ReportCards() {
 
   const act = useMutation({
     mutationFn: (v: {
-      verb: 'submit' | 'publish' | 'return' | 'withdraw'
+      verb: 'submit' | 'publish' | 'return'
       ids?: string[]
       section_ids?: string[]
       note?: string
     }) =>
       api.post<{
-        submitted?: number; published?: number; returned?: number; withdrawn?: number
+        submitted?: number; published?: number; returned?: number
         messages_queued?: number; delivery_error?: string
       }>(
         `/api/v1/exams/report-cards/${v.verb}`,
@@ -418,7 +418,7 @@ export default function ReportCards() {
         },
       ),
     onSuccess: (r, v) => {
-      const n = r.submitted ?? r.published ?? r.returned ?? r.withdrawn ?? 0
+      const n = r.submitted ?? r.published ?? r.returned ?? 0
       const noun = `${n} report ${n === 1 ? 'card' : 'cards'}`
       const told = to === 'both' ? 'the students and their parents'
         : to === 'students' ? 'the students' : 'the parents'
@@ -431,9 +431,7 @@ export default function ReportCards() {
           : v.verb === 'publish'
             ? `${noun} published — ${told} have been told in the app.${sent}` +
               (r.delivery_error ? ` The cards are out, but sending failed: ${r.delivery_error}` : '')
-            : v.verb === 'withdraw'
-              ? `${noun} taken back. They are drafts with the class teacher again and the families can no longer open them.`
-              : `${noun} sent back to the class teacher with your note.`,
+            : `${noun} sent back to the class teacher with your note.`,
       )
       setPicked({})
       setPickedSections({})
@@ -757,7 +755,7 @@ export default function ReportCards() {
           <Card>
             <CardHeader
               title="Released"
-              description="With the families. Taking a section back makes the cards drafts with their class teacher again and closes them to students and parents — the families are not told, because a withdrawal notice is worse than the correction it announces."
+              description="What has gone out, and when. A card a family has already read is corrected by regenerating and releasing it again, not by taking it off them."
             />
             <ul className="divide-y">
               {released.map((x) => (
@@ -778,14 +776,6 @@ export default function ReportCards() {
                     onClick={() => setSectionId(x.section_id)}
                   >
                     Read them
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={act.isPending}
-                    onClick={() => act.mutate({ verb: 'withdraw', section_ids: [x.section_id] })}
-                  >
-                    Take back
                   </Button>
                 </li>
               ))}
@@ -932,24 +922,6 @@ export default function ReportCards() {
                     Send back
                   </Button>
                 </>
-              )}
-              {/* Results go out wrong: a paper was unmarked, the wrong
-                  section was released. Back to draft with the class teacher,
-                  so the way back out is the ordinary way — fix it, send it up,
-                  release it again. */}
-              {mayPublish && published > 0 && (
-                <Button
-                  variant="ghost"
-                  disabled={act.isPending}
-                  onClick={() => {
-                    const back = (ticked.length ? ticked : all).filter(
-                      (x) => x.status === 'published')
-                    if (back.length) act.mutate({ verb: 'withdraw', ids: back.map((x) => x.id) })
-                  }}
-                  title="Take them back from the families and return them to the class teacher as drafts"
-                >
-                  Take back {(ticked.length ? ticked : all).filter((x) => x.status === 'published').length}
-                </Button>
               )}
               {ticked.length > 0 && (
                 <Button variant="ghost" onClick={() => setPicked({})}>
