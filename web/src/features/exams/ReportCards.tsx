@@ -286,6 +286,12 @@ export default function ReportCards() {
   const can = useCan()
   const mayGenerate = can('academics.reportcards.generate')
   const mayPublish = can('academics.reportcards.publish')
+  /* Sending a set up is the class teacher's act, not the head's.
+
+     A head holds both rights, so they were offered "Send all 10 for approval"
+     — a queue addressed to themselves. Whoever may release results has no
+     approval to ask for: they approve. */
+  const maySubmit = mayGenerate && !mayPublish
 
   /* Ticked rows, so a head can act on the whole section, on the ones they
      picked, or on one child — the same three shapes as any other list, and
@@ -869,24 +875,24 @@ export default function ReportCards() {
             exam only decides the four figures at the top — so requiring one
             here hid the buttons for the cards a person was already looking
             at. */}
-        {(toSubmit.length > 0 || (mayPublish && (awaiting.length > 0 || published > 0))) && (
+        {((maySubmit && toSubmit.length > 0) || (mayPublish && (awaiting.length > 0 || published > 0))) && (
           <Card>
             <CardHeader
               title={
                 mayPublish && awaiting.length ? 'Waiting for your approval'
-                  : toSubmit.length ? 'Send for approval'
+                  : maySubmit && toSubmit.length ? 'Send for approval'
                     : 'Released'
               }
               description={
                 mayPublish && awaiting.length
                   ? `${awaiting.length} ${awaiting.length === 1 ? 'card is' : 'cards are'} signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave everything unticked to act on all.`
-                  : toSubmit.length
+                  : maySubmit && toSubmit.length
                     ? 'The principal approves before a card reaches a family. Tick rows to send only those, or leave everything unticked to send the section.'
                     : `${published} ${published === 1 ? 'card is' : 'cards are'} with the families. Taking them back makes them drafts with the class teacher again and closes them to students and parents.`
               }
             />
             <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
-              {mayGenerate && toSubmit.length > 0 && (
+              {maySubmit && toSubmit.length > 0 && (
                 <Button
                   disabled={act.isPending}
                   onClick={() => act.mutate({ verb: 'submit', ids: toSubmit.map((r) => r.id) })}
@@ -1060,7 +1066,7 @@ export default function ReportCards() {
                           Publish
                         </Button>
                       )}
-                      {mayGenerate && !mayPublish && (r.status === 'draft' || r.status === 'returned') && (
+                      {maySubmit && (r.status === 'draft' || r.status === 'returned') && (
                         <Button
                           size="sm"
                           variant="secondary"
