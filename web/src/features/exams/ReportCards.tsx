@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Printer, TriangleAlert } from 'lucide-react'
+import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -81,6 +81,50 @@ interface Readiness {
   teacher?: string
   marks_entered: number
   students: number
+}
+
+/* The import control itself.
+
+   Written once and used twice — in the action row, where somebody who already
+   has the file goes straight at it, and inside the design panel next to the
+   placeholder list, where somebody who is finding out what a design is ends
+   up. Two copies of a file input drift: one grows an accept list the other
+   does not, and the second one silently takes a PDF.
+*/
+function ImportDesign({
+  label,
+  onPick,
+}: {
+  label: string
+  onPick: (v: { name: string; template_html: string }) => void
+}) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
+      <Upload className="h-3.5 w-3.5" aria-hidden />
+      {label}
+      <input
+        type="file"
+        accept=".html,.htm,.txt,text/html,text/plain"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          // Cleared so the same file can be picked again after a fix.
+          e.target.value = ''
+          if (!f) return
+          /* Read here rather than uploaded: the design is text the server
+             substitutes into, not a file handed back later, and a round trip
+             through the file store would leave a second copy nobody
+             maintains. */
+          const reader = new FileReader()
+          reader.onload = () => onPick({
+            name: f.name.replace(/\.[^.]+$/, ''),
+            template_html: String(reader.result ?? ''),
+          })
+          reader.readAsText(f)
+        }}
+      />
+    </label>
+  )
 }
 
 export default function ReportCards() {
@@ -430,9 +474,17 @@ export default function ReportCards() {
               </Button>
             )}
             {(mayGenerate || mayPublish) && (
-              <Button variant="ghost" onClick={() => setShowTemplate((v) => !v)}>
-                {showTemplate ? 'Hide the design' : 'Report card design'}
-              </Button>
+              <>
+                {/* Straight at it. Somebody who already has the school's design
+                    should not have to open a panel to find the button. */}
+                <ImportDesign
+                  label={importTemplate.isPending ? 'Importing…' : 'Import design'}
+                  onPick={(v) => importTemplate.mutate(v)}
+                />
+                <Button variant="ghost" onClick={() => setShowTemplate((v) => !v)}>
+                  {showTemplate ? 'Hide the design' : 'Report card design'}
+                </Button>
+              </>
             )}
             {rows.length > 0 && (
               <Button variant="ghost" onClick={() => window.print()}>
@@ -445,6 +497,10 @@ export default function ReportCards() {
       />
       <PageBody>
         {generate.error && <FormNotice error={generate.error} />}
+        {/* Above the panel, because the import button is now in the action row
+            and a refusal shown only inside a closed panel is a button that
+            appears to do nothing. */}
+        {importTemplate.error && !showTemplate && <FormNotice error={importTemplate.error} />}
         {outcome && <FormNotice ok={outcome} />}
         {/* Nothing is claimed until an exam is chosen.
         
@@ -513,29 +569,10 @@ export default function ReportCards() {
               }
               action={
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
-                    Import a design
-                    <input
-                      type="file"
-                      accept=".html,.htm,.txt,text/html,text/plain"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        e.target.value = ''
-                        if (!f) return
-                        /* Read here rather than uploaded: the design is text
-                           the server has to substitute into, not a file to be
-                           handed back later, and a round trip through the file
-                           store would leave a second copy nobody maintains. */
-                        const reader = new FileReader()
-                        reader.onload = () => importTemplate.mutate({
-                          name: f.name.replace(/\.[^.]+$/, ''),
-                          template_html: String(reader.result ?? ''),
-                        })
-                        reader.readAsText(f)
-                      }}
-                    />
-                  </label>
+                  <ImportDesign
+                    label="Import a design"
+                    onPick={(v) => importTemplate.mutate(v)}
+                  />
                   {!template.data?.template.is_built_in && (
                     <Button
                       variant="ghost"
