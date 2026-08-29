@@ -132,6 +132,23 @@ data class DriverSignInResponse(
     val vehicle: Vehicle,
     /** The driver's name, so the run screen can say who is signed in. */
     val driver: String? = null,
+    /* THE ROUTES THIS BUS RUNS, decided by the office.
+     *
+     * routes.vehicle_id has been in the schema since the first migration, and
+     * the app had no way to ask -- so it kept a route book the driver filled in
+     * by hand, and what it asked them to type was a uuid, at twenty to seven in
+     * the morning, off a piece of paper.
+     *
+     * Empty is not an error: a bus with no route yet still tracks, and the
+     * parents still see it move. */
+    val routes: List<AssignedRoute> = emptyList(),
+)
+
+@Serializable
+data class AssignedRoute(
+    val id: String,
+    val name: String,
+    val code: String = "",
 )
 
 @Serializable

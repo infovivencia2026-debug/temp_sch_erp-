@@ -8,6 +8,7 @@ import com.schoolerp.bustracker.data.local.FixDao
 import com.schoolerp.bustracker.data.local.FixEntity
 import com.schoolerp.bustracker.data.local.StopDao
 import com.schoolerp.bustracker.data.local.StopEntity
+import com.schoolerp.bustracker.data.prefs.SavedRoute
 import com.schoolerp.bustracker.data.prefs.ActiveTrip
 import com.schoolerp.bustracker.data.prefs.SettingsStore
 import com.schoolerp.bustracker.data.prefs.TokenStore
@@ -101,6 +102,18 @@ class TrackerRepository @Inject constructor(
                 vehicleRegistration = response.vehicle.registrationNo,
                 pingSeconds = null,
             )
+            /* The office's routes replace whatever the driver typed.
+
+               Not merged with the existing book: the server is the authority on
+               which routes this bus runs, and a stale hand-typed entry left
+               beside them is the one somebody picks by accident. A bus with no
+               routes assigned yet leaves the book alone rather than emptying
+               it, so a school mid-setup does not lose what it had. */
+            if (response.routes.isNotEmpty()) {
+                settingsStore.saveRouteBook(
+                    response.routes.map { SavedRoute(it.id, it.name) },
+                )
+            }
             tokenStore.save(response.deviceId, response.deviceToken)
             PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
         } catch (failure: ApiFailure) {

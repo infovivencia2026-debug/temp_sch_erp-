@@ -88,9 +88,15 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type routeRow struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Code string `json:"code,omitempty"`
+	}
 	var (
 		token, registration, vehicleModel string
 		deviceID, vehicleID               uuid.UUID
+		routes                            = []routeRow{}
 	)
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		/* The bus HR put this person against.
@@ -151,6 +157,39 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			return ierr
 		}
 
+		/* THE ROUTES THIS BUS RUNS, so the driver never types a uuid.
+
+		   routes.vehicle_id has been on that table since the baseline
+		   migration: the office already decides which route a bus runs. The
+		   app had no way to ask, so it kept a "route book" the driver filled
+		   in by hand -- and what it asked them to type was a uuid, at twenty
+		   to seven in the morning, off a piece of paper.
+
+		   Sent with the sign-in rather than behind a second call: the phone has
+		   just proved who is driving and which bus, and one round trip on a
+		   school connection is worth more than the tidiness of a separate
+		   endpoint. */
+		rows, rerr := tx.Query(r.Context(), `
+			SELECT id::text, name, COALESCE(code,'')
+			  FROM routes
+			 WHERE institution_id = $1 AND vehicle_id = $2
+			 ORDER BY name`, who.Institution, vehicleID)
+		if rerr != nil {
+			return rerr
+		}
+		for rows.Next() {
+			var rr routeRow
+			if serr := rows.Scan(&rr.ID, &rr.Name, &rr.Code); serr != nil {
+				rows.Close()
+				return serr
+			}
+			routes = append(routes, rr)
+		}
+		rows.Close()
+		if rerr := rows.Err(); rerr != nil {
+			return rerr
+		}
+
 		// The token carries the row id, so it cannot be minted before the row
 		// exists -- the same order claimBusTrackerPairCode uses.
 		var secret string
@@ -191,5 +230,9 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			"model":            vehicleModel,
 		},
 		"driver": who.Name,
+		/* Empty is not an error. A bus with no route yet still tracks -- the
+		   parents see it move -- and the screen says so rather than the sign-in
+		   failing over a setup step the office has not reached. */
+		"routes": routes,
 	})
 }

@@ -71,11 +71,21 @@ export default function TabStrip() {
         // though the address bar is not on it, and a strip that greys it out
         // says the opposite of what the screen shows.
         const shown = active || paths.includes(t.path)
+        /* A PLAIN DIV BELOW, not the tab itself.
+
+           role="tab" was on that wrapper, which contains a navigate button AND
+           a close button. Two problems from one line: the ARIA is wrong -- a
+           tab is the control, not a box holding two of them -- and index.css
+           gives everything with that role a button's press feedback, so the
+           entire tab, close button and all, shrank under a click like one
+           large button.
+
+           The role moves to the button that actually is the tab. The wrapper
+           goes back to being a box, and only the thing you pressed responds to
+           being pressed. */
         return (
           <div
             key={t.path}
-            role="tab"
-            aria-selected={active}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({ path: t.path, title: t.title, x: e.clientX, y: e.clientY })
@@ -107,6 +117,8 @@ export default function TabStrip() {
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => navigate(t.path)}
               className="min-w-0 flex-1 truncate text-left focus-visible:outline-none"
               title={t.title}
