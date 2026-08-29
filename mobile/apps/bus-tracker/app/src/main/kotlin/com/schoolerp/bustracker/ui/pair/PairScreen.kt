@@ -85,10 +85,12 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             OutlinedTextField(
                 value = state.phone,
                 onValueChange = viewModel::onPhoneChanged,
-                label = { Text("Your mobile number") },
-                supportingText = { Text("The number the school office has for you.") },
+                label = { Text("Mobile number or email") },
+                supportingText = { Text("Whichever the school office gave you to sign in with.") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                // Email, not Phone: a phone keypad has no @ and no letters, so
+                // an email login could not be typed even once the field allowed it.
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(

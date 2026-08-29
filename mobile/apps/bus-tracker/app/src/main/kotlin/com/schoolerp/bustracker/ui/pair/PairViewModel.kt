@@ -55,7 +55,7 @@ data class PairUiState(
             usePairCode -> PairCode.isComplete(pairCode)
             // The server's own shape, so an obviously wrong entry never
             // becomes a failed attempt counting towards the PIN lockout.
-            else -> phone.length == 10 && pin.isNotEmpty()
+            else -> phone.isNotBlank() && pin.isNotEmpty()
         }
 }
 
@@ -84,8 +84,18 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(baseUrl = value, error = null)
     }
 
+    /* NOT ONLY A PHONE NUMBER.
+     *
+       This stripped everything that was not a digit and cut the result to ten,
+       because the credential used to be a phone and a PIN. But HR issues a
+       login, and a login is often an email address -- which this silently
+       deleted down to whatever digits it happened to contain, then refused to
+       submit at all because the result was not ten characters long.
+
+       The server matches email, username or phone, so accept what the office
+       actually wrote on the slip. */
     fun onPhoneChanged(value: String) {
-        _state.value = _state.value.copy(phone = value.filter(Char::isDigit).take(10), error = null)
+        _state.value = _state.value.copy(phone = value.trim().take(120), error = null)
     }
 
     /* NOT DIGITS ANY MORE.
