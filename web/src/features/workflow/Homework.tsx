@@ -130,6 +130,10 @@ export default function Homework() {
       setAnswering(null)
       setAnswer('')
       setAttached(null)
+      /* Close the sheet too. Submitting from inside it and being left looking
+         at the form you have just emptied reads as though nothing happened;
+         the list behind now shows the row marked Done, which is the answer. */
+      setViewing(null)
       qc.invalidateQueries({ queryKey: ['homework'] })
     },
   })
@@ -449,10 +453,12 @@ export default function Homework() {
                 h={h}
                 canSubmit={!canPublish && !h.submitted}
                 pending={submit.isPending}
-                onDone={() => {
-                  setAnswering(h.id)
-                  setViewing(null)
-                }}
+                error={submit.error}
+                answer={answer}
+                onAnswer={setAnswer}
+                attached={attached}
+                onAttach={setAttached}
+                onSubmit={() => submit.mutate(h.id)}
                 onClose={() => setViewing(null)}
               />
             )
@@ -489,12 +495,17 @@ export default function Homework() {
     again to act on them.
 */
 function HomeworkSheet({
-  h, canSubmit, pending, onDone, onClose,
+  h, canSubmit, pending, error, answer, onAnswer, attached, onAttach, onSubmit, onClose,
 }: {
   h: Homework
   canSubmit: boolean
   pending: boolean
-  onDone: () => void
+  error: unknown
+  answer: string
+  onAnswer: (v: string) => void
+  attached: UploadedFile | null
+  onAttach: (f: UploadedFile | null) => void
+  onSubmit: () => void
   onClose: () => void
 }) {
   useEffect(() => {
@@ -534,9 +545,17 @@ function HomeworkSheet({
               Done
             </Badge>
           ) : canSubmit ? (
-            <Button size="sm" disabled={pending} onClick={onDone}>
+            /* Enabled only when there is something to send. Done used to close
+               the sheet and open the answer box back in the list behind it,
+               which is why there was no way to type or attach anything from
+               here: the form was on the screen this one covers. */
+            <Button
+              size="sm"
+              disabled={pending || (!answer.trim() && !attached)}
+              onClick={onSubmit}
+            >
               <Send className="h-3.5 w-3.5" />
-              Done
+              {pending ? 'Sending…' : 'Done'}
             </Button>
           ) : null}
         </div>
@@ -583,6 +602,41 @@ function HomeworkSheet({
                   </a>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ANSWERING IT, HERE.
+
+              The sheet showed the task and offered Done, and the box to write
+              in was on the list underneath. So a child read the question,
+              pressed Done, and the sheet vanished — which is not what Done
+              means anywhere else.
+
+              Same two ways to answer as the list: type it, or photograph the
+              page. Either alone is enough; an empty submission tells a teacher
+              nothing, which is why the button stays disabled until there is
+              one. */}
+          {canSubmit && (
+            <div className="mt-6 border-t pt-5">
+              <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">Your answer</span>
+                <Textarea
+                  value={answer}
+                  onChange={onAnswer}
+                  rows={5}
+                  placeholder="Type your answer, or attach a photo of the page below."
+                />
+              </label>
+              <div className="mt-3 max-w-sm">
+                <FilePicker
+                  value={attached}
+                  onChange={onAttach}
+                  purpose="homework_submission"
+                  label="Attach your work"
+                  hint="A photo of the page is fine."
+                />
+              </div>
+              <FormNotice error={error} />
             </div>
           )}
 

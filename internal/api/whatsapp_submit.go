@@ -292,11 +292,26 @@ func (s *Server) submitWhatsAppTemplates(w http.ResponseWriter, r *http.Request)
 		   still in review is refused by Meta with a clear error; a send with
 		   no mapping at all is refused by this product with a vaguer one. */
 		if uerr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			/* UPSERT, not UPDATE. A built-in template has no row in
+			   message_templates until a school customises it -- the list
+			   screen merges the built-ins with whatever rows exist -- so an
+			   UPDATE matched nothing and reported success. Measured: eleven
+			   templates submitted to Meta, eleven mappings silently discarded,
+			   and the screen still showing none mapped.
+
+			   The body written here is the built-in's own, so a row created by
+			   this path renders exactly as it did when there was no row. */
 			_, e := tx.Exec(r.Context(), `
-				UPDATE message_templates
-				   SET wa_template_name = $3, wa_language = $4, wa_params = $5
-				 WHERE institution_id = $1 AND code = $2 AND channel = 'whatsapp'`,
-				id.InstitutionID, code, sub.Name, lang, sub.Params)
+				INSERT INTO message_templates
+				       (institution_id, code, channel, subject, body,
+				        wa_template_name, wa_language, wa_params, is_active)
+				VALUES ($1,$2,'whatsapp',$6,$7,$3,$4,$5,true)
+				ON CONFLICT (institution_id, code, channel)
+				DO UPDATE SET wa_template_name = EXCLUDED.wa_template_name,
+				              wa_language      = EXCLUDED.wa_language,
+				              wa_params        = EXCLUDED.wa_params`,
+				id.InstitutionID, code, sub.Name, lang, sub.Params,
+				builtinTemplates[code].Subject, body)
 			return e
 		}); uerr != nil {
 			res.Error = "submitted to Meta but the mapping could not be saved: " + uerr.Error()
