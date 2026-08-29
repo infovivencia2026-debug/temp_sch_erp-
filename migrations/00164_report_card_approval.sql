@@ -20,6 +20,17 @@
  * would be a fifth state whose only content is "somebody has not pressed the
  * other button yet" — which is what the queue already shows.
  */
+/* The backfill below writes to report_cards, which forces row-level security.
+ *
+ * Without this the UPDATE matches nothing — a migration runs with no tenant, so
+ * the table reads as empty — every already-published card stays 'draft', and
+ * the constraint that is_published must agree with status then fails on the
+ * first one. Which is what happened: I fixed exactly this in another agent's
+ * migration an hour before writing my own with the same hole in it.
+ *
+ * LOCAL, so it lasts this transaction and no longer. */
+SET LOCAL app.is_platform_admin = 'on';
+
 ALTER TABLE report_cards
     ADD COLUMN IF NOT EXISTS status       text NOT NULL DEFAULT 'draft',
     ADD COLUMN IF NOT EXISTS submitted_at timestamptz,
