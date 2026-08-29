@@ -674,6 +674,22 @@ type vehicleRow struct {
 	Driver       *string `json:"driver,omitempty"`
 	NextExpiry   *string `json:"next_expiry,omitempty"`
 	Status       string  `json:"status"`
+
+	/* THE FIELDS AN EDIT FORM NEEDS.
+
+	   The register only ever showed names and the soonest expiry, which is
+	   right for reading. But the edit form rewrites the whole row, so a form
+	   that cannot prefill what it is about to overwrite silently clears it:
+	   an office user who corrects a model would blank the driver and all four
+	   expiry dates, and the first anyone would know is the driver being told
+	   no bus is assigned to him. */
+	RouteID     *string `json:"route_id,omitempty"`
+	DriverID    *string `json:"driver_employee_id,omitempty"`
+	AttendantID *string `json:"attendant_employee_id,omitempty"`
+	Insurance   *string `json:"insurance_expiry,omitempty"`
+	Fitness     *string `json:"fitness_expiry,omitempty"`
+	Permit      *string `json:"permit_expiry,omitempty"`
+	PUC         *string `json:"puc_expiry,omitempty"`
 }
 
 // listVehicles powers operations.transport_management.vehicle_master_registry.
@@ -688,7 +704,13 @@ func (s *Server) listVehicles(w http.ResponseWriter, r *http.Request) {
 		           COALESCE(v.permit_expiry,   'infinity'::date),
 		           COALESCE(v.puc_expiry,      'infinity'::date)),
 		         'infinity'::date), 'YYYY-MM-DD'),
-		       v.status
+		       v.status,
+		       (SELECT rt.id::text FROM routes rt WHERE rt.vehicle_id = v.id LIMIT 1),
+		       v.driver_employee_id::text, v.attendant_employee_id::text,
+		       to_char(v.insurance_expiry, 'YYYY-MM-DD'),
+		       to_char(v.fitness_expiry,   'YYYY-MM-DD'),
+		       to_char(v.permit_expiry,    'YYYY-MM-DD'),
+		       to_char(v.puc_expiry,       'YYYY-MM-DD')
 		  FROM vehicles v
 		  LEFT JOIN employees e ON e.id = v.driver_employee_id
 		 ORDER BY v.registration_no`, nil,
@@ -696,7 +718,9 @@ func (s *Server) listVehicles(w http.ResponseWriter, r *http.Request) {
 			var v vehicleRow
 			var driver *string
 			if err := rows.Scan(&v.ID, &v.Registration, &v.Model, &v.Capacity,
-				&v.Route, &driver, &v.NextExpiry, &v.Status); err != nil {
+				&v.Route, &driver, &v.NextExpiry, &v.Status,
+				&v.RouteID, &v.DriverID, &v.AttendantID,
+				&v.Insurance, &v.Fitness, &v.Permit, &v.PUC); err != nil {
 				return v, err
 			}
 			// concat_ws returns '' rather than NULL when both names are NULL.

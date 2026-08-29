@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, BusFront, Fuel, IdCard, ShieldCheck, Users } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { AlertTriangle, Bus, BusFront, Fuel, IdCard, ShieldCheck, Users } from 'lucide-react'
+import { ApiError, api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -105,9 +105,29 @@ interface Named {
   registration_no?: string
   full_name?: string
 }
+interface Fleet {
+  id: string
+  registration_no: string
+  model?: string
+  capacity?: number
+  route?: string
+  driver?: string
+  next_expiry?: string
+  status: string
+  // The register only ever showed names. The edit form rewrites the whole
+  // row, so it also needs the ids and dates it is about to overwrite.
+  route_id?: string
+  driver_employee_id?: string
+  attendant_employee_id?: string
+  insurance_expiry?: string
+  fitness_expiry?: string
+  permit_expiry?: string
+  puc_expiry?: string
+}
 
 const TABS = [
   ['register', 'Bus register', Users],
+  ['buses', 'Buses', Bus],
   ['checks', 'Safety checks', ShieldCheck],
   ['incidents', 'Delays', AlertTriangle],
   ['staff', 'Drivers', IdCard],
@@ -181,6 +201,7 @@ export default function TransportOffice() {
         </div>
 
         {tab === 'register' && <BusRegister />}
+        {tab === 'buses' && <Buses />}
         {tab === 'checks' && <SafetyChecks />}
         {tab === 'incidents' && <Incidents rows={incidents.data?.items ?? []} />}
         {tab === 'staff' && <Drivers rows={staff.data?.items ?? []} />}
@@ -697,8 +718,11 @@ function Drivers({ rows }: { rows: Staff[] }) {
   const [form, setForm] = useState<Record<string, string>>({ role: 'driver' })
 
   const employees = useQuery({
-    queryKey: ['employees', 'for-transport'],
-    queryFn: () => api.get<List<Named>>('/api/v1/hr/employees?limit=200'),
+    // Not /hr/employees: that sits behind EmployeesRead, which neither the
+    // transport manager nor operations staff hold, so it answered 403 and the
+    // dropdown rendered empty for exactly the people who need it.
+    queryKey: ['transport-assignable-staff'],
+    queryFn: () => api.get<List<Named>>('/api/v1/ops/transport/assignable-staff'),
   })
   const save = useMutation({
     mutationFn: () => api.post('/api/v1/ops/transport/staff', form),
@@ -1106,6 +1130,310 @@ function Logs() {
               </tr>
             ))}
           </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+/* THE FLEET ITSELF, WHICH NOTHING COULD EDIT.
+
+   Buses could be read and never written. A bus arrived, or a driver changed,
+   and the only way to record it was a seed script, so the driver on file was
+   whoever the demo data said it was. That matters beyond tidiness: the bus
+   tracker signs a driver in against the bus they are recorded on, so a bus
+   with no driver is a phone that cannot start a trip, however well the rest of
+   transport is set up. Those rows are marked here rather than left to be
+   noticed. */
+
+function busError(e: unknown) {
+  if (e instanceof ApiError) {
+    if (e.code === 'duplicate_registration')
+      return 'A bus with that registration is already on the fleet. It may be recorded as retired or under maintenance.'
+    if (e.code === 'driver_assigned') return e.message
+    return e.message
+  }
+  if (e instanceof Error) return e.message
+  return null
+}
+
+const BLANK: Record<string, string> = {
+  registration_no: '', model: '', capacity: '40', status: 'active',
+  driver_employee_id: '', attendant_employee_id: '',
+  insurance_expiry: '', fitness_expiry: '', permit_expiry: '', puc_expiry: '',
+  route_id: '',
+}
+
+function Buses() {
+  const qc = useQueryClient()
+  const routes = useRoutes()
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [form, setForm] = useState<Record<string, string>>(BLANK)
+
+  const list = useQuery({
+    queryKey: ['transport-vehicles'],
+    queryFn: () => api.get<List<Fleet>>('/api/v1/ops/transport/vehicles'),
+  })
+  // The same key the Drivers tab uses, so the staff list is fetched once.
+  const employees = useQuery({
+    // Not /hr/employees: that sits behind EmployeesRead, which neither the
+    // transport manager nor operations staff hold, so it answered 403 and the
+    // dropdown rendered empty for exactly the people who need it.
+    queryKey: ['transport-assignable-staff'],
+    queryFn: () => api.get<List<Named>>('/api/v1/ops/transport/assignable-staff'),
+  })
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = {
+        registration_no: form.registration_no.trim(),
+        model: form.model,
+        capacity: Number(form.capacity || 0),
+        driver_employee_id: form.driver_employee_id,
+        attendant_employee_id: form.attendant_employee_id,
+        insurance_expiry: form.insurance_expiry,
+        fitness_expiry: form.fitness_expiry,
+        permit_expiry: form.permit_expiry,
+        puc_expiry: form.puc_expiry,
+        status: form.status,
+      }
+      const saved = editing
+        ? await api.put<{ id: string }>(`/api/v1/ops/transport/vehicles/${editing}`, body)
+        : await api.post<{ id: string }>('/api/v1/ops/transport/vehicles', body)
+      if (form.route_id) {
+        await api.put(`/api/v1/ops/transport/vehicles/${saved.id}/route`, {
+          route_id: form.route_id,
+        })
+      }
+      return saved
+    },
+    onSuccess: () => {
+      setOpen(false)
+      setEditing(null)
+      setForm(BLANK)
+      qc.invalidateQueries({ queryKey: ['transport-vehicles'] })
+      qc.invalidateQueries({ queryKey: ['transport-routes'] })
+      qc.invalidateQueries({ queryKey: ['transport-staff'] })
+    },
+  })
+
+  const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
+  const drivers = (employees.data?.items ?? []).map((e) => ({
+    value: e.id,
+    label: e.full_name ?? e.name ?? e.id,
+  }))
+  const rows = list.data?.items ?? []
+  const driverless = rows.filter((v) => !v.driver && v.status === 'active')
+
+  const edit = (v: Fleet) => {
+    setEditing(v.id)
+    setOpen(true)
+    save.reset()
+    setForm({
+      ...BLANK,
+      registration_no: v.registration_no,
+      model: v.model ?? '',
+      capacity: String(v.capacity ?? 40),
+      status: v.status,
+      driver_employee_id: v.driver_employee_id ?? '',
+      attendant_employee_id: v.attendant_employee_id ?? '',
+      insurance_expiry: v.insurance_expiry ?? '',
+      fitness_expiry: v.fitness_expiry ?? '',
+      permit_expiry: v.permit_expiry ?? '',
+      puc_expiry: v.puc_expiry ?? '',
+      route_id: v.route_id ?? '',
+    })
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title={editing ? 'Edit this bus' : 'Add a bus'}
+          description="The driver is the field that does the work. The tracker app signs a driver in against the bus they are recorded on, so a bus with nobody named here cannot start a trip however well everything else is set up."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (open) { setOpen(false); setEditing(null); setForm(BLANK) }
+                else { save.reset(); setOpen(true) }
+              }}
+            >
+              {open ? 'Close' : 'Add a bus'}
+            </Button>
+          }
+        />
+        {open && (
+          <div className="border-b p-4">
+            <FormGrid>
+              <Field label="Registration" required>
+                <Input
+                  value={form.registration_no}
+                  onChange={set('registration_no')}
+                  placeholder="TS09 UB 1234"
+                />
+              </Field>
+              <Field label="Model">
+                <Input value={form.model} onChange={set('model')} placeholder="Tata Starbus" />
+              </Field>
+              <Field label="Seats">
+                <Input value={form.capacity} onChange={set('capacity')} type="number" />
+              </Field>
+              <Field label="Status">
+                <Select
+                  value={form.status}
+                  onChange={set('status')}
+                  options={[
+                    { value: 'active', label: 'In service' },
+                    { value: 'maintenance', label: 'Off the road' },
+                    { value: 'retired', label: 'Retired' },
+                  ]}
+                />
+              </Field>
+              <Field label="Driver" hint="Without this the driver's phone cannot sign in to this bus.">
+                <Select
+                  value={form.driver_employee_id}
+                  onChange={set('driver_employee_id')}
+                  placeholder="Nobody yet"
+                  options={drivers}
+                />
+              </Field>
+              <Field label="Attendant">
+                <Select
+                  value={form.attendant_employee_id}
+                  onChange={set('attendant_employee_id')}
+                  placeholder="Nobody yet"
+                  options={drivers}
+                />
+              </Field>
+              <Field label="Route">
+                <Select
+                  value={form.route_id}
+                  onChange={set('route_id')}
+                  placeholder="Leave the route as it is"
+                  options={(routes.data?.items ?? []).map((r) => ({
+                    value: r.id,
+                    label: r.name ?? r.id,
+                  }))}
+                />
+              </Field>
+              <Field label="Insurance expiry">
+                <Input type="date" value={form.insurance_expiry} onChange={set('insurance_expiry')} />
+              </Field>
+              <Field label="Fitness expiry">
+                <Input type="date" value={form.fitness_expiry} onChange={set('fitness_expiry')} />
+              </Field>
+              <Field label="Permit expiry">
+                <Input type="date" value={form.permit_expiry} onChange={set('permit_expiry')} />
+              </Field>
+              <Field label="PUC expiry">
+                <Input type="date" value={form.puc_expiry} onChange={set('puc_expiry')} />
+              </Field>
+            </FormGrid>
+            <div className="mt-4 flex items-center gap-3">
+              <Button
+                disabled={save.isPending || form.registration_no.trim() === ''}
+                onClick={() => save.mutate()}
+              >
+                {save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Add the bus'}
+              </Button>
+              {editing && (
+                <Button
+                  variant="ghost"
+                  onClick={() => { setEditing(null); setForm(BLANK); save.reset() }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+            {save.error && (
+              <div className="mt-3">
+                <FormNotice error={new Error(busError(save.error) ?? 'Could not save this bus')} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {list.isLoading ? (
+          <Loading label="Loading the fleet…" />
+        ) : list.error ? (
+          <ErrorState error={list.error} />
+        ) : rows.length === 0 ? (
+          <EmptyState title="No buses on the fleet" body="Add the buses that carry children, and name who drives each one." />
+        ) : (
+          <>
+            {driverless.length > 0 && (
+              <div className="border-b bg-destructive/5 px-4 py-3">
+                <p className="text-[13px] font-medium text-destructive">
+                  {driverless.length} in service with no driver named
+                </p>
+                <p className="text-[13px] text-muted-foreground">
+                  {driverless.map((v) => v.registration_no).join(', ')} · nobody can sign in
+                  to these on the tracker app.
+                </p>
+              </div>
+            )}
+            <Table
+              head={[
+                { label: 'Bus' },
+                { label: 'Driver' },
+                { label: 'Route' },
+                { label: 'Seats' },
+                { label: 'Papers lapse' },
+                { label: 'Status' },
+                { label: '' },
+              ]}
+            >
+              {rows.map((v) => {
+                const noDriver = !v.driver
+                return (
+                  <tr key={v.id} className={cn(noDriver && 'bg-destructive/5')}>
+                    <Td className="font-medium">
+                      <span className="font-mono text-[13px]">{v.registration_no}</span>
+                      {v.model && (
+                        <div className="text-[12px] font-normal text-muted-foreground">{v.model}</div>
+                      )}
+                    </Td>
+                    <Td>
+                      {noDriver ? (
+                        <Badge tone="danger">No driver</Badge>
+                      ) : (
+                        <span className="text-[14px]">{v.driver}</span>
+                      )}
+                    </Td>
+                    <Td className="text-muted-foreground">{v.route ?? 'Unassigned'}</Td>
+                    <Td className="tabular-nums text-muted-foreground">{v.capacity ?? '—'}</Td>
+                    <Td className="text-muted-foreground">
+                      {v.next_expiry ? formatDate(v.next_expiry) : '—'}
+                    </Td>
+                    <Td>
+                      <Badge
+                        tone={
+                          v.status === 'active'
+                            ? 'success'
+                            : v.status === 'retired'
+                              ? 'neutral'
+                              : 'warning'
+                        }
+                      >
+                        {v.status === 'active'
+                          ? 'In service'
+                          : v.status === 'maintenance'
+                            ? 'Off the road'
+                            : v.status}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Button size="sm" variant="ghost" onClick={() => edit(v)}>
+                        Edit
+                      </Button>
+                    </Td>
+                  </tr>
+                )
+              })}
+            </Table>
+          </>
         )}
       </Card>
     </>
