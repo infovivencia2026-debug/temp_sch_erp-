@@ -1247,6 +1247,10 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 // claim has no credential at all until it succeeds.
 func (s *Server) mountBusTrackerDevice(r chi.Router) {
 	r.Post("/public/bus-tracker/claim", s.claimBusTrackerPairCode)
+	/* The way in that needs nobody in the office. HR already records who
+	   drives which bus, so a phone number and the PIN they were issued are
+	   enough on their own -- see bus_driver_signin.go. */
+	r.Post("/public/bus-tracker/driver-signin", s.signInBusDriver)
 
 	// The driver enrols their own handset against the number painted on the
 	// bus. The claim above stays: a school midway through printed

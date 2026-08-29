@@ -14,6 +14,7 @@ import com.schoolerp.bustracker.data.prefs.TokenStore
 import com.schoolerp.bustracker.data.prefs.TrackerSettings
 import com.schoolerp.bustracker.data.remote.ApiFailure
 import com.schoolerp.bustracker.data.remote.ClaimRequest
+import com.schoolerp.bustracker.data.remote.DriverSignInRequest
 import com.schoolerp.bustracker.data.remote.EndTripRequest
 import com.schoolerp.bustracker.data.remote.HeartbeatRequest
 import com.schoolerp.bustracker.data.remote.PositionFix
@@ -63,6 +64,63 @@ class TrackerRepository @Inject constructor(
     fun observeStops(tripId: String): Flow<List<StopEntity>> = stops.observeStops(tripId)
 
     // ------------------------------------------------------------- enrolment
+
+    /* SIGNING IN AS THE DRIVER, which is now the ordinary way in.
+     *
+     * pair() below is kept for the schools already using pair codes and for a
+     * bus with no driver assigned yet. This is what the screen offers first:
+     * HR records who drives which bus, so the number and PIN the office issued
+     * are enough, and the server returns the vehicle rather than the driver
+     * naming it.
+     *
+     * Records the pairing exactly as pair() does, because from everything
+     * downstream -- the service, the buffer, the trip -- a handset that signed
+     * in and a handset that used a code are the same thing.
+     */
+    suspend fun driverSignIn(rawBaseUrl: String, phone: String, pin: String): PairOutcome {
+        val settings = settingsStore.settings.first()
+        val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
+            .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
+
+        return try {
+            val response = api.driverSignIn(
+                baseUrl,
+                DriverSignInRequest(
+                    phone = phone,
+                    pin = pin,
+                    deviceModel = device.deviceModel(),
+                    androidVersion = device.androidVersion(),
+                    appVersion = device.appVersion(),
+                ),
+            )
+            settingsStore.setBaseUrl(baseUrl.value)
+            settingsStore.recordPairing(
+                deviceId = response.deviceId,
+                institution = null,
+                vehicleId = response.vehicle.id,
+                vehicleRegistration = response.vehicle.registrationNo,
+                pingSeconds = null,
+            )
+            tokenStore.save(response.deviceId, response.deviceToken)
+            PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
+        } catch (failure: ApiFailure) {
+            PairOutcome.Rejected(driverSignInMessage(failure))
+        }
+    }
+
+    private fun driverSignInMessage(failure: ApiFailure): String = when (failure) {
+        is ApiFailure.Unauthorized ->
+            "That number and PIN did not match. Ask the office to check the number they have for you."
+        is ApiFailure.Rejected -> when (failure.status) {
+            409 -> failure.detail
+                ?: "No bus is assigned to you yet. Ask the office to put you against a vehicle."
+            429 -> "Too many wrong PINs. Wait a few minutes, or ask the office to unlock it."
+            else -> failure.detail ?: "Could not sign in."
+        }
+        is ApiFailure.Malformed ->
+            "The server answered in a way this app did not understand. Tell the office the app needs updating."
+        else -> "Could not sign in (${failure.reason})."
+    }
 
     suspend fun pair(rawBaseUrl: String, pairCode: String): PairOutcome {
         val settings = settingsStore.settings.first()

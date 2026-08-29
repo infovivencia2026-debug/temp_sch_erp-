@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolerp.bustracker.core.PairCode
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 
 @Composable
 fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
@@ -60,27 +62,64 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxWidth(),
         )
 
+        /* THE DRIVER'S OWN DETAILS, first.
+         *
+         * A pair code needs somebody in the office at the moment the driver is
+         * beside the bus, and that is six in the morning. HR already records
+         * who drives which bus, so this is enough on its own and the server
+         * answers with the vehicle -- which is also narrower than a code was,
+         * because a driver cannot attach this phone to a route that is not
+         * theirs.
+         */
+        if (!state.usePairCode) {
+            OutlinedTextField(
+                value = state.phone,
+                onValueChange = viewModel::onPhoneChanged,
+                label = { Text("Your mobile number") },
+                supportingText = { Text("The number the school office has for you.") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.pin,
+                onValueChange = viewModel::onPinChanged,
+                label = { Text("PIN") },
+                supportingText = { Text("The PIN the office gave you. Same one as your school login.") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(onClick = { viewModel.usePairCode(true) }) {
+                Text("I was given a pairing code instead")
+            }
+        } else {
         OutlinedTextField(
-            value = state.pairCode,
-            onValueChange = viewModel::onPairCodeChanged,
-            label = { Text("Pairing code") },
-            supportingText = {
-                Text(
-                    "${state.pairCode.length} of ${PairCode.LENGTH} characters. " +
-                        "Codes expire after ten minutes.",
-                )
-            },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 4.sp,
-            ),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
-                keyboardType = KeyboardType.Ascii,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
+                value = state.pairCode,
+                onValueChange = viewModel::onPairCodeChanged,
+                label = { Text("Pairing code") },
+                supportingText = {
+                    Text(
+                        "${state.pairCode.length} of ${PairCode.LENGTH} characters. " +
+                            "Codes expire after ten minutes.",
+                    )
+                },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.headlineSmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 4.sp,
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters,
+                    keyboardType = KeyboardType.Ascii,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(onClick = { viewModel.usePairCode(false) }) {
+                Text("Use my number and PIN instead")
+            }
+        }
 
         if (state.insecureToggleAvailable) {
             Row(

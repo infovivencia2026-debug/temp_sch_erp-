@@ -52,6 +52,19 @@ class TrackerApi(
      * same school the handset was paired to, so a valid PIN from another
      * school is still refused.
      */
+    /* The driver's own way in. No pair code, no session: the PIN is the
+     * credential, and the server answers with the bus HR has this person
+     * against. See internal/api/bus_driver_signin.go. */
+    suspend fun driverSignIn(
+        baseUrl: BaseUrl,
+        request: DriverSignInRequest,
+    ): DriverSignInResponse = call {
+        client.post(baseUrl.resolve(PATH_DRIVER_SIGNIN)) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
     suspend fun signIn(
         baseUrl: BaseUrl,
         token: String,
@@ -183,6 +196,7 @@ class TrackerApi(
         const val PATH_TRIPS = "/api/v1/bus-tracker/trips"
         const val PATH_POSITIONS = "/api/v1/bus-tracker/positions"
         const val PATH_HEARTBEAT = "/api/v1/bus-tracker/heartbeat"
+        const val PATH_DRIVER_SIGNIN = "/api/v1/public/bus-tracker/driver-signin"
         const val PATH_SESSION = "/api/v1/bus-tracker/session"
         const val PATH_SESSION_END = "/api/v1/bus-tracker/session/end"
         const val HEADER_STAFF_SESSION = "X-Staff-Session"

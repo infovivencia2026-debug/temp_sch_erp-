@@ -105,6 +105,35 @@ object InstitutionSerializer : KSerializer<Institution> {
  * The device token identifies the BUS. This identifies the person driving it,
  * which is what a parent is asking when they ask who was on the route.
  */
+/* THE ONLY WAY IN THAT NEEDS NOBODY IN THE OFFICE.
+ *
+ * A pair code took two people and a stopwatch: somebody generated it, the
+ * driver typed it within ten minutes, and the driver is beside the bus at six
+ * in the morning while the office opens at nine.
+ *
+ * HR already records who drives which bus. So the phone number and the PIN the
+ * office issued are enough on their own, and the server answers with the bus
+ * it finds against that person -- which is also narrower than a pair code was,
+ * because a driver cannot attach a handset to a route that is not theirs.
+ */
+@Serializable
+data class DriverSignInRequest(
+    val phone: String,
+    val pin: String,
+    @SerialName("device_model") val deviceModel: String? = null,
+    @SerialName("android_version") val androidVersion: String? = null,
+    @SerialName("app_version") val appVersion: String? = null,
+)
+
+@Serializable
+data class DriverSignInResponse(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_token") val deviceToken: String,
+    val vehicle: Vehicle,
+    /** The driver's name, so the run screen can say who is signed in. */
+    val driver: String? = null,
+)
+
 @Serializable
 data class SignInRequest(
     val phone: String,

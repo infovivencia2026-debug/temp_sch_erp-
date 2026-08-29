@@ -18,6 +18,18 @@ import javax.inject.Inject
 data class PairUiState(
     val baseUrl: String = "",
     val pairCode: String = "",
+    /* THE ORDINARY WAY IN.
+     *
+     * A pair code needs somebody in the office at the moment the driver is
+     * standing beside the bus, which is six in the morning. HR already records
+     * who drives which bus, so the number and the PIN the office issued are
+     * enough on their own and the server answers with the vehicle.
+     *
+     * The pair code stays as the second option, for a bus with no driver
+     * assigned yet and for schools already using codes. */
+    val phone: String = "",
+    val pin: String = "",
+    val usePairCode: Boolean = false,
     val submitting: Boolean = false,
     val error: String? = null,
     /** The registration the server echoed back. Shown before anything reports. */
@@ -28,7 +40,12 @@ data class PairUiState(
     val insecureToggleAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
 ) {
     val canSubmit: Boolean
-        get() = !submitting && baseUrl.isNotBlank() && PairCode.isComplete(pairCode)
+        get() = !submitting && baseUrl.isNotBlank() && when {
+            usePairCode -> PairCode.isComplete(pairCode)
+            // The server's own shape, so an obviously wrong entry never
+            // becomes a failed attempt counting towards the PIN lockout.
+            else -> phone.length == 10 && pin.length >= 4
+        }
 }
 
 @HiltViewModel
@@ -54,6 +71,18 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(baseUrl = value, error = null)
     }
 
+    fun onPhoneChanged(value: String) {
+        _state.value = _state.value.copy(phone = value.filter(Char::isDigit).take(10), error = null)
+    }
+
+    fun onPinChanged(value: String) {
+        _state.value = _state.value.copy(pin = value.filter(Char::isDigit).take(6), error = null)
+    }
+
+    fun usePairCode(on: Boolean) {
+        _state.value = _state.value.copy(usePairCode = on, error = null)
+    }
+
     fun onPairCodeChanged(value: String) {
         _state.value = _state.value.copy(pairCode = PairCode.normalise(value), error = null)
     }
@@ -69,7 +98,12 @@ class PairViewModel @Inject constructor(
         _state.value = current.copy(submitting = true, error = null)
 
         viewModelScope.launch {
-            when (val outcome = repository.pair(current.baseUrl, current.pairCode)) {
+            val outcome = if (current.usePairCode) {
+                repository.pair(current.baseUrl, current.pairCode)
+            } else {
+                repository.driverSignIn(current.baseUrl, current.phone, current.pin)
+            }
+            when (outcome) {
                 is PairOutcome.Paired -> _state.value = _state.value.copy(
                     submitting = false,
                     pairedVehicle = outcome.vehicleRegistration,
