@@ -295,6 +295,26 @@ var Groups = []Group{
 		ScopeNote: "Every send is metered and logged against the school.",
 	},
 	{
+		Key: "results_release", Name: "Releasing results", Band: BandCore,
+		Blurb: "Signing report cards off and letting families read them.",
+		/* A group of its own rather than another rung on "Marks & report
+		   cards".
+
+		   The levels inside a group are a ladder: anybody standing on Approve
+		   holds every key at that level. Put release beside generate and the
+		   class teacher who produced the cards is handed the power to publish
+		   them — which is exactly the state the approval workflow replaces. */
+		/* Manage, not Approve.
+
+		   Approve in this model is an independent toggle sitting on top of a
+		   level, and a group has to offer a level of its own — which is right:
+		   "can approve but has no level" describes nothing. Releasing results
+		   is the managing of them, so that is the rung it sits on. */
+		Manage:    []string{ReportCardsPublish},
+		Scopes:    fixed("institution"),
+		ScopeNote: "A head signs off for the school. Class teachers submit; they do not release.",
+	},
+	{
 		Key: "message_oversight", Name: "Reading staff–family messages", Band: BandOptional,
 		Blurb:  "What teachers and families said to each other, read by somebody who was not party to it.",
 		View:   []string{MessagesReadAll},

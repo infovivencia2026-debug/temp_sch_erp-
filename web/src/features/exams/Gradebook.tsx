@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 
@@ -218,6 +219,10 @@ export default function Gradebook() {
 
   const toast = useToast()
 
+  /* Setting the paper up is the exam cell's, entering the marks is the
+     teacher's. Both live on this screen because they happen in that order. */
+  const maySetUp = useCan()('academics.exams.write')
+
   const rows = book.data?.items ?? []
   /* A class of sixty is scrolled, and a mark typed against the wrong row is
      the error nobody catches until a report card is printed. */
@@ -369,7 +374,16 @@ export default function Gradebook() {
               <Stat label="Pending" value={rows.length - entered} />
             </CellGrid>
 
-            {entered === 0 && (
+            {/* Only for somebody who may actually set it.
+
+                Deciding a paper is out of twenty rather than eighty is an
+                exam-cell decision, and the endpoint is gated on
+                academics.exams.write — which a subject teacher does not hold.
+                The card was drawn for everybody, so a teacher opening the
+                gradebook to enter marks met "missing permission:
+                academics.exams.write" before she had typed anything, and had
+                no way to know the message was not about the marks. */}
+            {entered === 0 && maySetUp && (
               <Card>
                 <CardHeader
                   title="Set up this paper"

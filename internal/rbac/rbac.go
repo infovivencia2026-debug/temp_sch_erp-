@@ -38,7 +38,14 @@ const (
 	// same job, and in most schools not the same person.
 	ExamsApprove        = "academics.exams.approve"
 	ReportCardsGenerate = "academics.reportcards.generate"
-	HomeworkWrite       = "academics.homework.write"
+	/* Releasing results to families, as distinct from producing them.
+
+	   A class teacher generates and sends up; a head signs off. Kept apart
+	   because the whole point of the workflow is that the two are different
+	   people — folding release into generate would let the person who typed
+	   the marks publish them, which is the state this replaces. */
+	ReportCardsPublish = "academics.reportcards.publish"
+	HomeworkWrite      = "academics.homework.write"
 
 	// finance
 	FeesRead      = "finance.fees.read"
@@ -149,6 +156,7 @@ var All = []Permission{
 	{ExamsApprove, "academics", "Approve question papers and moderate marks"},
 	{MarksWrite, "academics", "Enter and amend marks"},
 	{ReportCardsGenerate, "academics", "Generate report cards"},
+	{ReportCardsPublish, "academics", "Approve and release report cards to families"},
 	{HomeworkWrite, "academics", "Set homework and review submissions"},
 
 	{FeesRead, "finance", "View fee heads and structures"},
