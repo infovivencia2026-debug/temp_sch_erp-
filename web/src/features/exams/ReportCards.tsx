@@ -62,6 +62,7 @@ interface Template {
   name: string
   template_html: string
   is_built_in: boolean
+  font: string
   css?: string
   updated_at?: string
   updated_by?: string
@@ -69,6 +70,7 @@ interface Template {
 
 /** A section waiting on the head, as one line. */
 interface Pending {
+  status: 'submitted' | 'published'
   section_id: string; section_name: string; class_name: string
   cards: number; submitted_by?: string; submitted_at?: string
 }
@@ -302,7 +304,15 @@ export default function ReportCards() {
     enabled: mayPublish,
     queryFn: () => api.get<List<Pending>>('/api/v1/exams/report-cards/pending'),
   })
-  const waiting = pending.data?.items ?? []
+  const queue = pending.data?.items ?? []
+  const waiting = queue.filter((x) => x.status === 'submitted')
+  /* Already with the families.
+
+     A head who has released a section and then spotted a wrong mark has to
+     reach it from somewhere. The only route was to pick the section and the
+     exam again on a screen with nothing waiting on it — which meant knowing
+     which exam they were released under before you could correct them. */
+  const released = queue.filter((x) => x.status === 'published')
   const [pickedSections, setPickedSections] = useState<Record<string, boolean>>({})
   const chosen = waiting.filter((x) => pickedSections[x.section_id])
   // Nothing chosen means all of them, the same rule as the rows below.
@@ -319,7 +329,18 @@ export default function ReportCards() {
       template: Template
       placeholders: { token: string; means: string }[]
       default_html: string
+      fonts: { value: string; label: string }[]
     }>('/api/v1/exams/report-cards/template'),
+  })
+  /* Which face the standard design prints in.
+
+     A choice rather than a fallback chain: a chain means the card prints in
+     whichever of the three happens to be on the machine, which is a different
+     document in the office and in the staff room. Hidden once a school
+     imports its own design, because that design brings its own type. */
+  const setFont = useMutation({
+    mutationFn: (font: string) => api.post('/api/v1/exams/report-cards/font', { font }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-card-template'] }),
   })
   const [preview, setPreview] = useState<{ html: string; css?: string; name?: string } | null>(null)
 
@@ -558,6 +579,13 @@ export default function ReportCards() {
             )}
             {(mayGenerate || mayPublish) && (
               <>
+                {template.data?.template.is_built_in && (
+                  <Select
+                    value={template.data.template.font}
+                    onChange={(v) => setFont.mutate(v)}
+                    options={template.data.fonts.map((f) => ({ value: f.value, label: f.label }))}
+                  />
+                )}
                 <Button variant="ghost" onClick={() => setShowSign((v) => !v)}>
                   {signature.data?.file_id ? 'My signature' : 'Add my signature'}
                 </Button>
@@ -719,6 +747,46 @@ export default function ReportCards() {
           </Card>
         )}
 
+        {mayPublish && released.length > 0 && (
+          <Card>
+            <CardHeader
+              title="Released"
+              description="With the families. Taking a section back makes the cards drafts with their class teacher again and closes them to students and parents — the families are not told, because a withdrawal notice is worse than the correction it announces."
+            />
+            <ul className="divide-y">
+              {released.map((x) => (
+                <li key={x.section_id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
+                  <span className="min-w-[7rem] font-medium">
+                    {x.class_name}-{x.section_name}
+                  </span>
+                  <span className="flex-1 text-[13px] text-muted-foreground">
+                    {x.submitted_by ?? 'the class teacher'}
+                    {x.submitted_at ? ` · published ${x.submitted_at.replace('T', ' ')}` : ''}
+                  </span>
+                  <span className="text-[13px] tabular-nums text-muted-foreground">
+                    {x.cards} {x.cards === 1 ? 'card' : 'cards'}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setSectionId(x.section_id)}
+                  >
+                    Read them
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={act.isPending}
+                    onClick={() => act.mutate({ verb: 'withdraw', section_ids: [x.section_id] })}
+                  >
+                    Take back
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+
         {/* The whole school's queue, for the head.
 
             Sits above everything else because on the day results go out it is
@@ -797,7 +865,11 @@ export default function ReportCards() {
             The class teacher sends the set to the principal; the principal
             releases it to the children and their parents, or sends it back
             saying what is wrong. Whoever is looking sees only their half. */}
-        {examId && (toSubmit.length > 0 || (mayPublish && (awaiting.length > 0 || published > 0))) && (
+        {/* Not gated on an exam. The rows below are listed without one — the
+            exam only decides the four figures at the top — so requiring one
+            here hid the buttons for the cards a person was already looking
+            at. */}
+        {(toSubmit.length > 0 || (mayPublish && (awaiting.length > 0 || published > 0))) && (
           <Card>
             <CardHeader
               title={

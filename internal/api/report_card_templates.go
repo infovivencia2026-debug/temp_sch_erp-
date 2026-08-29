@@ -140,11 +140,11 @@ const defaultReportCardHTML = `<div class="card">
 const defaultReportCardCSS = `
 .card { width: 190mm; margin: 0 auto; padding: 8mm; box-sizing: border-box;
         border: 2px solid #1e3a5f;
-        /* Arial first, then Calibri, then Times New Roman. What a school
-           already prints on: the fonts on every office machine in the country,
-           and the three a head asked for by name. Georgia was a web font
-           choice on a document that is read on paper. */
-        font: 11pt/1.45 Arial, Calibri, 'Times New Roman', sans-serif;
+        /* The face is the school's choice, substituted below. A fallback chain
+           would have meant the card printed in whichever of the three happened
+           to be on the machine — which is a different document in the office
+           and in the staff room. */
+        font: 11pt/1.45 __FONT__;
         color: #14213d; background: #fff; }
 .card header { text-align: center; }
 /* The crest, where the school has one. The block collapses to nothing when it
@@ -196,14 +196,41 @@ const defaultReportCardCSS = `
 @media print { .card { border: none; padding: 0; } }
 `
 
+/*
+The three faces a school may print on.
+
+	Named rather than free text: a font a school types the name of is a font
+	that is not on the machine the cards are printed from, and the card then
+	silently falls back to whatever the browser fancies. These three are on
+	every office machine in the country and are the three a head asks for.
+*/
+var reportCardFonts = map[string]string{
+	"arial":   "Arial, Helvetica, sans-serif",
+	"calibri": "Calibri, Candara, Arial, sans-serif",
+	"times":   "'Times New Roman', Times, serif",
+}
+
+const defaultReportCardFont = "arial"
+
+// fontStack resolves the school's choice, or Arial when it has made none.
+func fontStack(key string) string {
+	if v, ok := reportCardFonts[strings.ToLower(strings.TrimSpace(key))]; ok {
+		return v
+	}
+	return reportCardFonts[defaultReportCardFont]
+}
+
 type reportCardTemplate struct {
 	Name string `json:"name"`
 	HTML string `json:"template_html"`
 	// True while the school has imported nothing and is printing the built-in
 	// design. The screen says so, because "we have a template" and "we are
 	// using the one that came with it" are different answers.
-	IsBuiltIn bool    `json:"is_built_in"`
-	CSS       string  `json:"css,omitempty"`
+	IsBuiltIn bool   `json:"is_built_in"`
+	CSS       string `json:"css,omitempty"`
+	// Which of the three faces the built-in design prints in. Meaningless for
+	// an imported design, which brings its own.
+	Font      string  `json:"font"`
 	UpdatedAt *string `json:"updated_at,omitempty"`
 	UpdatedBy *string `json:"updated_by,omitempty"`
 }
@@ -216,6 +243,22 @@ func (s *Server) loadReportCardTemplate(r *http.Request) (reportCardTemplate, er
 		IsBuiltIn: true, CSS: defaultReportCardCSS,
 	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* The face first, because it applies to the built-in design and the
+		   built-in design is what most schools print on. Held in
+		   module_settings, which exists for exactly this kind of one-line
+		   preference and needs no table of its own. */
+		var font *string
+		_ = tx.QueryRow(r.Context(),
+			`SELECT config->>'report_card_font' FROM module_settings
+			  WHERE module = 'examinations'`).Scan(&font)
+		out.Font = defaultReportCardFont
+		if font != nil {
+			if _, ok := reportCardFonts[strings.ToLower(*font)]; ok {
+				out.Font = strings.ToLower(*font)
+			}
+		}
+		out.CSS = strings.ReplaceAll(defaultReportCardCSS, "__FONT__", fontStack(out.Font))
+
 		var name, body string
 		var at string
 		var by *string
@@ -231,8 +274,11 @@ func (s *Server) loadReportCardTemplate(r *http.Request) (reportCardTemplate, er
 			}
 			return err
 		}
+		// An imported design brings its own type, so the school's choice of
+		// face stops applying — reported back all the same, so the screen can
+		// say so rather than showing a control that does nothing.
 		out = reportCardTemplate{Name: name, HTML: body, IsBuiltIn: false,
-			UpdatedAt: &at, UpdatedBy: by}
+			Font: out.Font, UpdatedAt: &at, UpdatedBy: by}
 		return nil
 	})
 	return out, err
@@ -247,6 +293,11 @@ func (s *Server) getReportCardTemplate(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"template":     t,
 		"placeholders": reportCardPlaceholders,
+		"fonts": []map[string]string{
+			{"value": "arial", "label": "Arial"},
+			{"value": "calibri", "label": "Calibri"},
+			{"value": "times", "label": "Times New Roman"},
+		},
 		// The built-in body, always — so "start from the standard one and
 		// change three things" is possible without anybody hunting for a file.
 		"default_html": defaultReportCardHTML,
@@ -724,4 +775,36 @@ func (s *Server) getMySignature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"file_id": file})
+}
+
+// setReportCardFont records which of the three faces the standard design
+// prints in.
+func (s *Server) setReportCardFont(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var req struct {
+		Font string `json:"font"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	font := strings.ToLower(strings.TrimSpace(req.Font))
+	if _, ok := reportCardFonts[font]; !ok {
+		httpx.BadRequest(w, r, "choose Arial, Calibri or Times New Roman")
+		return
+	}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(), `
+			INSERT INTO module_settings (institution_id, module, enabled, config)
+			VALUES ($1, 'examinations', true, jsonb_build_object('report_card_font', $2::text))
+			ON CONFLICT (institution_id, module)
+			-- Merged, not replaced: this module's settings are not only ours.
+			DO UPDATE SET config = module_settings.config || EXCLUDED.config`,
+			id.InstitutionID, font)
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"font": font})
 }

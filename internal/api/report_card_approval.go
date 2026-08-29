@@ -461,6 +461,14 @@ What is waiting on the head, across the whole school.
 	section, and the head accepts or returns one.
 */
 type pendingReportCards struct {
+	/* submitted or published.
+
+	   Both belong in this list. A head who has just released a section and
+	   spotted a wrong mark has to reach it from somewhere, and the only other
+	   route was to pick the section and the exam again on a screen that no
+	   longer had anything waiting on it — so taking results back meant knowing
+	   which exam they were released under. */
+	Status      string  `json:"status"`
 	SectionID   string  `json:"section_id"`
 	SectionName string  `json:"section_name"`
 	ClassName   string  `json:"class_name"`
@@ -473,20 +481,22 @@ type pendingReportCards struct {
 
 func (s *Server) listPendingReportCards(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT sec.id::text, sec.name, c.name, count(*)::int,
+		SELECT rc.status, sec.id::text, sec.name, c.name, count(*)::int,
 		       max(u.full_name),
-		       to_char(min(rc.submitted_at), 'YYYY-MM-DD"T"HH24:MI')
+		       to_char(max(COALESCE(rc.published_at, rc.submitted_at)),
+		               'YYYY-MM-DD"T"HH24:MI')
 		  FROM report_cards rc
 		  JOIN enrollments e ON e.id = rc.enrollment_id
 		  JOIN sections sec  ON sec.id = e.section_id
 		  JOIN classes c     ON c.id = sec.class_id
 		  LEFT JOIN users u  ON u.id = rc.submitted_by
-		 WHERE rc.status = 'submitted'
-		 GROUP BY sec.id, sec.name, c.name, c.level
-		 ORDER BY c.level, sec.name`, nil,
+		 WHERE rc.status IN ('submitted','published')
+		 GROUP BY rc.status, sec.id, sec.name, c.name, c.level
+		 -- Waiting first: it is the work, and released is the record.
+		 ORDER BY rc.status, c.level, sec.name`, nil,
 		func(rows pgx.Rows) (pendingReportCards, error) {
 			var v pendingReportCards
-			return v, rows.Scan(&v.SectionID, &v.SectionName, &v.ClassName,
+			return v, rows.Scan(&v.Status, &v.SectionID, &v.SectionName, &v.ClassName,
 				&v.Cards, &v.SubmittedBy, &v.SubmittedAt)
 		})
 	respond(w, r, items, err)
