@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
@@ -2580,12 +2581,28 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
     )
   }
 
-  return (
+  /* PORTALLED TO THE BODY, which is what makes Expand work at all.
+
+     `position: fixed` is relative to the viewport only while no ancestor
+     establishes a containing block, and several things do: a transform, a
+     filter, a backdrop-filter, and -- the one that catches this -- CSS
+     containment. `.bento-cell` carries `container-type: size`, which implies
+     `contain: layout style size`, so a fixed child inside one is fixed to the
+     CELL.
+
+     That is why the dialog appeared clipped at the left edge and why Expand
+     looked like it did nothing: it was already filling the box it was trapped
+     in, and toggling between "all of that box" and "85% of that box" is not a
+     visible change.
+
+     Rendered into document.body it is fixed to the viewport, which is what
+     every line of styling below already assumed. */
+  return createPortal(
     <div
       className={
         full
-          ? 'fixed inset-0 z-50 bg-background'
-          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+          ? 'fixed inset-0 z-[80] bg-background'
+          : 'fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4'
       }
       onClick={() => setOpen(false)}
       role="dialog"
@@ -2708,7 +2725,8 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
       )}
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
     </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

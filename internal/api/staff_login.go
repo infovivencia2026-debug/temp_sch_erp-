@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -106,6 +107,32 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 				RETURNING id`,
 				id.InstitutionID, email, phone, fullName, hash).Scan(&newID); err != nil {
 				if isUniqueViolation(err) {
+					/* NAME WHO HOLDS IT.
+
+					   "that email or phone already belongs to another account"
+					   is true and unactionable: the clerk cannot see which
+					   account, cannot search for it from this screen, and has
+					   no way to tell whether it is a real person or a row left
+					   by a mistyped import. So the login cannot be given and
+					   there is nothing to do about it.
+
+					   The holder is in the same table the insert just bounced
+					   off, so naming it costs one query and turns a dead end
+					   into a five-second fix. */
+					var holder, which string
+					if lerr := tx.QueryRow(r.Context(), `
+						SELECT full_name,
+						       CASE WHEN email = $2::citext THEN 'email address'
+						            ELSE 'phone number' END
+						  FROM users
+						 WHERE institution_id = $1
+						   AND (email = $2::citext OR phone = $3)
+						 LIMIT 1`, id.InstitutionID, email, phone).
+						Scan(&holder, &which); lerr == nil {
+						return fmt.Errorf(
+							"that %s already belongs to %s. Give this person their own, "+
+								"or clear it on their staff record and try again", which, holder)
+					}
 					return errors.New("that email or phone already belongs to another account")
 				}
 				return err
