@@ -701,6 +701,22 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "{{student_name}} was marked absent",
 		Body:    "Dear parent,\n\n{{student_name}} was marked absent on {{on_date}} at {{school_name}}.\n\nIf this is unexpected, please contact the school office.",
 	},
+	/* THE APPLICATION LINK, sent the moment an enquiry is taken.
+
+	   A front-office clerk takes a phone call, writes down a name and a
+	   number, and the family goes away with nothing. Whether they ever apply
+	   then depends on somebody ringing them back. The link is the cheapest
+	   thing this product can put in a parent's hand, and the moment to send it
+	   is while they are still thinking about the school.
+
+	   Short deliberately. This goes out over SMS as well as email, where every
+	   character is billed and a long message is split into several. The link
+	   is the payload; everything else is context enough to know it is not
+	   spam. */
+	"admissions.enquiry_link": {
+		Subject: "Applying to {{school_name}}",
+		Body:    "Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} at {{school_name}}.\n\nYou can fill in the application here:\n{{apply_url}}\n\nCall us if you need any help.",
+	},
 	"fees.overdue": {
 		Subject: "Fees overdue for {{student_name}}",
 		Body:    "Dear parent,\n\nInvoice {{invoice_no}} for {{student_name}} shows {{amount_due}} outstanding since {{due_on}}.\n\n{{school_name}}",

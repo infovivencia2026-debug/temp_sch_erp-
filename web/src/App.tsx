@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
+import ApplyForm from '@/features/public/ApplyForm'
 import AccountPage from '@/features/shared/Profile'
 import {
   CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
@@ -244,7 +245,39 @@ export function AppRoutes({ location }: { location?: string }) {
   )
 }
 
+/* THE PUBLIC ADMISSION FORM, OUTSIDE EVERYTHING.
+
+   Every screen below lives inside SessionProvider, which redirects to /login
+   when there is no session, and inside Shell, which draws the dock and the
+   sidebar. An applicant has no session and never will -- that is what a public
+   form means -- so this path is decided before either of them mounts.
+
+   Branching on the path rather than adding a Route inside the tree, because a
+   Route inside SessionProvider is still inside SessionProvider: the redirect
+   would fire before the route ever matched. This is the only thing in the
+   product that renders without a session, and the narrowness of the test is
+   what keeps it that way.
+
+   The catalogue query and the i18n provider are skipped with them. Both need a
+   session; neither has anything to say to a parent filling in one form.
+*/
+function isPublicPath(pathname: string) {
+  return pathname.startsWith('/admissions/apply/')
+}
+
 export default function App() {
+  if (typeof window !== 'undefined' && isPublicPath(window.location.pathname)) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/admissions/apply/:slug" element={<ApplyForm />} />
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastHost>

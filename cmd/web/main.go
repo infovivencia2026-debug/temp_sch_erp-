@@ -92,6 +92,7 @@ func run() error {
 		DB: db, Sessions: sessions, Hasher: hasher,
 		Queue: qc, Inspector: inspector, Storage: store,
 		FileStoreDir: cfg.FileStoreDir,
+		BaseURL:      cfg.BaseURL,
 	}
 
 	r := chi.NewRouter()

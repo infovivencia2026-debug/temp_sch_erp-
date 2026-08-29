@@ -25,6 +25,11 @@ type Server struct {
 	// FileStoreDir backs uploads from the server's own disk when there is no
 	// object store. Empty means neither exists and uploads answer 503.
 	FileStoreDir string
+	// BaseURL is what goes into a message a person clicks from outside the
+	// app -- an application link texted to a parent, most of it. A relative
+	// path is fine on a page the browser is already on and useless in an SMS,
+	// so anything that leaves the building has to carry this.
+	BaseURL string
 }
 
 // Routes returns the /api/v1 subtree.

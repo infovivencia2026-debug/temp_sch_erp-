@@ -92,7 +92,7 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 			`SELECT id FROM campuses ORDER BY created_at LIMIT 1`).Scan(&campusID); err != nil {
 			return err
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO enquiries (institution_id, campus_id, student_name, parent_name,
 			                       phone, email, class_sought, source, campaign,
 			                       next_follow_up, notes, assigned_to, status)
@@ -102,7 +102,27 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 			nullString(req.ParentName), req.Phone, nullString(req.Email),
 			classSought, req.Source, nullString(req.Campaign),
 			nullString(req.NextFollowUp), nullString(req.Notes),
-			nullString(req.AssignedTo)).Scan(&newID)
+			nullString(req.AssignedTo)).Scan(&newID); err != nil {
+			return err
+		}
+
+		/* AND SEND THEM THE FORM.
+
+		   The clerk has just written down a mobile number. Until now that was
+		   the end of it: the family went away with nothing and whether they
+		   ever applied depended on somebody ringing back. The link goes out on
+		   WhatsApp, SMS and email in the same transaction as the enquiry, so a
+		   rolled-back enquiry cannot leave a parent holding a link to a record
+		   the school does not have.
+
+		   Never fails the enquiry. See sendEnquiryApplicationLink. */
+		enquiryUUID, perr := uuid.Parse(newID)
+		if perr != nil {
+			return perr
+		}
+		s.sendEnquiryApplicationLink(r.Context(), tx, id.InstitutionID, enquiryUUID,
+			req.StudentName, req.ParentName, req.Phone, req.Email)
+		return nil
 	})
 	if errors.Is(err, errUnknownClass) {
 		httpx.BadRequest(w, r,
