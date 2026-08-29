@@ -5,6 +5,8 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormNotice,
   Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { Check, CheckCheck } from 'lucide-react'
+import { formatDateTime } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -177,10 +179,36 @@ export default function TeacherMessages() {
                       }
                     >
                       <div className="whitespace-pre-wrap">{m.body}</div>
-                      <div className="mt-1 text-[12px] text-muted-foreground">
-                        {m.mine ? t('portal.teacher_messages.sender_you') : m.sender_name} ·{' '}
-                        {m.sent_at.replace('T', ' ')}
-                        {m.mine && !m.read_at && t('portal.teacher_messages.not_read')}
+                      {/* A RECEIPT, not the absence of one.
+
+                          This said nothing when a message had been read and
+                          "not read yet" when it had not, so the only signal
+                          was negative: a parent watching for the teacher to
+                          see their message had to notice a line disappear.
+                          People do not notice things disappearing.
+
+                          Only on your own messages. Telling somebody when they
+                          themselves read a message is noise, and telling the
+                          sender is the whole point of a receipt. */}
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[12px] text-muted-foreground">
+                        <span>
+                          {m.mine ? t('portal.teacher_messages.sender_you') : m.sender_name}
+                        </span>
+                        <span>·</span>
+                        <span>{formatDateTime(m.sent_at)}</span>
+                        {m.mine && (
+                          m.read_at ? (
+                            <span className="inline-flex items-center gap-1 text-primary">
+                              <CheckCheck className="h-3.5 w-3.5" />
+                              {t('portal.teacher_messages.read_at', { at: formatDateTime(m.read_at) })}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <Check className="h-3.5 w-3.5" />
+                              {t('portal.teacher_messages.sent')}
+                            </span>
+                          )
+                        )}
                       </div>
                     </div>
                   </li>

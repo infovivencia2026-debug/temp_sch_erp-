@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send } from 'lucide-react'
+import { Check, CheckCheck, Send } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { formatDateTime } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Input, Textarea,
   Loading, ErrorState, EmptyState,
@@ -38,6 +39,11 @@ interface Message {
   body: string
   sent_at: string
   mine: boolean
+  /* Served by both message endpoints and declared by neither client until
+     now, so a teacher could not tell a message the parent had read from one
+     still sitting unopened -- which is exactly the question a teacher asks
+     before ringing a family. */
+  read_at?: string
   sender_name: string
 }
 
@@ -322,7 +328,20 @@ export default function StaffMessages() {
                               m.mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
                             )}
                           >
-                            {m.sent_at.replace('T', ' ')}
+                            {formatDateTime(m.sent_at)}
+                            {m.mine && (
+                              m.read_at ? (
+                                <span className="ml-1.5 inline-flex items-center gap-1">
+                                  <CheckCheck className="h-3.5 w-3.5" />
+                                  Read {formatDateTime(m.read_at)}
+                                </span>
+                              ) : (
+                                <span className="ml-1.5 inline-flex items-center gap-1">
+                                  <Check className="h-3.5 w-3.5" />
+                                  Sent
+                                </span>
+                              )
+                            )}
                           </p>
                         </div>
                       ))
@@ -442,7 +461,20 @@ export default function StaffMessages() {
                             m.mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
                           )}
                         >
-                          {m.sent_at.replace('T', ' ')}
+                          {formatDateTime(m.sent_at)}
+                          {m.mine && (
+                            m.read_at ? (
+                              <span className="ml-1.5 inline-flex items-center gap-1">
+                                <CheckCheck className="h-3.5 w-3.5" />
+                                Read {formatDateTime(m.read_at)}
+                              </span>
+                            ) : (
+                              <span className="ml-1.5 inline-flex items-center gap-1">
+                                <Check className="h-3.5 w-3.5" />
+                                Sent
+                              </span>
+                            )
+                          )}
                         </p>
                       </div>
                     ))

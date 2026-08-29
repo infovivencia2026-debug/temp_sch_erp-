@@ -924,6 +924,11 @@ export const en = {
   'portal.teacher_messages.empty_thread_body': 'Write the first message below.',
   'portal.teacher_messages.sender_you': 'You',
   'portal.teacher_messages.not_read': ' · not read yet',
+  /* A read receipt, said positively. The old string was the only signal and it
+     was a negative one: a parent watching for the teacher to see their message
+     had to notice a line disappear, and people do not notice that. */
+  'portal.teacher_messages.sent': 'Sent',
+  'portal.teacher_messages.read_at': 'Read {at}',
   'portal.teacher_messages.draft_placeholder':
     'Ravi has been finding the algebra homework hard. Could we talk about it?',
   'portal.teacher_messages.sending': 'Sending…',
