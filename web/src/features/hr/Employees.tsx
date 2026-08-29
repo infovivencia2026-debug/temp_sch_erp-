@@ -155,14 +155,12 @@ export default function Employees() {
 
         {tab === 'ids' && <IDCards staff={all.filter((e) => e.status !== 'exited')} />}
 
-        {/* The screen HR lands on to look somebody up is the screen they land
-            on to add somebody. Holding hr.employees.write and finding nothing
-            that writes reads as "the product cannot do that" rather than "that
-            form is somewhere else". */}
-        {tab === 'staff' && can('hr.employees.write') && (
-          <AddStaff onDone={() => staff.refetch()} />
-        )}
+        {/* Above the form, not below it.
 
+            The password is shown once and stored nowhere, and it was
+            rendering under a form long enough to push it off the screen —
+            so the one thing that cannot be looked up again was the one
+            thing somebody had to scroll to find. */}
         {/* The one moment the password exists in readable form. It is not in
             the employee record, not in the audit trail and not retrievable —
             so the card says so, and stays until it is dismissed rather than
@@ -198,6 +196,15 @@ export default function Employees() {
             </dl>
           </div>
         )}
+
+        {/* The screen HR lands on to look somebody up is the screen they land
+            on to add somebody. Holding hr.employees.write and finding nothing
+            that writes reads as "the product cannot do that" rather than "that
+            form is somewhere else". */}
+        {tab === 'staff' && can('hr.employees.write') && (
+          <AddStaff onDone={() => staff.refetch()} />
+        )}
+
         {tab === 'documents' && (
         <CellGrid cols={4}>
           <Stat label="Active staff" value={all.filter((e) => e.status === 'active').length} />

@@ -4,7 +4,9 @@ import {
   Check, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Rows3, Sun,
   UserRound, X,
 } from 'lucide-react'
-import { useCatalog, useActiveRole, featurePath, type ApiSection } from '@/lib/catalog'
+import {
+  useCatalog, useActiveRole, featurePath, allRolesOn, setAllRoles, type ApiSection,
+} from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
@@ -707,6 +709,31 @@ export function Shell({
                     {r.key === role?.key && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
                   </button>
                 ))}
+                {/* The head looking at the whole school.
+
+                    A principal already holds every permission this product
+                    defines bar the two platform ones, so every screen in the
+                    building opens for them — what they had no way to do was
+                    REACH one. The fee counter, the library desk and the
+                    transport office are somebody else's workspace, and there
+                    was no route to them short of borrowing a login.
+
+                    Offered only to somebody holding that role, and off until
+                    they ask: thirteen workspaces in this menu is not a day's
+                    work, it is an inspection. */}
+                {catalog.roles.some((r) => r.key === 'institution_admin') && (
+                  <button
+                    role="menuitem"
+                    onClick={() => setAllRoles(!allRolesOn())}
+                    className="mt-1 flex w-full items-center gap-2 border-t px-3 py-2 text-left
+                               text-[calc(13.5px*var(--font-scale,1))] text-secondary-foreground
+                               transition-colors hover:bg-surface-hover hover:text-foreground"
+                  >
+                    <span className="truncate">
+                      {allRolesOn() ? 'Show only my workspace' : 'View every role'}
+                    </span>
+                  </button>
+                )}
               </div>
             </>
           )}

@@ -62,7 +62,6 @@ interface Template {
   name: string
   template_html: string
   is_built_in: boolean
-  font: string
   css?: string
   updated_at?: string
   updated_by?: string
@@ -335,18 +334,7 @@ export default function ReportCards() {
       template: Template
       placeholders: { token: string; means: string }[]
       default_html: string
-      fonts: { value: string; label: string }[]
     }>('/api/v1/exams/report-cards/template'),
-  })
-  /* Which face the standard design prints in.
-
-     A choice rather than a fallback chain: a chain means the card prints in
-     whichever of the three happens to be on the machine, which is a different
-     document in the office and in the staff room. Hidden once a school
-     imports its own design, because that design brings its own type. */
-  const setFont = useMutation({
-    mutationFn: (font: string) => api.post('/api/v1/exams/report-cards/font', { font }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-card-template'] }),
   })
   const [preview, setPreview] = useState<{ html: string; css?: string; name?: string } | null>(null)
 
@@ -481,6 +469,24 @@ export default function ReportCards() {
   const toSubmit = (ticked.length ? ticked : sendable).filter(
     (r) => r.status === 'draft' || r.status === 'returned')
   const toDecide = (ticked.length ? ticked : awaiting).filter((r) => r.status === 'submitted')
+  /* The topper, worked out here rather than trusted from the row.
+
+     rank_in_section is written when the cards are generated and is right at
+     that moment — but a mark corrected afterwards and a card regenerated on
+     its own leaves the old ranks standing, so the row that says "1" is not
+     always the highest mark on the screen. Comparing what is actually in front
+     of the person cannot disagree with the list underneath it.
+
+     Highest percentage wins; a tie keeps whoever the school ranked first, and
+     failing that whoever sorts first by roll — a topper that changes each time
+     the page loads is worse than an arbitrary but stable one. */
+  const topper = all.reduce<ReportCard | null>((best, r) => {
+    if (r.percentage == null) return best
+    if (!best || best.percentage == null) return r
+    if (r.percentage !== best.percentage) return r.percentage > best.percentage ? r : best
+    return (r.rank_in_section ?? 99) < (best.rank_in_section ?? 99) ? r : best
+  }, null)
+
   const avg = all.length
     ? (all.reduce((a, r) => a + (r.percentage ?? 0), 0) / all.length).toFixed(1)
     : '—'
@@ -583,13 +589,6 @@ export default function ReportCards() {
             )}
             {(mayGenerate || mayPublish) && (
               <>
-                {template.data?.template.is_built_in && (
-                  <Select
-                    value={template.data.template.font}
-                    onChange={(v) => setFont.mutate(v)}
-                    options={template.data.fonts.map((f) => ({ value: f.value, label: f.label }))}
-                  />
-                )}
                 <Button variant="ghost" onClick={() => setShowSign((v) => !v)}>
                   {signature.data?.file_id ? 'My signature' : 'Add my signature'}
                 </Button>
@@ -655,17 +654,21 @@ export default function ReportCards() {
             These four read 0, 0, — and — before anybody picks one: a confident
             row of figures about an exam that has not been named. "Report cards
             0" is indistinguishable from a real exam with no cards generated. */}
-        {!examId ? (
+        {all.length === 0 ? (
           <EmptyState
-            title="Choose an exam"
-            body="Report cards, averages and the topper are per exam. Pick one above to see where this section stands."
+            title={sectionId ? 'No report cards yet' : 'Choose a section'}
+            body={
+              sectionId
+                ? 'Pick an exam above and press Generate to build this section\'s cards.'
+                : 'Pick a section above to see its report cards.'
+            }
           />
         ) : (
           <CellGrid cols={4}>
             <Stat label="Report cards" value={all.length} />
             <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
             <Stat label="Section average" value={avg !== '—' ? `${avg}%` : '—'} />
-            <Stat label="Topper" value={all.find((r) => r.rank_in_section === 1)?.full_name ?? '—'} />
+            <Stat label="Topper" value={topper ? `${topper.full_name} · ${topper.percentage?.toFixed(1)}%` : '—'} />
           </CellGrid>
         )}
 
@@ -710,18 +713,36 @@ export default function ReportCards() {
           <Card>
             <CardHeader
               title="My signature"
-              description="Printed on every report card you sign — where you send a section up as its class teacher, and where you approve one as the head. Replacing it corrects every card printed afterwards."
               action={<Button variant="ghost" onClick={() => setShowSign(false)}>Close</Button>}
             />
-            <div className="flex flex-wrap items-start gap-4 px-5 pb-5">
-              <div className="flex h-[16mm] w-[50mm] shrink-0 items-end justify-center rounded border bg-white p-1">
-                {signature.data?.file_id && (
-                  <img
-                    src={`/api/v1/files/${signature.data.file_id}`}
-                    alt="My signature"
-                    className="max-h-full max-w-full object-contain"
-                  />
-                )}
+            {/* Card descriptions are drawn nowhere in this product, so what
+                somebody needs to read has to sit with the thing it explains —
+                otherwise this is a titled box with an empty rectangle in it. */}
+            <p className="px-5 pt-4 text-[13px] text-muted-foreground">
+              Printed on every report card you sign: where you send a section up as
+              its class teacher, and where you approve one as the head. Replacing it
+              corrects every card printed afterwards.
+            </p>
+            <div className="flex flex-wrap items-start gap-4 px-5 pb-5 pt-4">
+              <div className="shrink-0">
+                <div className="flex h-[16mm] w-[50mm] items-end justify-center rounded border bg-white p-1">
+                  {signature.data?.file_id ? (
+                    <img
+                      src={`/api/v1/files/${signature.data.file_id}`}
+                      alt="My signature"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    /* An empty bordered box says nothing about what it is
+                       waiting for. */
+                    <span className="pb-1 text-[12px] text-muted-foreground">
+                      nothing signed yet
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-center text-[11px] text-muted-foreground">
+                  How it will print
+                </div>
               </div>
               <div className="min-w-[16rem] flex-1">
                 <FilePicker
@@ -734,7 +755,7 @@ export default function ReportCards() {
                   }}
                   purpose="signature"
                   label={signature.data?.file_id ? 'Replace it' : 'Upload a signature'}
-                  hint="A scan or a photograph of your signature on white paper. PNG with a transparent background prints best."
+                  hint="Sign on a plain sheet and photograph it. The paper is dropped when it prints — only the pen strokes come through — so a phone photograph is fine and a transparent PNG is not needed."
                 />
                 {saveSignature.error && <FormNotice error={saveSignature.error} />}
                 {signature.data?.file_id && (
@@ -755,8 +776,11 @@ export default function ReportCards() {
           <Card>
             <CardHeader
               title="Released"
-              description="What has gone out, and when. A card a family has already read is corrected by regenerating and releasing it again, not by taking it off them."
             />
+            <p className="px-5 pt-4 text-[13px] text-muted-foreground">
+              What has gone out, and when. A card a family has already read is
+              corrected by generating it again and releasing it again.
+            </p>
             <ul className="divide-y">
               {released.map((x) => (
                 <li key={x.section_id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
@@ -792,8 +816,12 @@ export default function ReportCards() {
           <Card>
             <CardHeader
               title={`${waiting.reduce((a, x) => a + x.cards, 0)} report cards waiting for you`}
-              description={`Across ${waiting.length} ${waiting.length === 1 ? 'section' : 'sections'}. Tick sections to release only those, or leave them unticked to publish everything waiting.`}
             />
+            <p className="px-5 pt-4 text-[13px] text-muted-foreground">
+              Across {waiting.length} {waiting.length === 1 ? 'section' : 'sections'}.
+              Tick sections to release only those, or leave them unticked to publish
+              everything waiting.
+            </p>
             <ul className="divide-y">
               {waiting.map((x) => (
                 <li key={x.section_id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
@@ -873,15 +901,19 @@ export default function ReportCards() {
                   : maySubmit && toSubmit.length ? 'Send for approval'
                     : 'Released'
               }
-              description={
-                mayPublish && awaiting.length
-                  ? `${awaiting.length} ${awaiting.length === 1 ? 'card is' : 'cards are'} signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave everything unticked to act on all.`
-                  : maySubmit && toSubmit.length
-                    ? 'The principal approves before a card reaches a family. Tick rows to send only those, or leave everything unticked to send the section.'
-                    : `${published} ${published === 1 ? 'card is' : 'cards are'} with the families. Taking them back makes them drafts with the class teacher again and closes them to students and parents.`
-              }
             />
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
+            {/* The sentence that used to be the card's description. Card
+                descriptions are not drawn anywhere in this product, so it was
+                a card with a title, a button and no account of what the button
+                would do. */}
+            <p className="px-5 pt-4 text-[13px] text-muted-foreground">
+              {mayPublish && awaiting.length
+                ? 'Signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave them unticked to act on all.'
+                : maySubmit && toSubmit.length
+                  ? 'The principal approves before a card reaches a family. Tick rows below to send only those, or leave them unticked to send the whole section.'
+                  : 'These are with the families. Correcting one means generating it again and releasing it again — it cannot be taken off somebody who has read it.'}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-3">
               {maySubmit && toSubmit.length > 0 && (
                 <Button
                   disabled={act.isPending}

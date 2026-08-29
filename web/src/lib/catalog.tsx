@@ -53,10 +53,46 @@ export interface CatalogResponse {
 
 const CatalogContext = createContext<CatalogResponse | null>(null)
 
+/* Whether the head is looking at the whole school or at their own desk.
+
+   A principal holds every permission this product defines bar the two platform
+   ones, so every screen already opens for them — what they lacked was a route
+   to one that lives in somebody else's workspace. This is that route, and it
+   is a mode rather than the default: thirteen workspaces in the switcher is
+   not a day's work, it is an inspection.
+
+   Remembered per browser, so a head who turned it on to check the fee counter
+   does not find it off again after a reload — and it is off for everybody who
+   has not asked, including the same head on their own machine tomorrow if they
+   turn it off. */
+const ALL_ROLES = 'erp.all_roles'
+
+export function allRolesOn(): boolean {
+  try {
+    return localStorage.getItem(ALL_ROLES) === '1'
+  } catch {
+    // A browser that refuses storage gets the ordinary view, which is the
+    // right thing to fall back to.
+    return false
+  }
+}
+
+export function setAllRoles(on: boolean) {
+  try {
+    if (on) localStorage.setItem(ALL_ROLES, '1')
+    else localStorage.removeItem(ALL_ROLES)
+  } catch {
+    /* nothing to remember it in; the toggle lasts this page */
+  }
+  // The whole navigation is built from the catalogue, so it has to come again.
+  window.location.reload()
+}
+
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['catalog'],
-    queryFn: () => api.get<CatalogResponse>('/api/v1/catalog'),
+    queryKey: ['catalog', allRolesOn()],
+    queryFn: () => api.get<CatalogResponse>(
+      '/api/v1/catalog' + (allRolesOn() ? '?all_roles=1' : '')),
     staleTime: 5 * 60_000,
   })
 

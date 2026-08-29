@@ -18,9 +18,9 @@ type catalogResponse struct {
 	   screen rather than leaving somebody to wonder where the product went. */
 	SetupRequired bool          `json:"setup_required"`
 	ActiveRole    string        `json:"active_role"`
-	Roles       []catalogRole `json:"roles"`
-	Scope       resolvedScope `json:"scope"`
-	Implemented []string      `json:"implemented"`
+	Roles         []catalogRole `json:"roles"`
+	Scope         resolvedScope `json:"scope"`
+	Implemented   []string      `json:"implemented"`
 }
 
 type catalogRole struct {
@@ -68,35 +68,36 @@ type resolvedScope struct {
 	Students      int  `json:"students"`
 }
 
-/* What a school must finish before the rest of the product appears.
+/*
+What a school must finish before the rest of the product appears.
 
-   A school that has just bought this sees eighty screens, and every one of
-   them is empty. Attendance with nobody to mark, report cards with no exam,
-   a fee counter with no fee heads: each of them correct, and together they
-   read as a product that does not work. The checklist was there from the
-   start and sat on the dashboard beside the eighty doors, which is a signpost
-   in a field of open gates.
+	A school that has just bought this sees eighty screens, and every one of
+	them is empty. Attendance with nobody to mark, report cards with no exam,
+	a fee counter with no fee heads: each of them correct, and together they
+	read as a product that does not work. The checklist was there from the
+	start and sat on the dashboard beside the eighty doors, which is a signpost
+	in a field of open gates.
 
-   So until the required steps are done, the menu is the setup and nothing
-   else. Not disabled — absent. A greyed-out control that never becomes
-   enabled is an advert wearing the clothes of a feature, and the school's own
-   staff cannot tell it from something broken.
+	So until the required steps are done, the menu is the setup and nothing
+	else. Not disabled — absent. A greyed-out control that never becomes
+	enabled is an advert wearing the clothes of a feature, and the school's own
+	staff cannot tell it from something broken.
 
-   Three things stay reachable throughout, because locking them would strand
-   somebody rather than guide them:
+	Three things stay reachable throughout, because locking them would strand
+	somebody rather than guide them:
 
-     the setup itself, obviously;
-     Home, so there is a page to land on that says what is left;
-     My Profile, because a person must always be able to change their own
-     password and take leave, whatever state the school is in.
+	  the setup itself, obviously;
+	  Home, so there is a page to land on that says what is left;
+	  My Profile, because a person must always be able to change their own
+	  password and take leave, whatever state the school is in.
 
-   Only the required steps count. A school can run without a grading scale
-   until the first exam, and holding the product shut over a fee head nobody
-   has typed yet would be the gate doing harm.
+	Only the required steps count. A school can run without a grading scale
+	until the first exam, and holding the product shut over a fee head nobody
+	has typed yet would be the gate doing harm.
 
-   Platform staff are exempt: a super admin looking into a half-built school is
-   the person who has to see everything, and gating them would hide the tools
-   they are there to use.
+	Platform staff are exempt: a super admin looking into a half-built school is
+	the person who has to see everything, and gating them would hide the tools
+	they are there to use.
 */
 func (s *Server) setupIncomplete(r *http.Request) bool {
 	id := httpx.IdentityFrom(r.Context())
@@ -142,7 +143,6 @@ var setupSections = map[string]bool{
 	"home":            true,
 	"my_profile":      true,
 }
-
 
 /*
 catalogRoleKeys is the set of workspaces the caller was actually granted.
@@ -217,6 +217,35 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	/* The head asking to see the whole school.
+
+	   A principal already holds every permission this product defines bar the
+	   two platform ones — the role is literally keysExcept(platform) — so every
+	   screen in the building already opens for them. What they did not have was
+	   a way to REACH one: the catalogue lists thirty-six features under their
+	   own workspace, and the fee counter, the library desk and the transport
+	   office are all somebody else's workspace, so there was no route to them
+	   short of borrowing a login.
+
+	   Asked for explicitly rather than always on: thirteen workspaces in the
+	   switcher is not a school's day-to-day view, it is an inspection. And
+	   granted on the role rather than on a permission count, because "holds
+	   nearly everything" is a coincidence that would quietly widen the day
+	   somebody adds a permission the principal does not have. */
+	if held["institution_admin"] && r.URL.Query().Get("all_roles") == "1" {
+		every := map[string]bool{}
+		for _, role := range catalog.Roles {
+			// Not the platform's own workspaces: the principal holds neither
+			// PlatformTenantsRW nor PlatformPlansRW, so those screens would be
+			// a menu of 403s.
+			if role.Key == "super_admin" || role.Key == "seller_admin" {
+				continue
+			}
+			every[role.Key] = true
+		}
+		return every, nil
 	}
 
 	// Only the keys the catalogue actually has a workspace for.

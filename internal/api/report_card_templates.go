@@ -178,14 +178,34 @@ const defaultReportCardCSS = `
 .card .summary span { display: block; font-size: 8.5pt; color: #4a5568;
                       text-transform: uppercase; letter-spacing: .5px; }
 .card .summary strong { font-size: 12pt; }
-/* The signature sits ON the line, not above a gap. Fixed height so a tall
-   scan and a wide one both land in the same place and the two feet of the card
-   stay level. Empty until the person has actually signed — a card still with
-   the class teacher shows one line signed and one blank, which is exactly what
-   it is. */
+/* THE PAPER HAS TO DISAPPEAR, LEAVING THE INK.
+
+   Almost nobody uploads a signature on a transparent background. What arrives
+   is a photograph of a signature on a sheet of paper, taken on a phone — and
+   printed as-is it lands on the report card as a grey square with a signature
+   somewhere inside it, which is what a school notices immediately and what
+   makes the whole feature look unfinished.
+
+   multiply is what removes it: white and near-white multiply to the card's own
+   white and vanish, while the dark pen strokes survive. It costs nothing, it
+   needs no image processing on the way in, and it works on a photograph of a
+   grey sheet as well as on a clean scan.
+
+   The contrast and brightness lift ahead of it pushes a phone camera's grey
+   paper up towards white before the blend, so a dim photograph does not leave
+   a faint rectangle behind. Signatures are ink on paper: greyscale loses
+   nothing and stops a blue-tinted photograph printing as a blue box.
+
+   The negative margin sets it ON the line rather than floating above it, which
+   is how a person signs a form. */
 .card footer .ink { height: 12mm; display: flex; align-items: flex-end;
-                    justify-content: center; }
-.card footer .ink img { max-height: 12mm; max-width: 45mm; }
+                    justify-content: center; margin-bottom: -3mm; }
+.card footer .ink img { max-height: 14mm; max-width: 45mm;
+                        mix-blend-mode: multiply;
+                        filter: grayscale(1) brightness(1.08) contrast(1.9); }
+/* Printers drop blend modes more often than screens do; without this the grey
+   square comes back on paper only, which is the one place it matters. */
+@media print { .card footer .ink img { mix-blend-mode: multiply; } }
 .card footer { display: flex; align-items: flex-end; justify-content: space-between;
                margin-top: 10mm; font-size: 9.5pt; }
 .card footer .sign { text-align: center; }
@@ -210,7 +230,15 @@ var reportCardFonts = map[string]string{
 	"times":   "'Times New Roman', Times, serif",
 }
 
-const defaultReportCardFont = "arial"
+/*
+One face, and it is Times New Roman.
+
+	The screen offered a choice of three and it was a setting nobody needed to
+	make twice — a school that wants its own type imports its own design and
+	brings it. The map stays because the stored preference of a school that did
+	choose is still honoured; nothing in the product writes a new one.
+*/
+const defaultReportCardFont = "times"
 
 // fontStack resolves the school's choice, or Arial when it has made none.
 func fontStack(key string) string {
