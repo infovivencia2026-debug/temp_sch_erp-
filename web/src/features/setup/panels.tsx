@@ -1063,6 +1063,26 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
           onDone={onDone}
         />
       </div>
+      {/* THE ALLOCATION SHEET LIVES HERE, not under Add staff.
+
+          It was in the staff panel, beneath the form that registers people,
+          which made that step two jobs: appointing somebody, and deciding what
+          they teach. Those are not the same desk and usually not the same day
+          — the staff sheet needs hr.employees.write and this one needs
+          academics.write, and no role but the principal holds both.
+
+          Here it sits with the other sheet about what a class studies, which
+          is what it is. The ordering that actually matters is stated where it
+          bites: it finds teachers by email, so the people have to exist
+          first. */}
+      <div className="mt-5 border-t pt-5">
+        <BulkImport
+          entity="allocations"
+          title="Allocation sheet — who teaches what, where"
+          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so register the staff first — otherwise those rows are skipped and named. Every column but the class and section is optional."
+          onDone={onDone}
+        />
+      </div>
     </form>
   )
 }
@@ -1287,30 +1307,9 @@ function StaffPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="staff"
           title="Staff sheet — who works here"
-          hint="HR or the principal. Employee code and first name are required; give an email and a role and they get a login too. This sheet creates the people. It does not put them in front of a class — that is the allocation sheet below."
+          hint="HR or the principal. Employee code and first name are required; give an email and a role and they get a login too. This sheet creates the people. Putting them in front of a class is the allocation sheet, under Class subjects."
           onDone={onDone}
         />
-      </div>
-      <div className="mt-5 border-t pt-5">
-        {/* Two sheets, two desks.
-         *
-         * "Or" said they were alternatives, which was wrong — a school needs
-         * both. Numbering them said they were one person's two steps, which
-         * was wrong too: the staff sheet needs hr.employees.write and the
-         * allocation sheet needs academics.write, and no role but the
-         * principal holds both. HR loads one, the head of department loads
-         * the other, and usually not on the same day.
-         *
-         * So each is headed by whose job it is, and the only ordering that
-         * actually matters is stated where it bites: allocations finds
-         * teachers by email, so the people have to exist first. */}
-        <BulkImport
-          entity="allocations"
-          title="Allocation sheet — who teaches what, where"
-          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so load the staff sheet first — otherwise those rows are skipped and named. Every column but the class and section is optional."
-          onDone={onDone}
-        />
-
       </div>
 </form>
   )
