@@ -93,6 +93,38 @@ object InstitutionSerializer : KSerializer<Institution> {
 
 // -------------------------------------------------------------------- trips
 
+/* THE DRIVER'S SHIFT.
+ *
+ * The server gates trip start and end on `X-Staff-Session`, a token minted by
+ * POST /api/v1/bus-tracker/session in exchange for the phone number and PIN
+ * the office already issued the driver. This app never asked for one, so both
+ * routes answered 401 `not_signed_in` and no trip could ever be opened: the
+ * handset paired, heartbeated and reported position, and the Start button
+ * failed every time.
+ *
+ * The device token identifies the BUS. This identifies the person driving it,
+ * which is what a parent is asking when they ask who was on the route.
+ */
+@Serializable
+data class SignInRequest(
+    val phone: String,
+    val pin: String,
+)
+
+@Serializable
+data class SignInResponse(
+    @SerialName("session_token") val sessionToken: String,
+    /** The driver's name, for the screen to confirm who is signed in. */
+    val name: String,
+    /** RFC3339. The shift ends here whatever the app thinks. */
+    @SerialName("expires_at") val expiresAt: String,
+)
+
+@Serializable
+data class SignOutResponse(
+    @SerialName("signed_out") val signedOut: Boolean = true,
+)
+
 @Serializable
 data class StartTripRequest(
     @SerialName("route_id") val routeId: String,

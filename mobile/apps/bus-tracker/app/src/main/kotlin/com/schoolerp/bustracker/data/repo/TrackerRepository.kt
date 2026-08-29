@@ -18,6 +18,7 @@ import com.schoolerp.bustracker.data.remote.EndTripRequest
 import com.schoolerp.bustracker.data.remote.HeartbeatRequest
 import com.schoolerp.bustracker.data.remote.PositionFix
 import com.schoolerp.bustracker.data.remote.PositionsRequest
+import com.schoolerp.bustracker.data.remote.SignInRequest
 import com.schoolerp.bustracker.data.remote.StartTripRequest
 import com.schoolerp.bustracker.data.remote.TrackerApi
 import com.schoolerp.bustracker.device.DeviceStatusProvider
@@ -48,6 +49,12 @@ class TrackerRepository @Inject constructor(
 ) {
 
     val paired: StateFlow<Boolean> = tokenStore.paired
+
+    /** True while a driver is signed in on this handset. The run screen offers
+        Sign in or Sign out from it, and startTrip refuses without it. */
+    val signedIn get() = tokenStore.signedIn
+
+    fun driverName(): String? = tokenStore.driverName()
 
     val settings: Flow<TrackerSettings> = settingsStore.settings
 
@@ -109,6 +116,58 @@ class TrackerRepository @Inject constructor(
         else -> "Pairing failed (${failure.reason})."
     }
 
+    // -------------------------------------------------------------- the shift
+
+    /* SIGNING THE DRIVER IN.
+     *
+     * Separate from pairing on purpose. Pairing is done once, by the office,
+     * and says which bus this handset is; it survives a phone being handed to
+     * the next driver. Signing in is done at the start of a shift, by the
+     * person driving, and says who to attribute the run to.
+     *
+     * The server refuses trip start and end without it, which is why this
+     * exists at all: the app paired, heartbeated and reported position
+     * perfectly while the Start button returned 401 on every handset in the
+     * field, and nothing in the office could see that.
+     */
+    suspend fun signIn(phone: String, pin: String): SignInOutcome {
+        val ctx = requireContext() ?: return SignInOutcome.NotPaired
+        return try {
+            val response = api.signIn(ctx.baseUrl, ctx.token, SignInRequest(phone = phone, pin = pin))
+            tokenStore.saveSession(response.sessionToken, response.name)
+            SignInOutcome.SignedIn(response.name)
+        } catch (failure: ApiFailure) {
+            SignInOutcome.Rejected(signInMessage(failure))
+        }
+    }
+
+    /* Signing out leaves the device paired and does NOT end an open trip --
+     * the server's rule, and the right one: a driver who signs out with the
+     * bus still moving has made a mistake, and dropping the children off the
+     * parents' map is not how to correct it. */
+    suspend fun signOut() {
+        val ctx = requireContext()
+        if (ctx != null) runCatching { api.signOut(ctx.baseUrl, ctx.token) }
+        tokenStore.clearSession()
+    }
+
+    private fun signInMessage(failure: ApiFailure): String = when (failure) {
+        is ApiFailure.Unauthorized ->
+            "That phone number and PIN did not match. Ask the office to check the number they have for you."
+        /* 429 pin_locked: the server counts failed PINs and locks the number
+           for a while. Rejected carries the status, so this reads it rather
+           than inventing a case ApiFailure does not have. */
+        is ApiFailure.Rejected ->
+            if (failure.status == 429) {
+                "Too many wrong PINs. Wait a few minutes, or ask the office to unlock it."
+            } else {
+                failure.detail ?: "Could not sign in."
+            }
+        is ApiFailure.Malformed ->
+            "The server answered in a way this app did not understand. Tell the office the app needs updating."
+        else -> "Could not sign in (${failure.reason})."
+    }
+
     // ----------------------------------------------------------------- trips
 
     suspend fun startTrip(
@@ -118,12 +177,17 @@ class TrackerRepository @Inject constructor(
         supersede: Boolean = false,
     ): StartOutcome {
         val ctx = requireContext() ?: return StartOutcome.NotPaired
+        // The server refuses this route without a driver session, so refusing
+        // here first turns a 401 nobody can read into a sentence that says
+        // what to do.
+        val session = tokenStore.session() ?: return StartOutcome.NotSignedIn
         val startedAtMillis = time.nowMillis()
 
         return try {
             val response = api.startTrip(
                 ctx.baseUrl,
                 ctx.token,
+                session,
                 StartTripRequest(
                     routeId = routeId,
                     direction = direction,
@@ -191,6 +255,7 @@ class TrackerRepository @Inject constructor(
                 api.endTrip(
                     ctx.baseUrl,
                     ctx.token,
+                    tokenStore.session().orEmpty(),
                     trip.tripId,
                     EndTripRequest(endedAt = Rfc3339.format(time.nowMillis())),
                 ).ended
@@ -378,6 +443,15 @@ sealed interface StartOutcome {
     data class AlreadyOpen(val message: String) : StartOutcome
     data class Failed(val reason: String) : StartOutcome
     data object NotPaired : StartOutcome
+    /** Paired, but nobody has signed in this shift. The server would answer
+        401 not_signed_in; this says so before the request is made. */
+    data object NotSignedIn : StartOutcome
+}
+
+sealed interface SignInOutcome {
+    data class SignedIn(val name: String) : SignInOutcome
+    data class Rejected(val message: String) : SignInOutcome
+    data object NotPaired : SignInOutcome
 }
 
 sealed interface EndOutcome {

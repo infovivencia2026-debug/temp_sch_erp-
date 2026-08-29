@@ -12,6 +12,7 @@ import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
 import com.schoolerp.bustracker.data.prefs.SettingsStore
 import com.schoolerp.bustracker.data.repo.EndOutcome
+import com.schoolerp.bustracker.data.repo.SignInOutcome
 import com.schoolerp.bustracker.data.repo.StartOutcome
 import com.schoolerp.bustracker.data.repo.TrackerRepository
 import com.schoolerp.bustracker.engine.EngineEvent
@@ -112,6 +113,44 @@ class RunViewModel @Inject constructor(
         _alert.value = null
     }
 
+    /* THE SHIFT, on the screen the driver already has open.
+     *
+     * Not a separate screen before the run screen: a driver who has already
+     * paired should see their routes, and be asked to sign in at the moment it
+     * matters, which is when they press Start. Putting a login wall in front
+     * of the whole app would also mean a bus that is mid-run shows a login
+     * form when the phone is picked up, which is the last thing anybody wants
+     * at that moment. */
+    val signedIn: StateFlow<Boolean> = repository.signedIn
+        .stateIn(viewModelScope, SharingStarted.Eagerly, repository.signedIn.value)
+
+    val driverName: String? get() = repository.driverName()
+
+    fun signIn(phone: String, pin: String) {
+        if (_busy.value) return
+        _busy.value = true
+        viewModelScope.launch {
+            when (val outcome = repository.signIn(phone, pin)) {
+                is SignInOutcome.SignedIn -> _alert.value = DriverAlert(
+                    "Signed in as ${outcome.name}",
+                    "Runs you start will be recorded against your name until you sign out.",
+                )
+                is SignInOutcome.Rejected -> _alert.value = DriverAlert(
+                    "Could not sign in", outcome.message,
+                )
+                SignInOutcome.NotPaired -> _alert.value = DriverAlert(
+                    "This phone is not paired",
+                    "Ask the office for a pairing code before signing in.",
+                )
+            }
+            _busy.value = false
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch { repository.signOut() }
+    }
+
     fun startRun(route: SavedRoute, direction: String = DIRECTION_PICKUP, supersede: Boolean = false) {
         if (_busy.value) return
         _busy.value = true
@@ -135,6 +174,17 @@ class RunViewModel @Inject constructor(
                     outcome.message + "\n\nTaking it over closes the other run. Do that only if " +
                         "you are sure the other phone is finished.",
                     supersedeOffer = PendingStart(route.routeId, route.label, direction),
+                )
+                /* Paired, but nobody has signed in this shift. The server
+                   refuses trip start without a driver session and answers 401
+                   not_signed_in; the repository catches that before the
+                   request, so this can say what to do instead of showing a
+                   number. */
+                is StartOutcome.NotSignedIn -> _alert.value = DriverAlert(
+                    "Sign in before starting the run",
+                    "The school records who drove each run, so the phone needs your number and " +
+                        "PIN before it can open one. Use Sign in on this screen. The office " +
+                        "issued the PIN with your login.",
                 )
                 is StartOutcome.Failed -> _alert.value = DriverAlert(
                     "Could not start the run",

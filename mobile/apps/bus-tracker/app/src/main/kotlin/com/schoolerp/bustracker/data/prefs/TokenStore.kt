@@ -39,17 +39,55 @@ class TokenStore @Inject constructor(
     private val prefs: SharedPreferences by lazy { open() }
 
     private val _paired = MutableStateFlow(false)
+    private val _signedIn = MutableStateFlow(false)
 
     /** True once a token exists. Drives the pair-screen / run-screen choice. */
     val paired: StateFlow<Boolean> = _paired.asStateFlow()
 
     init {
         _paired.value = runCatching { prefs.contains(KEY_TOKEN) }.getOrDefault(false)
+        _signedIn.value = runCatching { prefs.contains(KEY_SESSION) }.getOrDefault(false)
     }
 
     fun token(): String? = runCatching { prefs.getString(KEY_TOKEN, null) }.getOrNull()
 
     fun deviceId(): String? = runCatching { prefs.getString(KEY_DEVICE_ID, null) }.getOrNull()
+
+    /* THE DRIVER'S SHIFT, kept beside the device's credential.
+     *
+     * Two different things and deliberately stored together: the device token
+     * says which bus this handset is, and it survives until the office unpairs
+     * it. The session token says who is driving today, and it expires on the
+     * server whatever this app believes. Trip start and end need both -- the
+     * server reads the first as Authorization and the second as
+     * X-Staff-Session, and refuses those two routes without the session.
+     *
+     * Cleared by clear() with everything else, because a handset that has been
+     * unpaired should not be holding a driver's live session either.
+     */
+    fun session(): String? = runCatching { prefs.getString(KEY_SESSION, null) }.getOrNull()
+
+    fun driverName(): String? = runCatching { prefs.getString(KEY_DRIVER, null) }.getOrNull()
+
+    /** True while somebody is signed in. Drives the sign-in / run choice. */
+    val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+
+    fun saveSession(token: String, name: String) {
+        // commit(), for the same reason save() uses it: the run screen reads
+        // this back on the very next frame.
+        prefs.edit(commit = true) {
+            putString(KEY_SESSION, token)
+            putString(KEY_DRIVER, name)
+        }
+        _signedIn.value = true
+        BtLog.i("token", "driver session stored for $name")
+    }
+
+    fun clearSession() {
+        runCatching { prefs.edit(commit = true) { remove(KEY_SESSION); remove(KEY_DRIVER) } }
+        _signedIn.value = false
+        BtLog.i("token", "driver signed out; the device stays paired")
+    }
 
     fun save(deviceId: String, token: String) {
         // commit(), not apply(): the very next thing that happens is the
@@ -69,6 +107,7 @@ class TokenStore @Inject constructor(
     fun clear() {
         runCatching { prefs.edit(commit = true) { clear() } }
         _paired.value = false
+        _signedIn.value = false
         BtLog.i("token", "credential cleared; device is unpaired")
     }
 
@@ -103,5 +142,7 @@ class TokenStore @Inject constructor(
         const val FILE_NAME = "tracker_credential"
         const val KEY_TOKEN = "device_token"
         const val KEY_DEVICE_ID = "device_id"
+        const val KEY_SESSION = "staff_session"
+        const val KEY_DRIVER = "driver_name"
     }
 }

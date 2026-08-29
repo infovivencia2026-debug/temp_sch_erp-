@@ -36,6 +36,11 @@ import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
 import com.schoolerp.bustracker.engine.TrackerStatus
 import com.schoolerp.bustracker.ui.LocationPermissionPrompt
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 
 /**
  * One screen, two states: a run is open, or it is not. Everything on it answers
@@ -50,6 +55,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val alert by viewModel.alert.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
+    val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     Column(
@@ -99,6 +105,26 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+
+        /* THE SHIFT.
+         *
+         * Above Start rather than in front of the whole app. Pairing is the
+         * office's job and is done once; signing in is the driver's and is
+         * done every morning, and the moment it matters is when a run is about
+         * to open -- the server refuses trip start without it and answers 401.
+         *
+         * A login wall in front of the app would also mean a phone picked up
+         * mid-run shows a form instead of the route, which is the worst moment
+         * for it. */
+        if (status.trip == null) {
+            DriverSignIn(
+                signedIn = signedIn,
+                driverName = viewModel.driverName,
+                busy = busy,
+                onSignIn = viewModel::signIn,
+                onSignOut = viewModel::signOut,
+            )
         }
 
         val trip = status.trip
@@ -302,5 +328,81 @@ private fun StartRunSection(
                 enabled = newId.isNotBlank(),
             ) { Text("Save route") }
         }
+    }
+}
+
+/**
+ * Who is driving, and the two words it takes to say so.
+ *
+ * The server records the driver against every run, which is what a parent is
+ * asking when they ask who was on the bus. It gates trip start and end on a
+ * session minted from the phone number and PIN the office already issued —
+ * the same PIN that signs the driver in to the school's own system, so there
+ * is nothing new for anybody to remember.
+ *
+ * Signing out leaves the phone paired and does not end an open run. A driver
+ * who signs out with the bus still moving has made a mistake, and dropping the
+ * children off the parents' map is not the way to correct it.
+ */
+@Composable
+private fun DriverSignIn(
+    signedIn: Boolean,
+    driverName: String?,
+    busy: Boolean,
+    onSignIn: (String, String) -> Unit,
+    onSignOut: () -> Unit,
+) {
+    if (signedIn) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Driving: ${driverName ?: "signed in"}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onSignOut) { Text("Sign out") }
+        }
+        return
+    }
+
+    var phone by rememberSaveable { mutableStateOf("") }
+    var pin by rememberSaveable { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Sign in to start a run", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Your mobile number and the PIN the office gave you. The school records who drove " +
+                "each run.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = phone,
+            onValueChange = { phone = it.filter(Char::isDigit).take(10) },
+            label = { Text("Mobile number") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = pin,
+            onValueChange = { pin = it.filter(Char::isDigit).take(6) },
+            label = { Text("PIN") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = { onSignIn(phone, pin) },
+            // Ten digits and at least four of PIN: the server's own shape, so
+            // an obviously-wrong entry never becomes a failed attempt that
+            // counts towards the lockout.
+            enabled = !busy && phone.length == 10 && pin.length >= 4,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+        ) { Text("Sign in") }
     }
 }
