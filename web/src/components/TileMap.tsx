@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 /* A REAL MAP, WITH THE STREETS ON IT.
@@ -82,7 +82,32 @@ export function TileMap({
   className?: string
   ariaLabel?: string
 }) {
-  const width = 640 // the viewBox width; the element itself is fluid
+  /* THE REAL WIDTH, MEASURED.
+
+     This was the constant 640 with a comment saying the element itself is
+     fluid -- and it is, which was the bug. Tiles are positioned in pixels
+     computed against this number, so on any container wider than 640 the map
+     stopped in mid-air and left bare background to the right of it, and the
+     markers (drawn in an SVG stretched with preserveAspectRatio="none") sat
+     at points the tiles underneath them no longer occupied.
+
+     640 stays as the first paint's guess, before the observer has measured
+     anything; every frame after uses the box the browser actually gave us. */
+  const box = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(640)
+
+  useEffect(() => {
+    const el = box.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) => {
+      const w = Math.round(entry.contentRect.width)
+      // Rounded, and only on a real change: contentRect reports subpixel
+      // widths that would otherwise re-tile the map on every scroll.
+      if (w > 0) setWidth((prev) => (prev === w ? prev : w))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const view = useMemo(() => {
     const usable = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon))
@@ -124,7 +149,7 @@ export function TileMap({
       return { x: q.x * TILE - originX, y: q.y * TILE - originY }
     }
     return { tiles, place, zoom }
-  }, [points, height])
+  }, [points, height, width])
 
   if (!view) return null
 
@@ -135,6 +160,7 @@ export function TileMap({
   return (
     <figure className={cn('m-0', className)}>
       <div
+        ref={box}
         className="relative overflow-hidden rounded-[8px] border bg-muted"
         style={{ height }}
         role="img"
@@ -163,7 +189,6 @@ export function TileMap({
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
           aria-hidden
         >
           {path.length > 1 && (

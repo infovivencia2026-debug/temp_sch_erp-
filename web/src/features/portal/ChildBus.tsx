@@ -30,7 +30,7 @@ import {
    a guess wearing a clock's clothes. */
 
 const PLOT_W = 640
-const PLOT_H = 380
+const PLOT_H = 200
 const PAD = 56
 
 /* Local flat projection, metres about the midpoint of the two plotted points.
@@ -113,16 +113,19 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
         </dl>
 
         {hasPlot(row) ? (
-          /* The map first, the plot under it.
+          /* The map first and large, the plot under it and small.
 
              A parent knows their own street and not a pair of decimal
              degrees, so "has it turned into our road yet" is a question only
-             streets can answer. The plot stays because it is the one that
-             still works when the tiles do not load, and because it carries the
-             scale bar and the straight-line distance the map does not. */
+             streets can answer -- and it was being asked of a 240px strip
+             sitting above a 380-unit plot that took nearly twice the height
+             to say less. The plot stays because it is the one that still
+             works when the tiles do not load, and because it carries the
+             scale bar and the straight-line distance the map does not; it
+             does not need to be the biggest thing on the screen to do that. */
           <>
             <TileMap
-              height={240}
+              height={460}
               points={[
                 ...(row.stop_latitude != null && row.stop_longitude != null
                   ? [{
