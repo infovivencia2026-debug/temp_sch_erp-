@@ -174,18 +174,10 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
         description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
         action={
           <span className="no-print flex flex-wrap items-center gap-2">
-            {/* Two buttons for one dialog, deliberately.
-
-                Both open the browser's print sheet, because that sheet is
-                where "Save as PDF" lives — there is no way for a page to write
-                a PDF to somebody's phone without shipping a renderer. What
-                differs is what the person is looking for: somebody who wants
-                paper reads "Print" and stops looking, and somebody who wants a
-                copy reads "Save as PDF" and knows the dialog is the right
-                place. One button labelled for one of them sends the other
-                away thinking the product cannot do it. */}
+            {/* One button. Two that open the same dialog read as two things
+                the product does, and the second one promised a file rather
+                than a dialog — which is what it was asked to stop doing. */}
             <PrintButton label="Print" />
-            <PrintButton label="Save as PDF" />
           </span>
         }
       />

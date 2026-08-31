@@ -521,7 +521,26 @@ func (s *Server) bounceCheque(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return fees.BounceCheque(r.Context(), tx, paymentID, req.FinePaise)
+		fine := req.FinePaise
+		if fine <= 0 {
+			/* The school's standing amount, where it has set one.
+
+			   Typed at the counter, the figure drifts: two people remember it
+			   differently and the second is not wrong, only later — so a
+			   family that argues gets a different answer from one that does
+			   not. Nothing is charged when the school has set nothing, which
+			   is the behaviour before this. */
+			var v *string
+			_ = tx.QueryRow(r.Context(),
+				`SELECT config->>'`+chequeBounceFineKey+`' FROM module_settings
+				  WHERE module = 'finance'`).Scan(&v)
+			if v != nil {
+				if n, err := strconv.ParseInt(*v, 10, 64); err == nil {
+					fine = n
+				}
+			}
+		}
+		return fees.BounceCheque(r.Context(), tx, paymentID, fine)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

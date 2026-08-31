@@ -10,7 +10,9 @@ import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 interface Schedule {
   days_before: number
-  channel: string
+  /* Several, not one. A school that wants both a text and a WhatsApp message
+     is not unusual, and the two reach different people in the same house. */
+  channels: string[]
   active: boolean
   repeat_days: number
   max_attempts: number
@@ -185,18 +187,27 @@ export default function Defaulters() {
                   onChange={(v) => setSched({ ...plan, days_before: Number(v) || 0 })}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-[12.5px]">
+              <div className="flex flex-col gap-1 text-[12.5px]">
                 <span className="text-muted-foreground">By</span>
-                <Select
-                  value={plan.channel}
-                  onChange={(v) => setSched({ ...plan, channel: v })}
-                  options={[
-                    { value: 'whatsapp', label: 'WhatsApp' },
-                    { value: 'sms', label: 'SMS' },
-                    { value: 'email', label: 'Email' },
-                  ]}
-                />
-              </label>
+                <div className="flex flex-wrap items-center gap-3 pb-2 text-[13px]">
+                  {(['whatsapp', 'sms', 'email'] as const).map((ch) => (
+                    <label key={ch} className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={plan.channels.includes(ch)}
+                        onChange={(e) =>
+                          setSched({
+                            ...plan,
+                            channels: e.target.checked
+                              ? [...plan.channels, ch]
+                              : plan.channels.filter((x) => x !== ch),
+                          })}
+                      />
+                      {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <label className="flex flex-col gap-1 text-[12.5px]">
                 <span className="text-muted-foreground">Then repeat every</span>
                 <Input
@@ -225,13 +236,15 @@ export default function Defaulters() {
             <p className="px-5 pb-4 text-[12.5px] text-muted-foreground">
               {/* Read back as a sentence, because a row of numbered boxes is
                   not something anybody can check at a glance. */}
-              {plan.active
-                ? `Every family gets a ${plan.channel} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before their instalment is due`
+              {plan.active && plan.channels.length > 0
+                ? `Every family gets a ${plan.channels.join(' and ')} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before their instalment is due`
                   + (plan.repeat_days > 0
                     ? `, then every ${plan.repeat_days} days, ${plan.max_attempts} time${plan.max_attempts === 1 ? '' : 's'} at most.`
                     : '.')
                   + ' The parent and the student are both told in the app; it stops as soon as the money is in.'
-                : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
+                : plan.active
+                  ? 'Choose at least one channel, or switch this off.'
+                  : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
             </p>
             <div className="px-5 pb-4">
               <FormNotice error={saveSchedule.error} />

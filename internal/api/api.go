@@ -436,12 +436,25 @@ func (s *Server) Routes() http.Handler {
 			/* Chasing a fee today, rather than by rule. Same right as sending
 			   any other message from the school: it goes to families over
 			   channels the school pays for. */
-			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reminders/send", s.sendFeeReminders)
+			/* Gated on running the fee ledger, not on messaging.
+
+			   comms.messages.send is the right to write to the school at
+			   large; an accountant holds neither it nor any reason to. Chasing
+			   a family for their own overdue bill is a fee action — it reaches
+			   only families who owe money, about what they owe — so the
+			   permission that says "you run the fees" is the one that governs
+			   it. Gated the other way, the whole feature was a red line under
+			   the button for the only role that would ever press it. */
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/reminders/send", s.sendFeeReminders)
 			/* The standing arrangement, in one sentence: remind the family N
 			   days before the fee is due, on this channel. Same plan row the
 			   rules engine runs — change it here or there, both show it. */
+			/* What a bounced cheque costs, decided once rather than typed at
+			   the counter each time — see cheque_bounce_fine.go. */
+			r.Get("/cheque-bounce-fine", s.getChequeBounceFine)
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Put("/cheque-bounce-fine", s.setChequeBounceFine)
 			r.Get("/reminders/schedule", s.getFeeReminderSchedule)
-			r.With(httpx.RequirePermission(rbac.MessagesSend)).Put("/reminders/schedule", s.saveFeeReminderSchedule)
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Put("/reminders/schedule", s.saveFeeReminderSchedule)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/bounce", s.bounceCheque)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)

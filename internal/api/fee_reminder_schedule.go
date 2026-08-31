@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -40,11 +39,16 @@ type feeReminderSchedule struct {
 	// Negative is before the due date, positive after. The screen sends the
 	// number of days and which side, and the arithmetic stays here.
 	DaysBefore int `json:"days_before"`
-	// sms, whatsapp or email. One channel per plan, because the engine sends
-	// one message per occurrence and a plan that fanned out to three would
-	// bill a school three times for one reminder.
-	Channel string `json:"channel"`
-	Active  bool   `json:"active"`
+	/* Any of sms, whatsapp, email — a school that wants both a text and a
+	   WhatsApp message is not unusual, and the two reach different people in
+	   the same house.
+
+	   Held as one plan row per channel rather than a list on one row: the
+	   engine sends one message per occurrence per rule, so three channels is
+	   three rules, and the alternative would be teaching the sender to fan out
+	   — which is the same code with a second way to be wrong. */
+	Channels []string `json:"channels"`
+	Active   bool     `json:"active"`
 	// Repeat and cap, so a family that ignores the first is chased again
 	// without being chased for ever.
 	RepeatDays  int `json:"repeat_days"`
@@ -53,35 +57,48 @@ type feeReminderSchedule struct {
 
 func (s *Server) getFeeReminderSchedule(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
-	out := feeReminderSchedule{DaysBefore: 7, Channel: "whatsapp", RepeatDays: 7, MaxAttempts: 3}
+	out := feeReminderSchedule{
+		DaysBefore: 7, Channels: []string{}, RepeatDays: 7, MaxAttempts: 3,
+	}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var cond []byte
-		var channel string
-		var repeat, attempts int
-		var active bool
-		err := tx.QueryRow(r.Context(), `
+		rows, err := tx.Query(r.Context(), `
 			SELECT condition, channel, repeat_days, max_attempts, is_active
 			  FROM message_trigger_rules
 			 WHERE institution_id = $1 AND plan_kind = 'fee_reminder'
-			 ORDER BY created_at LIMIT 1`, id.InstitutionID).
-			Scan(&cond, &channel, &repeat, &attempts, &active)
-		if errors.Is(err, pgx.ErrNoRows) {
-			// No plan yet: the defaults above are the school's starting point
-			// rather than an empty form nobody knows how to fill.
-			out.Active = false
-			return nil
-		}
+			 ORDER BY created_at`, id.InstitutionID)
 		if err != nil {
 			return err
 		}
-		var c map[string]any
-		_ = json.Unmarshal(cond, &c)
-		if v, ok := c["min_days_overdue"].(float64); ok {
-			out.DaysBefore = -int(v)
+		defer rows.Close()
+		first := true
+		for rows.Next() {
+			var cond []byte
+			var channel string
+			var repeat, attempts int
+			var active bool
+			if err := rows.Scan(&cond, &channel, &repeat, &attempts, &active); err != nil {
+				return err
+			}
+			/* The timing is the school's, not the channel's: three rows for
+			   three channels say the same thing about when, and the first one
+			   read is as good as any. A screen that let them differ would be a
+			   screen where a family gets the SMS on Monday and the WhatsApp on
+			   Thursday for no reason anybody chose. */
+			if first {
+				var c map[string]any
+				_ = json.Unmarshal(cond, &c)
+				if v, ok := c["min_days_overdue"].(float64); ok {
+					out.DaysBefore = -int(v)
+				}
+				out.RepeatDays, out.MaxAttempts, out.Active = repeat, attempts, active
+				first = false
+			}
+			if active {
+				out.Channels = append(out.Channels, channel)
+			}
 		}
-		out.Channel, out.RepeatDays, out.MaxAttempts, out.Active = channel, repeat, attempts, active
-		return nil
+		return rows.Err()
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -96,11 +113,11 @@ func (s *Server) saveFeeReminderSchedule(w http.ResponseWriter, r *http.Request)
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	channel := strings.ToLower(strings.TrimSpace(req.Channel))
-	switch channel {
-	case "sms", "whatsapp", "email":
-	default:
-		httpx.BadRequest(w, r, "choose SMS, WhatsApp or email")
+	channels := cleanChannels(req.Channels)
+	if req.Active && len(channels) == 0 {
+		httpx.BadRequest(w, r,
+			"choose at least one of SMS, WhatsApp or email — or switch the "+
+				"automatic reminder off")
 		return
 	}
 	/* A reminder more than two months ahead is a reminder about money the
@@ -121,36 +138,55 @@ func (s *Server) saveFeeReminderSchedule(w http.ResponseWriter, r *http.Request)
 	cond, _ := json.Marshal(map[string]any{"min_days_overdue": -req.DaysBefore})
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var existing uuid.UUID
-		err := tx.QueryRow(r.Context(), `
-			SELECT id FROM message_trigger_rules
-			 WHERE institution_id = $1 AND plan_kind = 'fee_reminder'
-			 ORDER BY created_at LIMIT 1`, id.InstitutionID).Scan(&existing)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		/* A channel the school has turned off is switched off, not deleted.
+
+		   Deleting the rule would take its history with it — which chases have
+		   gone out, to whom — and a school that turns WhatsApp off for a term
+		   and back on in April would find the counter restarted and every
+		   family chased from the beginning again. */
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE message_trigger_rules SET is_active = false
+			 WHERE institution_id = $1 AND plan_kind = 'fee_reminder'`,
+			id.InstitutionID); err != nil {
 			return err
 		}
-		if errors.Is(err, pgx.ErrNoRows) {
-			_, err = tx.Exec(r.Context(), `
-				INSERT INTO message_trigger_rules
-				    (institution_id, name, event, condition, audience, channel,
-				     template_code, plan_kind, repeat_days, max_attempts, is_active)
-				VALUES ($1,$2,'invoice.overdue',$3,'family',$4,
-				        'fees.overdue','fee_reminder',$5,$6,$7)`,
-				id.InstitutionID, feeScheduleName, cond, channel,
-				req.RepeatDays, req.MaxAttempts, req.Active)
-			return err
+		for _, ch := range channels {
+			var existing uuid.UUID
+			err := tx.QueryRow(r.Context(), `
+				SELECT id FROM message_trigger_rules
+				 WHERE institution_id = $1 AND plan_kind = 'fee_reminder'
+				   AND channel = $2
+				 ORDER BY created_at LIMIT 1`, id.InstitutionID, ch).Scan(&existing)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			if errors.Is(err, pgx.ErrNoRows) {
+				if _, err := tx.Exec(r.Context(), `
+					INSERT INTO message_trigger_rules
+					    (institution_id, name, event, condition, audience, channel,
+					     template_code, plan_kind, repeat_days, max_attempts, is_active)
+					VALUES ($1,$2,'invoice.overdue',$3,'family',$4,
+					        'fees.overdue','fee_reminder',$5,$6,$7)`,
+					id.InstitutionID, feeScheduleName+" — "+ch, cond, ch,
+					req.RepeatDays, req.MaxAttempts, req.Active); err != nil {
+					return err
+				}
+				continue
+			}
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE message_trigger_rules
+				   SET condition = $2, repeat_days = $3, max_attempts = $4,
+				       is_active = $5,
+				       -- Both halves of the household, always. A fee reminder
+				       -- that reaches only the guardians misses the child who
+				       -- carries the money to the office.
+				       audience = 'family'
+				 WHERE id = $1`,
+				existing, cond, req.RepeatDays, req.MaxAttempts, req.Active); err != nil {
+				return err
+			}
 		}
-		_, err = tx.Exec(r.Context(), `
-			UPDATE message_trigger_rules
-			   SET condition = $2, channel = $3, repeat_days = $4,
-			       max_attempts = $5, is_active = $6,
-			       -- Both halves of the household, always. A fee reminder that
-			       -- reaches only the guardians misses the child who carries
-			       -- the money to the office.
-			       audience = 'family'
-			 WHERE id = $1`,
-			existing, cond, channel, req.RepeatDays, req.MaxAttempts, req.Active)
-		return err
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
