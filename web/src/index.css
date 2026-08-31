@@ -1124,11 +1124,24 @@
 
      So: fast where a finger is involved, unhurried only where something
      genuinely travels a long way. */
+  /* SECOND PASS, SAME ARGUMENT, ONE STEP FURTHER.
+
+     The reasoning above is right and was not followed all the way down. It
+     sets 350ms as the point where navigation stops reading as a response, then
+     leaves the drawer at 420 -- over its own limit. It says a press must land
+     inside 100ms, then gives every hover 160. And 200ms to open a dropdown is
+     200ms of waiting before the first option can be read, on a control people
+     open dozens of times an hour.
+
+     Polish is not duration. A cheap interface is one that is slow to answer
+     and then decorates the delay; an expensive one answers immediately and
+     spends its craft on the curve. So the curves below are untouched -- they
+     are the part that reads as considered -- and only the waiting is cut. */
   --motion-press: 90ms;    /* the acknowledgement of a press, under the finger */
-  --motion-quick: 160ms;   /* hovers, colour changes, small state flips */
-  --motion: 300ms;         /* panels, menus, dialogs, anything that travels */
-  --motion-slow: 420ms;    /* a sheet or drawer crossing most of the screen */
-  --motion-enter: 200ms;   /* the arrival of something that was not there */
+  --motion-quick: 110ms;   /* hovers, colour changes, small state flips */
+  --motion: 220ms;         /* panels, menus, dialogs, anything that travels */
+  --motion-slow: 320ms;    /* a sheet or drawer crossing most of the screen */
+  --motion-enter: 140ms;   /* the arrival of something that was not there */
 
   /* TWO CURVES, AND THE DIFFERENCE BETWEEN THEM IS THE WHOLE POINT.
 
@@ -1221,11 +1234,27 @@
    there" -- so it starts further down at 0.94 and the travel is dropped
    entirely. Combined with transform-origin below, a menu grows from its own
    corner instead of arriving from an unrelated direction. */
+/* 0.94 was a six percent jump, and at that size the scale is legible AS a
+   scale: the menu is seen growing rather than seen arriving. Three percent
+   still gives the eye the direction the surface came from without the growth
+   being the thing you notice. */
 @keyframes motion-enter {
-  from { opacity: 0; transform: scale(0.94); }
+  from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
 
+/* --motion-ease, not --motion-spring, and the file already says why.
+
+   The token comment calls overshoot something that "should have a reason",
+   warns that decorative bounce is what makes an interface feel like a toy, and
+   notes this one is used by people counting money. Then the spring was applied
+   here -- to every menu, every listbox, every tooltip and every dialog in the
+   product, which is the most-opened surface there is and the least plausible
+   place for a flourish. A dropdown that springs past its position and comes
+   back is doing something the person did not ask for, dozens of times an hour.
+
+   The spring stays a token and stays available for the individual controls
+   that snap. It just is not the default arrival any more. */
 .motion-enter,
 [role='menu'],
 [role='listbox'],
@@ -1234,7 +1263,7 @@
 dialog[open],
 [data-state='open'][data-side],
 [popover]:popover-open {
-  animation: motion-enter var(--motion-enter) var(--motion-spring) both;
+  animation: motion-enter var(--motion-enter) var(--motion-ease) both;
   /* Where the thing grows FROM. `top center` is right for a menu hanging under
      its button and wrong for one opening upward out of a dock, so the two
      placement classes the popovers already carry set their own origin below. */
