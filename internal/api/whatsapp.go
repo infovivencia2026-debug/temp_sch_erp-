@@ -1290,13 +1290,15 @@ type whatsappTemplateSaveRequest struct {
 	Active   bool     `json:"is_active"`
 }
 
-/* Meta's rule for a template name, checked here as well as in the column.
+/*
+Meta's rule for a template name, checked here as well as in the column.
 
-   Go's regexp is happy with {1,512}; Postgres caps a bounded repetition at 255
-   and refuses the whole expression at check time, which is how the identical
-   constraint in 00101 made every insert into message_templates fail. Splitting
-   the shape from the length says the same thing in a way both engines accept —
-   see 00144. */
+	Go's regexp is happy with {1,512}; Postgres caps a bounded repetition at 255
+	and refuses the whole expression at check time, which is how the identical
+	constraint in 00101 made every insert into message_templates fail. Splitting
+	the shape from the length says the same thing in a way both engines accept —
+	see 00144.
+*/
 var waNameShape = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 // The length Meta documents for a template name.

@@ -245,11 +245,10 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 			role = "institution_admin"
 		}
 
-
 		return notify(r, tx, id.InstitutionID, other, nil, "staff_message",
 			"Message from "+from, body,
 			/* With the sender on the end of it.
-			
+
 			   The link opened the Messages screen and left the reader to find
 			   the name in a list of eleven colleagues — which is the same
 			   search the notification had just done for them. It carries who

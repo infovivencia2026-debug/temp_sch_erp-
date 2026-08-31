@@ -302,7 +302,7 @@ func (s *Server) getMasterTimetableOverview(w http.ResponseWriter, r *http.Reque
 		"open_drafts":      drafts,
 		"may_edit":         id.Can(rbac.TimetableWrite),
 		"cells_a_week":     teaching * len(teachingWeekdays),
-		"summary": summary,
+		"summary":          summary,
 	})
 }
 

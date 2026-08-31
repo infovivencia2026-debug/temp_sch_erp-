@@ -307,8 +307,8 @@ type circularRow struct {
 	   about this afternoon. */
 	PublishedAtFull string `json:"published_at_full"`
 	PublishedBy     string `json:"published_by,omitempty"`
-	Acks        int    `json:"acknowledgements"`
-	Sections    int    `json:"sections"`
+	Acks            int    `json:"acknowledgements"`
+	Sections        int    `json:"sections"`
 	// Whether the caller has signed this one. The total count answers the
 	// office's question ("how many parents have read it"); this answers the
 	// parent's ("is there anything still waiting on me"), and a screen built

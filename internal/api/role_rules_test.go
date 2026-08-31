@@ -2,11 +2,13 @@ package api
 
 import "testing"
 
-/* The combinations a school may and may not hand out.
+/*
+The combinations a school may and may not hand out.
 
-   Written because both of these were wrong in the shipped presets: "Head of
-   department" granted hod+faculty, and the sole-maintainer bundle granted every
-   role including both. A rule with no test is a rule the next preset breaks. */
+	Written because both of these were wrong in the shipped presets: "Head of
+	department" granted hod+faculty, and the sole-maintainer bundle granted every
+	role including both. A rule with no test is a rule the next preset breaks.
+*/
 func TestOverlappingRolesAreRefused(t *testing.T) {
 	if err := checkGrantable([]string{"hod", "faculty"}, false); err == nil {
 		t.Fatal("hod+faculty was allowed; they draw the same five classroom screens")

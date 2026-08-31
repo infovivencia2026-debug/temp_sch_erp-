@@ -2,9 +2,9 @@ package api
 
 import (
 	"crypto/hmac"
-	"errors"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"os"
 	"strings"

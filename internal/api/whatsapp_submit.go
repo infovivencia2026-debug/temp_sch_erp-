@@ -56,16 +56,18 @@ import (
 // waPlaceholder finds this product's named placeholders in a template body.
 var waPlaceholder = regexp.MustCompile(`\{\{([a-z_][a-z0-9_]*)\}\}`)
 
-/* Which Meta category a built-in belongs in, and it matters commercially.
+/*
+Which Meta category a built-in belongs in, and it matters commercially.
 
-   UTILITY is a transactional message about something the parent already has a
-   relationship with -- an absence, an invoice, homework. It approves quickly
-   and is billed at the lower rate. MARKETING is anything promotional; it is
-   scrutinised, often rejected, and costs more.
+	UTILITY is a transactional message about something the parent already has a
+	relationship with -- an absence, an invoice, homework. It approves quickly
+	and is billed at the lower rate. MARKETING is anything promotional; it is
+	scrutinised, often rejected, and costs more.
 
-   Every built-in here is genuinely utility. The admissions link is the only
-   arguable one -- it goes to somebody who asked the school about a place, which
-   is a service reply to their own enquiry rather than an unsolicited offer. */
+	Every built-in here is genuinely utility. The admissions link is the only
+	arguable one -- it goes to somebody who asked the school about a place, which
+	is a service reply to their own enquiry rather than an unsolicited offer.
+*/
 var waCategories = map[string]string{
 	"attendance.absent":       "UTILITY",
 	"fees.overdue":            "UTILITY",
@@ -160,10 +162,13 @@ func buildSubmission(code, body string) waSubmission {
 	}
 }
 
-/* An example per placeholder, because Meta refuses a parameterised template
-   without one and rejects examples that look like placeholders. A reviewer is
-   reading these to judge whether the message is utility or marketing, so they
-   are realistic rather than "text". */
+/*
+An example per placeholder, because Meta refuses a parameterised template
+
+	without one and rejects examples that look like placeholders. A reviewer is
+	reading these to judge whether the message is utility or marketing, so they
+	are realistic rather than "text".
+*/
 func waExample(name string) string {
 	switch name {
 	case "student_name":

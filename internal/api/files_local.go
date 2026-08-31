@@ -244,29 +244,39 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 
 		if studentOwner != nil {
 			res, err := s.resolveScope(r)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			pred, args := res.StudentPredicate("st", 2)
 			var ok bool
 			if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM students st WHERE st.id = $1 AND `+pred+`)`, append([]any{*studentOwner}, args...)...).Scan(&ok); err != nil {
 				return err
 			}
-			if !ok { return pgx.ErrNoRows }
+			if !ok {
+				return pgx.ErrNoRows
+			}
 		} else if appOwner != nil {
-			if !id.Can(rbac.AdmissionsRead) { return pgx.ErrNoRows }
+			if !id.Can(rbac.AdmissionsRead) {
+				return pgx.ErrNoRows
+			}
 		} else if empOwner != nil {
 			if !id.Can(rbac.EmployeesRead) {
 				var isSelf bool
 				if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM employees WHERE id = $1 AND user_id = $2)`, *empOwner, id.UserID).Scan(&isSelf); err != nil {
 					return err
 				}
-				if !isSelf { return pgx.ErrNoRows }
+				if !isSelf {
+					return pgx.ErrNoRows
+				}
 			}
 		} else if hwOwner != nil {
 			res, err := s.resolveScope(r)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			pred, args := res.TimetablePredicate("hw.section_id", 2)
 			var ok bool
-			
+
 			qargs := []any{*hwOwner}
 			if args != nil {
 				qargs = append(qargs, args)
@@ -274,7 +284,9 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 			if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM homework hw WHERE hw.id = $1 AND `+pred+`)`, qargs...).Scan(&ok); err != nil {
 				return err
 			}
-			if !ok { return pgx.ErrNoRows }
+			if !ok {
+				return pgx.ErrNoRows
+			}
 		}
 		// A file with no owner keeps today's institution-only behaviour.
 		return nil

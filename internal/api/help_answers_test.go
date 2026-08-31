@@ -5,12 +5,13 @@ import (
 	"testing"
 )
 
-/* The fast path is only worth having if it is right.
+/*
+The fast path is only worth having if it is right.
 
-   A wrong answer about where a screen lives costs more than a slow correct
-   one: somebody walks to a menu that does not contain what they were promised,
-   and stops believing the next answer too. So these are the questions people
-   actually type, checked against the screen they meant.
+	A wrong answer about where a screen lives costs more than a slow correct
+	one: somebody walks to a menu that does not contain what they were promised,
+	and stops believing the next answer too. So these are the questions people
+	actually type, checked against the screen they meant.
 */
 func TestMatchHelpAnswersRealQuestions(t *testing.T) {
 	cases := []struct {
@@ -43,12 +44,13 @@ func TestMatchHelpAnswersRealQuestions(t *testing.T) {
 	}
 }
 
-/* Role is the whole point, and it has to bite.
+/*
+Role is the whole point, and it has to bite.
 
-   The same words must not reach a staff screen for a parent. If this ever
-   passes by accident -- because the parent role happens to hold a screen with
-   the same name -- the answer is still correctly scoped, so the assertion is
-   about the ROLE of what came back rather than about getting nothing.
+	The same words must not reach a staff screen for a parent. If this ever
+	passes by accident -- because the parent role happens to hold a screen with
+	the same name -- the answer is still correctly scoped, so the assertion is
+	about the ROLE of what came back rather than about getting nothing.
 */
 func TestMatchHelpStaysInsideTheRole(t *testing.T) {
 	for _, role := range []string{"parent", "student", "finance", "faculty"} {
@@ -70,14 +72,15 @@ func TestMatchHelpStaysInsideTheRole(t *testing.T) {
 	}
 }
 
-/* Questions the fast path must NOT answer.
+/*
+Questions the fast path must NOT answer.
 
-   Admissions has no "add a student" screen -- it takes applications -- so the
-   nearest match is visa paperwork, which shares the word "student". And "why
-   is this invoice wrong" is about one parent's invoice: it needs two facts
-   joined, which is the model's job. Both scored under 2.0 when measured, and
-   both must keep missing. A confident pointer at the wrong screen is worse
-   than the slow honest answer.
+	Admissions has no "add a student" screen -- it takes applications -- so the
+	nearest match is visa paperwork, which shares the word "student". And "why
+	is this invoice wrong" is about one parent's invoice: it needs two facts
+	joined, which is the model's job. Both scored under 2.0 when measured, and
+	both must keep missing. A confident pointer at the wrong screen is worse
+	than the slow honest answer.
 */
 func TestMatchHelpFallsThroughOnReasoning(t *testing.T) {
 	cases := []struct {

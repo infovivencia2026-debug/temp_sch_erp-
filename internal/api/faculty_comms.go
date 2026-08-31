@@ -213,8 +213,8 @@ type remarkRow struct {
 	Body        string  `json:"body"`
 	// Private is the reader-facing name for the stored visible_to_family flag,
 	// because the screen has to say "staff only" rather than "not visible".
-	Private    bool    `json:"private"`
-	ObservedOn string  `json:"observed_on"`
+	Private    bool   `json:"private"`
+	ObservedOn string `json:"observed_on"`
 	/* When it was written down, as opposed to the day it is about.
 
 	   A remark observed on Tuesday and typed on Friday is a different fact
@@ -1154,7 +1154,7 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 							},
 							Channel: ch, TemplateKey: "announcement.published",
 							ToUserID: uid,
-							Vars: map[string]any{"title": req.Title, "body": req.Body},
+							Vars:     map[string]any{"title": req.Title, "body": req.Body},
 						}, queue.HeavyOptions()...); err == nil {
 						queued++
 					}

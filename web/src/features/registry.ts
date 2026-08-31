@@ -108,6 +108,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.directory_workload.teacher_workload_timetable_overview': screen(() => import('./hod/Department')),
   'faculty.home.todays_classes': screen(() => import('./faculty/TodaysClasses')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
+  'faculty.home.my_calendar': screen(() => import('./faculty/MyCalendar')),
 
   // The NEP holistic card. One screen for the teacher recording observations
   // and the family reading them — the same card from two sides, and building

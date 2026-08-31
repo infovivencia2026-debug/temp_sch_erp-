@@ -414,15 +414,17 @@ func platformOnlyKeys() []string {
 // platformOnlyRoles may be granted only by an existing platform operator.
 var platformOnlyRoles = map[string]bool{"super_admin": true, "seller_admin": true}
 
-/* derivedRoles are facts about a person, not workspaces to hand out.
+/*
+derivedRoles are facts about a person, not workspaces to hand out.
 
-   student and parent come from a record link. class_teacher comes from naming
-   somebody on a section — the same fact that decides whose report cards they
-   may generate — and granting it here would put that in two places, so the day
-   the two disagree the menu is wrong and nobody knows which half to believe.
+	student and parent come from a record link. class_teacher comes from naming
+	somebody on a section — the same fact that decides whose report cards they
+	may generate — and granting it here would put that in two places, so the day
+	the two disagree the menu is wrong and nobody knows which half to believe.
 
-   Each says where the fact actually lives, because "you cannot do that" without
-   "here is where you can" is how somebody ends up editing the database. */
+	Each says where the fact actually lives, because "you cannot do that" without
+	"here is where you can" is how somebody ends up editing the database.
+*/
 var derivedRoles = map[string]bool{
 	"student": true, "parent": true, "class_teacher": true,
 }
@@ -433,17 +435,19 @@ var derivedFrom = map[string]string{
 	"class_teacher": "naming them class teacher on the section itself",
 }
 
-/* Roles that draw the same screens.
+/*
+Roles that draw the same screens.
 
-   A HOD who teaches gets marks entry, homework, lesson plans, the register and
-   report cards from their own role, the moment somebody allocates them a
-   subject — the same switch every other teacher is turned on by. Adding faculty
-   on top gives a second workspace holding the same five entries, and the person
-   has to learn which copy to use.
+	A HOD who teaches gets marks entry, homework, lesson plans, the register and
+	report cards from their own role, the moment somebody allocates them a
+	subject — the same switch every other teacher is turned on by. Adding faculty
+	on top gives a second workspace holding the same five entries, and the person
+	has to learn which copy to use.
 
-   Stated as a pair rather than a list of forbidden roles, because the objection
-   is to the combination and not to either half: both are perfectly good roles
-   on their own. */
+	Stated as a pair rather than a list of forbidden roles, because the objection
+	is to the combination and not to either half: both are perfectly good roles
+	on their own.
+*/
 var overlappingRoles = [][2]string{
 	// 11 of the HOD's 22 entries are the faculty role's own: marks entry,
 	// homework, lesson plans, the register, report cards.
@@ -465,10 +469,12 @@ var overlappingRoles = [][2]string{
    duplicating another is caught when it grows rather than when a school
    complains. */
 
-/* What to do instead, per pair.
+/*
+What to do instead, per pair.
 
-   A refusal that only says no leaves somebody to guess, and the guess is
-   usually to grant it anyway from another screen. */
+	A refusal that only says no leaves somebody to guess, and the guess is
+	usually to grant it anyway from another screen.
+*/
 var overlapRemedy = map[[2]string]string{
 	{"hod", "faculty"}: "A head of department who teaches gets marks entry, homework and " +
 		"the register from the hod role as soon as somebody allocates them a subject in " +
@@ -647,7 +653,7 @@ var rolePresets = []rolePreset{
 		/* admissions, not admissions+front_office: the receptionist's five
 		   entries are all inside admissions, so granting both would give this
 		   person the front desk twice. */
-		RoleKeys:    []string{"admissions", "finance"},
+		RoleKeys: []string{"admissions", "finance"},
 	},
 	{
 		Key:         "accounts",
@@ -670,11 +676,11 @@ var rolePresets = []rolePreset{
 		   from the hod role itself, the moment somebody allocates them a
 		   subject — the same switch every other teacher is turned on by, and
 		   the one that turns them off again next term. */
-		Key:         "academic_head",
-		Name:        "Head of department",
+		Key:  "academic_head",
+		Name: "Head of department",
 		Description: "A department's staff, classes and approvals. Allocate them a subject in " +
 			"Faculty allocation and their own teaching screens appear too.",
-		RoleKeys:    []string{"hod"},
+		RoleKeys: []string{"hod"},
 	},
 	{
 		Key:         "hr_payroll",
@@ -713,10 +719,10 @@ var rolePresets = []rolePreset{
 		RoleKeys: []string{"faculty", "librarian"},
 	},
 	{
-		Key:  "teacher_transport",
-		Name: "Teacher & transport in-charge",
+		Key:         "teacher_transport",
+		Name:        "Teacher & transport in-charge",
 		Description: "Teaches, and runs the routes, vehicles and driver roster.",
-		RoleKeys: []string{"faculty", "transport_manager"},
+		RoleKeys:    []string{"faculty", "transport_manager"},
 	},
 	{
 		Key:  "principal_hr",

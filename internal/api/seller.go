@@ -520,17 +520,19 @@ type ticketRow struct {
 	Breached      bool   `json:"breached"`
 }
 
-/* What the vendor promised, by plan and by urgency.
+/*
+What the vendor promised, by plan and by urgency.
 
-   In code rather than a table because it is three numbers the vendor sets
-   once. A settings screen for something nobody has asked to change is
-   configuration that exists to be admired; when a school negotiates its own
-   terms this becomes a column on plans, and the shape here is already the
-   shape that column would have.
+	In code rather than a table because it is three numbers the vendor sets
+	once. A settings screen for something nobody has asked to change is
+	configuration that exists to be admired; when a school negotiates its own
+	terms this becomes a column on plans, and the shape here is already the
+	shape that column would have.
 
-   A school with no plan at all — a trial that lapsed, a tenant provisioned by
-   hand — falls to the slowest promise rather than to none. "No plan" must not
-   read as "no obligation", because somebody is still sitting there waiting. */
+	A school with no plan at all — a trial that lapsed, a tenant provisioned by
+	hand — falls to the slowest promise rather than to none. "No plan" must not
+	read as "no obligation", because somebody is still sitting there waiting.
+*/
 func promisedHours(planCode, priority string) int {
 	tier := 3
 	switch strings.ToLower(planCode) {

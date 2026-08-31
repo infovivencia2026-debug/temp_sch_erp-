@@ -10,18 +10,20 @@ import (
 	"github.com/school-erp/erp/internal/rbac"
 )
 
-/* Installing an optional role means two things, always together.
+/*
+Installing an optional role means two things, always together.
 
-   A role is capability grants and menu grants. Writing only the first gives a
-   school a role that can reach every endpoint it needs and shows nothing,
-   which is how front_office spent its life: seven permissions, no navigation,
-   an empty rail.
+	A role is capability grants and menu grants. Writing only the first gives a
+	school a role that can reach every endpoint it needs and shows nothing,
+	which is how front_office spent its life: seven permissions, no navigation,
+	an empty rail.
 
-   This logic existed once already, inside the super admin's install handler.
-   It moved here because the other caller — a principal picking a staffing
-   preset — was silently skipping any role the school had not installed yet,
-   and the remedy is for both to install a role the same way rather than for
-   the second to grow its own half of one. */
+	This logic existed once already, inside the super admin's install handler.
+	It moved here because the other caller — a principal picking a staffing
+	preset — was silently skipping any role the school had not installed yet,
+	and the remedy is for both to install a role the same way rather than for
+	the second to grow its own half of one.
+*/
 func installOptionalRole(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	key string) (uuid.UUID, bool, error) {
 

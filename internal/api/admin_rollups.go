@@ -625,9 +625,9 @@ type feeClassRow struct {
 }
 
 type feeOverviewView struct {
-	Year     string            `json:"academic_year"`
-	Totals   feeOverviewTotals `json:"totals"`
-	ByClass  []feeClassRow     `json:"by_class"`
+	Year    string            `json:"academic_year"`
+	Totals  feeOverviewTotals `json:"totals"`
+	ByClass []feeClassRow     `json:"by_class"`
 }
 
 /*

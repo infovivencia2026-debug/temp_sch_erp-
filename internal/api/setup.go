@@ -220,7 +220,6 @@ type subjectRequest struct {
 	IsScholastic *bool  `json:"is_scholastic,omitempty"`
 }
 
-
 /*
 uniqueSubjectCode turns a subject's name into a short code nobody has to think
 
@@ -861,19 +860,20 @@ func (s *Server) createExam(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* Papers, added to an exam that already exists.
+/*
+Papers, added to an exam that already exists.
 
-   Exams could only be created in the setup wizard, and the papers with them.
-   Afterwards there was no route at all: an exam scheduled without papers — or
-   one that gained a class in September — could never be given any, and every
-   thing downstream hangs off papers existing. Marks entry says "no exam papers
-   exist yet", question paper approval has nothing to approve, moderation has
-   nothing to moderate, hall tickets have nothing to print, and report cards
-   have nothing to total. One missing route stops five screens.
+	Exams could only be created in the setup wizard, and the papers with them.
+	Afterwards there was no route at all: an exam scheduled without papers — or
+	one that gained a class in September — could never be given any, and every
+	thing downstream hangs off papers existing. Marks entry says "no exam papers
+	exist yet", question paper approval has nothing to approve, moderation has
+	nothing to moderate, hall tickets have nothing to print, and report cards
+	have nothing to total. One missing route stops five screens.
 
-   Adding is idempotent: the unique index on (exam_id, class_subject_id) means
-   running it twice adds the subjects that were missing and leaves the rest
-   alone, which is what somebody who has just added a class actually wants.
+	Adding is idempotent: the unique index on (exam_id, class_subject_id) means
+	running it twice adds the subjects that were missing and leaves the rest
+	alone, which is what somebody who has just added a class actually wants.
 */
 func (s *Server) addExamPapers(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
@@ -1015,12 +1015,14 @@ func (s *Server) createGradingScale(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* A phone number already used by somebody else at this school.
+/*
+A phone number already used by somebody else at this school.
 
-   Reported as a 409 rather than a 500 because it is a correctable mistake, and
-   named rather than absorbed because two people sharing an email address is a
-   school with one office mailbox while two sharing a mobile number is somebody
-   typing the wrong one. */
+	Reported as a 409 rather than a 500 because it is a correctable mistake, and
+	named rather than absorbed because two people sharing an email address is a
+	school with one office mailbox while two sharing a mobile number is somebody
+	typing the wrong one.
+*/
 var errPhoneInUse = errors.New("that phone number already belongs to somebody at this school")
 
 // --- staff ------------------------------------------------------------------
@@ -1345,7 +1347,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"periods", "Define the school day", c.Periods > 0, c.Periods,
 			"Periods and breaks, in order.", false},
 		{"staff", "Add staff", c.Teachers > 0, c.Teachers,
-			"Teachers, the office, accounts and HR. Each with the role that "+
+			"Teachers, the office, accounts and HR. Each with the role that " +
 				"matches the job.", true},
 		{"students", "Enrol students", c.Students > 0, c.Students,
 			"Admit individually or import from a spreadsheet.", true},

@@ -52,15 +52,17 @@ var leadStages = map[string]bool{
 	"new": true, "contacted": true, "demo_booked": true, "won": true, "lost": true,
 }
 
-/* Which moves are legal.
+/*
+Which moves are legal.
 
-   Not every pair: a lead cannot go straight from 'new' to 'won' without
-   somebody having spoken to the school, and a stage board that permits it
-   produces a pipeline nobody believes. Won and lost are terminal in the
-   forward direction and reopenable backwards, because a school that said no in
-   March genuinely does ring back in June -- that is the single commonest
-   real event in school sales and refusing it would send people to the
-   database. */
+	Not every pair: a lead cannot go straight from 'new' to 'won' without
+	somebody having spoken to the school, and a stage board that permits it
+	produces a pipeline nobody believes. Won and lost are terminal in the
+	forward direction and reopenable backwards, because a school that said no in
+	March genuinely does ring back in June -- that is the single commonest
+	real event in school sales and refusing it would send people to the
+	database.
+*/
 var leadMoves = map[string][]string{
 	"new":         {"contacted", "lost"},
 	"contacted":   {"demo_booked", "won", "lost"},

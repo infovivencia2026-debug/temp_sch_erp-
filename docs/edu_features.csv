@@ -111,6 +111,7 @@ Librarian,Library,Library,Reservations,"Holds placed by students and staff, and 
 Librarian,Library,Library,Fines,"Overdue fines accrued, waived and collected.",Only assigned operational module/campus,Must-Have,core
 Faculty / Teacher,Home,Home,Today's classes,"Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,Home,Home,My calendar,"The month you are actually in: exams, the duties you are rostered on, the homework you set falling due, and your own leave. Not your timetable, which you already know.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Behaviour,"Award a badge for what a child did well, or record a concern and what was done about it — one record per child, read in order, with whether the family was told.",Assigned classes/subjects,Must-Have,core

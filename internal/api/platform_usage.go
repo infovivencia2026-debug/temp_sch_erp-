@@ -60,12 +60,12 @@ type schoolUsage struct {
 	Messages    int   `json:"messages"`
 
 	// Derived, and labelled as such on the screen.
-	SharePct        float64 `json:"share_pct"`
-	InfraPaise      int64   `json:"infra_paise"`
-	StoragePaise    int64   `json:"storage_paise"`
-	CostPaise       int64   `json:"cost_paise"`
-	RevenuePaise    int64   `json:"revenue_paise"`
-	MarginPaise     int64   `json:"margin_paise"`
+	SharePct     float64 `json:"share_pct"`
+	InfraPaise   int64   `json:"infra_paise"`
+	StoragePaise int64   `json:"storage_paise"`
+	CostPaise    int64   `json:"cost_paise"`
+	RevenuePaise int64   `json:"revenue_paise"`
+	MarginPaise  int64   `json:"margin_paise"`
 }
 
 type usageResponse struct {

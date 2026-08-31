@@ -119,14 +119,16 @@ type option struct {
 	Label string `json:"label"`
 }
 
-/* A list of names as options, where the stored value IS the name.
+/*
+A list of names as options, where the stored value IS the name.
 
-   Most vocabularies here carry a short code and a longer label, because the
-   code is what other tables reference. A state and a district do not: nothing
-   joins on them, they are what a school types on a government return, and
-   inventing "TG" for Telangana would mean every report had to translate it
-   back. So value and label are the same string, and this exists so that saying
-   so takes one line rather than thirty-three. */
+	Most vocabularies here carry a short code and a longer label, because the
+	code is what other tables reference. A state and a district do not: nothing
+	joins on them, they are what a school types on a government return, and
+	inventing "TG" for Telangana would mean every report had to translate it
+	back. So value and label are the same string, and this exists so that saying
+	so takes one line rather than thirty-three.
+*/
 func optionsOf(names ...string) []option {
 	out := make([]option, 0, len(names))
 	for _, n := range names {
@@ -163,16 +165,18 @@ var affiliationBoards = []option{
 	{"Other State Board", "Other state board"},
 }
 
-/* The states and union territories, so the field is a list rather than a box.
+/*
+The states and union territories, so the field is a list rather than a box.
 
-   "State" was a free-text input with a placeholder reading "Telangana", which
-   is a hint rather than a choice: every school typed it, and typed it
-   differently. "Telangana", "TELANGANA", "Telengana" and "TS" are four values
-   for one state, and every report that groups by state then shows four rows.
+	"State" was a free-text input with a placeholder reading "Telangana", which
+	is a hint rather than a choice: every school typed it, and typed it
+	differently. "Telangana", "TELANGANA", "Telengana" and "TS" are four values
+	for one state, and every report that groups by state then shows four rows.
 
-   All thirty-six, because a product sold in Telangana is still installed by a
-   chain with a branch in Andhra Pradesh, and refusing the second one to keep
-   the list short is a worse trade than a longer list. */
+	All thirty-six, because a product sold in Telangana is still installed by a
+	chain with a branch in Andhra Pradesh, and refusing the second one to keep
+	the list short is a worse trade than a longer list.
+*/
 var indianStates = []string{
 	"Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
 	"Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",

@@ -771,18 +771,18 @@ type proxyCandidate struct {
 }
 
 type substitutionRow struct {
-	TimetableEntryID string           `json:"timetable_entry_id"`
-	AbsentUserID     string           `json:"absent_user_id"`
-	AbsentTeacher    string           `json:"absent_teacher"`
-	Reason           string           `json:"reason"`
-	Period           string           `json:"period"`
-	PeriodSeq        int              `json:"period_sequence"`
-	StartsAt         string           `json:"starts_at"`
-	ClassName        string           `json:"class_name"`
-	SectionName      string           `json:"section"`
-	Subject          string           `json:"subject"`
-	CoveredBy        *string          `json:"covered_by,omitempty"`
-	CoveredByID      *string          `json:"covered_by_user_id,omitempty"`
+	TimetableEntryID string  `json:"timetable_entry_id"`
+	AbsentUserID     string  `json:"absent_user_id"`
+	AbsentTeacher    string  `json:"absent_teacher"`
+	Reason           string  `json:"reason"`
+	Period           string  `json:"period"`
+	PeriodSeq        int     `json:"period_sequence"`
+	StartsAt         string  `json:"starts_at"`
+	ClassName        string  `json:"class_name"`
+	SectionName      string  `json:"section"`
+	Subject          string  `json:"subject"`
+	CoveredBy        *string `json:"covered_by,omitempty"`
+	CoveredByID      *string `json:"covered_by_user_id,omitempty"`
 	/* Cover that has itself fallen through.
 
 	   A substitution is settled once made — the board is a morning's decisions
@@ -795,8 +795,8 @@ type substitutionRow struct {
 	   substitution against it, so it read as covered and dropped out of the
 	   morning's work — a class with nobody in front of it, and a board saying
 	   every period was handled. */
-	CoverAbsent bool `json:"cover_absent"`
-	Candidates       []proxyCandidate `json:"candidates"`
+	CoverAbsent bool             `json:"cover_absent"`
+	Candidates  []proxyCandidate `json:"candidates"`
 }
 
 /*
@@ -976,7 +976,7 @@ func (s *Server) getSubstitutionBoard(w http.ResponseWriter, r *http.Request) {
 		"on_date": onDate,
 		// Everybody the register says is away, including the ones with nothing
 		// to cover.
-		"away":    away,
+		"away": away,
 		"summary": map[string]any{
 			"absent_teachers": len(absentees),
 			"periods":         len(items),

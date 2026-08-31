@@ -1537,23 +1537,23 @@ type smsGatewayDeviceView struct {
 	// differently is two answers to one question.
 	SilentFor string `json:"silent_for,omitempty"`
 	// The judgement itself, made here: live | stale | paused | never.
-	Health       string `json:"health"`
-	BatteryPct   *int   `json:"battery_pct,omitempty"`
-	Charging     *bool  `json:"charging,omitempty"`
-	SignalDBM    *int   `json:"signal_dbm,omitempty"`
-	SIMReady     *bool  `json:"sim_ready,omitempty"`
-	Paused       bool   `json:"paused"`
+	Health     string `json:"health"`
+	BatteryPct *int   `json:"battery_pct,omitempty"`
+	Charging   *bool  `json:"charging,omitempty"`
+	SignalDBM  *int   `json:"signal_dbm,omitempty"`
+	SIMReady   *bool  `json:"sim_ready,omitempty"`
+	Paused     bool   `json:"paused"`
 	// Pending is a handset that enrolled by somebody signing in on it and has
 	// not been approved. It holds a real credential and is handed nothing, so
 	// the screen has to say so -- otherwise it is indistinguishable from a
 	// working phone on a quiet day.
-	Pending     bool    `json:"pending"`
-	EnrolledBy  *string `json:"enrolled_by,omitempty"`
-	PollSeconds int     `json:"poll_seconds"`
-	PerMinuteCap int    `json:"per_minute_cap"`
-	SentToday    int    `json:"sent_today"`
-	FailedToday  int    `json:"failed_today"`
-	PartsToday   int    `json:"parts_today"`
+	Pending      bool    `json:"pending"`
+	EnrolledBy   *string `json:"enrolled_by,omitempty"`
+	PollSeconds  int     `json:"poll_seconds"`
+	PerMinuteCap int     `json:"per_minute_cap"`
+	SentToday    int     `json:"sent_today"`
+	FailedToday  int     `json:"failed_today"`
+	PartsToday   int     `json:"parts_today"`
 }
 
 type smsGatewayFailureView struct {

@@ -503,7 +503,7 @@ var importSpecs = map[string]importSpec{
 			}
 
 			/* How many periods a week the subject wants.
-			
+
 			   The timetable solver reads this and nothing else wrote it, so
 			   every school reached "Generate a draft" and was told no subject
 			   has a weekly requirement yet — with no screen that could set

@@ -234,9 +234,9 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		"device_token": token,
 		"institution":  who.Institution.String(),
 		"vehicle": map[string]any{
-			"id":               vehicleID.String(),
-			"registration_no":  registration,
-			"model":            vehicleModel,
+			"id":              vehicleID.String(),
+			"registration_no": registration,
+			"model":           vehicleModel,
 		},
 		"driver": who.Name,
 		/* Empty is not an error. A bus with no route yet still tracks -- the

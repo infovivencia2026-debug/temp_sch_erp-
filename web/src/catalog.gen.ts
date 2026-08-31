@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 317 features. */
+/** 13 roles, 318 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -474,6 +474,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.home.todays_classes', slug: 'todays_classes', name: 'Today\'s classes', scope: 'assigned_classes', tier: 'core', summary: 'Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.' },
           { key: 'faculty.home.my_work', slug: 'my_work', name: 'My work', scope: 'assigned_classes', tier: 'core', summary: 'Assignments to review, marks pending, substitutions, leave status and announcements.' },
+          { key: 'faculty.home.my_calendar', slug: 'my_calendar', name: 'My calendar', scope: 'assigned_classes', tier: 'core', summary: 'The month you are actually in: exams, the duties you are rostered on, the homework you set falling due, and your own leave. Not your timetable, which you already know.' },
         ],
       },
       {

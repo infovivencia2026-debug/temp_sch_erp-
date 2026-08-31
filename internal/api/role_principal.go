@@ -34,10 +34,10 @@ type principalKPIs struct {
 	   when the range holds no register at all: nought percent of nothing is
 	   not nought percent, and a client that finds the field missing falls back
 	   to saying nobody marked rather than printing a confident zero. */
-	AttendanceToday int  `json:"attendance_today_pct"`
-	MarkedToday     int  `json:"attendance_marked_today"`
-	RangePct        *int `json:"attendance_range_pct,omitempty"`
-	RangeMarked     *int `json:"attendance_range_marked,omitempty"`
+	AttendanceToday  int   `json:"attendance_today_pct"`
+	MarkedToday      int   `json:"attendance_marked_today"`
+	RangePct         *int  `json:"attendance_range_pct,omitempty"`
+	RangeMarked      *int  `json:"attendance_range_marked,omitempty"`
 	CollectedPaise   int64 `json:"collected_paise"`
 	OutstandingPaise int64 `json:"outstanding_paise"`
 	Defaulters       int   `json:"defaulters"`

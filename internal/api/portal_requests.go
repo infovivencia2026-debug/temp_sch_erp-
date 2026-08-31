@@ -14,8 +14,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/fees"
-	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
 )
