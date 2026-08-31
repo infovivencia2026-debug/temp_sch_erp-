@@ -749,7 +749,16 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  white-space: nowrap;
+  /* Wrapped, not clipped.
+
+     "Admissions & Front Office" on one line is wider than the dock, and a mark
+     near either end pushed its own label past the edge — so the tooltip that
+     exists to say what a glyph means arrived as "Admissi". Two short lines say
+     the whole name; one long line said most of one. */
+  white-space: normal;
+  max-width: 12rem;
+  width: max-content;
+  text-align: center;
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11.5px;

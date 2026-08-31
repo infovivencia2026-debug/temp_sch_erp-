@@ -814,7 +814,11 @@
   left: calc(100% + 8px);
   top: 50%;
   transform: translateY(-50%) translateX(-3px);
-  white-space: nowrap;
+  /* Wrapped, not clipped: the same reason as the dock's. A workspace whose
+     name is four words wide put most of it past the rail's edge. */
+  white-space: normal;
+  max-width: 12rem;
+  width: max-content;
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11.5px;
