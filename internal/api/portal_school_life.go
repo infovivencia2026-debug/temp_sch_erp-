@@ -92,6 +92,13 @@ func (s *Server) mountParentSchoolLife(r chi.Router) {
 		Get("/profile/id-card/verify", s.verifyCampusPass)
 
 	// Alerts.
+	/* "Has anything I can see changed?" — one string, on a timer.
+
+	   Mounted beside the bell because it is the same idea a size larger: the
+	   bell keeps itself fresh, this keeps every other screen fresh. Open to
+	   anybody signed in; the answer is already narrowed to what the caller can
+	   see. */
+	r.Get("/live", s.getLiveRevision)
 	r.Get("/notifications", s.listFamilyNotifications)
 	r.Post("/notifications/{id}/read", s.markNotificationRead)
 	r.Post("/notifications/read-all", s.markAllNotificationsRead)

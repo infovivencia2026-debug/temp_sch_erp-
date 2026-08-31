@@ -250,10 +250,20 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, bool, error)
 	if held["institution_admin"] && r.URL.Query().Get("all_roles") == "1" {
 		every := map[string]bool{}
 		for _, role := range catalog.Roles {
-			// Not the platform's own workspaces: the principal holds neither
-			// PlatformTenantsRW nor PlatformPlansRW, so those screens would be
-			// a menu of 403s.
-			if role.Key == "super_admin" || role.Key == "seller_admin" {
+			/* The offices, not the families and not the vendor.
+
+			   Platform workspaces are excluded because the principal holds
+			   neither PlatformTenantsRW nor PlatformPlansRW — those screens
+			   would be a menu of 403s.
+
+			   Student and Parent are excluded for a different reason: they are
+			   not offices in the building. Every one of their screens answers
+			   "my child", "my fees", "my timetable", and a head has no child
+			   here — so the workspace opens onto a set of empty screens that
+			   look broken rather than empty. What a head actually wants to see
+			   of a family's view is one family's, which is Student 360. */
+			switch role.Key {
+			case "super_admin", "seller_admin", "student", "parent":
 				continue
 			}
 			every[role.Key] = true

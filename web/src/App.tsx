@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
 import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
+import { useLiveUpdates } from '@/lib/live'
 import GoTo from '@/features/shared/GoTo'
 import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
 import { componentFor } from '@/features/registry'
@@ -20,9 +21,16 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Reference data (classes, sections, subjects) changes a few times a
-      // year; refetching on every window focus is pure noise.
+      // year, so a short stale time is still right — what keeps a screen
+      // current is the revision poll in lib/live.ts, which invalidates
+      // everything the moment something actually moves.
       staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      /* Back on. It was off because refetching a dozen queries every time
+         somebody alt-tabbed was noise — but the alternative was a tab open
+         since breakfast showing yesterday's register, which is worse. The
+         revision poll makes most of these refetches free anyway: a cache that
+         is already current has nothing to fetch. */
+      refetchOnWindowFocus: true,
       retry: 1,
     },
   },
@@ -265,6 +273,14 @@ function isPublicPath(pathname: string) {
   return pathname.startsWith('/admissions/apply/')
 }
 
+/* Nothing to draw: it exists so the poll lives inside the providers and dies
+   with them, rather than being started from module scope and outliving a sign
+   out. */
+function Live() {
+  useLiveUpdates()
+  return null
+}
+
 export default function App() {
   if (typeof window !== 'undefined' && isPublicPath(window.location.pathname)) {
     return (
@@ -285,6 +301,8 @@ export default function App() {
         <SessionProvider>
           <CatalogProvider>
             <I18nProvider>
+            {/* Inside the session, because it asks a signed-in question. */}
+            <Live />
             <Shell renderAt={(path) => <AppRoutes location={path} />}>
               <AppRoutes />
             </Shell>
