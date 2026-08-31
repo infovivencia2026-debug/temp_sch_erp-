@@ -226,7 +226,14 @@ func (s *Server) allocateTransport(w http.ResponseWriter, r *http.Request) {
 		req.DropStopID = req.PickupStopID
 	}
 
-	var fare int64
+	/* NULLABLE, because a fare is.
+
+	   route_stops.fare_paise is nullable and a school that has not priced its
+	   stops yet is the ordinary case in a first term. This scanned into an
+	   int64 and every allocation against an unpriced stop failed with
+	   "cannot scan NULL into *int64" behind a 400 -- so no child could be put
+	   on a bus at all until somebody had typed a fare, and nothing said so. */
+	var fare *int64
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// A stop that belongs to a different route is the mistake this catches:
 		// the two dropdowns are filled in separately and nothing else notices.
@@ -267,6 +274,8 @@ func (s *Server) allocateTransport(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, err.Error())
 		return
 	}
+	// Null rather than zero: "no fare set on this stop" and "this stop is free"
+	// are different facts, and a receipt built from the wrong one is a refund.
 	httpx.JSON(w, http.StatusCreated, map[string]any{"fare_paise": fare})
 }
 
