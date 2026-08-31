@@ -612,6 +612,69 @@ function Register({
                       onChange={(v) => setForm({ ...form, prior_udise_code: v })}
                       placeholder="Previous school UDISE code"
                     />
+
+                    {/* THE CHILD AND THE PARENT.
+
+                        Blank means unchanged, exactly as the two fields above
+                        already behave: the register does not carry these
+                        values, so prefilling them would mean showing the clerk
+                        an empty box that silently blanks a name on save. Only
+                        what is typed is sent.
+
+                        Corrects the application and nothing else. A child who
+                        has already been enrolled keeps the old spelling on
+                        their student record until somebody fixes that too. */}
+                    <div className="border-t pt-2 text-[12px] text-muted-foreground">
+                      Correct a detail — leave blank to keep what is on file
+                    </div>
+                    <Input
+                      value={String(form.first_name ?? '')}
+                      onChange={(v) => setForm({ ...form, first_name: v })}
+                      placeholder="Child's first name"
+                    />
+                    <Input
+                      value={String(form.last_name ?? '')}
+                      onChange={(v) => setForm({ ...form, last_name: v })}
+                      placeholder="Child's last name"
+                    />
+                    <Input
+                      value={String(form.date_of_birth ?? '')}
+                      onChange={(v) => setForm({ ...form, date_of_birth: v })}
+                      placeholder="Date of birth (YYYY-MM-DD)"
+                    />
+                    <Select
+                      value={String(form.gender ?? '')}
+                      onChange={(v) => setForm({ ...form, gender: v })}
+                      options={[
+                        { value: '', label: 'Gender — unchanged' },
+                        ...['male', 'female', 'other'].map((g) => ({ value: g, label: g })),
+                      ]}
+                    />
+                    <Select
+                      value={String(form.category ?? '')}
+                      onChange={(v) => setForm({ ...form, category: v })}
+                      options={[
+                        { value: '', label: 'Category — unchanged' },
+                        ...['general', 'obc', 'sc', 'st', 'ews', 'other'].map((c) => ({
+                          value: c, label: c,
+                        })),
+                      ]}
+                    />
+                    <Input
+                      value={String(form.parent_name ?? '')}
+                      onChange={(v) => setForm({ ...form, parent_name: v })}
+                      placeholder="Parent's name"
+                    />
+                    <Input
+                      value={String(form.parent_phone ?? '')}
+                      onChange={(v) => setForm({ ...form, parent_phone: v })}
+                      placeholder="Parent's phone"
+                    />
+                    <Input
+                      value={String(form.parent_email ?? '')}
+                      onChange={(v) => setForm({ ...form, parent_email: v })}
+                      placeholder="Parent's email"
+                    />
                     <Checkbox
                       checked={Boolean(form.aadhaar_consent)}
                       onChange={(v) => setForm({ ...form, aadhaar_consent: v })}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -342,6 +343,29 @@ type applicationPatch struct {
 	VisaType     string `json:"visa_type,omitempty"`
 	VisaExpiry   string `json:"visa_expiry,omitempty"`
 	WaitRank     *int   `json:"waitlist_rank,omitempty"`
+
+	/* THE CHILD AND THE PARENT, correctable after the fact.
+
+	   These were written once by createApplication and then frozen, so a name
+	   taken down wrong over the counter stayed wrong -- and enrolment copies
+	   them into `students` and `guardians`, which is how a typo at the front
+	   desk became the name on a report card and the phone on a parent's login.
+
+	   Pointers for the ones the column allows to be NULL. The rest of this
+	   struct is plain strings under a COALESCE(NULLIF(...)) so that "" means
+	   "not sent", which is right for a field that must always hold something
+	   and wrong for one a school may legitimately want emptied: a middle name
+	   recorded by mistake could be corrected and never removed. nil is "leave
+	   it alone", "" is "clear it". */
+	FirstName   string  `json:"first_name,omitempty"`
+	LastName    *string `json:"last_name,omitempty"`
+	DOB         *string `json:"date_of_birth,omitempty"`
+	Gender      *string `json:"gender,omitempty"`
+	Category    *string `json:"category,omitempty"`
+	ClassSought string  `json:"class_sought,omitempty"`
+	ParentName  string  `json:"parent_name,omitempty"`
+	ParentPhone string  `json:"parent_phone,omitempty"`
+	ParentEmail *string `json:"parent_email,omitempty"`
 }
 
 func (s *Server) patchApplication(w http.ResponseWriter, r *http.Request) {
@@ -359,6 +383,36 @@ func (s *Server) patchApplication(w http.ResponseWriter, r *http.Request) {
 		"alumni", "staff", "sports", "management") {
 		httpx.BadRequest(w, r, "unknown quota "+req.Quota)
 		return
+	}
+
+	/* The database's own CHECKs, asked first.
+
+	   applications_gender_check and applications_category_check would refuse
+	   these anyway, but as a 23514 out of a transaction -- which this file
+	   hands to httpx.Internal and the clerk reads as "something went wrong"
+	   about a value they picked from a list. Empty is allowed through: both
+	   columns are nullable, and "" is how the form says "clear it". */
+	if req.Gender != nil && *req.Gender != "" &&
+		!oneOfStr(*req.Gender, "male", "female", "other") {
+		httpx.BadRequest(w, r, "unknown gender "+*req.Gender)
+		return
+	}
+	if req.Category != nil && *req.Category != "" &&
+		!oneOfStr(*req.Category, "general", "obc", "sc", "st", "ews", "other") {
+		httpx.BadRequest(w, r, "unknown category "+*req.Category)
+		return
+	}
+	if req.ClassSought != "" {
+		if _, cerr := uuid.Parse(req.ClassSought); cerr != nil {
+			httpx.BadRequest(w, r, "class_sought must be a uuid")
+			return
+		}
+	}
+	if req.DOB != nil && *req.DOB != "" {
+		if _, derr := time.Parse("2006-01-02", *req.DOB); derr != nil {
+			httpx.BadRequest(w, r, "date_of_birth must be YYYY-MM-DD")
+			return
+		}
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -381,12 +435,30 @@ func (s *Server) patchApplication(w http.ResponseWriter, r *http.Request) {
 			    visa_type = COALESCE(NULLIF($16,''), visa_type),
 			    visa_expiry = COALESCE(NULLIF($17,'')::date, visa_expiry),
 			    waitlist_rank = COALESCE($18, waitlist_rank),
+			    -- NOT NULL columns: blank means "not sent", never "empty it".
+			    first_name = COALESCE(NULLIF($19,''), first_name),
+			    class_sought = COALESCE(NULLIF($24,'')::uuid, class_sought),
+			    parent_name = COALESCE(NULLIF($25,''), parent_name),
+			    parent_phone = COALESCE(NULLIF($26,''), parent_phone),
+			    -- Nullable columns: absent leaves them, '' clears them.
+			    last_name = CASE WHEN $20::text IS NULL THEN last_name
+			                     ELSE NULLIF($20,'') END,
+			    date_of_birth = CASE WHEN $21::text IS NULL THEN date_of_birth
+			                         ELSE NULLIF($21,'')::date END,
+			    gender = CASE WHEN $22::text IS NULL THEN gender
+			                  ELSE NULLIF($22,'') END,
+			    category = CASE WHEN $23::text IS NULL THEN category
+			                    ELSE NULLIF($23,'') END,
+			    parent_email = CASE WHEN $27::text IS NULL THEN parent_email
+			                        ELSE NULLIF($27,'')::citext END,
 			    updated_at = now()
 			 WHERE id = $1`,
 			appID, req.Quota, req.RTEStatus, req.AadhaarOK, req.AadhaarLast4,
 			req.APAAR, req.PriorUDISE, req.SiblingID, req.AlumniName,
 			req.Medical, req.Allergies, req.Immunised, req.BloodGroup,
-			req.Nationality, req.Passport, req.VisaType, req.VisaExpiry, req.WaitRank)
+			req.Nationality, req.Passport, req.VisaType, req.VisaExpiry, req.WaitRank,
+			req.FirstName, req.LastName, req.DOB, req.Gender, req.Category,
+			req.ClassSought, req.ParentName, req.ParentPhone, req.ParentEmail)
 		return err
 	})
 	if err != nil {
