@@ -44,6 +44,18 @@ interface StaffLogin {
   note: string
 }
 
+/* The handset PIN, mirrored on the password flow beside it.
+
+   A driver signs the bus-tracker app in with a phone number and this PIN, and
+   POST /setup/employees/{id}/pin was the one issuing route no screen called --
+   so the endpoint existed, the app demanded a PIN, and there was nowhere in
+   the product to make one. A paired handset could never start a run. */
+interface StaffPIN {
+  full_name: string
+  phone: string
+  pin: string
+}
+
 interface Employee {
   id: string
   employee_code: string
@@ -99,6 +111,19 @@ export default function Employees() {
     },
     onSuccess: (h) => { setHandover(h); staff.refetch() },
     onSettled: () => setIssuing(null),
+  })
+
+  // The PIN, issued the same way and handed over the same way. Separate state
+  // so the two never share a card: a password and a PIN are two credentials.
+  const [pinning, setPinning] = useState<string | null>(null)
+  const [pinHandover, setPinHandover] = useState<StaffPIN | null>(null)
+  const issuePin = useMutation({
+    mutationFn: (e: Employee) => {
+      setPinning(e.id)
+      return api.post<StaffPIN>(`/api/v1/setup/employees/${e.id}/pin`, {})
+    },
+    onSuccess: (h) => { setPinHandover(h); staff.refetch() },
+    onSettled: () => setPinning(null),
   })
   const [search, setSearch] = useState('')
   const [expiringOnly, setExpiringOnly] = useState(true)
@@ -192,6 +217,37 @@ export default function Employees() {
               <div>
                 <dt className="text-[12px] text-muted-foreground">Password</dt>
                 <dd className="select-all font-mono text-[17px] font-semibold">{handover.password}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
+
+        {/* The PIN, its own card and its own one-time reveal. Not folded into
+            the password card above: they are issued by two different buttons,
+            often on two different days, and a driver needs the PIN without the
+            website password ever being in the room. */}
+        {pinHandover && (
+          <div className="mb-5 rounded-lg border-2 border-primary bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-semibold">
+                  Handset PIN for {pinHandover.full_name}
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  For the bus tracker and other handset apps. Shown once and stored nowhere —
+                  write it down before pressing Done. Issuing it again replaces this one.
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setPinHandover(null)}>Done</Button>
+            </div>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Mobile number</dt>
+                <dd className="select-all font-mono text-[17px] font-semibold">{pinHandover.phone}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-muted-foreground">PIN</dt>
+                <dd className="select-all font-mono text-[17px] font-semibold tracking-[0.3em]">{pinHandover.pin}</dd>
               </div>
             </dl>
           </div>
@@ -352,6 +408,22 @@ export default function Employees() {
                         onClick={() => issue.mutate(e)}
                       >
                         {issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Reset password'}
+                      </Button>
+                    )}
+                    {/* Only where a PIN can actually be used: it needs an
+                        account to sign in as (issue the login first) and a
+                        10-digit mobile the app matches on. Offered once the
+                        person has both, so a driver is not sent to a button
+                        that returns "issue their login first". */}
+                    {can('hr.employees.write') && e.status !== 'invited' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={pinning === e.id}
+                        title="A 4-digit PIN for the bus tracker and other handset apps"
+                        onClick={() => issuePin.mutate(e)}
+                      >
+                        {pinning === e.id ? 'PIN…' : 'Handset PIN'}
                       </Button>
                     )}
                   </Td>
