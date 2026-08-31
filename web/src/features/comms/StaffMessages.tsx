@@ -45,6 +45,10 @@ interface Message {
      before ringing a family. */
   read_at?: string
   sender_name: string
+  /* 'parent' or 'teacher'. Who wrote it, in a thread that has exactly two
+     sides — which "mine" cannot answer for a principal reading somebody
+     else's conversation, where nothing is theirs. */
+  sender_side?: string
 }
 
 /* A conversation with a family, which had nowhere to land.
@@ -267,7 +271,12 @@ export default function StaffMessages() {
                       </span>
                       {/* Whose parent, which is the fact a teacher recognises
                           — twelve surnames mean nothing without the child. */}
-                      <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
+                      {/* Wrapped, not truncated. "Nikhil Gupta · Grade 6-B →
+                          Priya Rao" is three facts and the ellipsis was eating
+                          the third — so a head saw which family but not which
+                          teacher, which is most of what they opened the list
+                          for. A second line costs nothing here. */}
+                      <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
                         {t.student_name}
                         {t.class_name ? ` · ${t.class_name}` : ''}
                         {/* And which teacher, for somebody reading other
@@ -302,7 +311,14 @@ export default function StaffMessages() {
               ) : (
                 <>
                   <CardHeader
-                    title={openParent?.parent_name ?? 'Conversation'}
+                    /* The whole address, not just a surname. A teacher with
+                       two Guptas open needs the child's name to know which
+                       conversation they are in. */
+                    title={
+                      openParent
+                        ? `${openParent.parent_name}${openParent.student_name ? ` · parent of ${openParent.student_name}` : ''}${openParent.class_name ? `, ${openParent.class_name}` : ''}`
+                        : 'Conversation'
+                    }
                     description={
                       openParent
                         ? `About ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
@@ -321,6 +337,21 @@ export default function StaffMessages() {
                             m.mine ? 'ml-auto bg-primary text-primary-foreground' : 'bg-muted',
                           )}
                         >
+                          {/* Whose message this is, said on the message.
+
+                              A thread read as one column of identical grey
+                              bubbles: a teacher scrolling back could not tell
+                              their own words from the parent's, and a
+                              principal reading the thread could tell neither. */}
+                          <p
+                            className={cn(
+                              'mb-0.5 text-[11.5px] font-semibold',
+                              m.mine ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                            )}
+                          >
+                            {m.mine ? 'You' : m.sender_name}
+                            {m.sender_side && ` · ${m.sender_side}`}
+                          </p>
                           <p className="whitespace-pre-wrap">{m.body}</p>
                           <p
                             className={cn(

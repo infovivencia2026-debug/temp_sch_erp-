@@ -221,6 +221,12 @@ export default function TeacherMessages() {
                 rows={3}
                 value={draft}
                 onChange={setDraft}
+                /* Enter sends here too. A parent typing on a phone expects the
+                   same key every other messaging app uses, and hunting for a
+                   button is how a half-written message gets abandoned. */
+                onSubmit={() => {
+                  if (draft.trim() && teacher !== '' && !send.isPending) send.mutate()
+                }}
                 placeholder={t('portal.teacher_messages.draft_placeholder')}
               />
               <div className="mt-3 flex items-center gap-3">

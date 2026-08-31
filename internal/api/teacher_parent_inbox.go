@@ -205,6 +205,8 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		SELECT m.id::text, m.body,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
+		       CASE WHEN m.sender_user_id = m.parent_user_id THEN 'parent'
+		            ELSE 'teacher' END,
 		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI')
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
@@ -214,7 +216,8 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		 LIMIT 500`, []any{sid, parentID, teacher, id.UserID},
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
-			return v, rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.ReadAt)
+			return v, rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine,
+				&v.SenderSide, &v.ReadAt)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

@@ -895,8 +895,14 @@ type portalMessageRow struct {
 	Sender string `json:"sender_name"`
 	// Whether the signed-in caller wrote it. The screen aligns on this rather
 	// than comparing ids in the client.
-	Mine   bool    `json:"mine"`
-	ReadAt *string `json:"read_at,omitempty"`
+	Mine bool `json:"mine"`
+	/* Which side of the conversation wrote it.
+
+	   A thread between a parent and a teacher reads as one column of identical
+	   bubbles unless each says whose it is — and "mine" cannot answer that for
+	   a principal reading somebody else's thread, where nothing is theirs. */
+	SenderSide string  `json:"sender_side,omitempty"`
+	ReadAt     *string `json:"read_at,omitempty"`
 }
 
 /*
