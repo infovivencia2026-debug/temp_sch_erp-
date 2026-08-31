@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Phone } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid,
-  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice,
+  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 
@@ -30,23 +30,17 @@ interface Defaulter {
 }
 
 const BUCKETS = ['0-30', '31-60', '61-90', '90+'] as const
-const TONE: Record<string, 'neutral' | 'warning' | 'danger'> = {
-  '0-30': 'neutral', '31-60': 'warning', '61-90': 'danger', '90+': 'danger',
-}
 
 /** Aging report. The guardian's phone is on every row because the only useful
     next action from this screen is to call them. */
 export default function Defaulters() {
+  const qc = useQueryClient()
   const [bucket, setBucket] = useState('')
   const [picked, setPicked] = useState<Record<string, boolean>>({})
   /* The app alert always goes; these cost money per message, so they are
      chosen per send rather than assumed. */
   const [channels, setChannels] = useState<Record<string, boolean>>({})
   const [sent, setSent] = useState('')
-  /* Ten rows, then the rest on request. A school with three hundred families
-     owing money has a screen nobody scrolls to the end of, and the controls
-     above it are what somebody came back to the top for. */
-  const [showAll, setShowAll] = useState(false)
   const [find, setFind] = useState('')
 
   /* Chasing now, rather than by rule. The plan engine keeps the standing
@@ -100,6 +94,10 @@ export default function Defaulters() {
           : ''),
       )
       setPicked({})
+      /* The list has to come again, or "Last reminded" still says never about
+         the family somebody has just written to — which reads as a send that
+         did not happen. */
+      qc.invalidateQueries({ queryKey: ['defaulters'] })
     },
     onError: () => setSent(''),
   })
@@ -376,7 +374,6 @@ export default function Defaulters() {
                 { label: 'Oldest due', key: 'oldest_due' },
                 { label: 'Overdue', key: 'days_overdue' },
                 { label: 'Balance', key: 'balance_paise' },
-                { label: 'Age', key: 'days_overdue' },
                 'Last reminded',
                 '',
               ]}
@@ -384,7 +381,7 @@ export default function Defaulters() {
               empty={!rows.length}
               emptyLabel="No overdue balances."
             >
-              {(showAll ? sort.sorted : sort.sorted.slice(0, 10)).map((d) => (
+              {sort.sorted.map((d) => (
                 <tr key={d.student_id}>
                   <Td>
                     <input
@@ -411,7 +408,6 @@ export default function Defaulters() {
                   <Td className="whitespace-nowrap font-medium tabular-nums">
                     {formatPaise(d.balance_paise)}
                   </Td>
-                  <Td><Badge tone={TONE[d.bucket]}>{d.bucket}</Badge></Td>
                   {/* So nobody sends a fourth reminder in a week to the family
                       who has been reading all of them. */}
                   <Td className="whitespace-nowrap text-[12.5px] text-muted-foreground">
@@ -433,15 +429,6 @@ export default function Defaulters() {
                 </tr>
               ))}
             </Table>
-            {rows.length > 10 && !showAll && (
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
-              >
-                Show all {rows.length} — including {rows.length - 10} more
-              </button>
-            )}
             </>
           )}
         </Card>

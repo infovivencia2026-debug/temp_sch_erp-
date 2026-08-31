@@ -509,7 +509,12 @@ export function Table({
   const rows = Children.toArray(children)
   const [page, setPage] = useState(0)
   const [full, setFull] = useState(false)
-  const size = full ? PAGE_SIZE * 4 : PAGE_SIZE
+  /* Full screen means the whole list, scrolled — not four pages of it.
+
+     Expanding a table is what somebody does when ten rows at a time is the
+     problem, and answering with forty at a time is the same problem further
+     away. Paged in the card, whole on the screen. */
+  const size = full ? Math.max(rows.length, 1) : PAGE_SIZE
   const pages = Math.max(1, Math.ceil(rows.length / size))
 
   /* Snap back when the rows change underneath.
