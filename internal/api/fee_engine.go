@@ -846,7 +846,8 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 			id.InstitutionID, req.Name, strings.TrimSpace(req.CampusID),
 			strings.TrimSpace(req.StructureID), strings.TrimSpace(req.FeeHeadID),
 			req.Kind, req.GraceDays, req.AmountPaise, percent, req.CapPaise,
-			req.Compound, req.ExemptKinds, req.Priority, active).Scan(&ruleID)
+			req.Compound, req.ExemptKinds, req.Priority, active,
+			applyMode).Scan(&ruleID)
 	})
 	if err != nil {
 		feeEngineFail(w, r, err)
