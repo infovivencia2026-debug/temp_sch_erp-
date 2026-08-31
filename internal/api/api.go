@@ -80,6 +80,11 @@ func (s *Server) Routes() http.Handler {
 		   answered with the staff screen by editing a request body. */
 		r.Post("/assistant/ask", s.assistantAsk)
 
+		/* And the slow path behind it, which the fast path's own comment
+		   promised and nothing implemented. Same gate, same roles; see
+		   assistant_chat.go for why it lives here and not beside the app. */
+		r.Post("/assistant/chat", s.assistantChat)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)

@@ -164,6 +164,8 @@ export function AssistantTab() {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // The slow path is session-authenticated now, like the fast one.
+        credentials: 'same-origin',
         body: JSON.stringify({
           message: withRole(message, session.user?.roles),
           conversation_id: conversation.current,
@@ -172,7 +174,14 @@ export function AssistantTab() {
           roles: session.user?.roles ?? [],
         }),
       })
-      if (!res.ok) throw new Error(`The assistant returned ${res.status}.`)
+      if (!res.ok) {
+        /* The server's own sentence, when it sent one. Every refusal this
+           route makes -- no key, rate limited, too slow -- is written to be
+           read by whoever is looking at the panel, and replacing it with a
+           status code throws away the only part that says what to do. */
+        const detail = await res.json().catch(() => null)
+        throw new Error(detail?.error?.message ?? `The assistant returned ${res.status}.`)
+      }
       const data = await res.json()
       if (data.conversation_id) {
         conversation.current = data.conversation_id
