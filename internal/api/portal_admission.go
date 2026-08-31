@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
-	"github.com/schoolerp/internal/httpx"
+	"github.com/school-erp/erp/internal/httpx"
 )
 
 /* WHAT BECAME OF MY APPLICATION.
