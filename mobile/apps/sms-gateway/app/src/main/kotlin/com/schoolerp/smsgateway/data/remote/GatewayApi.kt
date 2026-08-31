@@ -71,6 +71,19 @@ class GatewayApi(private val client: HttpClient) {
         }
     }
 
+    /* The server's own error code, read out of the envelope.
+
+       Reading the body of a refusal is normally the wrong instinct, since the
+       status is the contract. This is the one case where it is not: a 403 that
+       means "waiting for an administrator" and a 403 that means "this token is
+       finished" call for opposite behaviour, and only the code tells them
+       apart. Failure to parse falls through to the status, which is the safe
+       direction: an unrecognised 403 stays a rejection. */
+    private suspend fun bodyCode(response: HttpResponse): String? = runCatching {
+        val body = response.bodyAsText()
+        Regex("\"code\"\\s*:\\s*\"([a-z_]+)\"").find(body)?.groupValues?.get(1)
+    }.getOrNull()
+
     private suspend inline fun <reified T> call(block: () -> HttpResponse): T {
         val response = try {
             block()
@@ -85,6 +98,12 @@ class GatewayApi(private val client: HttpClient) {
         val status = response.status.value
         when {
             status in 200..299 -> Unit
+            /* Read the code, not just the status. A 403 carrying
+               awaiting_approval means the office has not pressed Approve yet,
+               which is a state to sit in rather than a credential to throw
+               away. Every other 401 or 403 stays a rejection. */
+            status == 403 && bodyCode(response) == "awaiting_approval" ->
+                throw ApiFailure.AwaitingApproval
             status == 401 || status == 403 -> throw ApiFailure.Unauthorized
             status == 429 -> throw ApiFailure.RateLimited(
                 response.headers[HttpHeaders.RetryAfter]?.toIntOrNull(),

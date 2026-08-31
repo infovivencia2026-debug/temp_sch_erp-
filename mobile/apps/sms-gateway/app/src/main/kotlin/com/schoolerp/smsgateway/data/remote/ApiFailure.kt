@@ -12,6 +12,20 @@ sealed class ApiFailure(val reason: String) : Exception(reason) {
     /** The token is gone or revoked. Retrying will never help — re-pair. */
     data object Unauthorized : ApiFailure("device_token_rejected")
 
+    /* ENROLLED, AND NOT YET LET IN.
+
+       The server answers 403 with the code awaiting_approval while a handset
+       waits for an administrator, and it says so distinctly on purpose: the
+       device is the school's own, it is known exactly who enrolled it, and
+       nothing about the refusal is adversarial.
+
+       The client threw that in with a revoked token, so the poll loop treated
+       a phone waiting to be approved as a phone that had been thrown out, and
+       cleared the credential. Thirteen seconds after enrolling, the handset
+       unpaired itself. Nobody could ever approve one, because it had stopped
+       being enrolled by the time they looked. */
+    data object AwaitingApproval : ApiFailure("awaiting_approval")
+
     /** The server is asking us to slow down. [retryAfterSeconds] if it said so. */
     class RateLimited(val retryAfterSeconds: Int?) : ApiFailure("rate_limited")
 

@@ -158,6 +158,10 @@ class GatewayRepository @Inject constructor(
     private fun pairErrorMessage(failure: ApiFailure): String = when (failure) {
         is ApiFailure.Network -> "Could not reach the school's server. Check the address and this phone's data connection."
         is ApiFailure.Unauthorized -> "That pair code was refused."
+        // Reachable only if a stale poll answers while this screen is up; the
+        // phone is enrolled and simply not let in yet, which is not a failure.
+        ApiFailure.AwaitingApproval ->
+            "Enrolled. Waiting for an administrator to approve this phone."
         is ApiFailure.RateLimited -> "Too many attempts. Wait a minute and try again."
         is ApiFailure.Server -> "The school's server had a problem (${failure.status}). Try again shortly."
         is ApiFailure.Rejected ->
