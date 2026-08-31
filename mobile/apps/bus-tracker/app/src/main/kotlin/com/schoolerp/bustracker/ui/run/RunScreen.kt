@@ -165,9 +165,28 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             )
         }
 
+        /* THE WAY BACK TO THE SIGN-IN SCREEN.
+
+           A handset paired before this build opens straight onto this screen
+           and never shows the number-and-password sign-in at all, because that
+           lives behind `paired == false`. The driver is looking at a bus that
+           may not be his, with no visible way to become himself -- "cannot see
+           the login" is exactly what that looks like from the seat.
+
+           Same call as before; the wording is what changed. "Unpair this
+           phone" describes the mechanism and reads as something to avoid.
+           This says what it is for. */
         TextButton(onClick = viewModel::unpair) {
-            Text("Unpair this phone", textDecoration = TextDecoration.Underline)
+            Text(
+                "Sign in as a different driver",
+                textDecoration = TextDecoration.Underline,
+            )
         }
+        Text(
+            "Takes this phone off the bus it is on and asks for your number and " +
+                "password again. Nothing is reported in the meantime.",
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 
     // Asked once the driver is looking at the app, never from a service — and
@@ -380,26 +399,34 @@ private fun DriverSignIn(
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it.filter(Char::isDigit).take(10) },
-            label = { Text("Mobile number") },
+            label = { Text("Mobile number or email") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            // Email, not Phone. A phone keypad has no @ and no letters, so a
+            // driver whose login is an email address could not type it here at
+            // all -- and this screen is the only sign-in a handset that was
+            // paired before ever shows.
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = pin,
-            onValueChange = { pin = it.filter(Char::isDigit).take(6) },
-            label = { Text("PIN") },
+            // No longer stripped to digits. This is the ordinary login
+            // password now; filtering it silently deleted most of a real one
+            // and then reported that it did not match.
+            onValueChange = { pin = it.take(72) },
+            label = { Text("Password") },
+            supportingText = { Text("The same password you use on the school website.") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
         )
         Button(
-            onClick = { onSignIn(phone, pin) },
-            // Ten digits and at least four of PIN: the server's own shape, so
-            // an obviously-wrong entry never becomes a failed attempt that
-            // counts towards the lockout.
-            enabled = !busy && phone.length == 10 && pin.length >= 4,
+            onClick = { onSignIn(phone.trim(), pin) },
+            // Both non-empty, and no more. The old rule demanded ten digits
+            // and four of PIN, which refused every email address before the
+            // server ever saw it.
+            enabled = !busy && phone.isNotBlank() && pin.isNotEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

@@ -1666,6 +1666,8 @@ type stopRow struct {
 	PickupTime *string `json:"pickup_time,omitempty"`
 	DropTime   *string `json:"drop_time,omitempty"`
 	FarePaise  int64   `json:"fare_paise"`
+	Latitude   *string `json:"latitude,omitempty"`
+	Longitude  *string `json:"longitude,omitempty"`
 	Riders     int     `json:"riders"`
 }
 
@@ -1680,6 +1682,11 @@ func (s *Server) listRouteStops(w http.ResponseWriter, r *http.Request) {
 		SELECT rs.id::text, rs.name, rs.sequence,
 		       to_char(rs.pickup_time,'HH24:MI'), to_char(rs.drop_time,'HH24:MI'),
 		       COALESCE(rs.fare_paise,0),
+		       -- The coordinates, which nothing returned. Without them an edit
+		       -- form silently drops the geofence it was meant to preserve,
+		       -- and a stop stops being a place the bus can be said to have
+		       -- reached.
+		       rs.latitude::text, rs.longitude::text,
 		       (SELECT count(*) FROM transport_allocations ta
 		         WHERE ta.pickup_stop_id = rs.id AND ta.valid_to IS NULL)::int
 		  FROM route_stops rs
@@ -1688,7 +1695,7 @@ func (s *Server) listRouteStops(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (stopRow, error) {
 			var v stopRow
 			return v, rows.Scan(&v.ID, &v.Name, &v.Sequence, &v.PickupTime,
-				&v.DropTime, &v.FarePaise, &v.Riders)
+				&v.DropTime, &v.FarePaise, &v.Latitude, &v.Longitude, &v.Riders)
 		})
 	respond(w, r, items, err)
 }

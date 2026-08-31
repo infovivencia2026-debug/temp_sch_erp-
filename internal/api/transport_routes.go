@@ -1,0 +1,281 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/httpx"
+)
+
+/* THE ROUTE, AND THE STOPS ON IT.
+
+   routes and route_stops are read by the live map, the driver's app, the
+   student allocation screen, the fee calculation and the attendance scanner,
+   and were written by nothing at all. Same shape as vehicles this morning: a
+   table every query joins to and no way to put a row in it, so a school
+   completing every screen the product offers still ends with a bus that has
+   nowhere to go.
+
+   The stops are the part that matters and the part a school gets wrong. A
+   route with no stops still tracks -- the parents watch the bus move -- but
+   nothing can be said about where it has reached, so the arrival alerts, the
+   attendance scan and "has it passed us yet" all go quiet. That is why the
+   stops are written here with the route rather than on a second screen nobody
+   opens.
+*/
+
+type routeStopRequest struct {
+	ID         string  `json:"id,omitempty"`
+	Name       string  `json:"name"`
+	Sequence   int     `json:"sequence"`
+	PickupTime string  `json:"pickup_time,omitempty"`
+	DropTime   string  `json:"drop_time,omitempty"`
+	Latitude   *string `json:"latitude,omitempty"`
+	Longitude  *string `json:"longitude,omitempty"`
+	FarePaise  *int64  `json:"fare_paise,omitempty"`
+}
+
+type routeRequest struct {
+	CampusID   string             `json:"campus_id,omitempty"`
+	Name       string             `json:"name"`
+	Code       string             `json:"code,omitempty"`
+	VehicleID  string             `json:"vehicle_id,omitempty"`
+	DistanceKm string             `json:"distance_km,omitempty"`
+	IsActive   *bool              `json:"is_active,omitempty"`
+	Stops      []routeStopRequest `json:"stops,omitempty"`
+}
+
+var errRouteNoName = errors.New("a route needs a name")
+
+/*
+saveRoute creates or replaces one route and the stops on it.
+
+	The stops are replaced wholesale rather than diffed. A route's stop list is
+	short, it is edited as a list, and a diff would need the client to track
+	ids it has no reason to hold -- while a replace makes "delete the third
+	stop" work without a second endpoint. The ordering column is rewritten from
+	the array's own order, so a stop cannot end up at sequence 4 of three.
+*/
+func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var req routeRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		httpx.BadRequest(w, r, errRouteNoName.Error())
+		return
+	}
+
+	var routeID *uuid.UUID
+	if raw := strings.TrimSpace(chiURLParam(r, "id")); raw != "" {
+		v, err := uuid.Parse(raw)
+		if err != nil {
+			httpx.BadRequest(w, r, "invalid route id")
+			return
+		}
+		routeID = &v
+	}
+
+	var vehicle *uuid.UUID
+	if v := strings.TrimSpace(req.VehicleID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "vehicle_id must be a uuid")
+			return
+		}
+		vehicle = &parsed
+	}
+	var campus *uuid.UUID
+	if v := strings.TrimSpace(req.CampusID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "campus_id must be a uuid")
+			return
+		}
+		campus = &parsed
+	}
+
+	active := true
+	if req.IsActive != nil {
+		active = *req.IsActive
+	}
+
+	var out struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Stops int    `json:"stops"`
+	}
+
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if campus != nil {
+			// Same reasoning as a vehicle's: the FK to campuses is checked
+			// with RLS bypassed, so a campus id from another school satisfies
+			// it and routes' own policy only constrains institution_id.
+			if err := campusBelongs(r, tx, campus); err != nil {
+				return err
+			}
+		}
+		if vehicle != nil {
+			var ok bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM vehicles WHERE id = $1)`, *vehicle).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok {
+				return errors.New("that bus is not on this school's register")
+			}
+		}
+
+		if routeID == nil {
+			/* campus_id is NOT NULL, and most schools run one campus, so an
+			   absent one takes the founding campus rather than refusing a
+			   route over a field the office was never shown. */
+			if err := tx.QueryRow(r.Context(), `
+				INSERT INTO routes (institution_id, campus_id, name, code, vehicle_id,
+				                    distance_km, is_active)
+				VALUES ($1,
+				        COALESCE($2::uuid, (SELECT id FROM campuses
+				                             WHERE institution_id = $1
+				                             ORDER BY created_at LIMIT 1)),
+				        $3, NULLIF($4,''), $5, NULLIF($6,'')::numeric, $7)
+				RETURNING id::text, name`,
+				id.InstitutionID, campus, req.Name, req.Code, vehicle,
+				req.DistanceKm, active).Scan(&out.ID, &out.Name); err != nil {
+				return err
+			}
+		} else {
+			if err := tx.QueryRow(r.Context(), `
+				UPDATE routes
+				   SET name = $2, code = NULLIF($3,''), vehicle_id = $4,
+				       distance_km = NULLIF($5,'')::numeric, is_active = $6,
+				       campus_id = COALESCE($7::uuid, campus_id)
+				 WHERE id = $1
+				RETURNING id::text, name`,
+				*routeID, req.Name, req.Code, vehicle, req.DistanceKm, active,
+				campus).Scan(&out.ID, &out.Name); err != nil {
+				return err
+			}
+		}
+
+		rid := uuid.MustParse(out.ID)
+
+		/* ONE BUS, ONE ROUTE AT A TIME.
+
+		   routes.vehicle_id is what the driver's sign-in reads to decide which
+		   routes to offer. Two routes pointing at one bus is not wrong in the
+		   schema and is wrong on the phone: the driver is handed a list and
+		   picks whichever, and half the parents are watching the other one. */
+		if vehicle != nil {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE routes SET vehicle_id = NULL
+				 WHERE vehicle_id = $1 AND id <> $2`, *vehicle, rid); err != nil {
+				return err
+			}
+		}
+
+		// Replaced wholesale. See the doc comment.
+		if req.Stops != nil {
+			if _, err := tx.Exec(r.Context(),
+				`DELETE FROM route_stops WHERE route_id = $1`, rid); err != nil {
+				return err
+			}
+			for i, st := range req.Stops {
+				name := strings.TrimSpace(st.Name)
+				if name == "" {
+					continue
+				}
+				// Sequence from the array's own order, never from the client's
+				// number: a list edited in place sends whatever it last had,
+				// and a gap or a duplicate there puts a stop out of order on
+				// the driver's screen.
+				if _, err := tx.Exec(r.Context(), `
+					INSERT INTO route_stops (institution_id, route_id, name, sequence,
+					                         pickup_time, drop_time, latitude, longitude,
+					                         fare_paise)
+					VALUES ($1,$2,$3,$4,
+					        NULLIF($5,'')::time, NULLIF($6,'')::time,
+					        NULLIF($7,'')::numeric, NULLIF($8,'')::numeric, $9)`,
+					id.InstitutionID, rid, name, i+1,
+					st.PickupTime, st.DropTime,
+					derefOrEmpty(st.Latitude), derefOrEmpty(st.Longitude),
+					st.FarePaise); err != nil {
+					return err
+				}
+				out.Stops++
+			}
+		} else {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT count(*) FROM route_stops WHERE route_id = $1`, rid).
+				Scan(&out.Stops); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		httpx.NotFound(w, r)
+		return
+	case errors.Is(err, errNotOurCampus):
+		httpx.BadRequest(w, r, err.Error())
+		return
+	case err != nil:
+		if isUniqueViolation(err) {
+			httpx.Error(w, r, http.StatusConflict, "duplicate_route",
+				"a route with that code already exists")
+			return
+		}
+		httpx.BadRequest(w, r, err.Error())
+		return
+	}
+
+	status := http.StatusOK
+	if routeID == nil {
+		status = http.StatusCreated
+	}
+	httpx.JSON(w, status, out)
+}
+
+func derefOrEmpty(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(*v)
+}
+
+// deleteRoute retires a route rather than dropping it: a trip already driven
+// names the route it ran, and deleting the row would orphan that history.
+func (s *Server) deleteRoute(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	routeID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid route id")
+		return
+	}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(),
+			`UPDATE routes SET is_active = false, vehicle_id = NULL WHERE id = $1`, routeID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return pgx.ErrNoRows
+		}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"id": routeID.String(), "retired": true})
+}
