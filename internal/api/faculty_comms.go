@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -972,6 +973,14 @@ type broadcastRequest struct {
 	SendEmail    bool `json:"send_email"`
 	SendSMS      bool `json:"send_sms"`
 	SendWhatsApp bool `json:"send_whatsapp"`
+	/* What makes the send idempotent.
+
+	   The composer mints this once and keeps it across retries, so a double
+	   tap on a slow connection is answered with the first announcement rather
+	   than publishing a second one and texting the class twice. Optional: a
+	   caller that sends none gets the old behaviour, which is a send per
+	   request. */
+	ClientRef string `json:"client_ref,omitempty"`
 }
 
 // publishBroadcast sends a class-wide or single-child notice to parents.
@@ -1036,6 +1045,7 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 
 	var annID uuid.UUID
 	var recipients int
+	var duplicate bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		for _, sid := range students {
 			ok, err := reachesTaughtStudent(r.Context(), tx, res, sid)
@@ -1048,15 +1058,31 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		/* ON CONFLICT DO NOTHING on the client's reference, then read back.
+		   The second arrival of a retried publish returns no row, which is how
+		   this handler knows to answer with the first announcement instead of
+		   fanning the notice out to the class a second time. */
+		ref := strings.TrimSpace(req.ClientRef)
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO announcements (institution_id, title, body, kind, audience_role,
-			                           requires_ack, publish_at, created_by)
+			                           requires_ack, publish_at, created_by, client_ref)
 			-- 'parents' rather than 'all': this is the teacher writing home, and
 			-- a class notice on the staff noticeboard is a different thing.
-			VALUES ($1,$2,$3,'notice','parents',$4, now(), $5)
+			VALUES ($1,$2,$3,'notice','parents',$4, now(), $5, NULLIF($6,''))
+			ON CONFLICT (institution_id, client_ref) WHERE client_ref IS NOT NULL
+			DO NOTHING
 			RETURNING id`,
 			id.InstitutionID, strings.TrimSpace(req.Title), strings.TrimSpace(req.Body),
-			req.RequiresAck, id.UserID).Scan(&annID); err != nil {
+			req.RequiresAck, id.UserID, ref).Scan(&annID); errors.Is(err, pgx.ErrNoRows) {
+			if ref == "" {
+				return err
+			}
+			duplicate = true
+			return tx.QueryRow(r.Context(),
+				`SELECT id FROM announcements
+				  WHERE institution_id = $1 AND client_ref = $2`,
+				id.InstitutionID, ref).Scan(&annID)
+		} else if err != nil {
 			return err
 		}
 		for _, sid := range sections {
@@ -1096,6 +1122,16 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 	if annID == uuid.Nil {
 		return
 	}
+	if duplicate {
+		// The retry of a publish that already went out. Answer with the notice
+		// that exists; sending it again is the thing the reference prevents.
+		httpx.JSON(w, http.StatusOK, map[string]any{
+			"id": annID.String(), "recipients": recipients,
+			"sections": len(sections), "students": len(students),
+			"messages_queued": 0, "duplicate": true,
+		})
+		return
+	}
 
 	/* Out of the building, on whichever channels were ticked.
 
@@ -1114,9 +1150,17 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 	if req.SendWhatsApp {
 		channels = append(channels, "whatsapp")
 	}
-	queued := 0
+	/* The fan-out reports what it could not do.
+
+	   Both numbers used to be thrown away: the transaction's error was
+	   assigned to _, and an Enqueue that failed simply did not increment the
+	   count. A teacher who ticked SMS and got a 201 back had no way to learn
+	   that the queue was down and not one household had been texted — which is
+	   the worst outcome available, because they stop worrying about it. */
+	queued, failed := 0, 0
+	var fanoutErr error
 	if len(channels) > 0 && s.Queue != nil {
-		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		fanoutErr = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 			rows, err := tx.Query(r.Context(), `
 				SELECT DISTINCT g.user_id
 				  FROM students st
@@ -1157,6 +1201,8 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 							Vars:     map[string]any{"title": req.Title, "body": req.Body},
 						}, queue.HeavyOptions()...); err == nil {
 						queued++
+					} else {
+						failed++
 					}
 				}
 			}
@@ -1164,11 +1210,24 @@ func (s *Server) publishBroadcast(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	httpx.JSON(w, http.StatusCreated, map[string]any{
+	body := map[string]any{
 		"id": annID.String(), "recipients": recipients,
 		"sections": len(sections), "students": len(students),
 		"messages_queued": queued,
-	})
+	}
+	/* The notice is published either way — it is in the portal and the
+	   acknowledgement list is already building — so this is not a 500. But the
+	   author is told, in the response their own screen reads, that the
+	   messages did not all leave. */
+	if failed > 0 {
+		body["messages_failed"] = failed
+	}
+	if fanoutErr != nil {
+		body["messages_failed"] = recipients*len(channels) - queued
+		body["send_error"] = "the notice was published but could not be handed to the sender"
+		httpx.LogError(r, fanoutErr)
+	}
+	httpx.JSON(w, http.StatusCreated, body)
 }
 
 // --- the umbrella screen ----------------------------------------------------
