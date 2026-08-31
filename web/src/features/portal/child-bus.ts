@@ -122,10 +122,19 @@ export function withDrift(row: ChildBusRow, drift: number, staleAfter: number): 
   return { ...row, age_seconds: age, state }
 }
 
-/** A state where a position is worth plotting at all. */
+/* A state where a position is worth drawing at all.
+
+   'arrived' belongs here and was missing. The bus reaching the stop is the
+   moment a parent looks hardest -- the child is getting on or off it -- and
+   the row already carries the position and already states the distance in
+   words, so withholding only the picture told them nothing extra and simply
+   left a card with nothing on it at the one moment it mattered.
+
+   The three states left out are genuinely nothing to draw: no run open, no
+   position yet, and not published by the school. */
 export function hasPlot(row: ChildBusRow): boolean {
   return (
-    (row.state === 'running' || row.state === 'stale') &&
+    (row.state === 'running' || row.state === 'stale' || row.state === 'arrived') &&
     row.latitude != null &&
     row.longitude != null
   )
