@@ -710,6 +710,22 @@
   /* Sticky headers become fixed banners on paper. */
   .responsive-table thead th { position: static !important; }
 
+  /* A TABLE ON PAPER IS NOT A TABLE IN A PANE.
+
+     On screen the table sits in a scroller and the columns divide whatever is
+     left after the sidebar. Printed, that same width is handed to the sheet —
+     so "₹11,833" broke across two lines and "05 Sept 2026" across three, on a
+     page with two inches of white margin beside it. The sheet is the width
+     now, and figures and dates are told not to wrap. */
+  .responsive-table { width: 100% !important; table-layout: auto !important; }
+  .responsive-table td,
+  .responsive-table th { white-space: nowrap !important; padding: 4pt 6pt !important; }
+  /* Long prose in a cell may still wrap; only the short facts must not. */
+  .responsive-table td.wrap { white-space: normal !important; }
+  /* Anything that only exists to be clicked: the full-screen control on a
+     table header, sort arrows, row buttons. */
+  .responsive-table button { display: none !important; }
+
   /* The page fills the sheet; the app's max width is a screen concern. */
   main,
   .page-shell {

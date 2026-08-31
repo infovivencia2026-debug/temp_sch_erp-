@@ -67,6 +67,19 @@ type familyInvoice struct {
 	FinePaise   int64   `json:"fine_paise"`
 	Status      string  `json:"status"`
 	DaysOverdue int     `json:"days_overdue"`
+	/* What the money is for.
+
+	   The row said "Instalment 1 — ₹11,833" and nothing else, so a parent
+	   asking what they are paying for had to telephone the office to be read
+	   the same list the school already holds. Tuition, laboratory, transport,
+	   and any penalty, each with its amount. */
+	Lines []familyInvoiceLine `json:"lines"`
+}
+
+type familyInvoiceLine struct {
+	Head   string `json:"head"`
+	Paise  int64  `json:"amount_paise"`
+	IsFine bool   `json:"is_fine"`
 }
 
 type familyReceipt struct {
@@ -103,7 +116,7 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 		// Cancelled invoices are excluded: a bill the school withdrew is not
 		// something a parent should still see themselves owing.
 		rows, err := tx.Query(r.Context(), `
-			SELECT invoice_no, instalment_no,
+			SELECT id, invoice_no, instalment_no,
 			       to_char(issued_on,'YYYY-MM-DD'), to_char(due_on,'YYYY-MM-DD'),
 			       net_paise, paid_paise, fine_paise, status,
 			       GREATEST(0, CURRENT_DATE - due_on)::int
@@ -113,9 +126,11 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		ids := []uuid.UUID{}
 		for rows.Next() {
 			var v familyInvoice
-			if err := rows.Scan(&v.InvoiceNo, &v.Instalment, &v.IssuedOn, &v.DueOn,
+			var id uuid.UUID
+			if err := rows.Scan(&id, &v.InvoiceNo, &v.Instalment, &v.IssuedOn, &v.DueOn,
 				&v.NetPaise, &v.PaidPaise, &v.FinePaise, &v.Status,
 				&v.DaysOverdue); err != nil {
 				rows.Close()
@@ -125,11 +140,59 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 			if v.DuePaise > 0 {
 				due += v.DuePaise
 			}
+			ids = append(ids, id)
 			invoices = append(invoices, v)
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
 			return err
+		}
+
+		/* What each instalment is made of, in one query rather than one per
+		   invoice: a family with four terms would otherwise be five round
+		   trips to answer a question the first one nearly answered. */
+		if len(ids) > 0 {
+			at := map[string]int{}
+			for i, id := range ids {
+				at[id.String()] = i
+			}
+			lr, err := tx.Query(r.Context(), `
+				SELECT il.invoice_id::text,
+				       COALESCE(NULLIF(il.description, ''), fh.name),
+				       il.amount_paise - il.discount_paise
+				  FROM invoice_lines il
+				  JOIN fee_heads fh ON fh.id = il.fee_head_id
+				 WHERE il.invoice_id = ANY($1)
+				 ORDER BY il.amount_paise DESC`, ids)
+			if err != nil {
+				return err
+			}
+			for lr.Next() {
+				var invID, head string
+				var paise int64
+				if err := lr.Scan(&invID, &head, &paise); err != nil {
+					lr.Close()
+					return err
+				}
+				if i, ok := at[invID]; ok {
+					invoices[i].Lines = append(invoices[i].Lines,
+						familyInvoiceLine{Head: head, Paise: paise})
+				}
+			}
+			lr.Close()
+			if err := lr.Err(); err != nil {
+				return err
+			}
+			/* The penalty is not a line — it lives in fine_paise, because
+			   net_paise is generated from it — so it is added here or the
+			   breakdown would not add up to the total the family is shown. */
+			for i := range invoices {
+				if invoices[i].FinePaise > 0 {
+					invoices[i].Lines = append(invoices[i].Lines,
+						familyInvoiceLine{Head: "Late fee / penalty",
+							Paise: invoices[i].FinePaise, IsFine: true})
+				}
+			}
 		}
 
 		// A bounced cheque is shown rather than hidden. The family needs to

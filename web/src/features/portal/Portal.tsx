@@ -9,7 +9,6 @@ import {
 } from '@/components/ui'
 import { formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
-import ParentAttention from './ParentAttention'
 
 interface PortalChild {
   student_id: string; admission_no: string; full_name: string
@@ -318,7 +317,10 @@ export default function Portal() {
             comes first: an unpaid fee or an absence to explain is the reason a
             parent opened the application at all, and making them find it on a
             second screen is how it goes unread. */}
-        {!isAttendance && <ParentAttention />}
+        {/* The shell already draws "Needs your attention" above every page,
+            so drawing it again here gave a parent the same two rows twice on
+            one screen — the second copy reading as a different list until you
+            compared them line by line. */}
         {summary.isLoading ? (
           <Loading />
         ) : summary.error ? (

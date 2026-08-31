@@ -419,6 +419,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments", s.collectFee)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/receipts/{id}", s.getReceipt)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/clear", s.clearCheque)
+			/* A penalty somebody decided on, rather than one a rule worked out.
+			   Same right as taking money: whoever may put a payment on a
+			   family's ledger may put a charge on it. */
+			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/invoices/{id}/penalty", s.addInvoicePenalty)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/bounce", s.bounceCheque)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)

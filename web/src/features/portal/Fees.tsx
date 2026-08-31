@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -19,9 +19,12 @@ import { useT } from '@/lib/i18n'
    What a parent actually wants is three numbers and two lists: what is owed,
    by when, what has been paid. */
 
+interface InvoiceLine { head: string; amount_paise: number; is_fine?: boolean }
+
 interface Invoice {
   invoice_no: string
   instalment_no?: number
+  lines?: InvoiceLine[]
   issued_on: string
   due_on?: string
   net_paise: number
@@ -175,7 +178,8 @@ export default function PortalFees() {
           ) : (
             <Table head={[t('portal.fees.col_instalment'), t('portal.fees.col_due'), t('portal.fees.col_amount'), t('portal.fees.col_paid'), t('portal.fees.col_still_due'), t('portal.fees.col_status')]}>
               {d.invoices.map((i) => (
-                <tr key={i.invoice_no}>
+                <Fragment key={i.invoice_no}>
+                <tr>
                   <Td className="font-medium">
                     {i.instalment_no ? t('portal.fees.instalment_no', { number: i.instalment_no }) : i.invoice_no}
                     <span className="ml-2 text-[12px] text-muted-foreground">{i.invoice_no}</span>
@@ -200,6 +204,32 @@ export default function PortalFees() {
                     <Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>
                   </Td>
                 </tr>
+                {/* What the instalment is made of.
+
+                    The row said "Instalment 1 — ₹11,833" and nothing else, so
+                    a parent asking what they are paying for had to telephone
+                    the office to be read a list the school already holds. */}
+                {i.lines && i.lines.length > 0 && (
+                  <tr>
+                    <Td colSpan={6} className="bg-muted/30 py-2">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12.5px]">
+                        {i.lines.map((l, n) => (
+                          <span key={n} className={l.is_fine ? 'text-destructive' : undefined}>
+                            {l.head}
+                            <span className="ml-1.5 font-medium tabular-nums">
+                              {formatPaise(l.amount_paise)}
+                            </span>
+                          </span>
+                        ))}
+                        <span className="font-semibold">
+                          Total
+                          <span className="ml-1.5 tabular-nums">{formatPaise(i.net_paise)}</span>
+                        </span>
+                      </div>
+                    </Td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </Table>
           )}

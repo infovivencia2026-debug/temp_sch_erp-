@@ -351,8 +351,11 @@ export default function StaffMessages() {
                               m.mine ? 'text-primary-foreground/80' : 'text-muted-foreground',
                             )}
                           >
-                            {m.mine ? 'You' : m.sender_name}
-                            {m.sender_side && ` · ${m.sender_side}`}
+                            {/* "You" already says which side; "You · teacher"
+                                says it twice. The side is for the other
+                                person's messages, where it is the fact being
+                                asked for. */}
+                            {m.mine ? 'You' : `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`}
                           </p>
                           <p className="whitespace-pre-wrap">{m.body}</p>
                           <p

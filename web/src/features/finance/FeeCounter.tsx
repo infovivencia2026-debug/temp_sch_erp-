@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Select, Input, Loading, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -54,6 +54,11 @@ export default function FeeCounter() {
   const [search, setSearch] = useState('')
   const [studentId, setStudentId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  /* A penalty typed onto one bill. Open on at most one row: two half-filled
+     penalty forms is how the wrong family gets charged. */
+  const [penaltyOn, setPenaltyOn] = useState<string | null>(null)
+  const [penaltyAmount, setPenaltyAmount] = useState('')
+  const [penaltyReason, setPenaltyReason] = useState('')
   const [amount, setAmount] = useState('')
   const [mode, setMode] = useState('cash')
   const [reference, setReference] = useState('')
@@ -72,6 +77,22 @@ export default function FeeCounter() {
     queryKey: ['fee-ledger', studentId],
     queryFn: () => api.get<Ledger>(`/api/v1/fees/students/${studentId}/ledger`),
     enabled: !!studentId,
+  })
+
+  const penalty = useMutation({
+    mutationFn: (v: { id: string }) =>
+      api.post(`/api/v1/fees/invoices/${v.id}/penalty`, {
+        amount: Number(penaltyAmount),
+        reason: penaltyReason.trim(),
+      }),
+    onSuccess: () => {
+      setPenaltyOn(null)
+      setPenaltyAmount('')
+      setPenaltyReason('')
+      // The bill, the balance and the family's copy all move together.
+      qc.invalidateQueries()
+      toast.ok('Penalty added. The family has been told.')
+    },
   })
 
   const collect = useMutation({
@@ -203,12 +224,13 @@ export default function FeeCounter() {
                   }
                 />
                 <Table
-                  head={['', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance', 'Status']}
+                  head={['', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance', 'Status', '']}
                   empty={!dues.length}
                   emptyLabel="Nothing outstanding — the account is settled."
                 >
                   {dues.map((d) => (
-                    <tr key={d.invoice_id}>
+                    <Fragment key={d.invoice_id}>
+                    <tr>
                       <Td>
                         <input
                           type="checkbox"
@@ -228,7 +250,64 @@ export default function FeeCounter() {
                       <Td>{formatPaise(d.paid_paise)}</Td>
                       <Td className="font-medium">{formatPaise(d.balance_paise)}</Td>
                       <Td><Badge tone={d.status === 'overdue' ? 'danger' : 'warning'}>{d.status}</Badge></Td>
+                      <Td>
+                        {/* A penalty somebody decided on, rather than one a
+                            rule worked out. The alternative was raising a
+                            second invoice, which puts one term's money in two
+                            places and makes the family's ledger read as two
+                            debts. */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setPenaltyOn(penaltyOn === d.invoice_id ? null : d.invoice_id)
+                            setPenaltyAmount('')
+                            setPenaltyReason('')
+                          }}
+                        >
+                          {penaltyOn === d.invoice_id ? 'Cancel' : 'Add penalty'}
+                        </Button>
+                      </Td>
                     </tr>
+                    {penaltyOn === d.invoice_id && (
+                      <tr>
+                        <Td colSpan={8} className="bg-muted/30">
+                          <div className="flex flex-wrap items-end gap-3 py-1">
+                            <label className="flex flex-col gap-1 text-[12.5px]">
+                              <span className="text-muted-foreground">Amount (₹)</span>
+                              <Input
+                                value={penaltyAmount}
+                                onChange={setPenaltyAmount}
+                                type="number"
+                                className="w-32"
+                              />
+                            </label>
+                            <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[12.5px]">
+                              <span className="text-muted-foreground">
+                                Why — the family sees this
+                              </span>
+                              <Input
+                                value={penaltyReason}
+                                onChange={setPenaltyReason}
+                                placeholder="Paid after 10 Sep, as agreed with the office"
+                              />
+                            </label>
+                            <Button
+                              disabled={
+                                penalty.isPending
+                                || !penaltyReason.trim()
+                                || !(Number(penaltyAmount) > 0)
+                              }
+                              onClick={() => penalty.mutate({ id: d.invoice_id })}
+                            >
+                              {penalty.isPending ? 'Adding…' : 'Add to this bill'}
+                            </Button>
+                          </div>
+                          <FormNotice error={penalty.error} />
+                        </Td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </Table>
                 {selected.size > 0 && (
