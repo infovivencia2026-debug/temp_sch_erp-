@@ -58,10 +58,26 @@ func run() error {
 	// Pull the subcommand out first and parse what is left, which makes the
 	// order irrelevant.
 	args := os.Args[1:]
+	/* The first bare word is the subcommand -- but only if it is one.
+
+	   This took the first argument not starting with a dash, which is right
+	   for `migrate -db=... up` and wrong for `migrate -institution Yajur
+	   set-passwords`: the school's name is a bare word too, so it became the
+	   command and the real one became a stray argument. The error said
+	   `unknown command "Yajur"`, which reads as a typo in the name rather
+	   than as a parsing accident.
+
+	   Matching against the commands that exist settles it without having to
+	   know which flags take a value. */
+	known := map[string]bool{
+		"up": true, "down": true, "status": true, "seed": true,
+		"seed-permissions": true, "create-admin": true, "create-seller": true,
+		"demo-data": true, "demo-users": true, "set-passwords": true,
+	}
 	cmd := ""
 	rest := make([]string, 0, len(args))
 	for _, a := range args {
-		if cmd == "" && !strings.HasPrefix(a, "-") {
+		if cmd == "" && known[a] {
 			cmd = a
 			continue
 		}
@@ -645,8 +661,7 @@ func setPasswords(ctx context.Context, db *database.DB, pepper, instName, passwo
 		tag, err := tx.Exec(ctx, `
 			UPDATE users SET password_hash = $2, updated_at = now()
 			 WHERE institution_id = $1::uuid
-			   AND status = 'active'
-			   AND COALESCE(platform_admin, false) = false`, instID, hash)
+			   AND status = 'active'`, instID, hash)
 		if err != nil {
 			return err
 		}
@@ -668,7 +683,6 @@ func setPasswords(ctx context.Context, db *database.DB, pepper, instName, passwo
 			  LEFT JOIN roles r ON r.id = ur.role_id
 			 WHERE u.institution_id = $1::uuid
 			   AND u.status = 'active'
-			   AND COALESCE(u.platform_admin, false) = false
 			 GROUP BY u.id, u.full_name, u.email, u.phone, u.username
 			 ORDER BY COALESCE(string_agg(r.key, ' '), ''), u.full_name`, instID)
 		if err != nil {
