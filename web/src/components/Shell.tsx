@@ -859,17 +859,13 @@ export function Shell({
             )
           })}
 
-          {/* Depth that exists but is rarely wanted, and depth that does not
-              exist yet: two different questions, so two switches. Both live at
-              the foot, out of the way of the work. */}
-          <div className="mt-3 space-y-0.5 border-t pt-3">
-            {/* The same preferences the chrome-less layout keeps behind its
-                cog. They were only reachable from there, so a person who had
-                never tried Focus could not change the density or the text size
-                at all — the appearance screen that carries them is catalogued
-                for students only. */}
-            <BentoSettings placement="sidebar" />
-          </div>
+          {/* Settings is not repeated here.
+
+              It was put in the sidebar because the preferences were otherwise
+              reachable only from the chrome-less layout's cog — but the rail's
+              own cog, a few pixels to the left, opens the same panel. Two
+              controls for one thing on one screen reads as two different
+              things until somebody presses both. */}
         </nav>
         </div>
       </aside>
