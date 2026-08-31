@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useCatalog, screenTitle } from '@/lib/catalog'
@@ -25,6 +25,23 @@ export default function TabStrip() {
   const { paths, split, closeSplit } = usePanes()
   const { layout } = useLayout()
   const [menu, setMenu] = useState<MenuTarget | null>(null)
+  const activeRef = useRef<HTMLDivElement | null>(null)
+
+  /* KEEP THE TAB YOU ARE ON IN SIGHT.
+   *
+   * The strip scrolls once the tabs stop fitting, and nothing was scrolling it.
+   * Measured at 1024px with eight screens open: the strip is 1024 wide, its
+   * content 1198, scrollLeft stays 0, and the tab for the screen actually on
+   * display sits at 1001..1122, so opening a seventh or eighth screen left its
+   * own tab past the right edge reading "Adm" instead of "Admissions Pipeline".
+   * That is the "text overflowing" complaint: the title is not too wide for its
+   * tab, the tab is outside the visible strip.
+   *
+   * `nearest` on both axes, because `center` would also scroll the page body
+   * to drag the strip into the middle of the window. */
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }, [here, tabs.length])
 
   const titleFor = (path: string) => screenTitle(catalog, path)
 
@@ -63,6 +80,18 @@ export default function TabStrip() {
     <div
       role="tablist"
       aria-label="Open screens"
+      /* A wheel over a horizontal-only scroller does nothing on a mouse: the
+         browser sends deltaY, and there is no vertical axis here to spend it
+         on. The overflow is also drawn with an overlay scrollbar (measured: 1px
+         of gutter), so nothing on screen invites a drag either. Spending deltaY
+         on the horizontal axis is what makes the far tabs reachable without a
+         trackpad. */
+      onWheel={(e) => {
+        if (e.deltaY === 0) return
+        const el = e.currentTarget
+        if (el.scrollWidth <= el.clientWidth) return
+        el.scrollLeft += e.deltaY
+      }}
       className="hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex"
     >
       {tabs.map((t) => {
@@ -86,6 +115,7 @@ export default function TabStrip() {
         return (
           <div
             key={t.path}
+            ref={active ? activeRef : undefined}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({ path: t.path, title: t.title, x: e.clientX, y: e.clientY })
@@ -120,7 +150,15 @@ export default function TabStrip() {
               role="tab"
               aria-selected={active}
               onClick={() => navigate(t.path)}
-              className="min-w-0 flex-1 truncate text-left focus-visible:outline-none"
+              /* No `outline-none` here. It used to sit on this line and put
+                 nothing back, so the one global focus ring in index.css was
+                 cancelled and keyboard focus on a tab was invisible (measured:
+                 outline colour rgba(0,0,0,0)). The offset is pulled inside the
+                 tab instead of outside it, because the ring on the first or
+                 last tab would otherwise be drawn in the strip's overflow and
+                 clipped away. */
+              className="min-w-0 flex-1 truncate rounded-sm text-left
+                         focus-visible:[outline-offset:-2px]"
               title={t.title}
             >
               {t.title}
@@ -135,8 +173,16 @@ export default function TabStrip() {
                 close(t.path)
                 if (to) navigate(to)
               }}
-              className="grid size-4 shrink-0 place-items-center rounded opacity-0 transition-opacity
-                         hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100"
+              /* size-4 measured 14px square, well under any pointer target,
+                 and it stayed invisible until the row was hovered, so closing
+                 the tab you are looking at began with aiming at nothing. The
+                 box measures 21px now, and the current tab's close control is
+                 always drawn. */
+              className={cn(
+                `grid size-6 shrink-0 place-items-center rounded transition-opacity
+                 hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100`,
+                active ? 'opacity-70' : 'opacity-0',
+              )}
             >
               <X className="size-3" aria-hidden="true" />
             </button>

@@ -298,7 +298,33 @@ export function WidgetLayer({
      list you can actually work in. Paging is read-only, on purpose: moving a
      card BETWEEN pages needs a stored page index, and `layout.placed` has no
      such field to put one in. */
-  const paged = phone && !arranging
+  /* THE PAGER NEEDS A BOARD, AND TWO DASHBOARDS DO NOT HAVE ONE.
+
+     Every pager rule in bento-theme.css is written against
+     `.bento-board[data-pager]`, and the attribute is set on the layer's own
+     ancestor board below. The parent and faculty homes render this layer
+     OUTSIDE the board, straight into the scrolling `.bento-surface`, so that
+     lookup comes back null and nothing is ever marked.
+
+     Paging regardless is the failure this guard exists for. `spots` still
+     packed the cards onto pages and each wrapper still got
+     `grid-column: page * 2 + col + 1`, so on those two boards the cards packed
+     onto page two were placed in a column the page container has no track for.
+     Measured on the live parent home at 390px they came out 28px wide - card
+     padding and nothing else - clipped against the right edge of the screen,
+     with no dots and no way to scroll to them. Two of the parent's five cards
+     were simply not readable.
+
+     Read after mount rather than from a prop because only the DOM knows: it is
+     the shape of the tree this layer was dropped into, and the layer is handed
+     no say in it. Until it is known the answer is "no pager", which is the
+     stacked scrolling board every one of these screens shipped with. */
+  const [inBoard, setInBoard] = useState(false)
+  useEffect(() => {
+    setInBoard(!!markRef.current?.closest('.bento-board'))
+  })
+
+  const paged = phone && !arranging && inBoard
   const spots = useMemo(() => {
     if (!paged) return null
     return paginate(

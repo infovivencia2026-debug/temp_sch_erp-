@@ -1863,6 +1863,17 @@ html[data-layout='bento'] body {
    widget layer in it (a converted screen that declares its cells without one,
    or a classic screen falling through the outlet) keeps the stacked scrolling
    board it has always had rather than becoming a pager with nothing to page.
+
+   The `.bento-board` in the selector is load-bearing and WidgetLayer now checks
+   for the same element before it pages at all. The parent and faculty homes
+   render their widget layer OUTSIDE the board, straight into the scrolling
+   `.bento-surface`; the layer used to page anyway, and every rule below then
+   matched nothing while the cards still carried page-two column numbers. The
+   two cards packed onto page two landed in an implicit column no track sized:
+   measured at 390px they were 28px wide, all padding and no content, clipped
+   against the right edge of the screen. Marking the surface instead is not the
+   repair - it is a whole scrolling page, 2649px tall at 390px, and the pager
+   rules would make a snap carousel of the header too.
    ───────────────────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
   /* The dock's real height, once, so the page dots can sit above it without
@@ -2124,16 +2135,30 @@ html[data-layout='bento'] body {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--dock-h, 56px) + 6px);
+    /* Clear of the dock by more than the old 6px. The hit area below is 44px
+       tall and centred on the dot, so it reaches ~18px past the dot in each
+       direction; at 6px the bottom of it ran under the dock, which is z-50
+       against this strip's z-45 and therefore wins every tap it overlaps.
+       A target whose lower third cannot be pressed is the defect this file
+       keeps finding, so the strip moves up until the whole of it is reachable. */
+    bottom: calc(var(--dock-h, 56px) + 24px);
     z-index: 45;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    /* The dots stay 7px. This is the space BETWEEN them, and it is what caps
+       how wide each dot's hit area can be: two 44px-wide targets 14px apart
+       would overlap, the later one in the DOM would cover the earlier one's
+       centre, and the first page would become unreachable by tap. So the pitch
+       is opened to 29px and each target claims exactly its own pitch — wide
+       enough to be found, narrow enough that no dot swallows its neighbour. */
+    --bento-dot-gap: 22px;
+    gap: var(--bento-dot-gap);
     pointer-events: none;
   }
   .bento-dot {
     pointer-events: auto;
+    position: relative;
     width: 7px;
     height: 7px;
     padding: 0;
@@ -2153,6 +2178,35 @@ html[data-layout='bento'] body {
   .bento-dot:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 3px;
+  }
+
+  /* THE THING THE FINGER ACTUALLY HITS.
+
+     Measured on the live board: a tap 6px off a dot's centre did nothing at
+     all, because the dot IS the target and the target is 7x7. Nobody lands a
+     thumb inside 7px on a moving bus.
+
+     Grown as a pseudo-element rather than as padding on the button, because
+     padding would push the dots apart and this must not change what is drawn:
+     an absolutely positioned box takes no space in the flex row, so the strip
+     is still a row of 7px dots 22px apart and the target around each one is
+     29x44 instead of 7x7 - roughly twenty-five times the area.
+
+     Transparent and untinted on purpose. Anything visible here would read as a
+     pill behind each dot, which is a different control. */
+  .bento-dot::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Its own pitch: the dot plus the gap on either side of it, halved, comes
+       to exactly the distance to the next dot. Neighbours meet and never
+       overlap, so there is no dead strip between them and no dot hidden under
+       the one after it. */
+    width: calc(100% + var(--bento-dot-gap, 22px));
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: 8px;
   }
 }
 

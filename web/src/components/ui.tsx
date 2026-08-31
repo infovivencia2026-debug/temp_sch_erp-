@@ -1124,6 +1124,11 @@ export function Checkbox({
  * first letter, only while the menu is open, and never on the middle of a
  * name, which is how people actually search for "Priya Rao" by typing "rao".
  */
+/* Menu rows measure 30px tall, which is a comfortable mouse target and half
+   of what a thumb needs. Only the touch case is widened, so the dense list a
+   mouse user reads at a glance stays dense. */
+const COARSE_ROW = '[@media(pointer:coarse)]:py-3 [@media(pointer:coarse)]:text-[15px]'
+
 export function Select({
   value,
   onChange,
@@ -1265,7 +1270,7 @@ export function Select({
   return (
     <div ref={box} className="relative">
       <input
-        className="field cursor-text pr-8"
+        className="field cursor-text pr-8 [@media(pointer:coarse)]:text-[16px]"
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
@@ -1315,7 +1320,7 @@ export function Select({
         >
           {placeholder && !q && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
-              className="block w-full rounded px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent">
+              className={cn('block w-full rounded px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent', COARSE_ROW)}>
               {placeholder}
             </button>
           )}
@@ -1328,6 +1333,7 @@ export function Select({
               onClick={() => choose(o.value)}
               className={cn(
                 'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                COARSE_ROW,
                 i === active ? 'bg-accent' : 'hover:bg-accent',
                 o.value === value && 'font-medium',
               )}
@@ -1344,6 +1350,7 @@ export function Select({
               disabled={busy}
               className={cn(
                 'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                COARSE_ROW,
                 active === shown.length ? 'bg-accent' : 'hover:bg-accent',
               )}
             >
@@ -1358,6 +1365,7 @@ export function Select({
               onClick={() => choose(query.trim())}
               className={cn(
                 'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                COARSE_ROW,
                 active === shown.length ? 'bg-accent' : 'hover:bg-accent',
               )}
             >
@@ -1428,7 +1436,11 @@ export function Input({
       onFocus={onFocus}
       onBlur={onBlur}
       aria-label={srLabel || undefined}
-      className={cn('field', isPassword && 'pr-10', className)}
+      /* 16px on a touch device, not the 14px the design calls for.
+         Safari on iOS zooms the whole page in when a focused box has text
+         under 16px, and it never zooms back out, so admitting a student left
+         the clerk on a form scrolled sideways off its own card. */
+      className={cn('field [@media(pointer:coarse)]:text-[16px]', isPassword && 'pr-10', className)}
     />
   )
   if (!isPassword) return field
@@ -1497,7 +1509,9 @@ export function Textarea({
       }
       placeholder={placeholder}
       rows={rows}
-      className={cn('field h-auto resize-y py-2 leading-relaxed', className)}
+      // 16px on touch for the same reason as Input: below that iOS zooms in
+      // on focus and stays zoomed.
+      className={cn('field h-auto resize-y py-2 leading-relaxed [@media(pointer:coarse)]:text-[16px]', className)}
     />
   )
 }
