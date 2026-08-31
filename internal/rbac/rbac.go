@@ -410,6 +410,18 @@ var SystemRoles = []Role{
 	{"admissions", "Admissions & Front Office", []string{
 		FrontDeskRead, FrontDeskWrite,
 		AcademicsRead, AdmissionsRead, AdmissionsWrite, StudentsRead, StudentsWrite,
+		/* The whole roll, because the office admits into all of it.
+
+		   StudentsRead without the widener resolves to the caller's OWN
+		   children — the narrowing that makes a parent see one child — and an
+		   admissions clerk has none on the roll. So Student 360 answered "No
+		   student matches" for every search, and the office that hands a family
+		   their login could not reach a single family to hand it to.
+
+		   Read, not write-any: they already held StudentsWrite, which is what
+		   admitting a child needs. This only lets them find the child they have
+		   just admitted. */
+		StudentsReadAll,
 		TransportRead,
 		SelfProfileRead, SelfProfileWrite}},
 	// The receptionist could read the school and write nothing, which made the
