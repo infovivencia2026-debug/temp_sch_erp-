@@ -162,7 +162,11 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
             left: 0; top: 0; width: 100%;
             border: none !important;
           }
-          #receipt-sheet .no-print { display: none !important; }
+          /* No controls on the sheet. The full-screen toggle on a table
+             header printed as a small square over the word "Amount", which is
+             a button somebody is holding a piece of paper trying to press. */
+          #receipt-sheet .no-print,
+          #receipt-sheet button { display: none !important; }
         }
       `}</style>
       <CardHeader

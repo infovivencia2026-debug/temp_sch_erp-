@@ -428,6 +428,10 @@ func (s *Server) Routes() http.Handler {
 			   Same right as taking money: whoever may put a payment on a
 			   family's ledger may put a charge on it. */
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/invoices/{id}/penalty", s.addInvoicePenalty)
+			/* Chasing a fee today, rather than by rule. Same right as sending
+			   any other message from the school: it goes to families over
+			   channels the school pays for. */
+			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reminders/send", s.sendFeeReminders)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/bounce", s.bounceCheque)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)

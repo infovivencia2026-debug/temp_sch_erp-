@@ -460,7 +460,14 @@ var probes = []probe{
 	},
 	{
 		Key: "certificates.requested", Needs: rbac.StudentsWrite,
-		Severity: SeverityInfo, Action: "Issue", Href: "students",
+		/* The screen that issues one, not the section it lives in.
+
+		   "students" matched Student 360 first — a screen about one child,
+		   which cannot issue anything — and for a role whose workspace has no
+		   feature with "students" in its slug it matched nothing at all, so the
+		   row sat there with nothing to press. */
+		Severity: SeverityInfo, Action: "Issue",
+		Href: "certificates_transfers certificates students",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "certificate request", "certificate requests") + " to issue"
 		},

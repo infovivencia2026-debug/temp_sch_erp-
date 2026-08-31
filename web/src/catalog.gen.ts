@@ -1152,12 +1152,12 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'consent',
-        name: 'Consent',
+        slug: 'consent_permissions',
+        name: 'Consent & Permissions',
         workspace: 'Requests',
         features: [
-          { key: 'parent.consent.consent_acknowledgement', slug: 'consent_acknowledgement', name: 'Consent & acknowledgement', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept.' },
-          { key: 'parent.consent.parent_delegation_for_emergency_pickup', slug: 'parent_delegation_for_emergency_pickup', name: 'Parent Delegation for Emergency Pickup', scope: 'children', tier: 'core', summary: 'Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.' },
+          { key: 'parent.consent_permissions.permission_slips', slug: 'permission_slips', name: 'Permission Slips', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept.' },
+          { key: 'parent.consent_permissions.emergency_pickups', slug: 'emergency_pickups', name: 'Emergency Pickups', scope: 'children', tier: 'core', summary: 'Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency.' },
         ],
       },
       {

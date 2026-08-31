@@ -1567,7 +1567,56 @@ func (s *Server) raisePortalRequest(w http.ResponseWriter, r *http.Request) {
 			        jsonb_build_object('reason', $5::text, 'requested_at', now()),
 			        'requested',$6)`,
 			id.InstitutionID, typeID, sid, serial, strings.TrimSpace(req.Reason), id.UserID)
-		return err
+		if err != nil {
+			return err
+		}
+
+		/* Somebody has to know a family is waiting.
+
+		   The request landed in a table and appeared on the office's dashboard
+		   only if somebody happened to open it — and a certificate a parent
+		   needs for an admission somewhere else is measured in days. Everyone
+		   who can issue one is told, once, with the child's name on it. */
+		var child string
+		_ = tx.QueryRow(r.Context(),
+			`SELECT concat_ws(' ', first_name, last_name) FROM students WHERE id = $1`,
+			sid).Scan(&child)
+		var kind string
+		_ = tx.QueryRow(r.Context(),
+			`SELECT name FROM certificate_types WHERE id = $1`, typeID).Scan(&kind)
+
+		office, err := tx.Query(r.Context(), `
+			SELECT DISTINCT ur.user_id
+			  FROM user_roles ur
+			  JOIN role_permissions rp ON rp.role_id = ur.role_id
+			 WHERE rp.permission_key = $1`, rbac.StudentsWrite)
+		if err != nil {
+			return err
+		}
+		var to []uuid.UUID
+		for office.Next() {
+			var u uuid.UUID
+			if err := office.Scan(&u); err != nil {
+				office.Close()
+				return err
+			}
+			to = append(to, u)
+		}
+		office.Close()
+		if err := office.Err(); err != nil {
+			return err
+		}
+		for _, u := range to {
+			if u == id.UserID {
+				continue
+			}
+			if err := notify(r, tx, id.InstitutionID, u, &sid, "certificate_requested",
+				kind+" asked for", child+" — serial "+serial+". Issue it from Certificates.",
+				"/go/certificates_transfers", "certificate", nil); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.BadRequest(w, r, "the school does not issue that certificate")
