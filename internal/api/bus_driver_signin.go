@@ -104,6 +104,7 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 	}
 	var (
 		token, registration, vehicleModel string
+		sessionToken                      string
 		deviceID, vehicleID               uuid.UUID
 		routes                            = []routeRow{}
 	)
@@ -154,8 +155,19 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		if ierr := tx.QueryRow(r.Context(), `
 			INSERT INTO vehicle_trackers
 			       (institution_id, vehicle_id, name, device_model, android_version,
-			        app_version, enrolled_by, approved_at, approved_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $7)
+			        app_version, token_sealed, enrolled_by, approved_at, approved_by)
+			/* token_sealed is bytea NOT NULL with no default, and the real
+			   value cannot exist yet: it is derived from the row's own id,
+			   which this statement is still generating. A placeholder, then,
+			   overwritten by the UPDATE below in this same transaction, so no
+			   committed row ever carries the sentinel.
+
+			   Omitting it did not fail to compile and did not fail review. It
+			   raised 23502 at runtime on every single call, which surfaced as
+			   a bare 500 on the driver's sign-in screen -- and is why no trip
+			   has ever been opened on this installation. The two sibling paths
+			   both do this; only this one was written from scratch. */
+			VALUES ($1,$2,$3,$4,$5,$6,'\x00'::bytea,$7, now(), $7)
 			RETURNING id`,
 			who.Institution, vehicleID,
 			// The name the transport screen shows. The driver's own, because
@@ -211,8 +223,25 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		if terr != nil {
 			return terr
 		}
-		_, terr = tx.Exec(r.Context(),
-			`UPDATE vehicle_trackers SET token_sealed = $2 WHERE id = $1`, deviceID, sealed)
+		if _, terr = tx.Exec(r.Context(),
+			`UPDATE vehicle_trackers SET token_sealed = $2 WHERE id = $1`,
+			deviceID, sealed); terr != nil {
+			return terr
+		}
+
+		/* THE SHIFT, OPENED HERE.
+
+		   Starting and ending a trip is gated on X-Staff-Session, not on the
+		   device token: the school records who drove each run. This handler
+		   minted the device token and stopped, so a driver signed in, saw his
+		   bus, pressed Start Run and was told to sign in first -- with the
+		   only other way to get a session being the PIN endpoint, and nothing
+		   in HR's give-login flow ever writing a PIN.
+
+		   So it is minted here, from the password he has just proved, which is
+		   the only credential he has. */
+		sessionToken, _, _, terr = s.openStaffSession(
+			r.Context(), tx, who, "bus_tracker", deviceID)
 		return terr
 	})
 
@@ -232,7 +261,10 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"device_id":    deviceID.String(),
 		"device_token": token,
-		"institution":  who.Institution.String(),
+		// The shift. Without it the app holds a tracker that reports position
+		// and can never open a trip.
+		"session_token": sessionToken,
+		"institution":   who.Institution.String(),
 		"vehicle": map[string]any{
 			"id":              vehicleID.String(),
 			"registration_no": registration,

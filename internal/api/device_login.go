@@ -408,7 +408,10 @@ func (s *Server) endStaffSession(ctx context.Context, db *database.DB, app strin
 
 type deviceLoginRequest struct {
 	Phone string `json:"phone"`
-	PIN   string `json:"pin"`
+	// The ordinary login password. "pin" is still read, so a handset built
+	// before this change keeps working after the server updates.
+	Password string `json:"password"`
+	PIN      string `json:"pin"`
 }
 
 type deviceLoginResponse struct {
@@ -424,7 +427,7 @@ func deviceLoginRejected(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 	httpx.Error(w, r, http.StatusUnauthorized, "bad_pin",
-		"that phone number and PIN do not match. Ask the office to check the number on your record.")
+		"that number and password do not match. Ask the office to check the number on your record.")
 }
 
 /*
@@ -443,7 +446,23 @@ func (s *Server) busTrackerSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	who, err := s.authenticatePIN(r.Context(), req.Phone, req.PIN)
+	/* THE SAME CREDENTIAL AS THE OTHER WAY IN.
+
+	   This asked for a PIN alone while the driver sign-in beside it takes the
+	   ordinary login password. Two entry points to one app disagreeing about
+	   what a driver's credential is meant that a driver issued a login by HR
+	   could not start a shift on a handset that had been paired by code: the
+	   password was rejected as a bad PIN, and he was told his number and PIN
+	   did not match, for a PIN that was never issued to anybody.
+
+	   authenticateStaffLogin tries the password first and falls back to the
+	   PIN without touching the PIN lockout counter, and it matches on email or
+	   username as well, which the ten-digit PIN path cannot. */
+	secret := req.Password
+	if secret == "" {
+		secret = req.PIN
+	}
+	who, err := s.authenticateStaffLogin(r.Context(), req.Phone, secret)
 	if err != nil {
 		deviceLoginRejected(w, r, err)
 		return

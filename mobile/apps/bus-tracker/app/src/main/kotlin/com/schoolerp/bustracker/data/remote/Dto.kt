@@ -132,6 +132,17 @@ data class DriverSignInRequest(
 data class DriverSignInResponse(
     @SerialName("device_id") val deviceId: String,
     @SerialName("device_token") val deviceToken: String,
+    /* THE SHIFT, not just the handset.
+     *
+     * Starting a run is gated on the staff session, not on the device token,
+     * because the school records who drove each run. Sign-in used to hand back
+     * only the token, so a driver saw his bus and was then told to sign in
+     * before starting the run -- with the only other way to get a session
+     * being a PIN endpoint, for a PIN nobody is ever issued.
+     *
+     * Defaulted, so a handset carrying this build still works against a server
+     * that predates it. */
+    @SerialName("session_token") val sessionToken: String = "",
     val vehicle: Vehicle,
     /** The driver's name, so the run screen can say who is signed in. */
     val driver: String? = null,
@@ -157,7 +168,9 @@ data class AssignedRoute(
 @Serializable
 data class SignInRequest(
     val phone: String,
-    val pin: String,
+    /* The driver's ordinary login. Sent as `password`; the server reads `pin`
+       too, so an older server still accepts this. */
+    val password: String,
 )
 
 @Serializable

@@ -115,6 +115,16 @@ class TrackerRepository @Inject constructor(
                 )
             }
             tokenStore.save(response.deviceId, response.deviceToken)
+            /* The shift as well as the handset.
+             *
+             * Without this the driver is signed in as far as the bus is
+             * concerned and not signed in as far as a trip is concerned, which
+             * is the state that told him to sign in on a screen he had just
+             * signed in on. Guarded on non-empty so an older server, which
+             * sends no session, leaves any existing one alone. */
+            if (response.sessionToken.isNotEmpty()) {
+                tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
+            }
             PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
         } catch (failure: ApiFailure) {
             PairOutcome.Rejected(driverSignInMessage(failure))
@@ -204,7 +214,9 @@ class TrackerRepository @Inject constructor(
     suspend fun signIn(phone: String, pin: String): SignInOutcome {
         val ctx = requireContext() ?: return SignInOutcome.NotPaired
         return try {
-            val response = api.signIn(ctx.baseUrl, ctx.token, SignInRequest(phone = phone, pin = pin))
+            val response = api.signIn(
+                ctx.baseUrl, ctx.token, SignInRequest(phone = phone, password = pin),
+            )
             tokenStore.saveSession(response.sessionToken, response.name)
             SignInOutcome.SignedIn(response.name)
         } catch (failure: ApiFailure) {
@@ -224,7 +236,7 @@ class TrackerRepository @Inject constructor(
 
     private fun signInMessage(failure: ApiFailure): String = when (failure) {
         is ApiFailure.Unauthorized ->
-            "That phone number and PIN did not match. Ask the office to check the number they have for you."
+            "That number and password did not match. Ask the office to check the number they have for you."
         /* 429 pin_locked: the server counts failed PINs and locks the number
            for a while. Rejected carries the status, so this reads it rather
            than inventing a case ApiFailure does not have. */
