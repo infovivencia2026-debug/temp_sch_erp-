@@ -173,6 +173,61 @@ mkdir -p "$WEBROOT"
 # A tab held open across this loses the chunks it has not fetched yet, which is
 # what ChunkBoundary reloads once for -- see web/src/components/ChunkBoundary.
 rsync -a --delete "$SRC/web/dist/" "$WEBROOT/"
+
+# ---- the assistant's route, re-asserted on every deploy ---------------------
+#
+# ragbot.service -- a local RAG assistant, uvicorn in front of ollama -- serves
+# the chat tab. It is deployed by hand and is not in this repository, and the
+# nginx location that reached it was added by hand too. scripts/deploy.sh
+# rewrites the whole server block, so a provisioning run silently removed it:
+# the service kept running, unreachable, /assistant/chat fell through to the
+# SPA catch-all, and the browser got index.html with a 200 and died on
+# JSON.parse. Nothing in the repo mentioned any of it, so reading the repo
+# suggested the service did not exist.
+#
+# Asserted here rather than only in deploy.sh because this is the script a
+# deploy actually runs. Idempotent: present is left alone, absent is inserted,
+# and a config nginx rejects is rolled back rather than reloaded.
+ASSISTANT_PORT="${ASSISTANT_PORT:-8001}"
+NGINX_SITE="/etc/nginx/sites-available/${SERVICE}"
+if [ -f "$NGINX_SITE" ] && ! grep -q "location /assistant/" "$NGINX_SITE"; then
+    say "Assistant route"
+    cp "$NGINX_SITE" "${NGINX_SITE}.bak.$(date +%s)"
+    ASSISTANT_PORT="$ASSISTANT_PORT" python3 - "$NGINX_SITE" <<'PYEOF'
+import os, sys
+path = sys.argv[1]
+conf = open(path).read()
+anchor = "    # ---- SPA"
+if anchor not in conf:
+    sys.exit("no SPA anchor in the nginx site; leaving it alone")
+block = """    # ---- Assistant --------------------------------------------------------
+    # ragbot.service (uvicorn + ollama). Trailing slash strips the prefix: the
+    # service serves /chat and answers 404 on /assistant/chat. 300s because a
+    # small model on one vCPU takes about a minute over a paragraph.
+    location /assistant/ {
+        proxy_pass http://127.0.0.1:%s/;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-Id      $request_id;
+        proxy_read_timeout 300s;
+        proxy_buffering off;
+    }
+
+""" % os.environ["ASSISTANT_PORT"]
+open(path, "w").write(conf.replace(anchor, block + anchor, 1))
+print("  inserted /assistant/ -> 127.0.0.1:" + os.environ["ASSISTANT_PORT"])
+PYEOF
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx
+        echo "  nginx reloaded"
+    else
+        echo "  !! nginx rejected the config; restoring and leaving it unrouted" >&2
+        cp "$(ls -t ${NGINX_SITE}.bak.* | head -1)" "$NGINX_SITE"
+    fi
+fi
 sleep 2
 systemctl is-active "${SERVICE}-web" "${SERVICE}-worker"
 
