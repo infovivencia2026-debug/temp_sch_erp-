@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { FleetMap } from '@/components/FleetMap'
 
 /* Where the fleet is, right now.
 
@@ -73,12 +74,6 @@ const STATE_TONE: Record<LiveVehicle['state'], 'success' | 'danger' | 'neutral'>
   stale: 'danger',
   idle: 'neutral',
 }
-const STATE_INK: Record<LiveVehicle['state'], string> = {
-  running: 'text-success',
-  stale: 'text-destructive',
-  idle: 'text-muted-foreground',
-}
-
 /** Stale first, then running, then parked: the map's job is the exceptions. */
 const STATE_ORDER: Record<LiveVehicle['state'], number> = { stale: 0, running: 1, idle: 2 }
 
@@ -135,26 +130,6 @@ function useTabVisible(): boolean {
   }, [])
   return visible
 }
-
-/* Local flat projection, metres from the centre of the plotted set.
-
-   Fine here and wrong at scale: it treats a degree of longitude as constant
-   across the box, which holds to well under a metre over the twenty-odd
-   kilometres a school route covers and would not hold over a state. */
-const M_PER_DEG_LAT = 110574
-
-function metresPerDegLon(lat: number): number {
-  return 111320 * Math.cos((lat * Math.PI) / 180)
-}
-
-interface Plotted {
-  x: number
-  y: number
-}
-
-const PLOT_W = 960
-const PLOT_H = 560
-const PAD = 44
 
 export default function LiveVehicleMap() {
   const visible = useTabVisible()
@@ -225,44 +200,6 @@ export default function LiveVehicleMap() {
     (v) => v.latitude != null && v.longitude != null && v.state !== 'idle',
   )
 
-  /* Bounding box over everything that will be drawn, vehicles and stops
-     together. Taking it from the vehicles alone would make a bus that has
-     wandered off its route look central and correct. */
-  const geo = useMemo(() => {
-    const lats = [...plottable.map((v) => v.latitude!), ...stopPoints.map((s) => s.latitude)]
-    const lons = [...plottable.map((v) => v.longitude!), ...stopPoints.map((s) => s.longitude)]
-    if (!lats.length) return null
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLon = Math.min(...lons)
-    const maxLon = Math.max(...lons)
-    const midLat = (minLat + maxLat) / 2
-    const mLon = metresPerDegLon(midLat)
-    // A single reporting bus has no extent at all; a degenerate box would
-    // divide by zero and put it nowhere. Give it 300 m of context instead.
-    const spanX = Math.max((maxLon - minLon) * mLon, 300)
-    const spanY = Math.max((maxLat - minLat) * M_PER_DEG_LAT, 300)
-    const scale = Math.min((PLOT_W - 2 * PAD) / spanX, (PLOT_H - 2 * PAD) / spanY)
-    const midLon = (minLon + maxLon) / 2
-    const project = (lat: number, lon: number): Plotted => ({
-      x: PLOT_W / 2 + (lon - midLon) * mLon * scale,
-      // Screen y grows downwards; north must not come out at the bottom.
-      y: PLOT_H / 2 - (lat - midLat) * M_PER_DEG_LAT * scale,
-    })
-    return { project, scale, spanX, spanY }
-  }, [plottable, stopPoints])
-
-  /* A scale bar the eye can use: a round number of metres, drawn at whatever
-     pixel length that works out to, rather than a round number of pixels
-     labelled with an unreadable distance. */
-  const scaleBar = useMemo(() => {
-    if (!geo) return null
-    const target = (PLOT_W - 2 * PAD) / 5 / geo.scale
-    const nice = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-    const metres = nice.find((n) => n >= target) ?? nice[nice.length - 1]
-    return { metres, px: metres * geo.scale }
-  }, [geo])
-
   const running = all.filter((v) => v.state === 'running').length
   const stale = all.filter((v) => v.state === 'stale').length
   const blind = all.filter((v) => v.location_ok === false).length
@@ -273,7 +210,7 @@ export default function LiveVehicleMap() {
       <PageHead
         eyebrow="Transport"
         title="Live vehicle tracking"
-        description="Every bus on the fleet, where its phone last said it was. Positions only — there is no street map behind the plot."
+        description="Every bus on the fleet, where its phone last said it was, drawn on the street map."
         width="wide"
         actions={
           <Select
@@ -312,11 +249,11 @@ export default function LiveVehicleMap() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
             <Card>
               <CardHeader
-                title="Position plot"
-                description="Coordinates projected to scale. Stops are the landmarks; no roads are drawn because none are known."
+                title="Live positions"
+                description="Every reporting bus on the map, with the route's own stops and their arrival geofences."
               />
               <div className="px-5 py-4">
-                {!geo ? (
+                {plottable.length === 0 && stopPoints.length === 0 ? (
                   /* Four different facts have been arriving here as one grey
                      box. A fleet of nothing, a fleet that is all parked, a
                      route filter that excludes everything, and a school whose
@@ -324,124 +261,21 @@ export default function LiveVehicleMap() {
                      to go and do, and only one of them is a fault. */
                   <EmptyState {...plotGap(all, vehicles, stopPoints, !!routeFilter)} />
                 ) : (
-                  <svg
-                    viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-                    className="w-full rounded-[8px] border bg-muted/30"
-                    role="img"
-                    aria-label="Plot of vehicle positions against route stops"
-                  >
-                    {stopPoints.map((s) => {
-                      const p = geo.project(s.latitude, s.longitude)
-                      return (
-                        <g key={s.id} className="text-muted-foreground">
-                          {s.geofence_m ? (
-                            <circle
-                              cx={p.x}
-                              cy={p.y}
-                              r={Math.max(2, s.geofence_m * geo.scale)}
-                              fill="currentColor"
-                              opacity={0.08}
-                            />
-                          ) : null}
-                          <circle cx={p.x} cy={p.y} r={3.5} fill="currentColor" opacity={0.55} />
-                          <text
-                            x={p.x + 6}
-                            y={p.y + 3.5}
-                            fontSize={10}
-                            fill="currentColor"
-                            opacity={0.7}
-                          >
-                            {s.name}
-                          </text>
-                        </g>
-                      )
-                    })}
-
-                    {plottable.map((v) => {
-                      const p = geo.project(v.latitude!, v.longitude!)
-                      const isStale = v.state === 'stale'
-                      const heading = v.heading_deg ?? 0
-                      return (
-                        <g
-                          key={v.vehicle_id}
-                          className={STATE_INK[v.state]}
-                          onMouseEnter={() => setFocus(v.vehicle_id)}
-                          onMouseLeave={() => setFocus(null)}
-                        >
-                          {/* A stale bus wears a dashed hollow ring so it is
-                              distinguishable from a running one on a black and
-                              white printout and at a glance across the room. */}
-                          <circle
-                            cx={p.x}
-                            cy={p.y}
-                            r={13}
-                            fill={isStale ? 'none' : 'currentColor'}
-                            fillOpacity={0.14}
-                            stroke="currentColor"
-                            strokeWidth={isStale ? 2 : 1}
-                            strokeDasharray={isStale ? '4 3' : undefined}
-                            opacity={focus === v.vehicle_id ? 1 : 0.85}
-                          />
-                          <path
-                            d="M 0 -8 L 5.5 7 L 0 3.5 L -5.5 7 Z"
-                            transform={`translate(${p.x} ${p.y}) rotate(${heading})`}
-                            fill={isStale ? 'none' : 'currentColor'}
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeDasharray={isStale ? '3 2' : undefined}
-                          />
-                          <text
-                            x={p.x}
-                            y={p.y + 26}
-                            fontSize={11}
-                            textAnchor="middle"
-                            fill="currentColor"
-                            fontWeight={600}
-                          >
-                            {v.registration_no}
-                          </text>
-                          {isStale && (
-                            <text
-                              x={p.x}
-                              y={p.y + 38}
-                              fontSize={10}
-                              textAnchor="middle"
-                              fill="currentColor"
-                            >
-                              no fix · {ageText(v.age_seconds)}
-                            </text>
-                          )}
-                        </g>
-                      )
-                    })}
-
-                    {scaleBar && (
-                      <g
-                        className="text-muted-foreground"
-                        transform={`translate(${PAD} ${PLOT_H - 20})`}
-                      >
-                        <line x1={0} y1={0} x2={scaleBar.px} y2={0} stroke="currentColor" strokeWidth={2} />
-                        <line x1={0} y1={-5} x2={0} y2={5} stroke="currentColor" strokeWidth={2} />
-                        <line
-                          x1={scaleBar.px}
-                          y1={-5}
-                          x2={scaleBar.px}
-                          y2={5}
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        />
-                        <text x={scaleBar.px / 2} y={-9} fontSize={11} textAnchor="middle" fill="currentColor">
-                          {scaleBar.metres >= 1000
-                            ? `${scaleBar.metres / 1000} km`
-                            : `${scaleBar.metres} m`}
-                        </text>
-                      </g>
-                    )}
-                    <g className="text-muted-foreground" transform={`translate(${PLOT_W - 34} 34)`}>
-                      <path d="M 0 12 L 0 -12 M -5 -5 L 0 -12 L 5 -5" stroke="currentColor" strokeWidth={2} fill="none" />
-                      <text x={0} y={26} fontSize={10} textAnchor="middle" fill="currentColor">N</text>
-                    </g>
-                  </svg>
+                  <FleetMap
+                    className="h-[560px]"
+                    vehicles={plottable.map((v) => ({
+                      id: v.vehicle_id,
+                      label: v.registration_no,
+                      latitude: v.latitude!,
+                      longitude: v.longitude!,
+                      heading_deg: v.heading_deg,
+                      state: v.state,
+                      note: `no fix · ${ageText(v.age_seconds)}`,
+                    }))}
+                    stops={stopPoints}
+                    focusId={focus}
+                    onFocus={setFocus}
+                  />
                 )}
                 {stops.isError && (
                   /* Without the stops the plot is dots on white. Said out
@@ -455,9 +289,9 @@ export default function LiveVehicleMap() {
                 )}
                 <p className="mt-3 text-[12.5px] text-muted-foreground">
                   <MapPin className="mr-1 inline h-3.5 w-3.5" />
-                  This is a scaled position plot, not a street map. Distances are true; roads,
-                  buildings and one-way restrictions are not shown because the system holds no map
-                  data. Parked vehicles are listed but not plotted.
+                  A bus with no recent fix is drawn hollow and dashed with its age beside it, so a
+                  stale position never reads as a moving bus. Parked vehicles are listed but not
+                  plotted. Street map © OpenStreetMap contributors.
                 </p>
               </div>
             </Card>

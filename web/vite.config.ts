@@ -32,6 +32,11 @@ export default defineConfig({
           if (id.includes('react-router')) return 'router'
           if (id.includes('@tanstack')) return 'query'
           if (id.includes('recharts') || id.includes('d3-')) return 'charts'
+          /* The map engine is ~800kB and two screens use it. In the shared
+             vendor chunk every parent checking fees and every teacher marking
+             attendance downloads a renderer they will never open, so it gets
+             its own chunk and is imported lazily by the map component. */
+          if (id.includes('maplibre-gl')) return 'maplibre'
           if (id.includes('lucide-react')) return 'icons'
           return 'vendor'
         },

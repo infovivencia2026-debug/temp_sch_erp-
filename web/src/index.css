@@ -610,7 +610,27 @@
   .responsive-table tr,
   .responsive-table td {
     display: block;
+  }
+
+  .responsive-table,
+  .responsive-table tbody,
+  .responsive-table td {
     width: 100%;
+  }
+
+  /* The card row sizes itself INSIDE its own margins.
+
+     `width: 100%` here measured the full table and then the 0.75rem side
+     margins pushed the card 11px further right than the scroller could show,
+     so every card at 390px was clipped down its right edge: a phone number
+     lost its last digit, a name lost its surname, and the row's Open button
+     sat half off the screen with no way to reach it -- while the 11px of
+     phantom overflow also lit the scroll-x edge shadow, promising a sideways
+     scroll on a table that had nothing more to the right. A block's auto
+     width is exactly "the space left after my margins", which is what a card
+     laid inside a gutter wants. */
+  .responsive-table tr {
+    width: auto;
   }
 
   .responsive-table thead {
@@ -657,9 +677,18 @@
     display: none;
   }
 
-  /* An empty state still spans the card rather than sitting in a column. */
+  /* An empty state still spans the card rather than sitting in a column.
+
+     `justify-content` and not `text-align` alone: the cell is a flex row here,
+     so its text is a flex item and `text-align: center` centred nothing -- the
+     "No applications yet" line sat hard against the left edge of a 309px card
+     while the rule above it said centre. It also has to shed the first-child
+     treatment, because the empty line is not the row's subject and reading it
+     in the subject's weight makes an empty table look like it has one entry. */
   .responsive-table td[colspan] {
+    justify-content: center;
     text-align: center;
+    font-weight: 400;
   }
 }
 
@@ -1530,4 +1559,24 @@ dialog,
 body[data-scroll-lock] {
   overflow: hidden;
   overscroll-behavior: none;
+}
+
+/* The basemap in the dark theme.
+
+   OpenFreeMap's Liberty style is drawn for a white page and there is no dark
+   counterpart to switch to. A transport office watching a live map at 6am in
+   a dark room gets a lightbox in the middle of the screen otherwise, so the
+   raster is inverted and hue-rotated back: roads stay grey, parks stay green,
+   water stays blue. The filter is on the canvas alone — markers and labels
+   this app draws are DOM overlays and keep the theme's own colours, which is
+   the point, because the marker colours carry the bus's state. */
+.dark .maplibregl-canvas {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.92);
+}
+
+/* The attribution is not decoration. OpenStreetMap's licence requires the
+   credit to stay visible, so it is only made to sit quietly in the theme
+   rather than hidden. */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
 }
