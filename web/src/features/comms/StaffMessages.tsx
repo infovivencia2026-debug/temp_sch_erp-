@@ -9,6 +9,7 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useSession } from '@/lib/session'
 
 /* One member of staff writing to another.
  *
@@ -95,6 +96,7 @@ export default function StaffMessages() {
   }
   const [find, setFind] = useState('')
   const [draft, setDraft] = useState('')
+  const me = useSession().user?.id
 
   /* Which register is open. In the URL for the same reason `with` is: a
      notification about a parent's message has to be able to land on it. */
@@ -378,6 +380,21 @@ export default function StaffMessages() {
                       ))
                     )}
                   </div>
+                  {/* READING SOMEBODY ELSE'S CONVERSATION IS NOT JOINING IT.
+
+                      A principal opens a parent's thread to see what was said
+                      — that is oversight, and it is the whole reason they can
+                      read it. Replying into it would put the head's words in
+                      the middle of a conversation the parent is having with
+                      their child's teacher, under a name the parent did not
+                      write to. The server refuses it either way; showing the
+                      box promises something that cannot happen.
+
+                      Own threads keep the box: openParent.teacher_user_id is
+                      the teacher this conversation belongs to, and it is
+                      missing only on rows the caller is reading as somebody
+                      else's. */}
+                  {openParent?.teacher_user_id === me || !openParent?.teacher_user_id ? (
                   <form
                     className="flex items-end gap-2 border-t px-5 py-3"
                     onSubmit={(e) => {
@@ -397,6 +414,13 @@ export default function StaffMessages() {
                       {replyToParent.isPending ? 'Sending…' : 'Reply'}
                     </Button>
                   </form>
+                  ) : (
+                    <p className="border-t px-5 py-3 text-[13px] text-muted-foreground">
+                      Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation
+                      with this family. Replies come from the teacher it was
+                      addressed to.
+                    </p>
+                  )}
                   {replyToParent.isError && (
                     <p className="px-5 pb-3 text-[13px] text-destructive">
                       {replyToParent.error instanceof Error

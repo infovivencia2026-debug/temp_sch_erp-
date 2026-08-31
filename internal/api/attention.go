@@ -467,7 +467,13 @@ var probes = []probe{
 	// --- the family side --------------------------------------------------
 	{
 		Key: "self.fees_due", Needs: rbac.SelfFeesRead,
-		Severity: SeverityCritical, Action: "Pay now", Href: "fees",
+		/* "Open", not "Pay now".
+
+		   A dashboard row cannot take a payment: it can only put somebody on
+		   the fees screen, where the amount, the instalments and the Pay now
+		   button actually are. A button labelled with an action it does not
+		   perform is a button that is pressed once and distrusted afterwards. */
+		Severity: SeverityCritical, Action: "Open", Href: "fees",
 		Headline: func(_ int, amount int64) string {
 			return fmt.Sprintf("%s due", rupees(amount))
 		},

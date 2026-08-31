@@ -1166,7 +1166,12 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		   the one notification that mattered, a parent writing in, sent the
 		   teacher to a page that could not show it. Theirs opens the family
 		   register in Messages, on the conversation itself. */
-		link := "/go/communication"
+		/* The family's copy opens the screen they wrote from.
+
+		   It was "/go/communication", which for a parent is Circulars — the
+		   school's notices. So a reply to their own message put them in front
+		   of a list of PTM announcements, with the reply nowhere on the page. */
+		link := "/go/direct_teacher_messaging"
 		if to == teacherID {
 			link = "/go/messages?box=parents&child=" + sid.String() +
 				"&with=" + parentID.String()
