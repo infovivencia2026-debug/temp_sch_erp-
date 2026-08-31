@@ -189,10 +189,23 @@ func (s *Server) heldRoleKeys(r *http.Request) (map[string]bool, error) {
 	return held, err
 }
 
-func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
+/*
+catalogRoleKeys answers which workspaces to draw, and whether the caller
+
+	asked to see all of them.
+
+	The second return is not a nicety: a role appears only if it has a section,
+	a section only if it has a feature, and a feature only if id.Can(f.Key) —
+	and role_permissions holds FEATURE keys as well as permission keys, all of
+	them prefixed with the workspace they belong to. So a principal's grants are
+	every institution_admin.* feature and no other, and widening the role list
+	alone changed nothing at all: every other workspace came back with zero
+	features and was dropped. The caller has to know to relax that check too.
+*/
+func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, bool, error) {
 	id := httpx.IdentityFrom(r.Context())
 	if id.PlatformAdmin {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	held := map[string]bool{}
@@ -216,7 +229,7 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	/* The head asking to see the whole school.
@@ -245,7 +258,7 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
 			}
 			every[role.Key] = true
 		}
-		return every, nil
+		return every, true, nil
 	}
 
 	// Only the keys the catalogue actually has a workspace for.
@@ -255,7 +268,7 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, error) {
 			known[role.Key] = true
 		}
 	}
-	return known, nil
+	return known, false, nil
 }
 
 // getCatalog returns the signed-in user's workspace: the roles they hold, the
@@ -318,7 +331,7 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 	   catalogue of its own, because some rbac roles are capability bundles
 	   with no workspace — class_teacher, operations — and a strict filter
 	   would hand those people an empty menu. */
-	held, err := s.catalogRoleKeys(r)
+	held, viewingAll, err := s.catalogRoleKeys(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -377,7 +390,15 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 				Features: []catalogFeature{},
 			}
 			for _, f := range sec.Features {
-				if !id.Can(f.Key) {
+				/* Every grant a school hands out is a feature key prefixed
+				   with its workspace, so this check is also what confines a
+				   person to their own. A head who has asked to see the whole
+				   school is deliberately past it: they hold every permission
+				   this product defines bar the two platform ones, so the
+				   screens behind these entries answer them. The API each one
+				   calls still enforces its own rights — this widens the menu,
+				   not the person. */
+				if !viewingAll && !id.Can(f.Key) {
 					continue
 				}
 				/* A few entries earn their place only when there is something
