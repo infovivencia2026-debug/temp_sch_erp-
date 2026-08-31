@@ -799,6 +799,16 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/indents", s.saveTextbookIndent)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/vehicles", s.listVehicles)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/assignable-staff", s.listAssignableStaff)
+			/* The tracking policy, which nothing could reach.
+
+			   Both handlers existed and no route pointed at either, so
+			   parents_may_watch could never be turned on: every parent screen
+			   correctly reported that the school had not published the buses,
+			   and there was no way for the school to publish them. The
+			   geofence, the speed limit and the trip timeout were unreachable
+			   for the same reason. */
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/policy", s.getTrackingPolicy)
+			r.With(httpx.RequirePermission(rbac.TransportWrite)).Put("/transport/policy", s.saveTrackingPolicy)
 			r.With(httpx.RequirePermission(rbac.TransportWrite)).Post("/transport/routes", s.saveRoute)
 			r.With(httpx.RequirePermission(rbac.TransportWrite)).Put("/transport/routes/{id}", s.saveRoute)
 			r.With(httpx.RequirePermission(rbac.TransportWrite)).Delete("/transport/routes/{id}", s.deleteRoute)
