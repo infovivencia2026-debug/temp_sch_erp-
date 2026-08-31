@@ -1251,19 +1251,36 @@ dialog[open],
 }
 
 /* Things that MOVE rather than merely change get the longer time: a menu
-   arriving from its own origin, a panel sliding, a dialog rising. */
+   arriving from its own origin, a panel sliding, a dialog rising.
+
+   TRANSITIONS ONLY. This rule used to force animation-duration and
+   animation-timing-function too, and that quietly undid most of the file
+   above it.
+
+   Two things it broke. The entrances a few rules up are deliberately 200ms on
+   --motion-spring, because a menu that snaps out of the button reads as
+   attached to the click; this stretched every one of them to 300ms and
+   flattened the spring to the settle curve, so nothing in the product had any
+   snap left and everything moved at one speed. A single duration on a single
+   curve for every kind of movement is the thing that reads as cheap.
+
+   Worse, `[class*='animate-']` caught Tailwind's own keyframe utilities.
+   animate-pulse is a two-second breath; forced to 300ms it strobes three
+   times a second, and it is what every skeleton in the product does while a
+   screen loads. The first thing anybody sees on a slow connection was a
+   flashing grey block.
+
+   An animation already names its own duration in the rule that sets it. It
+   does not need a blanket. */
 [class*='transition-transform'],
 [class*='transition-all'],
-[class*='animate-'],
 .pop-up,
 .pop-down,
 dialog,
 [role='dialog'],
 [role='menu'] {
   transition-duration: var(--motion) !important;
-  animation-duration: var(--motion) !important;
   transition-timing-function: var(--motion-ease) !important;
-  animation-timing-function: var(--motion-ease) !important;
 }
 
 /* Somebody who has asked their system for less motion gets it, whatever this
@@ -1313,7 +1330,6 @@ dialog,
     transform: none;
   }
   [class*='transition'],
-  [class*='animate-'],
   .pop-up,
   .pop-down,
   dialog,
@@ -1321,6 +1337,14 @@ dialog,
   [role='menu'] {
     transition-duration: var(--motion-quick) !important;
     animation-duration: var(--motion-enter) !important;
+  }
+
+  /* A looping breath is the one thing somebody who asked for less motion most
+     wants stopped, and speeding it up is the opposite of honouring that. The
+     skeleton stays -- it still says "not loaded yet" by being a grey block --
+     it simply stops moving. */
+  [class*='animate-'] {
+    animation: none !important;
   }
 }
 
