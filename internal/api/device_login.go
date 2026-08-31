@@ -681,9 +681,16 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 			                           AND d.revoked_at IS NULL
 			                           AND lower(d.name) = lower($3)
 			                        HAVING count(*) > 0), ''),
-			        $4, $5, $6, $7, $8,
+			        $4, $5, $6, $7, $8::uuid,
 			        CASE WHEN $9 THEN now() END,
-			        CASE WHEN $9 THEN $8 END,
+			        /* Cast, because a bare $8 inside a CASE with no ELSE gives
+			           Postgres two different contexts for one parameter and
+			           nothing to reconcile them from: it raised 42P08,
+			           "inconsistent types deduced for parameter $8", on every
+			           call. So enrolling a gateway on the office login has
+			           never once succeeded, and the only reason nobody noticed
+			           is that the app had no screen for it until today. */
+			        CASE WHEN $9 THEN $8::uuid END,
 			        $10, $11)`,
 			device, who.Institution, truncate(name, 80),
 			nullIfBlank(req.AndroidVersion), nullIfBlank(req.SIMOperator),
