@@ -656,20 +656,27 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 
 	var out gatewayEnrolResponse
 	device := uuid.New()
-	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		token, secret, err := newSMSGatewayToken(device)
-		if err != nil {
-			return err
-		}
-		sealed, err := sealSecret(secret)
-		if err != nil {
-			return err
-		}
+	/* Tenant-scoped, not platform. The authentication above had to look a
+	   person up across the installation, because nobody had said which
+	   school this handset belongs to yet. From here we know, and the shift
+	   this opens is refused inside a platform transaction:
+	   device_staff_sessions' WITH CHECK asks which institution and a
+	   platform scope has none. Same fault the driver sign-in had. */
+	err = s.DB.InTenant(r.Context(), tenantScopeFor(who.Institution, false),
+		func(tx pgx.Tx) error {
+			token, secret, err := newSMSGatewayToken(device)
+			if err != nil {
+				return err
+			}
+			sealed, err := sealSecret(secret)
+			if err != nil {
+				return err
+			}
 
-		// The same name-collision suffix the claim path uses. Two handsets
-		// both calling themselves "Redmi Note 12" is ordinary and is not a
-		// reason to refuse the second one.
-		if _, err := tx.Exec(r.Context(), `
+			// The same name-collision suffix the claim path uses. Two handsets
+			// both calling themselves "Redmi Note 12" is ordinary and is not a
+			// reason to refuse the second one.
+			if _, err := tx.Exec(r.Context(), `
 			INSERT INTO sms_gateway_devices
 			       (id, institution_id, name, android_version, sim_operator,
 			        app_version, token_sealed, enrolled_by,
@@ -692,37 +699,37 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 			           is that the app had no screen for it until today. */
 			        CASE WHEN $9 THEN $8::uuid END,
 			        $10, $11)`,
-			device, who.Institution, truncate(name, 80),
-			nullIfBlank(req.AndroidVersion), nullIfBlank(req.SIMOperator),
-			nullIfBlank(req.AppVersion), sealed, who.UserID, who.Approver,
-			smsGatewayDefaultPoll, smsGatewayDefaultCap); err != nil {
-			return err
-		}
+				device, who.Institution, truncate(name, 80),
+				nullIfBlank(req.AndroidVersion), nullIfBlank(req.SIMOperator),
+				nullIfBlank(req.AppVersion), sealed, who.UserID, who.Approver,
+				smsGatewayDefaultPoll, smsGatewayDefaultCap); err != nil {
+				return err
+			}
 
-		session, _, _, err := s.openStaffSession(r.Context(), tx, who, "sms_gateway", device)
-		if err != nil {
-			return err
-		}
+			session, _, _, err := s.openStaffSession(r.Context(), tx, who, "sms_gateway", device)
+			if err != nil {
+				return err
+			}
 
-		var instName string
-		if err := tx.QueryRow(r.Context(),
-			`SELECT name FROM institutions WHERE id = $1`, who.Institution).
-			Scan(&instName); err != nil {
-			return err
-		}
+			var instName string
+			if err := tx.QueryRow(r.Context(),
+				`SELECT name FROM institutions WHERE id = $1`, who.Institution).
+				Scan(&instName); err != nil {
+				return err
+			}
 
-		out = gatewayEnrolResponse{
-			DeviceID:     device.String(),
-			DeviceToken:  token,
-			SessionToken: session,
-			Institution:  instName,
-			Name:         who.Name,
-			PollSeconds:  smsGatewayDefaultPoll,
-			PerMinuteCap: smsGatewayDefaultCap,
-			Approved:     who.Approver,
-		}
-		return nil
-	})
+			out = gatewayEnrolResponse{
+				DeviceID:     device.String(),
+				DeviceToken:  token,
+				SessionToken: session,
+				Institution:  instName,
+				Name:         who.Name,
+				PollSeconds:  smsGatewayDefaultPoll,
+				PerMinuteCap: smsGatewayDefaultCap,
+				Approved:     who.Approver,
+			}
+			return nil
+		})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
