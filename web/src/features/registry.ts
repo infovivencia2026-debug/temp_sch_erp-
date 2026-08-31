@@ -74,6 +74,21 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.students.certificates_transfers': screen(() => import('./lifecycle/Certificates')),
   'super_admin.access_security.users': screen(() => import('./super_admin/Users')),
   'super_admin.access_security.roles_permissions': screen(() => import('./super_admin/RolesPermissions')),
+  /* The same screen for the school itself.
+
+     A principal already holds access.roles.read and access.roles.write, and
+     the endpoints behind this screen would have answered them all along --
+     there was simply no navigation to it outside the vendor console. So a
+     school could merge two whole roles onto a person, and could copy a role,
+     but could never then tune the copy: "front desk, plus seeing fees, and
+     nothing else" was not expressible.
+
+     Safe to expose as it stands, and not because this screen is careful: the
+     server refuses to rewrite a built-in role at all (errSystemRole), and
+     refuses to grant platform.* to anyone who is not the vendor even if the
+     grid asks for it. Both checks sit inside the tenant transaction, so they
+     hold whatever the client sends. */
+  'institution_admin.staff.roles_permissions': screen(() => import('./super_admin/RolesPermissions')),
   'super_admin.platform_configuration.module_configuration': screen(() => import('./super_admin/ModuleConfiguration')),
   'super_admin.access_security.login_session_audit': screen(() => import('./super_admin/SessionAudit')),
   'super_admin.operations.system_health_integration_alerts': screen(() => import('./shared/Jobs')),
