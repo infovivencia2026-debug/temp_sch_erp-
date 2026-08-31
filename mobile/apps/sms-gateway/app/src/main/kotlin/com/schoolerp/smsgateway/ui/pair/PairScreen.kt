@@ -17,12 +17,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -45,24 +47,54 @@ fun PairScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Pair this phone", style = MaterialTheme.typography.headlineSmall)
+        Text("Sign in", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "This handset becomes the school's SMS sender. It will only ever send " +
-                "messages the school's server gives it — it cannot compose anything, " +
-                "and it never reads your inbox or contacts.",
+            "This handset becomes the school's SMS sender. Sign in with the login " +
+                "the office already uses. It will only ever send messages the school's " +
+                "server gives it: it cannot compose anything, and it never reads your " +
+                "inbox or contacts.",
             style = MaterialTheme.typography.bodyMedium,
         )
 
-        OutlinedTextField(
-            value = state.baseUrl,
-            onValueChange = viewModel::onBaseUrlChanged,
-            label = { Text("School server address") },
-            placeholder = { Text("https://school.example.in") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        /* No address field off a debug build. The office types a login, not a
+           URL, and a typo in a hostname fails exactly like a wrong password. */
+        if (state.baseUrlEditable) {
+            OutlinedTextField(
+                value = state.baseUrl,
+                onValueChange = viewModel::onBaseUrlChanged,
+                label = { Text("Server address (debug)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
+        if (!state.usePairCode) {
+            OutlinedTextField(
+                value = state.phone,
+                onValueChange = viewModel::onPhoneChanged,
+                label = { Text("Mobile number or email") },
+                supportingText = { Text("Whoever in the office this phone belongs to.") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.password,
+                onValueChange = viewModel::onPasswordChanged,
+                label = { Text("Password") },
+                supportingText = { Text("The same password used on the school website.") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (state.pairCodeAvailable) {
+                TextButton(onClick = { viewModel.usePairCode(true) }) {
+                    Text("I was given a pair code instead")
+                }
+            }
+        } else {
         OutlinedTextField(
             value = state.pairCode,
             onValueChange = viewModel::onPairCodeChanged,
@@ -81,6 +113,10 @@ fun PairScreen(
             ),
             modifier = Modifier.fillMaxWidth(),
         )
+            TextButton(onClick = { viewModel.usePairCode(false) }) {
+                Text("Use the office login instead")
+            }
+        }
 
         if (state.insecureToggleAvailable) {
             Row(

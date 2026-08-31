@@ -18,6 +18,7 @@ import com.schoolerp.smsgateway.data.prefs.SettingsStore
 import com.schoolerp.smsgateway.data.prefs.TokenStore
 import com.schoolerp.smsgateway.data.remote.ApiFailure
 import com.schoolerp.smsgateway.data.remote.ClaimRequest
+import com.schoolerp.smsgateway.data.remote.EnrolRequest
 import com.schoolerp.smsgateway.data.remote.GatewayApi
 import com.schoolerp.smsgateway.data.remote.HeartbeatRequest
 import com.schoolerp.smsgateway.data.remote.Receipt
@@ -101,6 +102,57 @@ class GatewayRepository @Inject constructor(
             GwLog.w("pair", "claim refused: ${failure.reason}")
             PairOutcome.Rejected(pairErrorMessage(failure))
         }
+    }
+
+    /* THE ORDINARY WAY IN NOW.
+
+       Same shape as pair(), and it replaces it on the screen: the office signs
+       in with the login it already has, and the server records who enrolled
+       the handset rather than only that a code was redeemed. */
+    suspend fun enrol(rawBaseUrl: String, phone: String, password: String): PairOutcome {
+        val settings = settingsStore.settings.first()
+        val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttp(settings)).getOrElse {
+            return PairOutcome.Rejected(it.message ?: "That server address is not usable.")
+        }
+        return try {
+            val response = api.enrol(
+                baseUrl,
+                EnrolRequest(
+                    phone = phone.trim(),
+                    password = password,
+                    deviceName = deviceStatus.deviceName(),
+                    androidVersion = deviceStatus.androidVersion(),
+                    simOperator = deviceStatus.simOperator(),
+                ),
+            )
+            tokenStore.save(response.deviceId, response.deviceToken)
+            settingsStore.setBaseUrl(baseUrl.value)
+            settingsStore.recordPairing(
+                deviceId = response.deviceId,
+                institutionId = response.institution,
+                institutionName = response.name,
+            )
+            settingsStore.applyServerDirectives(
+                response.pollSeconds, paused = false, maxPerMinute = response.perMinuteCap,
+            )
+            GwLog.i("enrol", "enrolled device ${response.deviceId} approved=${response.approved}")
+            PairOutcome.Paired(
+                if (response.approved) response.name
+                else "${response.name} (waiting for the office to approve this phone)",
+            )
+        } catch (failure: ApiFailure) {
+            GwLog.w("enrol", "enrol refused: ${failure.reason}")
+            PairOutcome.Rejected(enrolErrorMessage(failure))
+        }
+    }
+
+    private fun enrolErrorMessage(failure: ApiFailure): String = when (failure) {
+        is ApiFailure.Network ->
+            "Could not reach the school's server. Check this phone's data connection."
+        is ApiFailure.Unauthorized ->
+            "That number and password did not match. Use the login the school office signs in with."
+        is ApiFailure.RateLimited -> "Too many attempts. Wait a minute and try again."
+        else -> pairErrorMessage(failure)
     }
 
     private fun pairErrorMessage(failure: ApiFailure): String = when (failure) {

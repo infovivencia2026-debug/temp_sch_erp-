@@ -30,6 +30,15 @@ class GatewayApi(private val client: HttpClient) {
             }
         }
 
+    /** Also unauthenticated: the phone has no credential until this answers. */
+    suspend fun enrol(baseUrl: BaseUrl, request: EnrolRequest): EnrolResponse =
+        call {
+            client.post(baseUrl.resolve(PATH_ENROL)) {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+        }
+
     suspend fun outbox(baseUrl: BaseUrl, token: String, max: Int): OutboxResponse =
         call {
             client.get(baseUrl.resolve(PATH_OUTBOX)) {
@@ -100,6 +109,7 @@ class GatewayApi(private val client: HttpClient) {
 
     companion object {
         const val PATH_CLAIM = "/api/v1/public/sms-gateway/claim"
+        const val PATH_ENROL = "/api/v1/public/sms-gateway/enrol"
         const val PATH_OUTBOX = "/api/v1/sms-gateway/outbox"
         const val PATH_RECEIPTS = "/api/v1/sms-gateway/receipts"
         const val PATH_HEARTBEAT = "/api/v1/sms-gateway/heartbeat"

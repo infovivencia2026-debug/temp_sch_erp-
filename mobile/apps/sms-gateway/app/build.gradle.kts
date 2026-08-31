@@ -41,18 +41,27 @@ android {
         }
     }
 
+    /* THE SERVER, BAKED IN. Same reasoning as the bus tracker: the office is
+       not going to type a URL correctly from a slip of paper, and a typo fails
+       identically to a wrong password. One deployment, one address.
+         ./gradlew assembleRelease -PgatewayBaseUrl=https://erp.example.in */
+    val gatewayBaseUrl = (project.findProperty("gatewayBaseUrl") as String?)
+        ?: "https://temperp.187-127-178-100.sslip.io"
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             // Only a debug build may talk to a plain-HTTP server, and only when
             // the operator also flips the in-app developer switch.
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"$gatewayBaseUrl\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"$gatewayBaseUrl\"")
             signingConfig = signingConfigs.findByName("release")
         }
     }

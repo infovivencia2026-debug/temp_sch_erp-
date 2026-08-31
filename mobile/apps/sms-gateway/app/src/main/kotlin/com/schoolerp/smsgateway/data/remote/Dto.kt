@@ -24,6 +24,41 @@ data class ClaimRequest(
     @SerialName("sim_operator") val simOperator: String?,
 )
 
+/* ENROLLING ON THE OFFICE'S OWN LOGIN.
+
+   A pair code needs somebody at a desk generating one within ten minutes of
+   somebody else standing over the handset, which is two people and a stopwatch
+   for a phone that lives in a drawer. The school already knows who works
+   there, so the credential the office already holds is enough, and the server
+   records WHO enrolled the phone rather than only that a code was redeemed. */
+@Serializable
+data class EnrolRequest(
+    val phone: String,
+    val password: String,
+    @SerialName("device_name") val deviceName: String,
+    @SerialName("android_version") val androidVersion: String,
+    @SerialName("sim_operator") val simOperator: String? = null,
+    @SerialName("app_version") val appVersion: String? = null,
+)
+
+@Serializable
+data class EnrolResponse(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_token") val deviceToken: String,
+    val institution: String,
+    val name: String,
+    @SerialName("poll_seconds") val pollSeconds: Int? = null,
+    @SerialName("per_minute_cap") val perMinuteCap: Int? = null,
+    /* False when the handset is enrolled and not yet let in. The screen says
+       "waiting for the office to approve this phone" rather than showing an
+       empty outbox, which is what an unapproved gateway otherwise looks like:
+       working, and silent. */
+    val approved: Boolean = false,
+) {
+    override fun toString(): String =
+        "EnrolResponse(deviceId=\$deviceId, deviceToken=<redacted>, approved=\$approved)"
+}
+
 @Serializable
 data class ClaimResponse(
     @SerialName("device_id") val deviceId: String,

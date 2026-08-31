@@ -19,7 +19,16 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class PairUiState(
-    val baseUrl: String = "",
+    /* The address is compiled in and only a debug build may edit it. The
+       office types a login, not a URL: a typo in a hostname fails exactly like
+       a wrong password, and app data outlives the build that asked for it. */
+    val baseUrl: String = BuildConfig.DEFAULT_BASE_URL,
+    val baseUrlEditable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
+    val phone: String = "",
+    val password: String = "",
+    /** Pair codes are the fallback, and belong to whoever is debugging. */
+    val usePairCode: Boolean = false,
+    val pairCodeAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
     val pairCode: String = "",
     val submitting: Boolean = false,
     val error: String? = null,
@@ -29,7 +38,10 @@ data class PairUiState(
     val insecureToggleAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
 ) {
     val canSubmit: Boolean
-        get() = !submitting && baseUrl.isNotBlank() && PairCode.isComplete(pairCode)
+        get() = !submitting && baseUrl.isNotBlank() && when {
+            usePairCode -> PairCode.isComplete(pairCode)
+            else -> phone.isNotBlank() && password.isNotEmpty()
+        }
 }
 
 @HiltViewModel
@@ -46,7 +58,11 @@ class PairViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsStore.settings.first()
             _state.value = _state.value.copy(
-                baseUrl = settings.baseUrl,
+                baseUrl = if (BuildConfig.ALLOW_INSECURE_HTTP) {
+                    settings.baseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL }
+                } else {
+                    BuildConfig.DEFAULT_BASE_URL
+                },
                 allowInsecureHttp = settings.allowInsecureHttp,
             )
         }
@@ -60,6 +76,18 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(pairCode = PairCode.normalise(value), error = null)
     }
 
+    fun onPhoneChanged(value: String) {
+        _state.value = _state.value.copy(phone = value.trim().take(120), error = null)
+    }
+
+    fun onPasswordChanged(value: String) {
+        _state.value = _state.value.copy(password = value.take(72), error = null)
+    }
+
+    fun usePairCode(on: Boolean) {
+        _state.value = _state.value.copy(usePairCode = on, error = null)
+    }
+
     fun onAllowInsecureChanged(allow: Boolean) {
         _state.value = _state.value.copy(allowInsecureHttp = allow)
         viewModelScope.launch { settingsStore.setAllowInsecureHttp(allow) }
@@ -71,7 +99,10 @@ class PairViewModel @Inject constructor(
         _state.value = current.copy(submitting = true, error = null)
 
         viewModelScope.launch {
-            when (val outcome = repository.pair(current.baseUrl, current.pairCode)) {
+            val outcome =
+                if (current.usePairCode) repository.pair(current.baseUrl, current.pairCode)
+                else repository.enrol(current.baseUrl, current.phone, current.password)
+            when (outcome) {
                 is PairOutcome.Paired -> {
                     _state.value = _state.value.copy(
                         submitting = false,
