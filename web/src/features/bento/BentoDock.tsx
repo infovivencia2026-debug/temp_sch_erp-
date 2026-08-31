@@ -225,12 +225,20 @@ export function BentoDock() {
      Not on tablet or desktop. There the bar is a floating pill of twelve
      workspaces and there IS a pointer, so the tooltip works and twelve labels
      would not fit. */
-  const tab = phone
-    ? 'flex h-auto w-auto min-w-[54px] flex-col items-center gap-1 rounded-[6px] px-1 py-1.5'
-    : ''
+  /* The cell's shape is the stylesheet's, not this string's.
+
+     Written here as flex-column-with-a-gap, each tab sized itself from its own
+     contents, so the three plain buttons came out 40.5px tall, the launcher
+     38.5px because its glyph is 15px rather than 17px, and the bell's wrapper
+     51.5px because the component's own 36px button sits above the same label.
+     Measured on the live phone bar, the five labels sat at three different
+     tops, ten pixels apart. Contents cannot produce a common baseline; a row
+     of identical cells can, so the phone rules own the grid and this leaves
+     only the corner radius and the hit area's own padding. */
+  const tab = phone ? 'h-auto w-auto rounded-[8px]' : ''
   const tabLabel = (text: string) =>
     phone ? (
-      <span className="max-w-[62px] truncate text-[9.5px] font-medium leading-none opacity-80">
+      <span className="dock-tab-label max-w-full truncate text-[10px] font-medium leading-[12px] opacity-80">
         {text}
       </span>
     ) : null
@@ -403,8 +411,14 @@ export function BentoDock() {
             and adds a scrollbar. `clip` has no such rule, so the marks still
             give way sideways on a narrow bar and the label can still rise out
             of the top. */}
+        {/* Not rendered at all on a phone, where it holds nothing.
+
+           An empty flex child was harmless; an empty child of the phone bar's
+           equal-cell grid is a whole sixth column of nothing, which is what
+           pushed the settings gear against the right edge. */}
+        {!phone && (
         <span className="flex min-w-0 items-center gap-0.5 [overflow-x:clip] [overflow-y:visible]">
-          {(phone ? [] : categories.filter(c => !hidden.has(c.name))).map((c) => {
+          {(categories.filter(c => !hidden.has(c.name))).map((c) => {
             const Mark = markFor(c.name)
             return (
               <button
@@ -439,6 +453,7 @@ export function BentoDock() {
             )
           })}
         </span>
+        )}
 
         {!phone && <span className={rule} aria-hidden="true" />}
 
@@ -496,10 +511,7 @@ export function BentoDock() {
             match. The badge is positioned inside that button, so it stays
             anchored to the bell rather than to this wrapper. */}
         {phone ? (
-          <span
-            className="flex min-w-[54px] flex-col items-center gap-1
-                       [&_button]:!h-11 [&_button]:!w-11 [&_button]:!rounded-[6px]"
-          >
+          <span className="dock-tab">
             <Notifications />
             {tabLabel(t('bento.dock.alerts'))}
           </span>
@@ -510,8 +522,20 @@ export function BentoDock() {
             <Notifications />
           </span>
         )}
-        <span className="shrink-0">
+        {/* THE GEAR IS A TAB LIKE THE OTHERS, OR IT IS A LOOSE CIRCLE.
+
+           On the phone bar it was the one item with no word under it and no
+           cell of its own: measured at 390px it rendered 35px square against
+           its neighbours' 54px cells, sitting 10px from the right edge while
+           every other item was centred in its share of the bar. Given the same
+           wrapper and the same label it takes an equal cell and lands on the
+           same baseline as the rest.
+
+           Still `shrink-0` on a wide screen, where the bar is a floating pill
+           and this is one of the items the row must never crush. */}
+        <span className={phone ? 'dock-tab' : 'shrink-0'}>
           <BentoSettings placement="dock" />
+          {tabLabel(t('bento.settings.label'))}
         </span>
       </div>
 

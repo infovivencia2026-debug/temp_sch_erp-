@@ -1544,7 +1544,7 @@ function yearElapsedPct(now: Date): number {
     `Gauge` punches its centre with that token: left at the plain card tone it
     would draw a pale disc in the middle of a tinted card. */
 function FeatureCard({
-  span, domain, accent, title, sub, glyph, value, change, href, cue, children,
+  span, domain, accent, title, sub, glyph, value, change, delta, deltaNote, href, cue, children,
 }: {
   span: CellSpan
   domain?: string
@@ -1554,6 +1554,9 @@ function FeatureCard({
   glyph?: ReactNode
   value: ReactNode
   change?: ReactNode
+  // Passed straight through. See CardShell: a delta replaces the sentence.
+  delta?: string
+  deltaNote?: string
   href?: string
   cue: string
   children?: ReactNode
@@ -1579,6 +1582,8 @@ function FeatureCard({
           glyph={glyph}
           value={value}
           change={change}
+          delta={delta}
+          deltaNote={deltaNote}
         >
           {children}
         </CardShell>
@@ -2100,9 +2105,11 @@ function PassRateCell({
       title={label}
       sub={t('bento.principal.pass_rate_sub')}
       value={rate != null ? `${Math.round(rate)}%` : '—'}
+      delta={candidates > 0 ? `${passed}/${candidates}` : undefined}
+      deltaNote={candidates > 0 ? t('bento.principal.pass_rate_sub') : undefined}
       change={
         candidates > 0
-          ? t('bento.principal.pass_rate_change', { passed, total: candidates })
+          ? undefined
           : t('bento.principal.pass_rate_none')
       }
       href={href}

@@ -1871,8 +1871,19 @@ html[data-layout='bento'] body {
      indicator, which is a strip the dock has to clear and cannot know about
      until it is running. */
   html[data-layout='bento'] {
+    /* --dock-tap is one tab's touch target, and the phone bar is built out of
+       it: the icon row of every cell is exactly this tall, so --dock-h is the
+       bar's real height rather than an estimate of it.
+
+       It used to be measured from --dock-btn, the 40px round button of the
+       DESKTOP pill, and the phone bar has not been made of those since the
+       tabs got their labels. Measured on the live bar the sum came to 56px
+       against an actual 69.5px, so the page dots, placed at --dock-h + 6px,
+       were drawn underneath the bar they were supposed to sit above. */
+    --dock-tap: 44px;
     --dock-h: calc(
-      var(--dock-btn, 40px) + 2 * var(--dock-pad, 8px) + env(safe-area-inset-bottom, 0px)
+      var(--dock-tap, 44px) + 12px + 2 * var(--dock-pad, 8px) +
+      env(safe-area-inset-bottom, 0px)
     );
   }
 
@@ -1979,7 +1990,84 @@ html[data-layout='bento'] body {
     transform: none;
     border-radius: 0;
     gap: 0;
-    justify-content: space-around;
+
+    /* ONE ROW OF EQUAL CELLS, NOT FIVE ITEMS SHARING THE SLACK.
+
+       space-around distributes what is left over after each item has sized
+       itself, and on this bar no two items were the same size: measured at
+       390px, Home and Work were 54x40.5, the launcher 38.5 tall because its
+       glyph is 15px rather than 17px, the bell's wrapper 51.5 because the
+       shared component brings its own 36px button, and the gear a bare 35px
+       circle with no label at all. The labels landed on three different lines
+       and the gear sat 10px off the right edge.
+
+       A grid of 1fr columns takes the sizing decision away from the contents,
+       which is the only way five items of three different builds can agree on
+       a baseline. Auto-flow column so the cells stay a row however many there
+       are, and every item lands in exactly one of them. */
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: stretch;
+
+    /* The pill's inline padding is 8px with 12px on the left, which is right
+       for a floating bar and wrong for a full-width one: it shifts every cell
+       four pixels left of centre. Marked important because the declaration it
+       is answering is an inline style and nothing else can reach it. */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* One cell: a fixed icon row with the word under it.
+
+     The rows are the reason this is a grid rather than a flex column. The
+     three shapes in the bar nest differently — a button that is itself the
+     cell, a wrapper holding a component's own button, and a wrapper holding a
+     positioned div holding one — so aligning by content would go on producing
+     three different baselines. Two rows of stated height place the glyph and
+     the word identically in all three whatever sits between them. */
+  [data-layout='bento'] .bento-dock > * {
+    display: grid;
+    grid-template-rows: var(--dock-tap, 44px) auto;
+    justify-items: center;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    padding: 0;
+  }
+
+  /* The two items whose button is not the cell.
+
+     Every other tab is a button filling its cell, so its touch target is the
+     cell. These two draw a component's own button — 36px for the bell, 35px
+     for the gear, both under the 44px a finger needs — inside the cell, so the
+     target has to be restated on the button itself. Square rather than
+     full-width so the bell's unread badge, which is positioned against this
+     button, stays on the glyph rather than floating out beside it. */
+  [data-layout='bento'] .bento-dock > .dock-tab > button,
+  [data-layout='bento'] .bento-dock > .dock-tab > div > button {
+    width: var(--dock-tap, 44px) !important;
+    height: var(--dock-tap, 44px) !important;
+    border-radius: 8px !important;
+  }
+
+  /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
+     and 16px and the launcher at 15, which is a visible step in a row of five.
+     Direct-descendant chains, one per shape, so this reaches the five tab
+     glyphs and not the icons inside the panels these buttons open. */
+  [data-layout='bento'] .bento-dock > button > svg,
+  [data-layout='bento'] .bento-dock > .dock-tab > button > svg,
+  [data-layout='bento'] .bento-dock > .dock-tab > div > button > svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* A workspace whose name runs long shortens rather than widening its cell:
+     the columns are 1fr and the label is the only thing in them that could
+     have pushed one wider than its neighbours. */
+  [data-layout='bento'] .bento-dock .dock-tab-label {
+    max-width: 100%;
+    padding: 0 2px;
   }
 
   /* The shared search trigger, reduced to its glyph.
@@ -1996,8 +2084,11 @@ html[data-layout='bento'] body {
      with !important from the component, and a second opinion here would be one
      more thing to keep in step. */
   [data-layout='bento'] .bento-dock button:has(kbd) {
-    width: var(--dock-btn, 40px);
-    height: var(--dock-btn, 40px);
+    /* Sized from the tab's own target rather than the desktop pill's 40px
+       button: between 640 and 767 this trigger is a cell in the same row as
+       the tabs, and a 40px box inside a 44px icon row is the odd item out. */
+    width: 100%;
+    height: auto;
     padding: 0;
     justify-content: center;
   }

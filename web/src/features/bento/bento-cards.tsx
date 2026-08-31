@@ -56,7 +56,7 @@ const QUIET = ink(38)
     grid child refuses to shrink below its content and the drawing pushes the
     card out of shape. */
 export function CardShell({
-  title, sub, action, value, change, children, className,
+  title, sub, action, value, change, delta, deltaNote, children, className,
 }: {
   title: string
   sub?: string
@@ -67,6 +67,20 @@ export function CardShell({
   action?: { label: string; onActivate?: () => void }
   value: ReactNode
   change?: ReactNode
+  /* THE MOVEMENT, BESIDE THE FIGURE RATHER THAN UNDER IT.
+
+     Every card said its change in a sentence below the number: "100% of
+     Rs 8,667 billed", "0% of 91 on roll". That reads, and it makes the card a
+     paragraph with a heading. A board of eighteen of them is eighteen
+     paragraphs, and a board is read by scanning, where the two things scanned
+     for are the figure and whether it moved.
+
+     So a delta is a short signed value on the figure's own line, hard right,
+     with a caption under it naming what the comparison is against. Both
+     optional: a card with nothing to compare keeps its sentence, which is the
+     honest thing to show when there is no previous period. */
+  delta?: string
+  deltaNote?: string
   children?: ReactNode
   className?: string
 }) {
@@ -220,8 +234,26 @@ export function CardShell({
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
           )}
         >
-          {value}
+          {typeof value === 'string' ? <Figure text={value} /> : value}
         </p>
+
+        {/* Signed, and never both. A card that carries a delta does not also
+            need the sentence repeating it. */}
+        {delta && (
+          <p className="shrink-0 text-right leading-tight">
+            <span className="block tabular-nums [font-weight:650]
+                             text-[length:var(--card-change,11px)]">
+              {delta}
+            </span>
+            {deltaNote && (
+              <span className="mt-0.5 block whitespace-nowrap font-normal uppercase
+                               leading-none tracking-[0.06em] opacity-55
+                               text-[length:calc(var(--card-sub,10px)*0.9)]">
+                {deltaNote}
+              </span>
+            )}
+          </p>
+        )}
       </div>
       {/* Two lines, not an ellipsis. This is the sentence that carries the
           reading — "12% of billed, owed by 30 students" — and truncating it
@@ -231,7 +263,7 @@ export function CardShell({
           stops being subordinate to it. 300 against the figure's 650 is the
           widest gap this typeface offers, and it is what leaves the number the
           only bold thing on the card. */}
-      {change ? (
+      {change && !delta ? (
         <p className="line-clamp-2 font-light leading-tight opacity-70
                       text-[length:var(--card-change,11px)]">
           {change}
@@ -285,6 +317,40 @@ export function CardShell({
     link is invalid HTML and the browser closes the outer one early, which
     silently breaks the card. There it is a span, aria-hidden, because the
     enclosing link already carries the name. */
+
+/* THE UNIT IS NOT PART OF THE NUMBER.
+
+   "4.92%" set at the figure size gives the percent sign the same weight and
+   the same 38 pixels as the digits, and on a small cell the sign is a third of
+   the width of the thing you are trying to read. The same goes for "184 ms",
+   "248K" and a leading rupee mark.
+
+   So the trailing unit, and a leading currency mark, are drawn smaller and
+   lighter and tucked against the digits. The number keeps the card, and the
+   unit stays legible without competing for it.
+
+   Split with a regex rather than by asking every call site to pass two fields:
+   there are twenty-odd cards and the shapes they already produce are regular
+   enough to read. Anything the pattern does not recognise is drawn exactly as
+   it arrives, which is the safe direction to fail in.
+*/
+const FIGURE = /^(\p{Sc}?)\s*([\d.,+\-]+)\s*([%\p{L}]{0,3})$/u
+
+function Figure({ text }: { text: string }) {
+  const m = FIGURE.exec(text.trim())
+  if (!m || (!m[1] && !m[3])) return <>{text}</>
+  const [, mark, digits, unit] = m
+  const small =
+    'text-[length:max(0.42em,10px)] [font-weight:500] opacity-70'
+  return (
+    <>
+      {mark && <span className={cn(small, 'mr-[0.06em] align-baseline')}>{mark}</span>}
+      {digits}
+      {unit && <span className={cn(small, 'ml-[0.08em] align-baseline')}>{unit}</span>}
+    </>
+  )
+}
+
 export function CornerControl({
   as: Tag = 'button',
   insetLeft = false,
