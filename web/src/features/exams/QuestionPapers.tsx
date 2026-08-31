@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Badge, Button,
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
@@ -246,100 +246,119 @@ export default function QuestionPapers() {
             />
           ) : (
             <>
-            <Table head={['Exam', 'Class & subject', 'Set by', 'Status', '']}>
+            <ul className="space-y-3 p-4">
               {(showAll ? d.items : d.items.slice(0, 8)).map((p) => (
-                <tr key={p.id}>
-                  <Td>
-                    {p.exam_name}
-                    {p.exam_date && (
-                      <span className="block text-[11.5px] text-muted-foreground">
-                        {formatDate(p.exam_date)}
-                        {p.duration_minutes ? ` · ${p.duration_minutes} min` : ''}
-                        {` · out of ${p.max_marks}`}
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    {p.class} · {p.subject}
-                    {p.notes && (
-                      <span className="block text-[11.5px] text-muted-foreground">{p.notes}</span>
-                    )}
-                  </Td>
-                  <Td>{p.mine ? 'You' : p.set_by}</Td>
-                  <Td>
-                    <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
-                    {p.review_note && (
-                      <span className="block text-[11.5px] text-muted-foreground">
-                        {p.reviewed_by ? `${p.reviewed_by}: ` : ''}
-                        {p.review_note}
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Read here, not downloaded. A head approving a paper
-                          reads it and moves on; a copy of an unsat exam paper
-                          in somebody's Downloads folder is the last thing a
-                          school wants lying about. */}
-                      {p.file_id && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setViewFile({
-                            file_id: p.file_id!,
-                            name: `${p.exam_name} — ${p.subject}`,
-                          })}
-                        >
-                          Open paper
-                        </Button>
+                <li
+                  key={p.id}
+                  className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-[15px] font-semibold">{p.exam_name}</p>
+                      <p className="text-[13.5px] font-medium">
+                        {p.class} · {p.subject}
+                      </p>
+                      {/* The particulars of the paper itself, under its name.
+                          They were a second line in a cramped table cell and
+                          read as an afterthought to the exam's date. */}
+                      <p className="text-[12px] text-muted-foreground">
+                        {[
+                          p.exam_date && formatDate(p.exam_date),
+                          p.duration_minutes ? `${p.duration_minutes} min` : null,
+                          `out of ${p.max_marks}`,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                      {p.notes && (
+                        <p className="text-[12px] text-muted-foreground">{p.notes}</p>
                       )}
-                      {/* Deciding is offered only on somebody else's paper that
-                          is actually waiting. */}
-                      {d.decides && p.status === 'submitted' && !p.mine && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => decide.mutate({ id: p.id, decision: 'approved' })}
-                            disabled={decide.isPending}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setReturning(returning === p.id ? null : p.id)
-                              setNote('')
-                            }}
-                          >
-                            Send back
-                          </Button>
-                        </>
+                      {p.review_note && (
+                        <p className="text-[12px] text-muted-foreground">
+                          {p.reviewed_by ? `${p.reviewed_by}: ` : ''}
+                          {p.review_note}
+                        </p>
                       )}
                     </div>
-                    {returning === p.id && (
-                      <div className="mt-2 space-y-2">
-                        <Textarea
-                          rows={2}
-                          value={note}
-                          onChange={setNote}
-                          placeholder="What needs changing? The teacher sees this."
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            decide.mutate({ id: p.id, decision: 'changes_needed', note })
-                          }
-                          disabled={!note.trim() || decide.isPending}
-                        >
-                          Send it back
-                        </Button>
+
+                    <div className="flex flex-wrap items-center gap-5 border-t pt-3 md:border-t-0 md:pt-0">
+                      {/* Each fact under the word that says what it is. In the
+                          table these were four bare columns and the header was
+                          scrolled off the top by the third row. */}
+                      <div>
+                        <span className="block text-[11px] text-muted-foreground">Set by</span>
+                        <span className="text-[13px] font-medium">
+                          {p.mine ? 'You' : p.set_by}
+                        </span>
                       </div>
-                    )}
-                  </Td>
-                </tr>
+                      <div>
+                        <span className="block text-[11px] text-muted-foreground">Status</span>
+                        <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Read here, not downloaded. A head approving a paper
+                            reads it and moves on; a copy of an unsat exam paper
+                            in a Downloads folder is the last thing a school
+                            wants lying about. */}
+                        {p.file_id && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setViewFile({
+                              file_id: p.file_id!,
+                              name: `${p.exam_name} — ${p.subject}`,
+                            })}
+                          >
+                            Open paper
+                          </Button>
+                        )}
+                        {/* Deciding is offered only on somebody else's paper
+                            that is actually waiting. */}
+                        {d.decides && p.status === 'submitted' && !p.mine && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => decide.mutate({ id: p.id, decision: 'approved' })}
+                              disabled={decide.isPending}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setReturning(returning === p.id ? null : p.id)
+                                setNote('')
+                              }}
+                            >
+                              Send back
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {returning === p.id && (
+                    <div className="mt-3 space-y-2 border-t pt-3">
+                      <Textarea
+                        rows={2}
+                        value={note}
+                        onChange={setNote}
+                        placeholder="What needs changing? The teacher sees this."
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          decide.mutate({ id: p.id, decision: 'changes_needed', note })
+                        }
+                        disabled={!note.trim() || decide.isPending}
+                      >
+                        Send it back
+                      </Button>
+                    </div>
+                  )}
+                </li>
               ))}
-            </Table>
+            </ul>
             {d.items.length > 8 && !showAll && (
               <button
                 type="button"

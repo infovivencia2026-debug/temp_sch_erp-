@@ -191,6 +191,11 @@ export function Shell({
   const catalog = useCatalog()
   const session = useSession()
   const role = useActiveRole()
+  /* Whether this person may look into every office in the building. Held by
+     the principal, and the reason the workspace menu opens for somebody with a
+     single workspace. */
+  const canSeeEveryRole =
+    allRolesOn() || catalog.roles.some((r) => r.key === 'institution_admin')
   const { paths } = usePanes()
   // A split work area scrolls per pane, so the shell's own scroller has to
   // stand down — two bars for one gesture move the wrong thing.
@@ -641,7 +646,14 @@ export function Shell({
             onClick={() => setSwitcherOpen((v) => !v)}
             aria-expanded={switcherOpen}
             aria-haspopup="menu"
-            disabled={catalog.roles.length < 2}
+            /* Openable for a head holding one role.
+
+               It was disabled below two workspaces — right, when the menu only
+               ever listed workspaces somebody already had. The menu now also
+               carries "View every role", and a principal holds exactly one
+               role, so the one control that reaches every office in the
+               building was behind a button that could not be pressed. */
+            disabled={catalog.roles.length < 2 && !canSeeEveryRole}
             className={cn(
               /* pr-12 keeps the role name clear of the hide control sitting over
                  this button's right edge. Without it the label truncates at the
