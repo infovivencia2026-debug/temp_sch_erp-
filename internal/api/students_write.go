@@ -816,19 +816,25 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 		out["fees"] = map[string]any{"outstanding_paise": duesPaise, "paid_paise": paidPaise}
 
 		if err := scanInto(r.Context(), tx, `
-			SELECT g.full_name, g.relation, COALESCE(g.phone,''), COALESCE(g.email::text,''),
-			       sg.is_primary
+			/* The id, which the row has never carried.
+
+			   "Give a login" posts to /guardians/{id}/login and the client had
+			   no id to put in it, so every attempt answered "invalid guardian
+			   id" — on the one screen the product tells an office to use for
+			   exactly that. */
+			SELECT g.id::text, g.full_name, g.relation, COALESCE(g.phone,''),
+			       COALESCE(g.email::text,''), sg.is_primary
 			  FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
 			 WHERE sg.student_id = '`+sid.String()+`'::uuid
 			 ORDER BY sg.is_primary DESC`,
 			func(rows pgx.Rows) error {
-				var name, rel, ph, em string
+				var gid, name, rel, ph, em string
 				var primary bool
-				if err := rows.Scan(&name, &rel, &ph, &em, &primary); err != nil {
+				if err := rows.Scan(&gid, &name, &rel, &ph, &em, &primary); err != nil {
 					return err
 				}
 				guardians = append(guardians, map[string]any{
-					"full_name": name, "relation": rel, "phone": ph,
+					"id": gid, "full_name": name, "relation": rel, "phone": ph,
 					"email": em, "is_primary": primary})
 				return nil
 			}); err != nil {

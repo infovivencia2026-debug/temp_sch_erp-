@@ -234,12 +234,30 @@ export default function StudentProfile() {
   const session = useSession()
   const held = new Set(session.permissions)
 
+  /* Slugs that are verbs, not capabilities.
+
+     The fallback below matches on the last segment, so a FEATURE key like
+     "…​.issue_certificate" is answered by whichever workspace grants it. Applied
+     to a PERMISSION key it was a hole the size of the product: students.write
+     was satisfied by academics.homework.write, so every teacher in the school
+     "could" edit any child, add a photograph and issue a family login — until
+     the server refused them and they were shown "missing permission:
+     students.write" about a button the product had offered.
+
+     These words appear at the end of nearly every permission this product
+     defines, so a match on one says nothing at all. */
+  const GENERIC = new Set([
+    'read', 'write', 'approve', 'export', 'send', 'create', 'update', 'delete',
+    'manage', 'view', 'all', 'any',
+  ])
+
   function can(featureKey: string) {
     if (held.has(featureKey)) return true
+    const slug = featureKey.split('.').slice(-1)[0]
+    if (GENERIC.has(slug)) return false
     // A capability may be granted through a different role's feature key —
     // match on the trailing slug so "issue a certificate" is answered by
     // whichever workspace this person reaches it through.
-    const slug = featureKey.split('.').slice(-1)[0]
     return [...held].some((k) => k.endsWith('.' + slug))
   }
 

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { api } from './api'
 import type { Scope, Tier } from '@/catalog.gen'
 
@@ -136,12 +136,30 @@ export function useCatalog(): CatalogResponse {
  * rather than rendering an empty shell.
  */
 export function useActiveRole(): ApiRole {
+  /* Read from the address, not from route params.
+
+     useParams only answers inside the route that declares :roleKey, and the
+     Shell — which draws the sidebar, the workspace name and the whole
+     navigation — renders OUTSIDE the route tree. So it always got undefined
+     and fell back to roles[0].
+
+     Invisible while everybody held one role. The moment a principal switched
+     to Faculty the address bar said /faculty/… and the sidebar still said
+     Institution Admin, with the principal's own menu under it: they had
+     reached another workspace and could not see it.
+
+     The first path segment is the workspace by construction — every screen is
+     /role/section/feature — so reading it works wherever this hook is called
+     from. */
   const { roleKey } = useParams()
+  const { pathname } = useLocation()
   const catalog = useCatalog()
   return useMemo(() => {
-    const match = catalog.roles.find((r) => r.key === roleKey)
+    const fromPath = pathname.split('/').filter(Boolean)[0]
+    const match = catalog.roles.find((r) => r.key === (roleKey ?? fromPath))
+      ?? catalog.roles.find((r) => r.key === fromPath)
     return match ?? catalog.roles[0]
-  }, [catalog.roles, roleKey])
+  }, [catalog.roles, roleKey, pathname])
 }
 
 /* Usable means built, and in the caller's scope.
