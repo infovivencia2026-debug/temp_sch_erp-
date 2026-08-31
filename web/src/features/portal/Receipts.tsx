@@ -140,11 +140,50 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   if (!d) return null
 
   return (
+    <div id="receipt-sheet">
     <Card>
+      {/* THE SHEET IS THE RECEIPT, NOT THE PAGE IT SITS ON.
+
+          Printing gave a parent the breadcrumb, the three summary cards and
+          the receipt underneath — a page about receipts rather than the
+          receipt they asked for, and the thing they are taking to the office
+          was the last third of it.
+
+          visibility rather than display: hiding an ancestor hides its
+          descendants whatever they say, so the receipt has to stay visible
+          inside a hidden page — which is exactly what visibility allows and
+          display does not. */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #receipt-sheet, #receipt-sheet * { visibility: visible !important; }
+          #receipt-sheet {
+            position: absolute !important;
+            left: 0; top: 0; width: 100%;
+            border: none !important;
+          }
+          #receipt-sheet .no-print { display: none !important; }
+        }
+      `}</style>
       <CardHeader
         title={t('portal.receipts.detail_title', { number: d.receipt_no })}
         description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
-        action={<PrintButton label={t('portal.receipts.action_download')} />}
+        action={
+          <span className="no-print flex flex-wrap items-center gap-2">
+            {/* Two buttons for one dialog, deliberately.
+
+                Both open the browser's print sheet, because that sheet is
+                where "Save as PDF" lives — there is no way for a page to write
+                a PDF to somebody's phone without shipping a renderer. What
+                differs is what the person is looking for: somebody who wants
+                paper reads "Print" and stops looking, and somebody who wants a
+                copy reads "Save as PDF" and knows the dialog is the right
+                place. One button labelled for one of them sends the other
+                away thinking the product cannot do it. */}
+            <PrintButton label="Print" />
+            <PrintButton label="Save as PDF" />
+          </span>
+        }
       />
       {/* Said once, next to the button.
 
@@ -153,7 +192,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
           real PDF — "Save as PDF" is the first option on both Android and iOS
           — so the fix is to say which option to pick, not to pretend the
           button does something else. */}
-      <p className="px-5 pt-3 text-[12.5px] text-muted-foreground">
+      <p className="no-print px-5 pt-3 text-[12.5px] text-muted-foreground">
         {t('portal.receipts.download_hint')}
       </p>
       <div className="p-5">
@@ -197,6 +236,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
         </div>
       </div>
     </Card>
+    </div>
   )
 }
 

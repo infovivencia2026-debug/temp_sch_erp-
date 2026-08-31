@@ -274,7 +274,20 @@ func (s *Server) feeReminderSubjects(ctx context.Context, tx pgx.Tx, inst uuid.U
 		  JOIN students st ON st.id = inv.student_id
 		 WHERE inv.institution_id = $1
 		   AND inv.status NOT IN ('cancelled','draft','paid')
-		   AND inv.due_on IS NOT NULL AND inv.due_on < CURRENT_DATE
+		   /* Before the deadline as well as after it.
+
+		      This read due_on < CURRENT_DATE, so a plan could only ever
+		      chase a family who was already late — and the reminder a school
+		      actually wants is the one that arrives while the money can still
+		      be paid on time. days_overdue simply goes negative for those, and
+		      a plan whose first chase is -7 means "a week before".
+
+		      Bounded at 60 days ahead so the sweep does not walk a whole
+		      year's demand every time it runs; no school reminds earlier than
+		      that, and a rule set further out silently does nothing rather
+		      than costing anybody a message. */
+		   AND inv.due_on IS NOT NULL
+		   AND inv.due_on <= CURRENT_DATE + 60
 		   AND inv.net_paise > inv.paid_paise
 		 ORDER BY inv.due_on
 		 LIMIT 5000`, inst)

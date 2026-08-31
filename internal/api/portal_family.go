@@ -163,6 +163,12 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 				  FROM invoice_lines il
 				  JOIN fee_heads fh ON fh.id = il.fee_head_id
 				 WHERE il.invoice_id = ANY($1)
+				   /* A penalty writes a zero-amount line to carry its reason —
+				      the money itself lives in fine_paise — and the family's
+				      breakdown showed it as "Penalty — late fee ₹0" beside the
+				      real "Late fee / penalty ₹2,000". One charge, printed
+				      twice, one of them for nothing. */
+				   AND il.amount_paise - il.discount_paise <> 0
 				 ORDER BY il.amount_paise DESC`, ids)
 			if err != nil {
 				return err

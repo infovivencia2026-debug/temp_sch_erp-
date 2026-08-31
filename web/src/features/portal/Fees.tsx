@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Select, Loading, ErrorState, EmptyState, PrintButton,
+  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice,
 } from '@/components/ui'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -75,6 +75,22 @@ export default function PortalFees() {
   const kids = children.data?.items ?? []
   const [picked, setPicked] = useState('')
   const child = picked || kids[0]?.student_id || ''
+
+  /* Paying, with nothing moving. See internal/api/portal_pay.go: it writes the
+     receipt and the ledger entry the counter would, stamped SIMULATED, so the
+     day a gateway arrives the only new code is the part that takes the money. */
+  const qc = useQueryClient()
+  const [paid, setPaid] = useState('')
+  const pay = useMutation({
+    mutationFn: (v: { invoice_no?: string }) =>
+      api.post<{ receipt_no: string }>(
+        `/api/v1/portal/fees/pay?student_id=${child}`, v),
+    onSuccess: (r) => {
+      setPaid(`Paid. Receipt ${r.receipt_no}. This was a test payment — no money was taken.`)
+      qc.invalidateQueries()
+    },
+    onError: () => setPaid(''),
+  })
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['portal-fees', child],
@@ -153,6 +169,33 @@ export default function PortalFees() {
         }
       />
       <PageBody>
+        {/* NO MONEY MOVES HERE YET, AND IT SAYS SO.
+
+            There is no payment gateway in this product. The button records the
+            payment the way the counter does — same receipt, same ledger, same
+            notification — and stamps every row SIMULATED, so the whole family
+            side of the fee flow can be exercised before a gateway is wired in,
+            which is the worst day to find a fault in it. */}
+        {d.outstanding_paise > 0 && (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div>
+                <p className="text-[15px] font-semibold">
+                  {formatPaise(d.outstanding_paise)} outstanding
+                </p>
+                <p className="text-[12.5px] text-muted-foreground">
+                  Test payment only — no money is taken and no card is asked for.
+                  The receipt is issued exactly as it would be at the office.
+                </p>
+              </div>
+              <Button disabled={pay.isPending} onClick={() => pay.mutate({})}>
+                {pay.isPending ? 'Paying…' : `Pay ${formatPaise(d.outstanding_paise)}`}
+              </Button>
+            </div>
+            <FormNotice error={pay.error} ok={paid} />
+          </Card>
+        )}
+
         <CellGrid cols={3}>
           <Stat label={t('portal.fees.stat_outstanding')} value={formatPaise(d.outstanding_paise)} icon={IndianRupee} />
           <Stat
@@ -220,30 +263,52 @@ export default function PortalFees() {
                       "Instalment 1 — ₹11,833" and nothing else meant a parent
                       asking what they were paying for had to telephone the
                       office to be read a list the school already holds. */}
+                  {/* A grid, not a sentence.
+
+                      Six charges written as a wrapped line read as prose: the
+                      eye cannot compare "Transport ₹833" with "Uniform ₹333"
+                      when they sit at different points on different lines. A
+                      column each, with the label above the figure, is how a
+                      bill is read. */}
                   {i.lines && i.lines.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t pt-3 text-[12.5px]">
-                      {i.lines.map((l, n) => (
-                        <span key={n} className={l.is_fine ? 'text-destructive' : 'text-muted-foreground'}>
-                          {l.head}
-                          <span className="ml-1.5 font-medium tabular-nums text-foreground">
-                            {formatPaise(l.amount_paise)}
-                          </span>
-                        </span>
-                      ))}
-                      <span className="font-semibold">
-                        {t('portal.fees.col_amount')}
-                        <span className="ml-1.5 tabular-nums">{formatPaise(i.net_paise)}</span>
-                      </span>
-                      {i.paid_paise > 0 && (
-                        <span className="text-muted-foreground">
-                          {t('portal.fees.col_paid')}
-                          <span className="ml-1.5 font-medium tabular-nums text-foreground">
-                            {formatPaise(i.paid_paise)}
-                          </span>
-                        </span>
-                      )}
+                    <div className="mt-3 border-t pt-3">
+                      <p className="eyebrow mb-2">{t('portal.fees.col_amount')}</p>
+                      <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-[12.5px] sm:grid-cols-3 md:grid-cols-4">
+                        {i.lines.map((l, n) => (
+                          <div key={n}>
+                            <span className={cn('block', l.is_fine ? 'text-destructive' : 'text-muted-foreground')}>
+                              {l.head}
+                            </span>
+                            <span className="font-semibold tabular-nums">
+                              {formatPaise(l.amount_paise)}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="col-span-2 flex items-center justify-between border-t pt-2 sm:col-span-3 md:col-span-4">
+                          <span className="font-semibold">{t('portal.fees.col_amount')}</span>
+                          <span className="font-semibold tabular-nums">{formatPaise(i.net_paise)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-[12.5px] text-muted-foreground">
+                      {t('portal.fees.col_paid')}{' '}
+                      <strong className="tabular-nums text-foreground">
+                        {formatPaise(i.paid_paise)}
+                      </strong>
+                    </span>
+                    {i.due_paise > 0 && (
+                      <Button
+                        size="sm"
+                        disabled={pay.isPending}
+                        onClick={() => pay.mutate({ invoice_no: i.invoice_no })}
+                      >
+                        {pay.isPending ? 'Paying…' : `Pay ${formatPaise(i.due_paise)}`}
+                      </Button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

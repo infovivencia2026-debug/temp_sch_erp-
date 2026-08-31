@@ -384,6 +384,11 @@ func (s *Server) Routes() http.Handler {
 			// The card itself, on the school's own design. Published cards
 			// only, and only for a child this caller is attached to.
 			r.Get("/results/card", s.renderFamilyReportCard)
+			/* Paying from the app, with no money moving — a simulation, and
+			   marked as one on every row it writes. It exists so the receipt,
+			   the ledger and the balance are exercised before a gateway is
+			   wired in, which is the worst day to find a fault in them. */
+			r.Post("/fees/pay", s.portalSimulatedPay)
 			// Where is my admission. Mounted here rather than under
 			// /admissions because the caller is a family, not the office, and
 			// the permission it must ride is the portal's own self/children
