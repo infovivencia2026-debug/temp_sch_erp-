@@ -399,7 +399,10 @@ var probes = []probe{
 	},
 	{
 		Key: "reportcards.unpublished", Needs: rbac.ReportCardsGenerate,
-		Severity: SeverityWarning, Action: "Review and publish", Href: "marks",
+		// Named for every workspace that keeps this screen, because they do not
+		// agree: a class teacher's is report_cards, a head's is exams_results.
+		Severity: SeverityWarning, Action: "Review and publish",
+		Href: "report_cards exams_results marks",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "report card", "report cards") + " awaiting publication"
 		},

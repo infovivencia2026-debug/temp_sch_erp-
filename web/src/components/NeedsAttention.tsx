@@ -111,11 +111,21 @@ export default function NeedsAttention({ name }: { name?: string }) {
      having to know the shape of seventeen navigation trees. */
   function hrefFor(target?: string) {
     if (!target || !role) return null
-    for (const section of role.sections) {
-      for (const f of section.features) {
-        if (!f.live || !f.in_scope) continue
-        const hay = `${section.slug} ${f.slug}`
-        if (hay.includes(target)) return `/${role.key}/${section.slug}/${f.slug}`
+    /* Several names for the same destination, tried in order.
+
+       A probe names where it wants to go in the abstract — "marks" — and each
+       workspace calls that screen something different: a class teacher's is
+       marks_report_cards/report_cards, a head's is examinations/exams_results.
+       One word matched the first and not the second, so "10 report cards
+       awaiting publication" sat on the principal's dashboard as a line of text
+       with nothing to press — the one person who could act on it. */
+    for (const want of target.split(/\s+/).filter(Boolean)) {
+      for (const section of role.sections) {
+        for (const f of section.features) {
+          if (!f.live || !f.in_scope) continue
+          const hay = `${section.slug} ${f.slug}`
+          if (hay.includes(want)) return `/${role.key}/${section.slug}/${f.slug}`
+        }
       }
     }
     return null

@@ -55,6 +55,27 @@ interface Filters {
 
 const NO_FILTERS: Filters = { kind: '', class_id: '', section_id: '', subject_id: '', from: '', to: '' }
 
+/* How long is left, in the words somebody would use.
+
+   "03 Sep 2026" makes a reader do the subtraction, and the thing they are
+   deciding is whether it is tonight's problem. */
+function dueIn(iso: string) {
+  const days = Math.round(
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
+  )
+  if (days === 0) return 'Due today'
+  if (days === 1) return 'Due tomorrow'
+  return `Due in ${days} days`
+}
+
+/** Close enough to colour. Inside three days is this week's problem. */
+function dueSoon(iso: string) {
+  const days = Math.round(
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
+  )
+  return days >= 0 && days <= 3
+}
+
 export default function Homework() {
   const qc = useQueryClient()
   const [composing, setComposing] = useState(false)
@@ -268,34 +289,53 @@ export default function Homework() {
                actually gets it; the rest is one press away and opens as its
                own scrolling page. */
             <>
-            <ul className="divide-y">
+            <ul className="space-y-3 p-4">
               {(showAll ? items : items.slice(0, 6)).map((h) => (
-                <li key={h.id} className="px-5 py-4">
+                <li
+                  key={h.id}
+                  className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
+                >
                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-medium">
-                      {h.subject && <span className="text-muted-foreground">{h.subject} · </span>}
-                      {h.title}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* The subject as a chip, because it is the first thing
+                          scanned for and was reading as part of the title. */}
+                      {h.subject && (
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                          {h.subject}
+                        </span>
+                      )}
+                      <span className="text-[15px] font-semibold">{h.title}</span>
+                    </div>
                     {h.instructions && (
-                      <p className="mt-0.5 text-[14px] text-muted-foreground">{h.instructions}</p>
+                      <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>
                     )}
-                    <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
                       {h.class_name && (
-                        <Badge>
+                        <span>
                           {h.class_name}
                           {h.section_name && `-${h.section_name}`}
-                        </Badge>
+                        </span>
                       )}
+                      {h.teacher && <><span aria-hidden>·</span><span>set by {h.teacher}</span></>}
+                      <span aria-hidden>·</span>
+                      {/* The state, not the arithmetic. A date leaves the
+                          reader to work out whether it has passed; a teacher
+                          scanning fifteen rows should not have to. */}
                       {h.due_on ? (
-                        <span className={h.overdue ? 'text-destructive' : undefined}>
-                          {h.overdue ? 'was due ' : 'due '}
-                          {formatDate(h.due_on)}
+                        <span
+                          className={cn(
+                            'font-medium',
+                            h.overdue ? 'text-destructive' : dueSoon(h.due_on) ? 'text-warning' : '',
+                          )}
+                        >
+                          {h.overdue
+                            ? `Overdue — was due ${formatDate(h.due_on)}`
+                            : `${dueIn(h.due_on)} (${formatDate(h.due_on)})`}
                         </span>
                       ) : (
                         <span>no due date</span>
                       )}
-                      {h.teacher && <span>set by {h.teacher}</span>}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
@@ -312,7 +352,7 @@ export default function Homework() {
                     {canPublish ? (
                       <span
                         className={cn(
-                          'text-[13px] tabular-nums',
+                          'rounded-lg bg-muted px-3 py-1.5 text-[13px] font-medium tabular-nums',
                           h.submissions === 0
                             ? 'text-muted-foreground'
                             : h.submissions >= h.strength
@@ -320,8 +360,8 @@ export default function Homework() {
                               : 'text-foreground',
                         )}
                       >
-                        <Users className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
-                        {h.submissions}/{h.strength} turned in
+                        <Users className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
+                        {h.submissions} / {h.strength} turned in
                       </span>
                     ) : h.submitted ? (
                       /* "Done", matching the button that gets you here. A
@@ -364,7 +404,9 @@ export default function Homework() {
                       variant="secondary"
                       onClick={() => setViewing(viewing === h.id ? null : h.id)}
                     >
-                      {viewing === h.id ? 'Close' : 'Open'}
+                      {viewing === h.id
+                        ? 'Close'
+                        : canPublish ? 'View submissions' : 'Open'}
                     </Button>
                   </div>
                  </div>
@@ -375,7 +417,7 @@ export default function Homework() {
                       is most of what setting homework means — had nowhere to
                       live. */}
                   {!!h.files?.length && (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {/* Opened, not downloaded. Checking that the worksheet
                           you attached is the right one should not mean going
                           to a Downloads folder to find out, and a parent on a
@@ -386,7 +428,7 @@ export default function Homework() {
                           key={f.file_id}
                           type="button"
                           onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
-                          className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px] text-primary hover:bg-accent"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-primary/20"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {f.name}

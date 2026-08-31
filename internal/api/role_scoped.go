@@ -487,9 +487,10 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 	   its status. Only where nothing was marked does the calendar decide what
 	   the day was — which is exactly the blank this exists to fill.
 
-	   Approved leave only. A request still waiting on the school is not an
-	   answer, and showing it as one would tell a parent their child was excused
-	   before anybody excused them. */
+	   LEAVE IS NOT DRAWN HERE. Whether a child was in school is the register's
+	   answer; an approved leave request is a decision about a day, and the two
+	   on one square disagree as often as they agree. The leave screen is where
+	   a family reads what was approved. */
 	items, err := collect(s, r, `
 		WITH days AS (
 		  SELECT generate_series(CURRENT_DATE - INTERVAL '120 days',
@@ -500,20 +501,13 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 		    FROM holidays h
 		   WHERE h.applies_to IN ('all','students')
 		     AND h.kind <> 'working_day'
-		),
-		lv AS (
-		  SELECT l.from_date, l.to_date, l.reason
-		    FROM leave_requests l
-		   WHERE l.student_id = $1 AND l.status = 'approved'
 		)
 		SELECT to_char(days.d,'YYYY-MM-DD'),
 		       COALESCE(sa.status,
-		                CASE WHEN hol.name IS NOT NULL THEN 'holiday'
-		                     WHEN lv.reason IS NOT NULL THEN 'leave' END,
-		                ''),
-		       COALESCE(hol.name, lv.reason, ''),
-		       COALESCE(hol.kind, CASE WHEN lv.reason IS NOT NULL THEN 'leave' END, ''),
-		       (lv.reason IS NOT NULL)
+		                CASE WHEN hol.name IS NOT NULL THEN 'holiday' END, ''),
+		       COALESCE(hol.name, ''),
+		       COALESCE(hol.kind, ''),
+		       false
 		  FROM days
 		  LEFT JOIN student_attendance sa
 		         ON sa.student_id = $1 AND sa.on_date = days.d
@@ -523,14 +517,10 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 		        SELECT h.name, h.kind FROM hol h
 		         WHERE days.d BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date)
 		         ORDER BY h.on_date LIMIT 1) hol ON TRUE
-		  LEFT JOIN LATERAL (
-		        SELECT l.reason FROM lv l
-		         WHERE days.d BETWEEN l.from_date AND l.to_date
-		         ORDER BY l.from_date LIMIT 1) lv ON TRUE
 		 -- A day that is nothing at all — no register entry, no holiday, no
 		 -- leave — is a day the school was not open to this child, and drawing
 		 -- 120 blank squares would bury the ones that mean something.
-		 WHERE sa.status IS NOT NULL OR hol.name IS NOT NULL OR lv.reason IS NOT NULL
+		 WHERE sa.status IS NOT NULL OR hol.name IS NOT NULL
 		 ORDER BY days.d DESC`, []any{target},
 		func(rows pgx.Rows) (portalAttendanceDay, error) {
 			var v portalAttendanceDay

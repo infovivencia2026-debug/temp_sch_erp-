@@ -111,8 +111,13 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
   const iso = (day: number) =>
     `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
+  /* Held to a calendar's width.
+
+     The grid filled whatever the card gave it, so on a desktop each day became
+     a bar four inches wide and the month read as a bar chart of nothing. A
+     month is a small object; it should look like one. */
   return (
-    <div className="mt-2">
+    <div className="mt-2 max-w-[22rem]">
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((w, i) => (
           <div key={i} className="pb-1 text-[10px] font-medium uppercase text-muted-foreground">
@@ -136,7 +141,7 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
                 d?.on_leave && status !== 'leave' ? 'leave approved' : null,
               ].filter(Boolean).join(' — ')}
               className={cn(
-                'relative flex h-7 items-center justify-center rounded text-[11px] tabular-nums',
+                'relative flex aspect-square items-center justify-center rounded text-[11px] tabular-nums',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
                 status ? DOT[status] ?? 'bg-muted' : 'text-muted-foreground',
@@ -165,7 +170,9 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
         <ul className="mt-2 space-y-0.5">
           {named.map((d) => (
             <li key={d.date} className="flex gap-2 text-[12px] text-muted-foreground">
-              <span className="w-10 shrink-0 tabular-nums">
+              {/* Wide enough for "31 Aug" on one line. At w-10 the month
+                  wrapped under the date and every entry took two lines. */}
+              <span className="w-14 shrink-0 whitespace-nowrap tabular-nums">
                 {Number(d.date.slice(8, 10))} {first.toLocaleDateString('en-IN', { month: 'short' })}
               </span>
               <span className="min-w-0 flex-1">
@@ -467,7 +474,10 @@ export default function Portal() {
                       ))}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
-                      {Object.entries(DOT).map(([k, cls]) => (
+                      {/* Leave is not drawn on this calendar — whether a child
+                          was in school is the register's answer — so it is not
+                          in the key either. */}
+                      {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
                         <span key={k} className="inline-flex items-center gap-1.5">
                           <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
                           {k.replace('_', ' ')}

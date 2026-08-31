@@ -181,6 +181,10 @@ export default function QuestionPapers() {
               title="Set a paper"
               description={`${open.length} of your exams have no paper yet.`}
             />
+            {/* Padded, like every other card in the product. FormGrid draws
+                no padding of its own, so the fields, the attach button and the
+                two actions were all flush against the card's edges. */}
+            <div className="px-5 pb-5 pt-4">
             <FormGrid>
               <Field label="Which exam">
                 <Select
@@ -209,9 +213,9 @@ export default function QuestionPapers() {
               onChange={setFile}
               purpose="question_paper"
               label="Attach the paper"
-              hint="A PDF or a document. It is not shown to students."
+              hint="A PDF, a document, or a photograph of the paper. Any file type is accepted. It is not shown to students."
             />
-            <div className="flex flex-wrap gap-2 pt-3">
+            <div className="flex flex-wrap items-center gap-2 pt-4">
               <Button
                 onClick={() => submit.mutate(true)}
                 disabled={!slot || !file || submit.isPending}
@@ -224,6 +228,7 @@ export default function QuestionPapers() {
               <Button variant="ghost" onClick={() => submit.mutate(false)} disabled={!slot || submit.isPending}>
                 Save without sending
               </Button>
+            </div>
             </div>
           </Card>
         )}
