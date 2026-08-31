@@ -2080,3 +2080,27 @@ html[data-layout='bento'] body {
 @media (pointer: coarse) {
   [data-layout='bento'] .bento-dock [data-tip]::after { display: none; }
 }
+
+/* HOW MUCH ROOM THE DOCK NEEDS BELOW THE CONTENT.
+
+   The dock is fixed and floats over the work area, so the work area has to
+   stop above it or its last rows are unreachable. Derived from the dock's own
+   sizing tokens rather than written as a number: the Appearance panel can make
+   the dock larger, and a hardcoded reserve would then be wrong in exactly the
+   case somebody deliberately chose.
+
+   --dock-btn is the button size, --dock-pad the bar's own padding on each
+   side, 24px is its offset from the bottom edge (bottom-6), and the safe area
+   is what an iPhone's home indicator takes on top of all of it.
+
+   Zero above 1024px, where the dock no longer floats over the content. */
+:root {
+  --dock-reserve: calc(
+    var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 16px +
+    env(safe-area-inset-bottom, 0px)
+  );
+}
+
+@media (min-width: 1024px) {
+  :root { --dock-reserve: 0px; }
+}

@@ -1000,10 +1000,26 @@ export function Shell({
               the ordinary case has neither an extra scroller nor an extra
               wrapper — and each pane brings its own BentoOutlet, because a
               pane resolves its own path rather than the address bar's. */}
+          {/* THE DOCK FLOATS OVER THIS, SO THIS HAS TO END ABOVE IT.
+
+              BentoDock is `fixed` and sits 24px off the bottom, 70px tall, so
+              it covers the last ninety-odd pixels of the viewport. This
+              scroller is the full height with nothing reserving that space, so
+              the end of every page on a phone sat under the dock: the last row
+              of a register, the Save button at the foot of a form, the final
+              stop on a route. You could scroll to the bottom and still not see
+              or tap what was there.
+
+              Reserved rather than repositioned, and read from the dock's own
+              tokens so a school that sets a larger dock in Appearance gets a
+              larger reserve without a second number to keep in step. The safe
+              area is added on top for the phones with a home indicator, which
+              eats another 34px on an iPhone. Phones and tablets only: above
+              1024px the dock is inside the layout and this is not needed. */}
           <main
             data-paint="workarea"
             className={cn(
-              'min-h-0 min-w-0 flex-1',
+              'min-h-0 min-w-0 flex-1 pb-[var(--dock-reserve,0px)] lg:pb-0',
               split ? 'overflow-hidden' : 'overflow-y-auto',
             )}
           >
