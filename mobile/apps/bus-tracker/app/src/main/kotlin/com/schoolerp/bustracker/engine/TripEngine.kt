@@ -61,6 +61,19 @@ class TripEngine @Inject constructor(
     private val _deviceSnapshot = MutableStateFlow(DeviceSnapshot())
     val deviceSnapshot: StateFlow<DeviceSnapshot> = _deviceSnapshot.asStateFlow()
 
+    /**
+     * Set once the server has rejected this device's token, and never unset
+     * for the life of the process.
+     *
+     * A revoked token is not a transient failure: the office retired the
+     * handset, or the driver signed in on a newer one, and every later call
+     * carries the same dead credential. Without this latch the push loop and
+     * the heartbeat loop would each go on answering 401 every ping until the
+     * battery died, raising the same notification over and over while the run
+     * screen still claimed the bus was being tracked.
+     */
+    private val credentialRejected = java.util.concurrent.atomic.AtomicBoolean(false)
+
     fun publishServiceRunning(running: Boolean) {
         _serviceRunning.value = running
     }
@@ -146,7 +159,10 @@ class TripEngine @Inject constructor(
                         _events.tryEmit(EngineEvent.TripClosedByServer(trip.tripId))
                     }
                     is PushOutcome.ClockWrong -> _events.tryEmit(EngineEvent.ClockWrong(outcome.serverTime))
-                    is PushOutcome.NotPaired -> _events.tryEmit(EngineEvent.Unpaired)
+                    is PushOutcome.NotPaired -> {
+                        rejectCredential()
+                        return
+                    }
                     is PushOutcome.Deferred -> {
                         val failure = outcome.failure
                         // too_fast names its own wait; anything else keeps the
@@ -173,13 +189,34 @@ class TripEngine @Inject constructor(
     private suspend fun heartbeatLoop() {
         while (true) {
             when (val outcome = repository.heartbeat()) {
-                is HeartbeatOutcome.NotPaired -> _events.tryEmit(EngineEvent.Unpaired)
+                is HeartbeatOutcome.NotPaired -> {
+                    rejectCredential()
+                    return
+                }
                 is HeartbeatOutcome.Failed ->
                     BtLog.w("engine", "heartbeat failed: ${outcome.reason}")
                 is HeartbeatOutcome.Acknowledged -> Unit
             }
             delay(heartbeatIntervalMillis())
         }
+    }
+
+    /**
+     * Clears the pairing and tells the driver, once.
+     *
+     * The clearing is what stops the reporting for good and what puts the
+     * sign-in screen back in front of him; the event is what says so while he
+     * is still holding the phone.
+     */
+    private suspend fun rejectCredential() {
+        if (!credentialRejected.compareAndSet(false, true)) return
+        BtLog.w("engine", "device token rejected; stopping every loop")
+        repository.credentialRejected(
+            "The school's server no longer accepts this phone. It was either taken off this " +
+                "bus in the office, or you signed in on another handset. Sign in again to " +
+                "carry on.",
+        )
+        _events.tryEmit(EngineEvent.Unpaired)
     }
 
     /**
@@ -214,8 +251,26 @@ data class DeviceSnapshot(
 class StatusAggregator @Inject constructor(
     private val repository: TrackerRepository,
     private val engine: TripEngine,
+    private val time: TimeSource,
 ) {
-    val status: kotlinx.coroutines.flow.Flow<TrackerStatus> = combine(
+
+    /**
+     * A clock the status can be measured against.
+     *
+     * How far behind the school's map is cannot be derived from the settings
+     * alone: nothing changes on disk while a phone sits in a dead zone, so a
+     * status assembled only from stored values keeps reporting the same
+     * cheerful sentence for the whole ten minutes. This is what makes the
+     * screen and the notification age.
+     */
+    private val ticks: kotlinx.coroutines.flow.Flow<Long> = kotlinx.coroutines.flow.flow {
+        while (true) {
+            emit(time.nowMillis())
+            delay(TICK_MILLIS)
+        }
+    }
+
+    private val parts: kotlinx.coroutines.flow.Flow<TrackerStatus> = combine(
         repository.settings,
         repository.bufferDepth,
         engine.deviceSnapshot,
@@ -238,5 +293,13 @@ class StatusAggregator @Inject constructor(
             notificationsAllowed = snapshot.notificationsAllowed,
             serviceRunning = running,
         )
+    }
+
+    val status: kotlinx.coroutines.flow.Flow<TrackerStatus> =
+        combine(parts, ticks) { part, now -> part.copy(nowMillis = now) }
+
+    private companion object {
+        /** Five seconds. Cheap, and finer than the minute the screen counts in. */
+        const val TICK_MILLIS = 5_000L
     }
 }

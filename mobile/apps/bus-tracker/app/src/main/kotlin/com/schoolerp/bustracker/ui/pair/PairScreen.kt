@@ -47,7 +47,7 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
         Text("Sign in", style = MaterialTheme.typography.headlineSmall)
         Text(
             "Use the login the school office gave you. Your bus and your route are " +
-                "already set — there is nothing to choose. This phone reports where " +
+                "already set, so there is nothing to choose. This phone reports where " +
                 "the bus is only while a run is open: nothing before you press Start " +
                 "Run, nothing after you press End Run.",
             style = MaterialTheme.typography.bodyMedium,
@@ -184,7 +184,7 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = viewModel::rejectVehicle) {
-                            Text("No — stop")
+                            Text("No, stop")
                         }
                         Text(
                             "Yes: close this and start your run.",
@@ -204,7 +204,7 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             if (state.submitting) {
                 CircularProgressIndicator(modifier = Modifier.height(20.dp))
             } else {
-                Text("Pair")
+                Text("Sign in")
             }
         }
     }

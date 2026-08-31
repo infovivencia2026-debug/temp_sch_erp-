@@ -55,6 +55,7 @@ class SettingsStore @Inject constructor(
             lastServerError = prefs[KEY_LAST_SERVER_ERROR],
             activeTrip = readTrip(prefs),
             routeBook = readRouteBook(prefs),
+            signedOutReason = prefs[KEY_SIGNED_OUT_REASON],
         )
     }
 
@@ -74,6 +75,24 @@ class SettingsStore @Inject constructor(
         vehicleId?.let { prefs[KEY_VEHICLE_ID] = it }
         prefs[KEY_VEHICLE_REGISTRATION] = vehicleRegistration
         pingSeconds?.let { prefs[KEY_PING_SECONDS] = TrackerSettings.clampPing(it) }
+        // A successful pairing answers whatever the last one was thrown out
+        // for, so the reason must not survive it and greet the driver as if
+        // the sign-in he just completed had failed.
+        prefs.remove(KEY_SIGNED_OUT_REASON)
+    }
+
+    /**
+     * Why this phone stopped being paired, kept across the wipe so the sign-in
+     * screen can say it.
+     *
+     * Deliberately outside [clearPairing]: the whole point is that it outlives
+     * the pairing it explains. Without it a handset whose token the office
+     * retired mid-run drops back to a blank sign-in form with no account of
+     * itself, and the driver rings the office to report an app that "logged
+     * itself out".
+     */
+    suspend fun recordSignedOut(reason: String?) = edit {
+        if (reason == null) it.remove(KEY_SIGNED_OUT_REASON) else it[KEY_SIGNED_OUT_REASON] = reason
     }
 
     /**
@@ -86,9 +105,22 @@ class SettingsStore @Inject constructor(
         paused?.let { prefs[KEY_PAUSED] = it }
     }
 
-    suspend fun recordPush(at: Long, error: String?) = edit {
+    /** Only ever called after the server accepted a batch. See [recordPushFailure]. */
+    suspend fun recordPush(at: Long) = edit {
         it[KEY_LAST_PUSH_AT] = at
-        if (error == null) it.remove(KEY_LAST_SERVER_ERROR) else it[KEY_LAST_SERVER_ERROR] = error
+        it.remove(KEY_LAST_SERVER_ERROR)
+    }
+
+    /**
+     * A failed push moves the error and nothing else.
+     *
+     * `last_push_at` used to be stamped here too, which made a phone with no
+     * signal for ten minutes look like it had just pushed: the run screen
+     * measures how far behind the school's map is from this timestamp, and an
+     * attempt is not a delivery.
+     */
+    suspend fun recordPushFailure(error: String) = edit {
+        it[KEY_LAST_SERVER_ERROR] = error
     }
 
     suspend fun recordHeartbeat(at: Long) = edit { it[KEY_LAST_HEARTBEAT_AT] = at }
@@ -169,6 +201,7 @@ class SettingsStore @Inject constructor(
         val KEY_TRIP_DIRECTION = stringPreferencesKey("trip_direction")
         val KEY_TRIP_STARTED_AT = longPreferencesKey("trip_started_at")
         val KEY_ROUTE_BOOK = stringPreferencesKey("route_book")
+        val KEY_SIGNED_OUT_REASON = stringPreferencesKey("signed_out_reason")
     }
 }
 
@@ -214,6 +247,8 @@ data class TrackerSettings(
     val lastServerError: String?,
     val activeTrip: ActiveTrip?,
     val routeBook: List<SavedRoute>,
+    /** Set when the server rejected this phone's token; shown on the sign-in screen. */
+    val signedOutReason: String? = null,
 ) {
     companion object {
         const val DEFAULT_PING_SECONDS = 20

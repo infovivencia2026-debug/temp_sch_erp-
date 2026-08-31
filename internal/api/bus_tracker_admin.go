@@ -71,6 +71,13 @@ type trackerAdminRow struct {
 	// so it is said, and it is said before every other reading.
 	Pending    bool    `json:"pending"`
 	EnrolledBy *string `json:"enrolled_by,omitempty"`
+
+	// A run still marked open that nothing has been heard from for longer than
+	// the school's own trip_timeout_mins. Said on this screen rather than left
+	// to be inferred from the route column, because an open trip and a moving
+	// bus look identical here and only one of them is worth walking over to
+	// the transport desk about.
+	RunTimedOut bool `json:"run_timed_out"`
 }
 
 /*
@@ -95,7 +102,16 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 		       tr.revoked_reason,
 		       tr.id IS NOT NULL AND tr.revoked_at IS NULL,
 		       tr.id IS NOT NULL AND tr.revoked_at IS NULL AND tr.approved_at IS NULL,
-		       eu.full_name
+		       eu.full_name,
+		       /* The same rule the timeout sweep applies, so this screen and
+		          the sweep cannot disagree about which runs have gone quiet.
+		          Clamped the same way too: a school with no policy row reads
+		          as null here, and an unclamped null would mark every run
+		          stale the moment it started. */
+		       vt.id IS NOT NULL
+		         AND GREATEST(vt.started_at, COALESCE(lp.recorded_at, vt.started_at))
+		             + make_interval(mins => LEAST(240, GREATEST(5,
+		                   COALESCE(pol.trip_timeout_mins, 20)))) < now()
 		  FROM vehicles v
 		  LEFT JOIN LATERAL (
 		       SELECT t.* FROM vehicle_trackers t
@@ -104,6 +120,13 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 		        LIMIT 1) tr ON TRUE
 		  LEFT JOIN vehicle_trips vt ON vt.vehicle_id = v.id AND vt.ended_at IS NULL
 		  LEFT JOIN routes rt ON rt.id = vt.route_id
+		  -- The last fix of the open run, which is what "heard from" means. Tied
+		  -- to vt so a leftover row from a previous run cannot make a silent
+		  -- trip look alive.
+		  LEFT JOIN vehicle_last_position lp
+		         ON lp.vehicle_id = v.id AND lp.trip_id = vt.id
+		  LEFT JOIN transport_tracking_policy pol
+		         ON pol.institution_id = v.institution_id
 		  LEFT JOIN employees e ON e.id = v.driver_employee_id
 		  LEFT JOIN users eu ON eu.id = tr.enrolled_by
 		 WHERE v.status <> 'retired'
@@ -122,7 +145,8 @@ func (s *Server) listTrackers(w http.ResponseWriter, r *http.Request) {
 				&v.TrackerID, &v.TrackerName, &v.DeviceModel, &v.AppVersion,
 				&v.LastSeenAt, &v.QuietSeconds, &v.BatteryPct, &v.Charging,
 				&v.LocationOK, &v.PingSeconds, &v.Paused,
-				&v.RevokedAt, &v.RevokedWhy, &v.Paired, &v.Pending, &v.EnrolledBy)
+				&v.RevokedAt, &v.RevokedWhy, &v.Paired, &v.Pending, &v.EnrolledBy,
+				&v.RunTimedOut)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

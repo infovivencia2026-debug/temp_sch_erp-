@@ -138,7 +138,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             )
         } else {
             Text(
-                "${trip.routeName.ifBlank { "Route" }} — " +
+                "${trip.routeName.ifBlank { "Route" }}, " +
                     if (trip.direction == DIRECTION_DROP) "drop" else "pickup",
                 style = MaterialTheme.typography.titleLarge,
             )
@@ -159,7 +159,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     .height(64.dp),
             ) { Text("End Run") }
             Text(
-                "End Run tells the school the children are off the bus. Only you can say that — " +
+                "End Run tells the school the children are off the bus. Only you can say that, " +
                     "if the phone simply stops, the school records the run as timed out instead.",
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -303,16 +303,16 @@ private fun StartRunSection(
                     modifier = Modifier
                         .weight(1f)
                         .height(64.dp),
-                ) { Text("Start Run — ${route.label}") }
+                ) { Text("Start Run, ${route.label}") }
                 TextButton(onClick = { onRemoveRoute(route.routeId) }) { Text("Remove") }
             }
         }
 
         if (routes.isEmpty()) {
             Text(
-                "No routes have been set up on this phone yet. The school's server does not " +
-                    "hand the phone a list of routes, so the office has to add each one here " +
-                    "once, with its route id. After that you just pick it by name.",
+                "No route has been put on this bus yet. Ask the office to add one on the " +
+                    "Transport screen, then sign in again and it will be here. You can still " +
+                    "add one by hand below if they give you its route id.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -326,7 +326,7 @@ private fun StartRunSection(
                 value = newLabel,
                 onValueChange = { newLabel = it },
                 label = { Text("Name the driver will see") },
-                placeholder = { Text("Morning — Anna Nagar") },
+                placeholder = { Text("Morning, Anna Nagar") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

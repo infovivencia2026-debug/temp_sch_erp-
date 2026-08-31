@@ -418,6 +418,21 @@ type deviceLoginResponse struct {
 	SessionToken string `json:"session_token"`
 	Name         string `json:"name"`
 	ExpiresAt    string `json:"expires_at"`
+	/* THE ROUTE BOOK, EVERY SHIFT.
+
+	   The routes only ever arrived with the pairing, so a route the office
+	   added afterwards never reached a phone that was already paired: the
+	   driver was shown a box asking him to type a uuid, under a sentence
+	   saying the server does not hand out routes. It does. Sending them on
+	   every shift sign-in means the book is refreshed by the one thing a
+	   driver does at the start of every day anyway. */
+	Routes []assignedRoute `json:"routes"`
+}
+
+type assignedRoute struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code,omitempty"`
 }
 
 func deviceLoginRejected(w http.ResponseWriter, r *http.Request, err error) {
@@ -475,18 +490,41 @@ func (s *Server) busTrackerSignIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var out deviceLoginResponse
-	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		token, _, expires, err := s.openStaffSession(r.Context(), tx, who, "bus_tracker", dev.ID)
-		if err != nil {
-			return err
-		}
-		out = deviceLoginResponse{
-			SessionToken: token,
-			Name:         who.Name,
-			ExpiresAt:    expires.Format(time.RFC3339),
-		}
-		return nil
-	})
+	/* Tenant-scoped, not platform. device_staff_sessions' RLS is
+	   institution_id = app_current_institution() with no platform escape, so
+	   opening a shift inside a platform transaction is refused with 42501 --
+	   the same fault the driver sign-in had. The institution is settled by the
+	   check just above. */
+	err = s.DB.InTenant(r.Context(), tenantScopeFor(dev.Institution, false),
+		func(tx pgx.Tx) error {
+			token, _, expires, err := s.openStaffSession(r.Context(), tx, who, "bus_tracker", dev.ID)
+			if err != nil {
+				return err
+			}
+			out = deviceLoginResponse{
+				SessionToken: token,
+				Name:         who.Name,
+				ExpiresAt:    expires.Format(time.RFC3339),
+				Routes:       []assignedRoute{},
+			}
+			rows, err := tx.Query(r.Context(), `
+				SELECT id::text, name, COALESCE(code,'')
+				  FROM routes
+				 WHERE vehicle_id = $1 AND is_active
+				 ORDER BY name`, dev.Vehicle)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var v assignedRoute
+				if err := rows.Scan(&v.ID, &v.Name, &v.Code); err != nil {
+					return err
+				}
+				out.Routes = append(out.Routes, v)
+			}
+			return rows.Err()
+		})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

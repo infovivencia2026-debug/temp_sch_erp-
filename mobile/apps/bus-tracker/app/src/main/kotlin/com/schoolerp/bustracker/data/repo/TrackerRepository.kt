@@ -1,5 +1,6 @@
 package com.schoolerp.bustracker.data.repo
 
+import com.schoolerp.bustracker.BuildConfig
 import com.schoolerp.bustracker.core.BaseUrl
 import com.schoolerp.bustracker.core.BtLog
 import com.schoolerp.bustracker.core.Rfc3339
@@ -184,6 +185,10 @@ class TrackerRepository @Inject constructor(
         settingsStore.settings.first().activeTrip?.let { fixes.discardTrip(it.tripId) }
         stops.clear()
         settingsStore.clearPairing()
+        // A driver who unpaired on purpose is not owed an explanation of why
+        // he is looking at the sign-in screen, and showing him the last
+        // rejection would read as a failure of the sign-in he is about to make.
+        settingsStore.recordSignedOut(null)
         tokenStore.clear()
     }
 
@@ -191,7 +196,7 @@ class TrackerRepository @Inject constructor(
         is ApiFailure.Network ->
             "Could not reach the school's server. Check the address and the phone's data connection."
         is ApiFailure.Unauthorized ->
-            "That pairing code is not valid. Ask the office for a new one — codes expire after ten minutes."
+            "That pairing code is not valid. Ask the office for a new one, codes expire after ten minutes."
         is ApiFailure.Malformed ->
             "The server answered in a way this app did not understand. Tell the office the app needs updating."
         else -> "Pairing failed (${failure.reason})."
@@ -218,6 +223,13 @@ class TrackerRepository @Inject constructor(
                 ctx.baseUrl, ctx.token, SignInRequest(phone = phone, password = pin),
             )
             tokenStore.saveSession(response.sessionToken, response.name)
+            // Only when the server actually sent some. An empty list from an
+            // older server must not wipe a book the driver is relying on.
+            if (response.routes.isNotEmpty()) {
+                settingsStore.saveRouteBook(
+                    response.routes.map { SavedRoute(it.id, it.name) },
+                )
+            }
             SignInOutcome.SignedIn(response.name)
         } catch (failure: ApiFailure) {
             SignInOutcome.Rejected(signInMessage(failure))
@@ -374,6 +386,32 @@ class TrackerRepository @Inject constructor(
         return EndOutcome.Ended(reportedToServer = reported, discardedFixes = abandoned)
     }
 
+    /**
+     * The server no longer accepts this phone's token: the office retired the
+     * handset, or the driver signed in on a newer one.
+     *
+     * Everything goes, and it goes here rather than being left for the driver
+     * to work out. A token that has been rejected once is rejected for ever,
+     * so a phone that kept its pairing would sit on the run screen answering
+     * 401 to every push and every heartbeat until the battery went, looking
+     * for all the world like it was tracking. Clearing the pairing is what
+     * puts the sign-in screen back in front of the driver, and [reason] is
+     * what tells him why it is there.
+     *
+     * The buffer goes with it. Those fixes are addressed to a school this
+     * handset is no longer allowed to speak to, and no later sign-in can
+     * deliver them: the trip they belong to is not the trip the next session
+     * would open.
+     */
+    suspend fun credentialRejected(reason: String) {
+        BtLog.w("auth", "server rejected this device's token; clearing the pairing")
+        settingsStore.settings.first().activeTrip?.let { fixes.discardTrip(it.tripId) }
+        stops.clear()
+        settingsStore.clearPairing()
+        settingsStore.recordSignedOut(reason)
+        tokenStore.clear()
+    }
+
     /** The server closed the run underneath us. Same local cleanup, no end call. */
     suspend fun abandonTrip(tripId: String) {
         fixes.discardTrip(tripId)
@@ -441,7 +479,7 @@ class TrackerRepository @Inject constructor(
             if (toDelete.isNotEmpty()) fixes.deleteAcknowledged(tripId, toDelete)
 
             settingsStore.applyServerDirectives(response.pingSeconds, response.paused)
-            settingsStore.recordPush(time.nowMillis(), error = null)
+            settingsStore.recordPush(time.nowMillis())
 
             if (!response.tripOpen) {
                 PushOutcome.TripClosed(
@@ -458,7 +496,7 @@ class TrackerRepository @Inject constructor(
                 )
             }
         } catch (failure: ApiFailure) {
-            settingsStore.recordPush(time.nowMillis(), error = failure.reason)
+            settingsStore.recordPushFailure(failure.reason)
             when (failure) {
                 is ApiFailure.NoSuchTrip -> PushOutcome.TripClosed(null, null)
                 is ApiFailure.Unauthorized -> PushOutcome.NotPaired
@@ -523,8 +561,19 @@ class TrackerRepository @Inject constructor(
     private suspend fun requireContext(): CallContext? {
         val token = tokenStore.token() ?: return null
         val settings = settingsStore.settings.first()
+        /* Every later call goes to the compiled address too, not only the
+           sign-in. Fixing this in one place would have left a handset paired
+           weeks ago still heartbeating and reporting positions at whatever
+           host was typed into it then, which is the same fault moved rather
+           than removed. A debug build keeps its stored override, because it is
+           the only build that can still set one. */
+        val raw = if (allowInsecureHttpBuild) {
+            settings.baseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL }
+        } else {
+            BuildConfig.DEFAULT_BASE_URL
+        }
         val baseUrl = BaseUrl
-            .parse(settings.baseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
+            .parse(raw, allowInsecureHttpBuild && settings.allowInsecureHttp)
             .getOrNull() ?: return null
         return CallContext(baseUrl, token)
     }

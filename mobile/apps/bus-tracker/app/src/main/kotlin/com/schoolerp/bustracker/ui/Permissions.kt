@@ -107,7 +107,7 @@ fun LocationPermissionPrompt(onFinished: () -> Unit = {}) {
             lines = listOf(
                 "Why" to
                     "Android stops giving this app your position when the screen goes off, " +
-                    "unless you choose \"Allow all the time\". That is most of a run — the " +
+                    "unless you choose \"Allow all the time\". That is most of a run, the " +
                     "bus would vanish from the school's map every time you put the phone down.",
                 "What happens next" to
                     "Android will open its own settings page for this app. Choose Location, " +

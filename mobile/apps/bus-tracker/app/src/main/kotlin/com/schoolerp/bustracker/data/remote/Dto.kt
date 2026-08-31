@@ -180,6 +180,14 @@ data class SignInResponse(
     val name: String,
     /** RFC3339. The shift ends here whatever the app thinks. */
     @SerialName("expires_at") val expiresAt: String,
+    /* The routes on this bus, refreshed every shift.
+     *
+     * They used to arrive only with the pairing, so a route the office added
+     * afterwards never reached a phone that was already paired: the driver got
+     * a box asking for a uuid under a sentence claiming the server does not
+     * hand out routes. Defaulted, so an older server that sends none leaves
+     * the stored book alone rather than emptying it. */
+    val routes: List<AssignedRoute> = emptyList(),
 )
 
 @Serializable

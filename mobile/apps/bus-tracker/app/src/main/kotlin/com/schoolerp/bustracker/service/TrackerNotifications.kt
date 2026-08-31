@@ -52,7 +52,7 @@ class TrackerNotifications @Inject constructor(
     fun ongoing(status: TrackerStatus?): Notification {
         val bus = status?.vehicleRegistration
         val title = when {
-            bus != null && status.trip != null -> "$bus — ${directionWord(status.trip.direction)}"
+            bus != null && status.trip != null -> "$bus, ${directionWord(status.trip.direction)}"
             bus != null -> bus
             else -> "School bus tracker"
         }
@@ -100,7 +100,7 @@ class TrackerNotifications @Inject constructor(
         return buildString {
             append("${trip.routeName.ifBlank { "Route" }}, ${directionWord(trip.direction)}. ")
             append(status.summary)
-            if (!status.hasNetwork) append(". Nothing is lost — it is being held until there is signal")
+            if (!status.hasNetwork) append(". Nothing is lost, it is being held until there is signal")
         }
     }
 

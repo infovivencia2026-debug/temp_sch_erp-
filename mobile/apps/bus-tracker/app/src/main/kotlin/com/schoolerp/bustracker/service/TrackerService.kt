@@ -116,8 +116,9 @@ class TrackerService : Service() {
             )
             is EngineEvent.Unpaired -> {
                 notifications.problem(
-                    "This phone is no longer paired",
-                    "The school's server rejected this phone. Ask the office for a new pairing code.",
+                    "This phone has stopped reporting",
+                    "The school's server no longer accepts it. Open the app and sign in again " +
+                        "with your number and password.",
                 )
                 stopSelf()
             }

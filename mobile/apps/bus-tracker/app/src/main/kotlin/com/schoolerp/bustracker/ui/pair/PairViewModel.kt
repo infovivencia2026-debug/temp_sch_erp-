@@ -72,10 +72,35 @@ class PairViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsStore.settings.first()
             _state.value = _state.value.copy(
-                // A phone that paired before this build keeps its address;
-                // a fresh install starts on the one that was compiled in.
-                baseUrl = settings.baseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL },
+                /* THE BUILD WINS, NOT THE STORED VALUE.
+
+                   This kept a stored address and fell back to the compiled one
+                   only when it was blank, which sounds conservative and is the
+                   opposite. App data survives a reinstall, so a handset that
+                   was paired before this build kept whatever address was typed
+                   into it weeks ago, forever, against a build that no longer
+                   shows the field to change it. Measured on a real phone: the
+                   sign-in was refused and the request never reached the server
+                   at all.
+
+                   A release build has exactly one correct address and it is
+                   the one it was compiled with. Only a debug build, which is
+                   the only build that can still edit the field, keeps what it
+                   was given. */
+                baseUrl = if (BuildConfig.ALLOW_INSECURE_HTTP) {
+                    settings.baseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL }
+                } else {
+                    BuildConfig.DEFAULT_BASE_URL
+                },
                 allowInsecureHttp = settings.allowInsecureHttp,
+                /* WHY THIS SCREEN IS BACK.
+                 *
+                   A token the office retired mid-run drops the driver here
+                   with no account of itself, and a blank sign-in form after a
+                   run that was working reads as the app having lost its mind.
+                   The reason was written down when the pairing was cleared,
+                   precisely so it could be said here. */
+                error = settings.signedOutReason,
             )
         }
     }
@@ -138,6 +163,9 @@ class PairViewModel @Inject constructor(
                     pairedVehicle = outcome.vehicleRegistration,
                     pairedInstitution = outcome.institution,
                     pairCode = "",
+                    // Whatever the last pairing was thrown out for has just
+                    // been answered by this one.
+                    error = null,
                 )
                 is PairOutcome.Rejected ->
                     _state.value = _state.value.copy(submitting = false, error = outcome.message)

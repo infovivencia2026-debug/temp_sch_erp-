@@ -30,7 +30,7 @@ value class BaseUrl private constructor(val value: String) {
             val scheme = lower.substringBefore("://", missingDelimiterValue = "")
             if (scheme.isEmpty()) {
                 return Result.failure(
-                    BaseUrlError("Start the address with https:// — for example https://school.example.in"),
+                    BaseUrlError("Start the address with https://, for example https://school.example.in"),
                 )
             }
             if (scheme != "https" && scheme != "http") {

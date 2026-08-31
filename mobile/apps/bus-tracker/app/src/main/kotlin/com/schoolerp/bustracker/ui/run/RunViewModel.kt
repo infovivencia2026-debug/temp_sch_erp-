@@ -92,9 +92,17 @@ class RunViewModel @Inject constructor(
                         "The school's server says the time is ${event.serverTime ?: "different"}. " +
                             "Nothing can be recorded until the phone's date and time are corrected.",
                     )
+                    /* The token is dead and the pairing has already been
+                       cleared by the engine, so this screen is on its way out
+                       and the sign-in screen is on its way in. The alert says
+                       what happened before that swap, so the driver does not
+                       read a sudden login form as the app having crashed. */
                     is EngineEvent.Unpaired -> _alert.value = DriverAlert(
-                        "This phone is no longer paired",
-                        "The school's server rejected it. Ask the office for a new pairing code.",
+                        "This phone has been signed out",
+                        "The school's server no longer accepts it, either the office took this " +
+                            "phone off the bus, or you signed in on another handset. It has " +
+                            "stopped reporting. Sign in again with your number and password to " +
+                            "carry on the run.",
                     )
                     is EngineEvent.StopReached -> _lastArrival.value = event.stopName
                 }

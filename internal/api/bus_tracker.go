@@ -27,6 +27,17 @@ import (
 // route id is the caller's mistake, not the server's.
 var errNoSuchRoute = errors.New("route does not belong to this institution")
 
+/*
+errRouteOtherVehicle is the route that exists, in this school, and is the
+
+	standing assignment of a different bus. Kept apart from errNoSuchRoute
+	because the two need opposite answers: the first is a handset naming
+	something that is not ours, the second is the right school's route on the
+	wrong bus, which is a driver who picked the line above the one he drives.
+	Told apart so the app can say which.
+*/
+var errRouteOtherVehicle = errors.New("route is assigned to another vehicle")
+
 /* The driver's phone as the vehicle's GPS unit.
 
    Eight catalogued transport features were deferred on one sentence — "GPS
@@ -577,13 +588,22 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
+	/* Every refusal below carries its own code.
+
+	   httpx.BadRequest answers "bad_request" for all of them, and a shipped
+	   app that can only read the status has to guess which field the server
+	   meant. That guessing is exactly how a 409 for one reason was displayed
+	   as another and a driver was told his bus had a run in progress when it
+	   did not. */
 	route, err := uuid.Parse(req.RouteID)
 	if err != nil {
-		httpx.BadRequest(w, r, "route_id must be a uuid")
+		httpx.Error(w, r, http.StatusBadRequest, "bad_route_id",
+			"route_id must be a uuid")
 		return
 	}
 	if req.Direction != "pickup" && req.Direction != "drop" {
-		httpx.BadRequest(w, r, "direction must be pickup or drop")
+		httpx.Error(w, r, http.StatusBadRequest, "bad_direction",
+			"direction must be pickup or drop")
 		return
 	}
 	started := time.Now()
@@ -605,22 +625,47 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   and the stop sequence read below would come back from that school's
 		   route_stops -- a cross-tenant read of somewhere else's addresses and
 		   timings. Checked first, before any row is written. */
-		var ownsRoute bool
-		if err := tx.QueryRow(r.Context(), `
-			SELECT EXISTS (
-			    SELECT 1 FROM routes
-			     WHERE id = $1 AND institution_id = $2)`,
-			route, dev.Institution).Scan(&ownsRoute); err != nil {
-			return err
-		}
-		if !ownsRoute {
+		var routeVehicle *uuid.UUID
+		err := tx.QueryRow(r.Context(), `
+			SELECT vehicle_id FROM routes
+			 WHERE id = $1 AND institution_id = $2`,
+			route, dev.Institution).Scan(&routeVehicle)
+		if errors.Is(err, pgx.ErrNoRows) {
 			// Deliberately the same answer as a route that does not exist: a
 			// device must not be able to probe for another school's route ids.
 			return errNoSuchRoute
 		}
+		if err != nil {
+			return err
+		}
+
+		/* And the route has to be this bus's, when it is anybody's.
+
+		   routes.vehicle_id is the standing assignment. A null one is a route
+		   no bus is fixed to, which a relief vehicle legitimately runs, so
+		   that is allowed. A route assigned to another bus is not: the trip
+		   would file this vehicle's positions against the other bus's line,
+		   and the parents watching that line would be shown the wrong bus
+		   moving along their child's route. */
+		if routeVehicle != nil && *routeVehicle != dev.Vehicle {
+			return errRouteOtherVehicle
+		}
 
 		policy, err := trackingPolicyFor(r.Context(), tx, dev.Institution)
 		if err != nil {
+			return err
+		}
+
+		/* A run nothing has been heard from is over before this one starts.
+
+		   The scheduled sweep in bus_tracker_jobs.go is the general answer,
+		   but it only closes a stale trip when the worker actually runs it,
+		   and until then the row sits open: the parents' map draws it as a bus
+		   still coming, and the driver reaching for a fresh run is refused
+		   with trip_already_open over a trip that ended when his battery did.
+		   Closed here, against the same rule and the same ended_reason the
+		   sweep uses, so the two can never disagree about when the run ended. */
+		if err := closeTimedOutTrips(r.Context(), tx, dev.Vehicle, policy.TripTimeoutMins); err != nil {
 			return err
 		}
 
@@ -699,6 +744,12 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 			"that route does not belong to this school")
 		return
 	}
+	if errors.Is(err, errRouteOtherVehicle) {
+		httpx.Error(w, r, http.StatusConflict, "route_not_this_bus",
+			"that route is assigned to a different bus; pick the route this "+
+				"bus runs, or ask the office to reassign it")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -713,6 +764,68 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		"trip_id": tripID.String(),
 		"stops":   stops,
 	})
+}
+
+/*
+closeTimedOutTrips ends one vehicle's open runs that nothing has been heard
+from, exactly as the scheduled sweep would.
+
+	The rule is clampTripTimeoutMins and the last of started_at and the newest
+	fix, which is SweepTripTimeouts' rule reached through the same helpers so
+	the two cannot drift into closing trips at different instants. ended_at is
+	that last-heard moment rather than now(): a run that went quiet at 08:12
+	and is noticed at 09:30 did not carry children for the hour in between,
+	and writing now() would put that hour into every report.
+
+	Open safety episodes are closed with the trip for the same reason the
+	sweep closes them: a speeding row with a start and no end reads on the
+	office's list as a bus that is over the limit right now, forever.
+*/
+func closeTimedOutTrips(ctx context.Context, tx pgx.Tx, vehicle uuid.UUID, timeoutMins int) error {
+	rows, err := tx.Query(ctx, `
+		UPDATE vehicle_trips t
+		   SET ended_at = stale.last_heard, ended_reason = 'timeout'
+		  FROM (
+		      SELECT o.id,
+		             GREATEST(o.started_at,
+		                      COALESCE(max(p.recorded_at), o.started_at)) AS last_heard
+		        FROM vehicle_trips o
+		        LEFT JOIN vehicle_positions p ON p.trip_id = o.id
+		       WHERE o.vehicle_id = $1 AND o.ended_at IS NULL
+		       GROUP BY o.id, o.started_at) stale
+		 WHERE t.id = stale.id
+		   AND t.ended_at IS NULL
+		   AND stale.last_heard + make_interval(mins => $2) < now()
+		RETURNING t.id`, vehicle, clampTripTimeoutMins(timeoutMins))
+	if err != nil {
+		return err
+	}
+	var closed []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		closed = append(closed, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(closed) == 0 {
+		return nil
+	}
+	// GREATEST guards the period CHECK: a fix filed out of a dead-zone buffer
+	// can open an episode marginally after the position the trip is closed at.
+	_, err = tx.Exec(ctx, `
+		UPDATE transport_safety_events e
+		   SET ended_at = GREATEST(e.started_at, t.ended_at)
+		  FROM vehicle_trips t
+		 WHERE t.id = e.trip_id
+		   AND e.trip_id = ANY($1)
+		   AND e.ended_at IS NULL`, closed)
+	return err
 }
 
 type endTripRequest struct {
@@ -762,6 +875,8 @@ func (s *Server) endBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
+		// One code for both, because the phone's move is the same either way:
+		// stop pushing and let the driver start a fresh run.
 		httpx.Error(w, r, http.StatusNotFound, "no_such_trip",
 			"that run is not this bus's, or it has already ended")
 		return
@@ -811,15 +926,18 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 	}
 	tripID, err := uuid.Parse(req.TripID)
 	if err != nil {
-		httpx.BadRequest(w, r, "trip_id must be a uuid")
+		httpx.Error(w, r, http.StatusBadRequest, "bad_trip_id",
+			"trip_id must be a uuid")
 		return
 	}
+	// Separate codes because the phone's response differs: an empty push is a
+	// bug in its own buffering, an oversized one it can fix by splitting.
 	if len(req.Fixes) == 0 {
-		httpx.BadRequest(w, r, "send at least one fix")
+		httpx.Error(w, r, http.StatusBadRequest, "no_fixes", "send at least one fix")
 		return
 	}
 	if len(req.Fixes) > busTrackerMaxFixes {
-		httpx.BadRequest(w, r,
+		httpx.Error(w, r, http.StatusBadRequest, "too_many_fixes",
 			fmt.Sprintf("send at most %d fixes in one push", busTrackerMaxFixes))
 		return
 	}
@@ -829,7 +947,7 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 	for i, f := range req.Fixes {
 		at, err := time.Parse(time.RFC3339, f.RecordedAt)
 		if err != nil {
-			httpx.BadRequest(w, r,
+			httpx.Error(w, r, http.StatusBadRequest, "bad_recorded_at",
 				fmt.Sprintf("fix %d: recorded_at must be RFC 3339 with an offset", i+1))
 			return
 		}
@@ -848,7 +966,8 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		if f.Latitude < -90 || f.Latitude > 90 || f.Longitude < -180 || f.Longitude > 180 {
-			httpx.BadRequest(w, r, fmt.Sprintf("fix %d: latitude or longitude is out of range", i+1))
+			httpx.Error(w, r, http.StatusBadRequest, "bad_coordinates",
+				fmt.Sprintf("fix %d: latitude or longitude is out of range", i+1))
 			return
 		}
 		fixes = append(fixes, bufferedFix{at: at, f: f})

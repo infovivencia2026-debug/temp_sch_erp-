@@ -105,7 +105,7 @@ fun RouteSketch(
         }
 
         Text(
-            "Stops to scale — about ${humanMetres(spanMetresX)} across, " +
+            "Stops to scale, about ${humanMetres(spanMetresX)} across, " +
                 "${humanMetres(spanMetresY)} top to bottom. " +
                 "There are no roads drawn here: this app carries no map data.",
             style = MaterialTheme.typography.bodySmall,
