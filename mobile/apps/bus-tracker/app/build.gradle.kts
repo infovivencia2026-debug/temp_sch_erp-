@@ -92,6 +92,9 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Robolectric inflates the real resource table, so the unit-test
+        // classpath has to carry the merged resources and AndroidManifest.
+        unitTests.isIncludeAndroidResources = true
     }
 
     packaging {
@@ -157,6 +160,27 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
+
+    /* COMPOSE SCREENS TESTED ON THE JVM.
+
+       These screens are worth asserting on, but an emulator in CI is not on
+       the table here. Robolectric runs the real Android framework in the unit
+       test JVM so createComposeRule() works without a device. 4.16.1 is the
+       newest stable line and the last that ships a full set of prebuilt
+       android-all images; it lags compileSdk 37, so robolectric.properties
+       pins the SDK the tests actually run against. */
+    testImplementation(libs.robolectric)
+    // The screens' dependencies (TrackerRepository, SettingsStore, TokenStore)
+    // are final Kotlin classes with no interfaces, and two of them touch the
+    // keystore or a process-wide DataStore on construction. mockk's inline
+    // agent can stub final classes, so the tests never build the real ones.
+    testImplementation(libs.mockk)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    // The empty activity ui-test-manifest supplies is merged into the debug
+    // manifest, which is the one Robolectric reads for unit tests.
+    debugImplementation(libs.compose.ui.test.manifest)
 
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
