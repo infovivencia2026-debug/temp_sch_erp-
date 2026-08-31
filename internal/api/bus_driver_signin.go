@@ -108,14 +108,29 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		deviceID, vehicleID               uuid.UUID
 		routes                            = []routeRow{}
 	)
-	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		/* The bus HR put this person against.
+	/* TENANT-SCOPED, NOT PLATFORM.
 
-		   Joined through employees rather than users: driver_employee_id
-		   points at the personnel record, and a driver has one login and one
-		   employee row. An active vehicle only -- a handset paired to a bus
-		   in the workshop reports a route nobody is driving. */
-		if qerr := tx.QueryRow(r.Context(), `
+	   The authentication above had to run AsPlatform: it looks a person up by
+	   email or phone across the whole installation, because nobody has told us
+	   which school this is yet. From here we know -- who.Institution -- and
+	   the rest must run as that school.
+
+	   Not a tidiness point. device_staff_sessions' RLS policy is
+	   `institution_id = app_current_institution()` in both USING and WITH
+	   CHECK, with no platform escape, so opening the driver's shift inside a
+	   platform transaction is refused with 42501 and the sign-in dies at the
+	   last statement having already done everything else. AsPlatform is not a
+	   master key; it is a scope with no institution in it, and a policy that
+	   asks which institution gets no answer. */
+	err = s.DB.InTenant(r.Context(), tenantScopeFor(who.Institution, false),
+		func(tx pgx.Tx) error {
+			/* The bus HR put this person against.
+
+			   Joined through employees rather than users: driver_employee_id
+			   points at the personnel record, and a driver has one login and one
+			   employee row. An active vehicle only -- a handset paired to a bus
+			   in the workshop reports a route nobody is driving. */
+			if qerr := tx.QueryRow(r.Context(), `
 			SELECT v.id, v.registration_no, COALESCE(v.model,'')
 			  FROM vehicles v
 			  JOIN employees e ON e.id = v.driver_employee_id
@@ -124,35 +139,35 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			   AND v.status = 'active'
 			 ORDER BY v.registration_no
 			 LIMIT 1`, who.UserID, who.Institution).
-			Scan(&vehicleID, &registration, &vehicleModel); qerr != nil {
-			if errors.Is(qerr, pgx.ErrNoRows) {
-				return errDriverNoVehicle
+				Scan(&vehicleID, &registration, &vehicleModel); qerr != nil {
+				if errors.Is(qerr, pgx.ErrNoRows) {
+					return errDriverNoVehicle
+				}
+				return qerr
 			}
-			return qerr
-		}
 
-		/* ONE LIVE TRACKER PER BUS. Signing in on a new phone retires the old.
+			/* ONE LIVE TRACKER PER BUS. Signing in on a new phone retires the old.
 
-		   A driver whose handset was lost, replaced or wiped signs in on the
-		   new one and it works, which is what a school expects and the reason
-		   pair codes were being re-issued constantly. The previous row is
-		   revoked rather than deleted -- a trip already recorded against it
-		   must keep its device -- and the moment it is revoked its token stops
-		   being accepted, so a handset that has left the school cannot go on
-		   reporting a bus full of children.
+			   A driver whose handset was lost, replaced or wiped signs in on the
+			   new one and it works, which is what a school expects and the reason
+			   pair codes were being re-issued constantly. The previous row is
+			   revoked rather than deleted -- a trip already recorded against it
+			   must keep its device -- and the moment it is revoked its token stops
+			   being accepted, so a handset that has left the school cannot go on
+			   reporting a bus full of children.
 
-		   Two statements rather than an upsert: vehicle_trackers has no unique
-		   index on vehicle_id (only on pair_code_id), so ON CONFLICT has
-		   nothing to name. Adding one would have to decide what to do about
-		   the revoked rows this deliberately keeps. */
-		if _, rerr := tx.Exec(r.Context(), `
+			   Two statements rather than an upsert: vehicle_trackers has no unique
+			   index on vehicle_id (only on pair_code_id), so ON CONFLICT has
+			   nothing to name. Adding one would have to decide what to do about
+			   the revoked rows this deliberately keeps. */
+			if _, rerr := tx.Exec(r.Context(), `
 			UPDATE vehicle_trackers
 			   SET revoked_at = now(),
 			       revoked_reason = 'replaced when the driver signed in on another phone'
 			 WHERE vehicle_id = $1 AND revoked_at IS NULL`, vehicleID); rerr != nil {
-			return rerr
-		}
-		if ierr := tx.QueryRow(r.Context(), `
+				return rerr
+			}
+			if ierr := tx.QueryRow(r.Context(), `
 			INSERT INTO vehicle_trackers
 			       (institution_id, vehicle_id, name, device_model, android_version,
 			        app_version, token_sealed, enrolled_by, approved_at, approved_by)
@@ -169,81 +184,81 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			   both do this; only this one was written from scratch. */
 			VALUES ($1,$2,$3,$4,$5,$6,'\x00'::bytea,$7, now(), $7)
 			RETURNING id`,
-			who.Institution, vehicleID,
-			// The name the transport screen shows. The driver's own, because
-			// that is who somebody rings when a bus stops reporting.
-			who.Name+"'s phone",
-			nullIfBlank(req.DeviceModel), nullIfBlank(req.AndroidVersion),
-			nullIfBlank(req.AppVersion), who.UserID).Scan(&deviceID); ierr != nil {
-			return ierr
-		}
+				who.Institution, vehicleID,
+				// The name the transport screen shows. The driver's own, because
+				// that is who somebody rings when a bus stops reporting.
+				who.Name+"'s phone",
+				nullIfBlank(req.DeviceModel), nullIfBlank(req.AndroidVersion),
+				nullIfBlank(req.AppVersion), who.UserID).Scan(&deviceID); ierr != nil {
+				return ierr
+			}
 
-		/* THE ROUTES THIS BUS RUNS, so the driver never types a uuid.
+			/* THE ROUTES THIS BUS RUNS, so the driver never types a uuid.
 
-		   routes.vehicle_id has been on that table since the baseline
-		   migration: the office already decides which route a bus runs. The
-		   app had no way to ask, so it kept a "route book" the driver filled
-		   in by hand -- and what it asked them to type was a uuid, at twenty
-		   to seven in the morning, off a piece of paper.
+			   routes.vehicle_id has been on that table since the baseline
+			   migration: the office already decides which route a bus runs. The
+			   app had no way to ask, so it kept a "route book" the driver filled
+			   in by hand -- and what it asked them to type was a uuid, at twenty
+			   to seven in the morning, off a piece of paper.
 
-		   Sent with the sign-in rather than behind a second call: the phone has
-		   just proved who is driving and which bus, and one round trip on a
-		   school connection is worth more than the tidiness of a separate
-		   endpoint. */
-		rows, rerr := tx.Query(r.Context(), `
+			   Sent with the sign-in rather than behind a second call: the phone has
+			   just proved who is driving and which bus, and one round trip on a
+			   school connection is worth more than the tidiness of a separate
+			   endpoint. */
+			rows, rerr := tx.Query(r.Context(), `
 			SELECT id::text, name, COALESCE(code,'')
 			  FROM routes
 			 WHERE institution_id = $1 AND vehicle_id = $2
 			 ORDER BY name`, who.Institution, vehicleID)
-		if rerr != nil {
-			return rerr
-		}
-		for rows.Next() {
-			var rr routeRow
-			if serr := rows.Scan(&rr.ID, &rr.Name, &rr.Code); serr != nil {
-				rows.Close()
-				return serr
+			if rerr != nil {
+				return rerr
 			}
-			routes = append(routes, rr)
-		}
-		rows.Close()
-		if rerr := rows.Err(); rerr != nil {
-			return rerr
-		}
+			for rows.Next() {
+				var rr routeRow
+				if serr := rows.Scan(&rr.ID, &rr.Name, &rr.Code); serr != nil {
+					rows.Close()
+					return serr
+				}
+				routes = append(routes, rr)
+			}
+			rows.Close()
+			if rerr := rows.Err(); rerr != nil {
+				return rerr
+			}
 
-		// The token carries the row id, so it cannot be minted before the row
-		// exists -- the same order claimBusTrackerPairCode uses.
-		var secret string
-		var terr error
-		token, secret, terr = newBusTrackerToken(deviceID)
-		if terr != nil {
+			// The token carries the row id, so it cannot be minted before the row
+			// exists -- the same order claimBusTrackerPairCode uses.
+			var secret string
+			var terr error
+			token, secret, terr = newBusTrackerToken(deviceID)
+			if terr != nil {
+				return terr
+			}
+			sealed, terr := sealSecret(secret)
+			if terr != nil {
+				return terr
+			}
+			if _, terr = tx.Exec(r.Context(),
+				`UPDATE vehicle_trackers SET token_sealed = $2 WHERE id = $1`,
+				deviceID, sealed); terr != nil {
+				return terr
+			}
+
+			/* THE SHIFT, OPENED HERE.
+
+			   Starting and ending a trip is gated on X-Staff-Session, not on the
+			   device token: the school records who drove each run. This handler
+			   minted the device token and stopped, so a driver signed in, saw his
+			   bus, pressed Start Run and was told to sign in first -- with the
+			   only other way to get a session being the PIN endpoint, and nothing
+			   in HR's give-login flow ever writing a PIN.
+
+			   So it is minted here, from the password he has just proved, which is
+			   the only credential he has. */
+			sessionToken, _, _, terr = s.openStaffSession(
+				r.Context(), tx, who, "bus_tracker", deviceID)
 			return terr
-		}
-		sealed, terr := sealSecret(secret)
-		if terr != nil {
-			return terr
-		}
-		if _, terr = tx.Exec(r.Context(),
-			`UPDATE vehicle_trackers SET token_sealed = $2 WHERE id = $1`,
-			deviceID, sealed); terr != nil {
-			return terr
-		}
-
-		/* THE SHIFT, OPENED HERE.
-
-		   Starting and ending a trip is gated on X-Staff-Session, not on the
-		   device token: the school records who drove each run. This handler
-		   minted the device token and stopped, so a driver signed in, saw his
-		   bus, pressed Start Run and was told to sign in first -- with the
-		   only other way to get a session being the PIN endpoint, and nothing
-		   in HR's give-login flow ever writing a PIN.
-
-		   So it is minted here, from the password he has just proved, which is
-		   the only credential he has. */
-		sessionToken, _, _, terr = s.openStaffSession(
-			r.Context(), tx, who, "bus_tracker", deviceID)
-		return terr
-	})
+		})
 
 	switch {
 	case errors.Is(err, errDriverNoVehicle):
