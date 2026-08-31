@@ -656,6 +656,34 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 
 	var out gatewayEnrolResponse
 	device := uuid.New()
+	/* THE SAME PHONE, ENROLLED AGAIN.
+
+	   sms_gateway_devices_one_live_name allows one live device per name per
+	   school, and the name is the handset's own model. So the second enrolment
+	   from the same phone raised 23505 and surfaced as a bare 500, which is
+	   the commonest thing an office actually does: enrol, wipe the phone,
+	   reinstall, enrol again. It is also what happens whenever anybody tests
+	   this twice.
+
+	   The old row is revoked rather than deleted, the same rule the bus
+	   tracker follows for a vehicle: messages already sent through it must
+	   keep the device that sent them, and the moment it is revoked its token
+	   stops being accepted, so a handset that has left the office cannot go on
+	   sending as the school. */
+	if err := s.DB.InTenant(r.Context(), tenantScopeFor(who.Institution, false),
+		func(tx pgx.Tx) error {
+			_, rerr := tx.Exec(r.Context(), `
+			UPDATE sms_gateway_devices
+			   SET revoked_at = now(),
+			       revoked_reason = 'replaced when the same handset enrolled again'
+			 WHERE institution_id = $1
+			   AND revoked_at IS NULL
+			   AND lower(name) = lower($2)`, who.Institution, truncate(name, 80))
+			return rerr
+		}); err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
 	/* Tenant-scoped, not platform. The authentication above had to look a
 	   person up across the installation, because nobody had said which
 	   school this handset belongs to yet. From here we know, and the shift
