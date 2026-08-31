@@ -21,6 +21,9 @@ import (
 var (
 	errStopNotOnRoute = errors.New("stop is not on that route")
 	errOdometerBack   = errors.New("odometer reading went backwards")
+	// Raised by the admissions handoff, which takes these ids from a form
+	// rather than from a picker that could only offer valid ones.
+	errBadTransportRef = errors.New("route_id and pickup_stop_id must be uuids")
 )
 
 // --- drivers and attendants -----------------------------------------------

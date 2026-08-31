@@ -49,6 +49,15 @@ import (
    Same rule as the application link that goes out beside it. A clerk has a
    parent on the phone; losing the enquiry because a username collided or a
    gateway is unconfigured would be absurd. Every path returns a note.
+
+   That promise needs a savepoint to be true, and the first version of this did
+   not have one. Returning a note after a failed INSERT leaves the transaction
+   in Postgres's aborted state: every later statement errors, COMMIT comes back
+   as ROLLBACK, and the handler 500s having destroyed the very enquiry the note
+   claims was saved. The commonest trigger is the ordinary one -- a second child
+   of a family whose phone already carries a user -- so the note was a lie in
+   exactly the case it was written for. Everything fallible below runs inside
+   SAVEPOINT applicant_login, and every bail-out rolls back to it.
 */
 
 // applicantWelcome is what the front desk is told after an enquiry is recorded.
@@ -106,6 +115,24 @@ func (s *Server) issueEnquiryLogin(
 	var schoolName string
 	_ = tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName)
 
+	/* Everything from here can fail, and none of it may take the enquiry with
+	   it. See the file comment: without this, a note saying "the enquiry is
+	   saved" is returned into a transaction that can no longer commit. */
+	if _, err := tx.Exec(ctx, "SAVEPOINT applicant_login"); err != nil {
+		return out
+	}
+	// abandon gives back a transaction that can still commit the enquiry.
+	abandon := func(note string) applicantWelcome {
+		if _, err := tx.Exec(ctx, "ROLLBACK TO SAVEPOINT applicant_login"); err != nil {
+			// Nothing left to salvage; the caller's commit will fail and the
+			// enquiry is lost either way. Saying so beats a note that lies.
+			return applicantWelcome{}
+		}
+		return applicantWelcome{Note: note}
+	}
+	const couldNot = "The enquiry is saved. A parent login could not be issued " +
+		"automatically - issue it from the office."
+
 	/* The guardian, reused where the family is already known.
 
 	   A second child's enquiry, or a parent who rang twice, must land on the
@@ -123,8 +150,7 @@ func (s *Server) issueEnquiryLogin(
 		DO UPDATE SET email = COALESCE(EXCLUDED.email, guardians.email)
 		RETURNING id, user_id`,
 		inst, fullName, phone, nullString(email)).Scan(&guardianID, &existingU); err != nil {
-		out.Note = "The enquiry is saved. A parent login could not be issued automatically."
-		return out
+		return abandon(couldNot)
 	}
 
 	if existingU != nil {
@@ -139,11 +165,11 @@ func (s *Server) issueEnquiryLogin(
 	} else {
 		password, err := temporaryPassword()
 		if err != nil {
-			return out
+			return abandon(couldNot)
 		}
 		hash, err := s.Hasher.Hash(password)
 		if err != nil {
-			return out
+			return abandon(couldNot)
 		}
 		base := fullName
 		if phone != "" {
@@ -151,7 +177,7 @@ func (s *Server) issueEnquiryLogin(
 		}
 		username, err := uniqueUsername(ctx, tx, inst, base)
 		if err != nil {
-			return out
+			return abandon(couldNot)
 		}
 		var newID uuid.UUID
 		if err := tx.QueryRow(ctx, `
@@ -164,19 +190,18 @@ func (s *Server) issueEnquiryLogin(
 			/* Almost always the same number already on another account -- a
 			   parent enquiring about a second school year, or a staff member's
 			   own child. The enquiry stands; the login is sorted out by hand. */
-			out.Note = "The enquiry is saved. That phone or email is already on another " +
-				"account, so no new login was issued."
-			return out
+			return abandon("The enquiry is saved. That phone or email is already on " +
+				"another account, so no new login was issued.")
 		}
 		if _, err := tx.Exec(ctx,
 			`UPDATE guardians SET user_id = $2 WHERE id = $1`, guardianID, newID); err != nil {
-			return out
+			return abandon(couldNot)
 		}
 		// 'parent' rather than a role of its own. The permission this needs is
 		// the portal's own self/children scope, and inventing an 'applicant'
 		// role would mean every portal route growing a second role to check.
 		if err := grantRole(ctx, tx, inst, newID, "parent"); err != nil {
-			return out
+			return abandon(couldNot)
 		}
 		existingU = &newID
 		out.SignInAs = username
@@ -192,7 +217,7 @@ func (s *Server) issueEnquiryLogin(
 	if _, err := tx.Exec(ctx, `
 		UPDATE enquiries SET user_id = $2, guardian_id = $3, updated_at = now()
 		 WHERE id = $1`, enquiryID, existingU, guardianID); err != nil {
-		return out
+		return abandon(couldNot)
 	}
 
 	code := "admissions.applicant_login"

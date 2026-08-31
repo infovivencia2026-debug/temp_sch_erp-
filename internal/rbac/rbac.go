@@ -395,9 +395,22 @@ var SystemRoles = []Role{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
 		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, ReportsRead,
 		SelfProfileRead, SelfProfileWrite}},
+	/* TransportRead, because the desk is where the bus is asked for.
+
+	   A parent says which stop they live at while filling in the admission
+	   form, and enrolment can now put the child on a route there and then. The
+	   route and stop pickers read the transport lists, which sit behind
+	   TransportRead -- a permission this role did not hold, so the dropdowns
+	   would have rendered empty with no error and the clerk would have enrolled
+	   the child with no bus, exactly as before.
+
+	   Read only. The desk still cannot add a bus, price a stop or change a
+	   route; it can see which routes exist and put a child on one, which is
+	   the job it is being asked to do. */
 	{"admissions", "Admissions & Front Office", []string{
 		FrontDeskRead, FrontDeskWrite,
 		AcademicsRead, AdmissionsRead, AdmissionsWrite, StudentsRead, StudentsWrite,
+		TransportRead,
 		SelfProfileRead, SelfProfileWrite}},
 	// The receptionist could read the school and write nothing, which made the
 	// role unable to do the one job it has: sign a visitor in.

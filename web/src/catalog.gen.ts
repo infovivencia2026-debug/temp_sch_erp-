@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 319 features. */
+/** 13 roles, 320 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1170,6 +1170,14 @@ export const ROLES: Role[] = [
           { key: 'parent.profile.parent_app_biometric_lock_face_id_fingerprint', slug: 'parent_app_biometric_lock_face_id_fingerprint', name: 'Parent App Biometric Lock (Face ID / Fingerprint)', scope: 'children', tier: 'optional', summary: 'Allow parents to secure mobile app access using smartphone hardware biometric authentication.' },
           { key: 'parent.profile.language', slug: 'language', name: 'Language', scope: 'children', tier: 'core', summary: 'Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees.' },
           { key: 'parent.profile.parent_app_dark_mode_high_contrast_accessibility', slug: 'parent_app_dark_mode_high_contrast_accessibility', name: 'Parent App Dark Mode & High Contrast Accessibility', scope: 'children', tier: 'optional', summary: 'Toggle high-contrast text modes and dark UI themes for low-vision parent app users.' },
+        ],
+      },
+      {
+        slug: 'admissions',
+        name: 'Admissions',
+        workspace: 'Admissions',
+        features: [
+          { key: 'parent.admissions.admission_status', slug: 'admission_status', name: 'Admission status', scope: 'self', tier: 'core', summary: 'Follow your own admission from the enquiry onwards: the application, the documents still wanted, the test and the decision.' },
         ],
       },
     ],

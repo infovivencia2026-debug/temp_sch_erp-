@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 319 features.
+// Roles is the catalog: 13 roles, 320 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1217,6 +1217,14 @@ var Roles = []Role{
 					{Key: "parent.profile.parent_app_biometric_lock_face_id_fingerprint", Slug: "parent_app_biometric_lock_face_id_fingerprint", Name: "Parent App Biometric Lock (Face ID / Fingerprint)", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to secure mobile app access using smartphone hardware biometric authentication."},
 					{Key: "parent.profile.language", Slug: "language", Name: "Language", Scope: Scope("children"), Tier: Tier("core"), Summary: "Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees."},
 					{Key: "parent.profile.parent_app_dark_mode_high_contrast_accessibility", Slug: "parent_app_dark_mode_high_contrast_accessibility", Name: "Parent App Dark Mode & High Contrast Accessibility", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Toggle high-contrast text modes and dark UI themes for low-vision parent app users."},
+				},
+			},
+			{
+				Slug:      "admissions",
+				Name:      "Admissions",
+				Workspace: "Admissions",
+				Features: []Feature{
+					{Key: "parent.admissions.admission_status", Slug: "admission_status", Name: "Admission status", Scope: Scope("self"), Tier: Tier("core"), Summary: "Follow your own admission from the enquiry onwards: the application, the documents still wanted, the test and the decision."},
 				},
 			},
 		},

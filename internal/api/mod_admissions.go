@@ -576,6 +576,16 @@ type enrolRequest struct {
 	// A fee head marked for a service is billed only when it is named here,
 	// so a child who walks to school is not quoted a bus.
 	Services []string `json:"services,omitempty"`
+
+	/* The bus itself, not just the bill for it.
+
+	   Naming 'transport' above only ever billed for a bus. Putting the child
+	   on one needed somebody in the transport office to open a second screen
+	   later and find the student again, so the ordinary outcome was an invoice
+	   for transport and no seat: the family has paid, the office believes it
+	   is arranged, and the first anybody knows is a child at a stop the driver
+	   has no reason to call at. Optional -- a walker sends none of it. */
+	Transport admissionTransport `json:"transport,omitempty"`
 }
 
 // enrolApplicant is the handoff: an admitted applicant becomes a student.
@@ -703,6 +713,29 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 			 WHERE a.id = $1 AND e.guardian_id IS NOT NULL`, appID).
 			Scan(&guardianID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		/* Failing that, the guardian already holding a login on this number.
+
+		   The enquiry link above is the reliable route and this is the net
+		   under it: an application typed at the counter without naming its
+		   enquiry, or a family whose enquiry predates logins being issued at
+		   all. Without it the upsert below matches on a name a parent typed at
+		   home against one a clerk typed on the phone, misses, and mints a
+		   second guardian -- whose new-user INSERT then violates the unique
+		   index on (institution_id, phone) and takes the whole admission down
+		   with it, invoice and all.
+
+		   Only a guardian that already has an account, because that is the one
+		   whose duplication actually breaks something. */
+		if guardianID == "" && phone != "" {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT id::text FROM guardians
+				 WHERE phone = $1 AND user_id IS NOT NULL
+				 ORDER BY created_at
+				 LIMIT 1`, phone).Scan(&guardianID); err != nil &&
+				!errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
 		}
 		if guardianID == "" {
 			// No enquiry behind this application, or one taken before logins
@@ -844,10 +877,29 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 		   returns a note rather than an error, for the same reason the message
 		   is queued rather than sent. */
 		if sid, perr := uuid.Parse(studentID); perr == nil {
+			/* The bus, before the login, because this one can fail the
+			   admission and the login cannot. A stop on the wrong route is a
+			   mistake the desk should be told about while the parent is still
+			   standing there, not a silent half-arrangement. */
+			if req.Transport.wanted() {
+				if terr := allocateAtAdmission(
+					r.Context(), tx, instID, sid, req.Transport); terr != nil {
+					return terr
+				}
+			}
 			welcome = s.issueAdmissionLogin(r.Context(), tx, instID, sid)
 		}
 		return nil
 	})
+	if errors.Is(err, errStopNotOnRoute) {
+		httpx.BadRequest(w, r, "that stop is not on that route. Two routes often pass the "+
+			"same corner, so check which one the family was given")
+		return
+	}
+	if errors.Is(err, errBadTransportRef) {
+		httpx.BadRequest(w, r, "route_id and pickup_stop_id must be uuids")
+		return
+	}
 	if errors.Is(err, errNotOffered) {
 		httpx.BadRequest(w, r, "only an offered application can be enrolled")
 		return

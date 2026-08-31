@@ -70,6 +70,23 @@
 
 export const en = {
   // --- portal / Documents.tsx -------------------------------------------
+  'portal.admission.loading': 'Looking up your admission…',
+  'portal.admission.eyebrow': 'Admissions',
+  'portal.admission.title': 'Your admission',
+  'portal.admission.description': 'Where your application has reached, and what is still wanted from you.',
+  'portal.admission.empty_title': 'Nothing in progress',
+  'portal.admission.empty_description': 'You have no admission being processed. Once your child is enrolled, the rest of the portal is where their school life lives.',
+  'portal.admission.class_sought': 'Class applied for',
+  'portal.admission.next_action': 'What to do next',
+  'portal.admission.open_form': 'Open the application form',
+  'portal.admission.col_document': 'Document',
+  'portal.admission.col_needed': 'Needed',
+  'portal.admission.col_state': 'State',
+  'portal.admission.doc_required': 'Required',
+  'portal.admission.doc_optional': 'Optional',
+  'portal.admission.doc_checked': 'Checked',
+  'portal.admission.doc_with_school': 'With the school',
+  'portal.admission.doc_awaited': 'Awaited',
   'portal.documents.loading': 'Looking up the file…',
   'portal.documents.eyebrow': 'Requests',
   'portal.documents.title': 'Documents on file',

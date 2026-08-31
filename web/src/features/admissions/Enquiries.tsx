@@ -35,6 +35,14 @@ interface Enquiry {
   created_at: string
 }
 
+interface ParentLogin {
+  sign_in_as?: string
+  password?: string
+  existing?: boolean
+  sent_to?: string[]
+  note?: string
+}
+
 const STATUSES = ['new', 'contacted', 'visit_scheduled', 'applied', 'lost']
 
 export default function Enquiries() {
@@ -52,7 +60,7 @@ export default function Enquiries() {
   const { featureSlug } = useParams()
   const mine = featureSlug === 'my_follow_ups'
 
-  const [form, setForm] = useState({ student_name: '', parent_name: '', phone: '', source: 'walk_in' })
+  const [form, setForm] = useState({ student_name: '', parent_name: '', phone: '', email: '', source: 'walk_in' })
   const [note, setNote] = useState('')
 
   const q = useQuery({
@@ -60,12 +68,27 @@ export default function Enquiries() {
     queryFn: () => api.get<List<Enquiry>>(`/api/v1/admissions/enquiries${status ? `?status=${status}` : ''}`),
   })
 
+  /* The login the enquiry just issued, held on screen until it is dismissed.
+   *
+   * The password exists nowhere else. Nothing in this product can read one back
+   * out, so if the message does not arrive — no signal, a mistyped address, a
+   * gateway not yet set up — this panel is the only copy that was ever made.
+   * The parent is standing at the desk at this moment, which is the one time it
+   * can be handed over by hand, so it stays up until somebody closes it rather
+   * than flashing past as a toast. */
+  const [issued, setIssued] = useState<ParentLogin | null>(null)
+
   const create = useMutation({
-    mutationFn: () => api.post('/api/v1/admissions/workflow/enquiries', form),
-    onSuccess: () => {
+    mutationFn: () => api.post<{ parent_login?: ParentLogin }>(
+      '/api/v1/admissions/workflow/enquiries', form),
+    onSuccess: (res) => {
       setAdding(false)
-      setForm({ student_name: '', parent_name: '', phone: '', source: 'walk_in' })
+      setForm({ student_name: '', parent_name: '', phone: '', email: '', source: 'walk_in' })
       setNote('Enquiry logged.')
+      // Only where an account was actually issued. A family that already had
+      // one gets a note and no password, and showing an empty box would read
+      // as a credential that failed to generate.
+      setIssued(res?.parent_login?.sign_in_as ? res.parent_login : null)
       qc.invalidateQueries({ queryKey: ['enquiries'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
     },
@@ -149,6 +172,43 @@ export default function Enquiries() {
           <Stat label="Converted" value={items.filter((e) => e.status === 'applied').length} />
         </CellGrid>
 
+        {issued && (
+          <Card>
+            <CardHeader
+              title="The parent's login"
+              description={
+                issued.existing
+                  ? 'This family already had an account, so nothing was changed.'
+                  : 'Shown once. Give it to the parent now — it cannot be read back.'
+              }
+              action={<Button variant="ghost" onClick={() => setIssued(null)}>Done</Button>}
+            />
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <div>
+                <div className="text-[13px] text-muted-foreground">Sign in as</div>
+                <div className="font-mono text-base">{issued.sign_in_as}</div>
+              </div>
+              {issued.password ? (
+                <div>
+                  <div className="text-[13px] text-muted-foreground">Temporary password</div>
+                  <div className="font-mono text-base">{issued.password}</div>
+                </div>
+              ) : null}
+            </div>
+            <div className="border-t px-5 py-4 text-[13px] text-muted-foreground">
+              {/* What actually went out, rather than a claim that it did. The
+                  channels a school has not bought yet queue nothing at all,
+                  and a desk told "sent" for a message that was never queued
+                  will not hand the password over — which is how a family ends
+                  up with neither. */}
+              {issued.sent_to?.length
+                ? `Sent by ${issued.sent_to.join(', ')}. They can sign in and follow the admission from there.`
+                : 'Not sent to the parent — no messaging channel is set up. Give these to them now.'}
+              {issued.note ? <div className="mt-1">{issued.note}</div> : null}
+            </div>
+          </Card>
+        )}
+
         {adding && (
           <Card>
             <CardHeader title="New enquiry" description="What the front desk takes down on the phone" />
@@ -166,16 +226,34 @@ export default function Enquiries() {
                 <Input value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="98xxxxxxxx" />
               </label>
               <label className="flex flex-col gap-1.5 text-[13px]">
+                {/* Not decoration: this is where the parent's login is sent,
+                    and the only channel of the three that carries a password
+                    reliably. A desk that skips it leaves the family with an
+                    account they can only be told about by hand. */}
+                <span className="text-muted-foreground">Email</span>
+                <Input
+                  value={form.email}
+                  onChange={(v) => setForm({ ...form, email: v })}
+                  placeholder="parent@example.com"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px]">
                 <span className="text-muted-foreground">Source</span>
                 <Select
                   value={form.source}
                   onChange={(v) => setForm({ ...form, source: v })}
+                  /* These are the six the server accepts, and they were not.
+                     'online', 'newspaper' and 'hoarding' are not in
+                     enquiries_source_check, so a clerk who picked the obvious
+                     option for a web lead got "source must be one of" and lost
+                     the enquiry they had just typed. */
                   options={[
                     { value: 'walk_in', label: 'Walk-in' },
+                    { value: 'phone', label: 'Telephone' },
+                    { value: 'website', label: 'Website' },
                     { value: 'referral', label: 'Referral' },
-                    { value: 'online', label: 'Online' },
-                    { value: 'newspaper', label: 'Newspaper' },
-                    { value: 'hoarding', label: 'Hoarding' },
+                    { value: 'campaign', label: 'Campaign' },
+                    { value: 'other', label: 'Other' },
                   ]}
                 />
               </label>

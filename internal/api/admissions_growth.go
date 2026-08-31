@@ -1679,24 +1679,75 @@ func insertPublicApplication(ctx context.Context, tx pgx.Tx, inst, versionID uui
 		return "", err
 	}
 
+	/* THE ENQUIRY THIS FORM CAME FROM.
+
+	   An application filled on the web carried no enquiry_id, which sounds like
+	   a missing analytics column and is not. The enquiry is where the family
+	   was given their login, and enquiries.guardian_id is what enrolment reads
+	   to avoid issuing that family a second credential. With the link missing,
+	   the ordinary journey -- enquire at the desk, get a login by email, click
+	   the link in it, apply online -- ended in a portal that said "fill in the
+	   application form" forever, because it was looking for an application that
+	   pointed back at the enquiry and there was none.
+
+	   Matched on the contact the family gave, because that is all the two
+	   records share: the form is filled by a parent at home and the enquiry was
+	   typed by a clerk, so the names differ far too often to match on. Phone
+	   first, since it is the enquiry's only NOT NULL contact.
+
+	   The newest enquiry that has not already been answered by an application.
+	   Without that condition a family applying for a second child would attach
+	   the new application to the first child's enquiry, and the elder child's
+	   tracker would start showing the younger one's progress. */
+	var enquiryID *uuid.UUID
+	{
+		var found uuid.UUID
+		err := tx.QueryRow(ctx, `
+			SELECT e.id FROM enquiries e
+			 WHERE (e.phone = $1 OR (NULLIF($2,'') IS NOT NULL AND e.email = $2::citext))
+			   AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.enquiry_id = e.id)
+			 ORDER BY e.created_at DESC
+			 LIMIT 1`, core["parent_phone"], core["parent_email"]).Scan(&found)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return "", err
+		}
+		if err == nil {
+			enquiryID = &found
+		}
+	}
+
 	var appID uuid.UUID
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO applications (institution_id, campus_id, admission_session_id,
-		                          application_no, first_name, middle_name, last_name,
-		                          date_of_birth, gender, category, class_sought,
+		                          enquiry_id, application_no, first_name, middle_name,
+		                          last_name, date_of_birth, gender, category, class_sought,
 		                          parent_name, parent_phone, parent_email, address,
 		                          previous_school, status, form_version_id,
 		                          submitted_from, submitted_at)
-		VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),NULLIF($8,'')::date,
-		        NULLIF($9,''),NULLIF($10,''),$11,$12,$13,NULLIF($14,'')::citext,
-		        NULLIF($15,''),NULLIF($16,''),'submitted',$17,$18,now())
+		VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),NULLIF($8,''),NULLIF($9,'')::date,
+		        NULLIF($10,''),NULLIF($11,''),$12,$13,$14,NULLIF($15,'')::citext,
+		        NULLIF($16,''),NULLIF($17,''),'submitted',$18,$19,now())
 		RETURNING id`,
-		inst, campusID, sessionID, appNo,
+		inst, campusID, sessionID, enquiryID, appNo,
 		core["first_name"], core["middle_name"], core["last_name"], core["date_of_birth"],
 		core["gender"], core["category"], *classID, core["parent_name"], core["parent_phone"],
 		core["parent_email"], core["address"], core["previous_school"], versionID,
 		truncate(from, 60)).Scan(&appID); err != nil {
 		return "", err
+	}
+
+	/* The enquiry has been answered, so say so in the funnel.
+
+	   'applied' is the furthest state the enquiry vocabulary defines; the
+	   application row carries the outcome beyond it. Without this an enquiry
+	   that produced an application on the web sat at 'new' and the conversion
+	   rate the funnel reports was wrong in the school's own favour. */
+	if enquiryID != nil {
+		if _, err := tx.Exec(ctx, `
+			UPDATE enquiries SET status = 'applied', updated_at = now()
+			 WHERE id = $1 AND status NOT IN ('applied','lost')`, *enquiryID); err != nil {
+			return "", err
+		}
 	}
 
 	for _, a := range answers {

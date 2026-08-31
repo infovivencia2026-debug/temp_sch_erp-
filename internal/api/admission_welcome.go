@@ -76,6 +76,28 @@ func (s *Server) issueAdmissionLogin(
 ) admissionWelcome {
 	var out admissionWelcome
 
+	/* A savepoint, because "it cannot fail the admission" was not true.
+
+	   Every bail-out below returns a note and leaves the caller to commit. That
+	   works for a lookup that finds nothing; it does not work after a statement
+	   has errored, which puts Postgres in an aborted transaction where COMMIT
+	   comes back as ROLLBACK. This runs as the last step of enrolment, so the
+	   student, the enrolment, the guardian link and the first invoice all
+	   disappear and the office gets a 500 -- from the courtesy message.
+
+	   The failure that gets there is ordinary: a parent whose phone already
+	   carries a user, which since logins are issued at enquiry is now most
+	   families by the time they enrol. */
+	if _, err := tx.Exec(ctx, "SAVEPOINT admission_login"); err != nil {
+		return out
+	}
+	abandon := func(note string) admissionWelcome {
+		if _, err := tx.Exec(ctx, "ROLLBACK TO SAVEPOINT admission_login"); err != nil {
+			return admissionWelcome{}
+		}
+		return admissionWelcome{Note: note}
+	}
+
 	// The school's own name, read here rather than passed in: the caller is a
 	// long handler and one more argument threaded through it is one more thing
 	// to get wrong.
@@ -129,11 +151,11 @@ func (s *Server) issueAdmissionLogin(
 	} else {
 		password, err := temporaryPassword()
 		if err != nil {
-			return out
+			return abandon("The child is admitted. A parent login could not be issued.")
 		}
 		hash, err := s.Hasher.Hash(password)
 		if err != nil {
-			return out
+			return abandon("The child is admitted. A parent login could not be issued.")
 		}
 		base := fullName
 		if tel != "" {
@@ -141,7 +163,7 @@ func (s *Server) issueAdmissionLogin(
 		}
 		username, err := uniqueUsername(ctx, tx, inst, base)
 		if err != nil {
-			return out
+			return abandon("The child is admitted. A parent login could not be issued.")
 		}
 		var newID uuid.UUID
 		if err := tx.QueryRow(ctx, `
@@ -153,16 +175,15 @@ func (s *Server) issueAdmissionLogin(
 			/* Almost always the same phone on a second family record. Not an
 			   error the admission should carry: the child is admitted, and the
 			   office is told to sort the login out separately. */
-			out.Note = "A login could not be issued automatically - that phone or email is " +
-				"already on another account. Issue it from the student's profile."
-			return out
+			return abandon("A login could not be issued automatically - that phone or " +
+				"email is already on another account. Issue it from the student's profile.")
 		}
 		if _, err := tx.Exec(ctx,
 			`UPDATE guardians SET user_id = $2 WHERE id = $1`, guardianID, newID); err != nil {
-			return out
+			return abandon("The child is admitted. A parent login could not be issued.")
 		}
 		if err := grantRole(ctx, tx, inst, newID, "parent"); err != nil {
-			return out
+			return abandon("The child is admitted. A parent login could not be issued.")
 		}
 		out.SignInAs = username
 		out.Password = password

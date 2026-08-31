@@ -161,6 +161,15 @@ export default function Applications() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [score, setScore] = useState('')
   const [sectionId, setSectionId] = useState('')
+  /* The bus, asked for at the desk.
+
+     A parent says "we live at Subedari and he will use the bus" while filling
+     in the form. Nobody wrote it down: naming transport in the services list
+     only billed for a bus, and putting the child on one meant the transport
+     office opening a second screen later and finding the student again. So the
+     ordinary outcome was an invoice for transport and no seat on it. */
+  const [routeId, setRouteId] = useState('')
+  const [pickupStopId, setPickupStopId] = useState('')
   const [note, setNote] = useState('')
 
   const apps = useQuery({
@@ -223,12 +232,19 @@ export default function Applications() {
     mutationFn: () =>
       api.post<{ parent_login?: ParentLogin }>(
         `/api/v1/admissions/workflow/applications/${open!.id}/enrol`,
-        { section_id: sectionId },
+        {
+          section_id: sectionId,
+          // Omitted entirely for a walker. The server treats an absent route
+          // as "no bus asked for" rather than as an error.
+          ...(routeId && pickupStopId
+            ? { transport: { route_id: routeId, pickup_stop_id: pickupStopId } }
+            : {}),
+        },
       ),
     onSuccess: (res) => {
       setNote('Enrolled. The applicant is now a student with an admission number.')
       setLogin(res.parent_login?.sign_in_as ? res.parent_login : null)
-      setOpen(null); setSectionId('')
+      setOpen(null); setSectionId(''); setRouteId(''); setPickupStopId('')
       after()
       qc.invalidateQueries({ queryKey: ['students'] })
     },
@@ -238,6 +254,21 @@ export default function Applications() {
      else — so the form has to offer the real classes rather than free text. */
   /* Which rungs this school uses. Both default on, so a school that has never
      opened the setting behaves exactly as it did. */
+  /* Only the routes a bus is actually on. A route with no vehicle cannot be
+     driven, and offering it here is how a child ends up allocated to a service
+     that does not run. */
+  const routes = useQuery({
+    queryKey: ['transport-routes', 'for-admission'],
+    queryFn: () => api.get<List<{ id: string; name: string; code?: string }>>(
+      '/api/v1/ops/transport/routes'),
+  })
+  const stops = useQuery({
+    enabled: routeId !== '',
+    queryKey: ['route-stops', 'for-admission', routeId],
+    queryFn: () => api.get<List<{ id: string; name: string; pickup_time?: string }>>(
+      `/api/v1/ops/transport/routes/${routeId}/stops`),
+  })
+
   const stages = useQuery({
     queryKey: ['admissions', 'stages'],
     queryFn: () => api.get<{ entrance_test: boolean; interview: boolean }>(
@@ -753,7 +784,36 @@ export default function Applications() {
                           }))}
                         />
                       </label>
-                      <Button disabled={!sectionId || enrol.isPending} onClick={() => enrol.mutate()}>
+                      <label className="flex flex-col gap-1.5 text-[13px]">
+                        <span className="text-muted-foreground">Bus route</span>
+                        <Select
+                          value={routeId}
+                          onChange={(v) => { setRouteId(v); setPickupStopId('') }}
+                          placeholder="Walks or own transport"
+                          options={(routes.data?.items ?? []).map((r) => ({
+                            value: r.id,
+                            label: r.code ? `${r.name} (${r.code})` : r.name,
+                          }))}
+                        />
+                      </label>
+                      {routeId && (
+                        <label className="flex flex-col gap-1.5 text-[13px]">
+                          <span className="text-muted-foreground">Boards at</span>
+                          <Select
+                            value={pickupStopId}
+                            onChange={setPickupStopId}
+                            placeholder={stops.isFetching ? 'Loading…' : 'Select…'}
+                            options={(stops.data?.items ?? []).map((st) => ({
+                              value: st.id,
+                              label: st.pickup_time ? `${st.name} · ${st.pickup_time}` : st.name,
+                            }))}
+                          />
+                        </label>
+                      )}
+                      <Button
+                        disabled={!sectionId || (!!routeId && !pickupStopId) || enrol.isPending}
+                        onClick={() => enrol.mutate()}
+                      >
                         {enrol.isPending ? 'Enrolling…' : 'Create the student record'}
                       </Button>
                     </div>

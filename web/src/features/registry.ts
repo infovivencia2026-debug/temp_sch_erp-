@@ -145,6 +145,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   'faculty.timetable.my_timetable': screen(() => import('./shared/Timetable')),
+  // Where is my admission. The only parent screen that is not about a pupil:
+  // at enquiry there is no student yet, so it scopes to the caller's own
+  // login rather than to a selected child.
+  'parent.admissions.admission_status': screen(() => import('./portal/AdmissionStatus')),
   'parent.fees.fees_payments': screen(() => import('./portal/Fees')),
   'student.fees.fees': screen(() => import('./portal/Fees')),
   'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
