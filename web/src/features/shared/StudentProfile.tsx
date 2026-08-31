@@ -399,26 +399,34 @@ export default function StudentProfile() {
 
   const credentials = issued && (
     <div ref={credentialsRef}>
-    <Card className={cn('mb-4', issued.existing ? 'border-warning' : 'border-success')}>
+    <Card className={cn('mb-4', issued.password ? 'border-success' : 'border-warning')}>
       <CardHeader
         /* An existing login is an answer, not a credential. Showing it under
            "Login issued" with an empty Password read as a button that had done
            nothing — which is exactly what somebody standing at the desk
            concluded. */
+        /* A password in hand is the thing that matters, however it got here.
+
+           The server answers a RESET with existing:true — the account did
+           already exist — and a real password beside it. Keying the panel on
+           `existing` therefore hid the password of the reset somebody had just
+           asked for: they pressed the button, the card stayed as it was, the
+           family's old password had already stopped working, and the new one
+           was in the response and nowhere on the screen. */
         title={
-          issued.existing
-            ? `${issued.who} already has a login`
-            : `Login issued for ${issued.who}`
+          issued.password
+            ? `Login for ${issued.who}`
+            : `${issued.who} already has a login`
         }
         description={
-          issued.existing
-            ? issued.note
-            : 'Shown once and not stored anywhere. Copy it now — if it is lost, issue another rather than looking this one up.'
+          issued.password
+            ? 'Shown once and not stored anywhere. Copy it now — if it is lost, reset it again rather than looking this one up.'
+            : issued.note
         }
       />
       <dl className="divide-y text-[14px]">
         <Field k="Sign in as" v={issued.sign_in_as} mono />
-        {!issued.existing && <Field k="Password" v={issued.password} mono />}
+        {issued.password && <Field k="Password" v={issued.password} mono />}
         {issued.relation && <Field k="Relation" v={issued.relation} />}
       </dl>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
@@ -428,7 +436,7 @@ export default function StudentProfile() {
             stops the one the family may still be using — so it is offered
             plainly and named for what it does rather than dressed as "show
             password", which is a thing this product cannot do. */}
-        {issued.existing && issued.reset && (
+        {!issued.password && issued.reset && (
           <Button
             size="sm"
             disabled={studentLogin.isPending || guardianLogin.isPending}
@@ -438,7 +446,7 @@ export default function StudentProfile() {
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
-          {issued.existing ? 'Close' : 'I have copied it'}
+          {issued.password ? 'I have copied it' : 'Close'}
         </Button>
       </div>
     </Card>
