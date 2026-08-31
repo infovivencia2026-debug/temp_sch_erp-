@@ -678,7 +678,14 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 			       revoked_reason = 'replaced when the same handset enrolled again'
 			 WHERE institution_id = $1
 			   AND revoked_at IS NULL
-			   AND lower(name) = lower($2)`, who.Institution, truncate(name, 80))
+			   /* The suffixed ones too. The INSERT below names a duplicate
+			      handset "model (2)" from a COUNT of live rows with the base
+			      name, so revoking only the exact match leaves "(2)" live, the
+			      count comes back to one, and the statement generates "(2)"
+			      again and collides with it. Two enrolments from one phone
+			      were enough to wedge it permanently. */
+			   AND (lower(name) = lower($2) OR lower(name) LIKE lower($2) || ' (%')`,
+				who.Institution, truncate(name, 80))
 			return rerr
 		}); err != nil {
 		httpx.Internal(w, r, err)
