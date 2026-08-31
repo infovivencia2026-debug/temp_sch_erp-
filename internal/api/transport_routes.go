@@ -101,9 +101,15 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 		campus = &parsed
 	}
 
-	active := true
+	/* An omitted is_active means "leave it alone", not "make it active".
+
+	   Edit is the only screen that touches a route, so a form that does not
+	   show the flag would have brought every retired route back the moment
+	   somebody corrected a stop time. New routes still start active, which is
+	   the only sensible default for a thing somebody is creating. */
+	var active *bool
 	if req.IsActive != nil {
-		active = *req.IsActive
+		active = req.IsActive
 	}
 
 	var out struct {
@@ -143,7 +149,7 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 				        COALESCE($2::uuid, (SELECT id FROM campuses
 				                             WHERE institution_id = $1
 				                             ORDER BY created_at LIMIT 1)),
-				        $3, NULLIF($4,''), $5, NULLIF($6,'')::numeric, $7)
+				        $3, NULLIF($4,''), $5, NULLIF($6,'')::numeric, COALESCE($7, true))
 				RETURNING id::text, name`,
 				id.InstitutionID, campus, req.Name, req.Code, vehicle,
 				req.DistanceKm, active).Scan(&out.ID, &out.Name); err != nil {
@@ -153,7 +159,8 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 			if err := tx.QueryRow(r.Context(), `
 				UPDATE routes
 				   SET name = $2, code = NULLIF($3,''), vehicle_id = $4,
-				       distance_km = NULLIF($5,'')::numeric, is_active = $6,
+				       distance_km = NULLIF($5,'')::numeric,
+				       is_active = COALESCE($6, is_active),
 				       campus_id = COALESCE($7::uuid, campus_id)
 				 WHERE id = $1
 				RETURNING id::text, name`,
@@ -179,12 +186,26 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Replaced wholesale. See the doc comment.
+		/* MATCHED BY ID, NOT REPLACED WHOLESALE.
+
+		   This deleted every stop and inserted the list again, which is the
+		   obvious way to save an edited list and quietly destroys two things.
+
+		   transport_allocations.pickup_stop_id and drop_stop_id are ON DELETE
+		   SET NULL, so re-minting the ids detaches every rider from the stop
+		   they board at. A school with four hundred children on buses would
+		   correct a stop's time and lose the lot, with nothing to say it had
+		   happened.
+
+		   And a stop's fare survives an edit only if the client sends it back.
+		   A form that does not show fares would blank them all. Keeping the
+		   row means an omitted field keeps what it had, which is what an
+		   office expects of a field it was never shown.
+
+		   So: a stop carrying an id is updated in place, one without an id is
+		   new, and only the stops missing from the list are removed. */
 		if req.Stops != nil {
-			if _, err := tx.Exec(r.Context(),
-				`DELETE FROM route_stops WHERE route_id = $1`, rid); err != nil {
-				return err
-			}
+			kept := make([]uuid.UUID, 0, len(req.Stops))
 			for i, st := range req.Stops {
 				name := strings.TrimSpace(st.Name)
 				if name == "" {
@@ -194,20 +215,56 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 				// number: a list edited in place sends whatever it last had,
 				// and a gap or a duplicate there puts a stop out of order on
 				// the driver's screen.
-				if _, err := tx.Exec(r.Context(), `
+				seq := i + 1
+				lat := derefOrEmpty(st.Latitude)
+				lon := derefOrEmpty(st.Longitude)
+
+				if existing, perr := uuid.Parse(strings.TrimSpace(st.ID)); perr == nil {
+					var got uuid.UUID
+					// COALESCE on fare: absent means unchanged, not zero.
+					if err := tx.QueryRow(r.Context(), `
+						UPDATE route_stops
+						   SET name = $3, sequence = $4,
+						       pickup_time = NULLIF($5,'')::time,
+						       drop_time   = NULLIF($6,'')::time,
+						       latitude    = NULLIF($7,'')::numeric,
+						       longitude   = NULLIF($8,'')::numeric,
+						       fare_paise  = COALESCE($9, fare_paise)
+						 WHERE id = $1 AND route_id = $2
+						RETURNING id`,
+						existing, rid, name, seq, st.PickupTime, st.DropTime,
+						lat, lon, st.FarePaise).Scan(&got); err == nil {
+						kept = append(kept, got)
+						out.Stops++
+						continue
+					} else if !errors.Is(err, pgx.ErrNoRows) {
+						return err
+					}
+					// No such stop on this route: fall through and insert it,
+					// rather than failing a save over an id the client held
+					// from a route it was looking at earlier.
+				}
+
+				var made uuid.UUID
+				if err := tx.QueryRow(r.Context(), `
 					INSERT INTO route_stops (institution_id, route_id, name, sequence,
 					                         pickup_time, drop_time, latitude, longitude,
 					                         fare_paise)
 					VALUES ($1,$2,$3,$4,
 					        NULLIF($5,'')::time, NULLIF($6,'')::time,
-					        NULLIF($7,'')::numeric, NULLIF($8,'')::numeric, $9)`,
-					id.InstitutionID, rid, name, i+1,
-					st.PickupTime, st.DropTime,
-					derefOrEmpty(st.Latitude), derefOrEmpty(st.Longitude),
-					st.FarePaise); err != nil {
+					        NULLIF($7,'')::numeric, NULLIF($8,'')::numeric, $9)
+					RETURNING id`,
+					id.InstitutionID, rid, name, seq,
+					st.PickupTime, st.DropTime, lat, lon, st.FarePaise).Scan(&made); err != nil {
 					return err
 				}
+				kept = append(kept, made)
 				out.Stops++
+			}
+			if _, err := tx.Exec(r.Context(),
+				`DELETE FROM route_stops WHERE route_id = $1 AND id <> ALL($2)`,
+				rid, kept); err != nil {
+				return err
 			}
 		} else {
 			if err := tx.QueryRow(r.Context(),

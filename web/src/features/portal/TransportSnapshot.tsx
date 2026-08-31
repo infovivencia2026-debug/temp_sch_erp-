@@ -5,7 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState, CellGrid, Stat,
 } from '@/components/ui'
 import {
-  ageText, minutes, usePoll, useTabVisible,
+  ageText, minutes, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
 } from './child-bus'
 import { walkText } from './transport-prefs'
@@ -32,14 +32,22 @@ export default function TransportSnapshot() {
     queryFn: () => api.get<ChildBusFeed>('/api/v1/me/child-bus'),
   })
 
-  const rows = feed.data?.items ?? []
   const staleAfter = feed.data?.stale_after_seconds ?? 60
+  /* Age the cached rows by however long the answer has been sitting here, so
+     a paused poll cannot leave a bus looking live. */
+  const drift = useSecondsSince(feed.dataUpdatedAt)
+  const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   const every = usePoll(rows, visible, () => void feed.refetch())
 
   if (feed.isLoading) return <Loading label="Reading today's transport…" />
   if (feed.error) return <ErrorState error={feed.error} />
 
-  const running = rows.filter((r) => r.state === 'running' || r.state === 'stale').length
+  /* Stale is not counted as running. A tile that says "1 on a run now" over a
+     bus whose last fix is half an hour old is the screen telling a parent the
+     one thing it must never tell them, so the silent ones get their own count
+     and their own sentence underneath. */
+  const running = rows.filter((r) => r.state === 'running').length
+  const silent = rows.filter((r) => r.state === 'stale' || r.state === 'no_signal').length
   const arrived = rows.filter((r) => r.state === 'arrived').length
 
   return (
@@ -62,6 +70,14 @@ export default function TransportSnapshot() {
               <Stat label="On a run now" value={running} icon={MapPin} />
               <Stat label="Already at the stop" value={arrived} icon={Clock} />
             </CellGrid>
+
+            {silent > 0 && (
+              <p className="text-[13px] text-destructive">
+                {silent === 1 ? 'One bus is' : `${silent} buses are`} on an open run but not
+                reporting a position. Where a distance is shown below it is where the bus was, not
+                where it is.
+              </p>
+            )}
 
             {rows.map((row) => (
               <SnapshotCard key={row.student_id} row={row} staleAfter={staleAfter} />

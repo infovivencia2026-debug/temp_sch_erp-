@@ -91,6 +91,37 @@ export function stateSentence(row: ChildBusRow, staleAfter: number): string {
   }
 }
 
+/* The clock keeps running after the answer stops arriving.
+
+   age_seconds is how old the fix was when the server answered, and nothing
+   about it changes while that answer sits in the cache: a tab left in the
+   background stops polling, and twenty minutes later the card still says "On
+   the way, 12s ago" over a bus that has not been heard from since. So the
+   seconds since the payload arrived are added back on, and a row whose fix has
+   aged past the stale threshold since then is shown as stale rather than
+   running. A parent standing at a gate is the person this protects. */
+export function useSecondsSince(at?: number): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15000)
+    return () => clearInterval(t)
+  }, [])
+  if (!at) return 0
+  return Math.max(0, Math.round((now - at) / 1000))
+}
+
+/* The row as it is true now, not as it was true when it was fetched.
+
+   Returns the same shape so every caller, sentence and badge keeps reading
+   row.state and row.age_seconds and there is no second place where a state
+   can be decided differently. */
+export function withDrift(row: ChildBusRow, drift: number, staleAfter: number): ChildBusRow {
+  if (drift <= 0 || row.age_seconds == null) return row
+  const age = row.age_seconds + drift
+  const state: BusState = row.state === 'running' && age > staleAfter ? 'stale' : row.state
+  return { ...row, age_seconds: age, state }
+}
+
 /** A state where a position is worth plotting at all. */
 export function hasPlot(row: ChildBusRow): boolean {
   return (

@@ -64,6 +64,7 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var newID string
+	var applicant applicantWelcome
 	var errUnknownClass = errors.New("unknown class")
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// class_sought is a uuid column behind a plainly-named string field, so
@@ -122,6 +123,17 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 		}
 		s.sendEnquiryApplicationLink(r.Context(), tx, id.InstitutionID, enquiryUUID,
 			req.StudentName, req.ParentName, req.Phone, req.Email)
+
+		/* AND A WAY TO WATCH WHAT HAPPENS TO IT.
+
+		   The link above asks the family to fill a form. This gives them the
+		   account that shows what became of it -- the application, the
+		   documents, the test, the decision -- which is the question they
+		   would otherwise ring the office to ask, every week, until the season
+		   ends. Same transaction and the same rule: it cannot fail the
+		   enquiry. See issueEnquiryLogin. */
+		applicant = s.issueEnquiryLogin(r.Context(), tx, id.InstitutionID, enquiryUUID,
+			req.StudentName, req.ParentName, req.Phone, req.Email)
 		return nil
 	})
 	if errors.Is(err, errUnknownClass) {
@@ -133,7 +145,14 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID, "status": "new"})
+	httpx.JSON(w, http.StatusCreated, map[string]any{
+		"id": newID, "status": "new",
+		// The password is here because it is nowhere else: nothing can read it
+		// back out afterwards, so if no message arrives this response is the
+		// only copy that ever existed -- and the parent is usually still at
+		// the desk, which is the one moment it can be handed over by hand.
+		"parent_login": applicant,
+	})
 }
 
 type enquiryStatusRequest struct {
@@ -665,21 +684,42 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 
 		// Carry the parent across as a guardian so the child is contactable
 		// from day one rather than after a separate data-entry pass.
-		//
-		// Reuse an existing guardian rather than inserting blindly: siblings
-		// share a parent, and guardians is unique on
-		// (institution_id, phone, full_name). Admitting a second child of the
-		// same family failed outright until this became an upsert — which is
-		// the common case in a school, not an edge case.
+		/* The guardian the enquiry already made, where there is one.
+
+		   An enquiry issues the family a login and hangs it off a guardian
+		   (see issueEnquiryLogin). Falling through to the upsert below would
+		   match that guardian only if the application spelled the parent's
+		   name exactly as the enquiry did -- and it frequently does not, since
+		   one was typed by a clerk taking a call and the other by the family.
+		   A miss there mints a second guardian, a second user and a second
+		   password, and the credential the parent has been signing in with
+		   since the enquiry silently stops being the current one.
+
+		   So the link is read rather than inferred. */
 		var guardianID string
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO guardians (institution_id, full_name, relation, phone)
-			VALUES ($1,$2,'father',$3)
-			ON CONFLICT (institution_id, phone, full_name)
-			DO UPDATE SET relation = guardians.relation
-			RETURNING id::text`,
-			instID, parentName, phone).Scan(&guardianID); err != nil {
+			SELECT e.guardian_id::text
+			  FROM applications a JOIN enquiries e ON e.id = a.enquiry_id
+			 WHERE a.id = $1 AND e.guardian_id IS NOT NULL`, appID).
+			Scan(&guardianID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		if guardianID == "" {
+			// No enquiry behind this application, or one taken before logins
+			// were issued at enquiry. Reuse an existing guardian rather than
+			// inserting blindly: siblings share a parent, and guardians is
+			// unique on (institution_id, phone, full_name). Admitting a second
+			// child of the same family failed outright until this became an
+			// upsert -- which is the common case in a school, not an edge one.
+			if err := tx.QueryRow(r.Context(), `
+				INSERT INTO guardians (institution_id, full_name, relation, phone)
+				VALUES ($1,$2,'father',$3)
+				ON CONFLICT (institution_id, phone, full_name)
+				DO UPDATE SET relation = guardians.relation
+				RETURNING id::text`,
+				instID, parentName, phone).Scan(&guardianID); err != nil {
+				return err
+			}
 		}
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO student_guardians (student_id, guardian_id, institution_id, is_primary)

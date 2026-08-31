@@ -745,6 +745,33 @@ var builtinTemplates = map[string]builtinTemplate{
 	   A second child at the same school. Replacing the password they signed in
 	   with this morning would be worse than saying nothing, so this names the
 	   account and stops. */
+	/* THE WAY IN, sent the moment a family enquires.
+
+	   Earlier than the admission by weeks, and deliberately so. Between the
+	   enquiry and the offer a family has no way to learn whether their form
+	   arrived or their documents were accepted except by ringing the office,
+	   which during a season is most of what the office does.
+
+	   Says what it is for. A password arriving out of a school a parent has
+	   only just phoned reads as a scam unless the message names the child it
+	   is about and what the login shows. */
+	"admissions.applicant_login": {
+		Subject: "Track your admission at {{school_name}}",
+		Body: "Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} " +
+			"at {{school_name}}.\n\nYou can follow the admission here - the form, the " +
+			"documents, the test and the decision:\n{{portal_url}}\n\n" +
+			"Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n" +
+			"Please change the password after your first sign-in.",
+	},
+	// The same moment for a family already on the rolls - a second child, or a
+	// parent who enquired before. Naming the account is useful; replacing the
+	// password they signed in with this morning would not be.
+	"admissions.applicant_existing": {
+		Subject: "{{school_name}}: your enquiry is on your existing login",
+		Body: "Namaste {{parent_name}}, your enquiry about {{student_name}} at " +
+			"{{school_name}} can be followed on the login you already use.\n\n" +
+			"Sign in as: {{sign_in_as}}\n{{portal_url}}\n\nYour password is unchanged.",
+	},
 	"admissions.portal_existing": {
 		Subject: "{{school_name}}: your second child is now on your login",
 		Body: "Namaste {{parent_name}}, your new admission at {{school_name}} is on the " +

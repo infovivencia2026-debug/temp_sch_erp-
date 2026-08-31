@@ -139,10 +139,18 @@ class RunViewModel @Inject constructor(
         _busy.value = true
         viewModelScope.launch {
             when (val outcome = repository.signIn(phone, pin)) {
-                is SignInOutcome.SignedIn -> _alert.value = DriverAlert(
-                    "Signed in as ${outcome.name}",
-                    "Runs you start will be recorded against your name until you sign out.",
-                )
+                is SignInOutcome.SignedIn -> {
+                    // Clears the engine's one-way rejection latch. Without
+                    // this a driver whose token had been revoked could sign in
+                    // successfully and still report nothing, because every
+                    // loop returns at that latch and the screen has no way to
+                    // know it.
+                    engine.credentialAccepted()
+                    _alert.value = DriverAlert(
+                        "Signed in as ${outcome.name}",
+                        "Runs you start will be recorded against your name until you sign out.",
+                    )
+                }
                 is SignInOutcome.Rejected -> _alert.value = DriverAlert(
                     "Could not sign in", outcome.message,
                 )

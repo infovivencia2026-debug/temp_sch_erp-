@@ -384,6 +384,11 @@ func (s *Server) Routes() http.Handler {
 			// The card itself, on the school's own design. Published cards
 			// only, and only for a child this caller is attached to.
 			r.Get("/results/card", s.renderFamilyReportCard)
+			// Where is my admission. Mounted here rather than under
+			// /admissions because the caller is a family, not the office, and
+			// the permission it must ride is the portal's own self/children
+			// scope -- the admissions group requires staff read.
+			s.mountPortalAdmission(r)
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
 			s.mountParentForum(r)

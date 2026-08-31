@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Bus, BusFront, Fuel, IdCard, ShieldCheck, Users } from 'lucide-react'
+import { AlertTriangle, Bus, BusFront, Fuel, IdCard, Route, ShieldCheck, Users } from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -128,6 +128,7 @@ interface Fleet {
 const TABS = [
   ['register', 'Bus register', Users],
   ['buses', 'Buses', Bus],
+  ['routes', 'Routes', Route],
   ['checks', 'Safety checks', ShieldCheck],
   ['incidents', 'Delays', AlertTriangle],
   ['staff', 'Drivers', IdCard],
@@ -202,6 +203,7 @@ export default function TransportOffice() {
 
         {tab === 'register' && <BusRegister />}
         {tab === 'buses' && <Buses />}
+        {tab === 'routes' && <Routes />}
         {tab === 'checks' && <SafetyChecks />}
         {tab === 'incidents' && <Incidents rows={incidents.data?.items ?? []} />}
         {tab === 'staff' && <Drivers rows={staff.data?.items ?? []} />}
@@ -1162,6 +1164,370 @@ const BLANK: Record<string, string> = {
   driver_employee_id: '', attendant_employee_id: '',
   insurance_expiry: '', fitness_expiry: '', permit_expiry: '', puc_expiry: '',
   route_id: '',
+}
+
+interface RouteRow {
+  id: string
+  name: string
+  code?: string
+  vehicle?: string
+  distance_km?: string
+  stops: number
+  riders: number
+  is_active: boolean
+}
+interface StopRow {
+  id: string
+  name: string
+  sequence: number
+  pickup_time?: string
+  drop_time?: string
+  latitude?: string
+  longitude?: string
+  fare_paise: number
+  riders: number
+}
+interface StopForm {
+  name: string
+  pickup_time: string
+  drop_time: string
+  latitude: string
+  longitude: string
+}
+
+const BLANK_STOP: StopForm = { name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '' }
+const BLANK_ROUTE = { name: '', code: '', vehicle_id: '', distance_km: '' }
+
+function Routes() {
+  const qc = useQueryClient()
+  const vehicles = useVehicles()
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [form, setForm] = useState({ ...BLANK_ROUTE })
+  const [stops, setStops] = useState<StopForm[]>([{ ...BLANK_STOP }])
+
+  const list = useQuery({
+    queryKey: ['transport-routes'],
+    queryFn: () => api.get<List<RouteRow>>('/api/v1/ops/transport/routes'),
+  })
+
+  const close = () => {
+    setOpen(false)
+    setEditing(null)
+    setForm({ ...BLANK_ROUTE })
+    setStops([{ ...BLANK_STOP }])
+  }
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body = {
+        name: form.name.trim(),
+        code: form.code.trim(),
+        vehicle_id: form.vehicle_id,
+        distance_km: form.distance_km.trim(),
+        /* Sent in array order and with no sequence number of our own: the
+           server numbers the run from the order it receives, so dragging a
+           stop up here is the whole of reordering the run. Blank rows are
+           dropped so the always-present empty row at the bottom of the
+           editor does not become a nameless stop on the driver's screen. */
+        stops: stops
+          .filter((s) => s.name.trim() !== '')
+          .map((s) => ({
+            name: s.name.trim(),
+            sequence: 0,
+            pickup_time: s.pickup_time,
+            drop_time: s.drop_time,
+            latitude: s.latitude.trim(),
+            longitude: s.longitude.trim(),
+          })),
+      }
+      return editing
+        ? api.put<{ id: string }>(`/api/v1/ops/transport/routes/${editing}`, body)
+        : api.post<{ id: string }>('/api/v1/ops/transport/routes', body)
+    },
+    onSuccess: (saved) => {
+      close()
+      qc.invalidateQueries({ queryKey: ['transport-routes'] })
+      qc.invalidateQueries({ queryKey: ['transport-vehicles'] })
+      // The stop list is cached per route and was just replaced wholesale, so
+      // the allocation screen would keep offering stops that no longer exist.
+      qc.invalidateQueries({ queryKey: ['route-stops', saved.id] })
+    },
+  })
+
+  const retire = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/ops/transport/routes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['transport-routes'] }),
+  })
+
+  const set = (k: keyof typeof BLANK_ROUTE) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const setStop = (i: number, k: keyof StopForm) => (v: string) =>
+    setStops((list) => list.map((s, n) => (n === i ? { ...s, [k]: v } : s)))
+  const moveStop = (i: number, by: number) =>
+    setStops((list) => {
+      const to = i + by
+      if (to < 0 || to >= list.length) return list
+      const next = [...list]
+      const [row] = next.splice(i, 1)
+      next.splice(to, 0, row)
+      return next
+    })
+
+  const busOptions = (vehicles.data?.items ?? []).map((v) => ({
+    value: v.id,
+    label: v.registration_no ?? v.name ?? v.id,
+  }))
+
+  const edit = async (r: RouteRow) => {
+    setEditing(r.id)
+    setOpen(true)
+    save.reset()
+    /* The routes list names the bus by its registration, not its id, so the
+       bus is matched back by the plate the list printed. Without this the
+       form saved a route with a blank vehicle_id and quietly took the bus off
+       a route that was only being renamed. */
+    const bus = (vehicles.data?.items ?? []).find((v) => v.registration_no === r.vehicle)
+    setForm({
+      name: r.name,
+      code: r.code ?? '',
+      vehicle_id: bus?.id ?? '',
+      distance_km: r.distance_km ?? '',
+    })
+    setStops([{ ...BLANK_STOP }])
+    const existing = await qc.fetchQuery({
+      queryKey: ['route-stops', r.id],
+      queryFn: () => api.get<List<StopRow>>(`/api/v1/ops/transport/routes/${r.id}/stops`),
+    })
+    setStops([
+      ...existing.items.map((s) => ({
+        name: s.name,
+        pickup_time: s.pickup_time ?? '',
+        drop_time: s.drop_time ?? '',
+        latitude: s.latitude ?? '',
+        longitude: s.longitude ?? '',
+      })),
+      { ...BLANK_STOP },
+    ])
+  }
+
+  const rows = list.data?.items ?? []
+  const named = stops.filter((s) => s.name.trim() !== '').length
+  const stopless = rows.filter((r) => r.is_active && r.stops === 0)
+
+  return (
+    <Card>
+      <CardHeader
+        title={editing ? 'Edit this route' : 'Add a route'}
+        description="A route is the run and the stops on it. The stops are what the arrival alerts, the attendance scan and the allocation screen are all reading, so a route saved without them is only half a route."
+        action={
+          <Button variant="secondary" onClick={() => (open ? close() : (save.reset(), setOpen(true)))}>
+            {open ? 'Close' : 'Add a route'}
+          </Button>
+        }
+      />
+      {open && (
+        <div className="border-b p-4">
+          <FormGrid>
+            <Field label="Name" required>
+              <Input value={form.name} onChange={set('name')} placeholder="Kukatpally morning" />
+            </Field>
+            <Field label="Code" hint="Short label the office and the drivers use.">
+              <Input value={form.code} onChange={set('code')} placeholder="R-01" />
+            </Field>
+            <Field label="Bus" hint="A bus runs one route at a time. Putting it here takes it off any other route.">
+              <Select
+                value={form.vehicle_id}
+                onChange={set('vehicle_id')}
+                placeholder="No bus yet"
+                options={busOptions}
+              />
+            </Field>
+            <Field label="Distance (km)">
+              <Input value={form.distance_km} onChange={set('distance_km')} placeholder="18.5" />
+            </Field>
+          </FormGrid>
+
+          <div className="mt-5">
+            <p className="text-[14px] font-medium">Stops, in the order the bus reaches them</p>
+            <p className="text-[13px] text-muted-foreground">
+              The order here is the order on the driver's screen. Coordinates are optional and
+              only decide where the arrival alert fires.
+            </p>
+            {named === 0 && (
+              <div className="mt-3 rounded-md bg-destructive/5 px-3 py-2">
+                <p className="text-[13px] font-medium text-destructive">
+                  This route has no stops
+                </p>
+                <p className="text-[13px] text-muted-foreground">
+                  The bus still tracks and parents still watch it move, but nothing can be said
+                  about where it has reached: no arrival alerts, no attendance scan at a stop,
+                  and no answer to "has it passed us yet". Children cannot be allocated either,
+                  because allocation asks for a pickup stop.
+                </p>
+              </div>
+            )}
+            <div className="mt-3 space-y-3">
+              {stops.map((s, i) => (
+                <div key={i} className="rounded-md border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[13px] font-medium text-muted-foreground">
+                      Stop {i + 1}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => moveStop(i, -1)}>
+                        Up
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={i === stops.length - 1}
+                        onClick={() => moveStop(i, 1)}
+                      >
+                        Down
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setStops((l) => (l.length === 1 ? [{ ...BLANK_STOP }] : l.filter((_, n) => n !== i)))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <FormGrid>
+                    <Field label="Stop name">
+                      <Input value={s.name} onChange={setStop(i, 'name')} placeholder="JNTU crossroads" />
+                    </Field>
+                    <Field label="Pickup time">
+                      <Input type="time" value={s.pickup_time} onChange={setStop(i, 'pickup_time')} />
+                    </Field>
+                    <Field label="Drop time">
+                      <Input type="time" value={s.drop_time} onChange={setStop(i, 'drop_time')} />
+                    </Field>
+                    <Field label="Latitude">
+                      <Input value={s.latitude} onChange={setStop(i, 'latitude')} placeholder="17.4933" />
+                    </Field>
+                    <Field label="Longitude">
+                      <Input value={s.longitude} onChange={setStop(i, 'longitude')} placeholder="78.3915" />
+                    </Field>
+                  </FormGrid>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3">
+              <Button variant="secondary" size="sm" onClick={() => setStops((l) => [...l, { ...BLANK_STOP }])}>
+                Add a stop
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Button disabled={save.isPending || form.name.trim() === ''} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Add the route'}
+            </Button>
+            {editing && (
+              <Button variant="ghost" onClick={close}>
+                Cancel
+              </Button>
+            )}
+            <span className="text-[13px] text-muted-foreground">
+              {named === 1 ? '1 stop' : `${named} stops`}
+            </span>
+          </div>
+          {save.error && (
+            <div className="mt-3">
+              <FormNotice error={save.error instanceof Error ? save.error : new Error('Could not save this route')} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {list.isLoading ? (
+        <Loading label="Loading the routes…" />
+      ) : list.error ? (
+        <ErrorState error={list.error} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title="No routes yet"
+          body="A bus with no route has nowhere to go, and a child cannot be allocated to one. Add the run and the stops along it."
+        />
+      ) : (
+        <>
+          {stopless.length > 0 && (
+            <div className="border-b bg-destructive/5 px-4 py-3">
+              <p className="text-[13px] font-medium text-destructive">
+                {stopless.length} route{stopless.length === 1 ? '' : 's'} with no stops
+              </p>
+              <p className="text-[13px] text-muted-foreground">
+                {stopless.map((r) => r.name).join(', ')} · the bus tracks, but nothing can say
+                where it has reached and nobody can be allocated to it.
+              </p>
+            </div>
+          )}
+          <Table
+            head={[
+              { label: 'Route' },
+              { label: 'Bus' },
+              { label: 'Stops' },
+              { label: 'Riders' },
+              { label: 'Distance' },
+              { label: 'Status' },
+              { label: '' },
+            ]}
+          >
+            {rows.map((r) => (
+              <tr key={r.id} className={cn(r.is_active && r.stops === 0 && 'bg-destructive/5')}>
+                <Td className="font-medium">
+                  {r.name}
+                  {r.code && (
+                    <div className="font-mono text-[12px] font-normal text-muted-foreground">
+                      {r.code}
+                    </div>
+                  )}
+                </Td>
+                <Td className="text-muted-foreground">
+                  {r.vehicle ? (
+                    <span className="font-mono text-[13px]">{r.vehicle}</span>
+                  ) : (
+                    <Badge tone="warning">No bus</Badge>
+                  )}
+                </Td>
+                <Td className="tabular-nums">
+                  {r.stops === 0 ? <Badge tone="danger">None</Badge> : r.stops}
+                </Td>
+                <Td className="tabular-nums text-muted-foreground">{r.riders}</Td>
+                <Td className="tabular-nums text-muted-foreground">
+                  {r.distance_km ? `${r.distance_km} km` : '—'}
+                </Td>
+                <Td>
+                  <Badge tone={r.is_active ? 'success' : 'neutral'}>
+                    {r.is_active ? 'Running' : 'Retired'}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => void edit(r)}>
+                      Edit
+                    </Button>
+                    {r.is_active && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={retire.isPending}
+                        onClick={() => retire.mutate(r.id)}
+                      >
+                        Retire
+                      </Button>
+                    )}
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        </>
+      )}
+    </Card>
+  )
 }
 
 function Buses() {

@@ -91,6 +91,33 @@ function ageText(secs?: number): string {
   return `${Math.floor(h / 24)} d ago`
 }
 
+/* Seconds since this payload arrived, ticking on its own.
+
+   age_seconds is frozen at the moment the server answered it. The poll below
+   stops with the tab, and React Query will happily hand back an answer from
+   twenty minutes ago, so without this the map would keep drawing a solid
+   green marker labelled "8s ago" for a bus nothing has heard from since
+   breakfast. The drift is added back on before any state is decided. */
+function useSecondsSince(at?: number): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15000)
+    return () => clearInterval(t)
+  }, [])
+  if (!at) return 0
+  return Math.max(0, Math.round((now - at) / 1000))
+}
+
+/* The vehicle as it is now, not as it was when fetched. Same shape, so the
+   plot, the table and the tiles all keep reading one state and cannot end up
+   disagreeing about whether a bus is running. */
+function withDrift(v: LiveVehicle, drift: number, staleAfter: number): LiveVehicle {
+  if (drift <= 0 || v.state === 'idle') return v
+  const age = v.age_seconds == null ? undefined : v.age_seconds + drift
+  const state = age == null || age > staleAfter ? 'stale' : v.state
+  return { ...v, age_seconds: age, state }
+}
+
 /* Is this tab in front of somebody?
 
    A live map left open on a machine nobody is at is a poll every ten seconds
@@ -159,7 +186,15 @@ export default function LiveVehicleMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, ping])
 
-  const all = feed?.items ?? []
+  /* The server sends this; the fallback mirrors staleAfter() in
+     internal/api/bus_tracking_views.go, three pings plus a margin, so a
+     missing field cannot make every bus look fresh forever. */
+  const staleAfter = feed?.stale_after_seconds ?? ping * 3 + 15
+  const drift = useSecondsSince(live.dataUpdatedAt)
+  const all = useMemo(
+    () => (feed?.items ?? []).map((v) => withDrift(v, drift, staleAfter)),
+    [feed, drift, staleAfter],
+  )
   const routes = useMemo(() => {
     const seen = new Map<string, string>()
     for (const v of all) if (v.route_id && v.route) seen.set(v.route_id, v.route)
@@ -258,7 +293,7 @@ export default function LiveVehicleMap() {
             label="No recent fix"
             value={stale}
             icon={TriangleAlert}
-            hint={`On a trip but silent for over ${Math.round((feed?.stale_after_seconds ?? 0) / 60) || 1} min`}
+            hint={`On a trip but silent for over ${Math.round(staleAfter / 60) || 1} min`}
           />
           <Stat
             label="Location blocked"
@@ -282,10 +317,12 @@ export default function LiveVehicleMap() {
               />
               <div className="px-5 py-4">
                 {!geo ? (
-                  <EmptyState
-                    title="Nothing to plot"
-                    body="No vehicle on an open trip has reported a position, and no stop on this route has coordinates."
-                  />
+                  /* Four different facts have been arriving here as one grey
+                     box. A fleet of nothing, a fleet that is all parked, a
+                     route filter that excludes everything, and a school whose
+                     stops have never been geocoded are four different things
+                     to go and do, and only one of them is a fault. */
+                  <EmptyState {...plotGap(all, vehicles, stopPoints, !!routeFilter)} />
                 ) : (
                   <svg
                     viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
@@ -406,6 +443,16 @@ export default function LiveVehicleMap() {
                     </g>
                   </svg>
                 )}
+                {stops.isError && (
+                  /* Without the stops the plot is dots on white. Said out
+                     loud, because an office that does not know the landmarks
+                     failed to load will read a bus sitting two kilometres off
+                     its route as a bus sitting at a stop. */
+                  <p className="mt-3 text-[12.5px] text-destructive">
+                    The route stops could not be loaded, so the plot has no landmarks on it. The
+                    positions above are still today's; only the stops are missing.
+                  </p>
+                )}
                 <p className="mt-3 text-[12.5px] text-muted-foreground">
                   <MapPin className="mr-1 inline h-3.5 w-3.5" />
                   This is a scaled position plot, not a street map. Distances are true; roads,
@@ -431,7 +478,11 @@ export default function LiveVehicleMap() {
                   'Phone',
                 ]}
                 empty={vehicles.length === 0}
-                emptyLabel="No vehicles on the fleet."
+                emptyLabel={
+                  all.length === 0
+                    ? 'No vehicle is on the fleet yet. Buses are added under Transport, and one appears here as soon as it exists, running or not.'
+                    : 'No vehicle is on the route you have picked. Choose All routes to see the rest of the fleet.'
+                }
               >
                 {vehicles.map((v) => (
                   <tr
@@ -495,4 +546,43 @@ export default function LiveVehicleMap() {
       </PageBody>
     </>
   )
+}
+
+/* Which of the four nothings is this?
+
+   Named separately because "Nothing to plot" over an empty rectangle is the
+   sentence that gets a working screen reported as broken: a school that has
+   not put a bus on the system, a fleet that is simply parked at nine at night,
+   a route filter with nothing behind it and a stop list with no coordinates
+   all need different people to do different things. */
+function plotGap(
+  all: LiveVehicle[],
+  filtered: LiveVehicle[],
+  stopPoints: StopPoint[],
+  filtering: boolean,
+): { title: string; body: string } {
+  if (all.length === 0)
+    return {
+      title: 'No vehicle is on the fleet yet',
+      body: 'Nothing can be tracked until a bus exists. Add vehicles under Transport, pair a driver phone with each, and they appear here from the first trip onwards.',
+    }
+  if (filtering && filtered.length === 0)
+    return {
+      title: 'Nothing on this route',
+      body: 'No vehicle on the fleet is on the route you have selected. Choose All routes to see the rest of them.',
+    }
+  if (filtered.every((v) => v.state === 'idle'))
+    return {
+      title: 'Every bus is parked',
+      body: 'No trip is open, so no position is being published. A bus appears on the plot from the moment its driver starts a run, and drops off it when the run ends. The list beside this shows the whole fleet meanwhile.',
+    }
+  if (stopPoints.length === 0)
+    return {
+      title: 'No position and no landmark',
+      body: 'A trip is open but no phone on it has reported a position yet, and no stop on this route has coordinates recorded, so there is nothing to draw against. The transport office can add stop coordinates under Routes.',
+    }
+  return {
+    title: 'No position reported yet',
+    body: 'A trip is open, but no phone on it has sent a position. Usually the phone is still finding satellites, or the OS has refused it location — the Location blocked count above tells the two apart.',
+  }
 }

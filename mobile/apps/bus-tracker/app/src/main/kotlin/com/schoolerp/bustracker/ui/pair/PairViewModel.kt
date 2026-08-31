@@ -63,6 +63,7 @@ data class PairUiState(
 class PairViewModel @Inject constructor(
     private val repository: TrackerRepository,
     private val settingsStore: SettingsStore,
+    private val engine: com.schoolerp.bustracker.engine.TripEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PairUiState())
@@ -158,15 +159,25 @@ class PairViewModel @Inject constructor(
                 repository.driverSignIn(current.baseUrl, current.phone, current.pin)
             }
             when (outcome) {
-                is PairOutcome.Paired -> _state.value = _state.value.copy(
-                    submitting = false,
-                    pairedVehicle = outcome.vehicleRegistration,
-                    pairedInstitution = outcome.institution,
-                    pairCode = "",
-                    // Whatever the last pairing was thrown out for has just
-                    // been answered by this one.
-                    error = null,
-                )
+                is PairOutcome.Paired -> {
+                    /* The engine stops every loop for good when the server
+                       rejects a token, and nothing cleared that. A driver who
+                       was signed out by the office and then signed in again
+                       would report nothing at all until the app was
+                       force-stopped, with a screen that said he was signed in.
+                       A fresh pairing is exactly the event that makes the old
+                       rejection stale. */
+                    engine.credentialAccepted()
+                    _state.value = _state.value.copy(
+                        submitting = false,
+                        pairedVehicle = outcome.vehicleRegistration,
+                        pairedInstitution = outcome.institution,
+                        pairCode = "",
+                        // Whatever the last pairing was thrown out for has
+                        // just been answered by this one.
+                        error = null,
+                    )
+                }
                 is PairOutcome.Rejected ->
                     _state.value = _state.value.copy(submitting = false, error = outcome.message)
             }

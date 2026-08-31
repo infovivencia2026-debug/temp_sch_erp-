@@ -5,7 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
-  ageText, stateSentence, usePoll, useTabVisible,
+  ageText, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
 } from './child-bus'
 
@@ -31,8 +31,11 @@ export default function DriverCall() {
     queryFn: () => api.get<ChildBusFeed>('/api/v1/me/child-bus'),
   })
 
-  const rows = feed.data?.items ?? []
   const staleAfter = feed.data?.stale_after_seconds ?? 60
+  /* Age the cached rows by however long the answer has been sitting here, so
+     a paused poll cannot leave a bus looking live. */
+  const drift = useSecondsSince(feed.dataUpdatedAt)
+  const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   usePoll(rows, visible, () => void feed.refetch())
 
   if (feed.isLoading) return <Loading label="Checking whether a run is open…" />

@@ -220,6 +220,25 @@ class TripEngine @Inject constructor(
     }
 
     /**
+     * The latch is one-way per credential, not per process.
+     *
+     * It is an AtomicBoolean on a singleton that lives as long as the app, and
+     * nothing cleared it. So a driver whose token was revoked signed in again,
+     * got a working token, pressed Start Run, and every loop returned at the
+     * first check without sending anything: the bus reported nothing until the
+     * app was force-stopped, and the screen gave no reason because from its
+     * side the sign-in had succeeded.
+     *
+     * Called on a successful sign-in, which is the only event that makes the
+     * old rejection stale.
+     */
+    fun credentialAccepted() {
+        if (credentialRejected.getAndSet(false)) {
+            BtLog.i("engine", "new credential accepted; loops may run again")
+        }
+    }
+
+    /**
      * Three pings apart, floored at a minute and capped at five. The heartbeat
      * carries no position and is not what keeps the map fresh, so paying for it
      * every ping would be battery spent on nothing.
