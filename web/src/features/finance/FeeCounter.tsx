@@ -251,7 +251,21 @@ export default function FeeCounter() {
                           <Badge tone="danger">{d.days_overdue}d late</Badge>
                         )}
                       </Td>
-                      <Td className="whitespace-nowrap tabular-nums">{formatPaise(d.net_paise)}</Td>
+                      <Td className="whitespace-nowrap tabular-nums">
+                        {formatPaise(d.net_paise)}
+                        {/* What part of it is a fine.
+
+                            The row said ₹13,429 and the parent's own screen
+                            said ₹13,229 plus a late fee, and the two could
+                            only be reconciled by opening the bill. The counter
+                            is where a family asks "why is it more than last
+                            time", so the answer belongs on the row. */}
+                        {d.fine_paise > 0 && (
+                          <span className="block text-[11.5px] text-destructive">
+                            incl. {formatPaise(d.fine_paise)} late fee
+                          </span>
+                        )}
+                      </Td>
                       <Td className="whitespace-nowrap tabular-nums">{formatPaise(d.paid_paise)}</Td>
                       <Td className="whitespace-nowrap font-medium tabular-nums">
                         {formatPaise(d.balance_paise)}

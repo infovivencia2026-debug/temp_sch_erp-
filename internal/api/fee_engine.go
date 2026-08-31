@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1304,6 +1305,54 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 				  WHERE id = $1`, chargeOn, a.DeltaPaise); err != nil {
 				return err
 			}
+			/* The family is told, with the reason.
+
+			   A fine that appears on a bill and is announced nowhere is the
+			   charge a parent telephones about — and the person who answers
+			   has to reconstruct which rule, how many days and what it was
+			   computed on. Add penalty has always carried its reason; a rule
+			   charging the same money said nothing at all.
+
+			   Per charge rather than per run: this one is about one child's
+			   bill, and a family has exactly one of those to read. */
+			{
+				amount := "₹" + strconv.FormatFloat(float64(a.DeltaPaise)/100, 'f', 2, 64)
+				people, err := tx.Query(r.Context(), `
+					SELECT g.user_id FROM invoices inv
+					  JOIN student_guardians sg ON sg.student_id = inv.student_id
+					  JOIN guardians g ON g.id = sg.guardian_id
+					 WHERE inv.id = $1 AND g.user_id IS NOT NULL
+					UNION
+					SELECT st.user_id FROM invoices inv
+					  JOIN students st ON st.id = inv.student_id
+					 WHERE inv.id = $1 AND st.user_id IS NOT NULL`, a.InvoiceID)
+				if err != nil {
+					return err
+				}
+				var to []uuid.UUID
+				for people.Next() {
+					var u uuid.UUID
+					if err := people.Scan(&u); err != nil {
+						people.Close()
+						return err
+					}
+					to = append(to, u)
+				}
+				people.Close()
+				if err := people.Err(); err != nil {
+					return err
+				}
+				body := a.RuleName + " — " + a.Reason +
+					". It has been added to the bill; the total on your fees page is up to date."
+				for _, u := range to {
+					if err := notify(r, tx, id.InstitutionID, u, nil, "fee_penalty",
+						amount+" late fee added", body,
+						"/go/fees_payments", "invoice", &a.InvoiceID); err != nil {
+						return err
+					}
+				}
+			}
+
 			applied++
 			totalPaise += a.DeltaPaise
 		}
