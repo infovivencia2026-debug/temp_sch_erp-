@@ -1381,7 +1381,7 @@ func (s *Server) submitPublicAdmissionForm(w http.ResponseWriter, r *http.Reques
 			problems = errs
 			return errFormInvalid
 		}
-		appNo, err = insertPublicApplication(r.Context(), tx, inst, versionID, def, checked,
+		appNo, err = s.insertPublicApplication(r.Context(), tx, inst, versionID, def, checked,
 			callerAddress(r))
 		return err
 	})
@@ -1623,7 +1623,10 @@ insertPublicApplication writes the application and every answer.
 	not, is also stored against the version, so the rendered form shows exactly
 	what the family typed rather than a reconstruction from columns.
 */
-func insertPublicApplication(ctx context.Context, tx pgx.Tx, inst, versionID uuid.UUID,
+// A method rather than a free function because a submitted application now
+// issues the family their login, and that needs the password hasher and the
+// message queue hanging off the server.
+func (s *Server) insertPublicApplication(ctx context.Context, tx pgx.Tx, inst, versionID uuid.UUID,
 	def formDefinition, answers []checkedAnswer, from string) (string, error) {
 
 	core := map[string]string{}
@@ -1749,6 +1752,57 @@ func insertPublicApplication(ctx context.Context, tx pgx.Tx, inst, versionID uui
 			return "", err
 		}
 	}
+
+	/* AN APPLICATION FILLED ON THE WEB IS ALSO A FAMILY THAT NEEDS A LOGIN.
+
+	   Credentials were issued at the enquiry, which is the right moment for a
+	   walk-in: a clerk types the call and the parent leaves with a way in. It
+	   is the wrong moment for the other half of admissions, because a family
+	   that finds the school's form online never passes through an enquiry at
+	   all. They filled in everything the school asked for and got no account,
+	   no tracker and no email -- which is the same silence the enquiry login
+	   was built to end.
+
+	   So the enquiry is created here when there was none. It is not a
+	   bookkeeping trick: an application from the web IS a lead, the funnel's
+	   conversion rate was already blind to every one of them, and the tracker
+	   the parent signs in to reads enquiries.user_id. One row makes all three
+	   true at once.
+
+	   Status 'applied' immediately, because it has been. */
+	if enquiryID == nil {
+		var created uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO enquiries (institution_id, campus_id, student_name, parent_name,
+			                       phone, email, class_sought, source, status)
+			VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::citext,$7,'website','applied')
+			RETURNING id`,
+			inst, campusID,
+			strings.TrimSpace(core["first_name"]+" "+core["last_name"]),
+			core["parent_name"], core["parent_phone"], core["parent_email"],
+			*classID).Scan(&created); err != nil {
+			return "", err
+		}
+		if _, err := tx.Exec(ctx,
+			`UPDATE applications SET enquiry_id = $2 WHERE id = $1`, appID, created); err != nil {
+			return "", err
+		}
+		enquiryID = &created
+	}
+
+	/* The login, for whichever enquiry this application now belongs to.
+
+	   Idempotent by construction: a family that already holds an account gets
+	   the "existing" branch and no new password, and QueueMessage dedupes per
+	   enquiry per channel, so an applicant who submits twice is not sent two
+	   credentials of which only one works.
+
+	   Never fails the application. It runs inside its own savepoint and every
+	   bail-out returns a note -- a parent who has just filled in twenty fields
+	   must not lose them because a username collided. */
+	s.issueEnquiryLogin(ctx, tx, inst, *enquiryID,
+		strings.TrimSpace(core["first_name"]+" "+core["last_name"]),
+		core["parent_name"], core["parent_phone"], core["parent_email"])
 
 	for _, a := range answers {
 		fieldID, err := uuid.Parse(a.Field.ID)
