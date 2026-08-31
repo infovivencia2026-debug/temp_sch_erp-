@@ -1091,8 +1091,25 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        palette, it cannot double where two cells meet, and it costs nothing.
        The outline closes the frame on the outside edge, where there is no
        neighbouring cell to make the gap. */
-    background: var(--bento-line);
-    outline: 1px solid var(--bento-line);
+    /* THE RULE FADES AS THE GAP OPENS.
+
+       Painting the ground turns a ONE-pixel gutter into a hairline. It does
+       not survive the Density axis: --bento-gap is 1px times the density, so
+       at the wider settings the same paint becomes a six-pixel grey band
+       around every card. What reads as a hairline rule at 1px reads as a grey
+       shadow behind each cell at 6px, and that is what it was being called.
+
+       So the paint is mixed toward the page's own ground in step with the gap.
+       At density 1 the gutter is the full line colour and the board is a ruled
+       sheet, as designed. By density 2 the mix has reached the page colour and
+       the cards simply sit apart on the page -- which is the right look once
+       there is real space between them, and needs no second rule to switch to.
+
+       Percentage from a calc, clamped at both ends, so nothing outside 0-100
+       is ever handed to color-mix. */
+    --bento-rule: clamp(0%, calc(200% - var(--bento-density, 1) * 100%), 100%);
+    background: color-mix(in srgb, var(--bento-line) var(--bento-rule), var(--bento-bg));
+    outline: 1px solid color-mix(in srgb, var(--bento-line) var(--bento-rule), var(--bento-bg));
 
     /* FIVE COLUMNS, THREE ROWS. The board is a fixed 15-slot grid.
 
