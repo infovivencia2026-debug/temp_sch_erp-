@@ -1138,7 +1138,20 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 	   Opt-in rather than the default here, because the office and the class
 	   teacher genuinely want the whole section's diary. The teaching screens
 	   ask for it; nothing else has to change. */
-	if q.Get("mine") == "1" {
+	/* And narrowed for everybody who is not a class teacher, asked or not.
+
+	   The whole section's diary is the class teacher's business: they are the
+	   one who notices that three subjects have set work due on the same
+	   Thursday. A subject teacher reading their colleagues' homework is
+	   reading somebody else's work with no reason to act on it, so "Set by
+	   anyone" is not theirs to choose — and a filter the client can turn off
+	   is not a rule.
+
+	   res.ClassTeacherOf is empty for a subject teacher and for anybody the
+	   school has not put in front of a form class; AnySection covers the
+	   office, which sees everything as it did. */
+	forcedMine := len(res.ClassTeacherOf) == 0 && !res.AnySection && !res.PlatformAdmin
+	if q.Get("mine") == "1" || (forcedMine && len(res.StudentIDs) == 0) {
 		args = append(args, id.UserID)
 		where += fmt.Sprintf(" AND h.created_by = $%d", len(args))
 	}

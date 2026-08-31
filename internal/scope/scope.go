@@ -425,17 +425,28 @@ func (r *Resolved) AttendancePredicate(alias string, argN int) (string, []any) {
 	return "(" + strings.Join(clauses, " OR ") + ")", args
 }
 
-// CanMarkSection reports whether the caller may write attendance for a section.
+/* CanMarkSection reports whether the caller may write attendance for a section.
+
+   THE REGISTER BELONGS TO THE CLASS TEACHER.
+
+   This used to accept SectionIDs — every section the caller teaches anything
+   in — so the Maths teacher of five sections could mark the register for all
+   five. That is not how a school runs: one person answers for whether a child
+   was in school that day, and if six subject teachers can all write the day's
+   register then a child marked present at nine and absent at ten has two
+   records and nobody responsible for either.
+
+   So: the class teacher of that section, or somebody holding
+   academics.attendance.write.any — the office role that amends any register,
+   which is what approving a correction for a class nobody in the room teaches
+   requires.
+
+   Period-level marking, if a school ever turns it on, is a different question
+   from the day's register and would need its own predicate rather than a
+   loosening of this one.
+*/
 func (r *Resolved) CanMarkSection(sectionID uuid.UUID) bool {
-	if r.AnySection {
-		return true
-	}
-	for _, id := range r.SectionIDs {
-		if id == sectionID {
-			return true
-		}
-	}
-	return false
+	return r.IsClassTeacherOf(sectionID)
 }
 
 /* Whether this person is the class teacher of a section.

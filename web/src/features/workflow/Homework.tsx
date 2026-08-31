@@ -9,6 +9,7 @@ import {
   Loading, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -70,6 +71,11 @@ export default function Homework() {
      View opens one row in full: the title unclipped, the instructions the
      teacher wrote, every worksheet, and what was sent back. */
   const [viewing, setViewing] = useState<string | null>(null)
+  /* The attachment somebody is reading, if any. Separate from `viewing`, which
+     is the homework row that is expanded — two different "open". */
+  const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
+  // The whole history, as a page of its own.
+  const [showAll, setShowAll] = useState(false)
 
   /* Filtering happens on the server, and the query key carries the filters so
      the cache does not serve one narrowing's answer to another's question.
@@ -147,6 +153,7 @@ export default function Homework() {
 
   return (
     <>
+      {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
       <PageHead
         eyebrow="Homework & diary"
         title={canPublish ? 'Work you have set' : 'Your homework'}
@@ -252,8 +259,18 @@ export default function Homework() {
             /* A term is a few hundred rows. Left to grow, the list runs past
                the filters above it, and the filters are what somebody came
                back to the top for. */
-            <ul className="max-h-[34rem] divide-y overflow-y-auto">
-              {items.map((h) => (
+            /* Capped, with a way past the cap.
+
+               Every day adds a row and nothing ever leaves, so by the third
+               week the card was longer than the screen and the page below it
+               — the stats, the filters, anything else on the screen — had been
+               pushed out of reach by a list nobody was reading to the end of.
+               Six rows is a fortnight of homework at the rate a section
+               actually gets it; the rest is one press away and opens as its
+               own scrolling page. */
+            <>
+            <ul className="divide-y">
+              {(showAll ? items : items.slice(0, 6)).map((h) => (
                 <li key={h.id} className="px-5 py-4">
                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -350,17 +367,21 @@ export default function Homework() {
                       live. */}
                   {!!h.files?.length && (
                     <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                      {/* Opened, not downloaded. Checking that the worksheet
+                          you attached is the right one should not mean going
+                          to a Downloads folder to find out, and a parent on a
+                          phone should not have to save a school record to read
+                          one line of it. Download is still there, inside. */}
                       {h.files.map((f) => (
-                        <a
+                        <button
                           key={f.file_id}
-                          href={`/api/v1/files/${f.file_id}`}
-                          target="_blank"
-                          rel="noreferrer"
+                          type="button"
+                          onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
                           className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px] text-primary hover:bg-accent"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {f.name}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -371,15 +392,16 @@ export default function Homework() {
                       <p className="text-muted-foreground">What you sent</p>
                       {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
                       {h.my_file_id && (
-                        <a
-                          href={`/api/v1/files/${h.my_file_id}`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => setViewFile({
+                            file_id: h.my_file_id!, name: h.my_file_name ?? 'your file',
+                          })}
                           className="mt-1 inline-flex items-center gap-1.5 text-primary"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {h.my_file_name ?? 'your file'}
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}
@@ -433,6 +455,17 @@ export default function Homework() {
                 </li>
               ))}
             </ul>
+            {items.length > 6 && !showAll && (
+              /* The rest of the history, without it sitting on the page. */
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
+              >
+                Show all {items.length} — including {items.length - 6} older
+              </button>
+            )}
+            </>
           )}
           {/* THE WHOLE TASK, NEARLY FULL SCREEN.
 

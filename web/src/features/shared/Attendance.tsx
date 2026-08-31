@@ -38,9 +38,16 @@ export default function Attendance() {
   const [onDate, setOnDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [draft, setDraft] = useState<Record<string, Status>>({})
 
+  /* The sections whose register this person actually keeps.
+
+     mine=true is every section they teach anything in, and the server now
+     accepts a register only from the section's class teacher — so a subject
+     teacher was offered five sections and refused on submit for all of them.
+     Offering a choice that cannot be taken is worse than offering none: the
+     work is done by the time they find out. */
   const sections = useQuery({
-    queryKey: ['sections', 'mine'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
+    queryKey: ['sections', 'class_teacher'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
   })
 
   // The register needs every student in the section, not only those already

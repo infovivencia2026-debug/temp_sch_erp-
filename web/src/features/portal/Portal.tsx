@@ -27,7 +27,16 @@ interface TodayPeriod {
   period: string; starts_at?: string; ends_at?: string
   subject: string; teacher?: string; room?: string
 }
-interface AttendanceDay { date: string; status: string }
+interface AttendanceDay {
+  date: string
+  status: string
+  /* Why the day was what it was. "Absent" and "Republic Day" are the same
+     coloured square without it, and a parent reading a row of red has no way
+     to tell a missed morning from a national holiday. */
+  label?: string
+  kind?: string
+  on_leave?: boolean
+}
 
 const DOT: Record<string, string> = {
   present: 'bg-success',
@@ -76,7 +85,7 @@ function groupByMonth(days: { date: string; status: string }[]) {
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 function MonthGrid({ days }: { days: AttendanceDay[] }) {
-  const byDate = new Map(days.map((d) => [d.date, d.status]))
+  const byDate = new Map(days.map((d) => [d.date, d]))
   const first = new Date(days[0].date + 'T00:00:00')
   const year = first.getFullYear()
   const month = first.getMonth()
@@ -92,6 +101,13 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
     ...Array.from({ length: lastDay }, (_, i) => i + 1),
   ]
 
+  /* Only the days worth naming, oldest first — a list in calendar order reads
+     as the month, and one in fetch order reads as noise. */
+  const named = days
+    .filter((d) => d.label)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+
   const iso = (day: number) =>
     `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
@@ -105,14 +121,22 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
         ))}
         {cells.map((day, i) => {
           if (day === null) return <div key={`pad-${i}`} />
-          const status = byDate.get(iso(day))
+          const d = byDate.get(iso(day))
+          const status = d?.status || undefined
           const marked = status && status !== 'holiday'
           return (
             <div
               key={day}
-              title={status ? `${iso(day)} — ${status.replace('_', ' ')}` : iso(day)}
+              title={[
+                iso(day),
+                status && status.replace('_', ' '),
+                d?.label,
+                // Said explicitly: a day the school approved is not the same
+                // as a day somebody simply did not turn up.
+                d?.on_leave && status !== 'leave' ? 'leave approved' : null,
+              ].filter(Boolean).join(' — ')}
               className={cn(
-                'flex h-7 items-center justify-center rounded text-[11px] tabular-nums',
+                'relative flex h-7 items-center justify-center rounded text-[11px] tabular-nums',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
                 status ? DOT[status] ?? 'bg-muted' : 'text-muted-foreground',
@@ -122,10 +146,36 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
               )}
             >
               {day}
+              {/* A day with something written against it — a holiday, a
+                  reason, an approved leave — carries a mark, or the tooltip
+                  is a secret only the curious find. */}
+              {(d?.label || d?.on_leave) && (
+                <span className="absolute right-0.5 top-0.5 h-1 w-1 rounded-full bg-current opacity-70" />
+              )}
             </div>
           )
         })}
       </div>
+      {/* The named days, spelled out.
+
+          A tooltip is for confirming something you already suspect; a parent
+          scanning the month wants to read "14 Aug — Independence Day" without
+          hunting for it with a mouse they may not have. */}
+      {named.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {named.map((d) => (
+            <li key={d.date} className="flex gap-2 text-[12px] text-muted-foreground">
+              <span className="w-10 shrink-0 tabular-nums">
+                {Number(d.date.slice(8, 10))} {first.toLocaleDateString('en-IN', { month: 'short' })}
+              </span>
+              <span className="min-w-0 flex-1">
+                {d.label}
+                {d.on_leave && d.status !== 'leave' && ' · leave approved'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -185,13 +185,30 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 
 	var newID uuid.UUID
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		// Staff of this school, and nobody else. Checked here rather than
-		// trusted from the address book, because the address book is a
-		// convenience and this is the control.
+		/* Staff of this school, and nobody else. Checked here rather than
+		   trusted from the address book, because the address book is a
+		   convenience and this is the control.
+
+		   AN EMPLOYEE ROW IS NOT WHAT MAKES SOMEBODY STAFF.
+
+		   It asked whether the recipient had an active employees row, and a
+		   principal often has none — the account that runs the school is
+		   created with the school, before there is a payroll to put anybody on.
+		   So a teacher could be written to by their head and could not reply:
+		   "that person is not a member of staff at this school", about the
+		   person who runs it.
+
+		   Holding a staff role is the real test. A guardian or a pupil holds
+		   none of them, which is the line this check exists to draw; an
+		   employee row is a payroll fact that usually coincides with it. */
 		var ok bool
 		if err := tx.QueryRow(r.Context(), `
 			SELECT EXISTS (SELECT 1 FROM employees e
-			                WHERE e.user_id = $1 AND e.status = 'active')`,
+			                WHERE e.user_id = $1 AND e.status = 'active')
+			    OR EXISTS (SELECT 1 FROM user_roles ur
+			                 JOIN roles ro ON ro.id = ur.role_id
+			                WHERE ur.user_id = $1
+			                  AND ro.key NOT IN ('student','parent'))`,
 			other).Scan(&ok); err != nil {
 			return err
 		}

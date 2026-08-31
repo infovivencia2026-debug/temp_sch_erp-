@@ -427,8 +427,20 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 type portalAttendanceDay struct {
-	Date   string `json:"date"`
-	Status string `json:"status"`
+	/* Why the day was what it was.
+
+	   "Absent" and "Republic Day" are the same blank square without this, and a
+	   parent reading a row of red has no way to tell a missed morning from a
+	   national holiday. */
+	Label string `json:"label,omitempty"`
+	// holiday, vacation, exam, event, ptm — the school's own word for it — or
+	// "leave" where the school approved one.
+	Kind string `json:"kind,omitempty"`
+	// The school approved leave covering this day, whatever the register says.
+	// A parent who was told "yes" should see that on the calendar.
+	OnLeave bool   `json:"on_leave"`
+	Date    string `json:"date"`
+	Status  string `json:"status"`
 }
 
 // listPortalAttendance powers student.student_self_service.attendance and
@@ -460,15 +472,69 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 		target = sid
 	}
 
+	/* The whole calendar, not only the days somebody marked.
+
+	   The register alone cannot answer the question a family actually asks. A
+	   day with no row against it might be a Sunday, might be Diwali, might be
+	   the week the child was on approved leave, or might be the morning a
+	   teacher forgot — and all four looked identical: absent from the list.
+	   So the school's own calendar and the leave the school itself approved are
+	   read alongside it, and each day comes back saying which it was.
+
+	   Precedence is deliberate. The register wins wherever it has an entry,
+	   because it is the record and the percentage is computed from it; the
+	   holiday or the leave becomes the LABEL on that day rather than replacing
+	   its status. Only where nothing was marked does the calendar decide what
+	   the day was — which is exactly the blank this exists to fill.
+
+	   Approved leave only. A request still waiting on the school is not an
+	   answer, and showing it as one would tell a parent their child was excused
+	   before anybody excused them. */
 	items, err := collect(s, r, `
-		SELECT to_char(sa.on_date,'YYYY-MM-DD'), sa.status
-		  FROM student_attendance sa
-		 WHERE sa.student_id = $1
-		   AND sa.on_date >= CURRENT_DATE - INTERVAL '120 days'
-		 ORDER BY sa.on_date DESC`, []any{target},
+		WITH days AS (
+		  SELECT generate_series(CURRENT_DATE - INTERVAL '120 days',
+		                         CURRENT_DATE, INTERVAL '1 day')::date AS d
+		),
+		hol AS (
+		  SELECT h.on_date, h.to_date, h.name, h.kind
+		    FROM holidays h
+		   WHERE h.applies_to IN ('all','students')
+		     AND h.kind <> 'working_day'
+		),
+		lv AS (
+		  SELECT l.from_date, l.to_date, l.reason
+		    FROM leave_requests l
+		   WHERE l.student_id = $1 AND l.status = 'approved'
+		)
+		SELECT to_char(days.d,'YYYY-MM-DD'),
+		       COALESCE(sa.status,
+		                CASE WHEN hol.name IS NOT NULL THEN 'holiday'
+		                     WHEN lv.reason IS NOT NULL THEN 'leave' END,
+		                ''),
+		       COALESCE(hol.name, lv.reason, ''),
+		       COALESCE(hol.kind, CASE WHEN lv.reason IS NOT NULL THEN 'leave' END, ''),
+		       (lv.reason IS NOT NULL)
+		  FROM days
+		  LEFT JOIN student_attendance sa
+		         ON sa.student_id = $1 AND sa.on_date = days.d
+		  -- to_date is null for a single-day holiday, so the range is the day
+		  -- itself rather than an open end.
+		  LEFT JOIN LATERAL (
+		        SELECT h.name, h.kind FROM hol h
+		         WHERE days.d BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date)
+		         ORDER BY h.on_date LIMIT 1) hol ON TRUE
+		  LEFT JOIN LATERAL (
+		        SELECT l.reason FROM lv l
+		         WHERE days.d BETWEEN l.from_date AND l.to_date
+		         ORDER BY l.from_date LIMIT 1) lv ON TRUE
+		 -- A day that is nothing at all — no register entry, no holiday, no
+		 -- leave — is a day the school was not open to this child, and drawing
+		 -- 120 blank squares would bury the ones that mean something.
+		 WHERE sa.status IS NOT NULL OR hol.name IS NOT NULL OR lv.reason IS NOT NULL
+		 ORDER BY days.d DESC`, []any{target},
 		func(rows pgx.Rows) (portalAttendanceDay, error) {
 			var v portalAttendanceDay
-			return v, rows.Scan(&v.Date, &v.Status)
+			return v, rows.Scan(&v.Date, &v.Status, &v.Label, &v.Kind, &v.OnLeave)
 		})
 	respond(w, r, items, err)
 }

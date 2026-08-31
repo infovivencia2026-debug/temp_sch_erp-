@@ -1409,17 +1409,38 @@ export function Textarea({
   placeholder,
   rows = 3,
   className,
+  onSubmit,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   rows?: number
   className?: string
+  /* Enter sends, Shift+Enter starts a line.
+
+     A message box where Enter makes a new line is a message box people type
+     into and then hunt for the button — every chat they have ever used sends
+     on Enter. Opt-in per box, because a box for an address or a set of
+     instructions wants Enter to mean a new line and nothing else. */
+  onSubmit?: () => void
 }) {
   return (
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={
+        onSubmit
+          ? (e) => {
+              // Not while an IME is mid-composition: Enter is how a
+              // transliterated Indian-language keyboard accepts a word, and
+              // sending there would send half a sentence.
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                onSubmit()
+              }
+            }
+          : undefined
+      }
       placeholder={placeholder}
       rows={rows}
       className={cn('field h-auto resize-y py-2 leading-relaxed', className)}

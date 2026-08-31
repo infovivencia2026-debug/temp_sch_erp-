@@ -358,7 +358,8 @@ export default function StaffMessages() {
                       value={draft}
                       onChange={setDraft}
                       rows={2}
-                      placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
+                      onSubmit={() => { if (draft.trim()) replyToParent.mutate() }}
+                      placeholder={`Reply to ${openParent?.parent_name ?? 'them'} — Enter sends`}
                     />
                     <Button type="submit" disabled={!draft.trim() || replyToParent.isPending}>
                       <Send className="h-3.5 w-3.5" />
@@ -491,7 +492,8 @@ export default function StaffMessages() {
                     value={draft}
                     onChange={setDraft}
                     rows={2}
-                    placeholder={`Write to ${open?.full_name ?? 'them'}`}
+                    onSubmit={() => { if (draft.trim()) send.mutate() }}
+                    placeholder={`Write to ${open?.full_name ?? 'them'} — Enter sends`}
                   />
                   <Button type="submit" disabled={!draft.trim() || send.isPending}>
                     <Send className="h-3.5 w-3.5" />

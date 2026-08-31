@@ -326,7 +326,54 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 	safeName := strings.NewReplacer(`"`, "", "\r", "", "\n", "").Replace(name)
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+safeName+`"`)
+	/* ?inline=1 asks to SHOW it rather than hand it over.
+
+	   A teacher checking that the worksheet they attached is the right one, and
+	   a parent reading it on a phone, should not have to download a file to
+	   find out — and a downloaded file is a copy of a school record sitting in
+	   somebody's Downloads folder for ever, which is worse for the school than
+	   not downloading it at all.
+
+	   What makes that safe is the sandbox rather than any judgement about the
+	   file: a CSP of `sandbox` with no allow-scripts puts the response in a
+	   unique opaque origin, so it can run no script, read no cookie and reach
+	   nothing belonging to this origin — as true of an HTML file somebody
+	   uploaded as of a PDF. The type allowlist is a second line, not the
+	   first. */
+	if r.URL.Query().Get("inline") == "1" && viewableInline(contentType) {
+		w.Header().Set("Content-Disposition", `inline; filename="`+safeName+`"`)
+		w.Header().Set("Content-Security-Policy",
+			"sandbox; default-src 'none'; img-src 'self' data:; "+
+				"style-src 'unsafe-inline'; object-src 'self'; frame-ancestors 'self'")
+	} else {
+		w.Header().Set("Content-Disposition", `attachment; filename="`+safeName+`"`)
+	}
 	w.Header().Set("Cache-Control", "private, max-age=300")
 	http.ServeContent(w, r, name, info.ModTime(), f)
+}
+
+/*
+viewableInline says whether a browser can be asked to render this in place.
+
+	Deliberately a list of what browsers actually display rather than "anything
+	not obviously dangerous": a type nobody can render is a blank frame, and a
+	blank frame is indistinguishable from a broken one.
+
+	SVG is absent on purpose. It renders as an image and people reason about it
+	as an image, but it is a document that can carry script — the one type where
+	what somebody expects and what the file can do come apart. The sandbox would
+	hold it; the surprise is the reason not to.
+*/
+func viewableInline(contentType string) bool {
+	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
+	switch ct {
+	case "application/pdf",
+		"image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp",
+		"image/bmp", "image/avif", "image/heic", "image/heif",
+		"text/plain", "text/csv", "text/markdown", "text/tab-separated-values",
+		"audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "audio/webm",
+		"video/mp4", "video/webm", "video/ogg", "video/quicktime":
+		return true
+	}
+	return false
 }
