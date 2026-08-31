@@ -600,6 +600,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var studentID, admissionNo string
+	var welcome admissionWelcome
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var (
 			instID, campusID, classID uuid.UUID
@@ -782,10 +783,30 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 		}
 		// 'applied' is the furthest state the enquiry vocabulary defines; the
 		// application row carries the outcome beyond that.
-		_, err = tx.Exec(r.Context(), `
+		if _, err := tx.Exec(r.Context(), `
 			UPDATE enquiries SET status='applied', updated_at=now()
-			 WHERE id = (SELECT enquiry_id FROM applications WHERE id = $1)`, appID)
-		return err
+			 WHERE id = (SELECT enquiry_id FROM applications WHERE id = $1)`, appID); err != nil {
+			return err
+		}
+
+		/* The family is let in here, in this transaction, and not later.
+
+		   Until now an admission wrote a child, a guardian and an invoice and
+		   told nobody. A parent login existed only if somebody afterwards
+		   opened the student's profile and pressed a button most offices never
+		   found, so the ordinary end state for a real admission was a family
+		   being texted about absences and linked to a portal they could not
+		   enter.
+
+		   Inside the transaction so the account and the child arrive together:
+		   a guardian row pointing at a user that was rolled back is worse than
+		   no account. It cannot fail the admission -- every path inside it
+		   returns a note rather than an error, for the same reason the message
+		   is queued rather than sent. */
+		if sid, perr := uuid.Parse(studentID); perr == nil {
+			welcome = s.issueAdmissionLogin(r.Context(), tx, instID, sid)
+		}
+		return nil
 	})
 	if errors.Is(err, errNotOffered) {
 		httpx.BadRequest(w, r, "only an offered application can be enrolled")
@@ -801,6 +822,12 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"student_id": studentID, "admission_no": admissionNo, "status": "enrolled",
+		// The password is in the response because it is nowhere else: nothing
+		// can read it back out afterwards, so if the message does not arrive
+		// this screen is the only copy that ever existed. The parent is
+		// usually still at the desk at this moment, which is the one time it
+		// can be handed over by hand.
+		"parent_login": welcome,
 	})
 }
 

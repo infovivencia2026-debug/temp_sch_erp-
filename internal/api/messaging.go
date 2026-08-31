@@ -717,6 +717,40 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "Applying to {{school_name}}",
 		Body:    "Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} at {{school_name}}.\n\nYou can fill in the application here:\n{{apply_url}}\n\nCall us if you need any help.",
 	},
+	/* THE WAY IN, sent the moment a child is admitted.
+
+	   A family was admitted and told nothing. The parent workspace is forty
+	   features and the portal is where fees, attendance, homework and the bus
+	   all live, so a parent with no login is a parent who rings the office for
+	   each of them.
+
+	   The password is in the body because there is nowhere else to put it: no
+	   password can be read back out of this product, so a message that says
+	   "sign in" without saying how is a message that sends the parent to the
+	   desk. It is a temporary password on a first sign-in, not a lasting
+	   secret, and it goes to the number the school already texts about
+	   absences.
+
+	   Short, because it goes over SMS where a long message is billed as
+	   several. */
+	"admissions.portal_login": {
+		Subject: "Your parent login for {{school_name}}",
+		Body: "Namaste {{parent_name}}, welcome to {{school_name}}.\n\n" +
+			"You can now see fees, attendance, homework and the bus here:\n{{portal_url}}\n\n" +
+			"Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n" +
+			"Please change the password after your first sign-in.",
+	},
+	/* The same moment, for a family that already has an account.
+
+	   A second child at the same school. Replacing the password they signed in
+	   with this morning would be worse than saying nothing, so this names the
+	   account and stops. */
+	"admissions.portal_existing": {
+		Subject: "{{school_name}}: your second child is now on your login",
+		Body: "Namaste {{parent_name}}, your new admission at {{school_name}} is on the " +
+			"same login you already use.\n\nSign in as: {{sign_in_as}}\n{{portal_url}}\n\n" +
+			"Your password is unchanged.",
+	},
 	"fees.overdue": {
 		Subject: "Fees overdue for {{student_name}}",
 		Body:    "Dear parent,\n\nInvoice {{invoice_no}} for {{student_name}} shows {{amount_due}} outstanding since {{due_on}}.\n\n{{school_name}}",

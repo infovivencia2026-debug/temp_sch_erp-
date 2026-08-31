@@ -69,17 +69,19 @@ Which Meta category a built-in belongs in, and it matters commercially.
 	is a service reply to their own enquiry rather than an unsolicited offer.
 */
 var waCategories = map[string]string{
-	"attendance.absent":       "UTILITY",
-	"fees.overdue":            "UTILITY",
-	"homework.set":            "UTILITY",
-	"ptm.reminder":            "UTILITY",
-	"reportcard.published":    "UTILITY",
-	"payroll.payslip":         "UTILITY",
-	"student.remark":          "UTILITY",
-	"announcement.published":  "UTILITY",
-	"messaging.direct":        "UTILITY",
-	"messaging.test":          "UTILITY",
-	"admissions.enquiry_link": "UTILITY",
+	"attendance.absent":          "UTILITY",
+	"fees.overdue":               "UTILITY",
+	"homework.set":               "UTILITY",
+	"ptm.reminder":               "UTILITY",
+	"reportcard.published":       "UTILITY",
+	"payroll.payslip":            "UTILITY",
+	"student.remark":             "UTILITY",
+	"announcement.published":     "UTILITY",
+	"messaging.direct":           "UTILITY",
+	"messaging.test":             "UTILITY",
+	"admissions.enquiry_link":    "UTILITY",
+	"admissions.portal_login":    "UTILITY",
+	"admissions.portal_existing": "UTILITY",
 }
 
 type waSubmission struct {

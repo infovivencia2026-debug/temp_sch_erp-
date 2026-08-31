@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge,
+  Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge, Field,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -209,13 +209,25 @@ export default function Applications() {
     },
   })
 
+  /* THE PARENT'S LOGIN, AT THE MOMENT IT IS ISSUED.
+
+     Enrolling now creates the family's portal account and messages it to them.
+     The password comes back in this response and nowhere else -- nothing in
+     this product can read a password back out afterwards -- so if the message
+     does not arrive, this screen is the only copy that ever existed. The
+     parent is usually still standing at the desk, which is the one moment it
+     can be handed over by hand. */
+  const [login, setLogin] = useState<ParentLogin | null>(null)
+
   const enrol = useMutation({
     mutationFn: () =>
-      api.post(`/api/v1/admissions/workflow/applications/${open!.id}/enrol`, {
-        section_id: sectionId,
-      }),
-    onSuccess: () => {
+      api.post<{ parent_login?: ParentLogin }>(
+        `/api/v1/admissions/workflow/applications/${open!.id}/enrol`,
+        { section_id: sectionId },
+      ),
+    onSuccess: (res) => {
       setNote('Enrolled. The applicant is now a student with an admission number.')
+      setLogin(res.parent_login?.sign_in_as ? res.parent_login : null)
       setOpen(null); setSectionId('')
       after()
       qc.invalidateQueries({ queryKey: ['students'] })
@@ -351,6 +363,8 @@ export default function Applications() {
           error={assess.error || decide.error || enrol.error || create.error}
           ok={note}
         />
+
+        {login && <ParentLoginCard login={login} onClose={() => setLogin(null)} />}
 
         {mayWrite && !checking && (
           <Card>
@@ -762,5 +776,52 @@ export default function Applications() {
         )}
       </PageBody>
     </>
+  )
+}
+
+interface ParentLogin {
+  sign_in_as?: string
+  password?: string
+  full_name?: string
+  existing?: boolean
+  sent_to?: string[]
+  note?: string
+}
+
+/* Shown once, and said so.
+
+   Deliberately not a toast. A toast that carries a password is a password the
+   office loses by looking away, and the one thing this card must survive is
+   the clerk turning round to speak to the parent. It stays until dismissed. */
+function ParentLoginCard({ login, onClose }: { login: ParentLogin; onClose: () => void }) {
+  const sent = login.sent_to ?? []
+  return (
+    <Card>
+      <CardHeader
+        title={login.existing ? 'This parent already has a login' : "The parent's login"}
+        description={
+          login.existing
+            ? 'A second child on the same account. The password is unchanged, so it is not shown.'
+            : 'Give this to the parent now. The password cannot be read back once this card is closed.'
+        }
+        action={<Button variant="secondary" onClick={onClose}>Done</Button>}
+      />
+      <div className="grid gap-3 p-4 sm:grid-cols-2">
+        <Field label="Sign in as">
+          <p className="select-all font-mono text-[15px]">{login.sign_in_as}</p>
+        </Field>
+        {login.password && (
+          <Field label="Password">
+            <p className="select-all font-mono text-[15px]">{login.password}</p>
+          </Field>
+        )}
+      </div>
+      <div className="border-t px-4 py-3 text-[13px] text-muted-foreground">
+        {sent.length > 0
+          ? `Also sent by ${sent.join(', ')}.`
+          : 'Not sent: this parent has no phone or email on record, so read it out now.'}
+        {login.note ? ` ${login.note}` : ''}
+      </div>
+    </Card>
   )
 }
