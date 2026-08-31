@@ -100,7 +100,10 @@ func planCatalogue() []planDefaults {
 	return []planDefaults{
 		{
 			Kind: planFeeReminder, Label: "Fee reminder", Event: "invoice.overdue",
-			TemplateCode: "fees.overdue", Audience: "guardians",
+			// The child as well as the guardians: in a boarding school, and
+			// wherever the child carries the money to the office, they are the
+			// one who has to act on it.
+			TemplateCode: "fees.overdue", Audience: "family",
 			Description: "Chase an overdue invoice, and stop the moment it is settled.",
 		},
 		{

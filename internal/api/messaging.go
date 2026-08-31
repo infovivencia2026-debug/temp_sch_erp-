@@ -1808,6 +1808,31 @@ func (s *Server) audienceFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		}
 		return out, rows.Err()
 
+	/* Both halves of a household.
+
+	   A fee reminder addressed only to guardians reaches the parent who has
+	   the app and nobody else — and in a boarding school, or where the child
+	   carries the money to the office, the child is the one who has to act on
+	   it. "family" is guardians AND the student, deduplicated by the dispatcher
+	   the same way any other audience is. */
+	case rule.Audience == "family":
+		if sub.StudentID == nil {
+			return out, nil
+		}
+		guardians := rule
+		guardians.Audience = "guardians"
+		gs, err := s.audienceFor(ctx, tx, inst, guardians, sub)
+		if err != nil {
+			return nil, err
+		}
+		child := rule
+		child.Audience = "student"
+		st, err := s.audienceFor(ctx, tx, inst, child, sub)
+		if err != nil {
+			return nil, err
+		}
+		return append(gs, st...), nil
+
 	case rule.Audience == "student":
 		if sub.StudentID == nil {
 			return out, nil

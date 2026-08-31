@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Select, Loading, ErrorState, ExportButton, useSort,
 } from '@/components/ui'
-import { formatPaise, formatDate } from '@/lib/utils'
+import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 interface Defaulter {
   student_id: string; admission_no: string; full_name: string
@@ -24,6 +24,14 @@ const TONE: Record<string, 'neutral' | 'warning' | 'danger'> = {
     next action from this screen is to call them. */
 export default function Defaulters() {
   const [bucket, setBucket] = useState('')
+  /* Which section is being looked at, if any.
+
+     "₹23.7K overdue across 2 students" is the whole school in one number, and
+     the person chasing it works a section at a time — the class teacher they
+     ring, the parents' evening they raise it at. A list of names sorted by
+     amount cannot be worked that way: it interleaves eleven sections and the
+     reader has to hold the grouping in their head. */
+  const [section, setSection] = useState('')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['defaulters'],
@@ -31,7 +39,27 @@ export default function Defaulters() {
   })
 
   const all = data?.items ?? []
-  const rows = bucket ? all.filter((d) => d.bucket === bucket) : all
+
+  /** One line per class-section: how many families, and how much. */
+  const bySection = (() => {
+    const m = new Map<string, { label: string; students: number; paise: number }>()
+    for (const d of all) {
+      const label = d.class_name ? `${d.class_name}-${d.section_name ?? ''}` : 'No class'
+      const row = m.get(label) ?? { label, students: 0, paise: 0 }
+      row.students += 1
+      row.paise += d.balance_paise
+      m.set(label, row)
+    }
+    // Most owed first: it is the order somebody would work them in.
+    return [...m.values()].sort((a, b) => b.paise - a.paise)
+  })()
+
+  const labelOf = (d: Defaulter) =>
+    d.class_name ? `${d.class_name}-${d.section_name ?? ''}` : 'No class'
+
+  const rows = all
+    .filter((d) => (bucket ? d.bucket === bucket : true))
+    .filter((d) => (section ? labelOf(d) === section : true))
   /* Biggest balance first by default.
 
      A defaulter list read in admission-number order is a list nobody works
@@ -76,6 +104,54 @@ export default function Defaulters() {
             />
           ))}
         </CellGrid>
+
+        {/* Section by section, before name by name.
+
+            Somebody chasing fees works a section at a time — the class teacher
+            they ring, the parents' evening they raise it at — and a list of
+            names sorted by amount interleaves eleven sections and leaves the
+            reader to do the grouping in their head. Press one to see only its
+            families; press it again to come back out. */}
+        {bySection.length > 1 && (
+          <Card>
+            <CardHeader
+              title={section ? `${section} — the rest of the school is hidden` : 'By class and section'}
+              action={
+                section ? (
+                  <button
+                    type="button"
+                    onClick={() => setSection('')}
+                    className="text-[13px] font-medium text-primary hover:underline"
+                  >
+                    Show every section
+                  </button>
+                ) : undefined
+              }
+            />
+            <ul className="divide-y">
+              {bySection.map((r) => (
+                <li key={r.label}>
+                  <button
+                    type="button"
+                    onClick={() => setSection(section === r.label ? '' : r.label)}
+                    className={cn(
+                      'flex w-full flex-wrap items-center gap-3 px-5 py-2.5 text-left hover:bg-muted/40',
+                      section === r.label && 'bg-muted/60',
+                    )}
+                  >
+                    <span className="min-w-[7rem] font-medium">{r.label}</span>
+                    <span className="flex-1 text-[13px] text-muted-foreground">
+                      {r.students} {r.students === 1 ? 'family' : 'families'}
+                    </span>
+                    <span className="text-[14px] font-semibold tabular-nums">
+                      {formatPaise(r.paise)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
 
         {/* "Overdue", not "outstanding". This list is invoices past their due
             date and nothing else; the fee overview's outstanding is this
