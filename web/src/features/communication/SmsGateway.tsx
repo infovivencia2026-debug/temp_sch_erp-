@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { AlertTriangle, BatteryLow, Signal, Smartphone } from 'lucide-react'
+import { AlertTriangle, BatteryLow, Signal, Smartphone, UserCheck } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Checkbox, Field, FormGrid, FormNotice,
   Loading, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import {
-  useSMSGateway, usePairPhone, useUpdateDevice, useRevokeDevice,
+  useSMSGateway, usePairPhone, useUpdateDevice, useRevokeDevice, useApproveDevice,
   healthTone, healthLabel, when, signalWords,
   type GatewayDevice, type PairCode,
 } from './sms-gateway-lib'
@@ -48,6 +48,7 @@ export default function SmsGateway() {
   const data = gateway.data
   if (!data) return <ErrorState error={new Error('The gateway status could not be read.')} />
 
+  const pending = data.devices.filter((d) => d.pending)
   const stale = data.devices.filter((d) => d.health === 'stale')
   const live = data.devices.filter((d) => d.health === 'live')
 
@@ -64,6 +65,11 @@ export default function SmsGateway() {
         }
       />
       <PageBody>
+        {/* Above the fault banner because it is the only thing here a person
+            can fix by pressing a button: a phone is enrolled and waiting, and
+            until somebody approves it the handset is handed nothing at all. */}
+        {pending.length > 0 && <PendingApprovals devices={pending} />}
+
         {/* Loud, first, and full width. Everything below this is detail. */}
         {stale.length > 0 && <StaleBanner devices={stale} />}
 
@@ -219,6 +225,82 @@ export default function SmsGateway() {
         </Card>
       </PageBody>
     </>
+  )
+}
+
+/**
+ * The queue of handsets waiting for a person.
+ *
+ * Enrolment by sign-in means a phone can arrive at any hour with a real
+ * credential and no permission to send. The office had nowhere to see that:
+ * the device sat in the paired list looking like an ordinary quiet phone, and
+ * the only cure was a pair code nobody needed. This panel is that missing
+ * place, and it is exported so the principal's Circulars screen can carry it
+ * too -- there is no institution-scoped catalogue key for the gateway screen
+ * itself, so the approval has to reach a screen the office already opens.
+ */
+export function PendingApprovals({ devices }: { devices: GatewayDevice[] }) {
+  return (
+    <Card>
+      <CardHeader
+        title={
+          devices.length === 1
+            ? 'A phone is waiting to be approved'
+            : `${devices.length} phones are waiting to be approved`
+        }
+        description="Somebody signed in on a handset to enrol it. It sends nothing until it is approved here."
+      />
+      <div className="divide-y divide-border">
+        {devices.map((d) => (
+          <PendingRow key={d.id} device={d} />
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+// One waiting handset. Its own component because approve and revoke are hooks
+// keyed by device id, and a shared mutation would report the wrong phone's
+// error beside every row.
+function PendingRow({ device }: { device: GatewayDevice }) {
+  const approve = useApproveDevice(device.id)
+  const revoke = useRevokeDevice(device.id)
+
+  return (
+    <div className="space-y-3 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[15px] font-medium">
+            <UserCheck className="h-4 w-4 shrink-0 text-warning" />
+            {device.name}
+          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {[
+              device.enrolled_by && `Enrolled by ${device.enrolled_by}`,
+              `Arrived ${when(device.paired_at)}`,
+              device.sim_operator,
+              device.android_version && `Android ${device.android_version}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button disabled={approve.isPending} onClick={() => approve.mutate()}>
+            {approve.isPending ? 'Approving…' : 'Approve'}
+          </Button>
+          <ConfirmButton
+            confirmLabel="Reject it"
+            question="The handset's credential is destroyed and it can never send for this school. Somebody would have to enrol it again."
+            onConfirm={() => revoke.mutate({ reason: 'rejected while awaiting approval' })}
+            tone="danger"
+          >
+            Reject
+          </ConfirmButton>
+        </div>
+      </div>
+      <FormNotice error={approve.error ?? revoke.error} />
+    </div>
   )
 }
 

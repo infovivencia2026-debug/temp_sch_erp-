@@ -24,7 +24,7 @@ const BASE = '/api/v1/sms-gateway'
  * opinion — with a different clock, on a laptop whose time may be wrong, about
  * the one question this screen exists to answer.
  */
-export type DeviceHealth = 'live' | 'stale' | 'paused' | 'never'
+export type DeviceHealth = 'live' | 'stale' | 'paused' | 'never' | 'pending'
 
 export interface GatewayDevice {
   id: string
@@ -42,6 +42,12 @@ export interface GatewayDevice {
   signal_dbm?: number
   sim_ready?: boolean
   paused: boolean
+  /* A handset that enrolled by somebody signing in on it and has not been
+     approved yet. It holds a credential and is handed no messages, so a screen
+     that does not carry this field shows it as an ordinary quiet phone and the
+     office never learns anybody is waiting. */
+  pending: boolean
+  enrolled_by?: string
   poll_seconds: number
   per_minute_cap: number
   sent_today: number
@@ -80,9 +86,13 @@ export interface PairCode {
   valid_minutes: number
 }
 
-export function useSMSGateway() {
+/* enabled exists for the screens that only borrow this: the overview needs
+   institution.read, and a parent reading Circulars would otherwise be polled
+   into a 403 every thirty seconds for a panel they are never shown. */
+export function useSMSGateway(enabled = true) {
   return useQuery({
     queryKey: ['sms-gateway'],
+    enabled,
     queryFn: () => api.get<GatewayOverview>(BASE),
     /* A dead gateway is the thing this screen is for, so it must not need a
        reload to notice one. Thirty seconds against a twenty-second heartbeat
@@ -111,6 +121,13 @@ export function useUpdateDevice(id: string) {
   >((body) => api.put(`${BASE}/devices/${id}`, body))
 }
 
+/** Lets a phone that enrolled by sign-in start sending. Idempotent server side. */
+export function useApproveDevice(id: string) {
+  return useGatewayWrite<{ approved: boolean }, void>(() =>
+    api.post(`${BASE}/devices/${id}/approve`, {}),
+  )
+}
+
 export function useRevokeDevice(id: string) {
   return useGatewayWrite<{ ok: boolean }, { reason: string }>((body) =>
     api.post(`${BASE}/devices/${id}/revoke`, body),
@@ -126,6 +143,7 @@ export function useRevokeDevice(id: string) {
  * reporting has to look like a fault, not like a note.
  */
 export function healthTone(h: DeviceHealth): 'success' | 'danger' | 'warning' | 'neutral' {
+  if (h === 'pending') return 'warning'
   if (h === 'live') return 'success'
   if (h === 'stale') return 'danger'
   if (h === 'never') return 'warning'
@@ -134,6 +152,8 @@ export function healthTone(h: DeviceHealth): 'success' | 'danger' | 'warning' | 
 
 export function healthLabel(d: GatewayDevice): string {
   switch (d.health) {
+    case 'pending':
+      return d.enrolled_by ? `Waiting for approval — enrolled by ${d.enrolled_by}` : 'Waiting for approval'
     case 'live':
       return 'Sending'
     case 'stale':

@@ -1846,6 +1846,11 @@ function SyllabusCell({
       title={label}
       sub={t('bento.principal.syllabus_sub')}
       value={behind}
+      /* Units delivered against units planned: both come off the same rows the
+         figure is counted from, so the ratio is of the thing on the card and
+         not of an invented earlier term. */
+      delta={units > 0 ? `${delivered}/${units}` : undefined}
+      deltaNote={units > 0 ? t('bento.principal.fact_units_done') : undefined}
       change={
         behind > 0
           ? t('bento.principal.syllabus_change', {
@@ -1980,6 +1985,9 @@ function ModerationCell({
       title={label}
       sub={t('bento.principal.moderation_sub')}
       value={unmoderated}
+      // Reviewed against every paper in the set the figure is the remainder of.
+      delta={`${reviewed}/${rows.length}`}
+      deltaNote={t('bento.principal.fact_reviewed')}
       change={t('bento.principal.moderation_change', {
         reviewed,
         total: rows.length,
@@ -2224,6 +2232,9 @@ function AtRiskCell({
       title={label}
       sub={t('bento.principal.at_risk_sub')}
       value={atRisk}
+      // Both counted by the handler over the same candidate set.
+      delta={candidates > 0 ? `${Math.round((atRisk / candidates) * 100)}%` : undefined}
+      deltaNote={candidates > 0 ? t('bento.principal.fact_candidates') : undefined}
       change={
         candidates > 0
           ? t('bento.principal.at_risk_change', { total: candidates })
@@ -2684,6 +2695,9 @@ function CoverCell({
       title={label}
       sub={t('bento.principal.cover_sub')}
       value={uncovered}
+      // Covered against every period the day's absences left behind.
+      delta={periods > 0 ? `${covered}/${periods}` : undefined}
+      deltaNote={periods > 0 ? t('bento.principal.cover_covered') : undefined}
       change={t('bento.principal.cover_change', {
         covered,
         periods,
@@ -2791,6 +2805,9 @@ function MyLeaveCell({
       title={label}
       sub={t('bento.principal.my_leave_sub')}
       value={remaining}
+      // Taken against the entitlement the remainder is left over from.
+      delta={entitled > 0 ? `${taken}/${entitled}` : undefined}
+      deltaNote={entitled > 0 ? t('bento.principal.my_leave_taken') : undefined}
       change={t('bento.principal.my_leave_change', { entitled, types: granted.length })}
       href={href}
       cue={cue}
@@ -2909,6 +2926,22 @@ function MyPayCell({
       title={label}
       sub={t('bento.principal.my_pay_sub')}
       value={<Money>{formatPaise(Number(latest.net_paise))}</Money>}
+      /* The one genuinely signed figure on this board: net is gross less the
+         deduction, and both are on the same payslip the figure is read from.
+         No previous month is involved, so a school paying somebody for the
+         first time still gets a real comparison. */
+      /* Narrow, this figure is a rupee sum that already fills the row: see
+         the note on the arrears card for what a delta beside it costs. */
+      delta={
+        wide && Number(latest.gross_paise) > 0 && Number(latest.deduction_paise) > 0
+          ? `-${Math.round((Number(latest.deduction_paise) / Number(latest.gross_paise)) * 100)}%`
+          : undefined
+      }
+      deltaNote={
+        wide && Number(latest.gross_paise) > 0 && Number(latest.deduction_paise) > 0
+          ? t('bento.principal.my_pay_deducted')
+          : undefined
+      }
       change={t('bento.principal.my_pay_change', {
         month: latest.period_month,
         year: latest.period_year,
@@ -3037,7 +3070,7 @@ function PairAside({ ring, detail, side }: { ring: ReactNode; detail: ReactNode;
     still reaches the same screen. Cards with no reachable feature simply are
     not links; nothing renders a locked door. */
 function CardCell({
-  span, domain, status, title, sub, glyph, value, change, to, cueLabel, children,
+  span, domain, status, title, sub, glyph, value, change, delta, deltaNote, to, cueLabel, children,
 }: {
   span: CellSpan
   domain?: string
@@ -3047,6 +3080,9 @@ function CardCell({
   glyph?: ReactNode
   value: ReactNode
   change?: ReactNode
+  // Passed straight through. See CardShell: a delta replaces the sentence.
+  delta?: string
+  deltaNote?: string
   to?: string
   cueLabel: string
   children?: ReactNode
@@ -3071,7 +3107,7 @@ function CardCell({
         className="h-full"
       />
     ) : (
-      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value={value} change={change} className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value={value} change={change} delta={delta} deltaNote={deltaNote} className="h-full">
         {children}
       </CardShell>
     )
@@ -3281,6 +3317,16 @@ export function CollectedCard({
       sub={yearly ? t('bento.principal.prov_this_year') : rangeLabel}
       glyph="₹"
       value={money(collected)}
+      /* Only in the yearly reading. Off a year, `collected` is every receipt
+         there is and `billed` is this year's bill, so the share would be of a
+         denominator the figure does not belong to. */
+      /* NOT ON A ONE-COLUMN CELL. A rupee figure already truncates there --
+         measured on the live board, this card prints "Rs 18,..." at 1x1 -- and
+         the delta sits on the figure's own row, so it takes width the number
+         cannot spare. Narrow, the sentence below carries the same share and
+         the digits stay whole. */
+      delta={yearly && wide ? `${collectedPct}%` : undefined}
+      deltaNote={yearly && wide ? t('bento.principal.fact_of_billed') : undefined}
       change={
         yearly
           ? t('bento.principal.card_of_billed', { pct: collectedPct, billed: money(billed) })
@@ -3444,6 +3490,15 @@ export function OutstandingCard({
       sub={t('bento.principal.prov_as_of_now')}
       glyph="₹"
       value={money(outstanding)}
+      /* `outstandingPct` divides this year's arrears by this year's bill, and
+         `outstanding` is that same year's figure only while `yearly` holds. */
+      /* NOT ON A ONE-COLUMN CELL. A rupee figure already truncates there --
+         measured on the live board, this card prints "Rs 18,..." at 1x1 -- and
+         the delta sits on the figure's own row, so it takes width the number
+         cannot spare. Narrow, the sentence below carries the same share and
+         the digits stay whole. */
+      delta={yearly && wide ? `${outstandingPct}%` : undefined}
+      deltaNote={yearly && wide ? t('bento.principal.fact_of_billed') : undefined}
       change={
         yearly
           ? t('bento.principal.card_of_billed_due', { pct: outstandingPct, count: defaulters })
@@ -3660,6 +3715,8 @@ export function DefaultersCard({
       sub={t('bento.principal.prov_as_of_now')}
       glyph="!"
       value={defaulters}
+      delta={students > 0 ? `${defaultersPct}%` : undefined}
+      deltaNote={students > 0 ? t('bento.principal.fact_of_roll') : undefined}
       change={t('bento.principal.card_of_roll', { pct: defaultersPct, roll: students })}
       to={href}
       cueLabel={t('bento.principal.cue_defaulters')}
@@ -3683,7 +3740,7 @@ export function DefaultersCard({
     sentence and nothing else, which is exactly what these cells drew before
     the breakdowns shipped. */
 export function CountCard({
-  span, domain, title, count, glyph, empty, note, to, cueLabel, change, drawing,
+  span, domain, title, count, glyph, empty, note, to, cueLabel, change, delta, deltaNote, drawing,
 }: {
   span: CellSpan
   domain: string
@@ -3696,6 +3753,9 @@ export function CountCard({
   to?: string
   cueLabel: string
   change?: ReactNode
+  // Passed straight through. See CardShell: a delta replaces the sentence.
+  delta?: string
+  deltaNote?: string
   drawing?: ReactNode
 }) {
   const t = useT()
@@ -3713,6 +3773,8 @@ export function CountCard({
       glyph={glyph}
       value={count}
       change={change}
+      delta={delta}
+      deltaNote={deltaNote}
       /* The sentence lives in the DRAWING ROW, not here. It used to be in
          both: `change` under the figure and a `Say` below it, so every one of
          these cells printed "Nothing waiting" or "Every subject has a teacher"
@@ -3791,6 +3853,10 @@ export function UnassignedCard({
       note={t('bento.principal.unassigned_note')}
       empty={t('bento.principal.card_all_covered')}
       srKey="bento.principal.card_unassigned_sr"
+      /* `denom` is already guarded to be a real total no smaller than the
+         count, which is what keeps this from printing a part above its whole. */
+      delta={denom !== undefined && count > 0 ? `${count}/${denom}` : undefined}
+      deltaNote={denom !== undefined && count > 0 ? t('bento.principal.fact_class_subjects') : undefined}
       change={denom !== undefined && count > 0
         ? t('bento.principal.card_unassigned_of', { count, total: denom })
         : undefined}
@@ -3885,6 +3951,10 @@ export function ApplicationsCard({
       note={t('bento.principal.applications_note')}
       empty={t('bento.principal.card_queue_clear')}
       srKey="bento.principal.card_applications_sr"
+      /* The fullest stage against the whole queue. The stages come off
+         `open_applications_by_status`, which sums to the figure above. */
+      delta={all.length > 0 && count > 0 ? `${fullest.value}/${count}` : undefined}
+      deltaNote={all.length > 0 && count > 0 ? fullest.label : undefined}
       change={
         all.length === 0
           ? undefined
@@ -5438,6 +5508,11 @@ function GrievancesOverdueCell({
       title={label}
       sub={t('bento.principal.grv_late_sub')}
       value={late.length}
+      /* Not while the queue is capped. Past the limit `open` is the first 300
+         tickets rather than every open one, so the denominator would be the
+         cap and the share would read high. Capped, the sentence says so. */
+      delta={queued < GRIEVANCE_LIMIT && open.length > 0 ? `${late.length}/${open.length}` : undefined}
+      deltaNote={queued < GRIEVANCE_LIMIT && open.length > 0 ? t('bento.principal.grievances') : undefined}
       change={
         queued >= GRIEVANCE_LIMIT
           ? t('bento.principal.grv_late_capped', { open: open.length, count: GRIEVANCE_LIMIT })

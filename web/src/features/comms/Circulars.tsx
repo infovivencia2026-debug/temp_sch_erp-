@@ -7,6 +7,8 @@ import {
   Table, Td, Badge, Button, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
+import { useSMSGateway } from '../communication/sms-gateway-lib'
+import { PendingApprovals } from '../communication/SmsGateway'
 
 interface Circular {
   id: string; title: string; kind: string; audience_role: string
@@ -57,6 +59,20 @@ export default function Circulars() {
     queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
   })
   const canPublish = session.data?.permissions.includes('comms.announcements.write') ?? false
+  /* A handset that enrolled by sign-in waits here for a person to say yes.
+
+     The gateway's own screen is bound to a platform-scoped catalogue key, so
+     it appears in the super-admin workspace and nowhere a principal can reach
+     — the approval existed on the server and had no door in the product. This
+     is that door, on the screen where SMS to parents is written, and it is
+     gated on the same permission the approve endpoint requires so a role that
+     would only be refused never sees it. */
+  const canApproveGateway =
+    session.data?.permissions.includes('institution.integrations.write') ?? false
+  const gateway = useSMSGateway(canApproveGateway)
+  const pendingPhones = canApproveGateway
+    ? (gateway.data?.devices ?? []).filter((d) => d.pending)
+    : []
 
   /* Signing a notice that asked to be signed.
 
@@ -114,6 +130,7 @@ export default function Circulars() {
         }
       />
       <PageBody>
+        {pendingPhones.length > 0 && <PendingApprovals devices={pendingPhones} />}
         {!canPublish ? (
           /* A parent reads a notice; they do not administer one. Audience,
              Sections, Acknowledged and "Who got it" all answer questions the
