@@ -339,19 +339,54 @@ function RuleForm({
               ]}
             />
           </Field>
-          <Field label="Charge as" required>
-            <Select
-              value={kind}
-              onChange={(v) => {
-                setKind(v as FineRule['kind'])
-                if (v === 'per_day') setCompound('none')
-              }}
-              options={[
-                { value: 'per_day', label: 'A daily amount' },
-                { value: 'fixed', label: 'A flat amount' },
-                { value: 'percent', label: 'A percentage' },
-              ]}
-            />
+          {/* HOW TO CHARGE, AS ONE LINE.
+
+              It was two fields a column apart — "Charge as: A daily amount"
+              and, four fields later, "Amount (₹): 200" — so the thing a person
+              is deciding, "₹200 per day", was assembled in their head from two
+              places on the form. Together they read as the sentence they are:
+              Charge ₹200 per day past the due date. */}
+          <Field label="How to charge" required wide>
+            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+              <span>Charge</span>
+              {kind === 'percent' ? (
+                <>
+                  <Input
+                    type="number"
+                    className="w-24 text-right"
+                    value={percent}
+                    onChange={setPercent}
+                    placeholder="2"
+                  />
+                  <span>%</span>
+                </>
+              ) : (
+                <>
+                  <span>₹</span>
+                  <Input
+                    type="number"
+                    className="w-28 text-right"
+                    value={amount}
+                    onChange={setAmount}
+                    placeholder="200"
+                  />
+                </>
+              )}
+              <div className="w-56">
+                <Select
+                  value={kind}
+                  onChange={(v) => {
+                    setKind(v as FineRule['kind'])
+                    if (v === 'per_day') setCompound('none')
+                  }}
+                  options={[
+                    { value: 'per_day', label: 'per day past the due date' },
+                    { value: 'fixed', label: 'once, past the due date' },
+                    { value: 'percent', label: 'of the amount owed' },
+                  ]}
+                />
+              </div>
+            </div>
           </Field>
           <Field label="Apply the fine to" wide>
             <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
@@ -379,25 +414,28 @@ function RuleForm({
           </Field>
 
           <Field
-            label="Grace period (days)"
+            label="Grace period"
             required
-            hint="Nothing is charged while this many days have merely elapsed. At exactly this many days there is still nothing to pay."
+            hint="Nothing is charged while these days merely elapse. At exactly this many days there is still nothing to pay."
           >
-            <Input type="number" value={graceDays} onChange={setGraceDays} />
+            <div className="flex items-center gap-2 text-[13px]">
+              <Input
+                type="number"
+                className="w-24 text-right"
+                value={graceDays}
+                onChange={setGraceDays}
+              />
+              <span>days</span>
+            </div>
           </Field>
 
-          {kind === 'percent' ? (
-            <Field label="Percent" required hint="Of the head's amount under the invoice's fee version, or of the balance">
-              <Input type="number" value={percent} onChange={setPercent} placeholder="2" />
-            </Field>
-          ) : (
-            <Field label="Amount (₹)" required hint={kind === 'per_day' ? 'Per day past the grace period' : 'Charged once'}>
-              <Input type="number" value={amount} onChange={setAmount} placeholder="50" />
-            </Field>
-          )}
-
-          <Field label="Cap (₹)" hint="Stops a fine on an invoice nobody chases growing without bound">
-            <Input type="number" value={cap} onChange={setCap} placeholder="No cap" />
+          <Field label="Maximum limit (cap)" hint="Stops a daily fine on an invoice nobody chases growing without bound">
+            <Input
+              type="number"
+              value={cap}
+              onChange={setCap}
+              placeholder="Leave blank for no limit"
+            />
           </Field>
 
           <Field
