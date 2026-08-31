@@ -1140,7 +1140,8 @@ export function Select({
      The trigger may be inside a table that scrolls sideways, so its position
      is only knowable at the moment the menu opens — and has to be re-read if
      anything scrolls underneath it while it is open. */
-  const [box_, setBox_] = useState<{ left: number; top: number; width: number } | null>(null)
+  const [box_, setBox_] = useState<
+    { left: number; width: number; top?: number; bottom?: number } | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -1156,11 +1157,19 @@ export function Select({
          the options exist and cannot be reached. */
       const below = window.innerHeight - r.bottom
       const wantsAbove = below < 220 && r.top > below
-      setBox_({
-        left: r.left,
-        top: wantsAbove ? Math.max(8, r.top - 4 - Math.min(256, r.top - 16)) : r.bottom + 4,
-        width: r.width,
-      })
+      /* Opening upwards is anchored by its BOTTOM edge, not its top.
+
+         Guessing the menu's height and subtracting it — which is what the top
+         calculation did — is right only when the menu is exactly that tall. A
+         two-option menu was placed 256px above the field and floated in the
+         middle of the card with nothing under it, which reads as a menu
+         belonging to some other control. Anchoring the bottom to just above
+         the trigger is correct for a menu of any height. */
+      setBox_(
+        wantsAbove
+          ? { left: r.left, bottom: window.innerHeight - r.top + 4, width: r.width }
+          : { left: r.left, top: r.bottom + 4, width: r.width },
+      )
     }
     place()
     window.addEventListener('scroll', place, true)
@@ -1255,7 +1264,12 @@ export function Select({
           /* In the body, so no scrolling ancestor can clip it. Placed against
              the trigger's own box rather than flowing under it, because the
              two no longer share a coordinate space. */
-          style={{ left: box_.left, top: box_.top, width: box_.width }}
+          style={{
+            left: box_.left,
+            top: box_.top,
+            bottom: box_.bottom,
+            width: box_.width,
+          }}
           className="fixed z-50 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-md"
           onMouseDown={(e) => e.stopPropagation()}
         >

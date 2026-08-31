@@ -280,7 +280,14 @@ var probes = []probe{
 	// --- money ------------------------------------------------------------
 	{
 		Key: "fees.overdue", Needs: rbac.InvoicesRead,
-		Severity: SeverityCritical, Action: "Review", Href: "fees",
+		/* The list, not the counter.
+
+		   "fees" matched Take fee payment first — a counter that asks for one
+		   student's name — so the one row telling an accountant that ₹23.7K is
+		   overdue sent them to a search box with nothing to search for. The
+		   defaulters list is where the money is, by section and by family. */
+		Severity: SeverityCritical, Action: "Review",
+		Href: "unpaid_fees_reminders student_dues fees",
 		Headline: func(n int, amount int64) string {
 			return rupees(amount) + " overdue across " + plural(n, "student", "students")
 		},
@@ -746,7 +753,13 @@ func todaySummary(ctx context.Context, tx pgx.Tx, id *httpx.Identity, sc *scope.
 // app from another timezone should be greeted by their child's school day, not
 // by their own.
 func greeting() string {
-	h := time.Now().Hour()
+	/* The school's clock, not the server's.
+
+	   time.Now() on this box is UTC, so "Good morning" ran until half past
+	   five in the evening in India and "Good evening" began at half past nine
+	   at night. The comment above said the greeting was in the school's terms;
+	   it was in Greenwich's. */
+	h := time.Now().In(indiaTZ()).Hour()
 	switch {
 	case h < 12:
 		return "Good morning"

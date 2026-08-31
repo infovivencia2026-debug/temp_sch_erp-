@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Select, Loading, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
-import { formatDate, formatPaise } from '@/lib/utils'
+import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
 /* The family's own bill.
@@ -176,62 +176,77 @@ export default function PortalFees() {
               body={t('portal.fees.instalments_empty_body')}
             />
           ) : (
-            <Table head={[t('portal.fees.col_instalment'), t('portal.fees.col_due'), t('portal.fees.col_amount'), t('portal.fees.col_paid'), t('portal.fees.col_still_due'), t('portal.fees.col_status')]}>
+            <ul className="space-y-3 p-4">
               {d.invoices.map((i) => (
-                <Fragment key={i.invoice_no}>
-                <tr>
-                  <Td className="font-medium">
-                    {i.instalment_no ? t('portal.fees.instalment_no', { number: i.instalment_no }) : i.invoice_no}
-                    <span className="ml-2 text-[12px] text-muted-foreground">{i.invoice_no}</span>
-                  </Td>
-                  <Td className={i.days_overdue > 0 && i.due_paise > 0 ? 'text-destructive' : undefined}>
-                    {formatDate(i.due_on)}
-                    {i.days_overdue > 0 && i.due_paise > 0 && (
-                      <span className="ml-1.5 text-[12px]">{t('portal.fees.days_late', { days: i.days_overdue })}</span>
-                    )}
-                  </Td>
-                  <Td className="tabular-nums">{formatPaise(i.net_paise)}</Td>
-                  <Td className="tabular-nums">{formatPaise(i.paid_paise)}</Td>
-                  <Td className="tabular-nums">
-                    {i.due_paise > 0 ? formatPaise(i.due_paise) : '—'}
-                    {i.fine_paise > 0 && (
-                      <span className="ml-1.5 text-[12px] text-destructive">
-                        {t('portal.fees.incl_fine', { amount: formatPaise(i.fine_paise) })}
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    <Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>
-                  </Td>
-                </tr>
-                {/* What the instalment is made of.
-
-                    The row said "Instalment 1 — ₹11,833" and nothing else, so
-                    a parent asking what they are paying for had to telephone
-                    the office to be read a list the school already holds. */}
-                {i.lines && i.lines.length > 0 && (
-                  <tr>
-                    <Td colSpan={6} className="bg-muted/30 py-2">
-                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12.5px]">
-                        {i.lines.map((l, n) => (
-                          <span key={n} className={l.is_fine ? 'text-destructive' : undefined}>
-                            {l.head}
-                            <span className="ml-1.5 font-medium tabular-nums">
-                              {formatPaise(l.amount_paise)}
-                            </span>
-                          </span>
-                        ))}
-                        <span className="font-semibold">
-                          Total
-                          <span className="ml-1.5 tabular-nums">{formatPaise(i.net_paise)}</span>
+                <li key={i.invoice_no} className="rounded-xl border bg-card p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold">
+                        {i.instalment_no
+                          ? t('portal.fees.instalment_no', { number: i.instalment_no })
+                          : i.invoice_no}
+                        <span className="ml-2 font-mono text-[12px] font-normal text-muted-foreground">
+                          {i.invoice_no}
+                        </span>
+                      </p>
+                      <p
+                        className={cn(
+                          'mt-0.5 text-[13px]',
+                          i.days_overdue > 0 && i.due_paise > 0
+                            ? 'font-medium text-destructive'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {t('portal.fees.col_due')}: {formatDate(i.due_on)}
+                        {i.days_overdue > 0 && i.due_paise > 0
+                          && ` · ${t('portal.fees.days_late', { days: i.days_overdue })}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="block text-[11px] text-muted-foreground">
+                          {t('portal.fees.col_still_due')}
+                        </span>
+                        <span className="text-[15px] font-semibold tabular-nums">
+                          {i.due_paise > 0 ? formatPaise(i.due_paise) : '—'}
                         </span>
                       </div>
-                    </Td>
-                  </tr>
-                )}
-                </Fragment>
+                      <Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>
+                    </div>
+                  </div>
+
+                  {/* What the instalment is made of, and what it adds up to.
+
+                      "Instalment 1 — ₹11,833" and nothing else meant a parent
+                      asking what they were paying for had to telephone the
+                      office to be read a list the school already holds. */}
+                  {i.lines && i.lines.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t pt-3 text-[12.5px]">
+                      {i.lines.map((l, n) => (
+                        <span key={n} className={l.is_fine ? 'text-destructive' : 'text-muted-foreground'}>
+                          {l.head}
+                          <span className="ml-1.5 font-medium tabular-nums text-foreground">
+                            {formatPaise(l.amount_paise)}
+                          </span>
+                        </span>
+                      ))}
+                      <span className="font-semibold">
+                        {t('portal.fees.col_amount')}
+                        <span className="ml-1.5 tabular-nums">{formatPaise(i.net_paise)}</span>
+                      </span>
+                      {i.paid_paise > 0 && (
+                        <span className="text-muted-foreground">
+                          {t('portal.fees.col_paid')}
+                          <span className="ml-1.5 font-medium tabular-nums text-foreground">
+                            {formatPaise(i.paid_paise)}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </li>
               ))}
-            </Table>
+            </ul>
           )}
         </Card>
 

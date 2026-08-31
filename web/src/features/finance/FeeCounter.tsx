@@ -239,16 +239,23 @@ export default function FeeCounter() {
                           aria-label={`Select ${d.invoice_no}`}
                         />
                       </Td>
-                      <Td className="font-mono text-[12px]">{d.invoice_no}</Td>
-                      <Td className="text-muted-foreground">
+                      {/* A figure or a date broken across lines — "₹11,83 / 3",
+                          "05 / Sept / 2026" — is unreadable, and it happened
+                          the moment the table gained one more column than the
+                          card was wide. These hold their line; the table
+                          scrolls, which is what the scroller is for. */}
+                      <Td className="whitespace-nowrap font-mono text-[12px]">{d.invoice_no}</Td>
+                      <Td className="whitespace-nowrap text-muted-foreground">
                         {formatDate(d.due_on)}
                         {d.days_overdue > 0 && (
                           <Badge tone="danger">{d.days_overdue}d late</Badge>
                         )}
                       </Td>
-                      <Td>{formatPaise(d.net_paise)}</Td>
-                      <Td>{formatPaise(d.paid_paise)}</Td>
-                      <Td className="font-medium">{formatPaise(d.balance_paise)}</Td>
+                      <Td className="whitespace-nowrap tabular-nums">{formatPaise(d.net_paise)}</Td>
+                      <Td className="whitespace-nowrap tabular-nums">{formatPaise(d.paid_paise)}</Td>
+                      <Td className="whitespace-nowrap font-medium tabular-nums">
+                        {formatPaise(d.balance_paise)}
+                      </Td>
                       <Td><Badge tone={d.status === 'overdue' ? 'danger' : 'warning'}>{d.status}</Badge></Td>
                       <Td>
                         {/* A penalty somebody decided on, rather than one a

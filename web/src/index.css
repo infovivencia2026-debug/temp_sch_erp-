@@ -719,9 +719,20 @@
      now, and figures and dates are told not to wrap. */
   .responsive-table { width: 100% !important; table-layout: auto !important; }
   .responsive-table td,
-  .responsive-table th { white-space: nowrap !important; padding: 4pt 6pt !important; }
-  /* Long prose in a cell may still wrap; only the short facts must not. */
-  .responsive-table td.wrap { white-space: normal !important; }
+  .responsive-table th { padding: 4pt 6pt !important; white-space: normal !important; }
+  /* Only the short facts hold their line: a figure or a date broken over two
+     lines is unreadable, and a list of particulars forced onto one pushes the
+     rest of the table off the sheet. Blanket nowrap did exactly that — the
+     receipt printed with a scrollbar and "Uniform" cut in half. */
+  .responsive-table .tabular-nums,
+  .responsive-table td:has(> .tabular-nums) { white-space: nowrap !important; }
+
+  /* The scroller is a screen device. On paper it clips. */
+  .scroll-x,
+  .overflow-x-auto { overflow: visible !important; }
+  /* And the shadow that says "there is more to the right" is a lie on paper. */
+  .scroll-x::before,
+  .scroll-x::after { display: none !important; }
   /* Anything that only exists to be clicked: the full-screen control on a
      table header, sort arrows, row buttons. */
   .responsive-table button { display: none !important; }
