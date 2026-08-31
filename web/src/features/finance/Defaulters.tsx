@@ -4,9 +4,17 @@ import { Phone } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, ExportButton, useSort, FormNotice,
+  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
+
+interface Schedule {
+  days_before: number
+  channel: string
+  active: boolean
+  repeat_days: number
+  max_attempts: number
+}
 
 interface Defaulter {
   student_id: string; admission_no: string; full_name: string
@@ -44,6 +52,28 @@ export default function Defaulters() {
   /* Chasing now, rather than by rule. The plan engine keeps the standing
      arrangement; this is the Tuesday somebody looks at a section and wants
      those eleven families told today. */
+  /* The standing arrangement: remind the family N days before the fee is due.
+
+     The rules engine has expressed this all along — a plan whose first chase
+     is a negative number of days fires before the deadline — but the screen
+     that edits plans asks for an event, a condition, an audience, a template
+     code and a quiet window. That is right for somebody building an
+     automation and wrong for the person who wants one sentence to be true. */
+  const schedule = useQuery({
+    queryKey: ['fee-reminder-schedule'],
+    queryFn: () => api.get<Schedule>('/api/v1/fees/reminders/schedule'),
+  })
+  const [sched, setSched] = useState<Schedule | null>(null)
+  const plan = sched ?? schedule.data ?? null
+  const saveSchedule = useMutation({
+    mutationFn: (v: Schedule) => api.put('/api/v1/fees/reminders/schedule', v),
+    onSuccess: () => {
+      setSched(null)
+      schedule.refetch()
+      setSent('Automatic reminder saved.')
+    },
+  })
+
   const remind = useMutation({
     mutationFn: (ids: string[]) =>
       api.post<{ told: number; messages_queued: number }>('/api/v1/fees/reminders/send', {
@@ -129,6 +159,86 @@ export default function Defaulters() {
         }
       />
       <PageBody>
+        {/* THE STANDING ARRANGEMENT, ABOVE THE ONE-OFF.
+
+            A school sets this once a year and then chases by hand only the
+            families the automation has not moved. Putting it first says which
+            of the two is meant to do most of the work. */}
+        {plan && (
+          <Card>
+            <CardHeader title="Automatic reminder" />
+            <div className="flex flex-wrap items-end gap-4 px-5 pb-5 pt-4">
+              <label className="flex items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={plan.active}
+                  onChange={(e) => setSched({ ...plan, active: e.target.checked })}
+                />
+                On
+              </label>
+              <label className="flex flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">Days before the due date</span>
+                <Input
+                  type="number"
+                  className="w-28"
+                  value={String(plan.days_before)}
+                  onChange={(v) => setSched({ ...plan, days_before: Number(v) || 0 })}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">By</span>
+                <Select
+                  value={plan.channel}
+                  onChange={(v) => setSched({ ...plan, channel: v })}
+                  options={[
+                    { value: 'whatsapp', label: 'WhatsApp' },
+                    { value: 'sms', label: 'SMS' },
+                    { value: 'email', label: 'Email' },
+                  ]}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">Then repeat every</span>
+                <Input
+                  type="number"
+                  className="w-28"
+                  value={String(plan.repeat_days)}
+                  onChange={(v) => setSched({ ...plan, repeat_days: Number(v) || 0 })}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">At most</span>
+                <Input
+                  type="number"
+                  className="w-24"
+                  value={String(plan.max_attempts)}
+                  onChange={(v) => setSched({ ...plan, max_attempts: Number(v) || 1 })}
+                />
+              </label>
+              <Button
+                disabled={saveSchedule.isPending || !sched}
+                onClick={() => sched && saveSchedule.mutate(sched)}
+              >
+                {saveSchedule.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+            <p className="px-5 pb-4 text-[12.5px] text-muted-foreground">
+              {/* Read back as a sentence, because a row of numbered boxes is
+                  not something anybody can check at a glance. */}
+              {plan.active
+                ? `Every family gets a ${plan.channel} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before their instalment is due`
+                  + (plan.repeat_days > 0
+                    ? `, then every ${plan.repeat_days} days, ${plan.max_attempts} time${plan.max_attempts === 1 ? '' : 's'} at most.`
+                    : '.')
+                  + ' The parent and the student are both told in the app; it stops as soon as the money is in.'
+                : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
+            </p>
+            <div className="px-5 pb-4">
+              <FormNotice error={saveSchedule.error} />
+            </div>
+          </Card>
+        )}
+
         {/* The summary IS the filter.
 
             Four figures and a separate dropdown asking the same question is

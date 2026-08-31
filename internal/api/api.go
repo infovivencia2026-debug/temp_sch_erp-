@@ -437,6 +437,11 @@ func (s *Server) Routes() http.Handler {
 			   any other message from the school: it goes to families over
 			   channels the school pays for. */
 			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reminders/send", s.sendFeeReminders)
+			/* The standing arrangement, in one sentence: remind the family N
+			   days before the fee is due, on this channel. Same plan row the
+			   rules engine runs — change it here or there, both show it. */
+			r.Get("/reminders/schedule", s.getFeeReminderSchedule)
+			r.With(httpx.RequirePermission(rbac.MessagesSend)).Put("/reminders/schedule", s.saveFeeReminderSchedule)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/bounce", s.bounceCheque)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)
