@@ -58,6 +58,15 @@ type FineRule struct {
 	CapPaise *int64
 	// none | weekly | monthly
 	Compound string
+	/* per_invoice | final_term — WHEN the charge is raised, not how much.
+
+	   per_invoice puts the fine on the invoice that was late. final_term
+	   accrues exactly the same amounts and raises them all against the last
+	   instalment of the year, so a family is handed one charge at the end
+	   rather than three during it. The arithmetic in this file is identical
+	   either way; only the invoice the charge lands on differs, which is why
+	   nothing here reads it. */
+	ApplyMode string
 	// fee_concessions.kind values this rule does not apply to.
 	ExemptKinds []string
 	// Lower wins when two rules are equally specific.

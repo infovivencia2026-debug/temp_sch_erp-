@@ -1040,7 +1040,7 @@ func (s *Server) loadFineRuleSet(r *http.Request, tx pgx.Tx, onlyRule *uuid.UUID
 	rows, err := tx.Query(r.Context(), `
 		SELECT id, name, campus_id, fee_structure_id, fee_head_id, kind,
 		       grace_days, amount_paise, COALESCE(percent, 0)::float8, cap_paise,
-		       compound_period, exempt_concession_kinds, priority
+		       compound_period, exempt_concession_kinds, priority, apply_mode
 		  FROM fee_fine_rules
 		 WHERE is_active AND ($1::uuid IS NULL OR id = $1)`, onlyRule)
 	if err != nil {
@@ -1052,7 +1052,7 @@ func (s *Server) loadFineRuleSet(r *http.Request, tx pgx.Tx, onlyRule *uuid.UUID
 		var v fees.FineRule
 		if err := rows.Scan(&v.ID, &v.Name, &v.CampusID, &v.StructureID, &v.FeeHeadID,
 			&v.Kind, &v.GraceDays, &v.AmountPaise, &v.Percent, &v.CapPaise,
-			&v.Compound, &v.ExemptKinds, &v.Priority); err != nil {
+			&v.Compound, &v.ExemptKinds, &v.Priority, &v.ApplyMode); err != nil {
 			return nil, err
 		}
 		out = append(out, v)
@@ -1206,6 +1206,24 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		/* Which invoice each rule's charges land on.
+
+		   Read once rather than per assessment: a run over four hundred
+		   invoices would otherwise ask the same question four hundred times,
+		   and the answer cannot change inside one transaction. */
+		finalTerm := map[string]bool{}
+		{
+			rules, err := s.loadFineRuleSet(r, tx, onlyRule)
+			if err != nil {
+				return err
+			}
+			for _, ru := range rules {
+				if ru.ApplyMode == "final_term" {
+					finalTerm[ru.ID.String()] = true
+				}
+			}
+		}
+
 		for _, a := range out {
 			if a.DeltaPaise <= 0 || a.RuleID == nil {
 				skipped++
@@ -1214,6 +1232,30 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 			working, err := fineWorking(a)
 			if err != nil {
 				return err
+			}
+
+			/* A rule that charges at the final term puts the money on the
+			   student's last instalment of the year instead of the late one.
+
+			   The charge row still records the invoice that WAS late — days
+			   overdue, the basis, the working all belong to that term — so the
+			   audit trail says what happened. Only the money moves. */
+			chargeOn := a.InvoiceID
+			if finalTerm[a.RuleID.String()] {
+				var last uuid.UUID
+				err := tx.QueryRow(r.Context(), `
+					SELECT i2.id FROM invoices i2
+					  JOIN invoices i1 ON i1.id = $1
+					 WHERE i2.student_id = i1.student_id
+					   AND i2.academic_year_id IS NOT DISTINCT FROM i1.academic_year_id
+					   AND i2.status <> 'cancelled'
+					 ORDER BY i2.due_on DESC NULLS LAST, i2.invoice_no DESC
+					 LIMIT 1`, a.InvoiceID).Scan(&last)
+				if err == nil && last != uuid.Nil {
+					chargeOn = last
+				}
+				// A student with only the one invoice is their own final term,
+				// which is what the fallback leaves in place.
 			}
 			tag, err := tx.Exec(r.Context(), `
 				INSERT INTO fee_fine_charges
@@ -1236,7 +1278,7 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 			}
 			if _, err := tx.Exec(r.Context(),
 				`UPDATE invoices SET fine_paise = fine_paise + $2, updated_at = now()
-				  WHERE id = $1`, a.InvoiceID, a.DeltaPaise); err != nil {
+				  WHERE id = $1`, chargeOn, a.DeltaPaise); err != nil {
 				return err
 			}
 			applied++

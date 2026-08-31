@@ -22,6 +22,10 @@ interface Defaulter {
   student_id: string; admission_no: string; full_name: string
   class_name?: string; section_name?: string
   guardian_name?: string; phone?: string
+  /* When this family was last chased. An accountant working down a list needs
+     to know they wrote yesterday, or the diligent families get four reminders
+     in a week and stop reading any of them. */
+  last_reminded?: string
   balance_paise: number; oldest_due?: string; days_overdue: number; bucket: string
 }
 
@@ -34,22 +38,15 @@ const TONE: Record<string, 'neutral' | 'warning' | 'danger'> = {
     next action from this screen is to call them. */
 export default function Defaulters() {
   const [bucket, setBucket] = useState('')
-  /* Which section is being looked at, if any.
-
-     "₹23.7K overdue across 2 students" is the whole school in one number, and
-     the person chasing it works a section at a time — the class teacher they
-     ring, the parents' evening they raise it at. A list of names sorted by
-     amount cannot be worked that way: it interleaves eleven sections and the
-     reader has to hold the grouping in their head. */
-  const [section, setSection] = useState('')
-  /* Who to chase. Ticked explicitly rather than "everybody shown", because a
-     filter re-read at the moment the button is pressed can have gained a
-     family since the accountant looked. */
   const [picked, setPicked] = useState<Record<string, boolean>>({})
   /* The app alert always goes; these cost money per message, so they are
      chosen per send rather than assumed. */
   const [channels, setChannels] = useState<Record<string, boolean>>({})
   const [sent, setSent] = useState('')
+  /* Ten rows, then the rest on request. A school with three hundred families
+     owing money has a screen nobody scrolls to the end of, and the controls
+     above it are what somebody came back to the top for. */
+  const [showAll, setShowAll] = useState(false)
 
   /* Chasing now, rather than by rule. The plan engine keeps the standing
      arrangement; this is the Tuesday somebody looks at a section and wants
@@ -78,50 +75,50 @@ export default function Defaulters() {
 
   const remind = useMutation({
     mutationFn: (ids: string[]) =>
-      api.post<{ told: number; messages_queued: number }>('/api/v1/fees/reminders/send', {
-        student_ids: ids,
-        channels: Object.keys(channels).filter((k) => channels[k]),
-      }),
+      api.post<{ told: number; messages_queued: number; no_account: number }>(
+        '/api/v1/fees/reminders/send', {
+          student_ids: ids,
+          channels: Object.keys(channels).filter((k) => channels[k]),
+        }),
     onSuccess: (r) => {
       const paid = Object.keys(channels).filter((k) => channels[k])
+      /* Said in full, because "Reminded 0 people in the app" about a send
+         that texted eleven families reads as a broken button. A family with
+         no login is reachable by SMS and not by the bell. */
       setSent(
-        `Reminded ${r.told} ${r.told === 1 ? 'person' : 'people'} in the app`
+        `Reminded ${r.told} in the app`
         + (r.messages_queued
-          ? ` · ${r.messages_queued} ${paid.join(' / ')} ${r.messages_queued === 1 ? 'message' : 'messages'} queued.`
-          : '.'),
+          ? ` · ${r.messages_queued} ${paid.join(' / ')} ${r.messages_queued === 1 ? 'message' : 'messages'} queued`
+          : '')
+        + (r.no_account
+          ? ` · ${r.no_account} ${r.no_account === 1 ? 'person has' : 'people have'} no app account`
+          : '')
+        + '.'
+        + (r.told === 0 && r.messages_queued === 0
+          ? ' Nothing was sent: these families have no app account, and no channel was ticked.'
+          : ''),
       )
       setPicked({})
     },
     onError: () => setSent(''),
   })
 
+  /* Everybody who owes, not only the late.
+
+     This was an ageing report — invoices past their due date — which is right
+     for "who is late" and wrong for "who do I chase". A school sending the
+     September reminder wants the family whose instalment falls due next week
+     as much as the one already a fortnight over, and that family was invisible
+     here: two names on screen while eleven owed money. */
   const { data, isLoading, error } = useQuery({
-    queryKey: ['defaulters'],
-    queryFn: () => api.get<List<Defaulter>>('/api/v1/fees/defaulters'),
+    queryKey: ['defaulters', 'all'],
+    queryFn: () => api.get<List<Defaulter>>('/api/v1/fees/defaulters?all=1'),
   })
 
   const all = data?.items ?? []
 
-  /** One line per class-section: how many families, and how much. */
-  const bySection = (() => {
-    const m = new Map<string, { label: string; students: number; paise: number }>()
-    for (const d of all) {
-      const label = d.class_name ? `${d.class_name}-${d.section_name ?? ''}` : 'No class'
-      const row = m.get(label) ?? { label, students: 0, paise: 0 }
-      row.students += 1
-      row.paise += d.balance_paise
-      m.set(label, row)
-    }
-    // Most owed first: it is the order somebody would work them in.
-    return [...m.values()].sort((a, b) => b.paise - a.paise)
-  })()
-
-  const labelOf = (d: Defaulter) =>
-    d.class_name ? `${d.class_name}-${d.section_name ?? ''}` : 'No class'
-
   const rows = all
     .filter((d) => (bucket ? d.bucket === bucket : true))
-    .filter((d) => (section ? labelOf(d) === section : true))
 
   const ticked = rows.filter((d) => picked[d.student_id])
   // Nothing ticked means everybody on screen — the same rule the report card
@@ -278,53 +275,10 @@ export default function Defaulters() {
           ))}
         </CellGrid>
 
-        {/* Section by section, before name by name.
-
-            Somebody chasing fees works a section at a time — the class teacher
-            they ring, the parents' evening they raise it at — and a list of
-            names sorted by amount interleaves eleven sections and leaves the
-            reader to do the grouping in their head. Press one to see only its
-            families; press it again to come back out. */}
-        {bySection.length > 1 && (
-          <Card>
-            <CardHeader
-              title={section ? `${section} — the rest of the school is hidden` : 'By class and section'}
-              action={
-                section ? (
-                  <button
-                    type="button"
-                    onClick={() => setSection('')}
-                    className="text-[13px] font-medium text-primary hover:underline"
-                  >
-                    Show every section
-                  </button>
-                ) : undefined
-              }
-            />
-            <ul className="divide-y">
-              {bySection.map((r) => (
-                <li key={r.label}>
-                  <button
-                    type="button"
-                    onClick={() => setSection(section === r.label ? '' : r.label)}
-                    className={cn(
-                      'flex w-full flex-wrap items-center gap-3 px-5 py-2.5 text-left hover:bg-muted/40',
-                      section === r.label && 'bg-muted/60',
-                    )}
-                  >
-                    <span className="min-w-[7rem] font-medium">{r.label}</span>
-                    <span className="flex-1 text-[13px] text-muted-foreground">
-                      {r.students} {r.students === 1 ? 'family' : 'families'}
-                    </span>
-                    <span className="text-[14px] font-semibold tabular-nums">
-                      {formatPaise(r.paise)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        {/* The by-section card is gone. It answered "which section owes",
+            which is a question about a report; this screen is worked one
+            family at a time, and the grouping was a second list to read
+            before reaching the first. */}
 
         {/* "Overdue", not "outstanding". This list is invoices past their due
             date and nothing else; the fee overview's outstanding is this
@@ -376,6 +330,7 @@ export default function Defaulters() {
           ) : error ? (
             <ErrorState error={error} />
           ) : (
+            <>
             <Table
               head={[
                 '',
@@ -387,13 +342,14 @@ export default function Defaulters() {
                 { label: 'Overdue', key: 'days_overdue' },
                 { label: 'Balance', key: 'balance_paise' },
                 { label: 'Age', key: 'days_overdue' },
+                'Last reminded',
                 '',
               ]}
               sort={sort}
               empty={!rows.length}
               emptyLabel="No overdue balances."
             >
-              {sort.sorted.map((d) => (
+              {(showAll ? sort.sorted : sort.sorted.slice(0, 10)).map((d) => (
                 <tr key={d.student_id}>
                   <Td>
                     <input
@@ -421,6 +377,11 @@ export default function Defaulters() {
                     {formatPaise(d.balance_paise)}
                   </Td>
                   <Td><Badge tone={TONE[d.bucket]}>{d.bucket}</Badge></Td>
+                  {/* So nobody sends a fourth reminder in a week to the family
+                      who has been reading all of them. */}
+                  <Td className="whitespace-nowrap text-[12.5px] text-muted-foreground">
+                    {d.last_reminded ? d.last_reminded.replace('T', ' ') : 'never'}
+                  </Td>
                   <Td>
                     {/* One family, without ticking anything. The commonest
                         send is a single reminder to the family somebody has
@@ -437,6 +398,16 @@ export default function Defaulters() {
                 </tr>
               ))}
             </Table>
+            {rows.length > 10 && !showAll && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
+              >
+                Show all {rows.length} — including {rows.length - 10} more
+              </button>
+            )}
+            </>
           )}
         </Card>
       </PageBody>

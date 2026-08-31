@@ -75,7 +75,7 @@ func (s *Server) sendFeeReminders(w http.ResponseWriter, r *http.Request) {
 		isParent bool
 	}
 
-	var told, queued int
+	var told, queued, noAccount int
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* The balance is read here, not taken from the screen.
 
@@ -157,6 +157,17 @@ func (s *Server) sendFeeReminders(w http.ResponseWriter, r *http.Request) {
 
 			st := t.student
 			for _, pn := range ppl {
+				if pn.uid == nil {
+					/* A guardian the school has a number for and no login.
+
+					   Common: a family that has never opened the app. The
+					   in-app alert cannot reach them and the paid channels
+					   still can, so this is counted rather than treated as a
+					   failure — and the screen says so, because "Reminded 0
+					   people" about a send that texted eleven families reads
+					   as a broken button. */
+					noAccount++
+				}
 				if pn.uid != nil {
 					if err := notify(r, tx, id.InstitutionID, *pn.uid, &st, "fee_due",
 						amount+" outstanding", body, "/go/fees_payments", "student", &st); err != nil {
@@ -206,5 +217,7 @@ func (s *Server) sendFeeReminders(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"told": told, "messages_queued": queued, "channels": channels,
+		// People the app could not reach because they have no account.
+		"no_account": noAccount,
 	})
 }

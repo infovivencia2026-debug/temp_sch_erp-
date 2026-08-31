@@ -593,6 +593,9 @@ type defaulterRow struct {
 	Phone        *string `json:"phone,omitempty"`
 	BalancePaise int64   `json:"balance_paise"`
 	OldestDue    *string `json:"oldest_due,omitempty"`
+	// When this family was last chased, so nobody sends a fourth reminder in a
+	// week to the family who has been reading all of them.
+	LastReminded *string `json:"last_reminded,omitempty"`
 	DaysOverdue  int     `json:"days_overdue"`
 	Bucket       string  `json:"bucket"`
 }
@@ -608,6 +611,14 @@ func (s *Server) listDefaulters(w http.ResponseWriter, r *http.Request) {
 		       c.name, sec.name, g.full_name, g.phone,
 		       sum(i.net_paise - i.paid_paise),
 		       to_char(min(i.due_on),'YYYY-MM-DD'),
+		       /* When this family was last chased.
+
+		          An accountant working down a list needs to know they wrote to
+		          this family yesterday — otherwise the diligent ones get four
+		          reminders in a week and stop reading any of them. */
+		       to_char((SELECT max(n.created_at) FROM notifications n
+		                 WHERE n.student_id = st.id AND n.kind = 'fee_due'),
+		               'YYYY-MM-DD"T"HH24:MI'),
 		       COALESCE(GREATEST(0, (CURRENT_DATE - min(i.due_on))), 0),
 		       CASE
 		         WHEN CURRENT_DATE - min(i.due_on) > 90 THEN '90+'
@@ -629,16 +640,27 @@ func (s *Server) listDefaulters(w http.ResponseWriter, r *http.Request) {
 		       WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
 		  ) g ON true
 		 WHERE i.status IN ('unpaid','partial','overdue')
-		   AND i.due_on IS NOT NULL AND i.due_on < CURRENT_DATE
+		   /* ?all=1 widens this to everybody who owes anything.
+
+		      The screen is an ageing report, so it has always been invoices
+		      PAST their due date — which is right for "who is late" and wrong
+		      for "who do I chase". A school sending the September reminder
+		      wants the family whose instalment falls due next week as much as
+		      the one already a fortnight over, and that family was invisible
+		      here: two names on a screen while eleven owed money. */
+		   AND ($1::boolean OR (i.due_on IS NOT NULL AND i.due_on < CURRENT_DATE))
 		 GROUP BY st.id, c.name, sec.name, g.full_name, g.phone
 		 HAVING sum(i.net_paise - i.paid_paise) > 0
-		 ORDER BY 10 DESC
-		 LIMIT 500`, nil,
+		 -- Named, not numbered: a positional ORDER BY silently means a
+		 -- different column the moment somebody adds one to the SELECT, and
+		 -- adding last_reminded above did exactly that.
+		 ORDER BY sum(i.net_paise - i.paid_paise) DESC
+		 LIMIT 500`, []any{r.URL.Query().Get("all") == "1"},
 		func(rows pgx.Rows) (defaulterRow, error) {
 			var v defaulterRow
 			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName, &v.ClassName,
 				&v.SectionName, &v.GuardianName, &v.Phone, &v.BalancePaise,
-				&v.OldestDue, &v.DaysOverdue, &v.Bucket)
+				&v.OldestDue, &v.LastReminded, &v.DaysOverdue, &v.Bucket)
 		})
 	respond(w, r, items, err)
 }
