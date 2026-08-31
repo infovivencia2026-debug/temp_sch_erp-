@@ -33,6 +33,44 @@ import { api } from '@/lib/api'
 
 const EVERY = 10_000
 
+/* A tab open across a deploy is running yesterday's app.
+
+   This is the other half of "why do I have to reload". The poll below keeps
+   the DATA current, and it cannot keep the CODE current: a tab opened before
+   a deploy carries the JavaScript of that moment for as long as it stays open,
+   so a fix shipped at noon reaches somebody's open phone at bedtime, if ever.
+   Every "you need to reload once" in this product's life has been this.
+
+   index.html names the bundle with a content hash, so asking for it and
+   comparing that name to the one this tab is running is the whole test. Only
+   when somebody comes back to the tab: a deploy landing mid-sentence should
+   not reload the page under a person's hands, and a background tab has nobody
+   to inconvenience anyway.
+
+   Guarded by a session flag, because a reload that does not fix the mismatch
+   — a cached index, a half-finished deploy — would otherwise loop. */
+const RELOADED = 'erp.build_reloaded'
+
+async function reloadIfStale() {
+  // The bundle this tab is running, from its own module URL.
+  const here = /assets\/(index-[^./]+)\.js/.exec(import.meta.url)?.[1]
+  if (!here) return
+  try {
+    const html = await fetch('/', { cache: 'no-store' }).then((r) => r.text())
+    const live = /assets\/(index-[^./"]+)\.js/.exec(html)?.[1]
+    if (!live || live === here) {
+      // Back in step: a later deploy may reload again.
+      sessionStorage.removeItem(RELOADED)
+      return
+    }
+    if (sessionStorage.getItem(RELOADED) === live) return
+    sessionStorage.setItem(RELOADED, live)
+    window.location.reload()
+  } catch {
+    /* Offline, or the server is mid-restart. The next visit asks again. */
+  }
+}
+
 export function useLiveUpdates() {
   const qc = useQueryClient()
   /* The last revision seen. A ref rather than state: nothing renders from it,
@@ -77,8 +115,13 @@ export function useLiveUpdates() {
     }
     timer.current = window.setTimeout(tick, EVERY)
 
-    // Back to the tab: answer now, not on the next tick.
-    const onVisible = () => { if (!document.hidden) void check() }
+    // Back to the tab: answer now, not on the next tick — and take the
+    // opportunity to notice that the app itself has moved on.
+    const onVisible = () => {
+      if (document.hidden) return
+      void check()
+      void reloadIfStale()
+    }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
