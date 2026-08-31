@@ -432,7 +432,19 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 					Summary: f.Summary,
 					Scope:   string(f.Scope),
 					Tier:    string(f.Tier),
-					InScope: sc.HasScope(f.Scope),
+					/* A head inspecting a workspace sees its shape.
+
+					   Teaching screens are in scope only for somebody who
+					   teaches — right for a teacher, and it left the principal
+					   looking at Faculty with two entries on it: Remarks about
+					   me and My pay. They had reached the workspace and been
+					   shown the two things that were about themselves.
+
+					   The screens are honest when they are empty — an
+					   unassigned register says there is no class, which is a
+					   sentence somebody can act on. A missing menu entry is
+					   not. */
+					InScope: sc.HasScope(f.Scope) || viewingAll,
 					Live:    implementedFeatures[f.Key],
 				})
 			}
