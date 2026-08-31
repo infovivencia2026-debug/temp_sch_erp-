@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -229,9 +229,30 @@ function isUrgent(iso: string) {
  * resolved scope: a student's set is one record, a guardian's is their
  * children — so a parent gets a switcher and a student does not.
  */
+/* Which child the parent was last looking at.
+
+   The choice cannot live in component state alone. A parent with two children
+   leaves this screen for the fee page and comes back, or follows a link from a
+   notification, and the switcher has quietly snapped back to the first child —
+   so every visit starts by re-picking, and a bookmarked or shared link shows
+   the wrong child's attendance. The URL carries it so a link means what it
+   says; localStorage carries it so a fresh visit resumes where they were. */
+const LAST_CHILD_KEY = 'portal-last-child'
+
+function rememberedChild(): string | null {
+  try {
+    return localStorage.getItem(LAST_CHILD_KEY)
+  } catch {
+    return null
+  }
+}
+
 export default function Portal() {
   const t = useT()
-  const [selected, setSelected] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const [selected, setSelected] = useState<string | null>(
+    () => params.get('student_id') ?? rememberedChild(),
+  )
   /* One component serves the dashboard and the attendance register.
 
      The attendance page is asked one question — how often has this child been
@@ -246,7 +267,34 @@ export default function Portal() {
     queryFn: () => api.get<List<PortalChild>>('/api/v1/portal/students'),
   })
 
-  const activeId = selected ?? children.data?.items[0]?.student_id ?? null
+  const kidIDs = children.data?.items.map((c) => c.student_id)
+  /* A remembered id that is no longer one of this parent's children — a child
+     who has left, or a link from somebody else's portal — falls back to the
+     first rather than querying for a student the server will refuse. */
+  const remembered = selected && kidIDs?.includes(selected) ? selected : null
+  const activeId = remembered ?? children.data?.items[0]?.student_id ?? null
+
+  const chooseChild = useCallback(
+    (id: string) => {
+      setSelected(id)
+      try {
+        localStorage.setItem(LAST_CHILD_KEY, id)
+      } catch {
+        /* private window or blocked storage; the URL still carries the choice */
+      }
+    },
+    [],
+  )
+
+  // Keep the address bar on the child actually being shown, so the link a
+  // parent copies opens on the same child. Replace, not push: switching child
+  // is not a step to press Back through.
+  useEffect(() => {
+    if (!activeId || params.get('student_id') === activeId) return
+    const next = new URLSearchParams(params)
+    next.set('student_id', activeId)
+    setParams(next, { replace: true })
+  }, [activeId, params, setParams])
 
   const summary = useQuery({
     queryKey: ['portal-summary', activeId],
@@ -303,7 +351,7 @@ export default function Portal() {
                   key={c.student_id}
                   size="sm"
                   variant={c.student_id === activeId ? 'ink' : 'outline'}
-                  onClick={() => setSelected(c.student_id)}
+                  onClick={() => chooseChild(c.student_id)}
                 >
                   {c.full_name.split(' ')[0]}
                 </Button>

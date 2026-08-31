@@ -136,6 +136,18 @@ export default function OfflineRegister() {
           <Stat label="Diary lines" value={diary.data?.items.length ?? 0} />
         </CellGrid>
 
+        {/* The queue could not be written to disk — quota, or a browser
+            blocking site data. The register is in this tab and nowhere else,
+            which is the one thing the teacher has to know before they close
+            it. Silence here would leave the screen promising a safety it no
+            longer has. */}
+        {queue.storageFailed && (
+          <Panel className="border-destructive/40 bg-destructive/5 p-5 text-[13px] text-destructive">
+            This device would not save the queue. What you have taken is held in this tab
+            only — do not close it until “Waiting to sync” reaches zero.
+          </Panel>
+        )}
+
         <Panel className="p-5 text-[13px] text-muted-foreground">
           What this screen guarantees: a register taken in this tab is never lost to a
           failed request, and a sync never overwrites a mark somebody else entered while

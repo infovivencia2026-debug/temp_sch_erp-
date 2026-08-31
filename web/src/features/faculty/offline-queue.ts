@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
+import { useSession } from '@/lib/session'
 
 /* A queue of registers taken while the browser could not reach the server.
 
@@ -25,7 +26,22 @@ import { api } from '@/lib/api'
    closes the tab in the car park is out of luck until the app has a service
    worker. Anything more than that would be a claim this code cannot back. */
 
-const QUEUE_KEY = 'classroom-offline-register-queue'
+/* The key carries the user. localStorage is per-origin, and the staffroom
+   laptop is signed in and out of all day: a shared key flushes the registers
+   one teacher took under the next teacher's session, posted as them and to a
+   section they may not even be scoped for. */
+const QUEUE_PREFIX = 'classroom-offline-register-queue'
+const queueKeyFor = (userID?: string) =>
+  userID ? `${QUEUE_PREFIX}:${userID}` : QUEUE_PREFIX
+
+/* How many answered batches to keep for the teacher to look back at. Pending
+   batches are NOT part of this cap — see trim. */
+const SYNCED_KEEP = 50
+
+/* A batch left pending is retried on this interval as well as on the online
+   event. The event alone is not enough: the common school failure is a captive
+   portal or a 502 with navigator.onLine still true, which fires nothing. */
+const RETRY_MS = 60_000
 
 export interface QueuedBatch {
   client_batch_ref: string
@@ -45,27 +61,58 @@ export interface QueuedBatch {
   error?: string
 }
 
-function read(): QueuedBatch[] {
+function read(key: string): QueuedBatch[] {
   try {
-    const raw = localStorage.getItem(QUEUE_KEY)
+    const raw = localStorage.getItem(key)
     return raw ? (JSON.parse(raw) as QueuedBatch[]) : []
   } catch {
     return []
   }
 }
 
-function write(items: QueuedBatch[]) {
+/* Drop answered batches, oldest first, and never a pending one.
+
+   The obvious cap — keep the last N of everything — evicts from the front of
+   the queue, and the front is where the oldest *unsynced* registers sit. That
+   is the one thing this file exists to protect: a teacher offline long enough
+   to fill the queue would have silently lost the registers that never arrived.
+   A pending batch stays until the server has answered for it, however long the
+   queue grows. */
+function trim(items: QueuedBatch[]): QueuedBatch[] {
+  const synced = items.filter((b) => b.synced_at)
+  if (synced.length <= SYNCED_KEEP) return items
+  const drop = new Set(synced.slice(0, synced.length - SYNCED_KEEP))
+  return items.filter((b) => !drop.has(b))
+}
+
+/* True if the batches reached the disk. A false here means the tab is now the
+   only copy, which the teacher has to be told — the previous version swallowed
+   it and left a UI claiming the register was safely queued. */
+function write(key: string, items: QueuedBatch[]): boolean {
   try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(items.slice(-50)))
+    localStorage.setItem(key, JSON.stringify(items))
+    return true
   } catch {
-    /* storage full or blocked; the in-memory copy still posts this session */
+    return false
   }
 }
 
 export function useOfflineRegisterQueue() {
-  const [queue, setQueue] = useState<QueuedBatch[]>(read)
+  const session = useSession()
+  const key = queueKeyFor(session.user?.id)
+
+  const [queue, setQueue] = useState<QueuedBatch[]>(() => read(key))
   const [online, setOnline] = useState(() => navigator.onLine)
   const [syncing, setSyncing] = useState(false)
+  /* Set when localStorage refused the write: the queue is in this tab only,
+     and closing it loses the register. */
+  const [storageFailed, setStorageFailed] = useState(false)
+
+  // The queue belongs to whoever is signed in; a sign-out and back in on the
+  // same laptop must not inherit the previous teacher's pending batches.
+  useEffect(() => {
+    setQueue(read(key))
+  }, [key])
 
   useEffect(() => {
     const up = () => setOnline(true)
@@ -78,11 +125,15 @@ export function useOfflineRegisterQueue() {
     }
   }, [])
 
-  const persist = useCallback((next: QueuedBatch[]) => {
-    write(next)
-    setQueue(next)
-    return next
-  }, [])
+  const persist = useCallback(
+    (next: QueuedBatch[]) => {
+      const trimmed = trim(next)
+      setStorageFailed(!write(key, trimmed))
+      setQueue(trimmed)
+      return trimmed
+    },
+    [key],
+  )
 
   const enqueue = useCallback(
     (batch: Omit<QueuedBatch, 'client_batch_ref' | 'captured_at'>) => {
@@ -93,20 +144,28 @@ export function useOfflineRegisterQueue() {
         captured_at: new Date().toISOString(),
         client_batch_ref: crypto.randomUUID(),
       }
-      persist([...read(), full])
+      persist([...read(key), full])
       return full
     },
-    [persist],
+    [persist, key],
   )
 
   /* Post every batch that has not been answered yet.
 
      Sequential rather than parallel on purpose: the batches are usually the
      same section on consecutive periods, and a burst of them arriving out of
-     order makes the conflict list read backwards. */
+     order makes the conflict list read backwards.
+
+     Guarded against re-entry with a ref, not the syncing state: the reconnect
+     effect and the teacher's button both call this, and two overlapping runs
+     post the same batches twice. That the server dedupes on client_batch_ref
+     makes it survivable, not correct. */
+  const flushing = useRef(false)
   const flush = useCallback(async () => {
-    const pending = read().filter((b) => !b.synced_at)
+    if (flushing.current) return
+    const pending = read(key).filter((b) => !b.synced_at)
     if (pending.length === 0) return
+    flushing.current = true
     setSyncing(true)
     try {
       for (const batch of pending) {
@@ -124,7 +183,7 @@ export function useOfflineRegisterQueue() {
             },
           )
           persist(
-            read().map((b) =>
+            read(key).map((b) =>
               b.client_batch_ref === batch.client_batch_ref
                 ? {
                     ...b,
@@ -138,11 +197,11 @@ export function useOfflineRegisterQueue() {
           )
         } catch (e) {
           // Left pending deliberately. A failed post is retried on the next
-          // reconnect; only a refusal the server can explain is worth showing,
-          // and it is shown against the batch rather than as a toast that has
-          // gone by the time the teacher looks up.
+          // reconnect and on the retry interval; only a refusal the server can
+          // explain is worth showing, and it is shown against the batch rather
+          // than as a toast that has gone by the time the teacher looks up.
           persist(
-            read().map((b) =>
+            read(key).map((b) =>
               b.client_batch_ref === batch.client_batch_ref
                 ? { ...b, error: e instanceof Error ? e.message : 'Could not sync' }
                 : b,
@@ -151,24 +210,50 @@ export function useOfflineRegisterQueue() {
         }
       }
     } finally {
+      flushing.current = false
       setSyncing(false)
     }
-  }, [persist])
+  }, [persist, key])
 
   // Coming back online is the moment the queue exists for.
   useEffect(() => {
     if (online) void flush()
   }, [online, flush])
 
+  const pending = queue.filter((b) => !b.synced_at)
+
+  // The connection can come back without the browser noticing — a captive
+  // portal, a gateway that was down. Keep trying while anything is pending.
+  useEffect(() => {
+    if (pending.length === 0) return
+    const timer = window.setInterval(() => void flush(), RETRY_MS)
+    return () => window.clearInterval(timer)
+  }, [pending.length, flush])
+
+  /* A register that has not reached the server yet is in this browser and
+     nowhere else. Closing the tab on it is the loss the whole file is written
+     to prevent, so it costs a confirmation. */
+  useEffect(() => {
+    if (pending.length === 0) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [pending.length])
+
   const clearSynced = useCallback(() => {
-    persist(read().filter((b) => !b.synced_at))
-  }, [persist])
+    persist(read(key).filter((b) => !b.synced_at))
+  }, [persist, key])
 
   return {
     queue,
-    pending: queue.filter((b) => !b.synced_at),
+    pending,
     online,
     syncing,
+    /** True when localStorage refused the queue: this tab is the only copy. */
+    storageFailed,
     enqueue,
     flush,
     clearSynced,
