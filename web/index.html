@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>EDU CLOUD</title>
+
+    <!-- INSTALLABLE, RATHER THAN A SECOND APP TO MAINTAIN.
+
+         A parent asked for "the parent app". There is no parent APK and there
+         should not be one: the portal is already the parent's whole product,
+         it is already responsive, and a WebView wrapper would be a second
+         thing to sign, ship and update for no behaviour the browser does not
+         already give. A manifest makes the same site installable to the home
+         screen, with its own icon and no browser chrome, on Android and iOS
+         alike, and a school that never installs it loses nothing. -->
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0c0e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- iOS reads none of the manifest's icons and needs its own tag. -->
+    <link rel="apple-touch-icon" href="/app/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EDU CLOUD" />
     <script>
       // Apply persisted theme before first paint to avoid flash.
       try {
