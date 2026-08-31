@@ -1803,10 +1803,22 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	// whole school is one alert, and one per child would deliver it three times
 	// to a family of three.
 	if _, err := tx.Exec(r.Context(), `
+		/* DATED WHEN IT HAPPENED, NOT WHEN IT WAS DELIVERED.
+
+		   These alerts are written the first time a family opens the app, so
+		   created_at defaulted to that moment — and a parent signing in for the
+		   first time saw a fortnight of school life stamped with one timestamp,
+		   to the minute. Eight notices "at 3:15 PM", including a fee overdue
+		   since 26 August.
+
+		   Each carries the time of the thing it is about: a circular's publish
+		   time, the day a child was marked absent, the day a bill fell due. The
+		   feed is ordered by created_at, so this also puts them in the order
+		   they happened rather than in insert order. */
 		INSERT INTO notifications (institution_id, user_id, kind, title, body,
-		                           link, source_kind, source_id)
+		                           link, source_kind, source_id, created_at)
 		SELECT $1::uuid, $2::uuid, 'circular', a.title, left(a.body, 240),
-		       '/portal/circulars', 'announcement', a.id
+		       '/portal/circulars', 'announcement', a.id, a.publish_at
 		  FROM announcements a
 		 WHERE a.audience_role IN ('all','parents')
 		   AND a.publish_at <= now()
@@ -1829,11 +1841,15 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	// screen is where a term's record is read.
 	if _, err := tx.Exec(r.Context(), `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
-		                           title, body, link, source_kind, source_id)
+		                           title, body, link, source_kind, source_id,
+		                           created_at)
 		SELECT $1::uuid, $2::uuid, sa.student_id, 'attendance',
 		       concat_ws(' ', st.first_name, st.last_name) || ' was marked absent',
 		       to_char(sa.on_date,'Day DD Mon'), '/portal/attendance',
-		       'attendance', sa.id
+		       'attendance', sa.id,
+		       -- When the register was taken, which is when the family would
+		       -- have been told had they been signed in.
+		       sa.marked_at
 		  FROM student_attendance sa
 		  JOIN students st ON st.id = sa.student_id
 		 WHERE sa.student_id = ANY($3) AND sa.status = 'absent'
@@ -1850,12 +1866,15 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	// that withdrew a charge must not keep chasing it.
 	if _, err := tx.Exec(r.Context(), `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
-		                           title, body, link, source_kind, source_id)
+		                           title, body, link, source_kind, source_id,
+		                           created_at)
 		SELECT $1::uuid, $2::uuid, inv.student_id, 'fee_due',
 		       'Fees overdue: ' || inv.invoice_no,
 		       to_char((inv.net_paise - inv.paid_paise) / 100.0, 'FM999999990.00')
 		         || ' due since ' || to_char(inv.due_on,'DD Mon'),
-		       '/portal/fees', 'invoice', inv.id
+		       '/portal/fees', 'invoice', inv.id,
+		       -- The morning after it fell due, which is the day it became news.
+		       (inv.due_on + 1)::timestamptz
 		  FROM invoices inv
 		 WHERE inv.student_id = ANY($3)
 		   AND inv.status <> 'cancelled'
@@ -1872,10 +1891,11 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	// Homework due in the next week, for the child's own section.
 	_, err := tx.Exec(r.Context(), `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
-		                           title, body, link, source_kind, source_id)
+		                           title, body, link, source_kind, source_id,
+		                           created_at)
 		SELECT DISTINCT $1::uuid, $2::uuid, en.student_id, 'homework',
 		       hw.title, 'Due ' || to_char(hw.due_on,'DD Mon'),
-		       '/portal/homework', 'homework', hw.id
+		       '/portal/homework', 'homework', hw.id, hw.created_at
 		  FROM homework hw
 		  JOIN enrollments en ON en.section_id = hw.section_id
 		 WHERE en.student_id = ANY($3) AND hw.is_published
