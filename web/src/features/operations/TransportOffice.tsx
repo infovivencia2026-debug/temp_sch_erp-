@@ -1201,11 +1201,12 @@ function Buses() {
       const saved = editing
         ? await api.put<{ id: string }>(`/api/v1/ops/transport/vehicles/${editing}`, body)
         : await api.post<{ id: string }>('/api/v1/ops/transport/vehicles', body)
-      if (form.route_id) {
-        await api.put(`/api/v1/ops/transport/vehicles/${saved.id}/route`, {
-          route_id: form.route_id,
-        })
-      }
+      /* Sent on every save, blank included, now that editing prefills the
+         route it found. Skipping the blank case meant a route could be put on
+         a bus and never taken off it again from this form. */
+      await api.put(`/api/v1/ops/transport/vehicles/${saved.id}/route`, {
+        route_id: form.route_id ?? '',
+      })
       return saved
     },
     onSuccess: () => {
