@@ -489,7 +489,17 @@ export function BentoDock() {
                  focus-visible:outline-none focus-visible:ring-2
                  focus-visible:ring-[var(--ink-here)]`
           }
-          data-tip={phone ? undefined : t('bento.launcher.title')}
+          /* NO TOOLTIP: THIS ONE SAYS ITS OWN NAME.
+
+             I added a tip here in the same pass that fixed the unlabelled
+             glyphs, and it was wrong for this control. Off the phone this
+             button renders the words "All features" beside its icon, so
+             hovering it produced a second "All features" floating above the
+             bar: the same two words twice, which reads as a rendering fault
+             rather than as help. On a phone it drops to an icon and would
+             deserve one, but a phone has no hover to show it with.
+
+             A tooltip is for a glyph that cannot say what it is. */
           aria-label={t('bento.launcher.title')}
         >
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
