@@ -161,6 +161,11 @@ export default function Notifications() {
         onClick={() => (open ? dismiss() : setOpen(true))}
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
+        // data-tip as well as title: the dock draws its own label instantly,
+        // and the browser's own tooltip takes about a second to appear, so in
+        // the dock the bell was the one item that looked unlabelled next to
+        // eleven that were not.
+        data-tip="Notifications"
         title="Notifications"
         className="relative grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"

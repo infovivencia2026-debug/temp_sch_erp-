@@ -63,6 +63,7 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true) }}
         aria-haspopup="dialog"
         aria-expanded={showAppearance}
+        data-tip={placement === 'dock' ? t('bento.settings.label') : undefined}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
         /* THE RING IS DRAWN ON WHATEVER THIS IS SITTING ON.

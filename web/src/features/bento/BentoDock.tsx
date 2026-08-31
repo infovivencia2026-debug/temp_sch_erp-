@@ -389,7 +389,21 @@ export function BentoDock() {
             way in — every one of them is in the launcher behind All features —
             so they are the right thing to lose first, and losing them is
             invisible rather than broken. */}
-        <span className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+        {/* CLIP SIDEWAYS, NOT UPWARD.
+
+            `overflow-hidden` reintroduced exactly the bug the comment above
+            describes. The tooltips are drawn above their button, outside this
+            box, so hiding the overflow threw every one of them away and the
+            dock became nine unlabelled glyphs -- the thing the tooltips exist
+            to prevent.
+
+            `overflow-x: clip` with `overflow-y: visible` is the one spelling
+            that gives both. The old hidden/visible pair could not: the moment
+            one axis is hidden the other computes to auto, which clips as well
+            and adds a scrollbar. `clip` has no such rule, so the marks still
+            give way sideways on a narrow bar and the label can still rise out
+            of the top. */}
+        <span className="flex min-w-0 items-center gap-0.5 [overflow-x:clip] [overflow-y:visible]">
           {(phone ? [] : categories.filter(c => !hidden.has(c.name))).map((c) => {
             const Mark = markFor(c.name)
             return (
@@ -460,6 +474,7 @@ export function BentoDock() {
                  focus-visible:outline-none focus-visible:ring-2
                  focus-visible:ring-[var(--ink-here)]`
           }
+          data-tip={phone ? undefined : t('bento.launcher.title')}
           aria-label={t('bento.launcher.title')}
         >
           <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
