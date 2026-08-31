@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
@@ -207,6 +207,13 @@ export default function StudentProfile() {
      now runs before them. */
   const toast = useToast()
   const [issued, setIssued] = useState<IssuedLogin | null>(null)
+  /* The panel is drawn at the top of the record and the button is most of a
+     page below it, so pressing Give a login from the guardians card looked
+     like nothing at all: the answer appeared where nobody was looking. */
+  const credentialsRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (issued) credentialsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [issued])
   /* Both of these had onSuccess and nothing else.
 
      Issuing a login is a one-shot act — the server does not keep the password —
@@ -216,15 +223,24 @@ export default function StudentProfile() {
      guardian already has one" need different next steps from whoever is
      standing at the desk. */
   const studentLogin = useMutation({
-    mutationFn: () => api.post<IssuedLogin>(`/api/v1/setup/students/${selected}/login`, {}),
-    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+    mutationFn: (opts?: { reset?: boolean }) =>
+      api.post<IssuedLogin>(
+        `/api/v1/setup/students/${selected}/login${opts?.reset ? '?reset=true' : ''}`, {}),
+    onSuccess: (v) => setIssued({
+      ...v, who: v.full_name,
+      reset: () => studentLogin.mutate({ reset: true }),
+    }),
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : 'Could not issue a login for this student'),
   })
   const guardianLogin = useMutation({
-    mutationFn: (g: Profile['guardians'][number]) =>
-      api.post<IssuedLogin>(`/api/v1/setup/guardians/${g.id}/login`, {}),
-    onSuccess: (v) => setIssued({ ...v, who: v.full_name }),
+    mutationFn: (v: { g: Profile['guardians'][number]; reset?: boolean }) =>
+      api.post<IssuedLogin>(
+        `/api/v1/setup/guardians/${v.g.id}/login${v.reset ? '?reset=true' : ''}`, {}),
+    onSuccess: (v, sent) => setIssued({
+      ...v, who: v.full_name,
+      reset: () => guardianLogin.mutate({ g: sent.g, reset: true }),
+    }),
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : 'Could not issue a login for this guardian'),
   })
@@ -352,7 +368,7 @@ export default function StudentProfile() {
      written yet is gone; "Not built yet" in a menu is our roadmap, printed
      where a person was looking for a control. */
   const mayIssue = can('students.write')
-  const issueGuardian = (g: Profile['guardians'][number]) => guardianLogin.mutate(g)
+  const issueGuardian = (g: Profile['guardians'][number]) => guardianLogin.mutate({ g })
 
   const actions: RecordAction[] = [
     { label: 'Record payment', onClick: () => go('fees'),
@@ -373,7 +389,7 @@ export default function StudentProfile() {
     /* The child's own way in. Nothing outside the demo seeder had ever given
        a student an account, so the whole student workspace was unreachable in
        a real school. The admission number becomes the username. */
-    { label: 'Give this student a login', onClick: () => studentLogin.mutate(),
+    { label: 'Give this student a login', onClick: () => studentLogin.mutate({}),
       disabled: !can('students.write') || studentLogin.isPending,
       disabledReason: 'Needs permission to change student records' },
     { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
@@ -382,22 +398,51 @@ export default function StudentProfile() {
   ]
 
   const credentials = issued && (
-    <Card className="mb-4 border-success">
+    <div ref={credentialsRef}>
+    <Card className={cn('mb-4', issued.existing ? 'border-warning' : 'border-success')}>
       <CardHeader
-        title={`Login issued for ${issued.who}`}
-        description="Shown once and not stored anywhere. Copy it now — if it is lost, issue another rather than looking this one up."
+        /* An existing login is an answer, not a credential. Showing it under
+           "Login issued" with an empty Password read as a button that had done
+           nothing — which is exactly what somebody standing at the desk
+           concluded. */
+        title={
+          issued.existing
+            ? `${issued.who} already has a login`
+            : `Login issued for ${issued.who}`
+        }
+        description={
+          issued.existing
+            ? issued.note
+            : 'Shown once and not stored anywhere. Copy it now — if it is lost, issue another rather than looking this one up.'
+        }
       />
       <dl className="divide-y text-[14px]">
         <Field k="Sign in as" v={issued.sign_in_as} mono />
-        <Field k="Password" v={issued.password} mono />
+        {!issued.existing && <Field k="Password" v={issued.password} mono />}
         {issued.relation && <Field k="Relation" v={issued.relation} />}
       </dl>
-      <div className="px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2 px-5 py-3">
+        {/* The password cannot be shown, because the school does not keep it.
+
+            A reset is the only way to put one in somebody's hand again, and it
+            stops the one the family may still be using — so it is offered
+            plainly and named for what it does rather than dressed as "show
+            password", which is a thing this product cannot do. */}
+        {issued.existing && issued.reset && (
+          <Button
+            size="sm"
+            disabled={studentLogin.isPending || guardianLogin.isPending}
+            onClick={issued.reset}
+          >
+            Reset the password
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
-          I have copied it
+          {issued.existing ? 'Close' : 'I have copied it'}
         </Button>
       </div>
     </Card>
+    </div>
   )
 
   const tabs: RecordTab[] = [
@@ -813,6 +858,14 @@ interface IssuedLogin {
   relation?: string
   note: string
   who: string
+  /* True when the person already had a login and none was issued. The server
+     answers this rather than failing, because "they already have one" is not
+     an error — it is the answer to the question that was asked. */
+  existing?: boolean
+  /* How to issue a fresh one, when they already have it. Held on the panel so
+     the button knows which of the two endpoints to call without the panel
+     having to know whose login it is showing. */
+  reset?: () => void
 }
 
 /** Who to call. First thing anyone needs when a child is the subject. */
