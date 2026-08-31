@@ -344,7 +344,7 @@ function Delivery({ id }: { id: string }) {
         acknowledged: number
         unreachable_children: number
         people: { name: string; role: string; student?: string; acked_at?: string }[]
-      }>(`/api/v1/comms/circulars/${id}/delivery`),
+      }>(`/api/v1/communication/circulars/${id}/delivery`),
   })
 
   if (q.isLoading) return <Loading />

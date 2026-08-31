@@ -16,7 +16,15 @@ import { lazy } from 'react'
    twice — where is the bus now — and splitting them would give the transport
    office two menu items that must never disagree. */
 export const liveTrackingKeys = {
-  'institution_admin.transport.live_vehicle_tracking': screen(() => import('./LiveVehicleMap')),
+  /* The transport manager's key, not the principal's.
+     
+     This said institution_admin.transport.live_vehicle_tracking, which is not
+     a key the catalogue carries -- there is no institution_admin.transport
+     section at all -- so it mapped a screen onto nothing, while the real
+     entry, transport_manager.transport.live_vehicle_tracking, had no screen
+     and rendered the placeholder. The one menu item named "Live vehicle
+     tracking" was the one that did not open the live map. */
+  'transport_manager.transport.live_vehicle_tracking': screen(() => import('./LiveVehicleMap')),
   'transport_manager.transport.real_time_vehicle_tracking_vts': lazy(
     () => import('./LiveVehicleMap'),
   ),
