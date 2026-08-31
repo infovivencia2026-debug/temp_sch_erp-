@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, GraduationCap, Sun, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { MonthGrid, type CalendarEntry } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
@@ -86,6 +87,22 @@ export default function AcademicCalendar() {
 
   const rows = cal.data?.items ?? []
   const s = cal.data?.summary
+
+  /* The same rows the list below shows, drawn as a month.
+
+     This screen already had every entry in the year; what it did not have was
+     the shape of them. "Is that week clear" and "does this land on a holiday"
+     are the two questions a school asks of a calendar, and a table sorted by
+     date answers neither. The grid reads the response already fetched, so
+     there is no second request and the two halves cannot disagree. */
+  const gridEntries: CalendarEntry[] = rows.map((e) => ({
+    date: e.starts_on,
+    end_date: e.ends_on,
+    kind: e.kind,
+    title: e.name,
+    detail: e.description ?? e.campus,
+    ref_id: e.id,
+  }))
   const shut = rows.filter((r) => r.kind === 'holiday' || r.kind === 'vacation').length
 
   return (
@@ -96,6 +113,10 @@ export default function AcademicCalendar() {
         description="Holidays, vacations, exams, parents’ meetings and the days pulled back to make up for them."
       />
       <PageBody>
+        <MonthGrid
+          entries={gridEntries}
+          description="Every holiday, vacation, exam and meeting in the year, on the month it falls in. The filter below does not narrow this grid."
+        />
         <CellGrid cols={4}>
           <Stat
             label="Instructional days"

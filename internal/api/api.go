@@ -673,6 +673,14 @@ func (s *Server) Routes() http.Handler {
 		   Authorisation is per row instead: hpcStudent refuses anyone else's
 		   child, and recordObservation checks the observer role against who is
 		   signed in, so a parent cannot file the teacher's view. */
+		/* A member of staff's own month. SelfProfileRead, not a teaching
+		   permission: every one of these rows is already about the person
+		   signed in -- their duties, their leave, the work they set -- so the
+		   handler's WHERE clause is the scope, and a wider permission would
+		   only stop office staff seeing a calendar of their own. */
+		r.With(httpx.RequirePermission(rbac.SelfProfileRead)).
+			Get("/me/calendar", s.getStaffCalendar)
+
 		r.Route("/hpc", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.SelfProfileRead))
 			r.Get("/card", s.getHolisticCard)

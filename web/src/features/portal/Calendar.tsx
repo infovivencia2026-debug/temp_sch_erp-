@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, GraduationCap, PartyPopper, Users } from 'lucide-react'
 import { api } from '@/lib/api'
+import { MonthGrid } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
   Loading, ErrorState, EmptyState,
@@ -80,15 +81,32 @@ export default function Calendar() {
   const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
   const [view, setView] = useState<CalendarView>('all')
+
+  /* The window the grid is showing, which the grid itself decides.
+
+     The feed defaults to thirty days back and a hundred and twenty forward.
+     That is the right default for the list -- a parent wants what is next --
+     but it is the wrong thing to hand a grid somebody can page: March of last
+     year would have come back empty and read as "nothing happened", which is
+     a lie the screen tells confidently. So the grid says which six weeks it is
+     drawing and the query follows it. */
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null)
+  const span = range ? `&from=${range.from}&to=${range.to}` : ''
+
   const query = useQuery({
-    queryKey: ['portal-calendar', studentId],
+    queryKey: ['portal-calendar', studentId, range?.from, range?.to],
     queryFn: () =>
       api.get<{ items: Entry[]; from: string; to: string }>(
-        `/api/v1/portal/school-life/calendar${studentId ? `?student_id=${studentId}` : ''}`,
+        `/api/v1/portal/school-life/calendar?student_id=${studentId ?? ''}${span}`,
       ),
+    // The previous month stays on screen while the next one loads, instead of
+    // the whole page dropping to a spinner on every arrow press.
+    placeholderData: (prev) => prev,
   })
 
-  if (query.isLoading) return <Loading label={t('portal.calendar.loading')} />
+  // Only the very first load blanks the page; a month change is drawn by the
+  // grid's own dimming, so the screen does not flash on every arrow press.
+  if (query.isLoading && !query.data) return <Loading label={t('portal.calendar.loading')} />
   if (query.error) return <ErrorState error={query.error} />
 
   const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))
@@ -122,6 +140,20 @@ export default function Calendar() {
         description={t('portal.calendar.description')}
       />
       <PageBody>
+        {/* The month first, the list under it.
+
+            A parent opens this to find out whether a fee falls in the same
+            week as an exam, and the answer to that is a shape, not a sorted
+            list. The grid reads `items` -- every entry the feed returned, not
+            just the upcoming ones the cards count -- so a date already past is
+            still on the calendar it happened in. */}
+        <MonthGrid
+          entries={items}
+          loading={query.isFetching}
+          onRange={(from, to) => setRange({ from, to })}
+          description="Exams, homework due, fees due, holidays and meetings. A day the school is closed is shaded."
+        />
+
         {/* The cards are the filter.
 
             "Examinations 1" said there was one and not which one, and the

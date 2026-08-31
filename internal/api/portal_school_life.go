@@ -260,6 +260,57 @@ func (s *Server) getFamilyCalendar(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* HOMEWORK DUE.
+
+		   The reason a parent opens a calendar at all. Scoped by enrolment,
+		   so a family with two children in different sections sees each
+		   child's work against that child's name rather than one merged pile
+		   they cannot act on.
+
+		   Published work only: a draft a teacher is still writing is not
+		   something to hold a child to. */
+		if err := add(`
+			SELECT to_char(h.due_on,'YYYY-MM-DD'), NULL::text,
+			       'homework',
+			       COALESCE(NULLIF(h.title,''), 'Homework'),
+			       COALESCE(sub.name, ''), NULL::text, NULL::text,
+			       h.id::text, concat_ws(' ', st.first_name, st.last_name)
+			  FROM homework h
+			  JOIN enrollments en ON en.section_id = h.section_id
+			  JOIN students st ON st.id = en.student_id
+			  LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id
+			  LEFT JOIN subjects sub ON sub.id = cs.subject_id
+			 WHERE en.student_id = ANY($3)
+			   AND h.due_on IS NOT NULL
+			   AND h.due_on BETWEEN $1 AND $2
+			   AND h.is_published
+			   AND en.status = 'active'
+			 ORDER BY h.due_on`, from, to, kids); err != nil {
+			return err
+		}
+
+		/* FEES DUE.
+
+		   The other reason. An invoice that is already settled is not a date
+		   anybody needs warning about, so only what is still owed appears --
+		   which also means the entry disappears from the calendar the moment
+		   the money is taken, with no second write to keep in step. */
+		if err := add(`
+			SELECT to_char(i.due_on,'YYYY-MM-DD'), NULL::text,
+			       'fee_due',
+			       'Fees due: ' || to_char((i.net_paise - i.paid_paise)/100.0, 'FM99,99,999.00'),
+			       i.invoice_no, NULL::text, NULL::text,
+			       i.id::text, concat_ws(' ', st.first_name, st.last_name)
+			  FROM invoices i
+			  JOIN students st ON st.id = i.student_id
+			 WHERE i.student_id = ANY($3)
+			   AND i.due_on IS NOT NULL
+			   AND i.due_on BETWEEN $1 AND $2
+			   AND i.status IN ('unpaid','partial','overdue')
+			 ORDER BY i.due_on`, from, to, kids); err != nil {
+			return err
+		}
+
 		// The family's own booked meetings. Not every appointment in the
 		// diary — only the ones about a child of theirs.
 		return add(`
@@ -1843,25 +1894,27 @@ type notificationRow struct {
 	ReadAt    *string `json:"read_at,omitempty"`
 }
 
-/* Alerts that outlived the job they were about.
+/*
+Alerts that outlived the job they were about.
 
-   A notification is written once and read later, and in between the reader's
-   job can change. HR used to decide staff leave and no longer does, so every
-   "X has applied for leave" already in their bell became an alert about
-   somebody else's work — and following it lands on Approvals, which their
-   workspace no longer has. They are told about a decision they cannot make and
-   then shown a door that does not open.
+	A notification is written once and read later, and in between the reader's
+	job can change. HR used to decide staff leave and no longer does, so every
+	"X has applied for leave" already in their bell became an alert about
+	somebody else's work — and following it lands on Approvals, which their
+	workspace no longer has. They are told about a decision they cannot make and
+	then shown a door that does not open.
 
-   Deleting those rows was the obvious fix and the wrong one: it is destructive,
-   it cannot be undone when somebody's duties are handed back, and it fixes only
-   the case somebody thought to clean up. Filtering at read time costs one array
-   comparison, needs no migration, and reverses itself the day the permission is
-   granted again.
+	Deleting those rows was the obvious fix and the wrong one: it is destructive,
+	it cannot be undone when somebody's duties are handed back, and it fixes only
+	the case somebody thought to clean up. Filtering at read time costs one array
+	comparison, needs no migration, and reverses itself the day the permission is
+	granted again.
 
-   Only kinds that call the reader to act belong here. A notification that is
-   merely news — your leave was decided, your paper was approved — is not
-   gated: it is about the reader, and it stays true whatever their duties
-   become. */
+	Only kinds that call the reader to act belong here. A notification that is
+	merely news — your leave was decided, your paper was approved — is not
+	gated: it is about the reader, and it stays true whatever their duties
+	become.
+*/
 var notificationNeeds = map[string]string{
 	"leave_request": rbac.LeaveApprove,
 }
