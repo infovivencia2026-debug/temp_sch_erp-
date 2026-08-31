@@ -59,10 +59,11 @@ var exportable = map[string]struct {
 		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
 	},
 	"defaulters": {
-		title:  "Fee defaulters",
-		about:  "Who owes what, how late they are, and which ageing bucket it falls in.",
-		perm:   "finance.invoices.read",
-		header: []string{"Admission No", "Student", "Class", "Guardian", "Phone", "Oldest Due", "Days Overdue", "Balance (Rs)", "Bucket"},
+		title: "Fee defaulters",
+		about: "Who owes what, how late they are, and when they were last chased.",
+		perm:  "finance.invoices.read",
+		header: []string{"Admission No", "Student", "Class", "Guardian", "Phone",
+			"Oldest Due", "Days Overdue", "Balance (Rs)", "Bucket", "Last Reminded"},
 		query: `SELECT st.admission_no,
 		               concat_ws(' ', st.first_name, st.last_name),
 		               COALESCE(c.name || '-' || sec.name,''),
@@ -73,7 +74,9 @@ var exportable = map[string]struct {
 		               CASE WHEN CURRENT_DATE - min(i.due_on) > 90 THEN '90+'
 		                    WHEN CURRENT_DATE - min(i.due_on) > 60 THEN '61-90'
 		                    WHEN CURRENT_DATE - min(i.due_on) > 30 THEN '31-60'
-		                    ELSE '0-30' END
+		                    ELSE '0-30' END,
+		               COALESCE(to_char(max(st.last_fee_reminder_at),
+		                                'DD/MM/YYYY HH24:MI'), 'never')
 		          FROM invoices i
 		          JOIN students st ON st.id = i.student_id
 		          LEFT JOIN LATERAL (
@@ -87,11 +90,22 @@ var exportable = map[string]struct {
 		                JOIN guardians gg ON gg.id = sg.guardian_id
 		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
 		          ) g ON true
+		         /* Everybody who owes, exactly as the screen shows them.
+
+		            This was overdue-only while the screen listed everybody who
+		            owes anything, so a school with sixty-one families owing
+		            money exported two rows and had no way to tell the file was
+		            not the list. An export that disagrees with the screen it
+		            sits on is worse than no export. */
 		         WHERE i.status IN ('unpaid','partial','overdue')
-		           AND i.due_on IS NOT NULL AND i.due_on < CURRENT_DATE
 		         GROUP BY st.id, c.name, sec.name, g.full_name, g.phone
 		        HAVING sum(i.net_paise - i.paid_paise) > 0
-		         ORDER BY 7 DESC`,
+		         /* By the money, largest first — the order somebody works the
+		            list in. It was ORDER BY 7, which is Days Overdue, and that
+		            column is TEXT: "5" sorted above "40" because it sorted
+		            alphabetically. Named and numeric, so neither can happen
+		            again by somebody inserting a column. */
+		         ORDER BY sum(i.net_paise - i.paid_paise) DESC`,
 	},
 	"collections": {
 		title:  "Fee collections",

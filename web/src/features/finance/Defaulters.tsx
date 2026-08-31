@@ -185,28 +185,31 @@ export default function Defaulters() {
             of the two is meant to do most of the work. */}
         {plan && (
           <Card>
-            <CardHeader title="Automatic reminder" />
-            <div className="flex flex-wrap items-end gap-4 px-5 pb-5 pt-4">
-              <label className="flex items-center gap-2 text-[13px]">
-                <input
-                  type="checkbox"
-                  checked={plan.active}
-                  onChange={(e) => setSched({ ...plan, active: e.target.checked })}
-                />
-                On
-              </label>
-              <label className="flex flex-col gap-1 text-[12.5px]">
-                <span className="text-muted-foreground">Days before the due date</span>
-                <Input
-                  type="number"
-                  className="w-28"
-                  value={String(plan.days_before)}
-                  onChange={(v) => setSched({ ...plan, days_before: Number(v) || 0 })}
-                />
-              </label>
-              <div className="flex flex-col gap-1 text-[12.5px]">
-                <span className="text-muted-foreground">By</span>
-                <div className="flex flex-wrap items-center gap-3 pb-2 text-[13px]">
+            <CardHeader
+              title="Automatic reminder"
+              action={
+                /* The state, where a person looks for it: at the top right of
+                   the thing it governs, not in a tick box among the numbers. */
+                <label className="flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={plan.active}
+                    onChange={(e) => setSched({ ...plan, active: e.target.checked })}
+                  />
+                  <span className={plan.active ? 'font-medium text-success' : 'text-muted-foreground'}>
+                    {plan.active ? 'On' : 'Off'}
+                  </span>
+                </label>
+              }
+            />
+            <div className="space-y-5 px-5 pb-5 pt-4">
+              {/* Two questions, asked in the order somebody answers them:
+                  what do we send it on, and when. The numbers used to sit in a
+                  row of five boxes with their labels above them, which reads
+                  as a form rather than as a sentence about what will happen. */}
+              <div>
+                <p className="eyebrow mb-2">Send messages via</p>
+                <div className="flex flex-wrap items-center gap-4 text-[13px]">
                   {(['whatsapp', 'sms', 'email'] as const).map((ch) => (
                     <label key={ch} className="flex items-center gap-1.5">
                       <input
@@ -225,46 +228,56 @@ export default function Defaulters() {
                   ))}
                 </div>
               </div>
-              <label className="flex flex-col gap-1 text-[12.5px]">
-                <span className="text-muted-foreground">Then repeat every</span>
-                <Input
-                  type="number"
-                  className="w-28"
-                  value={String(plan.repeat_days)}
-                  onChange={(v) => setSched({ ...plan, repeat_days: Number(v) || 0 })}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12.5px]">
-                <span className="text-muted-foreground">At most</span>
-                <Input
-                  type="number"
-                  className="w-24"
-                  value={String(plan.max_attempts)}
-                  onChange={(v) => setSched({ ...plan, max_attempts: Number(v) || 1 })}
-                />
-              </label>
-              <Button
-                disabled={saveSchedule.isPending || !sched}
-                onClick={() => sched && saveSchedule.mutate(sched)}
-              >
-                {saveSchedule.isPending ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-            <p className="px-5 pb-4 text-[12.5px] text-muted-foreground">
-              {/* Read back as a sentence, because a row of numbered boxes is
-                  not something anybody can check at a glance. */}
-              {plan.active && plan.channels.length > 0
-                ? `Every family gets a ${plan.channels.join(' and ')} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before their instalment is due`
-                  + (plan.repeat_days > 0
-                    ? `, then every ${plan.repeat_days} days, ${plan.max_attempts} time${plan.max_attempts === 1 ? '' : 's'} at most.`
-                    : '.')
-                  + ' The parent and the student are both told in the app; it stops as soon as the money is in.'
-                : plan.active
-                  ? 'Choose at least one channel, or switch this off.'
-                  : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
-            </p>
-            <div className="px-5 pb-4">
-              <FormNotice error={saveSchedule.error} />
+
+              <div>
+                <p className="eyebrow mb-2">Schedule</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-3 text-[13px]">
+                  <span>Start sending</span>
+                  <Input
+                    type="number"
+                    className="w-20 text-center"
+                    value={String(plan.days_before)}
+                    onChange={(v) => setSched({ ...plan, days_before: Number(v) || 0 })}
+                  />
+                  <span>days before the due date, then repeat every</span>
+                  <Input
+                    type="number"
+                    className="w-20 text-center"
+                    value={String(plan.repeat_days)}
+                    onChange={(v) => setSched({ ...plan, repeat_days: Number(v) || 0 })}
+                  />
+                  <span>days, up to</span>
+                  <Input
+                    type="number"
+                    className="w-16 text-center"
+                    value={String(plan.max_attempts)}
+                    onChange={(v) => setSched({ ...plan, max_attempts: Number(v) || 1 })}
+                  />
+                  <span>times.</span>
+                </div>
+              </div>
+
+              <p className="rounded-xl border bg-muted/30 p-3 text-[12.5px] text-muted-foreground">
+                {plan.active && plan.channels.length > 0
+                  ? `Parents and the student get a ${plan.channels.join(' and ')} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before the instalment is due`
+                    + (plan.repeat_days > 0
+                      ? `, then every ${plan.repeat_days} days, ${plan.max_attempts} time${plan.max_attempts === 1 ? '' : 's'} at most. `
+                      : '. ')
+                    + 'Reminders stop the moment the money is in.'
+                  : plan.active
+                    ? 'Choose at least one channel, or switch this off.'
+                    : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <FormNotice error={saveSchedule.error} />
+                <Button
+                  disabled={saveSchedule.isPending || !sched}
+                  onClick={() => sched && saveSchedule.mutate(sched)}
+                >
+                  {saveSchedule.isPending ? 'Saving…' : 'Save changes'}
+                </Button>
+              </div>
             </div>
           </Card>
         )}
