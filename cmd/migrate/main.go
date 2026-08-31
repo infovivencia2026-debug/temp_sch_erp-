@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
@@ -49,6 +50,7 @@ func run() error {
 		email    = flag.String("email", "", "create-admin: email")
 		password = flag.String("password", "", "create-admin: password")
 		name     = flag.String("name", "Administrator", "create-admin: full name")
+		csvOut   = flag.String("csv", "", "set-passwords: write the credentials to this file instead of stdout")
 		instName = flag.String("institution", "", "institution name or uuid. create-admin creates it if absent; demo-data and demo-users target it, defaulting to the oldest school when empty")
 	)
 	// The stdlib flag package stops parsing at the first non-flag argument, so
@@ -160,6 +162,16 @@ func run() error {
 		}
 		defer db.Close()
 		return createAdmin(ctx, db, cfg.PasswordPepper, *email, *password, *name, *instName)
+	case "set-passwords":
+		if *password == "" {
+			return fmt.Errorf("set-passwords requires -password")
+		}
+		db, err := database.Connect(ctx, dsn, 4)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		return setPasswords(ctx, db, cfg.PasswordPepper, *instName, *password, *csvOut)
 	default:
 		return fmt.Errorf("unknown command %q", cmd)
 	}
@@ -581,4 +593,118 @@ func firstWord(s string) string {
 		return s[:i]
 	}
 	return s
+}
+
+/*
+setPasswords gives every active login in one school the same password, and
+prints the credentials it wrote.
+
+	For a school being set up or demonstrated, where twenty-eight people need
+	to be able to sign in this afternoon and nobody is defending anything yet.
+	It exists as a subcommand rather than as SQL run by hand because the hash
+	cannot be computed outside the server: passwords are peppered with a key
+	that lives in the environment and never in the database, so a hash made
+	anywhere else silently fails to verify and the reset looks like it worked.
+
+	Deliberately narrow. It takes one institution and refuses to run without
+	one, so there is no way to spell this that resets every school on the
+	installation. Platform staff are excluded for the same reason: they are
+	not a school's users to reset.
+
+	Sessions are revoked, matching what the office's own reset does. A password
+	change that leaves the old sessions alive has not actually taken the old
+	password out of circulation.
+*/
+func setPasswords(ctx context.Context, db *database.DB, pepper, instName, password, csvPath string) error {
+	if instName == "" {
+		return fmt.Errorf("set-passwords requires -institution: refusing to reset every school")
+	}
+	if len(password) < 6 {
+		return fmt.Errorf("set-passwords requires a password of at least six characters")
+	}
+	hasher := auth.NewHasher(pepper)
+	hash, err := hasher.Hash(password)
+	if err != nil {
+		return err
+	}
+
+	type row struct{ name, email, phone, username, roles string }
+	var out []row
+	var instID, instLabel string
+
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		// Name or uuid, whichever was typed. citext on the name so the case a
+		// person uses on the command line does not have to match the row.
+		if err := tx.QueryRow(ctx, `
+			SELECT id::text, name FROM institutions
+			 WHERE id::text = $1 OR lower(name) = lower($1) OR slug = $1
+			 LIMIT 1`, instName).Scan(&instID, &instLabel); err != nil {
+			return fmt.Errorf("no institution matches %q: %w", instName, err)
+		}
+
+		tag, err := tx.Exec(ctx, `
+			UPDATE users SET password_hash = $2, updated_at = now()
+			 WHERE institution_id = $1::uuid
+			   AND status = 'active'
+			   AND COALESCE(platform_admin, false) = false`, instID, hash)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE sessions SET revoked_at = now()
+			 WHERE revoked_at IS NULL
+			   AND user_id IN (SELECT id FROM users WHERE institution_id = $1::uuid)`,
+			instID); err != nil {
+			return err
+		}
+		slog.Info("passwords set", "institution", instLabel, "users", tag.RowsAffected())
+
+		rows, err := tx.Query(ctx, `
+			SELECT COALESCE(u.full_name,''), COALESCE(u.email::text,''),
+			       COALESCE(u.phone,''), COALESCE(u.username::text,''),
+			       COALESCE(string_agg(r.key, ' + ' ORDER BY r.key), '')
+			  FROM users u
+			  LEFT JOIN user_roles ur ON ur.user_id = u.id
+			  LEFT JOIN roles r ON r.id = ur.role_id
+			 WHERE u.institution_id = $1::uuid
+			   AND u.status = 'active'
+			   AND COALESCE(u.platform_admin, false) = false
+			 GROUP BY u.id, u.full_name, u.email, u.phone, u.username
+			 ORDER BY COALESCE(string_agg(r.key, ' '), ''), u.full_name`, instID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var v row
+			if err := rows.Scan(&v.name, &v.email, &v.phone, &v.username, &v.roles); err != nil {
+				return err
+			}
+			out = append(out, v)
+		}
+		return rows.Err()
+	}); err != nil {
+		return err
+	}
+
+	w := os.Stdout
+	if csvPath != "" {
+		f, err := os.Create(csvPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		w = f
+	}
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+	if err := cw.Write([]string{"institution", "name", "roles", "email", "phone", "username", "password"}); err != nil {
+		return err
+	}
+	for _, v := range out {
+		if err := cw.Write([]string{instLabel, v.name, v.roles, v.email, v.phone, v.username, password}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
