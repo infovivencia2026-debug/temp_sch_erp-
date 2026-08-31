@@ -476,6 +476,12 @@ function DraftLineEditor({
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(items.map((i) => [i.id, String(i.amount_paise / 100)])),
   )
+  /* When each instalment falls due. Seeded from what the version already
+     holds, so opening the editor and saving without touching a date changes
+     nothing. */
+  const [dues, setDues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(items.map((i) => [i.id, i.due_on ?? ''])),
+  )
 
   /** What the box holds: the typing if there has been any, else the record. */
   const raw = (i: VersionItem) => amounts[i.id] ?? String(i.amount_paise / 100)
@@ -502,7 +508,7 @@ function DraftLineEditor({
           fee_head_id: i.fee_head_id,
           instalment_no: i.instalment_no,
           amount_paise: toPaise(raw(i)),
-          due_on: i.due_on || undefined,
+          due_on: dues[i.id] || undefined,
         })),
       }),
     () => onNotify('Draft lines saved. Activate the version to start billing them.'),
@@ -522,7 +528,7 @@ function DraftLineEditor({
   return (
     <div className="space-y-3 px-4 py-3">
       <Table
-        head={['Fee head', 'Instalment', { label: 'Amount (₹)', align: 'right' }, 'Was']}
+        head={['Fee head', 'Instalment', { label: 'Amount (₹)', align: 'right' }, 'Due on', 'Was']}
         empty={false}
       >
         {items.map((it) => (
@@ -535,6 +541,21 @@ function DraftLineEditor({
                 className="text-right"
                 value={amounts[it.id] ?? ''}
                 onChange={(v) => setAmounts({ ...amounts, [it.id]: v })}
+              />
+            </Td>
+            <Td>
+              {/* THE DATE THE MONEY IS OWED, WHERE THE AMOUNT IS SET.
+
+                  The API has accepted due_on per instalment all along and the
+                  register a few tabs away printed it — but the editor showed
+                  it as a dash with nothing to type into, so the only way to
+                  set a due date was the single box on Raise the demand, which
+                  applies one date to the whole year. A school with three terms
+                  could not say when the second one falls. */}
+              <Input
+                type="date"
+                value={dues[it.id] ?? ''}
+                onChange={(v) => setDues({ ...dues, [it.id]: v })}
               />
             </Td>
             <Td className="tabular-nums text-muted-foreground">
