@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BusFront, MapPin, Ruler } from 'lucide-react'
 import { api } from '@/lib/api'
+import { TileMap } from '@/components/TileMap'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
@@ -112,7 +113,33 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
         </dl>
 
         {hasPlot(row) ? (
-          <Plot row={row} />
+          /* The map first, the plot under it.
+
+             A parent knows their own street and not a pair of decimal
+             degrees, so "has it turned into our road yet" is a question only
+             streets can answer. The plot stays because it is the one that
+             still works when the tiles do not load, and because it carries the
+             scale bar and the straight-line distance the map does not. */
+          <>
+            <TileMap
+              height={240}
+              points={[
+                ...(row.stop_latitude != null && row.stop_longitude != null
+                  ? [{
+                      lat: row.stop_latitude,
+                      lon: row.stop_longitude,
+                      kind: 'stop' as const,
+                      label: row.stop ?? undefined,
+                    }]
+                  : []),
+                { lat: row.latitude!, lon: row.longitude!, kind: 'bus' as const },
+              ]}
+              ariaLabel={`Map showing ${row.registration_no || 'the bus'}${
+                row.stop ? ` and ${row.stop}` : ''
+              }`}
+            />
+            <Plot row={row} />
+          </>
         ) : (
           /* No plot rather than an empty one. A blank axis box under a
              sentence that already said why is a second, wordless claim that
