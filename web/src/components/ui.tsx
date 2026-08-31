@@ -561,7 +561,16 @@ export function Table({
        table is one whose columns cannot be squeezed, so it is sized to its
        content and allowed to run past the card, which is precisely the case
        the scroll affordance exists to announce. */
-    <div className="scroll-x">
+    /* The scroller wraps the TABLE ONLY.
+
+       The pager used to sit inside it. On a wide table -- one whose columns
+       cannot be squeezed, so it is sized to its content and runs past the card
+       -- that meant scrolling right to read the last column carried Previous
+       and Next off the screen with it, and the only way back to them was to
+       scroll left again. The controls that move you through the rows must not
+       be reachable only from one horizontal position. */
+    <div className="table-frame">
+      <div className="scroll-x">
       <table
         className={cn(
           'responsive-table text-[14px]',
@@ -631,6 +640,7 @@ export function Table({
           )}
         </tbody>
       </table>
+      </div>
 
         {rows.length > size && (
           <div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
@@ -709,8 +719,26 @@ export function Table({
         </Button>
       </div>
       {/* The one part that is genuinely different full screen: the table gets
-          the height, so the scroll happens inside it and the header stays. */}
-      <div className="min-h-0 flex-1 overflow-auto rounded-[3px] border">{body}</div>
+          the height, so the scroll happens inside it and the header stays.
+
+          The height has to reach `.scroll-x` itself, not stop at a wrapper
+          around it. A sticky header sticks to its nearest scrolling ancestor,
+          and `.scroll-x` is one the moment it has overflow-x -- but with no
+          bounded height it never scrolls vertically, so the header had nothing
+          to stick to and scrolled away with the rows. Full screen exists to
+          page through forty rows at a time, which is exactly when losing the
+          column names hurts.
+
+          So the frame becomes a column: the scroller takes the leftover height
+          and scrolls in both directions, and the pager underneath it stays put
+          at the bottom instead of travelling with the rows. */}
+      <div
+        className="min-h-0 flex-1 rounded-[3px] border
+                   [&>.table-frame]:flex [&>.table-frame]:h-full [&>.table-frame]:flex-col
+                   [&_.scroll-x]:min-h-0 [&_.scroll-x]:flex-1 [&_.scroll-x]:overflow-auto"
+      >
+        {body}
+      </div>
     </div>,
     document.body,
   )
