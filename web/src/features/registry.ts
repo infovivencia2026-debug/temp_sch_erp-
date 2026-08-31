@@ -54,6 +54,12 @@ import { trackerKeys } from './super_admin/tracker-keys'
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
   'institution_admin.students.student_360': screen(() => import('./shared/StudentProfile')),
+  /* The office that admits a child is the office that hands their family the
+     login — internal/api/api.go has said so beside the endpoint all along, and
+     the screen that does it was catalogued only for the principal. So an
+     admissions clerk could create a child and had no way to add a parent to
+     them. */
+  'admissions.applications.student_360': screen(() => import('./shared/StudentProfile')),
   'institution_admin.students.student_photographs': screen(() => import('./students/StudentPhotos')),
   /* The principal's own way in to setting the school up.
      The wizard carried every form a new school needs -- academic year,

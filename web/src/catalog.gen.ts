@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 320 features. */
+/** 13 roles, 321 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -756,6 +756,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'admissions.applications.application_forms', slug: 'application_forms', name: 'Application Forms', scope: 'institution', tier: 'core', summary: 'Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered.' },
           { key: 'admissions.applications.document_verification', slug: 'document_verification', name: 'Document Verification', scope: 'institution', tier: 'core', summary: 'Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told.' },
+          { key: 'admissions.applications.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: who to ring, the guardians on record, attendance, fees and conduct. The screen the admissions desk opens to add a parent to a child and hand the family their login.' },
         ],
       },
       {
