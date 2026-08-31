@@ -487,9 +487,24 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
    colour towards grey, and without it the board behind reads as smudge rather
    than as colour. */
 [data-layout='bento'] .bento-dock {
+  /* border-style too, and that is not pedantry: the element carries Tailwind's
+     `border-none`, which is border-style: none. A width and a colour on a
+     border with no style paint nothing, so the dock's hairline was written
+     three times over and never drawn once. */
+  border-style: solid;
   border-width: var(--bento-border-w);
   border-color: var(--bento-line);
-  box-shadow: var(--bento-shadow);
+
+  /* --bento-depth-lg, not --bento-shadow.
+
+     --bento-shadow resolves to --bento-depth, which is `none` by design: the
+     board is one ruled sheet and a shadow under every cell of a sheet is a
+     contradiction. The dock is the exception the token block already names --
+     "--bento-depth-lg keeps a real shadow because it is the dock and the
+     dialogs, which genuinely do float" -- and then nothing read it. So the one
+     surface in the product that is unambiguously floating above the content
+     was drawn flat against it. */
+  box-shadow: var(--bento-depth-lg);
   background-color: color-mix(
     in srgb, var(--bento-dock-bg, var(--bento-card)) 78%, transparent);
   backdrop-filter: blur(28px) saturate(180%);
@@ -799,21 +814,35 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
      animate, this decides how long they take. */
 }
 
-[data-layout='bento'] [class*='transition'] {
-  transition-duration: var(--dur-fast);
-  transition-timing-function: var(--ease-out);
+/* THE LAYOUT SETS THE TOKENS, IT DOES NOT RESTATE THE RULE.
+
+   This restated index.css's blanket with the bento's own numbers, and lost:
+   that blanket is !important, and !important beats any non-important
+   declaration whatever its specificity or file order. So choosing this layout
+   changed nothing about how anything moved -- every hover and state flip ran
+   on the shared 160ms curve, and the layout's whole motion identity was
+   written down and never once on screen.
+
+   Driving the tokens the blanket reads through works, because it is the same
+   declaration doing the work either way. */
+[data-layout='bento'] {
+  --motion-quick: var(--dur-fast);
+  --motion-ease: var(--ease-out);
 }
 
 /* Somebody who has asked their system for less motion gets it, whatever this
    file would prefer. Slower animation is a preference; ignoring that setting is
    an accessibility failure. */
 @media (prefers-reduced-motion: reduce) {
+  /* Both token sets, and both here: the plain [data-layout='bento'] rule above
+     scores the same as this one and sits earlier in the file, so leaving the
+     motion tokens out would let the full-speed values win back over somebody
+     who asked for less. */
   [data-layout='bento'] {
     --dur-fast: 1ms;
     --dur: 1ms;
-  }
-  [data-layout='bento'] [class*='transition'] {
-    transition-duration: 1ms;
+    --motion-quick: 80ms;
+    --motion-ease: cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 

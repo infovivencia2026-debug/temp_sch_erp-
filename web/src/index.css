@@ -1190,7 +1190,13 @@ dialog[open],
 
 /* A panel that owns the side of the screen comes from that side, not from
    above — the rise reads as wrong on something 400px tall. */
-[role='dialog'][data-side='right'],
+/* Left only. The right-hand drawer has its own gesture below, and naming it
+   here as well out-specified that rule -- [role='dialog'][data-side='right']
+   is (0,2,0) against the drawer's (0,1,0) -- so the drawer never slid. It
+   nudged 8px and faded in over 420ms, then closed by sliding the full 26rem
+   off the edge, because the closing rule happens to carry two attributes and
+   wins. In and out were different gestures at the same duration, on the most
+   conspicuous piece of motion in the product. */
 [role='dialog'][data-side='left'] {
   animation-name: motion-enter-side;
 }
@@ -1211,7 +1217,9 @@ dialog[open],
    long duration -- --motion-slow rather than --motion. Distance is what a
    duration should be scaled by; a menu resolving 8px out of its button and a
    26rem column crossing the window are not the same event. */
-[data-side='right'] {
+/* Scoped to the dialog so it scores (0,2,0) like the rule above and, coming
+   later in the file, wins on source order rather than on luck. */
+[role='dialog'][data-side='right'] {
   animation-name: drawer-in-right;
   animation-duration: var(--motion-slow);
 }
@@ -1226,7 +1234,7 @@ dialog[open],
    which reads as a fault rather than as closing — the same complaint as
    things appearing from nowhere, in the other direction. The component keeps
    it mounted for exactly this animation and unmounts on animationend. */
-[data-side='right'][data-closing] {
+[role='dialog'][data-side='right'][data-closing] {
   animation-name: drawer-out-right;
   animation-fill-mode: forwards;
 }
@@ -1245,8 +1253,15 @@ dialog[open],
    The blanket rule above is !important, so without this the 90ms press would
    be stretched to whatever the element's class list asked for and the give
    under the finger would arrive after the finger had gone. */
-:where(button, [role='button'], .btn, [role='tab'], [role='switch'], summary,
-       .card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
+:is(button, [role='button'], .btn, [role='tab'], [role='switch'], summary,
+    .card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
+  /* :is rather than :where, so this scores (0,2,0) and beats the
+     single-attribute block below on specificity instead of on source order.
+     :where contributes nothing, which left this tied at (0,1,0) with the very
+     next rule -- and the later rule won. Anything carrying transition-all or
+     transition-transform therefore took 300ms to acknowledge a press, so the
+     give under the finger bottomed out long after the finger had gone. That
+     is the rule this comment claims to be protecting. */
   transition-duration: var(--motion-press) !important;
 }
 
