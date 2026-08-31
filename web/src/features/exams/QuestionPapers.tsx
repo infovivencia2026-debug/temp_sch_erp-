@@ -6,6 +6,7 @@ import {
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate } from '@/lib/utils'
 
@@ -71,6 +72,10 @@ export default function QuestionPapers() {
   const [slot, setSlot] = useState('')
   const [file, setFile] = useState<UploadedFile | null>(null)
   const [notes, setNotes] = useState('')
+  const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
+  /* Papers accumulate every term and nothing ever leaves, so the table grows
+     past the screen and buries the form above it. */
+  const [showAll, setShowAll] = useState(false)
 
   const q = useQuery({
     queryKey: ['question-papers'],
@@ -128,6 +133,7 @@ export default function QuestionPapers() {
 
   return (
     <>
+      {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
       {/* The breadcrumb the rest of the product has. Every other screen opens
           with "section / page" above its title; this one opened with the
           title alone, so the one screen a head of department reaches from
@@ -234,8 +240,9 @@ export default function QuestionPapers() {
               }
             />
           ) : (
+            <>
             <Table head={['Exam', 'Class & subject', 'Set by', 'Status', '']}>
-              {d.items.map((p) => (
+              {(showAll ? d.items : d.items.slice(0, 8)).map((p) => (
                 <tr key={p.id}>
                   <Td>
                     {p.exam_name}
@@ -265,15 +272,21 @@ export default function QuestionPapers() {
                   </Td>
                   <Td>
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* Read here, not downloaded. A head approving a paper
+                          reads it and moves on; a copy of an unsat exam paper
+                          in somebody's Downloads folder is the last thing a
+                          school wants lying about. */}
                       {p.file_id && (
-                        <a
-                          className="text-[13px] underline"
-                          href={`/api/v1/files/${p.file_id}`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setViewFile({
+                            file_id: p.file_id!,
+                            name: `${p.exam_name} — ${p.subject}`,
+                          })}
                         >
                           Open paper
-                        </a>
+                        </Button>
                       )}
                       {/* Deciding is offered only on somebody else's paper that
                           is actually waiting. */}
@@ -322,6 +335,16 @@ export default function QuestionPapers() {
                 </tr>
               ))}
             </Table>
+            {d.items.length > 8 && !showAll && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
+              >
+                Show all {d.items.length} — including {d.items.length - 8} older
+              </button>
+            )}
+            </>
           )}
         </Card>
       </PageBody>

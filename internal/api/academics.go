@@ -160,8 +160,47 @@ func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listSubjects(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+
+	/* mine=true: the subjects this person has anything to do with.
+
+	   The reference list is every subject in the school, which is right for the
+	   office and wrong for a teacher's own screens: a Maths teacher setting
+	   homework was offered Sanskrit, and a filter offering Sanskrit to somebody
+	   who can never set it is a filter that only ever returns nothing.
+
+	   Two sources, because a teacher is two things at once. A SUBJECT teacher
+	   gets what they are allocated to teach. A CLASS teacher also gets every
+	   subject their own section takes — they read the whole section's diary and
+	   build its report card, so a list confined to the subject they happen to
+	   teach would hide most of what they answer for.
+
+	   The office and anybody with school-wide reach keep the full list. */
+	where := "TRUE"
+	args := []any{}
+	if r.URL.Query().Get("mine") == "true" {
+		res, err := s.resolveScope(r)
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if !res.AnySection && !res.PlatformAdmin {
+			args = append(args, id.UserID)
+			where = `EXISTS (
+			           SELECT 1 FROM class_subjects cs
+			             JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id
+			            WHERE cs.subject_id = subjects.id AND sst.teacher_user_id = $1)
+			         OR EXISTS (
+			           SELECT 1 FROM class_subjects cs
+			             JOIN sections sec ON sec.class_id = cs.class_id
+			            WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = $1)`
+		}
+	}
+
 	items, err := collect(s, r, `
-		SELECT id::text, name, code, is_scholastic FROM subjects ORDER BY name`, nil,
+		SELECT id::text, name, code, is_scholastic FROM subjects
+		 WHERE `+where+`
+		 ORDER BY name`, args,
 		func(rows pgx.Rows) (subject, error) {
 			var v subject
 			return v, rows.Scan(&v.ID, &v.Name, &v.Code, &v.IsScholastic)

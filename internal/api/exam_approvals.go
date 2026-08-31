@@ -126,7 +126,15 @@ func (s *Server) listQuestionPapers(w http.ResponseWriter, r *http.Request) {
 			       es.max_marks::text, es.duration_minutes,
 			       qp.file_id::text, qp.notes, qp.status,
 			       COALESCE(u.full_name, 'a teacher'),
-			       qp.submitted_at, rv.full_name, qp.review_note,
+			       /* Formatted here, not scanned raw.
+
+			          It was selected as a bare timestamptz into a *string and
+			          the driver refuses that in binary format — so the screen
+			          was a 500 for every teacher who had actually submitted a
+			          paper, and worked perfectly for everybody who had not.
+			          Which is why it looked fine. */
+			       to_char(qp.submitted_at, 'YYYY-MM-DD"T"HH24:MI'),
+			       rv.full_name, qp.review_note,
 			       qp.submitted_by = $1
 			  FROM question_papers qp
 			  JOIN exam_subjects es  ON es.id = qp.exam_subject_id

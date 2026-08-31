@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, ChevronLeft, Clock, Eye, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { BookOpen, CheckCircle2, ChevronLeft, Clock, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
-import { formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
 /* The homework diary, from both ends.
@@ -59,7 +59,6 @@ export default function Homework() {
   const qc = useQueryClient()
   const [composing, setComposing] = useState(false)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const [openRegister, setOpenRegister] = useState<string | null>(null)
   /* WHICH ROW IS OPEN IN FULL.
 
      The list is `max-h-[34rem] overflow-y-auto` with every row truncated to
@@ -299,31 +298,31 @@ export default function Homework() {
                       {h.teacher && <span>set by {h.teacher}</span>}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {/* Always offered, to everybody. A teacher checking what
-                        they set and a child checking what was asked are the
-                        same need, and the row shows neither in full. */}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setViewing(viewing === h.id ? null : h.id)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      {viewing === h.id ? 'Close' : 'View'}
-                    </Button>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {/* ONE BUTTON, AND A FIGURE THAT IS NOT ONE.
+
+                        The row carried two bordered buttons of equal weight —
+                        "View" and "14/32 submitted" — so a count sat there
+                        looking like a control, and the eye had to choose
+                        between two things that were not alternatives. The
+                        count is a fact and is now written as one; Open is the
+                        only thing to press. The register it used to lead to is
+                        on the sheet Open shows, which is where somebody asking
+                        "who has not done it" was going anyway. */}
                     {canPublish ? (
-                      /* The count was the whole answer, and "14 of 32" tells a
-                         teacher that eighteen children have not done the work
-                         and nothing about which eighteen. Opening it names
-                         them. */
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setOpenRegister(openRegister === h.id ? null : h.id)}
+                      <span
+                        className={cn(
+                          'text-[13px] tabular-nums',
+                          h.submissions === 0
+                            ? 'text-muted-foreground'
+                            : h.submissions >= h.strength
+                              ? 'text-success'
+                              : 'text-foreground',
+                        )}
                       >
-                        <Users className="h-3.5 w-3.5" />
-                        {h.submissions}/{h.strength} submitted
-                      </Button>
+                        <Users className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
+                        {h.submissions}/{h.strength} turned in
+                      </span>
                     ) : h.submitted ? (
                       /* "Done", matching the button that gets you here. A
                          child who presses Done and is then told "Turned in"
@@ -357,6 +356,16 @@ export default function Homework() {
                         </Button>
                       </span>
                     )}
+                    {/* The one control on the row. It opens the sheet: the
+                        question in full, the worksheet, and — for whoever set
+                        it — the register naming who has turned it in. */}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setViewing(viewing === h.id ? null : h.id)}
+                    >
+                      {viewing === h.id ? 'Close' : 'Open'}
+                    </Button>
                   </div>
                  </div>
                   {/* The worksheet the teacher set.
@@ -451,7 +460,6 @@ export default function Homework() {
                     </div>
                   )}
 
-                  {openRegister === h.id && <Register homeworkId={h.id} />}
                 </li>
               ))}
             </ul>
@@ -484,6 +492,8 @@ export default function Homework() {
             return (
               <HomeworkSheet
                 h={h}
+                onViewFile={setViewFile}
+                showRegister={canPublish}
                 canSubmit={!canPublish && !h.submitted}
                 pending={submit.isPending}
                 error={submit.error}
@@ -528,6 +538,8 @@ export default function Homework() {
     again to act on them.
 */
 function HomeworkSheet({
+  onViewFile,
+  showRegister,
   h, canSubmit, pending, error, answer, onAnswer, attached, onAttach, onSubmit, onClose,
 }: {
   h: Homework
@@ -540,6 +552,13 @@ function HomeworkSheet({
   onAttach: (f: UploadedFile | null) => void
   onSubmit: () => void
   onClose: () => void
+  /* Set only where somebody may read the attachment in place. The sheet is
+     shown to families too, and their copy uses the same handler. */
+  onViewFile?: (f: ViewableFile) => void
+  /* The class's register, for whoever set the work. A teacher opening a piece
+     of homework is asking who has done it — the sheet showed the question and
+     a wall of white below it. */
+  showRegister?: boolean
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -623,18 +642,28 @@ function HomeworkSheet({
               <p className="mb-2 text-[13px] text-muted-foreground">Worksheets</p>
               <div className="flex flex-wrap gap-2">
                 {h.files.map((f) => (
-                  <a
+                  <button
                     key={f.file_id}
-                    href={`/api/v1/files/${f.file_id}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    type="button"
+                    onClick={() => onViewFile?.({ file_id: f.file_id, name: f.name })}
                     className="inline-flex items-center gap-1.5 rounded-[3px] border px-3 py-2 text-[14px] text-primary hover:bg-accent"
                   >
                     <Paperclip className="h-4 w-4" />
                     {f.name}
-                  </a>
+                  </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Who has done it, on the sheet itself.
+
+              A teacher opening a piece of homework is asking exactly one
+              question — who has turned it in — and the sheet answered it with
+              a screen of white space and a button somewhere else. */}
+          {showRegister && (
+            <div className="mt-6">
+              <Register homeworkId={h.id} />
             </div>
           )}
 
@@ -709,8 +738,12 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
     enabled: canPublish,
   })
   const { data: subjects } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects'),
+    queryKey: ['subjects','mine'],
+    /* What this person can actually set, not the whole prospectus. A Maths
+       teacher offered Sanskrit is offered a filter that only ever returns
+       nothing; a class teacher still gets every subject their section takes,
+       because they answer for the whole diary. */
+    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects?mine=true'),
     enabled: canPublish,
   })
   const [f, setF] = useState({
@@ -866,8 +899,12 @@ function FilterBar({
     enabled: canPublish,
   })
   const { data: subjects } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects'),
+    queryKey: ['subjects','mine'],
+    /* What this person can actually set, not the whole prospectus. A Maths
+       teacher offered Sanskrit is offered a filter that only ever returns
+       nothing; a class teacher still gets every subject their section takes,
+       because they answer for the whole diary. */
+    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects?mine=true'),
     enabled: canPublish,
   })
 

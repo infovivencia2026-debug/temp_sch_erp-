@@ -76,10 +76,27 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		       (SELECT to_char(m.sent_at, 'YYYY-MM-DD"T"HH24:MI') FROM staff_messages m
 		         WHERE (m.party_a = least($1, u.id) AND m.party_b = greatest($1, u.id))
 		         ORDER BY m.sent_at DESC LIMIT 1)
-		  FROM employees e
-		  JOIN users u ON u.id = e.user_id
+		  /* Everybody on the staff, not everybody on the payroll.
+
+		     Built from employees, so a principal with no employees row was
+		     absent from the address book of every teacher in the school — the
+		     account that runs a school is created with the school, before
+		     there is a payroll to put anybody on. Searching "ram" returned
+		     "Nobody matches", about the person who runs the place, and any
+		     conversation already had with them was unreachable because the
+		     only way in is through this list.
+
+		     So: users holding a staff role, with the employee row kept for the
+		     designation and the active check where there is one. */
+		  FROM users u
+		  LEFT JOIN employees e ON e.user_id = u.id
 		  LEFT JOIN designations d ON d.id = e.designation_id
-		 WHERE e.status = 'active' AND u.id <> $1
+		 WHERE u.id <> $1
+		   AND (e.id IS NULL OR e.status = 'active')
+		   AND EXISTS (SELECT 1 FROM user_roles ur
+		                 JOIN roles ro ON ro.id = ur.role_id
+		                WHERE ur.user_id = u.id
+		                  AND ro.key NOT IN ('student','parent'))
 		 /* Conversations first, then the rest of the address book.
 
 		    Unread, then whoever was spoken to most recently, then everybody
