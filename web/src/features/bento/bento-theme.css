@@ -2026,7 +2026,7 @@ html[data-layout='bento'] body {
      positioned div holding one — so aligning by content would go on producing
      three different baselines. Two rows of stated height place the glyph and
      the word identically in all three whatever sits between them. */
-  [data-layout='bento'] .bento-dock > * {
+  [data-layout='bento'] .bento-dock > *:not(.hidden) {
     display: grid;
     grid-template-rows: var(--dock-tap, 44px) auto;
     justify-items: center;
@@ -2049,6 +2049,18 @@ html[data-layout='bento'] body {
     width: var(--dock-tap, 44px) !important;
     height: var(--dock-tap, 44px) !important;
     border-radius: 8px !important;
+
+    /* The gear brings a disc: a border, a tinted fill, a shadow and a blur,
+       which are right where it was designed to sit — alone at the edge of the
+       screen, outside the floating pill, needing an edge of its own to be
+       findable against the board. In the phone bar it is one tab among five,
+       and a ring around one of five identical items reads as that item being
+       selected. Flattened here rather than in the component, which is shared
+       with the layout the disc is correct in. */
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
   }
 
   /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
@@ -2084,11 +2096,15 @@ html[data-layout='bento'] body {
      with !important from the component, and a second opinion here would be one
      more thing to keep in step. */
   [data-layout='bento'] .bento-dock button:has(kbd) {
-    /* Sized from the tab's own target rather than the desktop pill's 40px
-       button: between 640 and 767 this trigger is a cell in the same row as
-       the tabs, and a 40px box inside a 44px icon row is the odd item out. */
-    width: 100%;
+    /* Sized as a tab's touch target rather than the desktop pill's 40px
+       button: between 640 and 767 this trigger stands in the same row as the
+       tabs, and it has to be one of them rather than a 40px box among 44px
+       ones. Left at `auto` in height so the cell's own rows place its glyph
+       on the same line as every other glyph in the bar. */
+    width: var(--dock-tap, 44px);
     height: auto;
+    min-height: var(--dock-tap, 44px);
+    border-radius: 8px;
     padding: 0;
     justify-content: center;
   }
@@ -2137,6 +2153,30 @@ html[data-layout='bento'] body {
   .bento-dot:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 3px;
+  }
+}
+
+/* The search trigger, when it is a tab.
+
+   The cell rule in the block above skips `.hidden`, and the guard is the whole
+   point: below 640 the shared component hides itself, and any `display` we
+   state on it out-weighs Tailwind's `display: none` and hands it a whole empty
+   column. Measured at 390px that column was real, and it was what pushed the
+   five tabs off centre. From 640 up its own `sm:flex` has turned it back on,
+   so here it can take the same two rows as its neighbours. */
+@media (min-width: 640px) and (max-width: 767px) {
+  [data-layout='bento'] .bento-dock > button:has(kbd) {
+    display: grid;
+    grid-template-rows: var(--dock-tap, 44px) auto;
+    justify-items: center;
+    align-items: center;
+    align-content: start;
+    justify-self: center;
+    /* Start rather than stretch: the cell is 56px because it has a word under
+       it and this one has none, so stretching drew a 56px outlined box around
+       a 44px target and made the search the tallest thing in the row. */
+    align-self: start;
+    height: var(--dock-tap, 44px);
   }
 }
 

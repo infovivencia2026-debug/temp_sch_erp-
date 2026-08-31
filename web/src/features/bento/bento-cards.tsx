@@ -582,8 +582,18 @@ export function Rows({ items, srLabel, formatValue }: {
        A single grid resolves the label column once, against the widest label,
        so every track begins at the same x and runs the same length. */
     <div
+      /* SPREAD, NOT PILED AT THE FOOT.
+
+         content-end pushed every row to the bottom edge, so a card with two
+         series drew two hairlines in the last twelve pixels of a two hundred
+         pixel cell and left the rest black. That is the emptiness the board
+         was accused of: the space was allocated to the drawing and the drawing
+         declined to use it.
+
+         The rows are already explicit 1fr tracks, so removing the packing lets
+         them share the height they were given. */
       className="grid h-full min-h-0 grid-cols-[minmax(38px,auto)_minmax(0,1fr)_auto]
-                 content-end items-center gap-x-1.5 gap-y-0.5"
+                 items-center gap-x-1.5 gap-y-1"
       style={{ gridTemplateRows: `repeat(${shown.length}, minmax(0, 1fr))` }}
       role="img"
       aria-label={srLabel}
@@ -608,7 +618,11 @@ export function Rows({ items, srLabel, formatValue }: {
               compare than two rectangles -- the eye reads the curve as part of
               the length. Thinner too: at 10px this was a bar chart competing
               with the figure above it, and it is meant to be a measure. */}
-          <span className="h-[min(6px,100%)] overflow-hidden" style={{ background: TRACK }}>
+          {/* The bar grows with its row. Fixed at 6px it stayed a hairline
+              however tall the cell got, which is what made a 2x2 card look
+              like a 1x1 with more black around it. Capped so a card with two
+              rows does not draw two slabs. */}
+          <span className="h-[min(18px,55%)] overflow-hidden" style={{ background: TRACK }}>
             <span className="block h-full"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
