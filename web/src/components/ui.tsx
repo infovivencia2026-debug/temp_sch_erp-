@@ -671,12 +671,19 @@ export function Table({
         <button
           type="button"
           onClick={() => setFull(true)}
-          aria-label="View full screen"
-          title="View full screen"
+          aria-label="Expand this table to the full screen"
+          title="Expand to full screen"
+          /* Visible without hovering.
+
+             It was opacity-0 until the pointer crossed the table, so the one
+             control that makes a long list readable was a secret kept from
+             everybody who did not happen to sweep the mouse over it — and from
+             everybody on a touch screen, where there is no hover at all. Faint
+             until wanted, rather than absent until discovered. */
           className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-[3px]
-                     border border-border bg-card text-muted-foreground opacity-0
-                     transition-opacity hover:text-foreground focus-visible:opacity-100
-                     group-hover/table:opacity-100 max-md:opacity-60"
+                     border border-border bg-card text-muted-foreground opacity-60
+                     transition-opacity hover:text-foreground hover:opacity-100
+                     focus-visible:opacity-100 group-hover/table:opacity-100"
         >
           <Maximize2 className="h-4 w-4" aria-hidden="true" />
         </button>

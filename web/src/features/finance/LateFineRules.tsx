@@ -267,6 +267,14 @@ function RuleForm({
   const [compound, setCompound] = useState(rule?.compound_period ?? 'none')
   const [exempt, setExempt] = useState<string[]>(rule?.exempt_concession_kinds ?? [])
   const [priority, setPriority] = useState(String(rule?.priority ?? 100))
+  /* WHEN the charge is raised, not how much.
+
+     Both are real practice: a school that wants the pressure now charges each
+     term as it falls due; a school that would rather not have the conversation
+     three times lets them accrue and puts them all on the final instalment.
+     The arithmetic is identical, so this decides only which invoice carries
+     the money. */
+  const [applyMode, setApplyMode] = useState(rule?.apply_mode ?? 'per_invoice')
   const [isActive, setIsActive] = useState(rule?.is_active ?? true)
 
   const save = useFeeEngineMutation(
@@ -281,6 +289,7 @@ function RuleForm({
         percent: kind === 'percent' ? Number(percent || 0) : undefined,
         cap_paise: cap ? toPaise(cap) : undefined,
         compound_period: compound,
+        apply_mode: applyMode,
         exempt_concession_kinds: exempt,
         priority: Number(priority || 100),
         is_active: isActive,
@@ -344,6 +353,31 @@ function RuleForm({
               ]}
             />
           </Field>
+          <Field label="Apply the fine to" wide>
+            <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
+              {([
+                ['per_invoice', 'Each term separately',
+                 'Term 1, Term 2 and Term 3 each carry their own fine as they fall due.'],
+                ['final_term', 'Accumulate to the final term',
+                 'The same amounts accrue, and all of them are charged on the last instalment of the year.'],
+              ] as const).map(([value, label, note]) => (
+                <label key={value} className="flex items-start gap-3 text-[13px]">
+                  <input
+                    type="radio"
+                    name="apply-mode"
+                    className="mt-0.5"
+                    checked={applyMode === value}
+                    onChange={() => setApplyMode(value)}
+                  />
+                  <span>
+                    <strong className="font-medium">{label}</strong>
+                    <span className="block text-[12.5px] text-muted-foreground">{note}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </Field>
+
           <Field
             label="Grace period (days)"
             required

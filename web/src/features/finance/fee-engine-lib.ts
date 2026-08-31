@@ -115,6 +115,9 @@ export interface FineRule {
   percent?: string
   cap_paise?: number
   compound_period: 'none' | 'weekly' | 'monthly'
+  /* per_invoice charges each term as it falls due; final_term accrues the same
+     amounts and raises them all on the last instalment of the year. */
+  apply_mode?: 'per_invoice' | 'final_term'
   exempt_concession_kinds: string[]
   priority: number
   is_active: boolean

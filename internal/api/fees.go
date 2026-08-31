@@ -611,14 +611,13 @@ func (s *Server) listDefaulters(w http.ResponseWriter, r *http.Request) {
 		       c.name, sec.name, g.full_name, g.phone,
 		       sum(i.net_paise - i.paid_paise),
 		       to_char(min(i.due_on),'YYYY-MM-DD'),
-		       /* When this family was last chased.
+		       /* When this child's family was last chased, on any channel.
 
-		          An accountant working down a list needs to know they wrote to
-		          this family yesterday — otherwise the diligent ones get four
-		          reminders in a week and stop reading any of them. */
-		       to_char((SELECT max(n.created_at) FROM notifications n
-		                 WHERE n.student_id = st.id AND n.kind = 'fee_due'),
-		               'YYYY-MM-DD"T"HH24:MI'),
+		          Read from the column the send writes rather than from
+		          notifications: a notification exists only for somebody with an
+		          app account, and most families a school texts have none — so
+		          this read "never" for every family it had just written to. */
+		       to_char(st.last_fee_reminder_at, 'YYYY-MM-DD"T"HH24:MI'),
 		       COALESCE(GREATEST(0, (CURRENT_DATE - min(i.due_on))), 0),
 		       CASE
 		         WHEN CURRENT_DATE - min(i.due_on) > 90 THEN '90+'

@@ -155,6 +155,18 @@ func (s *Server) sendFeeReminders(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			/* Stamped whatever happened next.
+
+			   The screen reported "last reminded" from the notifications
+			   table, which exists only for people with an app account — so a
+			   school could text sixty families and every row still read
+			   "never", which invites a second send. */
+			if _, err := tx.Exec(r.Context(),
+				`UPDATE students SET last_fee_reminder_at = now() WHERE id = $1`,
+				t.student); err != nil {
+				return err
+			}
+
 			st := t.student
 			for _, pn := range ppl {
 				if pn.uid == nil {

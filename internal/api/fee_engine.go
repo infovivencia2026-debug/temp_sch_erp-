@@ -649,6 +649,8 @@ type feRuleRow struct {
 	ExemptKinds []string `json:"exempt_concession_kinds"`
 	Priority    int      `json:"priority"`
 	IsActive    bool     `json:"is_active"`
+	// Which invoice the charge lands on. See migration 00170.
+	ApplyMode string `json:"apply_mode"`
 }
 
 // listFineRules returns the rules and everything the editor needs to build one.
@@ -665,6 +667,7 @@ func (s *Server) listFineRules(w http.ResponseWriter, r *http.Request) {
 			       fr.fee_head_id::text, h.name,
 			       fr.kind, fr.grace_days, fr.amount_paise, fr.percent::text,
 			       fr.cap_paise, fr.compound_period, fr.exempt_concession_kinds,
+			       fr.apply_mode,
 			       fr.priority, fr.is_active
 			  FROM fee_fine_rules fr
 			  LEFT JOIN campuses c        ON c.id  = fr.campus_id
@@ -680,7 +683,8 @@ func (s *Server) listFineRules(w http.ResponseWriter, r *http.Request) {
 			if err := rows.Scan(&v.ID, &v.Name, &v.CampusID, &v.Campus,
 				&v.StructureID, &v.Structure, &v.FeeHeadID, &v.FeeHead,
 				&v.Kind, &v.GraceDays, &v.AmountPaise, &v.Percent, &v.CapPaise,
-				&v.Compound, &v.ExemptKinds, &v.Priority, &v.IsActive); err != nil {
+				&v.Compound, &v.ExemptKinds, &v.ApplyMode, &v.Priority,
+				&v.IsActive); err != nil {
 				return err
 			}
 			if v.ExemptKinds == nil {
@@ -722,6 +726,11 @@ type feSaveRuleRequest struct {
 	ExemptKinds []string `json:"exempt_concession_kinds,omitempty"`
 	Priority    int      `json:"priority,omitempty"`
 	IsActive    *bool    `json:"is_active,omitempty"`
+	/* per_invoice | final_term — when the charge is raised, not how much.
+
+	   Blank means per_invoice, so a rule saved by an older screen keeps
+	   charging each term as it falls due, which is what it did before. */
+	ApplyMode string `json:"apply_mode,omitempty"`
 }
 
 func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
@@ -789,6 +798,18 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 		ruleID = parsed
 	}
 
+	/* Blank means the old behaviour, so a rule saved by any screen that does
+	   not know about this keeps charging each term as it falls due. */
+	applyMode := strings.TrimSpace(req.ApplyMode)
+	if applyMode == "" {
+		applyMode = "per_invoice"
+	}
+	if applyMode != "per_invoice" && applyMode != "final_term" {
+		httpx.BadRequest(w, r,
+			"apply_mode must be per_invoice or final_term")
+		return
+	}
+
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if ruleID != uuid.Nil {
 			tag, err := tx.Exec(r.Context(), `
@@ -799,12 +820,12 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 				       kind = $7, grace_days = $8, amount_paise = $9, percent = $10,
 				       cap_paise = $11, compound_period = $12,
 				       exempt_concession_kinds = $13, priority = $14, is_active = $15,
-				       updated_at = now()
+				       apply_mode = $16, updated_at = now()
 				 WHERE id = $1 AND institution_id = $2`,
 				ruleID, id.InstitutionID, req.Name, strings.TrimSpace(req.CampusID),
 				strings.TrimSpace(req.StructureID), strings.TrimSpace(req.FeeHeadID),
 				req.Kind, req.GraceDays, req.AmountPaise, percent, req.CapPaise,
-				req.Compound, req.ExemptKinds, req.Priority, active)
+				req.Compound, req.ExemptKinds, req.Priority, active, applyMode)
 			if err != nil {
 				return err
 			}
@@ -817,9 +838,10 @@ func (s *Server) saveFineRule(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO fee_fine_rules
 			    (institution_id, name, campus_id, fee_structure_id, fee_head_id,
 			     kind, grace_days, amount_paise, percent, cap_paise,
-			     compound_period, exempt_concession_kinds, priority, is_active)
+			     compound_period, exempt_concession_kinds, priority, is_active,
+			     apply_mode)
 			VALUES ($1,$2,NULLIF($3,'')::uuid,NULLIF($4,'')::uuid,NULLIF($5,'')::uuid,
-			        $6,$7,$8,$9,$10,$11,$12,$13,$14)
+			        $6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 			RETURNING id`,
 			id.InstitutionID, req.Name, strings.TrimSpace(req.CampusID),
 			strings.TrimSpace(req.StructureID), strings.TrimSpace(req.FeeHeadID),

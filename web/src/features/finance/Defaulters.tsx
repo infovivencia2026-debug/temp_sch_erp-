@@ -47,6 +47,7 @@ export default function Defaulters() {
      owing money has a screen nobody scrolls to the end of, and the controls
      above it are what somebody came back to the top for. */
   const [showAll, setShowAll] = useState(false)
+  const [find, setFind] = useState('')
 
   /* Chasing now, rather than by rule. The plan engine keeps the standing
      arrangement; this is the Tuesday somebody looks at a section and wants
@@ -91,7 +92,7 @@ export default function Defaulters() {
           ? ` · ${r.messages_queued} ${paid.join(' / ')} ${r.messages_queued === 1 ? 'message' : 'messages'} queued`
           : '')
         + (r.no_account
-          ? ` · ${r.no_account} ${r.no_account === 1 ? 'person has' : 'people have'} no app account`
+          ? ` · ${r.no_account} ${r.no_account === 1 ? 'parent has' : 'parents have'} no app account`
           : '')
         + '.'
         + (r.told === 0 && r.messages_queued === 0
@@ -117,8 +118,14 @@ export default function Defaulters() {
 
   const all = data?.items ?? []
 
+  const needle = find.trim().toLowerCase()
   const rows = all
     .filter((d) => (bucket ? d.bucket === bucket : true))
+    .filter((d) =>
+      !needle
+      || d.full_name.toLowerCase().includes(needle)
+      || d.admission_no.toLowerCase().includes(needle)
+      || (d.guardian_name ?? '').toLowerCase().includes(needle))
 
   const ticked = rows.filter((d) => picked[d.student_id])
   // Nothing ticked means everybody on screen — the same rule the report card
@@ -147,6 +154,19 @@ export default function Defaulters() {
         description="Balances past their due date, bucketed by age, with the guardian to contact. Not the same figure as the fee overview's outstanding, which is this year's bills whether due yet or not."
         actions={
           <>
+            {/* Finding one child in six hundred.
+
+                An accountant opens this because a parent is at the counter or
+                on the telephone, not to read the whole list — and the list is
+                sorted by money, which is the wrong order for finding a name.
+                Name, admission number and the guardian all match, because
+                which of the three they have to hand depends on who rang. */}
+            <Input
+              value={find}
+              onChange={setFind}
+              placeholder="Find a student, admission no. or parent"
+              className="w-72"
+            />
             <ExportButton report="defaulters" />
             <Select
               value={bucket}
@@ -287,8 +307,10 @@ export default function Defaulters() {
             is what made one screen say ₹6,66,625 while another said ₹6,32,875
             about what looked like the same money. */}
         <Card>
+          {/* "Overdue accounts" was the old truth: the list is everybody who
+              owes now, whether the date has passed or not. */}
           <CardHeader
-            title="Overdue accounts"
+            title="Who owes"
             action={
               <div className="flex flex-wrap items-center gap-3">
                 {(['sms', 'whatsapp', 'email'] as const).map((ch) => (
