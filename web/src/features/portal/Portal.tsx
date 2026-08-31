@@ -20,6 +20,7 @@ interface PortalSummary {
   attendance_pct: number; present_days: number; total_days: number; absent_days: number
   homework_due: number; next_homework_due?: string; next_homework_title?: string
   outstanding_paise: number; next_exam?: string
+  latest_result_exam?: string; latest_result_pct?: number; latest_result_grade?: string
   today: TodayPeriod[]
 }
 interface TodayPeriod {
@@ -58,6 +59,75 @@ function groupByMonth(days: { date: string; status: string }[]) {
     }
   }
   return out
+}
+
+/* One month, drawn as the month.
+
+   A row of coloured dots says how many days were missed and never which ones.
+   A parent reading it cannot tell a Monday from a Friday, cannot see that the
+   two absences were the two days either side of a weekend, and cannot answer
+   the question they actually opened the app with — "was he in on the 14th?"
+
+   So: the calendar the dates already live in. Weekday columns, the month's
+   real shape, and a day nobody marked left blank rather than coloured, because
+   an unmarked day is not a present one and colouring it would quietly inflate
+   the term.
+*/
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+function MonthGrid({ days }: { days: AttendanceDay[] }) {
+  const byDate = new Map(days.map((d) => [d.date, d.status]))
+  const first = new Date(days[0].date + 'T00:00:00')
+  const year = first.getFullYear()
+  const month = first.getMonth()
+  const lastDay = new Date(year, month + 1, 0).getDate()
+
+  /* Monday first, which is how a school week is read and printed here.
+     getDay() counts from Sunday, so Sunday's 0 becomes the seventh column
+     rather than the first. */
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: lastDay }, (_, i) => i + 1),
+  ]
+
+  const iso = (day: number) =>
+    `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {WEEKDAYS.map((w, i) => (
+          <div key={i} className="pb-1 text-[10px] font-medium uppercase text-muted-foreground">
+            {w}
+          </div>
+        ))}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`pad-${i}`} />
+          const status = byDate.get(iso(day))
+          const marked = status && status !== 'holiday'
+          return (
+            <div
+              key={day}
+              title={status ? `${iso(day)} — ${status.replace('_', ' ')}` : iso(day)}
+              className={cn(
+                'flex h-7 items-center justify-center rounded text-[11px] tabular-nums',
+                // The number stays legible on every ground: white on the solid
+                // statuses, ordinary text on the pale ones and on a blank day.
+                status ? DOT[status] ?? 'bg-muted' : 'text-muted-foreground',
+                marked && (status === 'present' || status === 'absent')
+                  ? 'font-medium text-white'
+                  : status ? 'text-foreground' : '',
+              )}
+            >
+              {day}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 /** "Grade 6-A · Roll 14 · ADM0007" — blank parts drop out rather than leaving
@@ -206,7 +276,13 @@ export default function Portal() {
           />
         ) : (
           <>
-            <CellGrid cols={isAttendance ? 3 : 4}>
+            {/* Three across, not four.
+
+                Six figures in a four-wide grid leaves two empty cells, and an
+                empty cell in a bordered grid does not read as spare room — it
+                reads as a card that failed to load. Three across fills two
+                rows exactly. */}
+            <CellGrid cols={3}>
               <Stat
                 label={t('portal.portal.stat_attendance')}
                 value={`${s.attendance_pct}%`}
@@ -240,7 +316,25 @@ export default function Portal() {
                 icon={Wallet}
                 hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
               />
-              <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '—'} icon={GraduationCap} />
+              {/* A result that exists beats an exam that is coming.
+
+                  This card read "Next exam: Formative Assessment 1" while that
+                  exam's marks were in and its report card was published — it
+                  was answering a question the family had stopped asking three
+                  days earlier. Once results are out, the card shows them; the
+                  next exam comes back the moment one is scheduled and no newer
+                  result has been released. */}
+              {s.latest_result_pct != null ? (
+                <Stat
+                  label="Latest result"
+                  value={`${s.latest_result_pct.toFixed(1)}%`}
+                  icon={GraduationCap}
+                  hint={[s.latest_result_exam, s.latest_result_grade && `grade ${s.latest_result_grade}`]
+                    .filter(Boolean).join(' · ')}
+                />
+              ) : (
+                <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '—'} icon={GraduationCap} />
+              )}
               </>
               )}
             </CellGrid>
@@ -305,7 +399,10 @@ export default function Portal() {
                         asking "how bad was it, and when" — a flat strip
                         answers neither without hovering every square. */}
                     <div className="space-y-4">
-                      {groupByMonth(days).map((m) => (
+                      {/* Newest month first: a parent opening this in August
+                          is asking about August, and scrolling past March to
+                          reach it is the wrong way round. */}
+                      {groupByMonth(days).slice().reverse().map((m) => (
                         <div key={m.label}>
                           <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
                             <p className="text-[13px] font-medium">{m.label}</p>
@@ -315,15 +412,7 @@ export default function Portal() {
                               {m.marked > 0 && ` · ${Math.round((m.present / m.marked) * 100)}%`}
                             </p>
                           </div>
-                          <div className="flex flex-wrap gap-1">
-                            {m.days.map((d) => (
-                              <span
-                                key={d.date}
-                                title={`${d.date} — ${d.status.replace('_', ' ')}`}
-                                className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')}
-                              />
-                            ))}
-                          </div>
+                          <MonthGrid days={m.days} />
                         </div>
                       ))}
                     </div>

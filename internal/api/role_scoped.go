@@ -259,6 +259,15 @@ type portalSummary struct {
 	NextHomework    *string `json:"next_homework_title,omitempty"`
 	OutstandingPais int64   `json:"outstanding_paise"`
 	NextExam        *string `json:"next_exam,omitempty"`
+	/* The last result a family may actually read.
+
+	   "Next exam: Formative Assessment 1" sat on the dashboard while that
+	   exam's marks were in and its report card published — the card was
+	   answering a question the family had already stopped asking. A result
+	   that exists beats an exam that is coming. */
+	LatestResult *string  `json:"latest_result_exam,omitempty"`
+	LatestPct    *float64 `json:"latest_result_pct,omitempty"`
+	LatestGrade  *string  `json:"latest_result_grade,omitempty"`
 	// Today's timetable, so the dashboard can answer "what have I got now"
 	// without the child navigating to a week grid and finding the column.
 	Today []portalPeriod `json:"today"`
@@ -344,11 +353,26 @@ func (s *Server) getPortalSummary(w http.ResponseWriter, r *http.Request) {
 			               AND status IN ('unpaid','partial','overdue')), 0),
 			  (SELECT ex.name FROM exams ex
 			    WHERE ex.starts_on >= CURRENT_DATE
-			    ORDER BY ex.starts_on LIMIT 1)
+			    ORDER BY ex.starts_on LIMIT 1),
+			  /* Published only. A card the head has not signed off does not
+			     exist as far as a family is concerned, and showing its
+			     percentage here would be the release nobody authorised. */
+			  (SELECT COALESCE(t.name, ay.name, 'Result') FROM report_cards rc
+			     LEFT JOIN terms t ON t.id = rc.term_id
+			     LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
+			    WHERE rc.student_id = st.id AND rc.is_published
+			    ORDER BY rc.published_at DESC NULLS LAST LIMIT 1),
+			  (SELECT rc.percentage FROM report_cards rc
+			    WHERE rc.student_id = st.id AND rc.is_published
+			    ORDER BY rc.published_at DESC NULLS LAST LIMIT 1),
+			  (SELECT rc.grade FROM report_cards rc
+			    WHERE rc.student_id = st.id AND rc.is_published
+			    ORDER BY rc.published_at DESC NULLS LAST LIMIT 1)
 			  FROM students st WHERE st.id = $1`, target).
 			Scan(&out.FullName, &out.AttendancePct, &out.PresentDays, &out.TotalDays,
 				&out.AbsentDays, &out.HomeworkDue, &out.NextHomeworkDue, &out.NextHomework,
-				&out.OutstandingPais, &out.NextExam)
+				&out.OutstandingPais, &out.NextExam,
+				&out.LatestResult, &out.LatestPct, &out.LatestGrade)
 	})
 	if err == pgx.ErrNoRows {
 		httpx.NotFound(w, r)
