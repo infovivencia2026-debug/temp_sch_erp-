@@ -1,0 +1,4 @@
+#Mon Aug 31 13:08:19 IST 2026
+base.0=/home/qb/temp_sch_erp-/mobile/apps/parent/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
+renamed.0=classes.dex
+path.0=classes.dex

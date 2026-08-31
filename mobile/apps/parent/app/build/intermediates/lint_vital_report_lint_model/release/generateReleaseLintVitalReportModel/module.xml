@@ -1,0 +1,20 @@
+<lint-module
+    format="1"
+    dir="/home/qb/temp_sch_erp-/mobile/apps/parent/app"
+    name=":app"
+    type="APP"
+    maven="parent:app:unspecified"
+    agpVersion="9.3.1"
+    buildFolder="build"
+    bootClassPath="/home/qb/.android-toolchain/sdk/platforms/android-37.0/android.jar:/home/qb/.android-toolchain/sdk/build-tools/36.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="17"
+    compileTarget="android-37.0"
+    neverShrinking="true"
+    highlightGradualR8Api="false">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="release"/>
+</lint-module>

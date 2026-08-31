@@ -1,0 +1,9 @@
+<resources>
+    <!-- No action bar: the site draws its own header, and two of them is how a
+         wrapper announces that it is a wrapper. -->
+    <style name="Theme.Parent" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0b0c0e</item>
+        <item name="android:navigationBarColor">#0b0c0e</item>
+        <item name="android:windowBackground">#0b0c0e</item>
+    </style>
+</resources>

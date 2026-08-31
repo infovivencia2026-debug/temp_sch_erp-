@@ -1,0 +1,69 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:2:1-27:12
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:2:1-27:12
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:2:1-27:12
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:2:1-27:12
+	package
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:4:5-67
+	android:name
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:4:22-64
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:5:5-79
+	android:name
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:5:22-76
+application
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:7:5-26:19
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:7:5-26:19
+	android:extractNativeLibs
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	android:supportsRtl
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:11:9-35
+	android:label
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:10:9-41
+	android:icon
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:9:9-43
+	android:allowBackup
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:8:9-36
+	android:theme
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:12:9-44
+	android:usesCleartextTraffic
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:13:9-45
+activity#com.schoolerp.parent.MainActivity
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:15:9-25:20
+	android:windowSoftInputMode
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:19:13-55
+	android:exported
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:17:13-36
+	android:configChanges
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:18:13-81
+	android:theme
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:20:13-48
+	android:name
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:16:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:21:13-24:29
+action#android.intent.action.MAIN
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:22:17-69
+	android:name
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:22:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:23:17-77
+	android:name
+		ADDED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml:23:27-74
+uses-sdk
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/AndroidManifest.xml

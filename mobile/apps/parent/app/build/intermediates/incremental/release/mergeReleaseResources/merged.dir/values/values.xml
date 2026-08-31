@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EDU CLOUD</string>
+    <string name="offline_body">This app shows the school\'s own site, so it needs the internet. Check your data or wifi and try again.</string>
+    <string name="offline_title">No connection</string>
+    <string name="retry">Try again</string>
+    <style name="Theme.Parent" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0b0c0e</item>
+        <item name="android:navigationBarColor">#0b0c0e</item>
+        <item name="android:windowBackground">#0b0c0e</item>
+    </style>
+</resources>

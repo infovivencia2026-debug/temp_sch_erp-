@@ -1,0 +1,6 @@
+com.schoolerp.parent:style/Theme.Parent = 0x7f030000
+com.schoolerp.parent:string/offline_body = 0x7f020001
+com.schoolerp.parent:string/retry = 0x7f020003
+com.schoolerp.parent:string/app_name = 0x7f020000
+com.schoolerp.parent:string/offline_title = 0x7f020002
+com.schoolerp.parent:mipmap/ic_launcher = 0x7f010000
