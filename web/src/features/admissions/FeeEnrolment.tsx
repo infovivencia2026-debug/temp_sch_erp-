@@ -226,6 +226,10 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   const [percent, setPercent] = useState('')
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
+  /* Paying the year up front is a bargain with two sides: the family gets a
+     lower figure, the school gets the money early. Without a date only one
+     side is written down. */
+  const [payBy, setPayBy] = useState('')
 
   const ask = useMutation({
     mutationFn: () => api.post('/api/v1/fees/concessions', {
@@ -235,6 +239,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
          bill is built. */
       application_id: row.id,
       kind,
+      pay_by: kind === 'full_payment' ? payBy : '',
       percent: mode === 'percent' ? percent : '',
       amount_paise: mode === 'amount' ? Math.round(Number(amount) * 100) : undefined,
       reason,
@@ -349,6 +354,14 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
               </FormField>
             )}
           </FormGrid>
+          {kind === 'full_payment' && (
+            <FormField label="Paid in full by" required
+              hint="The discount is for paying early, so it has to say by when.
+                This becomes the due date on the bill, and the family is
+                reminded before it and chased after it like any other due date.">
+              <Input type="date" value={payBy} onChange={setPayBy} />
+            </FormField>
+          )}
           <FormField label="Reason" required
             hint="What was agreed, and with whom. The principal reads this before deciding.">
             <Textarea rows={2} value={reason} onChange={setReason} />
@@ -363,6 +376,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           <FormNotice error={ask.error} />
           <Button
             disabled={ask.isPending || !reason.trim()
+              || (kind === 'full_payment' && !payBy)
               || (mode === 'percent' ? !percent : !amount)}
             onClick={() => ask.mutate()}
           >

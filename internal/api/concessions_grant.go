@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -49,6 +50,14 @@ type concessionGrantRequest struct {
 	Percent        string `json:"percent,omitempty"`
 	AmountPaise    *int64 `json:"amount_paise,omitempty"`
 	Reason         string `json:"reason,omitempty"`
+	/* The date the whole year has to be paid by.
+
+	   Only for full_payment, where the discount is given in exchange for the
+	   school having the money early. With no date it is given in exchange for
+	   nothing: the family takes the lower figure and pays when they were going
+	   to anyway. It becomes the invoice's due date, so the reminders and the
+	   overdue list chase it like any other deadline. */
+	PayBy string `json:"pay_by,omitempty"`
 }
 
 // The kinds the table's own CHECK allows. Listed here so a bad value is a 400
@@ -143,6 +152,30 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		head = &h
 	}
 	kind := strings.TrimSpace(req.Kind)
+	payBy := strings.TrimSpace(req.PayBy)
+	if kind == "full_payment" {
+		if payBy == "" {
+			httpx.BadRequest(w, r,
+				"a full-payment concession needs the date the whole year must be "+
+					"paid by â the discount is for paying early, so it has to say by when")
+			return
+		}
+		d, perr := time.Parse("2006-01-02", payBy)
+		if perr != nil {
+			httpx.BadRequest(w, r, "pay_by must be a date like 2026-04-30")
+			return
+		}
+		// A deadline already past is one nobody can meet, and it would make
+		// the invoice overdue the moment it is raised.
+		if !d.After(time.Now()) {
+			httpx.BadRequest(w, r, "the pay-by date has to be in the future")
+			return
+		}
+	} else {
+		// Every other concession is about who the family is, not when they
+		// pay, so a date on one would never be read.
+		payBy = ""
+	}
 	if !concessionKindAllowed(kind) {
 		httpx.BadRequest(w, r,
 			"kind must be one of "+strings.Join(concessionKinds, ", "))
@@ -182,14 +215,16 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO fee_concessions (institution_id, student_id, application_id,
 			        academic_year_id, fee_head_id, kind, percent, amount_paise,
-			        reason, requested_by)
+			        reason, requested_by, pay_by)
 			-- Who asked, as against who decides. The decider has been recorded
 			-- from the beginning; the person who raised it was nowhere, so the
 			-- decision could not be sent back to them.
-			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,'')::numeric,$8,NULLIF($9,''),$10)
+			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,'')::numeric,$8,NULLIF($9,''),$10,
+			        NULLIF($11,'')::date)
 			RETURNING id`,
 			id.InstitutionID, student, application, yearArg, head, kind, percent,
-			req.AmountPaise, strings.TrimSpace(req.Reason), id.UserID).Scan(&newID)
+			req.AmountPaise, strings.TrimSpace(req.Reason), id.UserID,
+			payBy).Scan(&newID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

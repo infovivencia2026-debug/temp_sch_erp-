@@ -978,9 +978,28 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					                      academic_year_id, invoice_no, instalment_no,
 					                      issued_on, due_on, gross_paise, discount_paise,
 					                      status)
-					VALUES ($1,$2,$3::uuid,$4::uuid,$5,1,CURRENT_DATE,CURRENT_DATE,0,0,'unpaid')
+					/* WHEN IT IS DUE.
+
+					   This was CURRENT_DATE: every bill fell due the day it was
+					   raised, so a family was overdue before they had been told
+					   the amount, and the overdue list was a list of everyone
+					   recently admitted.
+
+					   A full-payment concession carries the date the year has to
+					   be settled by -- that is what the discount was given for --
+					   and it becomes the due date, so the ordinary reminders and
+					   the overdue report chase it with no special case anywhere. */
+					VALUES ($1,$2,$3::uuid,$4::uuid,$5,1,CURRENT_DATE,
+					        COALESCE((SELECT fc.pay_by FROM fee_concessions fc
+					                   WHERE fc.application_id = $6
+					                     AND fc.kind = 'full_payment'
+					                     AND fc.status = 'approved'
+					                     AND fc.pay_by IS NOT NULL
+					                   ORDER BY fc.created_at DESC LIMIT 1),
+					                 CURRENT_DATE),
+					        0,0,'unpaid')
 					RETURNING id::text`,
-					instID, campusID, studentID, yearID, invoiceNo).Scan(&invoiceID); err != nil {
+					instID, campusID, studentID, yearID, invoiceNo, appID).Scan(&invoiceID); err != nil {
 					return err
 				}
 
