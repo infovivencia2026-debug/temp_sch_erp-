@@ -465,6 +465,14 @@ export type Column = string | { label: string; key?: string; align?: 'right' }
    still on screen with the header above it on a laptop. */
 const PAGE_SIZE = 10
 
+/* Eight columns.
+
+   Below it a card's width divides into cells wide enough for a name and a
+   date. At eight the squeeze starts showing on a laptop, and the tables that
+   actually hurt — the fee ledger, the entitlement matrix, the staff register —
+   are all well past it. */
+const WIDE_AT = 8
+
 export function Table({
   head,
   children,
@@ -487,10 +495,28 @@ export function Table({
      broke character by character — "Demo Scho ol" — and the buttons at the
      right were clipped by the card edge. The remedy is not smaller text; it is
      to let columns take the width they need and scroll the container, which it
-     has always been able to do. */
+     has always been able to do.
+
+     Leave it unset and the table decides for itself — see WIDE_AT. Pass it
+     explicitly to override in either direction. */
   wide?: boolean
 }) {
   const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
+
+  /* WIDE BY DEFAULT PAST EIGHT COLUMNS.
+
+     This was opt-in, and two hundred of the four hundred-odd tables here have
+     eight columns or more without ever opting in — so the squeeze that broke
+     "Demo School" into "Demo Scho ol" was not one screen's bug, it was the
+     default. Deciding it from the header count fixes every one of them and the
+     next one somebody writes, which is the same argument the paging above
+     already makes: a hundred tables should not each have to remember.
+
+     `w-max min-w-full` is why this is safe to turn on rather than a trade: the
+     table still fills the card when its content is narrow, and only outgrows
+     it — into a container that has always scrolled — when the content genuinely
+     needs the room. An explicit `wide` still wins, in both directions. */
+  const roomy = wide ?? labels.length >= WIDE_AT
 
   /* TEN ROWS AT A TIME, everywhere, without touching a call site.
 
@@ -581,7 +607,7 @@ export function Table({
           'responsive-table text-[14px]',
           // is-wide also freezes the first column — see index.css. A table
           // scrolled sideways must not carry away the column naming the row.
-          wide ? 'is-wide w-max min-w-full' : 'w-full',
+          roomy ? 'is-wide w-max min-w-full' : 'w-full',
         )}
       >
         <thead>
