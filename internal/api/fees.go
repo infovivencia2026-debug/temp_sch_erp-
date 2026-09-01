@@ -668,6 +668,19 @@ type generateInvoicesRequest struct {
 	FeeStructureID string `json:"fee_structure_id"`
 	InstalmentNo   int    `json:"instalment_no"`
 	DueOn          string `json:"due_on"`
+	/* ONE CHILD, when that is what is wanted.
+
+	   The run was class-wide only, which is right in June and wrong every
+	   other month of the year. A child admitted in November, or one whose
+	   concession has only just been approved, needs their own bill — and
+	   raising the whole class again to get it does nothing, because everybody
+	   else is skipped as already invoiced, so it looks like a button that
+	   failed.
+
+	   Everything else is unchanged: the same structure, the same lines, the
+	   same concession arithmetic, the same guard against billing twice. This
+	   only narrows who is considered. */
+	StudentID string `json:"student_id,omitempty"`
 }
 
 // generateInvoices raises one invoice per enrolled student from a fee
@@ -813,6 +826,7 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			  FROM enrollments e
 			 WHERE e.academic_year_id = $1
 			   AND e.status = 'active'
+			   AND ($4::uuid IS NULL OR e.student_id = $4)
 			   AND ($2::uuid IS NULL OR e.class_id = $2)
 			   AND ($2::uuid IS NOT NULL OR NOT EXISTS (
 			       SELECT 1 FROM fee_structures fs
@@ -823,7 +837,8 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			       SELECT 1 FROM invoices i
 			        WHERE i.student_id = e.student_id
 			          AND i.academic_year_id = $1
-			          AND i.instalment_no = $3)`, yearID, classID, req.InstalmentNo)
+			          AND i.instalment_no = $3)`,
+			yearID, classID, req.InstalmentNo, nullString(req.StudentID))
 		if err != nil {
 			return err
 		}

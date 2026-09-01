@@ -52,6 +52,9 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 	   problems with different answers, and telling somebody the first when it
 	   is the second sends them to build a duplicate. */
 	var draftName string
+	// Returned so the screen can raise this one child's bill from the same
+	// structure it just quoted, rather than guessing which one that was.
+	var structureIDOut string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* THE SAME TABLE THE DEMAND RAISE BILLS FROM.
@@ -82,6 +85,7 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 			                WHERE i.fee_structure_id = fs.id)
 			 ORDER BY (fs.class_id = $1) DESC, fs.created_at DESC
 			 LIMIT 1`, classID).Scan(&structureID, &structureName)
+		structureIDOut = structureID.String()
 		if err == pgx.ErrNoRows {
 			/* Nothing with any priced heads in it. Before saying "there is no
 			   fee structure" — the sentence that makes somebody build a second
@@ -130,6 +134,7 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 		"heads":         heads,
 		"total_paise":   total,
 		"instalments":   instalments,
+		"structure_id":  structureIDOut,
 		"has_structure": len(heads) > 0,
 		// The structure that exists but is not in force, so the screen can say
 		// "activate it" rather than "create one".

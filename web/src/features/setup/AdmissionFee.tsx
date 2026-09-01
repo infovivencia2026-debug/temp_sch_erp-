@@ -30,6 +30,7 @@ import { formatPaise } from '@/lib/utils'
 */
 
 interface Quote {
+  structure_id: string
   structure: string
   heads: { head: string; paise: number; instalment: number }[]
   total_paise: number
@@ -58,6 +59,21 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
     queryKey: ['admission-fee', classID],
     enabled: !!classID,
     queryFn: () => api.get<Quote>(`/api/v1/students/fee-preview?class_id=${classID}`),
+  })
+
+  /* RAISING THIS CHILD'S BILL, once the concession is decided.
+
+     Approving a concession changes no invoice by itself, and the class-wide
+     demand run does nothing for one child in November: everybody else is
+     skipped as already invoiced, so it reads as a button that failed. This
+     raises the one bill, through the same endpoint and the same arithmetic. */
+  const raise = useMutation({
+    mutationFn: () => api.post<{ created: number; skipped: number }>(
+      '/api/v1/fees/invoices/generate', {
+        fee_structure_id: quote.data?.structure_id,
+        instalment_no: 1,
+        student_id: studentID,
+      }),
   })
 
   const grant = useMutation({
@@ -216,6 +232,25 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
             <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
               Set a concession
             </Button>
+            {/* The step between "approved" and "the family can see it".
+                Nothing reaches a parent until an invoice exists. */}
+            <Button size="sm" variant="secondary"
+              disabled={raise.isPending}
+              onClick={() => raise.mutate()}>
+              {raise.isPending ? 'Raising…' : 'Raise this child’s fee'}
+            </Button>
+            {raise.isSuccess && (
+              <span className="text-[12.5px] text-success">
+                {raise.data.created > 0
+                  ? 'Raised. It is on the family’s fees page now.'
+                  : 'Already raised for this instalment — nothing to do.'}
+              </span>
+            )}
+            {raise.isError && (
+              <span className="text-[12.5px] text-destructive">
+                {raise.error instanceof Error ? raise.error.message : 'Could not raise it'}
+              </span>
+            )}
             {grant.isSuccess && (
               <span className="text-[12.5px] text-success">
                 Asked for. It appears on the principal&rsquo;s approvals.
