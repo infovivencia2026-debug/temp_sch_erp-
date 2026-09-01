@@ -210,6 +210,10 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 { value: 'scholarship', label: 'Scholarship' },
                 { value: 'merit', label: 'Merit' },
                 { value: 'rte', label: 'RTE' },
+                /* The discount for paying the whole year at once. Unlike the
+                   others it is about HOW the family pays rather than who they
+                   are, and it is the commonest one an Indian school gives. */
+                { value: 'full_payment', label: 'Paying all terms in one instalment' },
                 { value: 'other', label: 'Other' },
               ]} />
             </FormField>

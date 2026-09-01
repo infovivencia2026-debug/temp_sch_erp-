@@ -171,6 +171,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
                     { value: 'scholarship', label: 'Scholarship' },
                     { value: 'merit', label: 'Merit' },
                     { value: 'rte', label: 'RTE' },
+                    { value: 'full_payment', label: 'Paying all terms in one instalment' },
                     { value: 'other', label: 'Other' },
                   ]} />
                 </FormField>

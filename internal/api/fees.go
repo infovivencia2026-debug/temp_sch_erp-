@@ -683,6 +683,18 @@ type generateInvoicesRequest struct {
 	   same concession arithmetic, the same guard against billing twice. This
 	   only narrows who is considered. */
 	StudentID string `json:"student_id,omitempty"`
+	/* ALL THE TERMS IN ONE BILL.
+
+	   A family that pays the whole year up front is common and worth having:
+	   no chasing, no reminders, no late fine to argue about in February.
+	   Raising instalment 1 and telling them to pay three times is exactly what
+	   they were trying to avoid, and raising all three separately leaves them
+	   three invoices to pay one at a time.
+
+	   One invoice carrying every instalment's lines. The concession applies
+	   the same way, per head, so a full-payment discount comes off the whole
+	   year rather than off a third of it. */
+	AllInstalments bool `json:"all_instalments,omitempty"`
 }
 
 // generateInvoices raises one invoice per enrolled student from a fee
@@ -821,6 +833,19 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		if lines > 0 && worth == 0 {
 			return errStructureWorthNothing
 		}
+		/* Paying the year at once bills every instalment, so the count and the
+		   value are the whole structure rather than one term of it. */
+		if req.AllInstalments {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT count(*)::int, COALESCE(sum(amount_paise), 0)
+				  FROM fee_structure_items WHERE fee_structure_id = $1`,
+				structureID).Scan(&lines, &worth); err != nil {
+				return err
+			}
+			if lines == 0 || worth == 0 {
+				return errStructureWorthNothing
+			}
+		}
 		if lines == 0 {
 			return errNoSuchInstalment
 		}
@@ -951,8 +976,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				       )
 				  FROM fee_structure_items fsi
 				  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
-				 WHERE fsi.fee_structure_id = $5 AND fsi.instalment_no = $6`,
-				instID, invoiceID, sid, yearID, structureID, req.InstalmentNo); err != nil {
+				 WHERE fsi.fee_structure_id = $5
+			   AND ($7::bool OR fsi.instalment_no = $6)`,
+				instID, invoiceID, sid, yearID, structureID, req.InstalmentNo,
+				req.AllInstalments); err != nil {
 				return fmt.Errorf("create invoice lines: %w", err)
 			}
 
