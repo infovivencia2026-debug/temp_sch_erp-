@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -48,6 +49,16 @@ type guardianWriteRequest struct {
 	// per child: setting it clears the flag on the others.
 	IsPrimary bool `json:"is_primary"`
 }
+
+// A parent's number and address are sign-in identifiers, unique per school.
+// Moving one onto a value another account already answers to has to be refused
+// in words the office can act on, not as a 500.
+var errGuardianPhoneTaken = errors.New("guardian contact belongs to another login")
+
+// guardians is unique on (institution_id, phone, full_name): editing one into
+// the exact name and number of another is the school saying they are the same
+// person, and the two records have to be merged rather than duplicated.
+var errGuardianDuplicate = errors.New("guardian already exists")
 
 var guardianRelations = map[string]bool{
 	"father": true, "mother": true, "guardian": true, "other": true,
@@ -113,18 +124,95 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 			/* Only a guardian of THIS child. Without the link check, any
 			   guardian id in the school could be edited by anybody who can
 			   edit any one child. */
+			var userID *uuid.UUID
+			var oldPhone, oldEmail string
 			if err := tx.QueryRow(r.Context(), `
 				UPDATE guardians g
 				   SET full_name = $2, relation = $3,
 				       phone = NULLIF($4,''), email = NULLIF($5,'')::citext,
 				       occupation = NULLIF($6,'')
+				  FROM (SELECT COALESCE(phone,'') AS old_phone,
+				               COALESCE(email::text,'') AS old_email, user_id
+				          FROM guardians WHERE id = $1) prev
 				 WHERE g.id = $1
 				   AND EXISTS (SELECT 1 FROM student_guardians sg
 				                WHERE sg.guardian_id = g.id AND sg.student_id = $7)
-				RETURNING g.id::text`,
+				RETURNING g.id::text, prev.old_phone, prev.old_email, prev.user_id`,
 				gid, name, relation, phone, email, req.Occupation, sid).
-				Scan(&guardianID); err != nil {
+				Scan(&guardianID, &oldPhone, &oldEmail, &userID); err != nil {
+				if isUniqueViolation(err) {
+					return errGuardianDuplicate
+				}
 				return err
+			}
+			/* The number a parent is rung on is also the number they sign in
+			   with, and correcting one without the other left a father who
+			   changed his phone signing in as a number that no longer reaches
+			   him — and nobody could tell him what it was, because the screen
+			   showed the new one.
+
+			   The address moves with it for the same reason: a parent whose
+			   email is corrected on this screen and not on their account is
+			   one whose password reset goes to the address they told the
+			   school was wrong.
+
+			   The username moves only when it still is the old phone (or, for
+			   an account created from an address, the old email). A school
+			   that gave a parent some other sign-in name chose that on
+			   purpose, and a correction to a contact number must not silently
+			   take it away. */
+			if userID != nil {
+				sync := func(tx pgx.Tx, email string) error {
+					_, err := tx.Exec(r.Context(), `
+						UPDATE users
+						   SET full_name = $2,
+						       phone = NULLIF($3,''),
+						       email = NULLIF($4,'')::citext,
+						       username = CASE
+						           WHEN $3 <> '' AND username = $5::citext THEN $3::citext
+						           WHEN $4 <> '' AND $6 <> '' AND username = $6::citext THEN $4::citext
+						           ELSE username END
+						 WHERE id = $1`,
+						*userID, name, phone, email, oldPhone, oldEmail)
+					return err
+				}
+				/* A savepoint, because a failed statement aborts the whole
+				   transaction in Postgres and everything after it — the
+				   primary-guardian flag below included — would die with
+				   "current transaction is aborted". */
+				sp, berr := tx.Begin(r.Context())
+				if berr != nil {
+					return berr
+				}
+				err := sync(sp, email)
+				/* A shared address must not cost the family a correction.
+
+				   Two parents at one school genuinely share an inbox, and
+				   users keeps email unique per school because it is a sign-in
+				   identifier. A mother given the father's address would
+				   otherwise make the whole save fail — including the phone
+				   number that was the point of the edit. The address stays on
+				   the guardian record, which is what the school reads; only
+				   the sign-in identity keeps what it had. */
+				if err != nil && email != "" && isUniqueViolation(err) {
+					_ = sp.Rollback(r.Context())
+					sp2, berr := tx.Begin(r.Context())
+					if berr != nil {
+						return berr
+					}
+					sp = sp2
+					err = sync(sp, oldEmail)
+				}
+				if err != nil {
+					_ = sp.Rollback(r.Context())
+					if isUniqueViolation(err) {
+						return errGuardianPhoneTaken
+					}
+					return err
+				}
+				if err := sp.Commit(r.Context()); err != nil {
+					return err
+				}
 			}
 		} else {
 			// ON CONFLICT rather than a fresh row: one parent has several
@@ -176,6 +264,18 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	})
 	if err == pgx.ErrNoRows {
 		httpx.Forbidden(w, r, "this family is not one you can edit")
+		return
+	}
+	if err == errGuardianDuplicate {
+		httpx.BadRequest(w, r,
+			"another parent at this school already has that name and number — "+
+				"add the existing one to this child instead of entering them twice")
+		return
+	}
+	if err == errGuardianPhoneTaken {
+		httpx.BadRequest(w, r,
+			"that phone number or email is already the sign-in of another account "+
+				"at this school — the parent it belongs to has to be corrected first")
 		return
 	}
 	if err != nil {
