@@ -381,6 +381,14 @@ func (s *Server) Routes() http.Handler {
 			// issuing one by hand, because it is the same act done in bulk.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/logins/import", s.importStaffLogins)
 
+			// The fingerprint reader. Registering it is inside the session;
+			// the device's own protocol is not, and cannot be — see iclock.go.
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).Get("/biometric-devices", s.listBiometricDevices)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/biometric-devices", s.saveBiometricDevice)
+			// Punches from an id no employee claims: somebody enrolled a
+			// finger without telling the office.
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).Get("/biometric-devices/unclaimed", s.listUnresolvedPunches)
+
 			/* The family's way in.
 
 			   Nothing outside the demo seeder had ever written

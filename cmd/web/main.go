@@ -161,6 +161,15 @@ func run() error {
 	r.Post("/logout", authHandler.Logout)
 	r.Get("/logout", authHandler.Logout)
 
+	/* The fingerprint reader, outside the session.
+
+	   ADMS is a protocol for a client that cannot hold a session: no header,
+	   no token, a serial number in a query string and nothing else. So these
+	   sit above /api/v1 rather than inside it. The serial is the credential,
+	   which is stated plainly in internal/api/iclock.go along with what that
+	   does and does not permit — punches in, nothing out. */
+	apiServer.MountDeviceProtocol(r)
+
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(static.FS))))
 	// Audit every mutation below /api/v1. Applied as middleware rather than
 	// per handler, because per-handler auditing is the kind that ends up 80%
