@@ -158,7 +158,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'parent.admissions.admission_status': screen(() => import('./portal/AdmissionStatus')),
   'parent.fees.fees_payments': screen(() => import('./portal/Fees')),
   'student.fees.fees': screen(() => import('./portal/Fees')),
-  'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
+  /* Fee & enrolment is the admitted queue and the money that settles
+     before a child becomes a student. Seat allotment was the same Pipeline
+     screen with no filter of its own, so the two read as one page. */
+  'admissions.admissions.fee_enrollment': screen(() => import('./admissions/FeeEnrolment')),
   'admissions.admissions.rte_quota': screen(() => import('./admissions/Pipeline')),
   /* The receptionist's own workspace.
    *

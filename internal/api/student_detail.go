@@ -53,6 +53,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	activities := []map[string]any{}
 	concessions := []map[string]any{}
 	coScholastic := []map[string]any{}
+	invoices := []map[string]any{}
 	var classID *string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -281,6 +282,32 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* THE BILLS THEMSELVES, not only the ledger rolled up by head.
+
+		   The Fee & enrolment queue needs to say whether this child has been
+		   raised yet, and "sum by fee head" cannot answer that: a child with
+		   no invoice and a child whose invoice is fully paid both total the
+		   same in a head-wise view. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT inv.invoice_no, inv.net_paise::text, inv.paid_paise::text,
+			       inv.status, to_char(inv.issued_on,'YYYY-MM-DD')
+			  FROM invoices inv
+			 WHERE inv.student_id = $1 AND inv.status <> 'cancelled'
+			 ORDER BY inv.issued_on DESC, inv.invoice_no`,
+			func(rows pgx.Rows) error {
+				var no, net, paid, status, on string
+				if err := rows.Scan(&no, &net, &paid, &status, &on); err != nil {
+					return err
+				}
+				invoices = append(invoices, map[string]any{
+					"invoice_no": no, "net_paise": net, "paid_paise": paid,
+					"status": status, "issued_on": on,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* ART, GAMES AND DISCIPLINE.
 
 		   Every area the school grades, with this child's grade against it
@@ -446,6 +473,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"activities":        activities,
 		"concessions":       concessions,
 		"co_scholastic":     coScholastic,
+		"invoices":          invoices,
 		// The class this child is in, so the record can quote its fee without
 		// a second round trip to work out which class that is.
 		"class_id": classID,

@@ -857,7 +857,7 @@ var Roles = []Role{
 				Name: "Admissions",
 				Workspace: "Admissions",
 				Features: []Feature{
-					{Key: "admissions.admissions.seat_allotment", Slug: "seat_allotment", Name: "Seat Allotment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength."},
+					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admitted queue, and the money that settles before a child becomes a student: what the class costs, the concession agreed at the desk, the principal's decision on it, and the demand raised once that is settled."},
 					{Key: "admissions.admissions.rte_quota", Slug: "rte_quota", Name: "RTE Quota", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return."},
 					{Key: "admissions.admissions.waitlist", Slug: "waitlist", Name: "Waitlist", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is next if a seat is given up, in order, with the date they went on."},
 				},
