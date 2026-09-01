@@ -68,6 +68,8 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	// The read is left on the group's academics.read: every member of staff is
 	// entitled to know when the school is shut.
 	r.Get("/admin/calendar", s.getAcademicCalendar)
+	// One date, with its periods, their lesson plans and the almanac around it.
+	r.Get("/admin/calendar/day", s.getCalendarDay)
 	r.With(academics).Post("/admin/calendar", s.saveCalendarEntry)
 	r.With(academics).Delete("/admin/calendar/{id}", s.deleteCalendarEntry)
 

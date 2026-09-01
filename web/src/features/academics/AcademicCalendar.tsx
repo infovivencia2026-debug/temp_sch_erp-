@@ -7,6 +7,7 @@ import {
   Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import CalendarDay from './CalendarDay'
 
 /* The school year on one page.
 
@@ -111,6 +112,8 @@ export default function AcademicCalendar() {
           <Stat label="Days shut" value={shut} icon={Sun} />
           <Stat label="Entries" value={s?.entries ?? 0} />
         </CellGrid>
+
+        <CalendarDay />
 
         <Card>
           <CardHeader
