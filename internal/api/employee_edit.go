@@ -147,7 +147,35 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errEmployeeGone
 		}
-		return err
+		if err != nil {
+			return err
+		}
+
+		/* Carry a new contact detail through to the login.
+
+		   The staff record and the account are two rows, and the number a
+		   teacher gives HR lands on the first one. Nothing copied it to the
+		   second, so a teacher whose phone number was on file could still only
+		   sign in with an employee code — and every role is meant to be
+		   reachable by either an email or a number.
+
+		   COALESCE, so this only fills a hole. An account whose email was
+		   changed deliberately is not dragged back to whatever the staff
+		   record says. A clash with somebody else's number is ignored rather
+		   than failing the edit: the correction the office came here to make
+		   is still valid, and the duplicate is a separate thing to fix. */
+		if req.Phone != nil || req.Email != nil {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE users u
+				   SET email = COALESCE(u.email, NULLIF($2,'')::citext),
+				       phone = COALESCE(u.phone, NULLIF($3,''))
+				  FROM employees e
+				 WHERE e.id = $1 AND u.id = e.user_id`,
+				empID, req.Email, req.Phone); err != nil && !isUniqueViolation(err) {
+				return err
+			}
+		}
+		return nil
 	})
 
 	switch {

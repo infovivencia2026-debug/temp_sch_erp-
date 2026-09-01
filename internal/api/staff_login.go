@@ -154,6 +154,31 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			   record and never given a password -- is the one case where
 			   issuing without asking is still correct, because there is no
 			   working password to break. */
+			/* Top up the identifiers the account is missing.
+
+			   A staff record imported with only a name and a code makes a user
+			   row whose only identifier is the code. HR fills in the phone
+			   number later, on the staff record — and it stayed there: the
+			   login was created before the number existed and nothing ever
+			   copied it across, so the teacher could sign in with an employee
+			   code they do not know and not with the number they do.
+
+			   COALESCE, never overwrite. An account whose email was changed
+			   deliberately must not be dragged back to whatever the staff
+			   record still says. This only fills a hole. */
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE users u
+				   SET email = COALESCE(u.email, NULLIF($2,'')::citext),
+				       phone = COALESCE(u.phone, NULLIF($3,''))
+				 WHERE u.id = $1`, *userID, email, phone); err != nil {
+				// A number that already belongs to somebody else is not a
+				// reason to refuse the login. The account keeps the identifier
+				// it has and the clash is a separate thing to fix.
+				if !isUniqueViolation(err) {
+					return err
+				}
+			}
+
 			var invited bool
 			if err := tx.QueryRow(r.Context(),
 				`SELECT password_hash IS NULL OR status = 'invited' FROM users WHERE id = $1`,
@@ -172,7 +197,14 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return tx.QueryRow(r.Context(),
-			`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
+			/* Email, then phone, then the code.
+
+			   The code was first, so a teacher with a perfectly good email
+			   address was told to sign in as "T042". Every one of the three
+			   works — the sign-in resolves an identifier against all of them —
+			   so this is only about which one to read out, and it should be
+			   the one the person already knows. */
+			`SELECT COALESCE(email::text, phone, username::text, '') FROM users WHERE id = $1`,
 			*userID).Scan(&out.SignInAs)
 	})
 	switch {
