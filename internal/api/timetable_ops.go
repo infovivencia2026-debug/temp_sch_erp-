@@ -943,7 +943,7 @@ func (s *Server) publishTimetableDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var replaced, inserted int
+	var replaced, inserted, notified int
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var status string
 		var yearID uuid.UUID
@@ -1013,7 +1013,27 @@ func (s *Server) publishTimetableDraft(w http.ResponseWriter, r *http.Request) {
 			UPDATE timetable_drafts
 			   SET status = 'published', published_by = $2, published_at = now()
 			 WHERE id = $1`, draftID, id.UserID)
-		return err
+		if err != nil {
+			return err
+		}
+		/* TELL EVERYONE IT HAS CHANGED.
+
+		   Publishing replaces the live grid, and until now nobody was told. A
+		   teacher found out on Monday morning by walking to the wrong room; a
+		   parent found out when their child came home and said so. Both had
+		   the new timetable available to them in the app the whole time and no
+		   reason to go and look at it.
+
+		   Inside the transaction that publishes. A notification about a
+		   timetable that then failed to publish is worse than silence — the
+		   school would be told to check a grid that had not changed.
+
+		   Only the sections this draft actually touched, and only the people
+		   attached to them: a whole-school announcement about a change to two
+		   sections is how a school learns to ignore this product's alerts. */
+		told, nerr := announceTimetable(r, tx, id.InstitutionID, draftID)
+		notified = told
+		return nerr
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -1037,6 +1057,8 @@ func (s *Server) publishTimetableDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"published": true, "periods_replaced": replaced, "periods_written": inserted,
+		// So the screen can say who was told rather than only that it saved.
+		"people_notified": notified,
 	})
 }
 

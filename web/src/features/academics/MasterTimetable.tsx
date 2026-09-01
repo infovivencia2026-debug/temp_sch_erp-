@@ -146,6 +146,9 @@ export default function MasterTimetable() {
 
   const [openDraft, setOpenDraft] = useState('')
   const [note, setNote] = useState('')
+  // Old attempts are history, not work. Collapsed by default.
+  const [showHistory, setShowHistory] = useState(false)
+  const [showClasses, setShowClasses] = useState(false)
 
   const overview = useQuery({
     queryKey: ['master-timetable', 'overview'],
@@ -281,45 +284,65 @@ export default function MasterTimetable() {
 
         <FormNotice error={generate.error} ok={note} />
 
-        {/* Shown only when there is one. An empty "Drafts waiting" card was a
-            box explaining something that did not exist. */}
+        {/* THE LATEST DRAFT, AS A CARD. THE REST BEHIND A LINK.
+
+            Every draft ever generated sat in one table, so a school that had
+            tried four times on four days was reading four rows to find the one
+            it made this morning — and the obsolete ones were indistinguishable
+            from the current one at a glance. Only the newest is a real
+            decision; the others are history, and history belongs behind a
+            word rather than in front of the work. */}
         {hasDraft && (
-          <Card>
-            <CardHeader
-              title="Suggested timetables"
-              description="A suggestion is only a suggestion. It replaces the real timetable when you say so, and not before."
+          <>
+            <DraftCard
+              draft={drafts[0]}
+              open={openDraft === drafts[0].id}
+              mayWrite={mayWrite}
+              onOpen={() => setOpenDraft(openDraft === drafts[0].id ? '' : drafts[0].id)}
             />
-            <Table head={['Made', 'Periods filled', 'Could not fill', 'By', '']}>
-              {drafts.map((x) => (
-                <tr key={x.id}>
-                  <Td className="font-medium">{x.name}</Td>
-                  <Td className="tabular-nums">
-                    {x.periods_placed} of {x.periods_required}
-                  </Td>
-                  <Td>
-                    {x.blocking_issues > 0 ? (
-                      <Badge tone="danger">{x.blocking_issues} left out</Badge>
-                    ) : (
-                      <Badge tone="success">all filled in</Badge>
-                    )}
-                  </Td>
-                  <Td className="text-muted-foreground">
-                    {x.generated_at.slice(0, 16).replace('T', ' ')}
-                    {x.generated_by ? ` · ${x.generated_by}` : ''}
-                  </Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setOpenDraft(openDraft === x.id ? '' : x.id)}
-                    >
-                      {openDraft === x.id ? 'Close' : 'Open it'}
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
+            {drafts.length > 1 && (
+              <Card>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-5 py-3 text-left text-[13.5px]"
+                  onClick={() => setShowHistory(!showHistory)}
+                >
+                  <span className="text-muted-foreground">
+                    {drafts.length - 1} earlier{' '}
+                    {drafts.length === 2 ? 'attempt' : 'attempts'}, still open
+                  </span>
+                  <span className="text-primary">{showHistory ? 'Hide' : 'Show'}</span>
+                </button>
+                {showHistory && (
+                  <Table head={['Made', 'Filled', 'Left out', 'By', '']}>
+                    {drafts.slice(1).map((x) => (
+                      <tr key={x.id}>
+                        <Td className="font-medium">{x.name}</Td>
+                        <Td className="tabular-nums">
+                          {x.periods_placed} of {x.periods_required}
+                        </Td>
+                        <Td>
+                          {x.blocking_issues > 0
+                            ? <Badge tone="danger">{x.blocking_issues}</Badge>
+                            : <Badge tone="success">none</Badge>}
+                        </Td>
+                        <Td className="text-muted-foreground">
+                          {x.generated_at.slice(0, 16).replace('T', ' ')}
+                          {x.generated_by ? ` · ${x.generated_by}` : ''}
+                        </Td>
+                        <Td>
+                          <Button size="sm" variant="secondary"
+                            onClick={() => setOpenDraft(openDraft === x.id ? '' : x.id)}>
+                            {openDraft === x.id ? 'Close' : 'Open it'}
+                          </Button>
+                        </Td>
+                      </tr>
+                    ))}
+                  </Table>
+                )}
+              </Card>
+            )}
+          </>
         )}
 
         {openDraft && (
@@ -342,7 +365,22 @@ export default function MasterTimetable() {
           <CardHeader
             title="Class by class"
             description="A school that has filled 96% of its periods can still have one class with no science lessons at all, which is why this is listed per class rather than as one number."
+            action={
+              <Button size="sm" variant="secondary"
+                onClick={() => setShowClasses(!showClasses)}>
+                {showClasses ? 'Hide' : `Show all ${sections.length}`}
+              </Button>
+            }
           />
+          {/* Collapsed to the classes that need attention. A school with
+              forty sections was reading forty rows to find the two with no
+              timetable, and the other thirty-eight said "fine" at length. */}
+          {!showClasses && sections.every((x) => x.live_periods > 0) && (
+            <p className="px-5 py-4 text-[13.5px] text-muted-foreground">
+              Every class has a timetable.
+            </p>
+          )}
+          {(showClasses || sections.some((x) => x.live_periods === 0)) && (
           <Table
             head={
               hasDraft
@@ -352,7 +390,7 @@ export default function MasterTimetable() {
             empty={sections.length === 0}
             emptyLabel="No classes in this year yet."
           >
-            {sections.map((x) => (
+            {(showClasses ? sections : sections.filter((x) => x.live_periods === 0)).map((x) => (
               <tr key={x.section_id}>
                 <Td className="font-medium">
                   {x.class_name}-{x.section_name}
@@ -375,6 +413,7 @@ export default function MasterTimetable() {
               </tr>
             ))}
           </Table>
+          )}
         </Card>
       </PageBody>
     </>
@@ -403,13 +442,21 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
 
   const publish = useMutation({
     mutationFn: () =>
-      api.post<{ periods_replaced: number; periods_written: number }>(
+      api.post<{ periods_replaced: number; periods_written: number; people_notified: number }>(
         `${OPTIMIZER}/drafts/${draftID}/publish`,
         { acknowledge_unmet: acknowledged },
       ),
     onSuccess: (r) =>
       onPublished(
-        `Now in use: ${r.periods_written} periods set, ${r.periods_replaced} replaced.`,
+        /* Who was told, not only what was written. Publishing now notifies
+           the teachers who lost or gained a period, the children in those
+           sections and their families — and a message saying only "204
+           periods set" leaves somebody wondering whether they still have to
+           tell the school themselves. */
+        `Now in use: ${r.periods_written} periods set, ${r.periods_replaced} replaced.`
+        + (r.people_notified
+          ? ` ${r.people_notified} teachers, students and parents have been told in the app.`
+          : ''),
       ),
   })
 
@@ -606,88 +653,22 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
             />
           }
         />
-        <Table
-          head={['Day', 'Period', 'Subject', 'Teacher', 'Room', '']}
-          empty={!dd.entries.some((e) => e.section_id === chosen)}
-          emptyLabel="This draft places nothing for that section."
-        >
-          {dd.entries
-            .filter((e) => e.section_id === chosen)
-            .sort((a, b) => a.weekday - b.weekday || a.period_name.localeCompare(b.period_name))
-            .map((e) =>
-              entryRows(e, {
-                periods: dd.periods.filter((p) => !p.is_break),
-                weekdays: dd.weekdays,
-                mayWrite,
-                draftID,
-                onChanged: () => {
-                  qc.invalidateQueries({ queryKey: ['master-timetable'] })
-                },
-              }),
-            )}
-        </Table>
+        {!dd.entries.some((e) => e.section_id === chosen) ? (
+          <p className="px-5 py-8 text-center text-[13.5px] text-muted-foreground">
+            This draft places nothing for that section.
+          </p>
+        ) : (
+          <DraftWeekGrid
+            entries={dd.entries.filter((e) => e.section_id === chosen)}
+            periods={dd.periods}
+            weekdays={dd.weekdays}
+            mayWrite={mayWrite}
+            draftID={draftID}
+            onChanged={() => qc.invalidateQueries({ queryKey: ['master-timetable'] })}
+          />
+        )}
       </Card>
     </>
-  )
-}
-
-/* One period of the draft, and — when it is being moved — the row of controls
-   underneath it.
- *
- * A plain function returning an ARRAY of <tr>s rather than a component, so
- * <Table> walks each row and labels its cells for a phone. A <MyRow /> element
- * would be walked as one opaque element and every cell in this table would
- * lose its label below 640px; the codebase has shipped that four times.
- */
-function entryRows(
-  e: DraftEntry,
-  ctx: {
-    periods: GridPeriod[]
-    weekdays: number[]
-    mayWrite: boolean
-    draftID: string
-    onChanged: () => void
-  },
-) {
-  return [
-    <tr key={e.id}>
-      <Td>{WEEKDAYS[e.weekday - 1]}</Td>
-      <Td>{e.period_name}</Td>
-      <Td className="font-medium">{e.subject_name}</Td>
-      <Td className={cn(!e.teacher_name && 'text-destructive')}>
-        {e.teacher_name ?? 'nobody allocated'}
-      </Td>
-      <Td className="text-muted-foreground">{e.room ?? '—'}</Td>
-      <Td>
-        {ctx.mayWrite && <MoveCell entry={e} ctx={ctx} />}
-      </Td>
-    </tr>,
-  ]
-}
-
-function MoveCell({ entry, ctx }: {
-  entry: DraftEntry
-  ctx: {
-    periods: GridPeriod[]
-    weekdays: number[]
-    draftID: string
-    onChanged: () => void
-  }
-}) {
-  const [open, setOpen] = useState(false)
-  return open ? (
-    <MoveForm
-      /* Keyed by the period being moved: without it the controls keep the
-         previous row's day and period in state and the next move sends
-         Tuesday's slot for Thursday's lesson. */
-      key={entry.id}
-      entry={entry}
-      ctx={ctx}
-      onDone={() => { setOpen(false); ctx.onChanged() }}
-      onCancel={() => setOpen(false)}
-    />
-  ) : (
-    <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>Move</Button>
   )
 }
 
@@ -747,6 +728,160 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
       <FormNotice error={move.error ?? remove.error} />
+    </div>
+  )
+}
+
+/* THE ONE DRAFT THAT IS A DECISION, as a card rather than a row.
+
+   A table row gives every draft the same weight, and only the newest is
+   actually a choice somebody has to make. This says what it did, whether it
+   managed everything, who made it and when — and puts the three things that
+   can be done with it where the eye already is. */
+function DraftCard({ draft, open, mayWrite, onOpen }: {
+  draft: DraftHead
+  open: boolean
+  mayWrite: boolean
+  onOpen: () => void
+}) {
+  const complete = draft.blocking_issues === 0
+  return (
+    <Card className={cn('border-l-4', complete ? 'border-l-success' : 'border-l-warning')}>
+      <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+        <div className="min-w-0">
+          <p className="eyebrow text-muted-foreground">Suggested timetable, not yet in use</p>
+          <p className="mt-1 text-[15px] font-medium">
+            {complete
+              ? `All ${draft.periods_placed} periods placed`
+              : `${draft.periods_placed} of ${draft.periods_required} periods placed`}
+          </p>
+          {!complete && (
+            <p className="mt-0.5 text-[13.5px] text-warning">
+              {draft.blocking_issues} {draft.blocking_issues === 1 ? 'requirement' : 'requirements'} could
+              not be met — open it to read which, and why.
+            </p>
+          )}
+          <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+            {draft.name} · {draft.generated_at.slice(0, 16).replace('T', ' ')}
+            {draft.generated_by ? ` · by ${draft.generated_by}` : ''}
+            {draft.sections ? ` · ${draft.sections} sections` : ''}
+          </p>
+        </div>
+        <Button variant={open ? 'secondary' : 'primary'} onClick={onOpen}>
+          {open ? 'Close' : mayWrite ? 'Review and put in use' : 'Look at it'}
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+/* THE WEEK AS A GRID, which is how a timetable has been drawn for a century.
+
+   It was a linear list — one row per period, sorted by day then name, with a
+   Move button on each — so reading "what does 6-A do on Wednesday" meant
+   scanning thirty rows for the six that said Wednesday, and the shape a
+   timetable has in everybody's head was nowhere on the screen. Days across,
+   periods down, and a clash or a hole is visible without reading anything.
+
+   Clicking a cell opens the same move controls the button used to. The
+   controls did not need replacing; what needed replacing was having to find
+   the row they were attached to. */
+function DraftWeekGrid({ entries, periods, weekdays, mayWrite, draftID, onChanged }: {
+  entries: DraftEntry[]
+  periods: GridPeriod[]
+  weekdays: number[]
+  mayWrite: boolean
+  draftID: string
+  onChanged: () => void
+}) {
+  const [openCell, setOpenCell] = useState<string | null>(null)
+
+  const at = (weekday: number, periodID: string) =>
+    entries.find((e) => e.weekday === weekday && e.period_id === periodID)
+
+  const teaching = periods.filter((p) => !p.is_break)
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[52rem] border-separate border-spacing-1 p-3">
+        <thead>
+          <tr>
+            <th className="w-28 text-left text-[12px] font-medium text-muted-foreground">
+              Period
+            </th>
+            {weekdays.map((wd) => (
+              <th key={wd} className="text-left text-[12px] font-medium text-muted-foreground">
+                {WEEKDAYS[wd - 1]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {teaching.map((pd) => (
+            <tr key={pd.id}>
+              <td className="align-top">
+                <p className="text-[13px] font-medium">{pd.name}</p>
+                <p className="text-[11px] tabular-nums text-muted-foreground">
+                  {pd.starts_at?.slice(0, 5)}
+                </p>
+              </td>
+              {weekdays.map((wd) => {
+                const e = at(wd, pd.id)
+                const key = `${wd}-${pd.id}`
+                return (
+                  <td key={key} className="align-top">
+                    {e ? (
+                      <button
+                        type="button"
+                        disabled={!mayWrite}
+                        onClick={() => setOpenCell(openCell === key ? null : key)}
+                        className={cn(
+                          'w-full rounded-lg border px-2 py-1.5 text-left',
+                          e.teacher_name ? 'bg-primary/5' : 'border-destructive bg-destructive/5',
+                          mayWrite && 'hover:border-primary',
+                        )}
+                      >
+                        <span className="block truncate text-[12.5px] font-medium">
+                          {e.subject_name}
+                        </span>
+                        {/* A period with nobody allocated is the thing this
+                            grid exists to make findable, so it is coloured
+                            rather than left as a quiet dash. */}
+                        <span className={cn(
+                          'block truncate text-[11.5px]',
+                          e.teacher_name ? 'text-muted-foreground' : 'text-destructive',
+                        )}>
+                          {e.teacher_name ?? 'no teacher'}
+                        </span>
+                        {e.room && (
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {e.room}
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="rounded-lg border border-dashed px-2 py-1.5 text-[11.5px] text-muted-foreground">
+                        free
+                      </div>
+                    )}
+                    {openCell === key && e && mayWrite && (
+                      <div className="mt-1 rounded-lg border bg-muted/30 p-2">
+                        <MoveForm
+                          key={e.id}
+                          entry={e}
+                          ctx={{ periods: teaching, weekdays, draftID }}
+                          onDone={() => { setOpenCell(null); onChanged() }}
+                          onCancel={() => setOpenCell(null)}
+                        />
+                      </div>
+                    )}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
