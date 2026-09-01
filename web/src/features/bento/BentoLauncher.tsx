@@ -409,7 +409,16 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
            the category tint. That is what makes it an object at all — on the
            tint alone it is a hover state pretending to be a thing. */
         className={cn(
-          `launcher-app group flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2
+          /* min-w-0 is what keeps this inside the screen.
+
+             A grid item's min-width is `auto`, which means it refuses to be
+             narrower than its own content. "Parent Bus Proximity Radius
+             Customizer" is a wide piece of min-content, so the box grew, the
+             grid grew with it, and the whole launcher overflowed the phone by
+             36px -- every tile pushed off the right edge, and the truncation
+             on the label below never got a chance to fire because nothing was
+             ever narrower than the text. */
+          `launcher-app group flex w-full min-w-0 items-center gap-2.5 rounded-[10px] px-2.5 py-2
            text-left focus-visible:outline-none focus-visible:ring-2
            focus-visible:ring-[var(--ink-here)]`,
           onCursor && 'launcher-app-on',
@@ -710,7 +719,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
             results.length ? (
               <>
                 <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
-                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                   {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context />)}
                 </div>
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] opacity-80">
@@ -728,13 +737,13 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
               {recents.length > 0 && (
                 <section className="mb-9">
                   <Heading icon={Clock} label={t('bento.launcher.recent')} />
-                  <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                     {recents.map((r, i) => <Tile key={`recent-${r.key}`} r={r} step={i} context />)}
                   </div>
                 </section>
               )}
-              <div className="grid grid-flow-dense auto-rows-min grid-cols-1 gap-3 sm:grid-cols-2
-                              lg:grid-cols-4">
+              <div className="grid grid-flow-dense auto-rows-min grid-cols-[minmax(0,1fr)] gap-3
+                              sm:grid-cols-2 lg:grid-cols-4">
               {groups.filter((g) => !off.has(g.name)).map((g) => {
                 const Mark = markFor(g.name)
                 const hue = hueFor(g.name)
@@ -751,7 +760,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                   <section
                     key={g.name}
                     className={cn(
-                      'launcher-tile rounded-[var(--bento-radius)] border p-3.5',
+                      'launcher-tile min-w-0 rounded-[var(--bento-radius)] border p-3.5',
                       tileSpan(count),
                     )}
                     /* Mixed from the domain's ink, not its chip tone.
@@ -786,7 +795,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
                     }
                   >
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
-                    <div className={cn('grid gap-1.5', tileColumns(count))}>
+                    <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5', tileColumns(count))}>
                       {g.sections.flatMap((s) => s.rows).map((r, i) => (
                         <Tile key={r.key} r={r} step={i} />
                       ))}

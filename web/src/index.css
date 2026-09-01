@@ -1613,3 +1613,146 @@ body[data-scroll-lock] {
 .maplibregl-ctrl-attrib {
   font-size: 10px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HOW THE PHONE MOVES.
+
+   Not an imitation of iOS and not its components — the ask was the vibe, and
+   the vibe is not the chrome. It is three things a phone OS does that a web
+   app usually does not, and each is a rule rather than a decoration.
+
+   ONE CURVE, AND IT IS NOT SYMMETRICAL. Motion on a phone leaves fast and
+   arrives slow: the thing you asked for is already most of the way there
+   before you have finished lifting your finger, and it settles rather than
+   stops. `ease` and `ease-in-out` are symmetrical and read as sluggish
+   leaving and abrupt landing — which is most of what makes a web page on a
+   phone feel like a web page. --ease-phone is the decelerating curve that
+   fixes it, and --ease-phone-in is its mirror for things leaving the screen,
+   where the priority is the opposite: go quickly and do not linger.
+
+   TOUCH ANSWERS BEFORE THE NETWORK DOES. A press that changes nothing until
+   a request returns feels broken at 200ms and unusable at 800ms, which is an
+   ordinary school connection. The scale-down below is not decoration: it is
+   the acknowledgement, and it is instant because it is the one thing that can
+   be.
+
+   MOMENTUM IS A PROPERTY OF THE SCROLLER, NOT THE PAGE. A scroll that stops
+   dead, or that drags the whole page with it when it reaches its end, is the
+   other half of the tell. Containment keeps a flick inside the thing being
+   flicked.
+
+   All of it is below 1024px only. A pointer is not a finger: the tap scale
+   would be a flinch under a mouse, and desktop already has hover to say what
+   is pressable.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  /* The decelerating curve. Steep on the way out of the gate, long and flat
+     into the finish, so movement reads as settling rather than halting. */
+  --ease-phone: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Its mirror, for anything leaving: quick and out of the way. */
+  --ease-phone-in: cubic-bezier(0.4, 0, 0.9, 0.3);
+  /* Long enough to be seen as movement rather than a jump, short enough that
+     nobody waits for it. A phone's own sheets sit around here. */
+  --dur-phone: 340ms;
+  --dur-phone-fast: 180ms;
+}
+
+@media (max-width: 1023px) {
+  /* MOMENTUM, AND A FLICK THAT STAYS WHERE IT WAS AIMED.
+
+     `contain` stops a scroll that has hit the end of a card from carrying on
+     into the page behind it -- the effect that makes a phone web app feel
+     like one surface sliding over another instead of one page. */
+  .overflow-y-auto,
+  main,
+  [data-paint='workarea'] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+  }
+
+  /* THE PRESS IS ACKNOWLEDGED IMMEDIATELY.
+
+     Scoped to things that are actually pressable, and deliberately not to
+     everything with an onClick: a scale on a whole card that happens to be
+     clickable reads as the card wobbling. 0.97 is small on purpose -- enough
+     to be felt, not enough to be watched.
+
+     `:active` rather than a JS handler because the browser applies it on
+     touchstart, before React has heard about anything. */
+  /* TWO SIGNALS, BECAUSE ONE OF THEM CAN BE INVISIBLE.
+
+     The first version of this scaled the pressed element and removed the
+     browser's own tap highlight, on the reasoning that two acknowledgements
+     for one press read as a glitch. That was wrong on the cards this board is
+     made of. A bento cell IS the link -- the whole card is an anchor -- and it
+     sits inside `overflow: hidden` with an opaque ground: scaling it inward by
+     three percent moves its edge by four pixels behind its own clipping box,
+     which on a phone held at arm's length is not visible at all. So the tap
+     highlight was gone and nothing replaced it: press a card and the screen
+     did nothing until the next route painted. On a school connection that is
+     several hundred milliseconds of a screen that looks broken, and it is
+     read, correctly, as "the home is not interactive".
+
+     So the press also dims. A brightness change survives clipping, does not
+     depend on the element having room to move, and is the one feedback that
+     cannot be swallowed by the layout. The scale stays for the things that do
+     have room -- buttons, the dock, the launcher -- where it is what makes a
+     press feel physical rather than merely registered.
+
+     The invented `[data-clickable]` attribute is gone with it. Nothing in this
+     codebase has ever set it, so that half of the selector matched nothing and
+     was never doing the work its name claimed. */
+  button:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active,
+  a:active {
+    transform: scale(0.97);
+    filter: brightness(0.82);
+    transition: transform var(--dur-phone-fast) var(--ease-phone),
+                filter var(--dur-phone-fast) var(--ease-phone);
+  }
+  button, [role='button'], a {
+    /* The release is slower than the press, which is what makes it feel
+       springy rather than snapped back. */
+    transition: transform var(--dur-phone) var(--ease-phone),
+                filter var(--dur-phone) var(--ease-phone);
+    /* Our own feedback replaces the browser's blue flash -- but only because
+       there now demonstrably IS one. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* THE DRAWER AND THE SHEETS TAKE THE SAME CURVE.
+
+     These already animated; they animated on the browser's symmetrical
+     default, which is the difference between a panel that slides and one that
+     is dragged. Naming the curve here rather than editing each component
+     keeps one answer to "how does this phone move". */
+  #shell-nav,
+  [data-sheet],
+  [role='dialog'] {
+    transition-timing-function: var(--ease-phone) !important;
+    transition-duration: var(--dur-phone) !important;
+  }
+
+  /* A screen arriving. Small travel, no fade to black, no bounce: the point
+     is that the new screen was already on its way in before it was asked
+     for. 8px is under a finger's width and reads as arrival rather than as
+     an animation somebody chose. */
+  @keyframes phone-screen-in {
+    from { opacity: 0; transform: translate3d(0, 8px, 0); }
+    to   { opacity: 1; transform: none; }
+  }
+  .bento-ground > * {
+    animation: phone-screen-in var(--dur-phone) var(--ease-phone) both;
+  }
+}
+
+/* Somebody who has asked their phone to stop moving things has asked this
+   too. The tap scale goes with it: it is motion, and it is the one piece
+   here that fires on every single interaction. */
+@media (prefers-reduced-motion: reduce) {
+  .bento-ground > * { animation: none; }
+  /* The dimming stays. It is a state change, not motion, and it is the only
+     thing telling somebody their press landed. */
+  button:active, [role='button']:active, a:active { transform: none; }
+}

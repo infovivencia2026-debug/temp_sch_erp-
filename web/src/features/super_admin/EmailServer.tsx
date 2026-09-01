@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
@@ -9,6 +10,83 @@ import {
   useMessageLog, useDispatch, statusTone, when,
   type Provider, type SmtpSettings,
 } from './messaging-lib'
+
+
+/* THE FIVE FIELDS NOBODY SHOULD HAVE TO LOOK UP.
+
+   Host, port and encryption are not decisions a school makes. They are facts
+   about whichever mail account it already has, they are identical for every
+   school using that provider, and getting one of them wrong produces a failure
+   that looks like a wrong password: a connection that hangs, or an auth error,
+   with nothing on screen to say which of the three was at fault.
+
+   So the provider is picked and the three are filled. What is NOT filled is
+   anything only the school knows -- the address, the name, the credential --
+   because those are the parts a preset cannot guess and must not overwrite.
+
+   `note` is the reason this list is worth more than the hostnames. Almost every
+   provider here refuses an ordinary account password over SMTP now, and the
+   thing that unblocks it differs per provider: an App Password behind 2-Step
+   Verification for Google and Yahoo, an app-specific password for iCloud, the
+   literal username "apikey" for SendGrid, SMTP credentials that are not the AWS
+   keys for SES. That is the step people lose an afternoon to, so it is on the
+   screen rather than in a support call. */
+interface MailPreset {
+  key: string
+  label: string
+  host: string
+  port: number
+  security: string
+  /* Some providers dictate the username. SendGrid's is the literal word
+     "apikey" for every account on it, which reads as a placeholder and is
+     therefore the single most commonly mistyped field on that provider. */
+  username?: string
+  note: string
+}
+
+const PRESETS: MailPreset[] = [
+  {
+    key: 'gmail', label: 'Gmail', host: 'smtp.gmail.com', port: 587, security: 'starttls',
+    note: 'Needs an App Password, not the Gmail password — turn on 2-Step Verification first, then Google Account → Security → App passwords. The From address must be the same account, or Gmail rewrites it. Roughly 500 recipients a day.',
+  },
+  {
+    key: 'workspace', label: 'Google Workspace', host: 'smtp.gmail.com', port: 587, security: 'starttls',
+    note: 'Same server as Gmail and the same App Password requirement, on your own domain. Roughly 2,000 recipients a day, and you can send as office@yourschool.com — which is what stops fee notices looking personal.',
+  },
+  {
+    key: 'm365', label: 'Microsoft 365', host: 'smtp.office365.com', port: 587, security: 'starttls',
+    note: 'The tenant administrator must enable SMTP AUTH on the mailbox — it is off by default and Microsoft is retiring it, so check this still works before you depend on it for a fee run.',
+  },
+  {
+    key: 'outlook', label: 'Outlook.com / Hotmail', host: 'smtp-mail.outlook.com', port: 587, security: 'starttls',
+    note: 'Personal Microsoft accounts are being moved off password sign-in for SMTP. Test it before relying on it; a school account on Microsoft 365 is the supported route.',
+  },
+  {
+    key: 'yahoo', label: 'Yahoo Mail', host: 'smtp.mail.yahoo.com', port: 465, security: 'tls',
+    note: 'Needs an App Password from Yahoo Account Security. The ordinary password is refused.',
+  },
+  {
+    key: 'zoho_in', label: 'Zoho Mail (India)', host: 'smtp.zoho.in', port: 587, security: 'starttls',
+    note: 'For accounts on zoho.in. Use smtp.zoho.com if the account was created on the global site — the two are not interchangeable. An App Password is required when two-factor is on.',
+  },
+  {
+    key: 'icloud', label: 'iCloud Mail', host: 'smtp.mail.me.com', port: 587, security: 'starttls',
+    note: 'Needs an app-specific password from appleid.apple.com. The username is the full iCloud address.',
+  },
+  {
+    key: 'brevo', label: 'Brevo', host: 'smtp-relay.brevo.com', port: 587, security: 'starttls',
+    note: 'A sending service rather than a mailbox: the credential is an SMTP key from the Brevo console, and the sending domain has to be verified there. Built for volume, so it does not have a mailbox provider\u2019s daily cap.',
+  },
+  {
+    key: 'sendgrid', label: 'SendGrid', host: 'smtp.sendgrid.net', port: 587, security: 'starttls',
+    username: 'apikey',
+    note: 'The username is the literal word "apikey" — filled in above, and it is correct as it stands. The password is the API key itself.',
+  },
+  {
+    key: 'ses_mumbai', label: 'Amazon SES (Mumbai)', host: 'email-smtp.ap-south-1.amazonaws.com', port: 587, security: 'starttls',
+    note: 'The credential is a pair of SES SMTP credentials generated in the SES console — NOT your AWS access key, which will be refused. A new SES account is in the sandbox and can only mail verified addresses until you ask for production access.',
+  },
+]
 
 /**
  * Email Server (SMTP) Integration.
@@ -158,6 +236,7 @@ function SmtpPanel({ provider }: { provider: Provider }) {
   const test = useTestProvider('email')
 
   const [draft, setDraft] = useState<SmtpSettings | null>(null)
+  const [preset, setPreset] = useState<MailPreset | null>(null)
   const [secret, setSecret] = useState('')
   const [enabled, setEnabled] = useState(provider.enabled)
   const [testTo, setTestTo] = useState('')
@@ -211,6 +290,54 @@ function SmtpPanel({ provider }: { provider: Provider }) {
       />
       <div className="space-y-5 p-5">
         <FormNotice error={save.error} ok={save.isSuccess && !draft ? 'Saved.' : undefined} />
+
+        {/* Picked before the form, because it answers three of the fields in it
+            and warns about the fourth. */}
+        <div>
+          <p className="mb-2 text-[13px] font-medium text-secondary-foreground">
+            Start from a known provider
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((x) => (
+              <button
+                key={x.key}
+                type="button"
+                onClick={() => {
+                  setPreset(x)
+                  /* Host, port and encryption only -- plus the username where
+                     the provider dictates it. The address, the name and the
+                     credential are the school's own and are never touched: a
+                     preset that wiped a From address somebody had just typed
+                     would be worse than no preset. */
+                  setDraft({
+                    ...v,
+                    host: x.host,
+                    port: x.port,
+                    security: x.security,
+                    ...(x.username ? { username: x.username } : {}),
+                  })
+                }}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 text-[13px] transition-colors',
+                  preset?.key === x.key
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'hover:bg-accent',
+                )}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+          {preset && (
+            /* The part that actually saves the afternoon. Every provider on
+               this list refuses an ordinary password over SMTP, and each wants
+               something different instead. */
+            <p className="mt-2.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]">
+              <span className="font-medium">{preset.label}: </span>
+              {preset.note}
+            </p>
+          )}
+        </div>
 
         <FormGrid>
           <Field label="Host" required hint="The mail server this school sends through.">
