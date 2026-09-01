@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -62,6 +62,18 @@ export default function FeeEnrolment() {
   const mayAsk = can('admissions.write') || can('finance.fees.write')
 
   const [openID, setOpenID] = useState<string | null>(null)
+  /* THE CARD OUTLIVES THE ROW.
+
+     Enrolling is the one action here that removes its own row: the moment the
+     child is a student they are no longer an offer waiting, so the list comes
+     back without them. The open card was reading that row out of the list
+     with a non-null assertion, so the successful enrolment crashed the whole
+     screen -- and took with it the only copy of the parent's password, which
+     is returned once and stored nowhere.
+
+     The last version of the row is kept, so the card can finish saying what
+     happened after the list has correctly moved on. */
+  const lastRow = useRef<Pending | null>(null)
 
   const queue = useQuery({
     queryKey: ['pending-admissions'],
@@ -69,6 +81,10 @@ export default function FeeEnrolment() {
   })
 
   const rows = queue.data?.items ?? []
+  // Fresh while it is in the list, remembered once it leaves.
+  const liveRow = rows.find((x) => x.id === openID)
+  if (liveRow) lastRow.current = liveRow
+  const openRow = liveRow ?? lastRow.current
 
   return (
     <>
@@ -134,9 +150,9 @@ export default function FeeEnrolment() {
           </Card>
         )}
 
-        {openID && (
+        {openID && openRow && (
           <ApplicantFee
-            row={rows.find((x) => x.id === openID)!}
+            row={openRow}
             mayAsk={mayAsk}
             onChanged={() => qc.invalidateQueries({ queryKey: ['pending-admissions'] })}
           />
