@@ -708,15 +708,28 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 			// A concession with no approver is money the school has decided not
 			// to collect, so it belongs in the same queue as everything else.
 			return scanInto(r.Context(), tx, `
+				/* AN APPLICANT IS A PERSON TOO.
+
+				   Inner-joined to students, so a concession agreed before a
+				   child joins -- which is every one of them, because the fee
+				   is settled before a family accepts a place -- was dropped
+				   from this queue. The dashboard counted it, the principal
+				   opened Approvals, and the queue was empty. Meanwhile
+				   enrolling stays refused while a concession is pending, so
+				   the admission could not go forward and nothing on any
+				   screen said why. */
 				SELECT fc.id::text,
-				       concat_ws(' ', st.first_name, st.last_name),
+				       COALESCE(NULLIF(concat_ws(' ', st.first_name, st.last_name), ''),
+				                concat_ws(' ', ap.first_name, ap.last_name)),
 				       fc.kind, COALESCE(fc.reason,''), fc.amount_paise,
 				       to_char(fc.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM fee_concessions fc
-				  JOIN students st ON st.id = fc.student_id
+				  LEFT JOIN students st ON st.id = fc.student_id
+				  LEFT JOIN applications ap ON ap.id = fc.application_id
 				 -- Pending is status, not approved_at: a refusal also leaves
 				 -- approved_at NULL, and would sit in this queue for ever.
 				 WHERE fc.status = 'pending'
+				   AND (st.id IS NOT NULL OR ap.id IS NOT NULL)
 				 ORDER BY fc.created_at`,
 				func(rows pgx.Rows) error {
 					var cid, who, kind, reason, raised string
@@ -773,7 +786,8 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var studentID uuid.UUID
+	var studentID *uuid.UUID
+	var applicationID *uuid.UUID
 	var studentName, kindName string
 	var askedBy *uuid.UUID
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -800,15 +814,35 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 			   SET status = $2, approved_by = $3, approved_at = `+approvedAt+`,
 			       decided_at = now(), decision_note = NULLIF($4,'')
 			 WHERE id = $1 AND status = 'pending'
-			RETURNING student_id, kind, requested_by`,
+			RETURNING student_id, application_id, kind, requested_by`,
 			cid, status, id.UserID, note).
-			Scan(&studentID, &kindName, &askedBy); err != nil {
+			Scan(&studentID, &applicationID, &kindName, &askedBy); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(r.Context(),
-			`SELECT concat_ws(' ', first_name, last_name) FROM students WHERE id = $1`,
-			studentID).Scan(&studentName); err != nil {
-			return err
+		/* Whose name to put in the message.
+
+		   This read the students table with whatever came back in student_id.
+		   On an applicant's concession that is NULL, so the lookup found no
+		   row, the transaction rolled back, and the decision the principal
+		   had just made was lost -- an approve button that could not approve
+		   the only kind of request in the queue. */
+		switch {
+		case studentID != nil:
+			if err := tx.QueryRow(r.Context(),
+				`SELECT concat_ws(' ', first_name, last_name) FROM students WHERE id = $1`,
+				*studentID).Scan(&studentName); err != nil {
+				return err
+			}
+		case applicationID != nil:
+			if err := tx.QueryRow(r.Context(),
+				`SELECT concat_ws(' ', first_name, last_name) FROM applications WHERE id = $1`,
+				*applicationID).Scan(&studentName); err != nil {
+				return err
+			}
+		default:
+			// Neither, which the grant refuses to write. Deciding it is still
+			// correct; only the name is unknown.
+			studentName = "This request"
 		}
 
 		/* The person who asked is told, because they are the one at the
@@ -823,8 +857,8 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 			body += " " + note
 		}
 		if askedBy != nil && *askedBy != id.UserID {
-			st := studentID
-			if err := notify(r, tx, id.InstitutionID, *askedBy, &st, "fee_concession",
+
+			if err := notify(r, tx, id.InstitutionID, *askedBy, studentID, "fee_concession",
 				"Concession "+word, body, "/go/concessions", "concession", &cid); err != nil {
 				return err
 			}
