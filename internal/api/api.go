@@ -315,6 +315,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/academic-years", s.createAcademicYear)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/classes", s.createClass)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/sections", s.createSection)
+			// The name is the thing most likely to be wrong on the first pass, and
+			// nothing joins on it — everything points at the section by id.
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Patch("/sections/{id}", s.updateSection)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/sections/{id}", s.deleteSection)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/subjects", s.createSubject)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Put("/periods", s.setPeriods)
 			r.With(httpx.RequirePermission(rbac.AcademicsRead)).Get("/class-subjects", s.listClassSubjects)

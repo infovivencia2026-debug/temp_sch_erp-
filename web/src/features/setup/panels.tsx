@@ -744,9 +744,7 @@ function SectionsPanel({ onDone }: PanelProps) {
             {sections!.items
               .filter((s) => filter === 'all' || s.class_id === filter)
               .map((s) => (
-                <Chip key={s.id}>
-                  {s.class_name}-{s.name} · {s.enrolled}/{s.capacity}
-                </Chip>
+                <EditableSection key={s.id} section={s} />
               ))}
           </Existing>
         </>
@@ -2879,5 +2877,90 @@ export function BoardImplications({ board }: { board: string }) {
         you have already set up is overwritten.
       </p>
     </div>
+  )
+}
+
+/* A section, renameable in place.
+
+   The name is the thing most likely to be wrong on the first pass: a school
+   types A and B during setup because that is what the example said, then finds
+   its own noticeboards say Rose and Jasmine. Nothing joins on the name — every
+   register, timetable, mark and invoice points at the section by id — so the
+   rename is a label change and the school's history follows it.
+
+   Deleting is offered only for an empty section, and the server refuses on
+   every enrolment rather than only the active ones: a section whose children
+   were all promoted out still holds last year's register, and the cascade
+   would take it. */
+function EditableSection({ section }: { section: Section }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(section.name)
+  const [capacity, setCapacity] = useState(String(section.capacity))
+  const [failed, setFailed] = useState('')
+
+  const done = () => {
+    setFailed('')
+    setOpen(false)
+    qc.invalidateQueries({ queryKey: ['sections'] })
+  }
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch(`/api/v1/academics/sections/${section.id}`, {
+        name: name.trim(),
+        capacity: Number(capacity) || section.capacity,
+      }),
+    onSuccess: done,
+    onError: (e: unknown) => setFailed(e instanceof Error ? e.message : 'Could not save.'),
+  })
+
+  const remove = useMutation({
+    mutationFn: () => api.del(`/api/v1/academics/sections/${section.id}`),
+    onSuccess: done,
+    onError: (e: unknown) => setFailed(e instanceof Error ? e.message : 'Could not delete.'),
+  })
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Rename this section, or change what it holds"
+        className="inline-flex items-center rounded-sm border px-2 py-0.5 text-[13px] hover:bg-accent"
+      >
+        {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
+      </button>
+    )
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5 rounded-sm border px-2 py-1">
+      <span className="text-[13px] text-muted-foreground">{section.class_name}</span>
+      <span className="w-28">
+        <Input value={name} onChange={setName} placeholder="Rose" />
+      </span>
+      <span className="w-16">
+        <Input value={capacity} onChange={setCapacity} />
+      </span>
+      <Button size="sm" disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>
+        Save
+      </Button>
+      {section.enrolled === 0 && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={remove.isPending}
+          onClick={() => remove.mutate()}
+          title="Delete this empty section"
+        >
+          Delete
+        </Button>
+      )}
+      <Button size="sm" variant="ghost" onClick={() => { setOpen(false); setFailed('') }}>
+        Cancel
+      </Button>
+      {failed && <span className="text-[12px] text-danger">{failed}</span>}
+    </span>
   )
 }

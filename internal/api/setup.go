@@ -161,8 +161,17 @@ func (s *Server) createSection(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "class_id must be a uuid")
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" {
-		httpx.BadRequest(w, r, "name is required, for example A or B")
+	/* Trimmed here, not just tested.
+
+	   The check trimmed and the insert did not, so " A" and "A" were two
+	   different sections past a unique constraint whose entire job is to stop
+	   that — and a school pasting a column out of a spreadsheet gets the
+	   leading space for free. A section name is whatever the school calls it,
+	   Rose or Newton or 8-C, but it is not the whitespace around it. */
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		httpx.BadRequest(w, r,
+			"name is required — a letter, or whatever this school calls it: Rose, Newton, Blue")
 		return
 	}
 	if req.Capacity <= 0 {
