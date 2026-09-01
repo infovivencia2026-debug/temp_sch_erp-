@@ -52,13 +52,32 @@ import (
 // whole point of this is a client that has none.
 // MountDeviceProtocol is called from the root router, not from Routes().
 func (s *Server) MountDeviceProtocol(r chi.Router) {
-	r.Get("/iclock/cdata", s.deviceHandshake)
-	r.Post("/iclock/cdata", s.devicePush)
-	r.Get("/iclock/getrequest", s.deviceCommands)
-	r.Post("/iclock/devicecmd", s.deviceCommandResult)
-	// Some firmware asks with a trailing slash, some without, and a 404 is a
-	// retry loop rather than an error message.
-	r.Get("/iclock/ping", s.devicePing)
+	/* BOTH SPELLINGS OF EVERY PATH.
+
+	   ZK firmware comes in two conventions and the device does not negotiate:
+	   newer readers ask for /iclock/cdata, older ones for /iclock/cdata.aspx.
+	   The .aspx is a fossil of the original Windows ADMS server and means
+	   nothing here, but the firmware is compiled around it.
+
+	   Found the hard way. A reader on iClock Proxy/1.09 pointed at this server
+	   asked for cdata.aspx every fifteen seconds and took a 404 every time —
+	   which, per the note above, is precisely the shape of failure that never
+	   resolves itself: the device cannot report the problem, the office sees a
+	   reader that says "connected", and nothing arrives. Serving both costs
+	   four lines.
+
+	   options=all&language=69&pushver=2.4.1 rides along on that firmware's
+	   query string. The handshake reads only SN, so the extra parameters are
+	   ignored rather than rejected. */
+	for _, ext := range []string{"", ".aspx"} {
+		r.Get("/iclock/cdata"+ext, s.deviceHandshake)
+		r.Post("/iclock/cdata"+ext, s.devicePush)
+		r.Get("/iclock/getrequest"+ext, s.deviceCommands)
+		r.Post("/iclock/devicecmd"+ext, s.deviceCommandResult)
+		// Some firmware asks with a trailing slash, some without, and a 404 is
+		// a retry loop rather than an error message.
+		r.Get("/iclock/ping"+ext, s.devicePing)
+	}
 }
 
 // text answers the device in the only dialect it understands.
