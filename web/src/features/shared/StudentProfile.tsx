@@ -1050,13 +1050,43 @@ export default function StudentProfile() {
                       ['Aadhaar', p.aadhaar_last4 ? `•••• ${p.aadhaar_last4}` : undefined],
                       ['Previous school', p.prior_school],
                     ]),
-                  ] as [string, string | undefined][]).map(([k, v]) => (
+                  ] as [string, string | undefined][])
+                    /* FILLED ONLY, UNTIL SOMEBODY IS EDITING.
+
+                       Reading, a box saying "Nationality —" tells you nothing
+                       you did not know and takes the same room as one that
+                       does; a dozen of them push the four facts that ARE
+                       recorded off the first screen. Editing, the opposite is
+                       true: an empty field you cannot see is a field you
+                       cannot fill, which is how half of these came to be empty
+                       in the first place. */
+                    .filter(([, v]) => editing || (v && v !== 'Not issued' && v !== 'Not linked'))
+                    .map(([k, v]) => (
                     <div key={k} className="bg-background px-4 py-3">
                       <p className="eyebrow text-muted-foreground">{k}</p>
-                      <p className="mt-0.5 text-[14px]">{v || '—'}</p>
+                      <p className={cn('mt-0.5 text-[14px]', !v && 'text-muted-foreground')}>
+                        {v || 'Not recorded'}
+                      </p>
                     </div>
                   ))}
+                  {/* The school's own fields, beside the ones we thought of. */}
+                  {Object.entries(p.custom_fields ?? {})
+                    .filter(([k]) => k.startsWith('Details/'))
+                    .map(([k, v]) => (
+                      <div key={k} className="bg-background px-4 py-3">
+                        <p className="eyebrow text-muted-foreground">{k.slice(8)}</p>
+                        <p className="mt-0.5 text-[14px]">{v || '—'}</p>
+                      </div>
+                    ))}
                 </div>
+                {editing && (
+                  <div className="border-t px-5 py-3">
+                    <AddDetailField
+                      studentID={p.id}
+                      onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+                    />
+                  </div>
+                )}
               </Card>
 
               {/* Fields with no block of their own. Shown only when there are
@@ -2010,6 +2040,54 @@ function QuickTile({ label, value, note, tone, swatch }: {
    this product sends goes to guardians, so a parent with neither is a name on
    a record the school cannot act on — and the morning that matters is the
    morning a child is hurt. */
+/* Something this school records that we did not think of.
+
+   Sits with the details rather than in a list at the foot of the page,
+   because a field is looked for beside the fields it belongs with. Stored as
+   "Details/Sibling admission no" in the custom_fields column that has been on
+   students since the baseline, so no school needs a migration to record what
+   it records. */
+function AddDetailField({ studentID, onChanged }: {
+  studentID: string
+  onChanged: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [value, setValue] = useState('')
+  const save = useMutation({
+    mutationFn: () => api.post(`/api/v1/students/${studentID}/custom-fields`, {
+      custom_fields: { ['Details/' + name.trim()]: value },
+    }),
+    onSuccess: () => { setOpen(false); setName(''); setValue(''); onChanged() },
+  })
+  if (!open) {
+    return (
+      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
+        Add a field
+      </Button>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="w-52">
+        <FormField label="Field name">
+          <Input value={name} onChange={setName} placeholder="Sibling admission no." />
+        </FormField>
+      </div>
+      <div className="min-w-[10rem] flex-1">
+        <FormField label="Value">
+          <Input value={value} onChange={setValue} />
+        </FormField>
+      </div>
+      <Button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>
+        {save.isPending ? 'Saving…' : 'Add'}
+      </Button>
+      <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+      <FormNotice error={save.error} />
+    </div>
+  )
+}
+
 function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
   guardian?: Profile['guardians'][number]
   saving: boolean
