@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 326 features.
+// Roles is the catalog: 13 roles, 327 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -824,6 +824,7 @@ var Roles = []Role{
 					{Key: "admissions.applications.application_forms", Slug: "application_forms", Name: "Application Forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered."},
 					{Key: "admissions.applications.document_verification", Slug: "document_verification", Name: "Document Verification", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told."},
 					{Key: "admissions.applications.student_360", Slug: "student_360", Name: "Student 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One child, whole: who to ring, the guardians on record, attendance, fees and conduct. The screen the admissions desk opens to add a parent to a child and hand the family their login."},
+					{Key: "admissions.applications.certificates_transfers", Slug: "certificates_transfers", Name: "Certificates & transfers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Issue a transfer, bonafide, conduct or study certificate, and read the register of every one the school has issued. The desk that admits a child is the desk a family comes back to when the child leaves, so the leaving paperwork is here and not only in the principal's workspace."},
 				},
 			},
 			{

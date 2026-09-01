@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 326 features. */
+/** 13 roles, 327 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -777,6 +777,7 @@ export const ROLES: Role[] = [
           { key: 'admissions.applications.application_forms', slug: 'application_forms', name: 'Application Forms', scope: 'institution', tier: 'core', summary: 'Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered.' },
           { key: 'admissions.applications.document_verification', slug: 'document_verification', name: 'Document Verification', scope: 'institution', tier: 'core', summary: 'Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told.' },
           { key: 'admissions.applications.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: who to ring, the guardians on record, attendance, fees and conduct. The screen the admissions desk opens to add a parent to a child and hand the family their login.' },
+          { key: 'admissions.applications.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Issue a transfer, bonafide, conduct or study certificate, and read the register of every one the school has issued. The desk that admits a child is the desk a family comes back to when the child leaves, so the leaving paperwork is here and not only in the principal\'s workspace.' },
         ],
       },
       {

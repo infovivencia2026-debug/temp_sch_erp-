@@ -146,6 +146,19 @@ func total(n int) *int { return &n }
 // Run returns the count, an optional amount and detail line, and — where the
 // query already knew them — a denominator and a breakdown; a zero count drops
 // the item before it reaches the response.
+// canAny takes a space-separated list and passes on the first key held.
+// A single key, which is nearly every probe, behaves exactly as before.
+func canAny(id interface {
+	Can(string) bool
+}, needs string) bool {
+	for _, k := range strings.Fields(needs) {
+		if id.Can(k) {
+			return true
+		}
+	}
+	return false
+}
+
 type probe struct {
 	Key      string
 	Needs    string
@@ -478,7 +491,11 @@ var probes = []probe{
 		   naming the screen's own key is both the permission test and the
 		   guarantee that the link has somewhere to go. */
 		Key: "certificates.requested",
-		Needs: "institution_admin.students.certificates_transfers",
+		/* Either workspace's own key. The admissions desk has this screen now,
+		   so requiring the principal's key would hide from them a row about
+		   work that is theirs. */
+		Needs: "institution_admin.students.certificates_transfers " +
+			"admissions.applications.certificates_transfers",
 		/* The screen that issues one, not the section it lives in.
 
 		   "students" matched Student 360 first — a screen about one child,
@@ -595,7 +612,11 @@ func (s *Server) getAttention(w http.ResponseWriter, r *http.Request) {
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		for _, p := range probes {
-			if !id.Can(p.Needs) {
+			/* Any one of them. A row is about a job, and the same job can
+			   live in two workspaces under two keys -- issuing a certificate
+			   is the principal's screen and the admissions desk's screen. One
+			   key would hide the row from whichever of them was not named. */
+			if !canAny(id, p.Needs) {
 				continue
 			}
 			res, err := p.Run(r.Context(), tx, sc)
