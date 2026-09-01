@@ -143,6 +143,23 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   onChanged: () => void
 }) {
   const navigate = useNavigate()
+  const can = useCan()
+  /* Approving a JOINING, as distinct from approving the waiver.
+
+     The gate that requires this was built with no screen to open it: turning
+     it on blocked every enrolment at the school with no way through, which is
+     the same fault as a button that asks and then refuses, only worse because
+     it stops work rather than wasting a click. The switch and the screen have
+     to ship together. */
+  const mayApprove = can('admissions.approve')
+  const [note, setNote] = useState('')
+
+  const decide = useMutation({
+    mutationFn: (approved: boolean) =>
+      api.post(`/api/v1/admissions/workflow/pending-admissions/${row.id}/decide`,
+        { approved, note }),
+    onSuccess: () => { setNote(''); onChanged() },
+  })
   const [kind, setKind] = useState('staff_ward')
   const [mode, setMode] = useState<'percent' | 'amount'>('percent')
   const [percent, setPercent] = useState('')
@@ -179,6 +196,43 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           ? `${row.class_sought} costs ${formatPaise(fee)} for the year.`
           : 'No priced fee structure covers this class, so nothing can be quoted or billed.'}
       />
+
+      {mayApprove && (
+        <div className="border-b bg-muted/20 p-4">
+          <p className="eyebrow mb-2">The principal's decision on this joining</p>
+          <p className="mb-3 text-[13px] text-muted-foreground">
+            {row.name} would join {row.class_sought} and be billed{' '}
+            {Number(row.fee_paise) > 0 ? formatPaise(Number(row.fee_paise)) : 'nothing yet'}
+            {row.concession_status === 'approved'
+              ? `, less an approved ${row.concession_kind.replace('_', ' ')} concession of ${row.concession_value}.`
+              : row.concession_status === 'pending'
+                ? '. A concession is still waiting on you below.'
+                : '. No concession has been asked for.'}
+          </p>
+          <FormField label="Note"
+            hint="What the desk should tell the family, if you are sending it back">
+            <Input value={note} onChange={setNote} />
+          </FormField>
+          <FormNotice error={decide.error} />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+              Approve the joining
+            </Button>
+            {/* Sending back is not rejecting the child: the commonest answer
+                is "not until the fee is settled", which is a delay. The note
+                is required for it, because the desk has to tell the family
+                something and the person who answers the telephone did not
+                make the decision. */}
+            <Button variant="secondary" disabled={decide.isPending || !note.trim()}
+              onClick={() => decide.mutate(false)}>
+              Send back to the desk
+            </Button>
+            {decide.isSuccess && (
+              <span className="text-[12.5px] text-success">Recorded.</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {row.concession_status ? (
         <div className="border-b px-5 py-4 text-[13px]">
