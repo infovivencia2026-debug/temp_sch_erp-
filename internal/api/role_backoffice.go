@@ -435,14 +435,17 @@ type employeeRow struct {
 	// The four-digit number: what a fingerprint reader holds and what a
 	// teacher signs in with. employee_code stays what the school calls them
 	// on paper.
-	StaffNumber *int    `json:"staff_number,omitempty"`
-	FullName    string  `json:"full_name"`
-	Department  *string `json:"department,omitempty"`
-	Designation *string `json:"designation,omitempty"`
-	Phone       *string `json:"phone,omitempty"`
-	Email       *string `json:"email,omitempty"`
-	JoinedOn    string  `json:"joined_on"`
-	Status      string  `json:"status"`
+	StaffNumber *int `json:"staff_number,omitempty"`
+	// What the fingerprint reader knows them by. Equal to staff_number unless
+	// the school's reader was already enrolled with ids of its own.
+	DeviceUserID *int    `json:"device_user_id,omitempty"`
+	FullName     string  `json:"full_name"`
+	Department   *string `json:"department,omitempty"`
+	Designation  *string `json:"designation,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+	Email        *string `json:"email,omitempty"`
+	JoinedOn     string  `json:"joined_on"`
+	Status       string  `json:"status"`
 	// How many periods a week they are timetabled for. Zero is the state that
 	// makes a clash check meaningless and a substitution board silent, so it
 	// travels with the person rather than having to be asked for separately.
@@ -453,7 +456,7 @@ type employeeRow struct {
 func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT e.id::text, e.user_id::text, e.employee_code, e.staff_number,
-		       concat_ws(' ', e.first_name, e.last_name),
+		       e.device_user_id, concat_ws(' ', e.first_name, e.last_name),
 		       d.name, dg.name, e.phone, e.email::text,
 		       to_char(e.joined_on,'YYYY-MM-DD'), e.status,
 		       (SELECT count(*)::int FROM timetable_entries te
@@ -466,7 +469,8 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		 LIMIT 300`, []any{nullString(r.URL.Query().Get("status"))},
 		func(rows pgx.Rows) (employeeRow, error) {
 			var v employeeRow
-			return v, rows.Scan(&v.ID, &v.UserID, &v.Code, &v.StaffNumber, &v.FullName, &v.Department,
+			return v, rows.Scan(&v.ID, &v.UserID, &v.Code, &v.StaffNumber, &v.DeviceUserID,
+				&v.FullName, &v.Department,
 				&v.Designation, &v.Phone, &v.Email, &v.JoinedOn, &v.Status, &v.PeriodsWeek)
 		})
 	respond(w, r, items, err)

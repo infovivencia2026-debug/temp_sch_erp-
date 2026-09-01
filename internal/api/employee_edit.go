@@ -42,6 +42,11 @@ type employeePatch struct {
 	ConfirmedOn *string `json:"confirmed_on,omitempty"`
 	RelievedOn  *string `json:"relieved_on,omitempty"`
 
+	// The number the fingerprint reader knows them by. Defaults to
+	// staff_number; set explicitly only for a school whose reader was already
+	// enrolled with ids of its own.
+	DeviceUserID *int `json:"device_user_id,omitempty"`
+
 	Qualification   *string `json:"qualification,omitempty"`
 	ExperienceYears *int    `json:"experience_years,omitempty"`
 	Address         *string `json:"address,omitempty"`
@@ -128,6 +133,7 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 			    -- Filled in, never overwritten by the automatic stamp above.
 			    relieved_on      = CASE WHEN $12::text IS NULL THEN relieved_on
 			                            ELSE COALESCE(relieved_on, NULLIF($12,'')::date) END,
+			    device_user_id   = COALESCE($20, device_user_id),
 			    qualification    = CASE WHEN $13::text IS NULL THEN qualification ELSE NULLIF($13,'') END,
 			    experience_years = COALESCE($14, experience_years),
 			    address          = CASE WHEN $15::text IS NULL THEN address ELSE NULLIF($15,'') END,
@@ -143,7 +149,8 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 			req.JoinedOn, req.ConfirmedOn, relieved,
 			req.Qualification, req.ExperienceYears, req.Address,
 			req.BankAccount, req.BankIFSC,
-			req.EmergencyContactName, req.EmergencyContactPhone).Scan(&name, &status)
+			req.EmergencyContactName, req.EmergencyContactPhone,
+			req.DeviceUserID).Scan(&name, &status)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errEmployeeGone
 		}
@@ -184,6 +191,11 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	case err != nil && strings.Contains(err.Error(), "employees_institution_id_employee_code"):
 		httpx.BadRequest(w, r, "another staff record already uses that employee code")
+		return
+	case err != nil && strings.Contains(err.Error(), "employees_device_user_id"):
+		httpx.BadRequest(w, r,
+			"another member of staff is already enrolled on the reader under that id — "+
+				"two people cannot be the same finger")
 		return
 	case err != nil:
 		httpx.Internal(w, r, err)
