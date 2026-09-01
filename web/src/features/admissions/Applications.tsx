@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section } from '@/lib/api'
 import {
@@ -100,6 +100,7 @@ export default function Applications() {
   ]
 
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const can = useCan()
   const mayWrite = can('admissions.write')
   const mayEnrol = can('students.write')
@@ -160,7 +161,6 @@ export default function Applications() {
   const [remarks, setRemarks] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [score, setScore] = useState('')
-  const [sectionId, setSectionId] = useState('')
   /* The bus, asked for at the desk.
 
      A parent says "we live at Subedari and he will use the bus" while filling
@@ -168,18 +168,12 @@ export default function Applications() {
      only billed for a bus, and putting the child on one meant the transport
      office opening a second screen later and finding the student again. So the
      ordinary outcome was an invoice for transport and no seat on it. */
-  const [routeId, setRouteId] = useState('')
-  const [pickupStopId, setPickupStopId] = useState('')
   const [note, setNote] = useState('')
 
   const apps = useQuery({
     queryKey: ['applications', status],
     queryFn: () =>
       api.get<List<Application>>(`/api/v1/admissions/applications${status ? `?status=${status}` : ''}`),
-  })
-  const sections = useQuery({
-    queryKey: ['sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
 
   function after() {
@@ -233,29 +227,7 @@ export default function Applications() {
      does not arrive, this screen is the only copy that ever existed. The
      parent is usually still standing at the desk, which is the one moment it
      can be handed over by hand. */
-  const [login, setLogin] = useState<ParentLogin | null>(null)
 
-  const enrol = useMutation({
-    mutationFn: () =>
-      api.post<{ parent_login?: ParentLogin }>(
-        `/api/v1/admissions/workflow/applications/${open!.id}/enrol`,
-        {
-          section_id: sectionId,
-          // Omitted entirely for a walker. The server treats an absent route
-          // as "no bus asked for" rather than as an error.
-          ...(routeId && pickupStopId
-            ? { transport: { route_id: routeId, pickup_stop_id: pickupStopId } }
-            : {}),
-        },
-      ),
-    onSuccess: (res) => {
-      setNote('Enrolled. The applicant is now a student with an admission number.')
-      setLogin(res.parent_login?.sign_in_as ? res.parent_login : null)
-      setOpen(null); setSectionId(''); setRouteId(''); setPickupStopId('')
-      after()
-      qc.invalidateQueries({ queryKey: ['students'] })
-    },
-  })
 
   /* The class sought is a uuid, not a name — the endpoint rejects anything
      else — so the form has to offer the real classes rather than free text. */
@@ -264,17 +236,6 @@ export default function Applications() {
   /* Only the routes a bus is actually on. A route with no vehicle cannot be
      driven, and offering it here is how a child ends up allocated to a service
      that does not run. */
-  const routes = useQuery({
-    queryKey: ['transport-routes', 'for-admission'],
-    queryFn: () => api.get<List<{ id: string; name: string; code?: string }>>(
-      '/api/v1/ops/transport/routes'),
-  })
-  const stops = useQuery({
-    enabled: routeId !== '',
-    queryKey: ['route-stops', 'for-admission', routeId],
-    queryFn: () => api.get<List<{ id: string; name: string; pickup_time?: string }>>(
-      `/api/v1/ops/transport/routes/${routeId}/stops`),
-  })
 
   const stages = useQuery({
     queryKey: ['admissions', 'stages'],
@@ -398,11 +359,9 @@ export default function Applications() {
         )}
 
         <FormNotice
-          error={assess.error || decide.error || enrol.error || create.error}
+          error={assess.error || decide.error || create.error}
           ok={note}
         />
-
-        {login && <ParentLoginCard login={login} onClose={() => setLogin(null)} />}
 
         {mayWrite && !checking && (
           <Card>
@@ -801,131 +760,42 @@ export default function Applications() {
                   </div>
                 )}
 
-                {/* Enrol — only once the parent has accepted. Turning an
-                    applicant into a student is the one irreversible step here,
-                    so it appears only when it is actually the next one. */}
-                {/* THE SERVER TAKES 'offered'; THIS DEMANDED 'accepted'.
+                {/* ENROLLING LIVES ON FEE & ENROLMENT, and only there.
 
-                    Only enrolApplicant ever sets accepted, and it sets it AS
-                    PART OF enrolling — so an offered application could never
-                    reach the form that would have accepted it. The normal path
-                    for every new admission was a deadlock, and the screen said
-                    nothing because by its own logic there was simply nothing
-                    to show. Both states now, matching the handler. */}
+                    It was on both screens, and the two were not the same
+                    form: this one could not see the concession, so a child
+                    with a waiver waiting could be enrolled from here and
+                    billed at full price -- the one order of events the whole
+                    process exists to prevent. Two doors onto an irreversible
+                    step is two chances to take the wrong one.
+
+                    This screen decides whether to offer a place. What the
+                    family pays, and the joining itself, are settled together
+                    where the money is. */}
                 {(open.status === 'offered' || open.status === 'accepted') && mayEnrol && (
                   <div className="border-t pt-5">
-                    <p className="eyebrow mb-2">Enrol</p>
-                    <div className="flex flex-wrap items-end gap-3">
-                      <label className="flex flex-col gap-1.5 text-[13px]">
-                        <span className="text-muted-foreground">Into section</span>
-                        <Select
-                          value={sectionId}
-                          onChange={setSectionId}
-                          placeholder="Select…"
-                          options={(sections.data?.items ?? []).map((s) => ({
-                            value: s.id,
-                            label: `${s.class_name}-${s.name} (${s.enrolled}/${s.capacity})`,
-                          }))}
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5 text-[13px]">
-                        <span className="text-muted-foreground">Bus route</span>
-                        <Select
-                          value={routeId}
-                          onChange={(v) => { setRouteId(v); setPickupStopId('') }}
-                          placeholder="Walks or own transport"
-                          options={(routes.data?.items ?? []).map((r) => ({
-                            value: r.id,
-                            label: r.code ? `${r.name} (${r.code})` : r.name,
-                          }))}
-                        />
-                      </label>
-                      {routeId && (
-                        <label className="flex flex-col gap-1.5 text-[13px]">
-                          <span className="text-muted-foreground">Boards at</span>
-                          <Select
-                            value={pickupStopId}
-                            onChange={setPickupStopId}
-                            placeholder={stops.isFetching ? 'Loading…' : 'Select…'}
-                            options={(stops.data?.items ?? []).map((st) => ({
-                              value: st.id,
-                              label: st.pickup_time ? `${st.name} · ${st.pickup_time}` : st.name,
-                            }))}
-                          />
-                        </label>
-                      )}
-                      <Button
-                        disabled={!sectionId || (!!routeId && !pickupStopId) || enrol.isPending}
-                        onClick={() => enrol.mutate()}
-                      >
-                        {enrol.isPending ? 'Enrolling…' : 'Create the student record'}
-                      </Button>
-                    </div>
-                    <p className="mt-2 text-[12.5px] text-muted-foreground">
-                      This issues an admission number and creates the enrolment. The application
-                      stays on file against the new student.
+                    <p className="eyebrow mb-2">Next</p>
+                    <p className="text-[13.5px]">
+                      A place is offered. {open.first_name} is on Fee &amp; enrolment
+                      now, where the fee is agreed, the principal signs it off,
+                      and the section and the bus are chosen as they join.
                     </p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="mt-2"
+                      onClick={() => navigate('/admissions/admissions/fee_enrollment')}
+                    >
+                      Open Fee &amp; enrolment
+                    </Button>
                   </div>
                 )}
 
-                {open.status === 'offered' && (
-                  <p className="text-[13.5px] text-muted-foreground">
-                    An offer is out. The parent accepts by paying the admission fee — once the
-                    payment is recorded, this application becomes enrollable.
-                  </p>
-                )}
               </div>
             )}
           </Card>
         )}
       </PageBody>
     </>
-  )
-}
-
-interface ParentLogin {
-  sign_in_as?: string
-  password?: string
-  full_name?: string
-  existing?: boolean
-  sent_to?: string[]
-  note?: string
-}
-
-/* Shown once, and said so.
-
-   Deliberately not a toast. A toast that carries a password is a password the
-   office loses by looking away, and the one thing this card must survive is
-   the clerk turning round to speak to the parent. It stays until dismissed. */
-function ParentLoginCard({ login, onClose }: { login: ParentLogin; onClose: () => void }) {
-  const sent = login.sent_to ?? []
-  return (
-    <Card>
-      <CardHeader
-        title={login.existing ? 'This parent already has a login' : "The parent's login"}
-        description={
-          login.existing
-            ? 'A second child on the same account. The password is unchanged, so it is not shown.'
-            : 'Give this to the parent now. The password cannot be read back once this card is closed.'
-        }
-        action={<Button variant="secondary" onClick={onClose}>Done</Button>}
-      />
-      <div className="grid gap-3 p-4 sm:grid-cols-2">
-        <Field label="Sign in as">
-          <p className="select-all font-mono text-[15px]">{login.sign_in_as}</p>
-        </Field>
-        {login.password && (
-          <Field label="Password">
-            <p className="select-all font-mono text-[15px]">{login.password}</p>
-          </Field>
-        )}
-      </div>
-      <div className="border-t px-4 py-3 text-[13px] text-muted-foreground">
-        {sent.length > 0
-          ? `Also sent by ${sent.join(', ')}.`
-          : 'Not sent: this parent has no phone or email on record, so read it out now.'}
-        {login.note ? ` ${login.note}` : ''}
-      </div>
-    </Card>
   )
 }

@@ -6,6 +6,7 @@ import {
   Input, Textarea, FormNotice, Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import { ParentLoginCard, type ParentLogin } from './ParentLoginCard'
 import { formatPaise, formatDate } from '@/lib/utils'
 
 /* The money that settles before a child joins.
@@ -193,11 +194,20 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
 
+  /* The parent's sign-in, which is returned once and stored nowhere.
+
+     The password is hashed on the way in, so this response is the only copy
+     that will ever exist. Enrolling from here without showing it would create
+     an account whose password nobody -- not the desk, not the parent, not the
+     school -- has ever seen. */
+  const [login, setLogin] = useState<ParentLogin | null>(null)
+
   const enrol = useMutation({
     mutationFn: () => api.post<{
       admission_no?: string
       invoice_no?: string
       net_paise?: number
+      parent_login?: ParentLogin
     }>(
       `/api/v1/admissions/workflow/applications/${row.id}/enrol`,
       {
@@ -212,7 +222,10 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
             }
           : {}),
       }),
-    onSuccess: () => onChanged(),
+    onSuccess: (res) => {
+      setLogin(res.parent_login?.sign_in_as ? res.parent_login : null)
+      onChanged()
+    },
   })
 
   const decide = useMutation({
@@ -433,6 +446,9 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 <p className="text-muted-foreground">
                   Their full record is in Student 360.
                 </p>
+                {login && (
+                  <ParentLoginCard login={login} onClose={() => setLogin(null)} />
+                )}
               </div>
             ) : (
               <div className="mt-3 space-y-3 rounded-lg border p-3">
