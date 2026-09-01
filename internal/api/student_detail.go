@@ -51,8 +51,17 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	history := []map[string]any{}
 	crew := []map[string]any{}
 	activities := []map[string]any{}
+	concessions := []map[string]any{}
+	var classID *string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* The child's current class, for the fee quote. Read from the latest
+		   enrolment, which is the same row the roll and the register use. */
+		_ = tx.QueryRow(r.Context(), `
+			SELECT e.class_id::text FROM enrollments e
+			 WHERE e.student_id = $1
+			 ORDER BY e.enrolled_on DESC LIMIT 1`, sid).Scan(&classID)
+
 		var ok bool
 		/* A child the caller cannot see is a 403, not a 500.
 
@@ -271,6 +280,51 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* THE WAIVERS ASKED FOR ON THIS CHILD, and what became of them.
+
+		   The concession lived on the admission form, which exists for about
+		   ninety seconds and then is gone. So for every child admitted before
+		   today — which is all of them — there was nowhere to see whether a
+		   waiver had been asked for, approved or refused, and nowhere to ask
+		   for one. The record is where somebody looks for it.
+
+		   Refusals included: a family that asked and was told no is the thing
+		   an auditor asks about, and the same request comes back next term. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT fc.id::text, fc.kind, fc.status,
+			       COALESCE(fc.percent::text,''), COALESCE(fc.amount_paise::text,''),
+			       COALESCE(fc.reason,''), COALESCE(fc.decision_note,''),
+			       COALESCE(u.full_name,''), COALESCE(ru.full_name,''),
+			       to_char(fc.created_at,'YYYY-MM-DD'),
+			       COALESCE(to_char(fc.decided_at,'YYYY-MM-DD'),''),
+			       COALESCE(fh.name,'')
+			  FROM fee_concessions fc
+			  LEFT JOIN users u ON u.id = fc.approved_by
+			  LEFT JOIN users ru ON ru.id = fc.requested_by
+			  LEFT JOIN fee_heads fh ON fh.id = fc.fee_head_id
+			 WHERE fc.student_id = $1
+			 ORDER BY fc.created_at DESC`,
+			func(rows pgx.Rows) error {
+				var cid, kind, status, percent, amount string
+				var reason, note, decidedBy, askedBy, raised, decided, head string
+				if err := rows.Scan(&cid, &kind, &status, &percent, &amount,
+					&reason, &note, &decidedBy, &askedBy, &raised, &decided,
+					&head); err != nil {
+					return err
+				}
+				concessions = append(concessions, map[string]any{
+					"id": cid, "kind": kind, "status": status,
+					"percent": percent, "amount_paise": amount,
+					"reason": reason, "decision_note": note,
+					"decided_by": decidedBy, "asked_by": askedBy,
+					"raised_on": raised, "decided_on": decided,
+					"fee_head": head,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* CLUBS AND COACHING, and what each one cost.
 
 		   Left enrolments are kept and shown: "did she do swimming last year"
@@ -356,5 +410,9 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"enrolment_history": history,
 		"transport_crew":    crew,
 		"activities":        activities,
+		"concessions":       concessions,
+		// The class this child is in, so the record can quote its fee without
+		// a second round trip to work out which class that is.
+		"class_id": classID,
 	})
 }

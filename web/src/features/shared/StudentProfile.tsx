@@ -23,6 +23,7 @@ import {
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
+import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -1317,6 +1318,21 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        {/* The quote, the waivers and the bill, on the record.
+
+            All three lived on the admission panel, which exists for ninety
+            seconds and is then gone — so for every child admitted before
+            today there was nowhere to see whether a concession had been asked
+            for, and nowhere to ask for one. */}
+        <StudentFees
+          studentID={p.id}
+          classID={detail.data?.class_id}
+          mayEdit={can('students.write')}
+          onChanged={() => {
+            detail.refetch()
+            qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+          }}
+        />
         <FeeLedger heads={detail.data?.fee_heads ?? []} />
         <Receipts rows={detail.data?.payments ?? []} />
         </>
