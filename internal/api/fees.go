@@ -706,6 +706,7 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, skipped := 0, 0
+	pendingConcessions := 0
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var instID, campusID, yearID uuid.UUID
 		var classID *uuid.UUID
@@ -764,6 +765,31 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		}
 		if lines == 0 {
 			return errNoSuchInstalment
+		}
+
+		/* CONCESSIONS STILL WAITING ON A DECISION.
+
+		   The engine applies a concession when it builds the lines, and reads
+		   only approved ones — correctly, since an unapproved waiver is a
+		   request and not a discount. The consequence is an ordering rule
+		   nobody was told: approve after the demand is raised and the invoice
+		   already sent keeps the full amount.
+
+		   That is the wrong way round to discover. A family agrees a staff-ward
+		   rate at admission, the accountant raises the term's demand the same
+		   afternoon, and the bill goes out at full price while the concession
+		   sits approved and inert. Counted here and returned so the screen can
+		   say so BEFORE the invoices exist. */
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(DISTINCT fc.student_id)::int
+			  FROM fee_concessions fc
+			  JOIN enrollments e ON e.student_id = fc.student_id
+			 WHERE fc.status = 'pending'
+			   AND e.academic_year_id = $1
+			   AND e.status = 'active'
+			   AND ($2::uuid IS NULL OR e.class_id = $2)`,
+			yearID, classID).Scan(&pendingConcessions); err != nil {
+			return err
 		}
 
 		// Students enrolled in this year, optionally limited to the structure's
@@ -893,6 +919,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"created": created, "skipped": skipped,
 		"instalment_no": req.InstalmentNo, "due_on": dueOn.Format(time.DateOnly),
+		/* Children billed in full whose waiver was still waiting. Reported
+		   rather than refused: the demand is usually right and a school that
+		   cannot bill until every concession is decided cannot bill. */
+		"pending_concessions": pendingConcessions,
 	})
 }
 

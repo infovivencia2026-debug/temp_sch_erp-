@@ -1281,7 +1281,24 @@ export function Select({
    * One list of ids anywhere is enough to settle it for the whole dropdown. */
   const isID = (v: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
-  const freeText = allowCustom ?? (!kind && all.length > 0 && !all.some((o) => isID(o.value)))
+  /* EXTENDING THE LIST AND ANSWERING THE QUESTION ARE DIFFERENT ACTS.
+
+     freeText required !kind, so a vocabulary dropdown never accepted a typed
+     answer. Combined with gating the add on institution.settings.write, that
+     left a clerk with an EMPTY mother-tongue list, no way to add to it and no
+     way to type — a required field with no possible value. Several of these
+     kinds ship with no built-in options at all, mother tongue among them, so
+     the list is empty until somebody with settings.write fills it.
+
+     The two things are not the same. Adding "Telugu" to the school's list is
+     a shared change every form then reads, and is rightly a settings act.
+     Writing "Telugu" on this child's record is an answer about this child.
+     Somebody who may edit the child may answer the question.
+
+     Still refused where the options are ids — a class, a teacher, a fee head.
+     Typing a new one there would send the server an id that does not exist. */
+  const wordList = all.length === 0 || !all.some((o) => isID(o.value))
+  const freeText = allowCustom ?? ((!kind || !mayExtend) && wordList)
   const canUseTyped =
     freeText && !!q && !all.some((o) => o.label.toLowerCase() === q)
 
@@ -1410,13 +1427,18 @@ export function Select({
                 active === shown.length ? 'bg-accent' : 'hover:bg-accent',
               )}
             >
-              Use “{query.trim()}”
+              {/* Said differently where a list exists, because "use it" and
+                  "add it to the school's list" are different promises and a
+                  clerk should know which one they are getting. */}
+              {kind
+                ? `Use “${query.trim()}” for this record only`
+                : `Use “${query.trim()}”`}
             </button>
           )}
           {!shown.length && !canAdd && !canUseTyped && (
             <p className="px-2 py-2 text-[12.5px] text-muted-foreground">
               {kind
-                ? 'Nothing matches. Keep typing to add it.'
+                ? 'Nothing matches. Keep typing to use it.'
                 : 'Nothing matches that. This list only takes one of its own.'}
             </p>
           )}
