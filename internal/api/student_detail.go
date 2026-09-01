@@ -70,7 +70,11 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			  FROM marks m
 			  JOIN exam_subjects es ON es.id = m.exam_subject_id
 			  JOIN exams e ON e.id = es.exam_id
-			  JOIN subjects sub ON sub.id = es.subject_id
+			  -- exam_subjects names a CLASS SUBJECT, not a subject: the paper
+			  -- belongs to a class's instance of it, which is what carries the
+			  -- syllabus and the teacher. The subject's name is one hop further.
+			  JOIN class_subjects cs ON cs.id = es.class_subject_id
+			  JOIN subjects sub ON sub.id = cs.subject_id
 			 WHERE m.student_id = $1 AND m.approved_at IS NOT NULL
 			 ORDER BY e.starts_on DESC, sub.name`,
 			func(rows pgx.Rows) error {
@@ -161,7 +165,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			SELECT sd.id::text, sd.doc_type, sd.file_id::text,
 			       to_char(sd.created_at,'YYYY-MM-DD'),
 			       sd.verified_at IS NOT NULL, COALESCE(u.full_name,''),
-			       COALESCE(sd.notes,''), COALESCE(f.filename,''),
+			       COALESCE(sd.notes,''), COALESCE(f.original_name,''),
 			       COALESCE(f.content_type,'')
 			  FROM student_documents sd
 			  LEFT JOIN users u ON u.id = sd.verified_by
