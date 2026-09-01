@@ -967,6 +967,33 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			/* THE APPROVED CONCESSION, APPLIED.
+
+			   The whole process exists so the fee is agreed before the child
+			   joins. It was agreed, the principal approved it -- and then this
+			   raised the bill from the price list and applied only a discount
+			   typed into the enrol request, which this screen does not send.
+			   So a family with an approved waiver was billed the full amount,
+			   which is the one outcome the sequence was built to prevent.
+
+			   full_payment also decides HOW MUCH of the year is billed: it is
+			   the discount for settling the whole year at once, so the invoice
+			   has to carry the whole year. Billing one term and calling it
+			   paid in full is not a discount, it is a wrong bill. */
+			var cKind, cReason string
+			var cPercent *float64
+			var cAmount *int64
+			if err := tx.QueryRow(r.Context(), `
+				SELECT kind, COALESCE(reason,''), percent, amount_paise
+				  FROM fee_concessions
+				 WHERE application_id = $1 AND status = 'approved'
+				 ORDER BY created_at DESC LIMIT 1`, appID).
+				Scan(&cKind, &cReason, &cPercent, &cAmount); err != nil &&
+				!errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			wholeYear := cKind == "full_payment"
+
 			if structureID != "" {
 				invoiceNo, err := fees.NextNumber(r.Context(), tx, instID, "invoice")
 				if err != nil {
@@ -1009,9 +1036,10 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					SELECT $1, $2::uuid, fsi.fee_head_id, fh.name, fsi.amount_paise, 0
 					  FROM fee_structure_items fsi
 					  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
-					 WHERE fsi.fee_structure_id = $3::uuid AND fsi.instalment_no = 1
+					 WHERE fsi.fee_structure_id = $3::uuid
+					   AND ($5::bool OR fsi.instalment_no = 1)
 					   AND (fh.service IS NULL OR fh.service = ANY($4::text[]))`,
-					instID, invoiceID, structureID, req.Services); err != nil {
+					instID, invoiceID, structureID, req.Services, wholeYear); err != nil {
 					return err
 				}
 
@@ -1021,7 +1049,27 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 				   collected, and the heads are what the accounts are cut by —
 				   a concession on tuition must not quietly reduce the caution
 				   deposit, which is refundable money held for the family. */
-				if req.ConcessionPaise > 0 {
+				waiver, waiverWhy := req.ConcessionPaise, req.ConcessionReason
+				if waiver == 0 && (cPercent != nil || cAmount != nil) {
+					if cAmount != nil {
+						waiver = *cAmount
+					} else {
+						// A percentage is of what this invoice actually carries,
+						// which for a whole-year bill is the whole year.
+						var gross int64
+						if err := tx.QueryRow(r.Context(), `
+							SELECT COALESCE(sum(amount_paise),0) FROM invoice_lines
+							 WHERE invoice_id = $1::uuid`, invoiceID).Scan(&gross); err != nil {
+							return err
+						}
+						waiver = int64(float64(gross) * *cPercent / 100)
+					}
+					waiverWhy = strings.ReplaceAll(cKind, "_", " ")
+					if cReason != "" {
+						waiverWhy += ": " + cReason
+					}
+				}
+				if waiver > 0 {
 					if _, err := tx.Exec(r.Context(), `
 						UPDATE invoice_lines l
 						   SET discount_paise = LEAST(l.amount_paise, $2::bigint),
@@ -1032,7 +1080,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 						   SELECT id FROM invoice_lines
 						    WHERE invoice_id = $1::uuid
 						    ORDER BY amount_paise DESC LIMIT 1)`,
-						invoiceID, req.ConcessionPaise, req.ConcessionReason); err != nil {
+						invoiceID, waiver, waiverWhy); err != nil {
 						return err
 					}
 				}
