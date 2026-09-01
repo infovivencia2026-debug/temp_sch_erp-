@@ -120,7 +120,7 @@ func (s *Server) listPendingAdmissions(w http.ResponseWriter, r *http.Request) {
 		SELECT a.id::text, a.application_no,
 		       concat_ws(' ', a.first_name, a.last_name),
 		       COALESCE(c.name, ''), COALESCE(a.parent_name, ''),
-		       COALESCE(a.phone, ''),
+		       COALESCE(a.parent_phone, ''),
 		       COALESCE(to_char(a.decided_at,'YYYY-MM-DD'), ''),
 		       /* The class's own structure where it has one, otherwise the
 		          school-wide one — the same precedence the demand raise uses,
