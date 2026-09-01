@@ -52,6 +52,7 @@ interface Pending {
   concession_kind: string
   concession_value: string
   concession_status: string
+  enrolment_approved: boolean
 }
 
 export default function FeeEnrolment() {
@@ -193,7 +194,11 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   })
 
   const enrol = useMutation({
-    mutationFn: () => api.post<{ admission_no?: string }>(
+    mutationFn: () => api.post<{
+      admission_no?: string
+      invoice_no?: string
+      net_paise?: number
+    }>(
       `/api/v1/admissions/workflow/applications/${row.id}/enrol`,
       {
         section_id: sectionId,
@@ -253,7 +258,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           : 'No priced fee structure covers this class, so nothing can be quoted or billed.'}
       />
 
-      {mayApprove && (
+      {mayApprove && !row.enrolment_approved && (
         <div className="border-b bg-muted/20 p-4">
           <p className="eyebrow mb-2">The principal's decision on this joining</p>
           <p className="mb-3 text-[13px] text-muted-foreground">
@@ -396,11 +401,30 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 and it throws away the place they were in. The form is small
                 -- a section, and whether to bill now. It belongs here. */}
             {mayEnrol && (enrol.data ? (
-              <p className="mt-2 text-[13px] text-success">
-                {row.name} has joined{enrol.data.admission_no ? ` as ${enrol.data.admission_no}` : ''}.
-                They are in Student 360 now, with the bill and any approved
-                concession already on the record.
-              </p>
+              <div className="mt-2 space-y-1 rounded-lg border border-success/40 bg-success/5 p-3 text-[13px]">
+                <p className="font-medium text-success">
+                  {row.name} has joined{enrol.data.admission_no ? ` as ${enrol.data.admission_no}` : ''}.
+                </p>
+                {/* THE AMOUNT, HERE, WITHOUT LOOKING IT UP. The parent is
+                    standing at the desk when this happens and the first thing
+                    they ask is what they owe. Sending the clerk to Student 360
+                    to find out is a question the screen could have answered. */}
+                {enrol.data.invoice_no ? (
+                  <p>
+                    Billed <span className="font-medium tabular-nums">
+                      {formatPaise(Number(enrol.data.net_paise))}
+                    </span> on {enrol.data.invoice_no}
+                    {row.concession_status === 'approved'
+                      ? ', with the approved concession already taken off.'
+                      : '.'}
+                  </p>
+                ) : (
+                  <p>No bill was raised. This child is billed with the class.</p>
+                )}
+                <p className="text-muted-foreground">
+                  Their full record is in Student 360.
+                </p>
+              </div>
             ) : (
               <div className="mt-3 space-y-3 rounded-lg border p-3">
                 <FormField label="Which section" required
@@ -413,7 +437,12 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                       .filter((x) => !row.class_sought || x.class_name === row.class_sought)
                       .map((x) => ({
                         value: x.id,
-                        label: `${x.class_name}-${x.name} (${x.enrolled}/${x.capacity})`,
+                        /* "12/40" is a thing you have to be told once. It is
+                           seats -- how many children are in the room and how
+                           many it holds -- and spelling that out costs four
+                           words on a line that has the space. */
+                        label: `${x.class_name}-${x.name} Â· ${x.enrolled} of ${x.capacity} seats filled`
+                          + (x.enrolled >= x.capacity ? ' Â· FULL' : ''),
                       }))}
                   />
                 </FormField>
@@ -451,8 +480,19 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                     />
                   </FormField>
                 )}
+                {/* THE PRINCIPAL SIGNS OFF EVERY JOINING, so this cannot be
+                    a button that asks and then refuses. The server enforces
+                    it; saying it here is what stops somebody filling the whole
+                    form first. */}
+                {!row.enrolment_approved && (
+                  <p className="text-[13px] text-warning">
+                    Waiting on the principal. Every new joining is approved
+                    before the child is admitted and the fee is raised.
+                  </p>
+                )}
                 <FormNotice error={enrol.error} />
-                <Button disabled={!sectionId || (!!routeId && !pickupStopId) || enrol.isPending}
+                <Button disabled={!row.enrolment_approved || !sectionId
+                  || (!!routeId && !pickupStopId) || enrol.isPending}
                   onClick={() => enrol.mutate()}>
                   {enrol.isPending ? 'Enrolling…' : `Enrol ${row.name}`}
                 </Button>

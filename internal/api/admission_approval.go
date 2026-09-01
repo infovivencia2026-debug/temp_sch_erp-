@@ -113,6 +113,7 @@ type pendingAdmission struct {
 	ConcessionKind  string `json:"concession_kind"`
 	ConcessionValue string `json:"concession_value"`
 	ConcessionState string `json:"concession_status"`
+	Approved        bool   `json:"enrolment_approved"`
 }
 
 func (s *Server) listPendingAdmissions(w http.ResponseWriter, r *http.Request) {
@@ -145,17 +146,27 @@ func (s *Server) listPendingAdmissions(w http.ResponseWriter, r *http.Request) {
 		                  ORDER BY fc.created_at DESC LIMIT 1), ''),
 		       COALESCE((SELECT fc.status FROM fee_concessions fc
 		                  WHERE fc.application_id = a.id
-		                  ORDER BY fc.created_at DESC LIMIT 1), '')
+		                  ORDER BY fc.created_at DESC LIMIT 1), ''),
+		       a.enrolment_approved_at IS NOT NULL
 		  FROM applications a
 		  LEFT JOIN classes c ON c.id = a.class_sought
+		 /* AN APPROVED ADMISSION STAYS ON THIS LIST until the child is
+		    actually enrolled.
+
+		    It used to drop off the moment the principal signed, which is the
+		    moment the desk needs it: approval is not the end of the admission,
+		    it is permission to finish it. Whoever approved it watched the
+		    applicant vanish and had nowhere to raise the fee. The row leaves
+		    when there is a student, not before. */
 		 WHERE a.status = 'offered'
-		   AND a.enrolment_approved_at IS NULL
+		   AND a.student_id IS NULL
 		 ORDER BY a.decided_at NULLS LAST, a.application_no`, nil,
 		func(rows pgx.Rows) (pendingAdmission, error) {
 			var v pendingAdmission
 			return v, rows.Scan(&v.ID, &v.Application, &v.Name, &v.ClassSought,
 				&v.Parent, &v.Phone, &v.OfferedOn, &v.FeePaise,
-				&v.ConcessionKind, &v.ConcessionValue, &v.ConcessionState)
+				&v.ConcessionKind, &v.ConcessionValue, &v.ConcessionState,
+				&v.Approved)
 		})
 	respond(w, r, items, err)
 }

@@ -739,6 +739,15 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var studentID, admissionNo string
+	/* What the family now owes, returned with the admission.
+
+	   The desk raises this bill as part of enrolling and then has to go and
+	   find the child in Student 360 to learn what it came to -- at the exact
+	   moment the parent is standing there asking. The number exists inside
+	   this transaction; it is cheaper to hand it back than to make anybody
+	   look it up. */
+	var billedNo string
+	var billedPaise int64
 	var welcome admissionWelcome
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* THE FEE IS AGREED BEFORE THE CHILD JOINS.
@@ -1017,6 +1026,13 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					 WHERE id = $1::uuid`, invoiceID); err != nil {
 					return err
 				}
+				// net_paise is GENERATED, so it is read back rather than summed
+				// here: one definition of what is owed, not two.
+				if err := tx.QueryRow(r.Context(), `
+					SELECT invoice_no, net_paise FROM invoices WHERE id = $1::uuid`,
+					invoiceID).Scan(&billedNo, &billedPaise); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -1103,6 +1119,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"student_id": studentID, "admission_no": admissionNo, "status": "enrolled",
+		"invoice_no": billedNo, "net_paise": billedPaise,
 		// The password is in the response because it is nowhere else: nothing
 		// can read it back out afterwards, so if the message does not arrive
 		// this screen is the only copy that ever existed. The parent is
