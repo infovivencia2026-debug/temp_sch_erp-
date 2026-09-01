@@ -17,7 +17,7 @@ import { formatPaise, formatDate } from '@/lib/utils'
    share one round trip rather than firing a query each as somebody clicks. */
 
 export interface Detail {
-  subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string }[]
+  subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
   fee_heads: { head: string; charged_paise?: string; paid_paise?: string }[]
   payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string }[]
   documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
@@ -52,8 +52,8 @@ export function SubjectMarks({ rows, loading }: {
         <CardHeader title="Subject by subject" />
         <div className="p-6">
           <EmptyState
-            title="No approved marks yet"
-            body="Marks appear here once they have been signed off. A teacher's unapproved entry is a working figure, and showing it is how a parent comes to learn a mark that later changes."
+            title="No marks entered yet"
+            body="Marks appear here as soon as a subject teacher enters them, whether or not they have been signed off."
           />
         </div>
       </Card>
@@ -72,7 +72,7 @@ export function SubjectMarks({ rows, loading }: {
                 ? `${got} of ${max} · ${((got / max) * 100).toFixed(1)}%`
                 : undefined}
             />
-            <Table head={['Subject', 'Marks', 'Out of', 'Grade']} empty={false}>
+            <Table head={['Subject', 'Marks', 'Out of', 'Grade', 'Standing']} empty={false}>
               {list.map((x, i) => (
                 <tr key={`${x.subject}-${i}`}>
                   <Td className="font-medium">{x.subject}</Td>
@@ -81,6 +81,15 @@ export function SubjectMarks({ rows, loading }: {
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">{x.max ?? '—'}</Td>
                   <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '—'}</Td>
+                  {/* SAID, NOT HIDDEN. A mark nobody has signed off can still
+                      change, and a teacher reading their own section needs the
+                      figure they typed this morning — but anyone quoting it to
+                      a parent should know which kind it is. */}
+                  <Td>
+                    {x.approved
+                      ? <Badge tone="success">signed off</Badge>
+                      : <Badge tone="warning">provisional</Badge>}
+                  </Td>
                 </tr>
               ))}
             </Table>

@@ -60,13 +60,24 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 
 		/* MARK BY MARK, per exam and subject.
 
-		   Approved marks only. A teacher's entry that nobody has signed off is
-		   a working figure, and putting it on the child's record is how a
-		   parent comes to learn a mark that later changes. */
+		   EVERY MARK, WITH ITS STANDING — not approved ones only.
+
+		   That was the first cut and it was wrong in practice: of 192 marks on
+		   the live school, six carried approved_at. Sign-off is a step most
+		   schools use rarely or not at all, so filtering on it made this tab
+		   permanently empty and told a class teacher their section had no
+		   marks on the afternoon they had just entered them.
+
+		   The honest shape is to show them and say which are provisional. This
+		   is a staff screen; a family never reaches it, and what a parent sees
+		   is the published report card, which has its own approval path. A
+		   teacher looking at their own section needs to see the figure they
+		   typed this morning. */
 		if err := scanInto(r.Context(), tx, `
 			SELECT e.name, sub.name, m.marks_obtained::text,
 			       es.max_marks::text, m.grade, m.is_absent,
-			       to_char(e.starts_on,'YYYY-MM-DD')
+			       to_char(e.starts_on,'YYYY-MM-DD'),
+			       m.approved_at IS NOT NULL
 			  FROM marks m
 			  JOIN exam_subjects es ON es.id = m.exam_subject_id
 			  JOIN exams e ON e.id = es.exam_id
@@ -75,18 +86,20 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			  -- syllabus and the teacher. The subject's name is one hop further.
 			  JOIN class_subjects cs ON cs.id = es.class_subject_id
 			  JOIN subjects sub ON sub.id = cs.subject_id
-			 WHERE m.student_id = $1 AND m.approved_at IS NOT NULL
+			 WHERE m.student_id = $1
 			 ORDER BY e.starts_on DESC, sub.name`,
 			func(rows pgx.Rows) error {
 				var exam, subject string
 				var got, max, grade, on *string
-				var absent bool
-				if err := rows.Scan(&exam, &subject, &got, &max, &grade, &absent, &on); err != nil {
+				var absent, approved bool
+				if err := rows.Scan(&exam, &subject, &got, &max, &grade, &absent,
+					&on, &approved); err != nil {
 					return err
 				}
 				subjectMarks = append(subjectMarks, map[string]any{
 					"exam": exam, "subject": subject, "marks": got,
 					"max": max, "grade": grade, "absent": absent, "on": on,
+					"approved": approved,
 				})
 				return nil
 			}, sid); err != nil {
