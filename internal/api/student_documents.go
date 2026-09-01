@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -221,4 +222,97 @@ func (s *Server) deleteStudentDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+/* Fields a school invented, saved one block at a time.
+
+   The record shows Details, Contact and Emergency, and every school has
+   something none of them thought of — a bus stop, a second emergency number, a
+   sibling's admission number. Sending the whole custom_fields map from each
+   block would mean the block that knows only its own fields wipes the others,
+   so this MERGES: keys present are set, keys absent are left alone.
+
+   A BLANK VALUE REMOVES THE KEY. That gives one way to say "this field does
+   not belong here after all", rather than a delete endpoint that would need
+   its own permission, its own route and its own way of being got wrong.
+*/
+func (s *Server) saveStudentCustomFields(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	var req struct {
+		CustomFields map[string]string `json:"custom_fields"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	if len(req.CustomFields) == 0 {
+		httpx.BadRequest(w, r, "nothing to save")
+		return
+	}
+	if len(req.CustomFields) > 40 {
+		httpx.BadRequest(w, r, "that is more fields than one save should carry")
+		return
+	}
+	set := map[string]string{}
+	var drop []string
+	for k, v := range req.CustomFields {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			httpx.BadRequest(w, r, "a field needs a name")
+			return
+		}
+		if len(k) > 80 || len(v) > 500 {
+			httpx.BadRequest(w, r,
+				"keep a field's name under 80 characters and its value under 500")
+			return
+		}
+		if strings.TrimSpace(v) == "" {
+			drop = append(drop, k)
+			continue
+		}
+		set[k] = v
+	}
+
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 4)
+
+	var touched int64
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		add := []byte("{}")
+		if len(set) > 0 {
+			b, err := json.Marshal(set)
+			if err != nil {
+				return err
+			}
+			add = b
+		}
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE students st
+			   SET custom_fields = (st.custom_fields || $1::jsonb) - $2::text[],
+			       updated_at = now()
+			 WHERE st.id = $3 AND `+pred,
+			append([]any{string(add), drop, sid}, args...)...)
+		if err != nil {
+			return err
+		}
+		touched = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if touched == 0 {
+		httpx.Forbidden(w, r, "this child is not one you can edit")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"saved": len(set), "removed": len(drop)})
 }

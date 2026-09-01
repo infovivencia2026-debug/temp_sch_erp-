@@ -24,6 +24,7 @@ export interface Detail {
   leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
   enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; remarks: string; promoted: boolean }[]
   transport_crew: { route: string; vehicle: string; driver: string; driver_phone: string; attendant: string; attendant_phone: string }[]
+  activities: { id: string; name: string; category: string; schedule: string; fee_paise: string; status: string; enrolled_on: string; invoice_status: string; invoice_no: string; due_paise: string }[]
 }
 
 /* MARKS BY SUBJECT.
@@ -386,6 +387,279 @@ export function TransportCrew({ rows }: { rows: Detail['transport_crew'] }) {
           </div>
         ))}
       </dl>
+    </Card>
+  )
+}
+
+/* CLUBS, COACHING AND ELECTIVES — and what each one cost.
+
+   The half of school life the product did not hold. The register was a
+   notebook in the coordinator's bag and the money was cash against a list, so
+   the child's record said nothing about the thing they spend four hours a week
+   doing, and the school collected the fee by asking.
+
+   Enrolling in a paid activity raises a real invoice, so the fee status here
+   is the actual bill — not a flag somebody has to keep in step with the
+   ledger. "Paid" means the finance module says paid. */
+export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
+  studentID: string
+  rows: Detail['activities']
+  catalogue: { id: string; name: string; category: string; schedule?: string; fee_paise: number; capacity: number; enrolled: number; is_active: boolean }[]
+  mayEdit: boolean
+  onChanged: () => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [pick, setPick] = useState('')
+  const [waive, setWaive] = useState(false)
+
+  const join = useMutation({
+    mutationFn: () => api.post(`/api/v1/students/${studentID}/activities`,
+      { activity_id: pick, waive_fee: waive }),
+    onSuccess: () => { setAdding(false); setPick(''); setWaive(false); onChanged() },
+  })
+  const leave = useMutation({
+    mutationFn: (enrolID: string) =>
+      api.post(`/api/v1/students/${studentID}/activities/${enrolID}/leave`, {}),
+    onSuccess: onChanged,
+  })
+
+  // Already in it, or wound up — neither belongs in a list of things to join.
+  const live = new Set(rows.filter((x) => x.status === 'enrolled').map((x) => x.name))
+  const joinable = catalogue.filter((a) => a.is_active && !live.has(a.name))
+  const chosen = catalogue.find((a) => a.id === pick)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Activities and electives"
+        description="Clubs and coaching this child is enrolled in. A paid activity raises a bill the family can pay on their own fees page."
+        action={mayEdit ? (
+          <Button size="sm" variant={adding ? 'secondary' : 'primary'}
+            onClick={() => setAdding(!adding)}>
+            {adding ? 'Close' : 'Enrol in an activity'}
+          </Button>
+        ) : undefined}
+      />
+      {adding && mayEdit && (
+        <div className="space-y-3 border-b bg-muted/20 p-4">
+          {catalogue.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">
+              No activities have been set up yet — add them under Academics → Activities.
+            </p>
+          ) : (
+            <>
+              <FormField label="Which activity" required>
+                <Select
+                  value={pick}
+                  onChange={setPick}
+                  placeholder="Choose one"
+                  options={joinable.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} — ${a.category}`
+                      + (a.fee_paise ? ` · ${formatPaise(a.fee_paise)}` : ' · free')
+                      + (a.capacity ? ` · ${a.enrolled}/${a.capacity}` : ''),
+                  }))}
+                />
+              </FormField>
+              {chosen && chosen.fee_paise > 0 && (
+                <div className="rounded-lg border bg-background p-3 text-[13px]">
+                  <p>
+                    This raises a bill for{' '}
+                    <span className="font-medium">{formatPaise(chosen.fee_paise)}</span>,
+                    due in a fortnight. The family is told, and can pay it on their
+                    own fees page.
+                  </p>
+                  {/* A school that lets a child in free needs to say so at the
+                      moment of enrolling, not correct a bill afterwards. */}
+                  <label className="mt-2 flex items-center gap-2">
+                    <input type="checkbox" checked={waive}
+                      onChange={(e) => setWaive(e.target.checked)} />
+                    Waive the fee for this child — raise no bill
+                  </label>
+                </div>
+              )}
+              <FormNotice error={join.error} />
+              <Button disabled={!pick || join.isPending} onClick={() => join.mutate()}>
+                {join.isPending ? 'Enrolling…' : 'Enrol'}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      <Table
+        head={['Activity', 'Category', 'Schedule', 'Fee', 'Status', '']}
+        empty={!rows.length}
+        emptyLabel="Not enrolled in any activity."
+      >
+        {rows.map((a) => {
+          const fee = Number(a.fee_paise ?? 0)
+          const due = Number(a.due_paise ?? 0)
+          return (
+            <tr key={a.id}>
+              <Td className="font-medium">{a.name}</Td>
+              <Td className="text-muted-foreground">{a.category}</Td>
+              <Td className="text-muted-foreground">{a.schedule || '—'}</Td>
+              <Td className="tabular-nums">{fee > 0 ? formatPaise(fee) : 'free'}</Td>
+              <Td>
+                {/* The fee status is the INVOICE's status, not a flag kept in
+                    step by hand. "Paid" here means finance says paid. */}
+                {a.status !== 'enrolled' ? (
+                  <Badge tone="neutral">left</Badge>
+                ) : fee === 0 ? (
+                  <Badge tone="success">enrolled</Badge>
+                ) : a.invoice_status === 'paid' || due <= 0 ? (
+                  <Badge tone="success">paid</Badge>
+                ) : a.invoice_status === 'cancelled' ? (
+                  <Badge tone="neutral">cancelled</Badge>
+                ) : (
+                  <Badge tone="warning">{formatPaise(due)} due</Badge>
+                )}
+                {a.invoice_no && (
+                  <span className="block font-mono text-[11px] text-muted-foreground">
+                    {a.invoice_no}
+                  </span>
+                )}
+              </Td>
+              <Td>
+                {mayEdit && a.status === 'enrolled' && (
+                  <Button size="sm" variant="ghost" disabled={leave.isPending}
+                    onClick={() => leave.mutate(a.id)}>
+                    Leave
+                  </Button>
+                )}
+              </Td>
+            </tr>
+          )
+        })}
+      </Table>
+    </Card>
+  )
+}
+
+/* A block of the record that folds away, and takes fields the school invented.
+
+   Three fixed cards — Details, Contact, Emergency — could show only what the
+   product had thought of, and every school has something we did not: a bus
+   stop under Contact, a second emergency number, a sibling's admission number
+   under Details. The answer was one flat "Anything else" list at the bottom of
+   the page, which is where a field goes to be forgotten.
+
+   The name carries the block: a custom field is stored as "Contact/Bus stop",
+   shown as "Bus stop" under Contact. One column, no migration per school, and
+   a field always appears beside the fields it belongs with.
+
+   FOLDING IS PER BROWSER, not per school. Which blocks somebody keeps shut is
+   a preference of the person reading, and storing it on the record would make
+   one clerk's tidying change the page for everybody.
+*/
+export function RecordBlock({
+  title, description, blockKey, studentID, fields, custom, mayEdit, onChanged,
+  children,
+}: {
+  title: string
+  description?: string
+  // The prefix this block's own fields carry inside custom_fields.
+  blockKey: string
+  studentID: string
+  fields: { k: string; v?: string | null }[]
+  custom?: Record<string, string>
+  mayEdit: boolean
+  onChanged: () => void
+  children?: React.ReactNode
+}) {
+  const storeKey = `student360.block.${blockKey}`
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(storeKey) !== 'shut' } catch { return true }
+  })
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    try { localStorage.setItem(storeKey, next ? 'open' : 'shut') } catch { /* private window */ }
+  }
+
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [value, setValue] = useState('')
+
+  const mine = Object.entries(custom ?? {})
+    .filter(([k]) => k.startsWith(blockKey + '/'))
+    .map(([k, v]) => [k.slice(blockKey.length + 1), v, k] as const)
+
+  const save = useMutation({
+    mutationFn: (next: Record<string, string>) =>
+      /* Sent as the WHOLE map because the server merges rather than assigns —
+         so a block that only knows its own fields cannot wipe another
+         block's. */
+      api.post(`/api/v1/students/${studentID}/custom-fields`, { custom_fields: next }),
+    onSuccess: () => { setAdding(false); setName(''); setValue(''); onChanged() },
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title={title}
+        description={open ? description : undefined}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {mayEdit && open && (
+              <Button size="sm" variant={adding ? 'secondary' : 'secondary'}
+                onClick={() => setAdding(!adding)}>
+                {adding ? 'Close' : 'Add a field'}
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={toggle}>
+              {open ? 'Hide' : `Show${mine.length ? ` (${fields.length + mine.length})` : ''}`}
+            </Button>
+          </div>
+        }
+      />
+      {open && (
+        <>
+          {adding && mayEdit && (
+            <div className="flex flex-wrap items-end gap-2 border-b bg-muted/20 p-4">
+              <div className="w-56">
+                <FormField label="Field name">
+                  <Input value={name} onChange={setName} placeholder="Bus stop" />
+                </FormField>
+              </div>
+              <div className="min-w-[12rem] flex-1">
+                <FormField label="Value">
+                  <Input value={value} onChange={setValue} placeholder="Sunshine Park" />
+                </FormField>
+              </div>
+              <Button
+                disabled={!name.trim() || save.isPending}
+                onClick={() => save.mutate({ [`${blockKey}/${name.trim()}`]: value })}
+              >
+                {save.isPending ? 'Saving…' : 'Add'}
+              </Button>
+              <FormNotice error={save.error} />
+            </div>
+          )}
+          <dl className="divide-y text-[14px]">
+            {fields.map((f) => <Field key={f.k} k={f.k} v={f.v ?? undefined} />)}
+            {mine.map(([label, v, full]) => (
+              <div key={full} className="flex items-start justify-between gap-3 px-5 py-2.5">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="flex items-center gap-2 text-right">
+                  <span>{v || '—'}</span>
+                  {mayEdit && (
+                    /* Empty removes it. The server drops a key whose value is
+                       blank, so there is one way to say "this field does not
+                       belong here after all" rather than a delete button that
+                       needs its own endpoint. */
+                    <Button size="sm" variant="ghost" disabled={save.isPending}
+                      onClick={() => save.mutate({ [full]: '' })}>
+                      Remove
+                    </Button>
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {children}
+        </>
+      )}
     </Card>
   )
 }

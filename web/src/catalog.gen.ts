@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 321 features. */
+/** 13 roles, 322 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -275,6 +275,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.academics.master_timetable', slug: 'master_timetable', name: 'Master Timetable', scope: 'institution', tier: 'core', summary: 'The whole school\'s week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty.' },
           { key: 'institution_admin.academics.substitutions', slug: 'substitutions', name: 'Substitutions', scope: 'institution', tier: 'core', summary: 'Who is away today, which periods that leaves uncovered, and who has been put in front of each of them.' },
           { key: 'institution_admin.academics.school_calendar', slug: 'school_calendar', name: 'School Calendar', scope: 'institution', tier: 'core', summary: 'Terms, holidays, exams, sports day and parent meetings. The year the school works to, which the principal signs off before it starts.' },
+          { key: 'institution_admin.academics.activities_electives', slug: 'activities_electives', name: 'Activities & Electives', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it. Children are enrolled from their own record, and a paid activity raises a bill the family can pay in the app.' },
           { key: 'institution_admin.academics.curriculum_roadmap', slug: 'curriculum_roadmap', name: 'Curriculum Roadmap', scope: 'institution', tier: 'core', summary: 'The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Approved once a year and taught from all of it.' },
           { key: 'institution_admin.academics.lesson_plans', slug: 'lesson_plans', name: 'Lesson Plans', scope: 'institution', tier: 'core', summary: 'Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed.' },
           { key: 'institution_admin.academics.syllabus_progress', slug: 'syllabus_progress', name: 'Syllabus Progress', scope: 'institution', tier: 'core', summary: 'How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam.' },

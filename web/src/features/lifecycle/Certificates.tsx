@@ -13,6 +13,8 @@ interface Cert {
   serial_no: string; type: string; student_name: string
   issued_on: string; status: string
   snapshot: Record<string, unknown>
+  class_name?: string; section_name?: string; admission_no?: string
+  asked_by?: string; asked_phone?: string
 }
 
 /* A status is not always good news.
@@ -163,13 +165,33 @@ export default function Certificates() {
               title={`${pending.length} ${pending.length === 1 ? 'request' : 'requests'} from families`}
               description="Asked for through the parent and student portal. Answering one tells the whole household."
             />
-            <Table head={['Serial', 'Document', 'Student', 'Asked', 'Reason', '']}
+            <Table head={['Serial', 'Document', 'For which child', 'Who asked', 'Asked', 'Reason', '']}
               empty={false}>
               {pending.map((c) => (
                 <tr key={c.id}>
                   <Td className="font-mono text-[12px]">{c.serial_no}</Td>
                   <Td className="font-medium">{c.type}</Td>
-                  <Td>{c.student_name}</Td>
+                  {/* THE CHILD, WITH THEIR CLASS. The queue said a name and
+                      nothing else, so a clerk holding the signed paper still
+                      had to look the child up to know where to send it. */}
+                  <Td>
+                    <span className="font-medium">{c.student_name}</span>
+                    <span className="block text-[12px] text-muted-foreground">
+                      {[c.class_name && c.section_name
+                        ? `${c.class_name}-${c.section_name}` : c.class_name,
+                        c.admission_no].filter(Boolean).join(' · ') || '—'}
+                    </span>
+                  </Td>
+                  {/* WHO TO HAND IT TO, and the number to ring. */}
+                  <Td>
+                    {c.asked_by || '—'}
+                    {c.asked_phone && (
+                      <a href={`tel:${c.asked_phone}`}
+                        className="block text-[12px] text-primary">
+                        {c.asked_phone}
+                      </a>
+                    )}
+                  </Td>
                   <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
                   <Td className="text-muted-foreground">{String(c.snapshot?.reason ?? '—')}</Td>
                   <Td>
@@ -186,8 +208,12 @@ export default function Certificates() {
         {answering && (
           <Card>
             <CardHeader
-              title={`${answering.type} for ${answering.student_name}`}
-              description="What you write here is what the family reads. Everyone in the household is told, and the child."
+              title={`${answering.type} for ${answering.student_name}`
+                + (answering.class_name ? ` · ${answering.class_name}-${answering.section_name}` : '')}
+              description={
+                (answering.asked_by ? `Asked for by ${answering.asked_by}. ` : '')
+                + 'What you write here is what the family reads. Everyone in the household is told, and the child.'
+              }
             />
             <div className="space-y-3 p-4">
               <Select

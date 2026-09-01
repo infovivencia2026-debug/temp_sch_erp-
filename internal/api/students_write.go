@@ -858,6 +858,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			permAddr, emgName, emgPhone, emgRel                    *string
 			customFields                                           []byte
 			houseID, houseName, houseColor                         *string
+			exitDate, exitReason                                   *string
 			heightCM, weightKG, bmi, measuredOn                    *string
 			allergies                                              *string
 		)
@@ -878,6 +879,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			       st.permanent_address, st.emergency_contact_name,
 			       st.emergency_contact_phone, st.emergency_contact_relation,
 			       st.custom_fields, st.house_id::text, h.name, h.color,
+			       to_char(st.exit_date,'YYYY-MM-DD'), st.exit_reason,
 			       /* The last time a nurse measured them. Read from the
 			          infirmary's checkups rather than copied onto the child:
 			          height and weight are a reading on a date, and a pair of
@@ -910,6 +912,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 				&addr1, &addr2, &state, &pincode,
 				&permAddr, &emgName, &emgPhone, &emgRel,
 				&customFields, &houseID, &houseName, &houseColor,
+				&exitDate, &exitReason,
 				&heightCM, &weightKG, &bmi, &measuredOn, &allergies); err != nil {
 			return err
 		}
@@ -947,6 +950,8 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 		out["house_id"] = houseID
 		out["house_name"] = houseName
 		out["house_color"] = houseColor
+		out["exit_date"] = exitDate
+		out["exit_reason"] = exitReason
 		out["height_cm"] = heightCM
 		out["weight_kg"] = weightKG
 		out["bmi"] = bmi

@@ -145,10 +145,18 @@ func (s *Server) Routes() http.Handler {
 			// child has been here. Split from /profile, which has to be
 			// instant because somebody is on the telephone.
 			r.Get("/{id}/detail", s.getStudentDetail)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/activities", s.enrolInActivity)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/activities/{enrolID}/leave", s.leaveActivity)
 			/* The papers a family hands in. student_documents has been in the
 			   baseline since the beginning with nothing writing to it or
 			   reading it, so the birth certificate the office took at
 			   admission was on no screen anywhere. */
+			// Fields a school invented, merged rather than assigned so one
+			// block of the record cannot wipe another's.
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/custom-fields", s.saveStudentCustomFields)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/{id}/documents", s.addStudentDocument)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
@@ -203,6 +211,11 @@ func (s *Server) Routes() http.Handler {
 			/* Houses. The table and students.house_id have been in the
 			   baseline since the beginning with no screen touching either. */
 			r.Get("/houses", s.listHouses)
+			/* Clubs, coaching and electives. Enrolling in a paid one raises a
+			   real invoice through the same numbering finance uses, so the
+			   family pays it beside the tuition and the office collects it. */
+			r.Get("/activities", s.listActivities)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/activities", s.saveActivity)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/houses", s.saveHouse)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/houses/{id}", s.deleteHouse)
 		})

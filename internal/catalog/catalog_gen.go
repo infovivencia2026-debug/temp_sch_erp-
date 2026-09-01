@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 321 features.
+// Roles is the catalog: 13 roles, 322 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -322,6 +322,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.master_timetable", Slug: "master_timetable", Name: "Master Timetable", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The whole school's week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty."},
 					{Key: "institution_admin.academics.substitutions", Slug: "substitutions", Name: "Substitutions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is away today, which periods that leaves uncovered, and who has been put in front of each of them."},
 					{Key: "institution_admin.academics.school_calendar", Slug: "school_calendar", Name: "School Calendar", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Terms, holidays, exams, sports day and parent meetings. The year the school works to, which the principal signs off before it starts."},
+					{Key: "institution_admin.academics.activities_electives", Slug: "activities_electives", Name: "Activities & Electives", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it. Children are enrolled from their own record, and a paid activity raises a bill the family can pay in the app."},
 					{Key: "institution_admin.academics.curriculum_roadmap", Slug: "curriculum_roadmap", Name: "Curriculum Roadmap", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Approved once a year and taught from all of it."},
 					{Key: "institution_admin.academics.lesson_plans", Slug: "lesson_plans", Name: "Lesson Plans", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed."},
 					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus Progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam."},

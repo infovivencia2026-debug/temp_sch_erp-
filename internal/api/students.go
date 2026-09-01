@@ -92,13 +92,23 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 			  LEFT JOIN classes  c ON c.id = en.class_id
 			  LEFT JOIN sections sec ON sec.id = en.section_id
 			 WHERE ($1::text IS NULL OR st.status = $1)
+			   /* Admitted since this academic year began.
+			
+			      Served here rather than filtered on the client so the tile and
+			      the list cannot disagree — which is exactly how the defaulters
+			      export came to show 2 rows against a screen showing 61. The
+			      expression is the same one studentCounts uses. */
+			   AND (NOT $6::bool OR st.admission_date >= COALESCE(
+			        (SELECT starts_on FROM academic_years WHERE is_current LIMIT 1),
+			        date_trunc('year', CURRENT_DATE)::date))
 			   AND ($2::text IS NULL OR
 			        st.admission_no ILIKE '%' || $2 || '%' OR
 			        concat_ws(' ', st.first_name, st.middle_name, st.last_name) ILIKE '%' || $2 || '%')
 			   AND ($3::uuid IS NULL OR en.section_id = $3)
 			   AND ($4::uuid IS NULL OR en.class_id = $4)`
 
-		args := []any{nullString(status), nullString(search), sectionID, classID, yearID}
+		args := []any{nullString(status), nullString(search), sectionID, classID,
+			yearID, q.Get("new_this_year") == "1"}
 		scopePred, scopeArgs := res.StudentPredicate("st", len(args)+1)
 		args = append(args, scopeArgs...)
 		where := from + " AND " + scopePred

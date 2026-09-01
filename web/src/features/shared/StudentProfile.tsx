@@ -19,7 +19,7 @@ import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
   SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
-  TransportCrew, type Detail,
+  TransportCrew, Activities, RecordBlock, type Detail,
 } from './StudentTabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -52,6 +52,7 @@ interface Profile {
   emergency_contact_name?: string; emergency_contact_phone?: string
   emergency_contact_relation?: string
   house_id?: string; house_name?: string; house_color?: string
+  exit_date?: string; exit_reason?: string
   height_cm?: string; weight_kg?: string; bmi?: string; measured_on?: string
   allergies?: string
   custom_fields?: Record<string, string>
@@ -100,7 +101,27 @@ interface Remark {
 }
 
 export default function StudentProfile() {
-  const [search, setSearch] = useState('')
+  /* THE FILTERS LIVE IN THE URL, beside the child.
+
+     They were component state, so opening a child and coming back put the
+     clerk at the top of the whole school again — they had re-picked Grade 6
+     every single time. Which child is open has been in the query string for
+     exactly this reason; the filters that found them belong there too.
+
+     Three things follow: the back button returns to the list as it was,
+     "look at this section" is a link, and stepping from one child to the next
+     keeps the section they were both found in. */
+  const [params, setParams] = useSearchParams()
+  const patch = (next: Record<string, string | null>, replace = false) => {
+    const q = new URLSearchParams(params)
+    for (const [k, v] of Object.entries(next)) {
+      if (v) q.set(k, v)
+      else q.delete(k)
+    }
+    setParams(q, { replace })
+  }
+  const search = params.get('q') ?? ''
+  const setSearch = (v: string) => patch({ q: v || null }, true)
   /* BROWSE, NOT ONLY SEARCH.
 
      The screen answered exactly one question — "what is the name" — and a
@@ -109,8 +130,10 @@ export default function StudentProfile() {
      in now: pick a class and section to see who is in it, or type a name or
      admission number. They compose, so a name typed while 7-A is chosen
      searches inside 7-A. */
-  const [classID, setClassID] = useState('')
-  const [sectionID, setSectionID] = useState('')
+  const classID = params.get('class') ?? ''
+  const setClassID = (v: string) => patch({ class: v || null, section: null })
+  const sectionID = params.get('section') ?? ''
+  const setSectionID = (v: string) => patch({ section: v || null })
   /* ON THE ROLL, OR GONE — and on the roll is the default.
 
      Every list defaulted to both. A clerk searching a name got the child who
@@ -118,7 +141,9 @@ export default function StudentProfile() {
      grey badge, and a section browsed for its roll came back with last year's
      leavers in it. Leaving the school is a different question from being in
      it, so it is a deliberate choice rather than a badge to notice. */
-  const [roll, setRoll] = useState<'active' | 'left' | 'all'>('active')
+  type Roll = 'active' | 'suspended' | 'left' | 'new' | 'all'
+  const roll = (params.get('roll') as Roll) ?? 'active'
+  const setRoll = (v: Roll) => patch({ roll: v === 'active' ? null : v })
 
   /* Which student is open lives in the query string, not in component state.
 
@@ -130,14 +155,8 @@ export default function StudentProfile() {
 
      Back also works, which it did not: the browser button used to leave the
      feature entirely rather than return to the search. */
-  const [params, setParams] = useSearchParams()
   const selected = params.get('student')
-  const setSelected = (id: string | null) => {
-    const next = new URLSearchParams(params)
-    if (id) next.set('student', id)
-    else next.delete('student')
-    setParams(next, { replace: !id })
-  }
+  const setSelected = (id: string | null) => patch({ student: id }, !id)
 
   const classes = useQuery({
     queryKey: ['academics', 'classes'],
@@ -166,7 +185,7 @@ export default function StudentProfile() {
     enabled: !selected,
   })
 
-  const browsing = !!classID || !!sectionID || roll === 'left'
+  const browsing = !!classID || !!sectionID || roll !== 'active'
   const searching = search.trim().length >= 2
   const results = useQuery({
     queryKey: ['profile-search', search, classID, sectionID, roll],
@@ -179,7 +198,11 @@ export default function StudentProfile() {
          transferred, withdrawn, alumni — so that view is filtered on the
          client from everyone rather than by four round trips that would each
          need their own paging. */
-      if (roll === 'active') qs.set('status', 'active')
+      if (roll === 'active' || roll === 'new') qs.set('status', 'active')
+      if (roll === 'suspended') qs.set('status', 'suspended')
+      // Served by the API, not filtered here, so the tile and the list cannot
+      // disagree about what "new this year" means.
+      if (roll === 'new') qs.set('new_this_year', '1')
       /* A whole section is forty children and a whole class is two hundred.
          Fifteen was right for "the three people called Sharma" and wrong for
          everything this filter is for, and a list silently cut at fifteen is
@@ -187,13 +210,21 @@ export default function StudentProfile() {
       qs.set('limit', browsing ? '300' : '15')
       return api.get<Page<Student>>(`/api/v1/students?${qs.toString()}`)
     },
-    enabled: (searching || browsing) && !selected,
+    /* Kept alive while a child is open, which is what makes Previous and Next
+       possible: the list the arrows walk is the one the filters produced, and
+       re-deriving it on the record would be a second opinion about which
+       children are in this section. */
+    enabled: searching || browsing,
     placeholderData: keepPreviousData,
   })
   const rows = (results.data?.items ?? [])
     /* Suspended is not left. A suspended child is still enrolled and still
        has a seat, so they belong on the roll rather than in the list of
        people who have gone. */
+    /* "Left" is four statuses — graduated, transferred, withdrawn, alumni —
+       and the API takes one, so that view asks for everybody and narrows
+       here. Suspended is not left: the child is still enrolled and still has
+       a seat. */
     .filter((x) => (roll === 'left'
       ? x.status !== 'active' && x.status !== 'suspended'
       : true))
@@ -231,6 +262,15 @@ export default function StudentProfile() {
 
      Not folded into the profile: that call has to be instant because somebody
      is on the telephone, and nobody opens all seven tabs. */
+  const activityCatalogue = useQuery({
+    queryKey: ['academics', 'activities'],
+    enabled: !!selected,
+    queryFn: () => api.get<List<{
+      id: string; name: string; category: string; schedule?: string
+      fee_paise: number; capacity: number; enrolled: number; is_active: boolean
+    }>>('/api/v1/academics/activities'),
+  })
+
   const detail = useQuery({
     queryKey: ['student-detail', selected],
     enabled: !!selected,
@@ -444,9 +484,11 @@ export default function StudentProfile() {
               <div className="w-44">
                 <Select
                   value={roll}
-                  onChange={(v) => setRoll(v as typeof roll)}
+                  onChange={(v) => setRoll(v as Roll)}
                   options={[
                     { value: 'active', label: 'On the roll' },
+                    { value: 'suspended', label: 'Suspended' },
+                    { value: 'new', label: 'New this year' },
                     { value: 'left', label: 'Left the school' },
                     { value: 'all', label: 'Everyone' },
                   ]}
@@ -496,16 +538,23 @@ export default function StudentProfile() {
           )}
           {counts.data && (
             <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* All four filter, including the two that did not.
+
+                  A tile showing a number somebody cannot act on is a number
+                  they have to go and re-derive from a dropdown — and two of
+                  these were exactly that, sitting beside two that worked. */}
               <RollTile label="On the roll" value={counts.data.active ?? 0}
-                note="currently studying" tone="success"
-                onClick={() => { setRoll('active'); setClassID(''); setSectionID('') }} />
+                note="currently studying" active={roll === 'active'}
+                onClick={() => patch({ roll: null })} />
               <RollTile label="Left" value={counts.data.left ?? 0}
-                note="TC issued, withdrawn or graduated" tone="warning"
-                onClick={() => { setRoll('left'); setClassID(''); setSectionID('') }} />
+                note="TC issued, withdrawn or graduated" active={roll === 'left'}
+                onClick={() => patch({ roll: 'left' })} />
               <RollTile label="Suspended" value={counts.data.suspended ?? 0}
-                note="temporarily barred" tone="danger" />
+                note="temporarily barred" active={roll === 'suspended'}
+                onClick={() => patch({ roll: 'suspended' })} />
               <RollTile label="New this year" value={counts.data.new_this_year ?? 0}
-                note="admitted this academic year" tone="neutral" />
+                note="admitted this academic year" active={roll === 'new'}
+                onClick={() => patch({ roll: 'new' })} />
             </div>
           )}
           {!searching && !browsing ? (
@@ -570,6 +619,10 @@ export default function StudentProfile() {
      they are standing in the principal's workspace they still need the
      admissions identifiers on this page. */
   const teacherOnly = role?.key === 'faculty'
+
+  // The children the current filter found, and where this one sits in them.
+  const siblings = rows
+  const myIndex = siblings.findIndex((x) => x.id === selected)
 
   const cls = p.class_name ? `${p.class_name}${p.section_name ? `-${p.section_name}` : ''}` : 'Unplaced'
   const overdue = p.invoices.filter((i) => i.status === 'overdue').length
@@ -764,6 +817,99 @@ export default function StudentProfile() {
               />
             )}
           </div>
+          {/* Stepping through the section without going back to the list.
+
+              A clerk checking a whole class was returning to the roll and
+              finding their place again between every child. The list is
+              already in hand — it is the one the filters produced — so the
+              next child is one press away, and the filter that found them
+              both is untouched. */}
+          {siblings.length > 1 && (
+            <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/20 px-4 py-2.5 text-[13px]">
+              <Button size="sm" variant="secondary"
+                disabled={myIndex <= 0}
+                onClick={() => setSelected(siblings[myIndex - 1].id)}>
+                ← Previous
+              </Button>
+              <span className="text-muted-foreground">
+                {myIndex >= 0 ? `${myIndex + 1} of ${siblings.length}` : `${siblings.length} in this list`}
+                {cls !== 'Unplaced' ? ` · ${cls}` : ''}
+              </span>
+              <Button size="sm" variant="secondary"
+                disabled={myIndex < 0 || myIndex >= siblings.length - 1}
+                onClick={() => setSelected(siblings[myIndex + 1].id)}>
+                Next →
+              </Button>
+            </div>
+          )}
+          {/* STATUS, AND THE BUTTONS THAT CHANGE IT, on the page.
+
+              Exit, suspension and re-admission were built and then put inside
+              an "Actions" dropdown at the top of the record — the same place
+              Edit was hidden, and with the same result: people concluded the
+              product could not do it. A thing a school does to a child belongs
+              on the child's record where the eye already is, not behind a menu
+              somebody has to think to open. */}
+          <Card className="lg:col-span-2">
+            <CardHeader
+              title="Status on the roll"
+              description={
+                p.status === 'active'
+                  ? 'On the roll and being taught.'
+                  : p.status === 'suspended'
+                    ? 'Still enrolled and still holding a seat — the fees, the register and the class list are unchanged.'
+                    : 'Off the roll. The record is kept in full: marks, attendance, fees and documents are all still here.'
+              }
+              action={
+                <Badge tone={p.status === 'active' ? 'success'
+                  : p.status === 'suspended' ? 'danger' : 'warning'}>
+                  {p.status}
+                </Badge>
+              }
+            />
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
+              {can('students.write') ? (
+                <>
+                  {(p.status === 'active' || p.status === 'suspended') && (
+                    <>
+                      <Button variant="secondary" disabled={suspend.isPending}
+                        onClick={() => suspend.mutate({ suspended: p.status !== 'suspended' })}>
+                        {p.status === 'suspended' ? 'Lift the suspension' : 'Suspend'}
+                      </Button>
+                      <Button variant={exiting ? 'secondary' : 'primary'}
+                        onClick={() => setExiting(!exiting)}>
+                        {exiting ? 'Cancel' : 'Record that they have left'}
+                      </Button>
+                    </>
+                  )}
+                  {p.status !== 'active' && p.status !== 'suspended' && (
+                    <>
+                      <Button disabled={readmit.isPending} onClick={() => readmit.mutate()}>
+                        Put back on the roll
+                      </Button>
+                      {p.exit_reason && (
+                        <span className="text-[13px] text-muted-foreground">
+                          {p.exit_reason}
+                          {p.exit_date ? ` · ${formatDate(p.exit_date)}` : ''}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {/* A TC is a document AND an exit — issuing one ends the
+                      child's time here and closes the enrolment. It lives on
+                      the certificates screen because it is numbered and
+                      snapshotted there; this is the way in. */}
+                  <Button variant="ghost" onClick={() => go('certificates')}>
+                    Issue a transfer certificate
+                  </Button>
+                </>
+              ) : (
+                <p className="text-[13px] text-muted-foreground">
+                  Changing a child&rsquo;s status needs the student write permission.
+                </p>
+              )}
+            </div>
+          </Card>
           {p.status === 'suspended' && (
             <Card className="border-danger lg:col-span-2">
               <CardHeader
@@ -802,137 +948,179 @@ export default function StudentProfile() {
               </div>
             </Card>
           )}
-          {/* The photograph, above the details, because it is how somebody
-              at the desk checks they have the right child in front of them. */}
-          <Card>
-            <CardHeader
-              title="Photograph"
-              description={
-                p.photo_file_id
-                  ? 'Printed on the ID card and on the report card.'
-                  : 'None on file, so the ID card and the report card print an empty frame.'
-              }
-            />
-            <div className="flex flex-wrap items-start gap-4 px-5 pb-5">
-              <div className="h-[34mm] w-[28mm] shrink-0 overflow-hidden rounded border bg-muted/30">
-                {p.photo_file_id && (
-                  <img
-                    src={`/api/v1/files/${p.photo_file_id}`}
-                    alt={`Photograph of ${p.full_name}`}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </div>
-              {can('students.write') && (
-                <div className="min-w-[16rem] flex-1">
-                  <FilePicker
-                    value={photoFile}
-                    onChange={(f) => {
-                      setPhotoFile(f)
-                      // Saved as soon as it is up: a photograph chosen and
-                      // then left unsaved is the commonest way this column
-                      // stays empty.
-                      if (f) savePhoto.mutate(f.file_id)
-                    }}
-                    purpose="student_photo"
-                    label={p.photo_file_id ? 'Replace the photograph' : 'Add a photograph'}
-                    hint="A portrait, in any image format. Passport size prints best."
-                  />
-                  {savePhoto.error && <FormNotice error={savePhoto.error} />}
+          {/* TWO COLUMNS, a third and two thirds.
+
+              Everything sat in one two-up grid, so the photograph — a 28mm
+              portrait — was given the same half of the page as fifteen rows of
+              details, and the record a clerk opened the page for started below
+              the fold. The narrow column carries the things that are narrow:
+              the picture and the family. */}
+          <div className="lg:col-span-2 grid gap-6 lg:grid-cols-[minmax(0,32%)_minmax(0,1fr)] lg:items-start">
+            <div className="space-y-6">
+            {/* THE PHOTOGRAPH, in a narrow column.
+
+                It had a card of its own across half the page: a 28mm portrait
+                and a file picker beside four inches of nothing, pushing the
+                details a reader actually came for below the fold. Stacked in a
+                third of the width, the picture and the button take the room
+                they need and the record starts at the top of the page. */}
+            <Card>
+              <CardHeader title="Photograph" />
+              <div className="px-5 pb-5">
+                <div className="mx-auto h-[34mm] w-[28mm] overflow-hidden rounded border bg-muted/30">
                   {p.photo_file_id && (
-                    <Button
-                      variant="ghost"
-                      disabled={savePhoto.isPending}
-                      onClick={() => savePhoto.mutate('')}
-                    >
-                      Remove it
-                    </Button>
+                    <img
+                      src={`/api/v1/files/${p.photo_file_id}`}
+                      alt={`Photograph of ${p.full_name}`}
+                      className="h-full w-full object-cover"
+                    />
                   )}
                 </div>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Details" />
-            <dl className="divide-y text-[14px]">
-              <Field k="Admission no." v={p.admission_no} mono />
-              <Field k="Admitted on" v={formatDate(p.admission_date)} />
-              <Field k="Class" v={cls} />
-              <Field k="Roll no." v={p.roll_no ? String(p.roll_no) : undefined} />
-              <Field k="Date of birth" v={formatDate(p.date_of_birth)} />
-              <Field k="Gender" v={p.gender} />
-              <Field k="Blood group" v={p.blood_group} />
-              <Field k="Mother tongue" v={p.mother_tongue} />
-              <Field k="Medium" v={p.medium} />
-              <Field k="House" v={p.house_name} />
-              {/* APAAR, Child Info, the previous school and the RTE/CWSN
-                  category are admissions records. The office needs them to
-                  file returns; a teacher opening a child's page wants to know
-                  who to ring, and four government identifiers between them and
-                  the phone number is four rows of noise.
-
-                  Hidden rather than deleted: the same component serves the
-                  front office and the principal, and taking these off their
-                  screen would break the returns those screens exist to file. */}
-              {!teacherOnly && (
-                <>
-                  <Field k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
-                  <Field k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
-                  <Field k="Previous school" v={p.prior_school} />
-                  {/* CATEGORY IS A CATEGORY. This row read the RTE and CWSN
-                      flags and printed "General" when neither was set — so a
-                      child recorded as SC showed as General, on the screen an
-                      office files the reservation return from. They are three
-                      different facts and now say so. */}
-                  <Field k="Category" v={p.category ? p.category.toUpperCase() : undefined} />
-                  <Field k="Admitted under" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ')} />
-                  <Field k="Nationality" v={p.nationality} />
-                  <Field k="Aadhaar" v={p.aadhaar_last4 ? `•••• •••• ${p.aadhaar_last4}` : undefined} mono />
-                </>
-              )}
-            </dl>
-          </Card>
-          <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
-            mayEdit={can('students.write')}
+                {can('students.write') && (
+                  <div className="mt-3">
+                    <FilePicker
+                      value={photoFile}
+                      onChange={(f) => {
+                        setPhotoFile(f)
+                        // Saved as soon as it is up: a photograph chosen and
+                        // then left unsaved is the commonest way this column
+                        // stays empty.
+                        if (f) savePhoto.mutate(f.file_id)
+                      }}
+                      purpose="student_photo"
+                      label={p.photo_file_id ? 'Replace' : 'Add a photograph'}
+                    />
+                    {savePhoto.error && <FormNotice error={savePhoto.error} />}
+                    {p.photo_file_id && (
+                      <Button variant="ghost" disabled={savePhoto.isPending}
+                        onClick={() => savePhoto.mutate('')}>
+                        Remove it
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  {p.photo_file_id
+                    ? 'Printed on the ID card and the report card.'
+                    : 'None on file, so the ID card and the report card print an empty frame.'}
+                </p>
+              </div>
+            </Card>
+              <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
+                mayEdit={can('students.write')}
             onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })} />
+            </div>
+            <div className="space-y-6">
+            <RecordBlock
+              title="Details"
+              blockKey="Details"
+              studentID={p.id}
+              mayEdit={can('students.write')}
+              onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+              custom={p.custom_fields}
+              fields={[
+                { k: 'Admission no.', v: p.admission_no },
+                { k: 'Admitted on', v: formatDate(p.admission_date) },
+                { k: 'Class', v: cls },
+                { k: 'Roll no.', v: p.roll_no ? String(p.roll_no) : undefined },
+                { k: 'Date of birth', v: formatDate(p.date_of_birth) },
+                { k: 'Gender', v: p.gender },
+                { k: 'Blood group', v: p.blood_group },
+                { k: 'Mother tongue', v: p.mother_tongue },
+                { k: 'Medium', v: p.medium },
+                { k: 'House', v: p.house_name },
+                /* APAAR, Child Info, the previous school and the statutory
+                   category are admissions records. A teacher opening a child's
+                   page wants to know who to ring, and four government
+                   identifiers between them and the phone number is four rows of
+                   noise — so they are hidden from the faculty workspace and kept
+                   for the office, which files the returns they exist for. */
+                ...(teacherOnly ? [] : [
+                  { k: 'APAAR ID', v: p.apaar_id ?? 'not issued' },
+                  { k: 'Child Info ID', v: p.child_info_id ?? 'not linked' },
+                  { k: 'Previous school', v: p.prior_school },
+                  /* CATEGORY IS A CATEGORY. This row used to read the RTE and
+                     CWSN flags and print "General" when neither was set, so a
+                     child recorded as SC showed as General on the screen the
+                     reservation return is filed from. Three different facts,
+                     said as three. */
+                  { k: 'Category', v: p.category ? p.category.toUpperCase() : undefined },
+                  { k: 'Admitted under', v: [p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') },
+                  { k: 'Nationality', v: p.nationality },
+                  { k: 'Aadhaar', v: p.aadhaar_last4 ? `•••• •••• ${p.aadhaar_last4}` : undefined },
+                ]),
+              ]}
+            >
+              {can('students.write') && (
+                <div className="border-t px-5 py-3">
+                  <Button size="sm" variant={editing ? 'secondary' : 'primary'}
+                    onClick={() => setEditing(!editing)}>
+                    {editing ? 'Stop editing' : 'Edit these details'}
+                  </Button>
+                </div>
+              )}
+            </RecordBlock>
+            {/* Fields with no block of their own — the ones added through the
+                edit form before the blocks existed, and any a school files under
+                nothing in particular. Shown only when there are some: an empty
+                card headed "Also recorded" is a question mark on every page. */}
+            {(() => {
+              const loose = Object.entries(p.custom_fields ?? {})
+                .filter(([k]) => !k.includes('/'))
+              if (loose.length === 0) return null
+              return (
+                <RecordBlock
+                  title="Also recorded"
+                  blockKey="Other"
+                  studentID={p.id}
+                  mayEdit={can('students.write')}
+                  onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+                  fields={loose.map(([k, v]) => ({ k, v }))}
+                />
+              )
+            })()}
+            </div>
+          </div>
+
 
           {/* 3. CONTACT & EMERGENCY.
 
               The emergency contact is separated from the guardians on purpose:
               a guardian gets a login, fee reminders and absence alerts, and
               the neighbour who holds a spare key should get none of those. */}
-          <Card>
-            <CardHeader title="Contact and emergency" />
-            <dl className="divide-y text-[14px]">
-              <Field
-                k="Address"
-                v={[p.address_line1, p.address_line2, p.city, p.state, p.pincode]
-                  .filter(Boolean).join(', ') || undefined}
-              />
-              <Field
-                k="Permanent address"
-                v={p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined)}
-              />
-              <Field k="Emergency contact" v={p.emergency_contact_name} />
-              <Field k="Their phone" v={p.emergency_contact_phone} />
-              <Field k="Relation" v={p.emergency_contact_relation} />
-            </dl>
-          </Card>
+          {/* Two blocks, not one. Where a family lives and who to ring when
+              nobody answers are different questions asked at different moments,
+              and each takes fields this product did not think of — a bus stop
+              under Contact, a second number under Emergency. */}
+          <RecordBlock
+            title="Contact and address"
+            blockKey="Contact"
+            studentID={p.id}
+            mayEdit={can('students.write')}
+            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+            custom={p.custom_fields}
+            fields={[
+              { k: 'Address', v: [p.address_line1, p.address_line2, p.city, p.state, p.pincode].filter(Boolean).join(', ') },
+              { k: 'Permanent address', v: p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined) },
+              { k: 'Phone', v: p.primary_phone },
+            ]}
+          />
+          <RecordBlock
+            title="Emergency contact"
+            description="Somebody to ring when no parent answers. They get no login and no messages."
+            blockKey="Emergency"
+            studentID={p.id}
+            mayEdit={can('students.write')}
+            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+            custom={p.custom_fields}
+            fields={[
+              { k: 'Name', v: p.emergency_contact_name },
+              { k: 'Phone', v: p.emergency_contact_phone },
+              { k: 'Relation', v: p.emergency_contact_relation },
+            ]}
+          />
 
-          {/* Whatever else this school records. Shown only when there is
-              something in it — an empty card headed "Anything else" is a
-              question mark on every child's page. */}
-          {p.custom_fields && Object.keys(p.custom_fields).length > 0 && (
-            <Card>
-              <CardHeader title="Also recorded" />
-              <dl className="divide-y text-[14px]">
-                {Object.entries(p.custom_fields).map(([k, v]) => (
-                  <Field key={k} k={k} v={v} />
-                ))}
-              </dl>
-            </Card>
-          )}
+
         </div>
       ),
     },
@@ -1125,6 +1313,24 @@ export default function StudentProfile() {
         </Card>
         <TransportCrew rows={detail.data?.transport_crew ?? []} />
         </>
+      ),
+    },
+    {
+      key: 'activities', label: 'Activities',
+      badge: (detail.data?.activities ?? []).filter((a) => a.status === 'enrolled').length || undefined,
+      render: () => (
+        <Activities
+          studentID={p.id}
+          rows={detail.data?.activities ?? []}
+          catalogue={activityCatalogue.data?.items ?? []}
+          mayEdit={can('students.write')}
+          onChanged={() => {
+            detail.refetch()
+            // The bill is real, so the fee tab and the overview tile must move
+            // with it rather than showing yesterday's balance.
+            qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+          }}
+        />
       ),
     },
     {
@@ -1764,31 +1970,27 @@ function GuardianPhoto({ studentID, guardian }: {
    Each tile is the filter it describes, so "1 left" is a click away from the
    list of who they are — a number somebody cannot act on is a number they
    have to go and re-derive somewhere else. */
-function RollTile({ label, value, note, tone, onClick }: {
+function RollTile({ label, value, note, active, onClick }: {
   label: string
   value: number
   note: string
-  tone: 'success' | 'warning' | 'danger' | 'neutral'
-  onClick?: () => void
+  active?: boolean
+  onClick: () => void
 }) {
-  const dot = {
-    success: 'bg-success', warning: 'bg-warning',
-    danger: 'bg-danger', neutral: 'bg-primary',
-  }[tone]
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={!onClick}
+      /* Which one is showing, said by the tile itself. Four numbers and a
+         separate dropdown that decides between them leaves the screen with
+         two answers to one question. */
+      aria-pressed={active}
       className={cn(
-        'rounded-xl border bg-background px-4 py-3 text-left',
-        onClick && 'hover:border-primary/50',
+        'rounded-xl border bg-background px-4 py-3 text-left transition-colors',
+        active ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/50',
       )}
     >
-      <p className="eyebrow flex items-center gap-1.5 text-muted-foreground">
-        <span className={cn('inline-block h-2 w-2 rounded-full', dot)} />
-        {label}
-      </p>
+      <p className="eyebrow text-muted-foreground">{label}</p>
       <p className="mt-1 text-[26px] font-semibold leading-none tabular-nums">{value}</p>
       <p className="mt-1 text-[12px] text-muted-foreground">{note}</p>
     </button>

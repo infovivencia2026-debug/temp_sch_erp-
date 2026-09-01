@@ -1219,6 +1219,17 @@ type certificateRow struct {
 	// had no id on this screen, so the only thing the office could do with it
 	// was issue a second certificate beside it.
 	ID string `json:"id"`
+	/* WHO ASKED, AND FOR WHICH CHILD.
+
+	   The queue said "Bonafide · Aarav Sharma" and nothing else, so the clerk
+	   holding the signed paper still had to look the child up to find the
+	   class, and had no idea which parent to hand it to or ring. Both were one
+	   join away from a query already being run. */
+	Class       string `json:"class_name"`
+	Section     string `json:"section_name"`
+	AdmissionNo string `json:"admission_no"`
+	AskedBy     string `json:"asked_by"`
+	AskedPhone  string `json:"asked_phone"`
 }
 
 func (s *Server) listCertificates(w http.ResponseWriter, r *http.Request) {
@@ -1226,15 +1237,31 @@ func (s *Server) listCertificates(w http.ResponseWriter, r *http.Request) {
 		SELECT ic.serial_no, ct.name,
 		       concat_ws(' ', st.first_name, st.last_name),
 		       to_char(ic.issued_on,'YYYY-MM-DD'), ic.status, ic.snapshot,
-		       ic.id::text
+		       ic.id::text,
+		       COALESCE(c.name,''), COALESCE(sec.name,''),
+		       COALESCE(st.admission_no,''),
+		       COALESCE(u.full_name,''),
+		       -- The number to ring. Taken from the guardian row that carries
+		       -- this login rather than from users, because a family's contact
+		       -- number lives on the guardian and not on the account.
+		       COALESCE(g.phone, u.phone, '')
 		  FROM issued_certificates ic
 		  JOIN certificate_types ct ON ct.id = ic.certificate_type_id
 		  LEFT JOIN students st ON st.id = ic.student_id
+		  LEFT JOIN LATERAL (
+		      SELECT e.class_id, e.section_id FROM enrollments e
+		       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		  ) en ON true
+		  LEFT JOIN classes c ON c.id = en.class_id
+		  LEFT JOIN sections sec ON sec.id = en.section_id
+		  LEFT JOIN users u ON u.id = ic.requested_by
+		  LEFT JOIN guardians g ON g.user_id = ic.requested_by
 		 ORDER BY ic.created_at DESC LIMIT 200`, nil,
 		func(rows pgx.Rows) (certificateRow, error) {
 			var v certificateRow
 			return v, rows.Scan(&v.Serial, &v.Type, &v.Student, &v.IssuedOn,
-				&v.Status, &v.Snapshot, &v.ID)
+				&v.Status, &v.Snapshot, &v.ID, &v.Class, &v.Section,
+				&v.AdmissionNo, &v.AskedBy, &v.AskedPhone)
 		})
 	respond(w, r, items, err)
 }

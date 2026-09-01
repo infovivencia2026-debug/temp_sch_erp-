@@ -49,6 +49,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	leave := []map[string]any{}
 	history := []map[string]any{}
 	crew := []map[string]any{}
+	activities := []map[string]any{}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var ok bool
@@ -263,6 +264,41 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* CLUBS AND COACHING, and what each one cost.
+
+		   Left enrolments are kept and shown: "did she do swimming last year"
+		   is a question a school is asked, and a register that forgets is one
+		   somebody keeps a notebook beside. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT sa.id::text, a.name, a.category, COALESCE(a.schedule,''),
+			       sa.fee_paise::text, sa.status,
+			       to_char(sa.enrolled_on,'YYYY-MM-DD'),
+			       COALESCE(inv.status,''),
+			       COALESCE(inv.invoice_no,''),
+			       COALESCE((inv.net_paise - inv.paid_paise)::text,'0')
+			  FROM student_activities sa
+			  JOIN activities a ON a.id = sa.activity_id
+			  LEFT JOIN invoices inv ON inv.id = sa.invoice_id
+			 WHERE sa.student_id = $1
+			 ORDER BY sa.status = 'enrolled' DESC, sa.enrolled_on DESC`,
+			func(rows pgx.Rows) error {
+				var eid, name, cat, sched, fee, status, on string
+				var invStatus, invNo, due string
+				if err := rows.Scan(&eid, &name, &cat, &sched, &fee, &status,
+					&on, &invStatus, &invNo, &due); err != nil {
+					return err
+				}
+				activities = append(activities, map[string]any{
+					"id": eid, "name": name, "category": cat, "schedule": sched,
+					"fee_paise": fee, "status": status, "enrolled_on": on,
+					"invoice_status": invStatus, "invoice_no": invNo,
+					"due_paise": due,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* WHO IS DRIVING — the question at four o'clock when a bus is late and
 		   nobody can find the child. The names were one employees join away
 		   from a table this record already read. */
@@ -308,5 +344,6 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"leave":             leave,
 		"enrolment_history": history,
 		"transport_crew":    crew,
+		"activities":        activities,
 	})
 }
