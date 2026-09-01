@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List, type Section } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge, Field,
+  Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -776,7 +776,7 @@ export default function Applications() {
                   <div className="border-t pt-5">
                     <p className="eyebrow mb-2">Next</p>
                     <p className="text-[13.5px]">
-                      A place is offered. {open.first_name} is on Fee &amp; enrolment
+                      A place is offered. {open.name} is on Fee &amp; enrolment
                       now, where the fee is agreed, the principal signs it off,
                       and the section and the bus are chosen as they join.
                     </p>
