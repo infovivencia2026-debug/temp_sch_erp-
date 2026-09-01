@@ -174,12 +174,13 @@ func (s *Server) verifyStudentDocument(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"verified": req.Verified})
 }
 
-/* Removing a document takes the ROW, not the file.
+/*
+Removing a document takes the ROW, not the file.
 
-   files is shared: the same upload can be a child's document and an
-   attachment on a message, and deleting the blob because one reference went
-   away would break the other. The row is the school saying "we no longer hold
-   this as part of this child's record", which is what removing it means.
+	files is shared: the same upload can be a child's document and an
+	attachment on a message, and deleting the blob because one reference went
+	away would break the other. The row is the school saying "we no longer hold
+	this as part of this child's record", which is what removing it means.
 */
 func (s *Server) deleteStudentDocument(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -225,17 +226,18 @@ func (s *Server) deleteStudentDocument(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"deleted": true})
 }
 
-/* Fields a school invented, saved one block at a time.
+/*
+Fields a school invented, saved one block at a time.
 
-   The record shows Details, Contact and Emergency, and every school has
-   something none of them thought of — a bus stop, a second emergency number, a
-   sibling's admission number. Sending the whole custom_fields map from each
-   block would mean the block that knows only its own fields wipes the others,
-   so this MERGES: keys present are set, keys absent are left alone.
+	The record shows Details, Contact and Emergency, and every school has
+	something none of them thought of — a bus stop, a second emergency number, a
+	sibling's admission number. Sending the whole custom_fields map from each
+	block would mean the block that knows only its own fields wipes the others,
+	so this MERGES: keys present are set, keys absent are left alone.
 
-   A BLANK VALUE REMOVES THE KEY. That gives one way to say "this field does
-   not belong here after all", rather than a delete endpoint that would need
-   its own permission, its own route and its own way of being got wrong.
+	A BLANK VALUE REMOVES THE KEY. That gives one way to say "this field does
+	not belong here after all", rather than a delete endpoint that would need
+	its own permission, its own route and its own way of being got wrong.
 */
 func (s *Server) saveStudentCustomFields(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -318,22 +320,23 @@ func (s *Server) saveStudentCustomFields(w http.ResponseWriter, r *http.Request)
 	httpx.JSON(w, http.StatusOK, map[string]any{"saved": len(set), "removed": len(drop)})
 }
 
-/* Correcting a few fields without re-sending the whole child.
+/*
+Correcting a few fields without re-sending the whole child.
 
-   The only way to change anything was PUT /students/{id}, which runs the same
-   upsert the admission form and the CSV importer use — it takes the complete
-   record and writes all of it. Sending three fields through that blanks the
-   other twenty, so every screen that wanted to fix a phone number had to load
-   the whole student, merge, and send it all back, and any field the screen did
-   not know about was lost on save.
+	The only way to change anything was PUT /students/{id}, which runs the same
+	upsert the admission form and the CSV importer use — it takes the complete
+	record and writes all of it. Sending three fields through that blanks the
+	other twenty, so every screen that wanted to fix a phone number had to load
+	the whole student, merge, and send it all back, and any field the screen did
+	not know about was lost on save.
 
-   This writes exactly the columns it is given and touches nothing else.
+	This writes exactly the columns it is given and touches nothing else.
 
-   WHITELISTED, not reflected. A map from a JSON name to a column is a few more
-   lines than building SQL from the request, and it is the difference between
-   an endpoint that edits a child and an endpoint that edits any column of the
-   students table an attacker can name — including status, campus_id and
-   institution_id.
+	WHITELISTED, not reflected. A map from a JSON name to a column is a few more
+	lines than building SQL from the request, and it is the difference between
+	an endpoint that edits a child and an endpoint that edits any column of the
+	students table an attacker can name — including status, campus_id and
+	institution_id.
 */
 var patchableStudentFields = map[string]string{
 	"address_line1":              "address_line1",

@@ -26,7 +26,7 @@ func TestPeriodsInAcceptsTheWorkbooksSixSpellings(t *testing.T) {
 		"L5: Plants        (5P)":            5,
 		"7. Handicrafts & Handlooms  ( 7 )": 7,
 		"11. Pressure           (6P)":       6,
-		"à°µ  - à°ªà°¦à°¾à°²à±  5 (p )":                 5,
+		"à°µ  - à°ªà°¦à°¾à°²à±  5 (p )":     5,
 		"12. Sound (3P)":                    3,
 		"Unit - I At Home":                  0,
 	} {

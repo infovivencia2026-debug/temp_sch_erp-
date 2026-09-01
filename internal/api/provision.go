@@ -177,7 +177,7 @@ func provisionSchool(ctx context.Context, tx pgx.Tx, hasher *auth.Hasher, p prov
 	}
 
 	/* The departments a leaver is signed out of.
-	
+
 	   Seeded here rather than left to the school, because both exit gates are
 	   counts of what is unsigned: with no departments the count is zero, and
 	   the rule that stops a final settlement outrunning the library reads as

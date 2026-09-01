@@ -7,32 +7,33 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-/* When somebody leaves, the record stays and the login goes.
+/*
+When somebody leaves, the record stays and the login goes.
 
-   Nothing did this. A teacher who resigned in August could still sign in in
-   December — read the register, open a child's record, message a parent — and
-   so could a family whose child had been given a transfer certificate. The
-   product carefully kept every fact about a leaver, which is right, and just
-   as carefully left them the key to the building, which is not.
+	Nothing did this. A teacher who resigned in August could still sign in in
+	December — read the register, open a child's record, message a parent — and
+	so could a family whose child had been given a transfer certificate. The
+	product carefully kept every fact about a leaver, which is right, and just
+	as carefully left them the key to the building, which is not.
 
-   THE TWO HALVES ARE SEPARATE ON PURPOSE.
+	THE TWO HALVES ARE SEPARATE ON PURPOSE.
 
-   The RECORD is never deleted. Marks, attendance, payroll, the classes they
-   taught, the fees they paid: a school is asked about a former pupil or a
-   former teacher years later, and a product that answered by deleting them
-   would be answering "we no longer know".
+	The RECORD is never deleted. Marks, attendance, payroll, the classes they
+	taught, the fees they paid: a school is asked about a former pupil or a
+	former teacher years later, and a product that answered by deleting them
+	would be answering "we no longer know".
 
-   The ACCESS ends at once. Two things, because either alone is a hole: the
-   account is archived so no new sign-in succeeds, and every live session is
-   revoked so the one already open on somebody's phone stops working. Archiving
-   without revoking leaves a leaver signed in until their cookie expires, which
-   on this product is a fortnight.
+	The ACCESS ends at once. Two things, because either alone is a hole: the
+	account is archived so no new sign-in succeeds, and every live session is
+	revoked so the one already open on somebody's phone stops working. Archiving
+	without revoking leaves a leaver signed in until their cookie expires, which
+	on this product is a fortnight.
 
-   COMING BACK DOES NOT RESTORE THE LOGIN, deliberately. Re-admitting a child
-   or re-employing a teacher puts the record back on the roll; the account is
-   issued again as a decision somebody makes, with a new password. Silently
-   reviving an old login would mean a password shared with a family two years
-   ago works again on the day their sibling is admitted.
+	COMING BACK DOES NOT RESTORE THE LOGIN, deliberately. Re-admitting a child
+	or re-employing a teacher puts the record back on the roll; the account is
+	issued again as a decision somebody makes, with a new password. Silently
+	reviving an old login would mean a password shared with a family two years
+	ago works again on the day their sibling is admitted.
 */
 func endAccess(r *http.Request, tx pgx.Tx, userID uuid.UUID) error {
 	if userID == uuid.Nil {
@@ -50,16 +51,17 @@ func endAccess(r *http.Request, tx pgx.Tx, userID uuid.UUID) error {
 	return err
 }
 
-/* Ending a whole family's access when a child leaves.
+/*
+Ending a whole family's access when a child leaves.
 
-   The child's own account goes. The guardians' accounts go ONLY IF this was
-   their last child at the school — a parent with a second child in Grade 4
-   must keep the login they use to read that child's homework, and taking it
-   away because their elder left would be a support call the same afternoon.
+	The child's own account goes. The guardians' accounts go ONLY IF this was
+	their last child at the school — a parent with a second child in Grade 4
+	must keep the login they use to read that child's homework, and taking it
+	away because their elder left would be a support call the same afternoon.
 
-   This is why it is a query and not a loop over the guardians: "has this
-   person any other active child here" is the whole rule, and it has to be
-   asked of the database rather than assumed.
+	This is why it is a query and not a loop over the guardians: "has this
+	person any other active child here" is the whole rule, and it has to be
+	asked of the database rather than assumed.
 */
 func endFamilyAccess(r *http.Request, tx pgx.Tx, studentID uuid.UUID) (int, error) {
 	ended := 0
