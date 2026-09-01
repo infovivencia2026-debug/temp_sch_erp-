@@ -568,7 +568,16 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/bounce", s.bounceCheque)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/pdc", s.listPDC)
 			r.With(httpx.RequirePermission(rbac.InvoicesRead)).Get("/defaulters", s.listDefaulters)
-			r.With(httpx.RequirePermission(rbac.InvoicesWrite)).Post("/invoices/generate", s.generateInvoices)
+			/* RAISING ONE CHILD'S BILL IS AN ADMISSIONS ACT; a whole class is
+			   an accounts one.
+
+			   The gate was invoices.write alone, so the desk that admits a
+			   child — and that already causes an invoice when it accepts an
+			   application — was offered "Raise this child's fee" and refused
+			   by name for pressing it. The handler enforces the split: without
+			   invoices.write, a student_id is required. */
+			r.With(httpx.RequireAnyPermission(rbac.InvoicesWrite, rbac.AdmissionsWrite)).
+				Post("/invoices/generate", s.generateInvoices)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/concessions", s.listConcessions)
 			// The writer the discount book never had. Raise on fees.write,
 			// approve on refunds.write — the split concessions.go already

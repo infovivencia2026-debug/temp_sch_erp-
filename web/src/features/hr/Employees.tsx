@@ -8,6 +8,7 @@ import {
   Button, Input, Loading, ErrorState,
 } from '@/components/ui'
 import IDCards from './IDCards'
+import StaffRecord from './StaffRecord'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
@@ -87,6 +88,7 @@ const TABS: { key: Tab; label: string }[] = [
 ]
 
 export default function Employees() {
+  const [openStaff, setOpenStaff] = useState<string | null>(null)
   const can = useCan()
   const [params, setParams] = useSearchParams()
   // An unknown tab falls back to the list rather than a blank page: an old
@@ -153,6 +155,9 @@ export default function Employees() {
 
   return (
     <>
+      {openStaff && (
+        <StaffRecord employeeID={openStaff} onClose={() => setOpenStaff(null)} />
+      )}
       <PageHead
         eyebrow="Employees"
         title="Staff records"
@@ -389,6 +394,17 @@ export default function Employees() {
                   </Td>
                   <Td><StatusPill status={e.status} /></Td>
                   <Td>
+                    {/* THE RECORD, which the directory did not have.
+
+                        Everything past a name and a department lived on
+                        another screen — what they teach, which class they are
+                        teacher of, their qualifications — so "what does she
+                        teach and can she take another class" meant opening
+                        three pages and remembering. */}
+                    <Button size="sm" variant="secondary"
+                      onClick={() => setOpenStaff(e.id)}>
+                      Open
+                    </Button>
                     {/* One card, for the person standing at the desk. The
                         bulk tab is for September; this is for the replacement
                         somebody lost on Tuesday. */}

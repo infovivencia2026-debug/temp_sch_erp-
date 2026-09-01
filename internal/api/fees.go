@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* Fee collection — the counter workflow.
@@ -700,6 +702,24 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 
 	var req generateInvoicesRequest
 	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	/* THE SPLIT THE ROUTE CANNOT MAKE.
+
+	   Raising one child's bill is part of admitting them, and the admissions
+	   desk already causes an invoice when it accepts an application — so being
+	   refused for the same act on the child's own record was the product
+	   contradicting itself.
+
+	   A whole class is a different thing: it is the term's billing run, it
+	   moves every family's money at once, and it belongs to accounts. The
+	   route lets both roles in; the difference is enforced here, where the
+	   request can actually be read. */
+	if strings.TrimSpace(req.StudentID) == "" &&
+		!httpx.IdentityFrom(r.Context()).Can(rbac.InvoicesWrite) {
+		httpx.Forbidden(w, r,
+			"raising a whole class's demand needs the invoices permission. One "+
+				"child's fee can be raised from their own record")
 		return
 	}
 	structureID, err := uuid.Parse(req.FeeStructureID)
