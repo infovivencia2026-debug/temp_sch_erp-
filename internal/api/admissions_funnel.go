@@ -1195,9 +1195,14 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 					          A reason left behind after the hold is lifted is
 					          the one somebody reads next term and acts on. */
 					       hold_reason = CASE WHEN $2 = 'on_hold'
-					                          THEN NULLIF(btrim($3), '') END,
-					       held_at = CASE WHEN $2 = 'on_hold' THEN now() END,
-					       held_by = CASE WHEN $2 = 'on_hold' THEN $4::uuid END
+					                          THEN NULLIF(btrim($3), '')
+					                          ELSE NULL::text END,
+					       held_at = CASE WHEN $2 = 'on_hold'
+					                      THEN now()
+					                      ELSE NULL::timestamptz END,
+					       held_by = CASE WHEN $2 = 'on_hold'
+					                      THEN $4::uuid
+					                      ELSE NULL::uuid END
 					 WHERE id = $1`, appID, req.Status, req.HoldReason, id.UserID); err != nil {
 					return err
 				}

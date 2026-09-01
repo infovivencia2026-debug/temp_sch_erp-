@@ -602,10 +602,23 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 			       /* The reason is the hold. Written on the way in and cleared
 			          on the way out: one left behind after the hold is lifted
 			          is the note somebody reads next term and acts on. */
+			       /* EVERY BRANCH TYPED, including the implicit ELSE.
+
+			          $3 is decided_by, a uuid. Inside a CASE whose omitted
+			          ELSE is an untyped NULL, Postgres cannot deduce one type
+			          for the parameter and refuses the whole statement with
+			          "inconsistent types deduced for parameter $3" — which
+			          reached the screen as "something went wrong" on a button
+			          that had worked for months until this column was added. */
 			       hold_reason = CASE WHEN $2 = 'on_hold'
-			                          THEN NULLIF(btrim($4), '') END,
-			       held_at = CASE WHEN $2 = 'on_hold' THEN now() END,
-			       held_by = CASE WHEN $2 = 'on_hold' THEN $3 END
+			                          THEN NULLIF(btrim($4), '')
+			                          ELSE NULL::text END,
+			       held_at = CASE WHEN $2 = 'on_hold'
+			                      THEN now()
+			                      ELSE NULL::timestamptz END,
+			       held_by = CASE WHEN $2 = 'on_hold'
+			                      THEN $3::uuid
+			                      ELSE NULL::uuid END
 			 WHERE id = $1`, appID, req.Decision, id.UserID, nullString(req.Remarks))
 		if err != nil {
 			return err
