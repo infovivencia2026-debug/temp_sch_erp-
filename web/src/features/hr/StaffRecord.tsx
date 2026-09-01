@@ -90,6 +90,13 @@ export default function StaffRecord({ employeeID, onClose }: {
   const [docExpiry, setDocExpiry] = useState('')
   const [fieldName, setFieldName] = useState('')
   const [fieldValue, setFieldValue] = useState('')
+  /* The details were readable and not writable.
+
+     A PATCH for the whole staff record has existed since employees became
+     editable at all; nothing on this screen called it, so a phone number
+     changed at the desk still needed the older bulk form somewhere else. */
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<Record<string, string>>({})
 
   const detail = useQuery({
     queryKey: ['staff-detail', employeeID],
@@ -129,6 +136,29 @@ export default function StaffRecord({ employeeID, onClose }: {
       detail.refetch()
       qc.invalidateQueries({ queryKey: ['staff'] })
     },
+  })
+
+  const designations = useQuery({
+    queryKey: ['designations'],
+    enabled: editing,
+    queryFn: () => api.get<List<{ id: string; name: string }>>(
+      '/api/v1/hr-growth/designations'),
+  }).data?.items ?? []
+
+  const saveDetails = useMutation({
+    mutationFn: () => {
+      /* Only what changed. PATCH here means "these fields"; sending every
+         one would rewrite values nobody touched, and two people with the
+         record open would undo each other. */
+      const changed: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(draft)) {
+        if (v !== ((d?.[k as keyof Detail] as string | undefined) ?? '')) {
+          changed[k] = k === 'experience_years' ? Number(v) || 0 : v
+        }
+      }
+      return api.patch(`/api/v1/setup/employees/${employeeID}`, changed)
+    },
+    onSuccess: () => { setEditing(false); setDraft({}); detail.refetch() },
   })
 
   const savePhoto = useMutation({
@@ -200,7 +230,93 @@ export default function StaffRecord({ employeeID, onClose }: {
           ) : d ? (
             <>
               <Card>
-                <CardHeader title="Details" />
+                <CardHeader
+                  title="Details"
+                  action={
+                    <Button size="sm" variant={editing ? 'secondary' : 'primary'}
+                      onClick={() => { setEditing(!editing); setDraft({}) }}>
+                      {editing ? 'Cancel' : 'Edit'}
+                    </Button>
+                  }
+                />
+                {editing ? (
+                  <div className="space-y-4 p-4">
+                    <FormGrid>
+                      {([
+                        ['first_name', 'First name'],
+                        ['last_name', 'Last name'],
+                        ['phone', 'Phone'],
+                        ['email', 'Email'],
+                        ['qualification', 'Qualification'],
+                        ['experience_years', 'Years of experience'],
+                        ['emergency_contact_name', 'Emergency contact'],
+                        ['emergency_contact_phone', 'Their phone'],
+                        ['joined_on', 'Joined'],
+                        ['confirmed_on', 'Confirmed'],
+                      ] as [string, string][]).map(([k, label]) => (
+                        <FormField key={k} label={label}>
+                          <Input
+                            type={k.endsWith('_on') ? 'date'
+                              : k === 'experience_years' ? 'number' : undefined}
+                            value={draft[k] ?? ((d[k as keyof Detail] as string | undefined) ?? '')}
+                            onChange={(v) => setDraft({ ...draft, [k]: v })}
+                          />
+                        </FormField>
+                      ))}
+                      <FormField label="Designation">
+                        <Select
+                          value={draft.designation_id ?? d.designation_id ?? ''}
+                          onChange={(v) => setDraft({ ...draft, designation_id: v })}
+                          placeholder="Not recorded"
+                          options={designations.map((x) => ({ value: x.id, label: x.name }))}
+                        />
+                      </FormField>
+                      <FormField label="Employment">
+                        <Select
+                          value={draft.employment_type ?? d.employment_type ?? ''}
+                          onChange={(v) => setDraft({ ...draft, employment_type: v })}
+                          placeholder="Not recorded"
+                          options={[
+                            { value: 'permanent', label: 'Permanent' },
+                            { value: 'probation', label: 'On probation' },
+                            { value: 'contract', label: 'Contract' },
+                            { value: 'part_time', label: 'Part time' },
+                            { value: 'visiting', label: 'Visiting' },
+                          ]}
+                        />
+                      </FormField>
+                      {/* STATUS IS HERE AND IS NOT A TEXT BOX. Marking somebody
+                          resigned archives their login and revokes every live
+                          session — it is the one field on this form that locks
+                          a person out of the building. */}
+                      <FormField label="Status"
+                        hint="Resigned, terminated or retired ends their login at once">
+                        <Select
+                          value={draft.status ?? d.status}
+                          onChange={(v) => setDraft({ ...draft, status: v })}
+                          options={[
+                            { value: 'active', label: 'Active' },
+                            { value: 'on_leave', label: 'On leave' },
+                            { value: 'suspended', label: 'Suspended' },
+                            { value: 'resigned', label: 'Resigned' },
+                            { value: 'terminated', label: 'Terminated' },
+                            { value: 'retired', label: 'Retired' },
+                          ]}
+                        />
+                      </FormField>
+                    </FormGrid>
+                    <FormNotice error={saveDetails.error} />
+                    <div className="flex items-center gap-2">
+                      <Button disabled={saveDetails.isPending}
+                        onClick={() => saveDetails.mutate()}>
+                        {saveDetails.isPending ? 'Saving...' : 'Save changes'}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setEditing(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                 <dl className="divide-y text-[14px]">
                   <Field k="Employee code" v={d.employee_code} mono />
                   <Field k="Status" v={d.status} />
@@ -225,6 +341,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                     <Field key={k} k={k} v={v} />
                   ))}
                 </dl>
+                )}
                 <div className="flex flex-wrap items-end gap-2 border-t p-4">
                   <div className="w-52">
                     <FormField label="Add a field">

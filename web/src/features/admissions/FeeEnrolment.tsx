@@ -250,11 +250,42 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
         </div>
       ) : null}
 
-      <p className="px-5 py-4 text-[12.5px] text-muted-foreground">
-        Offered {formatDate(row.offered_on)}. Enrolling happens from
-        Applications; the bill is raised there with any approved concession
-        already in it.
-      </p>
+      {/* WHAT TO DO WHEN THERE IS NO CONCESSION, said as loudly as the form.
+
+          Most admissions have none, and for those this screen showed a form
+          asking for one and a grey footnote about where to enrol. So the
+          common case read as the incomplete one: nothing on the page said
+          "there is nothing to settle here, go ahead". */}
+      <div className="border-t px-5 py-4">
+        {row.concession_status === 'pending' ? (
+          <p className="text-[13px] text-warning">
+            Waiting on the principal. This child cannot be enrolled until it is
+            decided — enrolling now would bill the family in full and the
+            waiver could not be applied afterwards.
+          </p>
+        ) : (
+          <>
+            <p className="text-[13px]">
+              {row.concession_status === 'approved'
+                ? 'The concession is approved. Enrol from Applications and the bill is raised with it already taken off.'
+                : 'No concession has been asked for, so nothing is holding this up. Enrol from Applications whenever the family is ready.'}
+            </p>
+            {/* Enrolling needs a section, a roll number and the transport
+                answer, which is the form on Applications. Sending somebody
+                there is honest; a second half-form here would be a second
+                place to get the same admission wrong. */}
+            <a
+              href="/admissions/applications/application_forms"
+              className="mt-2 inline-block text-[13px] font-medium text-primary"
+            >
+              Open Applications to enrol {row.name} →
+            </a>
+          </>
+        )}
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          Offered {formatDate(row.offered_on)}.
+        </p>
+      </div>
     </Card>
   )
 }
