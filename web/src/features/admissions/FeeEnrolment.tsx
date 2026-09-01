@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select,
   Input, Textarea, FormNotice, Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
+import { useNavigate } from 'react-router-dom'
 import { useCan } from '@/lib/session'
 import { formatPaise, formatDate } from '@/lib/utils'
 
@@ -141,6 +142,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   mayAsk: boolean
   onChanged: () => void
 }) {
+  const navigate = useNavigate()
   const [kind, setKind] = useState('staff_ward')
   const [mode, setMode] = useState<'percent' | 'amount'>('percent')
   const [percent, setPercent] = useState('')
@@ -270,16 +272,25 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 ? 'The concession is approved. Enrol from Applications and the bill is raised with it already taken off.'
                 : 'No concession has been asked for, so nothing is holding this up. Enrol from Applications whenever the family is ready.'}
             </p>
-            {/* Enrolling needs a section, a roll number and the transport
-                answer, which is the form on Applications. Sending somebody
-                there is honest; a second half-form here would be a second
-                place to get the same admission wrong. */}
-            <a
-              href="/admissions/applications/application_forms"
-              className="mt-2 inline-block text-[13px] font-medium text-primary"
+            {/* NAVIGATE, DO NOT RELOAD.
+
+                A plain href tears the whole application down and builds it
+                again: the tab strip, the session, every cached query. Inside a
+                single-page app that is a two-second white flash where a click
+                should have been instant, and it looked like the button had
+                failed and started over.
+
+                And it said "Open Applications", which is not the name of
+                anything in the sidebar. The menu item is Application Forms, so
+                that is what it is called here. */}
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              onClick={() => navigate('/admissions/applications/application_forms')}
             >
-              Open Applications to enrol {row.name} →
-            </a>
+              Enrol {row.name} from Application Forms
+            </Button>
           </>
         )}
         <p className="mt-2 text-[12px] text-muted-foreground">
