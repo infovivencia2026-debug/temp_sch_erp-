@@ -37,7 +37,7 @@ ALTER TABLE applications
 COMMENT ON COLUMN applications.hold_reason IS
     'Why this application is not proceeding. Distinct from waitlisted, which '
     'is about seats: a hold means the seat is there and something else is not '
-    'settled -- a fee, a concession decision, a missing document.';
+    'settled: a fee, a concession decision, a missing document.';
 
 -- +goose Down
 

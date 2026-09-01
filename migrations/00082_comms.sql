@@ -468,7 +468,7 @@ CREATE INDEX counselor_participants_by_user
  WHERE removed_at IS NULL;
 
 COMMENT ON TABLE counselor_thread_participants IS
-    'The readership of a counselling thread, as an explicit list. A live row here is the ONLY thing that grants sight of counselor_messages. No RBAC permission, role or teaching relationship is an alternative route -- see internal/api/comms.go.';
+    'The readership of a counselling thread, as an explicit list. A live row here is the ONLY thing that grants sight of counselor_messages. No RBAC permission, role or teaching relationship is an alternative route — see internal/api/comms.go.';
 
 /* What was said.
 

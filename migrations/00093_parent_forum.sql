@@ -214,7 +214,7 @@ CREATE INDEX parent_forum_threads_pending
  WHERE status = 'pending';
 
 COMMENT ON COLUMN parent_forum_threads.converted_ticket_id IS
-    'The grievance this thread became. A post that is really a complaint about a named teacher is moved into the hub, where the subject_employee_id exclusion applies -- deleting it would destroy the concern along with the post.';
+    'The grievance this thread became. A post that is really a complaint about a named teacher is moved into the hub, where the subject_employee_id exclusion applies — deleting it would destroy the concern along with the post.';
 COMMENT ON COLUMN parent_forum_threads.author_guardian_id IS
     'The named guardian. There is no anonymous mode: an anonymous parents forum discussing named teachers is the failure this feature is shaped to avoid.';
 

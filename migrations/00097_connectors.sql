@@ -109,7 +109,7 @@ CREATE TABLE crm_connector_settings (
 );
 
 COMMENT ON TABLE crm_connector_settings IS
-    'Per-school CRM connector configuration: which CRM, which direction, what happens on a conflict, and how records travel. No credentials -- those are in crm_api_credentials, which a school administrator cannot read.';
+    'Per-school CRM connector configuration: which CRM, which direction, what happens on a conflict, and how records travel. No credentials — those are in crm_api_credentials, which a school administrator cannot read.';
 
 ALTER TABLE crm_connector_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crm_connector_settings FORCE  ROW LEVEL SECURITY;
