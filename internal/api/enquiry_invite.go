@@ -66,11 +66,11 @@ sendEnquiryApplicationLink queues the application form to a new enquiry's contac
 func (s *Server) sendEnquiryApplicationLink(
 	ctx context.Context, tx pgx.Tx, inst uuid.UUID, enquiryID uuid.UUID,
 	studentName, parentName, phone, email string,
-) {
+) []string {
 	phone = strings.TrimSpace(phone)
 	email = strings.TrimSpace(email)
 	if phone == "" && email == "" {
-		return
+		return nil
 	}
 
 	/* The form to send them to.
@@ -96,7 +96,7 @@ func (s *Server) sendEnquiryApplicationLink(
 		// pgx.ErrNoRows is the ordinary case for a school that has not opened
 		// admissions yet, and is not worth a log line every time a walk-in is
 		// recorded.
-		return
+		return nil
 	}
 
 	url := strings.TrimSuffix(s.BaseURL, "/") + "/admissions/apply/" + slug
@@ -109,6 +109,14 @@ func (s *Server) sendEnquiryApplicationLink(
 		"apply_url":   url,
 	}
 
+	/* WHY A CHANNEL DID NOT GO, RETURNED RATHER THAN DISCARDED.
+
+	   The rule that this must never fail the enquiry stands. Dropping the
+	   reason on the floor was a separate decision and a wrong one: a desk that
+	   typed an email address and saw no email had no way to learn that the
+	   school has no SMTP server configured, so the product looked broken and
+	   the screen that fixes it was never opened. */
+	var failed []string
 	for _, channel := range enquiryInviteChannels {
 		to := phone
 		if channel == "email" {
@@ -130,10 +138,10 @@ func (s *Server) sendEnquiryApplicationLink(
 			SourceID:      &enquiryID,
 			OccurrenceKey: "apply_link:" + channel,
 		}); err != nil {
-			// Swallowed, never returned: see the doc comment. A courtesy
-			// message that cannot be queued is not worth losing an enquiry a
-			// clerk has a parent on the phone for.
-			_ = err
+			// Never fails the enquiry -- see the doc comment -- but the reason
+			// is carried back so the desk can be told.
+			failed = append(failed, channel+": "+queueFailureReason(err))
 		}
 	}
+	return failed
 }
