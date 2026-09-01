@@ -272,6 +272,12 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/status", s.getSetupStatus)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/institution", s.getInstitution)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/institution/options", s.getInstitutionOptions)
+			/* What a board implies, said BEFORE it is chosen, and applied only
+			   when somebody presses the button. The field was a label: nothing
+			   in the product branched on it, so CBSE and Kerala SSLC produced
+			   the same empty grading scale. */
+			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/boards", s.listBoardPresets)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/boards/apply", s.applyBoardPreset)
 			// The lists a school may extend. Reading is gated on reading the
 			// institution, because every form in the product needs them;
 			// writing on settings.write, because adding a board changes what

@@ -155,14 +155,25 @@ var schoolCategories = []option{
 	{"composite", "Composite"},
 }
 
-var affiliationBoards = []option{
-	{"BSE Telangana", "BSE Telangana (SSC)"},
-	{"TSBIE", "TSBIE (Intermediate)"},
-	{"CBSE", "CBSE"},
-	{"CISCE", "CISCE (ICSE / ISC)"},
-	{"IB", "International Baccalaureate"},
-	{"CAIE", "Cambridge (CAIE)"},
-	{"Other State Board", "Other state board"},
+/* Every board a school here is likely to be affiliated to.
+
+   It was seven: two Telangana boards, CBSE, CISCE, the two international ones,
+   and "Other state board" for everybody else — which is the product telling
+   most of India's schools that their board is an exception, and which loses
+   the only fact this field could carry. A report grouping by board then has
+   one enormous bucket labelled Other.
+
+   Derived from boardPresets rather than written twice. The list a school picks
+   from and the list the product knows something about must be the same list,
+   or the day they drift is the day a board offers a preset it cannot apply. */
+var affiliationBoards = boardOptions()
+
+func boardOptions() []option {
+	out := make([]option, 0, len(boardPresets))
+	for _, b := range boardPresets {
+		out = append(out, option{b.Value, b.Label})
+	}
+	return out
 }
 
 /*

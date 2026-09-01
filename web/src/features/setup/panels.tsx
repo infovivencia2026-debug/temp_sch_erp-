@@ -230,7 +230,7 @@ function ProfilePanel({ onDone }: PanelProps) {
         <Field label="School name" required wide hint="As it should print on a receipt or a TC.">
           <Input value={v.name ?? ''} onChange={(x) => set('name', x)} placeholder="Vivencia High School, Kompally" />
         </Field>
-        <Field label="Board" required hint="Not listed? Add your own at the bottom of the list.">
+        <Field label="Board" required wide hint="Not listed? Add your own at the bottom of the list.">
           <Select
             kind="affiliation_board"
             addLabel="Add another board"
@@ -239,6 +239,15 @@ function ProfilePanel({ onDone }: PanelProps) {
             placeholder="Choose a board"
             options={(opts?.affiliation_boards ?? []).map((o) => ({ value: o.value, label: o.label }))}
           />
+          {/* WHAT THIS CHOICE MEANS, BEFORE IT IS MADE.
+
+              The board used to be a label: nothing in the product branched on
+              it, so CBSE and Kerala SSLC produced the same empty grading scale
+              and the same 33% nobody had set. It now carries a grading scale —
+              and the school reads what that scale is and presses a button,
+              because a field that silently rewrote grade bands somebody had
+              spent an afternoon building would be the worst kind of help. */}
+          <BoardImplications board={v.affiliation_board ?? ''} />
         </Field>
         <Field label="Affiliation number" hint="Leave blank if the application is still pending.">
           <Input value={v.affiliation_no ?? ''} onChange={(x) => set('affiliation_no', x)} />
@@ -2730,3 +2739,133 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   )
 }
 
+
+/* What choosing a board actually does, said before it does it.
+
+   The board was stored, printed on the setup form, counted towards "setup
+   finished" — and nothing in the product branched on it. A school picked CBSE
+   and got what a school picking Kerala SSLC got: an empty grading scale to
+   build by hand.
+
+   Three rules this panel obeys, and each of them is a thing that goes wrong
+   when a product is clever about presets:
+
+     it SHOWS before it acts, so a registrar can check the bands against the
+     circular on their desk;
+
+     it never applies as a side effect of the dropdown, because a scale
+     somebody spent an afternoon on must not be rewritten by a field;
+
+     and it says plainly that the preset is a starting point. A product that
+     hardcodes what it believes a board requires is wrong the year the board
+     changes it, and the school cannot correct it. */
+interface BoardPreset {
+  value: string
+  label: string
+  group: string
+  scale_name: string
+  pass_mark: number
+  assessment: string
+  leaving_doc: string
+  notes?: string
+  bands: { grade: string; min_percent: number; max_percent: number; grade_point?: number }[]
+}
+
+export function BoardImplications({ board }: { board: string }) {
+  const [open, setOpen] = useState(false)
+  const boards = useQuery({
+    queryKey: ['setup', 'boards'],
+    queryFn: () => api.get<{ items: BoardPreset[] }>('/api/v1/setup/boards'),
+  })
+  const apply = useMutation({
+    mutationFn: () => api.post<{ scale_name: string; bands: number; already_existed: boolean }>(
+      '/api/v1/setup/boards/apply', { board }),
+  })
+
+  if (!board) return null
+  const preset = (boards.data?.items ?? []).find((b) => b.value === board)
+  if (!preset) {
+    /* A board the school added themselves. There is nothing to preset, and
+       that is an honest answer rather than a gap — so it says what to do
+       instead of showing an empty panel. */
+    return (
+      <p className="mt-2 rounded-lg border bg-muted/30 p-3 text-[12.5px] text-muted-foreground">
+        This is your school&rsquo;s own board, so nothing is assumed about it.
+        Set the grade bands it reports in under Academics → Grading, and they
+        will be used everywhere marks are graded.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border bg-muted/30 p-3 text-[12.5px]">
+      <p className="font-medium text-foreground">Choosing {preset.label} sets up:</p>
+      <ul className="mt-1.5 space-y-1 text-muted-foreground">
+        <li>
+          <span className="text-foreground">Grading:</span> {preset.scale_name} —{' '}
+          {preset.bands.map((b) => b.grade).join(', ')}
+        </li>
+        <li><span className="text-foreground">Pass mark:</span> {preset.pass_mark}%</li>
+        <li><span className="text-foreground">Assessed as:</span> {preset.assessment}</li>
+        <li><span className="text-foreground">Leaving document:</span> {preset.leaving_doc}</li>
+      </ul>
+      {preset.notes && (
+        <p className="mt-2 text-muted-foreground">{preset.notes}</p>
+      )}
+
+      {open && (
+        <table className="mt-3 w-full text-[12px]">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="py-1">Grade</th><th>From</th><th>To</th><th>Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preset.bands.map((b) => (
+              <tr key={b.grade} className="border-t">
+                <td className="py-1 font-medium">{b.grade}</td>
+                <td className="tabular-nums">{b.min_percent}%</td>
+                <td className="tabular-nums">{b.max_percent}%</td>
+                <td className="tabular-nums">{b.grade_point || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="text-primary"
+          onClick={() => setOpen(!open)}
+        >
+          {open ? 'Hide the bands' : 'Show the bands'}
+        </button>
+        <button
+          type="button"
+          className="rounded-md border bg-background px-2.5 py-1 font-medium"
+          disabled={apply.isPending}
+          onClick={() => apply.mutate()}
+        >
+          {apply.isPending ? 'Setting up…' : 'Use this grading scale'}
+        </button>
+        {apply.isSuccess && (
+          <span className="text-success">
+            {apply.data.already_existed
+              ? `You already have ${apply.data.scale_name} — nothing was changed.`
+              : `${apply.data.scale_name} created with ${apply.data.bands} bands. Edit it under Academics → Grading.`}
+          </span>
+        )}
+        {apply.isError && (
+          <span className="text-destructive">
+            {apply.error instanceof Error ? apply.error.message : 'Could not set it up'}
+          </span>
+        )}
+      </div>
+      <p className="mt-2 text-muted-foreground">
+        A starting point, not a rule — every band stays editable, and nothing
+        you have already set up is overwritten.
+      </p>
+    </div>
+  )
+}
