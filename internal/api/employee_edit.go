@@ -1,0 +1,167 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/httpx"
+)
+
+/* Staff details, after the day they were entered.
+
+   Employees could be created and never edited. A phone number changes, a
+   teacher marries and changes her name, somebody is promoted out of a
+   department, the bank account for salary is keyed wrong once — and none of it
+   could be corrected without a database session. Sixty-nine staff were
+   imported into this deployment before anyone noticed there was no way back
+   into the record.
+
+   Status is here too, and it is the whole of what "somebody left" means in
+   this product: nobody is deleted, an employee becomes resigned or terminated
+   or retired and their service record, payroll history and the classes they
+   taught all stay exactly where they are. That is why there is no delete on
+   this endpoint and will not be one.
+*/
+
+type employeePatch struct {
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	Phone     *string `json:"phone,omitempty"`
+	Email     *string `json:"email,omitempty"`
+
+	DepartmentID   *string `json:"department_id,omitempty"`
+	DesignationID  *string `json:"designation_id,omitempty"`
+	EmploymentType *string `json:"employment_type,omitempty"`
+	Status         *string `json:"status,omitempty"`
+
+	JoinedOn    *string `json:"joined_on,omitempty"`
+	ConfirmedOn *string `json:"confirmed_on,omitempty"`
+	RelievedOn  *string `json:"relieved_on,omitempty"`
+
+	Qualification   *string `json:"qualification,omitempty"`
+	ExperienceYears *int    `json:"experience_years,omitempty"`
+	Address         *string `json:"address,omitempty"`
+
+	BankAccount *string `json:"bank_account,omitempty"`
+	BankIFSC    *string `json:"bank_ifsc,omitempty"`
+
+	EmergencyContactName  *string `json:"emergency_contact_name,omitempty"`
+	EmergencyContactPhone *string `json:"emergency_contact_phone,omitempty"`
+}
+
+// The statuses an employee record may hold. Leaving is a status, never a
+// deletion: the service record, the payroll history and the classes they
+// taught all outlive the employment.
+var employeeStatuses = []string{
+	"active", "on_leave", "suspended", "resigned", "terminated", "retired",
+}
+
+var errEmployeeGone = errors.New("no such employee")
+
+/*
+updateEmployee corrects a staff record.
+
+	Every field is a pointer, so omitting one leaves it alone and sending an
+	empty string clears it. That distinction matters more here than elsewhere:
+	a screen that edits four fields of a thirty-field record must not blank the
+	other twenty-six by not mentioning them, which is exactly what a PUT would
+	do to the first caller who forgot.
+*/
+func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	empID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid employee id")
+		return
+	}
+	var req employeePatch
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	for _, f := range []**string{&req.FirstName} {
+		if *f != nil {
+			**f = strings.TrimSpace(**f)
+			if **f == "" {
+				httpx.BadRequest(w, r, "a staff record needs a first name")
+				return
+			}
+		}
+	}
+	if req.Status != nil && !oneOfStr(*req.Status, employeeStatuses...) {
+		httpx.BadRequest(w, r, "status must be one of "+strings.Join(employeeStatuses, ", "))
+		return
+	}
+	if req.ExperienceYears != nil && (*req.ExperienceYears < 0 || *req.ExperienceYears > 70) {
+		httpx.BadRequest(w, r, "experience must be between 0 and 70 years")
+		return
+	}
+
+	var name, status string
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* A relieving date is what makes a leaver's record readable a year
+		   later, so setting a leaving status without one stamps today rather
+		   than leaving the question open. It is only ever filled in, never
+		   overwritten: a school correcting the date sends it explicitly. */
+		relieved := req.RelievedOn
+		if relieved == nil && req.Status != nil &&
+			oneOfStr(*req.Status, "resigned", "terminated", "retired") {
+			today := nowInIndia().Format("2006-01-02")
+			relieved = &today
+		}
+
+		err := tx.QueryRow(r.Context(), `
+			UPDATE employees SET
+			    first_name       = COALESCE($2, first_name),
+			    last_name        = CASE WHEN $3::text IS NULL THEN last_name ELSE NULLIF($3,'') END,
+			    phone            = CASE WHEN $4::text IS NULL THEN phone ELSE NULLIF($4,'') END,
+			    email            = CASE WHEN $5::text IS NULL THEN email ELSE NULLIF($5,'')::citext END,
+			    department_id    = CASE WHEN $6::text IS NULL THEN department_id ELSE NULLIF($6,'')::uuid END,
+			    designation_id   = CASE WHEN $7::text IS NULL THEN designation_id ELSE NULLIF($7,'')::uuid END,
+			    employment_type  = COALESCE(NULLIF($8,''), employment_type),
+			    status           = COALESCE(NULLIF($9,''), status),
+			    joined_on        = COALESCE($10::date, joined_on),
+			    confirmed_on     = CASE WHEN $11::text IS NULL THEN confirmed_on ELSE NULLIF($11,'')::date END,
+			    -- Filled in, never overwritten by the automatic stamp above.
+			    relieved_on      = CASE WHEN $12::text IS NULL THEN relieved_on
+			                            ELSE COALESCE(relieved_on, NULLIF($12,'')::date) END,
+			    qualification    = CASE WHEN $13::text IS NULL THEN qualification ELSE NULLIF($13,'') END,
+			    experience_years = COALESCE($14, experience_years),
+			    address          = CASE WHEN $15::text IS NULL THEN address ELSE NULLIF($15,'') END,
+			    bank_account     = CASE WHEN $16::text IS NULL THEN bank_account ELSE NULLIF($16,'') END,
+			    bank_ifsc        = CASE WHEN $17::text IS NULL THEN bank_ifsc ELSE NULLIF($17,'') END,
+			    emergency_contact_name  = CASE WHEN $18::text IS NULL THEN emergency_contact_name ELSE NULLIF($18,'') END,
+			    emergency_contact_phone = CASE WHEN $19::text IS NULL THEN emergency_contact_phone ELSE NULLIF($19,'') END,
+			    updated_at = now()
+			 WHERE id = $1
+			 RETURNING btrim(first_name || ' ' || COALESCE(last_name,'')), status`,
+			empID, req.FirstName, req.LastName, req.Phone, req.Email,
+			req.DepartmentID, req.DesignationID, req.EmploymentType, req.Status,
+			req.JoinedOn, req.ConfirmedOn, relieved,
+			req.Qualification, req.ExperienceYears, req.Address,
+			req.BankAccount, req.BankIFSC,
+			req.EmergencyContactName, req.EmergencyContactPhone).Scan(&name, &status)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errEmployeeGone
+		}
+		return err
+	})
+
+	switch {
+	case errors.Is(err, errEmployeeGone):
+		httpx.BadRequest(w, r, "no such staff record in this school")
+		return
+	case err != nil && strings.Contains(err.Error(), "employees_institution_id_employee_code"):
+		httpx.BadRequest(w, r, "another staff record already uses that employee code")
+		return
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"id": empID.String(), "name": name, "status": status,
+	})
+}

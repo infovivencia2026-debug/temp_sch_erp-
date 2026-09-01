@@ -318,13 +318,22 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Post("/campuses", s.createCampus)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Put("/campuses/{id}", s.updateCampus)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/academic-years", s.createAcademicYear)
+			// The dates here decide the year plan's ruler and the working-day
+			// count, and a school that opened late enters the wrong Monday first.
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Patch("/academic-years/{id}", s.updateAcademicYear)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/classes", s.createClass)
+			// Nothing joins on a name, so a rename is a label change the
+			// timetable, register and ledger follow without moving.
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Patch("/classes/{id}", s.updateClass)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/classes/{id}", s.deleteClass)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/sections", s.createSection)
 			// The name is the thing most likely to be wrong on the first pass, and
 			// nothing joins on it — everything points at the section by id.
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Patch("/sections/{id}", s.updateSection)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/sections/{id}", s.deleteSection)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/subjects", s.createSubject)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Patch("/subjects/{id}", s.updateSubject)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/subjects/{id}", s.deleteSubject)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Put("/periods", s.setPeriods)
 			r.With(httpx.RequirePermission(rbac.AcademicsRead)).Get("/class-subjects", s.listClassSubjects)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Put("/class-subjects", s.setClassSubjects)
@@ -336,6 +345,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/exams", s.createExam)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads", s.listFeeHeads)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Patch("/fee-heads/{id}", s.updateFeeHead)
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Delete("/fee-heads/{id}", s.deleteFeeHead)
 			// Pricing a class means naming one. Accounts holds fees.write and
 			// not academics.read, so without this the class dropdown on the
 			// fee-structure form was empty for exactly the people who use it.
@@ -347,6 +358,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).
 				Delete("/fee-structures/{id}", s.deleteFeeStructure)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
+			// A phone changes, a name changes, somebody is promoted, a salary
+			// account is keyed wrong once. No delete: leaving is a status.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Patch("/employees/{id}", s.updateEmployee)
 			// Completing an appointment: whoever may appoint somebody may let
 			// them in. Deliberately not access.users.write — that right would
 			// also let HR reset the principal's password.
