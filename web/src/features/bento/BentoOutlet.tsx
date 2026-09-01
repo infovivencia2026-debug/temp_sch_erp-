@@ -198,9 +198,29 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          it gets a floor and not a ceiling, and scrolls in the work area as it
          always did. min-h-full rather than min-h-dvh for the same reason as
          above: the floor is the room available, not the window. */
+      /* THE BOARD HOLDS ONE SCREEN ONLY WHERE ONE SCREEN IS WHAT IT IS.
+
+         `h-full overflow-hidden` is right for the desktop board: the grid is a
+         fixed fifteen-slot sheet whose rows are fractions of a measured height,
+         so it fits by construction and clipping it is a backstop that never
+         fires.
+
+         Below 1024px none of that is true. The fixed-height rules live in a
+         `@media (min-width: 1024px)` block in bento-theme.css, so on a phone
+         the board is a one-column stack of content-sized rows -- a parent's
+         home measured 1307px of cards inside a 631px ground. `overflow-hidden`
+         then did exactly what it says: over half of it was cut off, with no
+         scroll anywhere to reach it, because <main> only scrolls when its child
+         is taller than it is and this child was pinned to exactly its height.
+         The fee card, the homework card and the bus card simply did not exist
+         on a phone.
+
+         So the ceiling is applied at the same breakpoint that earns it, and
+         below it the ground grows and the work area scrolls, which is what it
+         already does for a classic screen falling through this same branch. */
       className={cn(
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
-        Screen ? 'h-full overflow-hidden' : 'min-h-full',
+        Screen ? 'min-h-full lg:h-full lg:overflow-hidden' : 'min-h-full',
       )}
     >
       {/* The room around the board.
