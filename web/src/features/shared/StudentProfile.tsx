@@ -21,7 +21,7 @@ import {
   SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, type Detail,
 } from './StudentTabs'
-import { RecordBlock } from './RecordBlock'
+import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -318,6 +318,8 @@ export default function StudentProfile() {
      government codes nowhere — so "update this child", which is one job
      somebody sits down to do, was four screens and a gap. */
   const [updating, setUpdating] = useState(false)
+  // The details block's own fields, as a form, without the six-tab dialog.
+  const [editingDetails, setEditingDetails] = useState(false)
   const recordExit = useMutation({
     mutationFn: (v: { status: string; exit_date: string; reason: string }) =>
       api.post(`/api/v1/students/${selected}/exit`, v),
@@ -1055,10 +1057,24 @@ export default function StudentProfile() {
               <Card>
                 <CardHeader
                   title="Student details"
+                  /* TWO WAYS IN, because they answer different questions.
+
+                     "Expand & edit" opens this block's own fields as a form,
+                     which is what somebody correcting a blood group wants.
+                     "Update details" opens the whole record in tabs — names,
+                     identifiers, address, emergency contact — which is what
+                     somebody working through a new admission wants. Offering
+                     only the second made fixing one field a six-tab dialog. */
                   action={can('students.write') ? (
-                    <Button size="sm" onClick={() => setUpdating(true)}>
-                      Update details
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="secondary"
+                        onClick={() => setEditingDetails(true)}>
+                        Expand &amp; edit
+                      </Button>
+                      <Button size="sm" onClick={() => setUpdating(true)}>
+                        Update details
+                      </Button>
+                    </div>
                   ) : undefined}
                 />
                 {/* THE GREY BLOCK WAS AN EMPTY GRID CELL.
@@ -1535,6 +1551,44 @@ export default function StudentProfile() {
   return (
     <>
     {credentials}
+    {editingDetails && (
+      <FieldSheet
+        title="Student details"
+        studentID={p.id}
+        onClose={() => setEditingDetails(false)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+          qc.invalidateQueries({ queryKey: ['student-record', selected] })
+        }}
+        fields={[
+          { k: 'Date of birth', v: p.date_of_birth, field: 'date_of_birth', kind: 'date' },
+          { k: 'Gender', v: p.gender, field: 'gender',
+            options: [
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other', label: 'Other' },
+            ] },
+          { k: 'Blood group', v: p.blood_group, field: 'blood_group' },
+          { k: 'Mother tongue', v: p.mother_tongue, field: 'mother_tongue' },
+          { k: 'Medium', v: p.medium, field: 'medium' },
+          { k: 'Nationality', v: p.nationality, field: 'nationality' },
+          ...(teacherOnly ? [] : [
+            { k: 'Category', v: p.category, field: 'category',
+              hint: 'For RTE, scholarship and statutory returns',
+              options: [
+                { value: 'general', label: 'General' }, { value: 'obc', label: 'OBC' },
+                { value: 'sc', label: 'SC' }, { value: 'st', label: 'ST' },
+                { value: 'ews', label: 'EWS' }, { value: 'other', label: 'Other' },
+              ] },
+            { k: 'APAAR ID', v: p.apaar_id, field: 'apaar_id', hint: 'Twelve digits' },
+            { k: 'Child Info ID', v: p.child_info_id, field: 'child_info_id' },
+            { k: 'Aadhaar (last 4)', v: p.aadhaar_last4, field: 'aadhaar_last4',
+              hint: 'Only the last four are stored, deliberately' },
+            { k: 'Previous school', v: p.prior_school, field: 'prior_school' },
+          ]),
+        ]}
+      />
+    )}
     {updating && (
       <StudentEditDialog
         student={{

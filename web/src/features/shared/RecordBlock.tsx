@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   Card, CardHeader, FormGrid, Field as FormField, FormNotice, Button, Input,
-  Textarea,
+  Textarea, Select,
 } from '@/components/ui'
 import { Field } from '@/components/RecordShell'
 
@@ -301,5 +301,95 @@ export function RecordBlock({
       {children}
       {sheet}
     </Card>
+  )
+}
+
+/* One block's fields as a full-page form, without the six-tab dialog.
+
+   The record has two editors on purpose. This one opens a single block —
+   somebody correcting a blood group should not be handed a dialog of thirty
+   inputs across six tabs. The dialog is for working through a whole admission.
+
+   Both save through PATCH and both send only what changed, so opening one
+   after the other cannot undo the first.
+*/
+export interface SheetField {
+  k: string
+  v?: string | null
+  field: string
+  kind?: 'date'
+  hint?: string
+  options?: { value: string; label: string }[]
+}
+
+export function FieldSheet({ title, studentID, fields, onClose, onSaved }: {
+  title: string
+  studentID: string
+  fields: SheetField[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const valueOf = (f: SheetField) => draft[f.field] ?? f.v ?? ''
+  const dirty = fields.some((f) => (draft[f.field] ?? f.v ?? '') !== (f.v ?? ''))
+
+  const save = useMutation({
+    mutationFn: () => {
+      const changed: Record<string, string> = {}
+      for (const f of fields) {
+        const now = draft[f.field] ?? f.v ?? ''
+        if (now !== (f.v ?? '')) changed[f.field] = now
+      }
+      if (Object.keys(changed).length === 0) return Promise.resolve({})
+      return api.patch(`/api/v1/students/${studentID}/fields`, changed)
+    },
+    onSuccess: () => { onSaved(); onClose() },
+  })
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex items-center justify-between border-b px-6 py-4">
+        <p className="text-[17px] font-semibold">{title}</p>
+        <Button variant="secondary" onClick={onClose}>Close</Button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-2xl px-6 py-6">
+          {/* EVERY FIELD, filled or not. The card behind shows only what is
+              filled, because reading a record an empty row says nothing; here
+              the opposite holds — a field you cannot see is one you cannot
+              fill, which is most of how they came to be empty. */}
+          <FormGrid>
+            {fields.map((f) => (
+              <FormField key={f.field} label={f.k} hint={f.hint}>
+                {f.options ? (
+                  <Select
+                    value={valueOf(f)}
+                    onChange={(v) => setDraft({ ...draft, [f.field]: v })}
+                    placeholder="Not recorded"
+                    options={f.options}
+                  />
+                ) : (
+                  <Input
+                    type={f.kind === 'date' ? 'date' : undefined}
+                    value={valueOf(f)}
+                    onChange={(v) => setDraft({ ...draft, [f.field]: v })}
+                  />
+                )}
+              </FormField>
+            ))}
+          </FormGrid>
+          <FormNotice error={save.error} />
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
+              Cancel
+            </Button>
+            <Button disabled={save.isPending || !dirty} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
