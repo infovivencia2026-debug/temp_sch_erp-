@@ -54,52 +54,61 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 	var draftName string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		/* The CURRENT version, which is what the demand raise uses.
+		/* THE SAME TABLE THE DEMAND RAISE BILLS FROM.
 
-		   fee_structure_versions exists because a school revises its fees and
-		   the invoices already issued must keep the figures they were issued
-		   with. Quoting from the structure rather than the version would quote
-		   a number no invoice will ever carry. */
-		var versionID uuid.UUID
+		   The first cut read fee_structure_version_items, which is the 00045
+		   engine's table. generateInvoices reads fee_structure_items, the
+		   baseline one — and on this school that is where all sixty-five rows
+		   live. So the quote was empty for every class whose fees are actually
+		   set up, and would have been right only for a structure nobody bills
+		   from. Two tables for one idea, and the quote must read whichever the
+		   invoice will.
+
+		   AND AN "ALL CLASSES" STRUCTURE COUNTS. fs.class_id is NULL when a
+		   school prices every class the same, which is what this school did:
+		   the query matched class_id = $1 and therefore matched nothing at all,
+		   on the structure carrying every fee the school charges.
+
+		   A class of its own wins over the school-wide one — that is the point
+		   of setting a class-specific structure — so the ordering puts the
+		   specific first and takes one. */
+		var structureID uuid.UUID
 		err := tx.QueryRow(r.Context(), `
-			SELECT v.id, COALESCE(fs.name, 'Fee structure')
-			  FROM fee_structure_versions v
-			  JOIN fee_structures fs ON fs.id = v.fee_structure_id
-			 WHERE fs.class_id = $1
-			   AND v.status = 'active'
-			   AND fs.is_active
-			 ORDER BY v.effective_from DESC NULLS LAST, v.version_no DESC
-			 LIMIT 1`, classID).Scan(&versionID, &structureName)
+			SELECT fs.id, fs.name
+			  FROM fee_structures fs
+			 WHERE fs.is_active
+			   AND (fs.class_id = $1 OR fs.class_id IS NULL)
+			   AND EXISTS (SELECT 1 FROM fee_structure_items i
+			                WHERE i.fee_structure_id = fs.id)
+			 ORDER BY (fs.class_id = $1) DESC, fs.created_at DESC
+			 LIMIT 1`, classID).Scan(&structureID, &structureName)
 		if err == pgx.ErrNoRows {
-			/* Nothing live. Before saying "there is no fee structure" — which
-			   is the sentence that makes somebody build a second one — look
-			   for one that exists and has never been activated. A structure
-			   with a draft version is the commonest state on a new school and
-			   the fix is one click, not a rebuild. */
+			/* Nothing with any priced heads in it. Before saying "there is no
+			   fee structure" — the sentence that makes somebody build a second
+			   one — look for a structure that exists and has nothing in it,
+			   which is a different problem with a different fix. */
 			_ = tx.QueryRow(r.Context(), `
 				SELECT fs.name FROM fee_structures fs
-				 WHERE fs.class_id = $1 AND fs.is_active
-				 ORDER BY fs.created_at DESC LIMIT 1`, classID).Scan(&draftName)
+				 WHERE fs.is_active AND (fs.class_id = $1 OR fs.class_id IS NULL)
+				 ORDER BY (fs.class_id = $1) DESC, fs.created_at DESC
+				 LIMIT 1`, classID).Scan(&draftName)
 			return nil
 		}
 		if err != nil {
 			return err
 		}
 
-		/* One row per head per instalment, which is how the items are stored
-		   and how the demand raise reads them. Summed for the year's total and
-		   listed so the family can be told what falls when. */
 		if err := tx.QueryRow(r.Context(),
 			`SELECT count(DISTINCT instalment_no)::int
-			   FROM fee_structure_version_items WHERE version_id = $1`,
-			versionID).Scan(&instalments); err != nil {
+			   FROM fee_structure_items WHERE fee_structure_id = $1`,
+			structureID).Scan(&instalments); err != nil {
 			return err
 		}
 		return scanInto(r.Context(), tx, `
 			SELECT COALESCE(fh.name, 'Other'), i.amount_paise, i.instalment_no
-			  FROM fee_structure_version_items i
+			  FROM fee_structure_items i
 			  LEFT JOIN fee_heads fh ON fh.id = i.fee_head_id
-			 WHERE i.version_id = $1
+			 WHERE i.fee_structure_id = $1
 			 ORDER BY i.instalment_no, COALESCE(fh.name, 'Other')`,
 			func(rows pgx.Rows) error {
 				var h feeHeadQuote
@@ -109,7 +118,7 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 				heads = append(heads, h)
 				total += h.Paise
 				return nil
-			}, versionID)
+			}, structureID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

@@ -86,9 +86,9 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
         {q?.draft_structure ? (
           <>
             <span className="font-medium">{q.draft_structure}</span> exists for
-            this class but has no live version, so there is nothing to quote and
-            no demand can be raised from it. Open it under Accounts → Fees →
-            Class &amp; transport fee setup and activate a version.
+            this class but has no fee heads priced in it, so there is nothing to
+            quote and no demand can be raised from it. Open it under Accounts →
+            Fees → Class &amp; transport fee setup and add the heads.
           </>
         ) : (
           <>
