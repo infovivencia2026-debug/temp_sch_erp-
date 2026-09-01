@@ -2311,10 +2311,15 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
             { value: 'other', label: 'Other' },
           ]} />
         </FormField>
-        <FormField label="Phone" hint={reachable ? undefined : 'A phone or an email is needed'}>
+        {/* ONE OF THE TWO IS REQUIRED, so both carry the star and the hint
+            says which rule applies. A field the server refuses without and the
+            form does not mark is a field somebody leaves blank and is told
+            about after pressing Save. */}
+        <FormField label="Phone" required
+          hint="A phone number or an email — every alert the school sends goes to one of them">
           <Input value={f.phone} onChange={set('phone')} />
         </FormField>
-        <FormField label="Email">
+        <FormField label="Email" required hint="Or a phone number above">
           <Input value={f.email} onChange={set('email')} />
         </FormField>
         <FormField label="Occupation">

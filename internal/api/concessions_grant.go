@@ -63,10 +63,36 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "student_id must be a uuid")
 		return
 	}
-	year, err := uuid.Parse(strings.TrimSpace(req.AcademicYearID))
-	if err != nil {
-		httpx.BadRequest(w, r, "academic_year_id must be a uuid")
-		return
+	/* THE CURRENT YEAR, WHEN NOBODY SAYS OTHERWISE.
+
+	   It was required, and every caller had to fetch the academic years,
+	   find the current one and send its id — for a fact the server already
+	   knows and can only have one answer to. The admissions desk granting a
+	   concession at the counter does not have that id to hand, and got
+	   "academic_year_id must be a uuid" for a field its form never showed.
+
+	   Still accepted explicitly, because backdating a concession to last year
+	   is a real thing a school does when correcting a bill. */
+	var year uuid.UUID
+	if v := strings.TrimSpace(req.AcademicYearID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "academic_year_id must be a uuid")
+			return
+		}
+		year = parsed
+	} else {
+		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(),
+				`SELECT id FROM academic_years WHERE is_current LIMIT 1`).Scan(&year)
+		}); err != nil {
+			/* A school with no current year cannot be billed at all, so this
+			   is worth saying rather than failing on a uuid parse. */
+			httpx.BadRequest(w, r,
+				"no academic year is marked current — set one under Academics "+
+					"before granting a concession")
+			return
+		}
 	}
 	var head *uuid.UUID
 	if v := strings.TrimSpace(req.FeeHeadID); v != "" {

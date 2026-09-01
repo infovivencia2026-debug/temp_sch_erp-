@@ -162,6 +162,9 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
                   { value: 'other', label: 'Other' },
                 ]} />
               </FormField>
+              {/* Not starred: it chooses between two ways of saying the same
+                  thing and always has an answer. A star on a field that
+                  cannot be empty teaches people to ignore stars. */}
               <FormField label="How much">
                 <Select value={mode} onChange={(v) => setMode(v as 'percent' | 'amount')}
                   options={[
