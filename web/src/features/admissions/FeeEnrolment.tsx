@@ -312,12 +312,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
               The child cannot be enrolled until the principal decides it.
             </span>
           )}
-          {row.concession_status === 'approved' && (
-            <span className="block text-success">
-              Enrol from Applications and the bill is raised with this already
-              taken off.
-            </span>
-          )}
+
         </div>
       ) : mayAsk ? (
         <div className="space-y-3 border-b p-4">
@@ -402,8 +397,8 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           <>
             <p className="text-[13px]">
               {row.concession_status === 'approved'
-                ? 'The concession is approved. Enrol from Applications and the bill is raised with it already taken off.'
-                : 'No concession has been asked for, so nothing is holding this up. Enrol from Applications whenever the family is ready.'}
+                ? 'The concession is approved. The bill below is raised with it already taken off.'
+                : 'No concession has been asked for, so nothing is holding this up.'}
             </p>
             {/* ENROLLING HAPPENS HERE, not on another page.
 
@@ -455,8 +450,8 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                            seats -- how many children are in the room and how
                            many it holds -- and spelling that out costs four
                            words on a line that has the space. */
-                        label: `${x.class_name}-${x.name} Â· ${x.enrolled} of ${x.capacity} seats filled`
-                          + (x.enrolled >= x.capacity ? ' Â· FULL' : ''),
+                        label: `${x.class_name}-${x.name} · ${x.enrolled} of ${x.capacity} seats filled`
+                          + (x.enrolled >= x.capacity ? ' · FULL' : ''),
                       }))}
                   />
                 </FormField>
@@ -489,7 +484,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                       placeholder={stops.isFetching ? 'Loadingâ¦' : 'Choose the stop'}
                       options={(stops.data?.items ?? []).map((st) => ({
                         value: st.id,
-                        label: st.pickup_time ? `${st.name} Â· ${st.pickup_time}` : st.name,
+                        label: st.pickup_time ? `${st.name} · ${st.pickup_time}` : st.name,
                       }))}
                     />
                   </FormField>
