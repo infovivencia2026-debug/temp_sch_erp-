@@ -344,7 +344,9 @@ var probes = []probe{
 		},
 		Run: func(ctx context.Context, tx pgx.Tx, _ *scope.Resolved) (probeResult, error) {
 			n, err := countQuery(ctx, tx,
-				`SELECT count(*) FROM fee_concessions WHERE approved_by IS NULL`)
+				// status, not approved_by: a refusal has a decider and no
+				// approval, and would otherwise be flagged as needing one.
+				`SELECT count(*) FROM fee_concessions WHERE status = 'pending'`)
 			return probeResult{Count: n}, err
 		},
 	},

@@ -538,7 +538,9 @@ func (s *Server) getToday(w http.ResponseWriter, r *http.Request) {
 		}
 		if id.Can(rbac.FeesWrite) {
 			if err := tx.QueryRow(ctx, `
-				SELECT count(*) FROM fee_concessions WHERE approved_at IS NULL`).
+				-- status, not approved_at: a refusal leaves approved_at NULL
+				-- too, and would be counted as waiting for ever.
+				SELECT count(*) FROM fee_concessions WHERE status = 'pending'`).
 				Scan(&concessions); err != nil {
 				return fmt.Errorf("concessions: %w", err)
 			}
@@ -838,7 +840,7 @@ func (s *Server) getFeeConcessions(w http.ResponseWriter, r *http.Request) {
 		SELECT fc.kind,
 		       count(DISTINCT fc.student_id),
 		       count(*),
-		       count(*) FILTER (WHERE fc.approved_at IS NULL),
+		       count(*) FILTER (WHERE fc.status = 'pending'),
 		       COALESCE(sum(fc.amount_paise) FILTER (WHERE fc.amount_paise IS NOT NULL), 0),
 		       count(*) FILTER (WHERE fc.percent IS NOT NULL)
 		  FROM fee_concessions fc

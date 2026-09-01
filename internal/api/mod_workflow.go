@@ -714,7 +714,9 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				       to_char(fc.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 				  FROM fee_concessions fc
 				  JOIN students st ON st.id = fc.student_id
-				 WHERE fc.approved_at IS NULL
+				 -- Pending is status, not approved_at: a refusal also leaves
+				 -- approved_at NULL, and would sit in this queue for ever.
+				 WHERE fc.status = 'pending'
 				 ORDER BY fc.created_at`,
 				func(rows pgx.Rows) error {
 					var cid, who, kind, reason, raised string
@@ -761,26 +763,71 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* A refusal needs a reason, and the reason is what the family is told.
+	   "Rejected" with nothing beside it is the decision somebody rings the
+	   office about, and the person answering the telephone did not make it. */
+	note := strings.TrimSpace(req.Note)
+	if req.Decision == "rejected" && note == "" {
+		httpx.BadRequest(w, r,
+			"say why it was refused — it goes on the record and the family is told")
+		return
+	}
+
+	var studentID uuid.UUID
+	var studentName, kindName string
+	var askedBy *uuid.UUID
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* REJECTED ROWS ARE KEPT.
+
+		   This used to DELETE, so a family that asked for help and was told no
+		   left no trace: the same request came back next term and was decided
+		   from nothing, a parent saying "we applied and heard nothing" could
+		   not be answered, and an auditor saw a table of approvals only —
+		   which reads as a school that approves everything.
+
+		   approved_at stays NULL on a refusal, so nothing the fee engine does
+		   changes because of this. */
+		status := "approved"
 		if req.Decision == "rejected" {
-			tag, err := tx.Exec(r.Context(),
-				`DELETE FROM fee_concessions WHERE id = $1 AND approved_at IS NULL`, cid)
-			if err != nil {
-				return err
-			}
-			if tag.RowsAffected() == 0 {
-				return pgx.ErrNoRows
-			}
-			return nil
+			status = "rejected"
 		}
-		tag, err := tx.Exec(r.Context(), `
-			UPDATE fee_concessions SET approved_by = $2, approved_at = now()
-			 WHERE id = $1 AND approved_at IS NULL`, cid, id.UserID)
-		if err != nil {
+		approvedAt := "now()"
+		if status == "rejected" {
+			approvedAt = "NULL"
+		}
+		if err := tx.QueryRow(r.Context(), `
+			UPDATE fee_concessions
+			   SET status = $2, approved_by = $3, approved_at = `+approvedAt+`,
+			       decided_at = now(), decision_note = NULLIF($4,'')
+			 WHERE id = $1 AND status = 'pending'
+			RETURNING student_id, kind, requested_by`,
+			cid, status, id.UserID, note).
+			Scan(&studentID, &kindName, &askedBy); err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
-			return pgx.ErrNoRows
+		if err := tx.QueryRow(r.Context(),
+			`SELECT concat_ws(' ', first_name, last_name) FROM students WHERE id = $1`,
+			studentID).Scan(&studentName); err != nil {
+			return err
+		}
+
+		/* The person who asked is told, because they are the one at the
+		   counter when the family comes back. Told whichever way it went: an
+		   accountant who hears nothing assumes it is still waiting. */
+		word := "approved"
+		if status == "rejected" {
+			word = "not approved"
+		}
+		body := studentName + " — " + kindName + " concession " + word + "."
+		if note != "" {
+			body += " " + note
+		}
+		if askedBy != nil && *askedBy != id.UserID {
+			st := studentID
+			if err := notify(r, tx, id.InstitutionID, *askedBy, &st, "fee_concession",
+				"Concession "+word, body, "/go/concessions", "concession", &cid); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

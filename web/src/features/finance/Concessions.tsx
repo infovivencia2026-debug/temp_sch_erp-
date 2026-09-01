@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, ConfirmButton, Select, Loading, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, Input, Loading, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -17,10 +17,16 @@ import { formatPaise, formatDate, cn } from '@/lib/utils'
  * concessions from one screen and refunds from another has two places to look
  * when the collection figure does not add up.
  *
- * Concession status is derived, not stored: fee_concessions carries approved_by
- * and no status column, so unsigned means pending. The decide endpoint existed
- * with nothing calling it, which meant a concession request could be recorded
- * and never approved.
+ * Status is stored now (00180) and a REFUSAL IS KEPT. It used to be derived
+ * from approved_by, and rejecting ran a DELETE — so a family that asked for
+ * help and was told no left no trace at all: the same request came back next
+ * term and was decided from nothing, a parent saying "we applied and heard
+ * nothing" could not be answered, and an auditor saw a table of approvals,
+ * which reads as a school that approves everything.
+ *
+ * Every refusal now carries a reason, because "rejected" with nothing beside
+ * it is the decision somebody rings the office about — and the person
+ * answering the telephone did not make it.
  */
 
 interface Concession {
@@ -34,6 +40,10 @@ interface Concession {
   reason?: string
   approved_by?: string
   status: string
+  decision_note?: string
+  requested_by?: string
+  decided_on?: string
+  raised_on?: string
 }
 
 interface Refund {
@@ -65,9 +75,13 @@ export default function Concessions() {
     queryFn: () => api.get<List<Refund>>('/api/v1/fees/refunds'),
   })
 
+  /* The note the decider writes, kept per row so two people being decided in
+     one sitting cannot end up with each other's reason. */
+  const [notes, setNotes] = useState<Record<string, string>>({})
   const decide = useMutation({
     mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) =>
-      api.post(`/api/v1/workflow/concessions/${v.id}/decide`, { decision: v.decision }),
+      api.post(`/api/v1/workflow/concessions/${v.id}/decide`,
+        { decision: v.decision, note: notes[v.id] ?? '' }),
     onSuccess: (_r, v) => {
       setNote(
         v.decision === 'approved'
@@ -129,6 +143,7 @@ export default function Concessions() {
                   { value: '', label: 'All' },
                   { value: 'pending', label: 'Awaiting approval' },
                   { value: 'approved', label: 'Approved' },
+                  { value: 'rejected', label: 'Refused' },
                 ]}
               />
             }
@@ -161,15 +176,38 @@ export default function Concessions() {
                   </Td>
                   <Td>
                     <StatusPill status={c.status} />
+                    {/* The whole decision, not just its outcome: who asked,
+                        who decided, when, and what they wrote. */}
+                    {c.requested_by && (
+                      <span className="block text-[11.5px] text-muted-foreground">
+                        asked by {c.requested_by}
+                        {c.raised_on ? ` · ${c.raised_on}` : ''}
+                      </span>
+                    )}
                     {c.approved_by && (
                       <span className="block text-[11.5px] text-muted-foreground">
-                        by {c.approved_by}
+                        {c.status === 'rejected' ? 'refused' : 'approved'} by {c.approved_by}
+                        {c.decided_on ? ` · ${c.decided_on}` : ''}
+                      </span>
+                    )}
+                    {c.decision_note && (
+                      <span className="block max-w-[28ch] text-[11.5px] text-muted-foreground">
+                        “{c.decision_note}”
                       </span>
                     )}
                   </Td>
                   <Td>
                     {c.status === 'pending' && mayDecide && (
-                      <span className="flex gap-2">
+                      <span className="flex flex-wrap items-center gap-2">
+                        {/* Required on a refusal, and worth writing on an
+                            approval — it is what the family is told and what
+                            an auditor reads. */}
+                        <Input
+                          className="w-48"
+                          value={notes[c.id] ?? ''}
+                          onChange={(v) => setNotes({ ...notes, [c.id]: v })}
+                          placeholder="Reason for the decision"
+                        />
                         <Button
                           size="sm"
                           disabled={decide.isPending}
@@ -183,7 +221,7 @@ export default function Concessions() {
                           tone="danger"
                           disabled={decide.isPending}
                             confirmLabel="Reject"
-                            question="Reject this concession request? The decision cannot be undone here."
+                            question="Refuse this concession? It stays on the record with your reason, and the person who asked is told."
                           onConfirm={() => decide.mutate({ id: c.id, decision: 'rejected' })}
                         >
                           Reject

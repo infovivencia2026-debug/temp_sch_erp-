@@ -909,6 +909,12 @@ type concessionRow struct {
 	Reason      *string `json:"reason,omitempty"`
 	ApprovedBy  *string `json:"approved_by,omitempty"`
 	Status      string  `json:"status"`
+	/* The record of the decision, which is why refusals are kept at all. A
+	   table of approvals alone reads as a school that approves everything. */
+	DecisionNote string `json:"decision_note"`
+	RequestedBy  string `json:"requested_by"`
+	DecidedOn    string `json:"decided_on"`
+	RaisedOn     string `json:"raised_on"`
 }
 
 /*
@@ -926,21 +932,29 @@ func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 		SELECT fc.id::text,
 		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 		       fh.name, fc.kind, fc.percent::text, fc.amount_paise, fc.reason,
-		       u.full_name,
-		       CASE WHEN fc.approved_by IS NULL THEN 'pending' ELSE 'approved' END
+		       u.full_name, fc.status,
+		       /* THE WHOLE HISTORY, which is the point of keeping refusals.
+		          Who asked, who decided, when, and what they wrote — a table
+		          of approvals alone reads as a school that approves
+		          everything, and the same request comes back next term and is
+		          decided from nothing. */
+		       COALESCE(fc.decision_note,''),
+		       COALESCE(ru.full_name,''),
+		       COALESCE(to_char(fc.decided_at,'YYYY-MM-DD'),''),
+		       to_char(fc.created_at,'YYYY-MM-DD')
 		  FROM fee_concessions fc
 		  JOIN students st ON st.id = fc.student_id
 		  LEFT JOIN fee_heads fh ON fh.id = fc.fee_head_id
 		  LEFT JOIN users u ON u.id = fc.approved_by
-		 WHERE $1 = ''
-		    OR ($1 = 'pending'  AND fc.approved_by IS NULL)
-		    OR ($1 = 'approved' AND fc.approved_by IS NOT NULL)
-		 ORDER BY fc.approved_by IS NOT NULL, fc.created_at DESC
+		  LEFT JOIN users ru ON ru.id = fc.requested_by
+		 WHERE $1 = '' OR fc.status = $1
+		 ORDER BY fc.status <> 'pending', fc.created_at DESC
 		 LIMIT 300`, []any{only},
 		func(rows pgx.Rows) (concessionRow, error) {
 			var v concessionRow
 			return v, rows.Scan(&v.ID, &v.StudentName, &v.AdmissionNo, &v.FeeHead,
-				&v.Kind, &v.Percent, &v.AmountPaise, &v.Reason, &v.ApprovedBy, &v.Status)
+				&v.Kind, &v.Percent, &v.AmountPaise, &v.Reason, &v.ApprovedBy,
+				&v.Status, &v.DecisionNote, &v.RequestedBy, &v.DecidedOn, &v.RaisedOn)
 		})
 	respond(w, r, items, err)
 }

@@ -107,11 +107,14 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO fee_concessions (institution_id, student_id, academic_year_id,
-			        fee_head_id, kind, percent, amount_paise, reason)
-			VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::numeric,$7,NULLIF($8,''))
+			        fee_head_id, kind, percent, amount_paise, reason, requested_by)
+			-- Who asked, as against who decides. The decider has been recorded
+			-- from the beginning; the person who raised it was nowhere, so the
+			-- decision could not be sent back to them.
+			VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::numeric,$7,NULLIF($8,''),$9)
 			RETURNING id`,
 			id.InstitutionID, student, year, head, kind, percent,
-			req.AmountPaise, strings.TrimSpace(req.Reason)).Scan(&newID)
+			req.AmountPaise, strings.TrimSpace(req.Reason), id.UserID).Scan(&newID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
