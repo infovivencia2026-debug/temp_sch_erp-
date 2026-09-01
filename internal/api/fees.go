@@ -1064,8 +1064,20 @@ listConcessions is the discount book.
 func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 	only := r.URL.Query().Get("status")
 	items, err := collect(s, r, `
+		/* THE APPLICANTS TOO, not only the students.
+
+		   This was an inner join to students, and a concession agreed before a
+		   child joins -- which is every concession, because the fee is settled
+		   before the family accepts a place -- has no student to join to. So
+		   the request was raised, it was counted on the dashboard as awaiting
+		   approval, and the list the Approve button opened was empty. The
+		   principal could see that something needed deciding and could not
+		   reach it, and enrolling stays blocked until it is decided, so the
+		   admission stopped there with nothing on any screen explaining why. */
 		SELECT fc.id::text,
-		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
+		       COALESCE(NULLIF(concat_ws(' ', st.first_name, st.last_name), ''),
+		                concat_ws(' ', ap.first_name, ap.last_name)),
+		       COALESCE(st.admission_no, ap.application_no, ''),
 		       fh.name, fc.kind, fc.percent::text, fc.amount_paise, fc.reason,
 		       u.full_name, fc.status,
 		       /* THE WHOLE HISTORY, which is the point of keeping refusals.
@@ -1078,11 +1090,13 @@ func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 		       COALESCE(to_char(fc.decided_at,'YYYY-MM-DD'),''),
 		       to_char(fc.created_at,'YYYY-MM-DD')
 		  FROM fee_concessions fc
-		  JOIN students st ON st.id = fc.student_id
+		  LEFT JOIN students st ON st.id = fc.student_id
+		  LEFT JOIN applications ap ON ap.id = fc.application_id
 		  LEFT JOIN fee_heads fh ON fh.id = fc.fee_head_id
 		  LEFT JOIN users u ON u.id = fc.approved_by
 		  LEFT JOIN users ru ON ru.id = fc.requested_by
-		 WHERE $1 = '' OR fc.status = $1
+		 WHERE (st.id IS NOT NULL OR ap.id IS NOT NULL)
+		   AND ($1 = '' OR fc.status = $1)
 		 ORDER BY fc.status <> 'pending', fc.created_at DESC
 		 LIMIT 300`, []any{only},
 		func(rows pgx.Rows) (concessionRow, error) {
