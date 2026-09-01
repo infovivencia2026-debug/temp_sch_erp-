@@ -1215,20 +1215,26 @@ type certificateRow struct {
 	IssuedOn string `json:"issued_on"`
 	Status   string `json:"status"`
 	Snapshot any    `json:"snapshot"`
+	// The row could not be acted on without one: a request a family raised
+	// had no id on this screen, so the only thing the office could do with it
+	// was issue a second certificate beside it.
+	ID string `json:"id"`
 }
 
 func (s *Server) listCertificates(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT ic.serial_no, ct.name,
 		       concat_ws(' ', st.first_name, st.last_name),
-		       to_char(ic.issued_on,'YYYY-MM-DD'), ic.status, ic.snapshot
+		       to_char(ic.issued_on,'YYYY-MM-DD'), ic.status, ic.snapshot,
+		       ic.id::text
 		  FROM issued_certificates ic
 		  JOIN certificate_types ct ON ct.id = ic.certificate_type_id
 		  LEFT JOIN students st ON st.id = ic.student_id
 		 ORDER BY ic.created_at DESC LIMIT 200`, nil,
 		func(rows pgx.Rows) (certificateRow, error) {
 			var v certificateRow
-			return v, rows.Scan(&v.Serial, &v.Type, &v.Student, &v.IssuedOn, &v.Status, &v.Snapshot)
+			return v, rows.Scan(&v.Serial, &v.Type, &v.Student, &v.IssuedOn,
+				&v.Status, &v.Snapshot, &v.ID)
 		})
 	respond(w, r, items, err)
 }

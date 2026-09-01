@@ -760,6 +760,12 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/certificates", s.listCertificates)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/promote", s.promoteStudents)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/certificates", s.issueCertificate)
+			/* Answering a request a family actually made. The office's own
+			   button INSERTS, so acting on a parent's request used to create a
+			   second row with a second serial and leave the first sitting in
+			   the family's list for ever. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/certificates/{id}/decide", s.decideCertificate)
 		})
 
 		// --- Communication (module 6) --------------------------------------

@@ -9,9 +9,22 @@ import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
 
 interface Cert {
+  id: string
   serial_no: string; type: string; student_name: string
   issued_on: string; status: string
   snapshot: Record<string, unknown>
+}
+
+/* A status is not always good news.
+
+   Every row wore a green badge, so a request the office had DECLINED read as
+   a success, in green, in the register — and so did one still sitting
+   unanswered. */
+function statusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'issued') return 'success'
+  if (status === 'approved') return 'neutral'
+  if (status === 'cancelled') return 'danger'
+  return 'warning' // requested, and waiting on somebody here
 }
 
 const TYPES = [
@@ -29,6 +42,20 @@ export default function Certificates() {
   const [studentId, setStudentId] = useState('')
   const [type, setType] = useState('BONAFIDE')
   const [reason, setReason] = useState('')
+  const [answering, setAnswering] = useState<Cert | null>(null)
+  const [decision, setDecision] = useState('issued')
+  const [note, setNote] = useState('')
+
+  const decide = useMutation({
+    mutationFn: (v: { id: string; status: string; note: string }) =>
+      api.post(`/api/v1/students/certificates/${v.id}/decide`,
+        { status: v.status, note: v.note }),
+    onSuccess: () => {
+      setAnswering(null)
+      setNote('')
+      qc.invalidateQueries({ queryKey: ['certificates'] })
+    },
+  })
 
   const results = useQuery({
     queryKey: ['cert-search', search],
@@ -51,6 +78,9 @@ export default function Certificates() {
   })
 
   const rows = list.data?.items ?? []
+  // What is waiting on somebody here, separated from the register. A queue
+  // mixed into 200 rows of history is a queue nobody works.
+  const pending = rows.filter((c) => c.status === 'requested' || c.status === 'approved')
 
   return (
     <>
@@ -118,6 +148,82 @@ export default function Certificates() {
           </div>
         </Card>
 
+        {/* WHAT FAMILIES HAVE ASKED FOR.
+
+            The request half of this has worked for a long time — a parent
+            picks from what the school issues and the office is notified. What
+            was missing was any way to ANSWER: the Issue button inserts, so a
+            clerk acting on a request created a second certificate with a
+            second serial and left the family's request sitting in their list
+            for ever, reading "requested" a fortnight after they collected the
+            document from the counter. */}
+        {pending.length > 0 && (
+          <Card>
+            <CardHeader
+              title={`${pending.length} ${pending.length === 1 ? 'request' : 'requests'} from families`}
+              description="Asked for through the parent and student portal. Answering one tells the whole household."
+            />
+            <Table head={['Serial', 'Document', 'Student', 'Asked', 'Reason', '']}
+              empty={false}>
+              {pending.map((c) => (
+                <tr key={c.id}>
+                  <Td className="font-mono text-[12px]">{c.serial_no}</Td>
+                  <Td className="font-medium">{c.type}</Td>
+                  <Td>{c.student_name}</Td>
+                  <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
+                  <Td className="text-muted-foreground">{String(c.snapshot?.reason ?? '—')}</Td>
+                  <Td>
+                    <Button size="sm" variant="secondary" onClick={() => setAnswering(c)}>
+                      Answer
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        )}
+
+        {answering && (
+          <Card>
+            <CardHeader
+              title={`${answering.type} for ${answering.student_name}`}
+              description="What you write here is what the family reads. Everyone in the household is told, and the child."
+            />
+            <div className="space-y-3 p-4">
+              <Select
+                value={decision}
+                onChange={setDecision}
+                options={[
+                  { value: 'issued', label: 'Ready — they can collect it' },
+                  { value: 'approved', label: 'Approved, not ready yet' },
+                  { value: 'cancelled', label: 'Decline' },
+                ]}
+              />
+              <Input
+                value={note}
+                onChange={setNote}
+                placeholder={decision === 'cancelled'
+                  ? 'Why it was declined — the family will read this'
+                  : 'e.g. Given to your son on Tuesday at the office'}
+              />
+              {decide.isError && (
+                <p className="text-[13px] text-destructive">
+                  {decide.error instanceof Error ? decide.error.message : 'Could not save'}
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  disabled={decide.isPending}
+                  onClick={() => decide.mutate({ id: answering.id, status: decision, note })}
+                >
+                  {decide.isPending ? 'Saving…' : 'Tell the family'}
+                </Button>
+                <Button variant="secondary" onClick={() => setAnswering(null)}>Cancel</Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card>
           <CardHeader title="Register" description="Every certificate issued, with its frozen snapshot" />
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
@@ -131,7 +237,7 @@ export default function Certificates() {
                   <Td>{String(c.snapshot?.class ?? '—')}</Td>
                   <Td>{formatPaise(Number(c.snapshot?.dues_paise ?? 0))}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
-                  <Td><Badge tone="success">{c.status}</Badge></Td>
+                  <Td><Badge tone={statusTone(c.status)}>{c.status}</Badge></Td>
                 </tr>
               ))}
             </Table>
