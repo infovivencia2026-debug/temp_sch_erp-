@@ -1033,6 +1033,11 @@ export default function StudentProfile() {
                         }}
                         purpose="student_photo"
                         label={p.photo_file_id ? 'Change photo' : 'Upload photo'}
+                        /* The picker's own hint is about attachments — "any
+                           document, image, recording or archive, up to 64 MB" —
+                           which under a passport frame is three lines of advice
+                           about the wrong thing. */
+                        hint="A portrait. Passport size prints best."
                       />
                     </div>
                   )}
@@ -1044,37 +1049,6 @@ export default function StudentProfile() {
                 mayEdit={can('students.write')}
                 onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })} />
 
-              <RecordBlock
-                title="Contact and emergency"
-                blockKey="Contact"
-                studentID={p.id}
-                mayEdit={can('students.write')}
-                onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
-                custom={p.custom_fields}
-                /* Each field names the column it edits, so expanding gives a
-                   real form rather than a list of dashes. The summary on the
-                   card joins the address into one line; the form takes it
-                   apart again, because "19 Green Park, Hyderabad, 500001" is
-                   one thing to read and four things to type. */
-                fields={[
-                  { k: 'Address', v: p.address_line1, field: 'address_line1',
-                    multiline: true, placeholder: 'House number and street' },
-                  { k: 'Area or landmark', v: p.address_line2, field: 'address_line2' },
-                  { k: 'City', v: p.city, field: 'city' },
-                  { k: 'State', v: p.state, field: 'state' },
-                  { k: 'Pincode', v: p.pincode, field: 'pincode', hint: 'Six digits' },
-                  { k: 'Permanent address', v: p.permanent_address,
-                    field: 'permanent_address', multiline: true,
-                    hint: 'Only if it differs from the address above' },
-                  { k: 'Emergency contact', v: p.emergency_contact_name,
-                    field: 'emergency_contact_name', placeholder: 'Enter name',
-                    hint: 'Somebody to ring when no parent answers. They get no login and no messages.' },
-                  { k: 'Their phone', v: p.emergency_contact_phone,
-                    field: 'emergency_contact_phone', placeholder: 'Enter phone number' },
-                  { k: 'Relation', v: p.emergency_contact_relation,
-                    field: 'emergency_contact_relation', placeholder: 'e.g. Uncle' },
-                ]}
-              />
             </div>
 
             <div className="space-y-6">
@@ -1087,7 +1061,14 @@ export default function StudentProfile() {
                     </Button>
                   ) : undefined}
                 />
-                <div className="grid gap-px bg-border sm:grid-cols-2">
+                {/* THE GREY BLOCK WAS AN EMPTY GRID CELL.
+
+                    gap-px over a bg-border container draws the gaps by letting
+                    the background show through — which works until the last row
+                    is half full, and then a whole missing cell shows through as
+                    a grey slab. Borders on the cells instead: nothing shows
+                    through, because there is nothing behind them. */}
+                <div className="grid sm:grid-cols-2">
                   {([
                     ['Admitted on', formatDate(p.admission_date)],
                     ['Date of birth', formatDate(p.date_of_birth)],
@@ -1121,9 +1102,13 @@ export default function StudentProfile() {
                        true: an empty field you cannot see is a field you
                        cannot fill, which is how half of these came to be empty
                        in the first place. */
-                    .filter(([, v]) => editing || (v && v !== 'Not issued' && v !== 'Not linked'))
+                    /* Only what is filled. An empty box tells a reader
+                       nothing they did not know and takes the same room as one
+                       that does; the Update details dialog is where every
+                       field, filled or not, is offered. */
+                    .filter(([, v]) => v && v !== 'Not issued' && v !== 'Not linked')
                     .map(([k, v]) => (
-                    <div key={k} className="bg-background px-4 py-3">
+                    <div key={k} className="border-b border-r px-4 py-3">
                       <p className="eyebrow text-muted-foreground">{k}</p>
                       <p className={cn('mt-0.5 text-[14px]', !v && 'text-muted-foreground')}>
                         {v || 'Not recorded'}
@@ -1134,13 +1119,20 @@ export default function StudentProfile() {
                   {Object.entries(p.custom_fields ?? {})
                     .filter(([k]) => k.startsWith('Details/'))
                     .map(([k, v]) => (
-                      <div key={k} className="bg-background px-4 py-3">
+                      <div key={k} className="border-b border-r px-4 py-3">
                         <p className="eyebrow text-muted-foreground">{k.slice(8)}</p>
                         <p className="mt-0.5 text-[14px]">{v || '—'}</p>
                       </div>
                     ))}
                 </div>
-                {editing && (
+                {/* ALWAYS, for anyone who may write.
+
+                    It was drawn only while `editing` was true — and Edit was
+                    replaced by the Update details dialog, so nothing set that
+                    flag any more and the button ceased to exist. A control
+                    gated on a state the screen no longer enters is a control
+                    that has been deleted without anybody deciding to. */}
+                {can('students.write') && (
                   <div className="border-t px-5 py-3">
                     <AddDetailField
                       studentID={p.id}
@@ -1149,6 +1141,38 @@ export default function StudentProfile() {
                   </div>
                 )}
               </Card>
+
+              <RecordBlock
+                title="Contact and address"
+                blockKey="Contact"
+                studentID={p.id}
+                mayEdit={can('students.write')}
+                onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+                custom={p.custom_fields}
+                /* Each field names the column it edits, so expanding gives a
+                   real form rather than a list of dashes. The summary on the
+                   card joins the address into one line; the form takes it
+                   apart again, because "19 Green Park, Hyderabad, 500001" is
+                   one thing to read and four things to type. */
+                fields={[
+                  { k: 'Address', v: p.address_line1, field: 'address_line1',
+                    multiline: true, placeholder: 'House number and street' },
+                  { k: 'Area or landmark', v: p.address_line2, field: 'address_line2' },
+                  { k: 'City', v: p.city, field: 'city' },
+                  { k: 'State', v: p.state, field: 'state' },
+                  { k: 'Pincode', v: p.pincode, field: 'pincode', hint: 'Six digits' },
+                  { k: 'Permanent address', v: p.permanent_address,
+                    field: 'permanent_address', multiline: true,
+                    hint: 'Only if it differs from the address above' },
+                  { k: 'Emergency contact', v: p.emergency_contact_name,
+                    field: 'emergency_contact_name', placeholder: 'Enter name',
+                    hint: 'Somebody to ring when no parent answers. They get no login and no messages.' },
+                  { k: 'Their phone', v: p.emergency_contact_phone,
+                    field: 'emergency_contact_phone', placeholder: 'Enter phone number' },
+                  { k: 'Relation', v: p.emergency_contact_relation,
+                    field: 'emergency_contact_relation', placeholder: 'e.g. Uncle' },
+                ]}
+              />
 
               {/* Fields with no block of their own. Shown only when there are
                   some: an empty card headed "Also recorded" is a question mark
@@ -1699,7 +1723,13 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                   />
                 </div>
               )}
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              {/* STACKED, not a row.
+
+                  Name, badge, relation, three buttons, a phone number and an
+                  email address were laid out as one wrapping row. In a column
+                  a third of the page wide that is not a row, and the contacts
+                  ran outside the card. */}
+              <div className="flex flex-col gap-2">
                 <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
                   {/* OPTIONAL, AND SILENT WHEN EMPTY.
 
@@ -1734,7 +1764,7 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3 text-[13px]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px]">
                   {onIssue && (
                     <Button size="sm" variant="secondary" onClick={() => onIssue(g)}>
                       Give a login
@@ -1771,7 +1801,7 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                     <a
                       href={`mailto:${g.email}`}
                       title={g.email}
-                      className="inline-flex min-w-0 max-w-[15rem] items-center gap-1 text-primary"
+                      className="inline-flex min-w-0 max-w-full items-center gap-1 text-primary"
                     >
                       <Mail className="h-3 w-3 shrink-0" />
                       <span className="truncate">{g.email}</span>
