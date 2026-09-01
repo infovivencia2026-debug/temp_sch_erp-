@@ -938,179 +938,147 @@ export default function StudentProfile() {
               </div>
             </Card>
           )}
-          {/* TWO COLUMNS, a third and two thirds.
+          {/* THE RECORD, laid out as somebody reads it.
 
-              Everything sat in one two-up grid, so the photograph — a 28mm
-              portrait — was given the same half of the page as fifteen rows of
-              details, and the record a clerk opened the page for started below
-              the fold. The narrow column carries the things that are narrow:
-              the picture and the family. */}
-          <div className="lg:col-span-2 grid gap-6 lg:grid-cols-[minmax(0,32%)_minmax(0,1fr)] lg:items-start">
+              A person opening this page is doing one of two things: checking
+              they have the right child in front of them, or looking up one
+              fact about them. The narrow column answers the first â face,
+              name, class, who to ring â and the wide column answers the
+              second.
+
+              The details are a grid of labelled boxes rather than a list of
+              rows. Fifteen key-and-value rows down a page is a thing you read
+              from the top; pairs of boxes are a thing you scan, and scanning
+              is what actually happens here. */}
+          <div className="lg:col-span-2 grid gap-6 lg:grid-cols-[minmax(0,30%)_minmax(0,1fr)] lg:items-start">
             <div className="space-y-6">
-            {/* THE PHOTOGRAPH, in a narrow column.
-
-                It had a card of its own across half the page: a 28mm portrait
-                and a file picker beside four inches of nothing, pushing the
-                details a reader actually came for below the fold. Stacked in a
-                third of the width, the picture and the button take the room
-                they need and the record starts at the top of the page. */}
-            <Card>
-              <CardHeader title="Photograph" />
-              <div className="px-5 pb-5">
-                <div className="mx-auto h-[34mm] w-[28mm] overflow-hidden rounded border bg-muted/30">
-                  {p.photo_file_id && (
-                    <img
-                      src={`/api/v1/files/${p.photo_file_id}`}
-                      alt={`Photograph of ${p.full_name}`}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
-                {can('students.write') && (
-                  <div className="mt-3">
-                    <FilePicker
-                      value={photoFile}
-                      onChange={(f) => {
-                        setPhotoFile(f)
-                        // Saved as soon as it is up: a photograph chosen and
-                        // then left unsaved is the commonest way this column
-                        // stays empty.
-                        if (f) savePhoto.mutate(f.file_id)
-                      }}
-                      purpose="student_photo"
-                      label={p.photo_file_id ? 'Replace' : 'Add a photograph'}
-                    />
-                    {savePhoto.error && <FormNotice error={savePhoto.error} />}
+              <Card>
+                <div className="p-5">
+                  <div className="mx-auto h-[34mm] w-[28mm] overflow-hidden rounded border bg-muted/30">
                     {p.photo_file_id && (
-                      <Button variant="ghost" disabled={savePhoto.isPending}
-                        onClick={() => savePhoto.mutate('')}>
-                        Remove it
-                      </Button>
+                      <img
+                        src={`/api/v1/files/${p.photo_file_id}`}
+                        alt={`Photograph of ${p.full_name}`}
+                        className="h-full w-full object-cover"
+                      />
                     )}
                   </div>
-                )}
-                <p className="mt-2 text-[12px] text-muted-foreground">
-                  {p.photo_file_id
-                    ? 'Printed on the ID card and the report card.'
-                    : 'None on file, so the ID card and the report card print an empty frame.'}
-                </p>
-              </div>
-            </Card>
+                  {/* THE IDENTIFYING FACTS, under the face and nowhere else.
+
+                      Name, class and admission number were three rows inside a
+                      table of fifteen, so the things somebody checks first were
+                      indistinguishable from the things they check once a year. */}
+                  <p className="mt-3 text-center text-[16px] font-semibold">{p.full_name}</p>
+                  <p className="text-center text-[13px] text-muted-foreground">
+                    {cls}{p.roll_no ? ` · Roll ${p.roll_no}` : ''}
+                  </p>
+                  <p className="text-center font-mono text-[12px] text-muted-foreground">
+                    {p.admission_no}
+                  </p>
+                  {can('students.write') && (
+                    <div className="mt-3 flex justify-center">
+                      <FilePicker
+                        value={photoFile}
+                        onChange={(f) => {
+                          setPhotoFile(f)
+                          // Saved on upload: a photograph chosen and then left
+                          // unsaved is the commonest way this stays empty.
+                          if (f) savePhoto.mutate(f.file_id)
+                        }}
+                        purpose="student_photo"
+                        label={p.photo_file_id ? 'Change photo' : 'Upload photo'}
+                      />
+                    </div>
+                  )}
+                  {savePhoto.error && <FormNotice error={savePhoto.error} />}
+                </div>
+              </Card>
+
               <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
                 mayEdit={can('students.write')}
-            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })} />
+                onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })} />
+
+              <RecordBlock
+                title="Contact and emergency"
+                blockKey="Contact"
+                studentID={p.id}
+                mayEdit={can('students.write')}
+                onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+                custom={p.custom_fields}
+                fields={[
+                  { k: 'Address', v: [p.address_line1, p.address_line2, p.city, p.state, p.pincode].filter(Boolean).join(', ') },
+                  { k: 'Permanent', v: p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined) },
+                  { k: 'Emergency', v: p.emergency_contact_name },
+                  { k: 'Their phone', v: p.emergency_contact_phone },
+                  { k: 'Relation', v: p.emergency_contact_relation },
+                ]}
+              />
             </div>
+
             <div className="space-y-6">
-            <RecordBlock
-              title="Details"
-              blockKey="Details"
-              studentID={p.id}
-              mayEdit={can('students.write')}
-              onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
-              custom={p.custom_fields}
-              fields={[
-                { k: 'Admission no.', v: p.admission_no },
-                { k: 'Admitted on', v: formatDate(p.admission_date) },
-                { k: 'Class', v: cls },
-                { k: 'Roll no.', v: p.roll_no ? String(p.roll_no) : undefined },
-                { k: 'Date of birth', v: formatDate(p.date_of_birth) },
-                { k: 'Gender', v: p.gender },
-                { k: 'Blood group', v: p.blood_group },
-                { k: 'Mother tongue', v: p.mother_tongue },
-                { k: 'Medium', v: p.medium },
-                { k: 'House', v: p.house_name },
-                /* APAAR, Child Info, the previous school and the statutory
-                   category are admissions records. A teacher opening a child's
-                   page wants to know who to ring, and four government
-                   identifiers between them and the phone number is four rows of
-                   noise — so they are hidden from the faculty workspace and kept
-                   for the office, which files the returns they exist for. */
-                ...(teacherOnly ? [] : [
-                  { k: 'APAAR ID', v: p.apaar_id ?? 'not issued' },
-                  { k: 'Child Info ID', v: p.child_info_id ?? 'not linked' },
-                  { k: 'Previous school', v: p.prior_school },
-                  /* CATEGORY IS A CATEGORY. This row used to read the RTE and
-                     CWSN flags and print "General" when neither was set, so a
-                     child recorded as SC showed as General on the screen the
-                     reservation return is filed from. Three different facts,
-                     said as three. */
-                  { k: 'Category', v: p.category ? p.category.toUpperCase() : undefined },
-                  { k: 'Admitted under', v: [p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') },
-                  { k: 'Nationality', v: p.nationality },
-                  { k: 'Aadhaar', v: p.aadhaar_last4 ? `•••• •••• ${p.aadhaar_last4}` : undefined },
-                ]),
-              ]}
-            >
-              {can('students.write') && (
-                <div className="border-t px-5 py-3">
-                  <Button size="sm" variant={editing ? 'secondary' : 'primary'}
-                    onClick={() => setEditing(!editing)}>
-                    {editing ? 'Stop editing' : 'Edit these details'}
-                  </Button>
-                </div>
-              )}
-            </RecordBlock>
-            {/* Fields with no block of their own — the ones added through the
-                edit form before the blocks existed, and any a school files under
-                nothing in particular. Shown only when there are some: an empty
-                card headed "Also recorded" is a question mark on every page. */}
-            {(() => {
-              const loose = Object.entries(p.custom_fields ?? {})
-                .filter(([k]) => !k.includes('/'))
-              if (loose.length === 0) return null
-              return (
-                <RecordBlock
-                  title="Also recorded"
-                  blockKey="Other"
-                  studentID={p.id}
-                  mayEdit={can('students.write')}
-                  onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
-                  fields={loose.map(([k, v]) => ({ k, v }))}
+              <Card>
+                <CardHeader
+                  title="Student details"
+                  action={can('students.write') ? (
+                    <Button size="sm" variant={editing ? 'secondary' : 'primary'}
+                      onClick={() => setEditing(!editing)}>
+                      {editing ? 'Stop editing' : 'Edit'}
+                    </Button>
+                  ) : undefined}
                 />
-              )
-            })()}
+                <div className="grid gap-px bg-border sm:grid-cols-2">
+                  {([
+                    ['Admitted on', formatDate(p.admission_date)],
+                    ['Date of birth', formatDate(p.date_of_birth)],
+                    ['Gender', p.gender],
+                    ['Blood group', p.blood_group],
+                    ['Mother tongue', p.mother_tongue],
+                    ['Medium', p.medium],
+                    ['House', p.house_name],
+                    ['Nationality', p.nationality],
+                    /* The government identifiers and the statutory category
+                       are the office's business. A teacher wants to know who to
+                       ring, and four of these between them and the phone number
+                       is four boxes of noise â so the faculty workspace does
+                       not carry them, and the office still files the returns
+                       they exist for. */
+                    ...(teacherOnly ? [] : [
+                      ['Category', p.category ? p.category.toUpperCase() : undefined],
+                      ['Admitted under', [p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ')],
+                      ['APAAR ID', p.apaar_id ?? 'Not issued'],
+                      ['Child Info ID', p.child_info_id ?? 'Not linked'],
+                      ['Aadhaar', p.aadhaar_last4 ? `•••• ${p.aadhaar_last4}` : undefined],
+                      ['Previous school', p.prior_school],
+                    ]),
+                  ] as [string, string | undefined][]).map(([k, v]) => (
+                    <div key={k} className="bg-background px-4 py-3">
+                      <p className="eyebrow text-muted-foreground">{k}</p>
+                      <p className="mt-0.5 text-[14px]">{v || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Fields with no block of their own. Shown only when there are
+                  some: an empty card headed "Also recorded" is a question mark
+                  on every child's page. */}
+              {(() => {
+                const loose = Object.entries(p.custom_fields ?? {})
+                  .filter(([k]) => !k.includes('/'))
+                if (loose.length === 0) return null
+                return (
+                  <RecordBlock
+                    title="Also recorded"
+                    blockKey="Other"
+                    studentID={p.id}
+                    mayEdit={can('students.write')}
+                    onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
+                    fields={loose.map(([k, v]) => ({ k, v }))}
+                  />
+                )
+              })()}
             </div>
           </div>
-
-
-          {/* 3. CONTACT & EMERGENCY.
-
-              The emergency contact is separated from the guardians on purpose:
-              a guardian gets a login, fee reminders and absence alerts, and
-              the neighbour who holds a spare key should get none of those. */}
-          {/* Two blocks, not one. Where a family lives and who to ring when
-              nobody answers are different questions asked at different moments,
-              and each takes fields this product did not think of — a bus stop
-              under Contact, a second number under Emergency. */}
-          <RecordBlock
-            title="Contact and address"
-            blockKey="Contact"
-            studentID={p.id}
-            mayEdit={can('students.write')}
-            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
-            custom={p.custom_fields}
-            fields={[
-              { k: 'Address', v: [p.address_line1, p.address_line2, p.city, p.state, p.pincode].filter(Boolean).join(', ') },
-              { k: 'Permanent address', v: p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined) },
-              { k: 'Phone', v: p.primary_phone },
-            ]}
-          />
-          <RecordBlock
-            title="Emergency contact"
-            description="Somebody to ring when no parent answers. They get no login and no messages."
-            blockKey="Emergency"
-            studentID={p.id}
-            mayEdit={can('students.write')}
-            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
-            custom={p.custom_fields}
-            fields={[
-              { k: 'Name', v: p.emergency_contact_name },
-              { k: 'Phone', v: p.emergency_contact_phone },
-              { k: 'Relation', v: p.emergency_contact_relation },
-            ]}
-          />
-
-
         </div>
       ),
     },

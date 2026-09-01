@@ -35,9 +35,13 @@ type deskPerson struct {
 // listDeskStaff is the host list on the visitor and appointment forms.
 func (s *Server) listDeskStaff(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT u.id::text, u.full_name, e.employee_code, e.designation
+		SELECT u.id::text, u.full_name, e.employee_code, dg.name
 		  FROM employees e
 		  JOIN users u ON u.id = e.user_id
+		  -- employees has designation_id, not designation: the name lives on
+		  -- the designations table so a school can rename "Vice Principal"
+		  -- once rather than on every staff row.
+		  LEFT JOIN designations dg ON dg.id = e.designation_id
 		 WHERE e.status IN ('active','on_leave')
 		 ORDER BY u.full_name`,
 		nil,

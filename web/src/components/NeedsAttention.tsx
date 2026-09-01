@@ -119,14 +119,35 @@ export default function NeedsAttention({ name }: { name?: string }) {
        One word matched the first and not the second, so "10 report cards
        awaiting publication" sat on the principal's dashboard as a line of text
        with nothing to press — the one person who could act on it. */
-    for (const want of target.split(/\s+/).filter(Boolean)) {
-      for (const section of role.sections) {
-        for (const f of section.features) {
-          if (!f.live || !f.in_scope) continue
-          const hay = `${section.slug} ${f.slug}`
-          if (hay.includes(want)) return `/${role.key}/${section.slug}/${f.slug}`
+    /* THIS WORKSPACE FIRST, THEN ANY OF THEM.
+
+       Searching only the workspace somebody happens to be standing in left
+       rows with nothing to press whenever the screen that acts on them lives
+       somewhere else — a principal's certificate queue is reached from the
+       Students section of the admin workspace, and a head reading the same row
+       from a teaching workspace found no match and got a line of text.
+
+       The person can reach every workspace in their own catalogue by
+       definition, so a row that is actionable anywhere is actionable. */
+    const search = (r: typeof role) => {
+      if (!r) return null
+      for (const want of target.split(/\s+/).filter(Boolean)) {
+        for (const section of r.sections) {
+          for (const f of section.features) {
+            if (!f.live || !f.in_scope) continue
+            const hay = `${section.slug} ${f.slug}`
+            if (hay.includes(want)) return `/${r.key}/${section.slug}/${f.slug}`
+          }
         }
       }
+      return null
+    }
+    const here = search(role)
+    if (here) return here
+    for (const other of catalog.roles) {
+      if (other.key === role.key) continue
+      const there = search(other)
+      if (there) return there
     }
     return null
   }

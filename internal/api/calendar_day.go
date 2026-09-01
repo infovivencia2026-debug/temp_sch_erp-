@@ -65,7 +65,8 @@ type dayPeriod struct {
 type dayLesson struct {
 	ID          string  `json:"id"`
 	Status      string  `json:"status"`
-	WeekOf      string  `json:"week_of"`
+	// Also nullable for the same reason, and for the same rows.
+	WeekOf      *string `json:"week_of,omitempty"`
 	TeachingDay *int    `json:"teaching_day,omitempty"`
 	Objectives  *string `json:"objectives,omitempty"`
 	Activities  *string `json:"activities,omitempty"`
@@ -113,7 +114,13 @@ func (s *Server) getCalendarDay(w http.ResponseWriter, r *http.Request) {
 		       to_char(p.starts_at,'HH24:MI'), to_char(p.ends_at,'HH24:MI'), p.is_break,
 		       te.id::text, c.name, sec.name, sub.name, tu.full_name, te.room,
 		       su.full_name, sb.reason,
-		       lp.id::text, lp.status, to_char(lp.week_of,'YYYY-MM-DD'), lp.teaching_day,
+		       /* COALESCED, because the LATERAL is a LEFT JOIN: every period
+		          with no lesson plan against it — which is most of them, and
+		          all of the breaks — returns NULL here, and Status is a plain
+		          string. The whole day failed with "cannot scan NULL into
+		          *string" for any teacher whose periods had no plans. */
+		       lp.id::text, COALESCE(lp.status,''),
+		       to_char(lp.week_of,'YYYY-MM-DD'), lp.teaching_day,
 		       lp.objectives, lp.activities, lp.resources, lp.homework,
 		       to_char(lp.delivered_on,'YYYY-MM-DD'), lp.file_id::text
 		  FROM periods p
