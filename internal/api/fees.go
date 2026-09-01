@@ -695,6 +695,10 @@ type generateInvoicesRequest struct {
 // read by the person using it, and enforced nowhere.
 var errNoSuchInstalment = errors.New("no lines under that instalment")
 
+// errStructureWorthNothing refuses a structure whose heads are all zero, which
+// would otherwise raise a bill for nought that reads as "nothing due".
+var errStructureWorthNothing = errors.New("that fee structure prices nothing")
+
 var errNoLiveFeeVersion = errors.New("no live fee structure version")
 
 func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
@@ -795,6 +799,27 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
 			structureID, req.InstalmentNo).Scan(&lines); err != nil {
 			return err
+		}
+		/* A STRUCTURE WORTH NOTHING RAISES NOTHING, and says so.
+
+		   A structure whose heads are all zero is a stub somebody began and
+		   abandoned. Billing from it created an invoice for nought, which the
+		   child's record then reported as "nothing due" — a silent failure
+		   that looks exactly like a family who owes nothing, and is only found
+		   when somebody asks why a fee never appeared.
+
+		   Refused with the reason. Creating the zero invoice and warning
+		   afterwards would leave the row behind, and the guard against billing
+		   twice would then skip the child on the retry. */
+		var worth int64
+		if err := tx.QueryRow(r.Context(), `
+			SELECT COALESCE(sum(amount_paise), 0) FROM fee_structure_items
+			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
+			structureID, req.InstalmentNo).Scan(&worth); err != nil {
+			return err
+		}
+		if lines > 0 && worth == 0 {
+			return errStructureWorthNothing
 		}
 		if lines == 0 {
 			return errNoSuchInstalment
@@ -935,6 +960,13 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.BadRequest(w, r, "no active fee structure with that id")
+		return
+	}
+	if errors.Is(err, errStructureWorthNothing) {
+		httpx.BadRequest(w, r,
+			"every head in that structure is priced at nought, so raising it "+
+				"would bill the family nothing. Price the heads under Fees → "+
+				"Class & transport fee setup, or pick the structure that does")
 		return
 	}
 	if errors.Is(err, errNoSuchInstalment) {

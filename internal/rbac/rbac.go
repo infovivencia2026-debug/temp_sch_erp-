@@ -60,6 +60,15 @@ const (
 	// admissions
 	AdmissionsRead  = "admissions.read"
 	AdmissionsWrite = "admissions.write"
+	/* Letting a child actually JOIN, as distinct from offering them a place.
+
+	   Offering is a conversation and reversible; joining takes a seat another
+	   child cannot have, raises a bill and issues a family a login. Schools
+	   that want a head to see those details first switch the requirement on,
+	   and this is the permission that answers it — deliberately NOT
+	   admissions.write, which the desk holds and which would make the
+	   approval a formality it grants itself. */
+	AdmissionsApprove = "admissions.approve"
 
 	// The front desk: the visitor register, the telephone book, the post, and
 	// the appointment diary. Separate from admissions because a receptionist
@@ -170,6 +179,7 @@ var All = []Permission{
 
 	{AdmissionsRead, "admissions", "View enquiries and applications"},
 	{AdmissionsWrite, "admissions", "Manage the admissions pipeline"},
+	{AdmissionsApprove, "admissions", "Approve a new joining"},
 	{FrontDeskRead, "office", "View the visitor, call and courier registers"},
 	{FrontDeskWrite, "office", "Run the front desk"},
 
@@ -314,6 +324,10 @@ var SystemRoles = []Role{
 	// Larger schools were previously forced to hand out institution_admin for
 	// this, which is every fee record and every salary as a side effect.
 	{"vice_principal", "Vice Principal / Academic Coordinator", []string{
+		// A joining is an academic and pastoral decision as much as a
+		// financial one, and a vice principal already carries the timetable
+		// and the roll it lands in.
+		AdmissionsApprove,
 		StudentsRead, StudentsReadAll, AcademicsRead, AcademicsWrite,
 		TimetableRead, TimetableWrite,
 		// Reads every register and may amend any of them: approving a

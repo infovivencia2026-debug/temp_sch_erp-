@@ -83,7 +83,21 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 			   AND (fs.class_id = $1 OR fs.class_id IS NULL)
 			   AND EXISTS (SELECT 1 FROM fee_structure_items i
 			                WHERE i.fee_structure_id = fs.id)
-			 ORDER BY (fs.class_id = $1) DESC, fs.created_at DESC
+			 /* A STRUCTURE WORTH SOMETHING BEATS A MORE SPECIFIC ONE WORTH
+			    NOTHING.
+			
+			    A class-specific structure whose heads are all zero is a stub
+			    somebody began and abandoned — this school has three — and
+			    preferring it on specificity alone quoted a family nought and
+			    raised them a bill for nought, which the record then reported
+			    as "nothing due". A zero total is not a price; it is an
+			    unfinished structure, and the school-wide one is what actually
+			    prices that class. */
+			 ORDER BY (SELECT COALESCE(sum(i.amount_paise), 0)
+			             FROM fee_structure_items i
+			            WHERE i.fee_structure_id = fs.id) > 0 DESC,
+			          (fs.class_id = $1) DESC,
+			          fs.created_at DESC
 			 LIMIT 1`, classID).Scan(&structureID, &structureName)
 		structureIDOut = structureID.String()
 		if err == pgx.ErrNoRows {

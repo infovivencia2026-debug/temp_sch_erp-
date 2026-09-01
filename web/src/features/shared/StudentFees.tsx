@@ -98,16 +98,6 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
     },
   })
 
-  const raise = useMutation({
-    mutationFn: () => api.post<{ created: number; skipped: number }>(
-      '/api/v1/fees/invoices/generate', {
-        fee_structure_id: quote.data?.structure_id,
-        instalment_no: 1,
-        student_id: studentID,
-      }),
-    onSuccess: onChanged,
-  })
-
   const q = quote.data
   const value = (c: Concession) =>
     c.percent ? `${c.percent}%` : formatPaise(Number(c.amount_paise || 0))
@@ -222,37 +212,16 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
               <Button size="sm" variant="secondary" onClick={() => setAsking(true)}>
                 Ask for a concession
               </Button>
-              <Button
-                size="sm"
-                /* HELD WHILE ANYTHING IS WAITING.
+              {/* RAISED IN ONE PLACE ONLY.
 
-                   Billing now charges the family in full and leaves the waiver
-                   approved and inert an hour later, and the only remedy then is
-                   a credit note. The rule was written in a sentence nobody
-                   reads at the moment they press the button, so the button
-                   holds instead. */
-                disabled={raise.isPending || pending.length > 0 || !q?.has_structure}
-                onClick={() => raise.mutate()}
-              >
-                {raise.isPending ? 'Raising…' : 'Raise this child’s fee'}
-              </Button>
+                  The bill is raised from Admissions → Fee & enrolment, once,
+                  after the principal has decided the concession. A second
+                  button here was a second way to do the same thing, and two
+                  ways to raise one bill is how a family ends up with two. */}
               {pending.length > 0 && (
                 <span className="text-[12.5px] text-warning">
-                  {pending.length === 1 ? 'A concession is' : `${pending.length} concessions are`}{' '}
-                  waiting on the principal. Billing now would charge the full
-                  amount and the waiver could not be applied afterwards.
-                </span>
-              )}
-              {raise.isSuccess && (
-                <span className="text-[12.5px] text-success">
-                  {raise.data.created > 0
-                    ? 'Raised. It is on the family’s fees page now.'
-                    : 'Already raised for this instalment — nothing to do.'}
-                </span>
-              )}
-              {raise.isError && (
-                <span className="text-[12.5px] text-destructive">
-                  {raise.error instanceof Error ? raise.error.message : 'Could not raise it'}
+                  Waiting on the principal. The fee is raised from Admissions →
+                  Fee &amp; enrolment once this is decided.
                 </span>
               )}
             </div>
