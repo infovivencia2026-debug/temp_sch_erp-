@@ -106,6 +106,7 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var name, status string
+	var accessEnded bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* A relieving date is what makes a leaver's record readable a year
 		   later, so setting a leaving status without one stamps today rather
@@ -158,6 +159,35 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* SOMEBODY WHO HAS LEFT KEEPS THE RECORD AND LOSES THE KEY.
+
+		   Nothing revoked access, so a teacher who resigned in August could
+		   still sign in in December — read the register, open a child's
+		   record, message a parent. The product carefully kept every fact
+		   about a leaver, which is right, and just as carefully left them the
+		   key to the building, which is not.
+
+		   Both halves matter: the account is archived so no new sign-in
+		   succeeds, and the live sessions are revoked so the one already open
+		   on somebody's phone stops working. Archiving alone leaves them
+		   signed in until the cookie expires, which here is a fortnight.
+
+		   Suspension is deliberately NOT in this list. A suspended member of
+		   staff is expected back and their access is a separate decision. */
+		if req.Status != nil && oneOfStr(*req.Status, "resigned", "terminated", "retired") {
+			var uid *uuid.UUID
+			if err := tx.QueryRow(r.Context(),
+				`SELECT user_id FROM employees WHERE id = $1`, empID).Scan(&uid); err != nil {
+				return err
+			}
+			if uid != nil {
+				if err := endAccess(r, tx, *uid); err != nil {
+					return err
+				}
+				accessEnded = true
+			}
+		}
+
 		/* Carry a new contact detail through to the login.
 
 		   The staff record and the account are two rows, and the number a
@@ -203,5 +233,8 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"id": empID.String(), "name": name, "status": status,
+		// Said, not left to be noticed. An office that marks somebody resigned
+		// should know their sign-in stopped at that moment.
+		"login_ended": accessEnded,
 	})
 }

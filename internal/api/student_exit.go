@@ -100,6 +100,7 @@ func (s *Server) recordStudentExit(w http.ResponseWriter, r *http.Request) {
 	pred, args := res.StudentPredicate("st", 4)
 
 	var touched int64
+	var accessEnded int
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE students st
@@ -123,9 +124,20 @@ func (s *Server) recordStudentExit(w http.ResponseWriter, r *http.Request) {
 		   attendance register and every "how many in 7-A" would include a
 		   child who has left, and the register would mark them absent every
 		   day for the rest of the year. */
-		_, err = tx.Exec(r.Context(), `
+		if _, err := tx.Exec(r.Context(), `
 			UPDATE enrollments SET status = $2
-			 WHERE student_id = $1 AND status = 'active'`, sid, status)
+			 WHERE student_id = $1 AND status = 'active'`, sid, status); err != nil {
+			return err
+		}
+		/* THE RECORD STAYS, THE LOGIN GOES.
+
+		   Nothing revoked access before, so a family whose child had been
+		   given a transfer certificate could still sign in months later and
+		   read the fees, the circulars and their child's marks. The guardians'
+		   accounts go only if this was their last child here — a parent with a
+		   second child in Grade 4 keeps the login they use for that one. */
+		n, err := endFamilyAccess(r, tx, sid)
+		accessEnded = n
 		return err
 	})
 	if err != nil {
@@ -136,7 +148,12 @@ func (s *Server) recordStudentExit(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w, r, "this child is not one you can edit")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"status": status})
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"status": status,
+		// Said out loud: an office not told the family has lost its login
+		// finds out when the parent rings.
+		"logins_ended": accessEnded,
+	})
 }
 
 /*

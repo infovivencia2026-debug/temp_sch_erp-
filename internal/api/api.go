@@ -370,6 +370,13 @@ func (s *Server) Routes() http.Handler {
 			// PIN, and access.users.write would also let HR reset the
 			// principal's password.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/pin", s.issueStaffPIN)
+			// Assigning a class from the teacher's own record, writing the same
+			// row the allocation grid writes — a staff record with its own idea
+			// of who teaches what is one that disagrees with the timetable.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Post("/employees/{id}/subjects", s.assignStaffSubject)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Delete("/employees/{id}/subjects/{allocID}", s.removeStaffSubject)
 			// Reading a downloaded password list back in. Same right as
 			// issuing one by hand, because it is the same act done in bulk.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/logins/import", s.importStaffLogins)
@@ -612,6 +619,14 @@ func (s *Server) Routes() http.Handler {
 				r.Use(httpx.RequirePermission(rbac.EmployeesRead))
 				r.Get("/dashboard", s.getHRDashboard)
 				r.Get("/employees", s.listEmployees)
+				/* One member of staff, and what they actually do here.
+
+				   section_subject_teachers has been written from one direction
+				   only — the allocation grid, which asks "who teaches 7-A
+				   Maths". Nothing ever asked "what does Anand teach", although
+				   that is where a clash, a substitution and a workload
+				   conversation all start. */
+				r.Get("/employees/{id}/detail", s.getStaffDetail)
 				r.Get("/documents", s.listEmployeeDocuments)
 				// The school's own ID card artwork, front and back. Reading it is
 				// open to anybody who reads staff, because printing a card is the
