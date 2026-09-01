@@ -198,3 +198,36 @@ func (s *Server) saveCoScholasticGrade(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"saved": !removed, "removed": removed})
 }
+
+/* The terms a school divides its year into.
+
+   Needed by anything that records something "for Term 2" and by nothing else
+   until now, so it was never exposed: terms has been in the schema from the
+   beginning with no endpoint reading it. A co-scholastic grade belongs to a
+   term — Art in Term 1 and Art in Term 3 are two different judgements about
+   the same child — so the list has to be reachable.
+
+   Ordered by sequence rather than by name, because a school that calls them
+   "Michaelmas" and "Lent" would otherwise get them alphabetically.
+*/
+type termRow struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	StartsOn string `json:"starts_on"`
+	EndsOn   string `json:"ends_on"`
+}
+
+func (s *Server) listTerms(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT t.id::text, t.name,
+		       to_char(t.starts_on,'YYYY-MM-DD'), to_char(t.ends_on,'YYYY-MM-DD')
+		  FROM terms t
+		  JOIN academic_years ay ON ay.id = t.academic_year_id
+		 WHERE ay.is_current
+		 ORDER BY t.sequence, t.starts_on`, nil,
+		func(rows pgx.Rows) (termRow, error) {
+			var v termRow
+			return v, rows.Scan(&v.ID, &v.Name, &v.StartsOn, &v.EndsOn)
+		})
+	respond(w, r, items, err)
+}

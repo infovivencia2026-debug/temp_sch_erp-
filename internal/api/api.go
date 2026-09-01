@@ -231,6 +231,9 @@ func (s *Server) Routes() http.Handler {
 			   an area has a grade, a term and a sentence, and putting it in
 			   class_subjects would put Discipline in the timetable and in
 			   every percentage the report card computes. */
+			// terms has been in the schema from the beginning with nothing
+			// reading it. A co-scholastic grade belongs to one.
+			r.Get("/terms", s.listTerms)
 			r.Get("/co-scholastic-areas", s.listCoScholasticAreas)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).
 				Post("/co-scholastic-areas", s.saveCoScholasticArea)
@@ -747,6 +750,17 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications", s.createApplication)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications/{id}/assessment", s.recordAssessment)
 			r.With(httpx.RequirePermission(rbac.AdmissionsWrite)).Post("/applications/{id}/decision", s.decideApplication)
+			/* Offering a place is the desk's; the child actually JOINING takes
+			   a seat, raises a bill and issues a family a login. A school that
+			   wants its head to see those details first switches this on. */
+			r.With(httpx.RequirePermission(rbac.AdmissionsRead)).
+				Get("/pending-admissions", s.listPendingAdmissions)
+			r.With(httpx.RequirePermission(rbac.AdmissionsApprove)).
+				Post("/pending-admissions/{id}/decide", s.decideAdmission)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).
+				Get("/admission-approval", s.getAdmissionApproval)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).
+				Put("/admission-approval", s.setAdmissionApproval)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/applications/{id}/enrol", s.enrolApplicant)
 		})
 

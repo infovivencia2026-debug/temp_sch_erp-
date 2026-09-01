@@ -700,6 +700,10 @@ type enrolRequest struct {
 // errConcessionPending refuses an enrolment whose fee is not settled yet.
 var errConcessionPending = errors.New("a concession is still waiting on a decision")
 
+// errAdmissionNotApproved refuses a joining the principal has not signed off,
+// at schools that ask for that.
+var errAdmissionNotApproved = errors.New("the principal has not approved this joining")
+
 func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	appID, err := uuid.Parse(chiURLParam(r, "id"))
@@ -756,6 +760,26 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 		}
 		if waiting > 0 {
 			return errConcessionPending
+		}
+
+		/* AND THE PRINCIPAL HAS TO HAVE SEEN IT, where the school asks for
+		   that. Offering a place is the desk's; the child actually joining
+		   takes a seat, raises a bill and issues a family a login, and a
+		   school that wants a head to see those details first now gets to. */
+		needs, err := admissionApprovalRequired(r, tx)
+		if err != nil {
+			return err
+		}
+		if needs {
+			var approved bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT enrolment_approved_at IS NOT NULL FROM applications WHERE id = $1`,
+				appID).Scan(&approved); err != nil {
+				return err
+			}
+			if !approved {
+				return errAdmissionNotApproved
+			}
 		}
 
 		var (
@@ -1049,6 +1073,13 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, errNotOffered) {
 		httpx.BadRequest(w, r, "only an offered application can be enrolled")
+		return
+	}
+	if errors.Is(err, errAdmissionNotApproved) {
+		httpx.Error(w, r, http.StatusConflict, "admission_not_approved",
+			"this school asks the principal to approve every new joining, and "+
+				"this one is still waiting. It is on their approvals with the "+
+				"fee and any concession beside it")
 		return
 	}
 	if errors.Is(err, errConcessionPending) {
