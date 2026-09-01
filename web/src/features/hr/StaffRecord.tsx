@@ -8,8 +8,7 @@ import {
   Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
-import { Field } from '@/components/RecordShell'
-import { formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 
 /* One member of staff, and what they actually do here.
 
@@ -317,30 +316,62 @@ export default function StaffRecord({ employeeID, onClose }: {
                     </div>
                   </div>
                 ) : (
-                <dl className="divide-y text-[14px]">
-                  <Field k="Employee code" v={d.employee_code} mono />
-                  <Field k="Status" v={d.status} />
-                  <Field k="Designation" v={d.designation} />
-                  <Field k="Department" v={d.department} />
-                  <Field k="Employment" v={d.employment_type} />
-                  <Field k="Joined" v={formatDate(d.joined_on)} />
-                  <Field k="Confirmed" v={d.confirmed_on ? formatDate(d.confirmed_on) : undefined} />
-                  <Field k="Relieved" v={d.relieved_on ? formatDate(d.relieved_on) : undefined} />
-                  <Field k="Phone" v={d.phone} />
-                  <Field k="Email" v={d.email} />
-                  <Field k="Qualification" v={d.qualification} />
-                  <Field k="Experience"
-                    v={d.experience_years ? `${d.experience_years} years` : undefined} />
-                  <Field k="Emergency contact" v={d.emergency_contact_name} />
-                  <Field k="Their phone" v={d.emergency_contact_phone} />
-                  {/* The school's own fields, beside the ones we thought of.
-                      employees had no custom_fields at all, so a PF number or
-                      a police-verification expiry lived in the qualification
-                      box with a comma in it. */}
-                  {Object.entries(d.custom_fields ?? {}).map(([k, v]) => (
-                    <Field key={k} k={k} v={v} />
-                  ))}
-                </dl>
+                <div className="grid gap-px bg-border lg:grid-cols-[minmax(0,34%)_minmax(0,1fr)]">
+                  {/* CONTACT ON THE LEFT, EMPLOYMENT ON THE RIGHT.
+
+                      Fourteen rows of label-and-value down one column is a
+                      thing you read from the top. Somebody opening a staff
+                      record wants one of two things — a number to ring, or
+                      where this person sits in the school — and those are two
+                      groups, not one list. */}
+                  <div className="bg-background p-5">
+                    <p className="eyebrow mb-3 text-muted-foreground">Contact</p>
+                    <div className="space-y-3">
+                      {([
+                        ['Phone', d.phone],
+                        ['Email', d.email],
+                        ['Emergency contact', d.emergency_contact_name],
+                        ['Their phone', d.emergency_contact_phone],
+                      ] as [string, string | undefined][]).map(([k, v]) => (
+                        <div key={k}>
+                          <p className="eyebrow text-muted-foreground">{k}</p>
+                          <p className={cn('text-[14px]', !v && 'text-muted-foreground')}>
+                            {v || 'Not recorded'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-background p-5">
+                    <p className="eyebrow mb-3 text-muted-foreground">Employment</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {([
+                        ['Designation', d.designation],
+                        ['Department', d.department],
+                        ['Employment', d.employment_type],
+                        ['Joined', d.joined_on ? formatDate(d.joined_on) : undefined],
+                        ['Confirmed', d.confirmed_on ? formatDate(d.confirmed_on) : undefined],
+                        ['Relieved', d.relieved_on ? formatDate(d.relieved_on) : undefined],
+                        ['Qualification', d.qualification],
+                        ['Experience', d.experience_years ? `${d.experience_years} years` : undefined],
+                        ...Object.entries(d.custom_fields ?? {}),
+                      ] as [string, string | undefined][])
+                        /* Relieved shows only when there is one: an empty
+                           "Relieved --" on every serving teacher is a row you
+                           read to discover it says nothing. */
+                        .filter(([k, v]) => v || !['Relieved', 'Confirmed'].includes(k))
+                        .map(([k, v]) => (
+                          <div key={k} className="rounded-lg border px-3 py-2">
+                            <p className="eyebrow text-muted-foreground">{k}</p>
+                            <p className={cn('mt-0.5 text-[14px]', !v && 'text-muted-foreground')}>
+                              {v || 'Not recorded'}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
                 )}
                 <div className="flex flex-wrap items-end gap-2 border-t p-4">
                   <div className="w-52">
