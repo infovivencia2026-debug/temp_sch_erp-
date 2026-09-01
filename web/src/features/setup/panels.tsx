@@ -702,8 +702,20 @@ function SectionsPanel({ onDone }: PanelProps) {
             ]}
           />
         </Field>
-        <Field label="Section names" required hint="Comma separated: A, B, C.">
-          <Input value={names} onChange={setNames} placeholder="A, B" />
+        {/* ANY NAME, not just a letter.
+
+            The column has always been free text and the hint said "A, B, C",
+            so schools that call their sections Rose and Jasmine, or Blue and
+            Green, or Newton and Curie, believed the product could not hold it
+            and typed A and B against their own noticeboards. Nothing needed
+            building; the field needed to say what it accepts. */}
+        <Field
+          label="Section names"
+          required
+          wide
+          hint="Comma separated. Letters, or whatever this school actually calls them — Rose, Jasmine, Newton."
+        >
+          <Input value={names} onChange={setNames} placeholder="A, B — or Rose, Jasmine" />
         </Field>
         <Field label="Capacity" hint="Used to warn the office before a section is over-filled.">
           <Input value={capacity} onChange={setCapacity} />
