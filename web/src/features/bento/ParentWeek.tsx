@@ -656,15 +656,24 @@ export function AbsentCell({
     tall ? 4 : 3,
   )
 
+  /* Said once, not twice.
+
+     The note under the figure already reads "No days have been marked for
+     Vivaan Rao yet." when the register is empty -- and the body said exactly
+     the same sentence again, four lines below it, in the same card. Two
+     identical sentences stacked in one small box does not read as thorough, it
+     reads as a bug, which is what it was.
+
+     The note keeps it, because it sits with the figure it explains. The body
+     stands empty, which is the honest shape of a card about a register nobody
+     has marked. */
   const spread =
     days === null ? (
       <Say>{t('bento.parent_week.register_unread', { name: s.full_name })}</Say>
     ) : missedTotal === 0 ? (
-      <Say>
-        {days.length === 0
-          ? t('bento.parent_week.no_register', { name: s.full_name })
-          : t('bento.parent_week.never_missed', { name: s.full_name })}
-      </Say>
+      days.length === 0 ? null : (
+        <Say>{t('bento.parent_week.never_missed', { name: s.full_name })}</Say>
+      )
     ) : (
       <Titled head={t('bento.parent_week.head_weekday')}>
         <Rows
@@ -833,7 +842,10 @@ export function PresentCell({
       to={to}
       cueLabel={t('bento.parent_week.week_cue')}
     >
-      {s.total_days > 0 ? drawing : <Say>{t('bento.parent_week.no_register', { name: s.full_name })}</Say>}
+      {/* Empty rather than an echo: `change` above already carries this exact
+          sentence when there is no register. See the note on `spread` in the
+          days-absent card. */}
+      {s.total_days > 0 ? drawing : null}
     </PersonaCard>
   )
 }

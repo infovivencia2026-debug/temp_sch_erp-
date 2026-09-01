@@ -958,6 +958,22 @@ html[data-shadow='deep'][data-layout='bento'] {
   --bento-depth-lg: 0 14px 34px rgb(15 23 42 / 0.16), 0 44px 90px -18px rgb(15 23 42 / 0.32);
 }
 
+/* THE WORK AREA PAINTS THE BOARD'S GROUND, NOT THE APP'S.
+
+   <main> reserves space at its foot for the floating dock
+   (`pb-[var(--dock-reserve)]`). That reserve is padding on the SCROLLER, so it
+   is painted by <main> itself and not by the board inside it -- and <main>
+   carries the application's own light surface. On a dark board the result was a
+   pale band across the bottom of every phone screen, between the last card and
+   the dock: not a component, not a state, just the wrong element showing
+   through a gap that only exists on a phone.
+
+   Painting the scroller with the board's ground closes it. The board still
+   paints its own; this only decides what is behind the reserve. */
+[data-layout='bento'] [data-paint='workarea'] {
+  background: var(--bento-bg);
+}
+
 /* The background pattern. Focus paints its own ground over the body, so the
    texture has to be re-applied there rather than assumed to show through. */
 [data-layout='bento'] .bento-ground {

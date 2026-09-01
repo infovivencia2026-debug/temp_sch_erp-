@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl, { type LngLatBoundsLike, type Map as MLMap } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { Maximize2, Minimize2, Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* The street map the fleet screens never had.
@@ -137,6 +138,15 @@ export function FleetMap({
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map())
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
+  /* Filling the screen is a state of this component, not the browser's.
+
+     The Fullscreen API is the obvious answer and the wrong one here: the parent
+     app is a WebView, where requestFullscreen is refused or silently ignored
+     depending on the handset, and a control that works on the office desktop
+     and does nothing on a driver's phone is worse than no control. Growing the
+     wrapper to cover the viewport needs no permission and behaves identically
+     everywhere. */
+  const [expanded, setExpanded] = useState(false)
   /* Fit once. Refitting on every poll would wrench the view out from under
      an office that had panned to the bus it was actually watching. */
   const fitted = useRef(false)
@@ -352,11 +362,17 @@ export function FleetMap({
     }
   }, [vehicles, focusId, onFocus, ready])
 
-  // Fit to everything drawn, once. A single bus has no extent of its own, so
-  // it gets a sensible zoom rather than the maximum one.
-  useEffect(() => {
+  /* Frame everything drawn. Called once on load, and again whenever somebody
+     asks for it.
+
+     A single bus has no extent of its own, so it gets a sensible zoom rather
+     than the maximum one. `animate` is the difference between the two callers:
+     the first fit should already be in place when the map appears, while a
+     press of Recentre wants to be seen moving, or it is indistinguishable from
+     a button that did nothing. */
+  const frame = useCallback((animate: boolean) => {
     const m = map.current
-    if (!m || !ready || fitted.current || points.length === 0) return
+    if (!m || points.length === 0) return
     const bounds = points.reduce(
       (b, p) => b.extend(p),
       new maplibregl.LngLatBounds(points[0], points[0]),
@@ -364,16 +380,85 @@ export function FleetMap({
     m.fitBounds(bounds as LngLatBoundsLike, {
       padding: 56,
       maxZoom: points.length === 1 ? 15 : 16,
-      duration: 0,
+      duration: animate ? 500 : 0,
     })
+  }, [points])
+
+  // The first fit, once.
+  useEffect(() => {
+    if (!map.current || !ready || fitted.current || points.length === 0) return
+    frame(false)
     fitted.current = true
-  }, [points, ready])
+  }, [points, ready, frame])
+
+  /* The canvas is sized in pixels at creation and does not notice its box
+     changing. Without this the map keeps the small screen's dimensions after
+     it is expanded and renders into a corner of the space it was given. */
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    const id = window.setTimeout(() => m.resize(), 60)
+    return () => window.clearTimeout(id)
+  }, [expanded])
+
+  // Escape leaves the expanded map, because every other overlay in this
+  // product does and a map that traps the key reads as frozen.
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [expanded])
 
   if (points.length === 0 && empty) return <>{empty}</>
 
   return (
-    <div className={cn('relative overflow-hidden rounded-[8px] border', className)}>
+    <div
+      className={cn(
+        'relative overflow-hidden border',
+        expanded
+          ? 'fixed inset-0 z-[80] h-[100dvh] w-screen rounded-none'
+          : cn('rounded-[8px]', className),
+      )}
+    >
       <div ref={host} className="h-full w-full" />
+
+      {/* THE TWO THINGS A MAP IS ASKED FOR AND DID NOT HAVE.
+
+          Recentre, because the map framed itself once on load and never again:
+          a parent who pinched to see which turning the bus had taken had no way
+          back to the bus except reloading the screen. On a phone that is one
+          gesture away from happening every single time.
+
+          And room, because this map is often 200px tall in a card on a phone,
+          which is enough to say a bus exists and not enough to say where. Both
+          sit bottom-right, clear of the zoom control at the top and of the
+          scale bar at bottom-left, and both are 40px targets -- the size of a
+          fingertip, not of a mouse pointer. */}
+      <div className="absolute bottom-3 right-3 z-10 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => frame(true)}
+          aria-label="Recentre the map"
+          title="Recentre"
+          className="grid size-10 place-items-center rounded-full border bg-background/90
+                     text-foreground shadow-md backdrop-blur transition-colors
+                     hover:bg-background active:scale-95"
+        >
+          <Crosshair className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? 'Leave full screen' : 'Show the map full screen'}
+          title={expanded ? 'Leave full screen' : 'Full screen'}
+          className="grid size-10 place-items-center rounded-full border bg-background/90
+                     text-foreground shadow-md backdrop-blur transition-colors
+                     hover:bg-background active:scale-95"
+        >
+          {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </button>
+      </div>
       {tilesFailed && (
         /* Not a toast. The map is still usable — the markers and the stops are
            this app's own data and are drawn regardless — so the honest thing
