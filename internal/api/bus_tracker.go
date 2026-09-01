@@ -83,10 +83,24 @@ const (
 	   afterwards be untangled from the real thing. */
 	busTrackerMaxSkew = 24 * time.Hour
 
-	// Codes are read off one screen and typed into another. Crockford-ish: no
-	// I, L, O, U, 0 or 1, because "was that a zero or an O" is the difference
-	// between a paired handset and a support call.
-	busTrackerCodeAlphabet = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
+	/* Codes are read off one screen and typed into another.
+
+	   Digits, and nine of them, which is what the SMS gateway settled on for
+	   the same job. The letters were Crockford-ish and unambiguous to read,
+	   and still wrong for the person doing the typing: a driver at six in the
+	   morning is holding a phone whose keyboard opens on numbers, and every
+	   letter is a switch to another layout and back. Two pairing flows in one
+	   product that disagree about what a code looks like is also its own kind
+	   of support call.
+
+	   Nine digits is a billion, against a ten-minute window and the rate limit
+	   on the claim. */
+	busTrackerCodeAlphabet = "0123456789"
+
+	// The length, named once. The app enforces the same number, and the claim
+	// below reads this rather than a literal -- the SMS gateway shipped nine
+	// digits against a hard-coded eight and refused every code it printed.
+	busTrackerCodeLength = 9
 )
 
 // --- pairing credentials -----------------------------------------------------
@@ -113,11 +127,11 @@ func splitBusTrackerToken(token string) (uuid.UUID, string, bool) {
 }
 
 func newBusTrackerPairCode() (string, error) {
-	b := make([]byte, 8)
+	b := make([]byte, busTrackerCodeLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	out := make([]byte, 8)
+	out := make([]byte, busTrackerCodeLength)
 	for i, x := range b {
 		out[i] = busTrackerCodeAlphabet[int(x)%len(busTrackerCodeAlphabet)]
 	}
@@ -405,7 +419,7 @@ claimBusTrackerPairCode turns a code into a paired phone.
 	Unauthenticated — the handset has no credential until this succeeds — and
 	so it says as little as possible on failure. An expired code, a claimed
 	code and a code that never existed all answer the same way: a caller
-	guessing eight characters must not learn that they were close.
+	guessing nine digits must not learn that they were close.
 
 	The response echoes the vehicle's registration so the driver can see which
 	bus their phone has become before it starts reporting. A driver shown the

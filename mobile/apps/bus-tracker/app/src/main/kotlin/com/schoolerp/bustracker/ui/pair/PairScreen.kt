@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,7 +114,7 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
                 label = { Text("Pairing code") },
                 supportingText = {
                     Text(
-                        "${state.pairCode.length} of ${PairCode.LENGTH} characters. " +
+                        "${state.pairCode.length} of ${PairCode.LENGTH} digits. " +
                             "Codes expire after ten minutes.",
                     )
                 },
@@ -124,10 +123,10 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 4.sp,
                 ),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
-                    keyboardType = KeyboardType.Ascii,
-                ),
+                // A number pad, because the code is digits now. The letter
+                // keyboard was one layout switch per character for somebody
+                // typing at six in the morning beside a running engine.
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 modifier = Modifier.fillMaxWidth(),
             )
             TextButton(onClick = { viewModel.usePairCode(false) }) {

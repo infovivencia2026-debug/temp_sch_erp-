@@ -15,7 +15,7 @@ import (
 /* THE DRIVER SIGNS IN. NOTHING ELSE.
 
    Getting a handset onto a bus took two people and a stopwatch: somebody in
-   the office generated an eight-character pair code, and the driver typed it
+   the office generated a nine-digit pair code, and the driver typed it
    within ten minutes. The driver is standing beside the bus at six in the
    morning; the office opens at nine.
 

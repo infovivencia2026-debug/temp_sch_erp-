@@ -132,31 +132,33 @@ func TestSplitBusTrackerTokenRejectsMalformedTokens(t *testing.T) {
 	}
 }
 
-// The code is read off one screen and typed into another, so the alphabet
-// carries no character that can be confused for another.
+/*
+The code is read off one screen and typed into another.
+
+	Nine digits, the same shape the SMS gateway uses, so a school setting up
+	both is not typing two different kinds of code. Digits also mean there is
+	nothing to confuse for anything: the letter alphabet this replaces was
+	unambiguous to read and still a layout switch per character to type.
+*/
 func TestBusTrackerPairCodeShapeAndAlphabet(t *testing.T) {
-	const confusable = "ILOU01"
+	seen := map[string]bool{}
 	for i := 0; i < 200; i++ {
 		code, err := newBusTrackerPairCode()
 		if err != nil {
 			t.Fatalf("mint: %v", err)
 		}
-		if len(code) != 8 {
-			t.Fatalf("code %q is %d characters, want 8", code, len(code))
+		if len(code) != busTrackerCodeLength {
+			t.Fatalf("code %q is %d characters, want %d", code, len(code), busTrackerCodeLength)
 		}
-		for _, c := range code {
-			if !strings.ContainsRune(busTrackerCodeAlphabet, c) {
-				t.Fatalf("code %q contains %q, which is not in the alphabet", code, c)
-			}
-			if strings.ContainsRune(confusable, c) {
-				t.Fatalf("code %q contains %q — I, L, O, U, 0 and 1 are excluded on purpose", code, c)
-			}
+		if strings.TrimFunc(code, func(r rune) bool { return r >= '0' && r <= '9' }) != "" {
+			t.Fatalf("code %q contains something that is not a digit", code)
 		}
+		seen[code] = true
 	}
-	for _, c := range confusable {
-		if strings.ContainsRune(busTrackerCodeAlphabet, c) {
-			t.Errorf("the alphabet contains the confusable character %q", c)
-		}
+	// Two hundred draws from a billion should not collide. A generator that
+	// has stopped varying reads as a perfectly valid code every time.
+	if len(seen) != 200 {
+		t.Errorf("only %d distinct codes in 200 draws", len(seen))
 	}
 }
 
