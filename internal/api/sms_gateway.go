@@ -518,26 +518,43 @@ func splitSMSGatewayToken(token string) (uuid.UUID, string, bool) {
 }
 
 /*
-The pair code alphabet.
+The pair code alphabet: digits, and nothing else.
 
-	Crockford-ish: no I, L, O, U, 0 or 1. Somebody is reading this off a screen
-	and typing it into a phone with a cracked digitiser, and "was that a zero or
-	an O" is the difference between a paired handset and a support call. Eight
-	characters from thirty-two symbols is forty bits, which against a ten-minute
-	window and the rate limit below is not brute-forceable.
+	It was eight characters of Crockford-ish letters and digits, chosen so that
+	nobody could confuse a zero for an O. That solved the wrong half of the
+	problem. The person typing this is a clerk holding the office handset, and
+	a mixed-case alphanumeric code makes them hunt for the letter key, switch
+	layouts for the digits, and check each character against the screen twice.
+
+	Nine digits is one keyboard, the numeric one every phone shows for a
+	numeric field, and no character in it can be confused with any other. It is
+	also the shape people already know: a phone number is ten, an OTP is six.
+
+	ENTROPY, HONESTLY. Thirty bits rather than forty. That is a real reduction
+	and it is safe here only because of what surrounds it: a code lives ten
+	minutes, issuing a new one expires the old, only one unclaimed code exists
+	per school at a time, and the claim endpoint allows six attempts per IP per
+	ten minutes. Six guesses against a billion, inside a ten-minute window, is
+	not an attack — it is a rounding error. Were any of those three properties
+	to be relaxed, this length would have to grow again.
 */
-const smsGatewayCodeAlphabet = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
+const smsGatewayCodeAlphabet = "0123456789"
+
+// smsGatewayCodeLength is nine, and the app enforces the same number. Both
+// sides are named rather than inlined so a change here fails loudly there.
+const smsGatewayCodeLength = 9
 
 func newSMSGatewayPairCode() (string, error) {
-	b := make([]byte, 8)
+	b := make([]byte, smsGatewayCodeLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	out := make([]byte, 8)
+	out := make([]byte, smsGatewayCodeLength)
 	for i, x := range b {
-		// Modulo bias over a 30-symbol alphabet is a fraction of a bit against
-		// forty. Not worth a rejection loop that could, in principle, not
-		// terminate.
+		// Ten divides 256 unevenly, so the low six values are very slightly
+		// favoured -- about a quarter of one bit across the whole code. Against
+		// a ten-minute window and six attempts an hour that is not worth a
+		// rejection loop which could, in principle, not terminate.
 		out[i] = smsGatewayCodeAlphabet[int(x)%len(smsGatewayCodeAlphabet)]
 	}
 	return string(out), nil

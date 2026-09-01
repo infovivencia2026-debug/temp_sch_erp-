@@ -107,26 +107,38 @@ func TestSMSGatewayTokensAreDistinct(t *testing.T) {
 }
 
 /*
-The pair code is readable by a human under pressure.
+The pair code is nine digits, and nothing but digits.
 
-	No I, L, O, U, 0 or 1, because somebody is reading it off a screen and
-	typing it into a handset. A code containing a character that is ambiguous in
-	the office's font is a support call, and the whole point of an eight
-	character code over a QR scan is that it works on a phone whose camera app
-	the office does not trust.
+	Somebody is reading it off a screen and typing it into a handset, often the
+	office's spare phone with a scratched digitiser. Digits mean one keyboard —
+	the numeric one every phone raises for a numeric field — no case to get
+	wrong, no hunting for a letter key, and no character that can be mistaken
+	for another. The older alphanumeric code solved only the last of those.
+
+	Nine, not eight, because dropping to ten symbols costs entropy and the
+	length is what buys it back. See the comment on the alphabet for why thirty
+	bits is safe against this endpoint's rate limit and ten-minute window.
 */
 func TestSMSGatewayPairCodeIsUnambiguous(t *testing.T) {
+	seen := map[string]bool{}
 	for i := 0; i < 200; i++ {
 		code, err := newSMSGatewayPairCode()
 		if err != nil {
 			t.Fatalf("mint: %v", err)
 		}
-		if len(code) != 8 {
-			t.Fatalf("code %q is %d characters, want 8", code, len(code))
+		if len(code) != smsGatewayCodeLength {
+			t.Fatalf("code %q is %d characters, want %d", code, len(code), smsGatewayCodeLength)
 		}
-		if strings.ContainsAny(code, "ILOU01") {
-			t.Fatalf("code %q contains an ambiguous character", code)
+		if strings.TrimFunc(code, func(r rune) bool { return r >= '0' && r <= '9' }) != "" {
+			t.Fatalf("code %q contains something that is not a digit", code)
 		}
+		seen[code] = true
+	}
+	// Two hundred draws from a billion should not collide. This catches a
+	// generator that has stopped varying -- a seeding mistake reads as a
+	// perfectly valid code every time until somebody notices it is the same one.
+	if len(seen) != 200 {
+		t.Fatalf("only %d distinct codes in 200 draws; the generator is not random", len(seen))
 	}
 }
 

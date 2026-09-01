@@ -27,7 +27,12 @@ data class PairUiState(
     val phone: String = "",
     val password: String = "",
     /** Pair codes are the fallback, and belong to whoever is debugging. */
-    val usePairCode: Boolean = false,
+    /* The code is the way in, and the office login is the fallback.
+       A clerk pairing the office handset has a nine-digit code on the admin
+       screen in front of them. Asking them for an email and a password first
+       -- credentials that belong to a person rather than to the phone -- put
+       the harder route in front of the easier one. */
+    val usePairCode: Boolean = true,
     val pairCodeAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
     val pairCode: String = "",
     val submitting: Boolean = false,

@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,12 +46,23 @@ fun PairScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Sign in", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "This handset becomes the school's SMS sender. Sign in with the login " +
-                "the office already uses. It will only ever send messages the school's " +
-                "server gives it: it cannot compose anything, and it never reads your " +
-                "inbox or contacts.",
+            if (state.usePairCode) "Pair this phone" else "Sign in",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            if (state.usePairCode) {
+                "This handset becomes the school's SMS sender. Type the nine-digit " +
+                    "code shown on the school's Message Channels screen. Somebody at " +
+                    "the school then approves this phone before it sends anything. It " +
+                    "only ever sends messages the server gives it: it cannot compose " +
+                    "anything, and it never reads your inbox or contacts."
+            } else {
+                "This handset becomes the school's SMS sender. Sign in with the login " +
+                    "the office already uses. It will only ever send messages the school's " +
+                    "server gives it: it cannot compose anything, and it never reads your " +
+                    "inbox or contacts."
+            },
             style = MaterialTheme.typography.bodyMedium,
         )
 
@@ -100,17 +110,17 @@ fun PairScreen(
             onValueChange = viewModel::onPairCodeChanged,
             label = { Text("Pair code") },
             supportingText = {
-                Text("${state.pairCode.length} of ${PairCode.LENGTH} characters. Codes expire after ten minutes.")
+                Text("${state.pairCode.length} of ${PairCode.LENGTH} digits. Codes expire after ten minutes.")
             },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 letterSpacing = 4.sp,
             ),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
-                keyboardType = KeyboardType.Ascii,
-            ),
+            /* The numeric pad, because the code is digits now. An Ascii
+               keyboard on a nine-digit field makes a clerk switch layouts and
+               hunt for the number row on a phone they may not own. */
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             modifier = Modifier.fillMaxWidth(),
         )
             TextButton(onClick = { viewModel.usePairCode(false) }) {
