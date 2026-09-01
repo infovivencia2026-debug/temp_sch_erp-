@@ -1245,9 +1245,21 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 		INSERT INTO employees (institution_id, campus_id, user_id, employee_code,
 		                       first_name, last_name, email, phone,
 		                       department_id, designation_id, joined_on,
-		                       employment_type, status)
+		                       employment_type, status, staff_number)
 		VALUES ($1,$2,$3::uuid,$4,$5,$6,$7::citext,$8,$9::uuid,$10::uuid,
-		        COALESCE($11::date, CURRENT_DATE),$12,'active')
+		        COALESCE($11::date, CURRENT_DATE),$12,'active',
+		        /* The next free four-digit number in this school.
+
+		           Taken as max+1 rather than count+1 so a gap left by a deleted
+		           row is never handed to two people, and floored at 1000 so the
+		           first member of staff a school adds is 1000 and not 1. NULL
+		           past 9999 rather than failing the insert: a school that
+		           somehow has nine thousand staff should still be able to add
+		           the next one, and it can be given a number by hand. */
+		        (SELECT CASE WHEN COALESCE(max(staff_number), 999) < 9999
+		                     THEN GREATEST(COALESCE(max(staff_number), 999) + 1, 1000)
+		                END
+		           FROM employees WHERE institution_id = $1))
 		ON CONFLICT (institution_id, employee_code)
 		DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name,
 		              email = EXCLUDED.email, phone = EXCLUDED.phone,

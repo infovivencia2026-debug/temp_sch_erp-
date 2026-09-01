@@ -45,7 +45,7 @@ type staffLoginResponse struct {
 }
 
 var errNoContact = errors.New(
-	"this person has no email, phone or username on their record, add one first, " +
+	"this person has no staff number, email or phone on their record, add one first, " +
 		"or they will have nothing to sign in with")
 
 // issueStaffLogin gives one member of staff a password they can sign in with.
@@ -84,12 +84,15 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			fullName string
 			email    *string
 			phone    *string
+			// The four-digit number. What a fingerprint reader holds and what
+			// a teacher can actually be told to type.
+			staffNo *int
 		)
 		if err := tx.QueryRow(r.Context(), `
 			SELECT e.user_id, trim(e.first_name || ' ' || COALESCE(e.last_name,'')),
-			       e.employee_code, e.email, e.phone
+			       e.employee_code, e.email, e.phone, e.staff_number
 			  FROM employees e WHERE e.id = $1`, empID).
-			Scan(&userID, &fullName, &out.EmployeeCode, &email, &phone); err != nil {
+			Scan(&userID, &fullName, &out.EmployeeCode, &email, &phone, &staffNo); err != nil {
 			return err
 		}
 		out.FullName = fullName
@@ -97,15 +100,24 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		// An employee added without an email has no account at all; one is
 		// made here rather than sending the office back to the form.
 		if userID == nil {
-			if (email == nil || *email == "") && (phone == nil || *phone == "") {
+			/* A four-digit number is enough on its own.
+
+			   This used to refuse an employee with no email and no phone, and
+			   sixty-nine imported staff at one school were exactly that: a
+			   name and a code, no way in. The number is a real identifier —
+			   sign-in resolves it, and the fingerprint reader holds the same
+			   one — so it is no longer a dead end. An email or a phone is
+			   better and is still preferred; this is the floor. */
+			if (email == nil || *email == "") && (phone == nil || *phone == "") && staffNo == nil {
 				return errNoContact
 			}
 			var newID uuid.UUID
 			if err := tx.QueryRow(r.Context(), `
-				INSERT INTO users (institution_id, email, phone, full_name, password_hash, status)
-				VALUES ($1, $2::citext, $3, $4, $5, 'active')
+				INSERT INTO users (institution_id, email, phone, username,
+				                   full_name, password_hash, status)
+				VALUES ($1, $2::citext, $3, $6::text::citext, $4, $5, 'active')
 				RETURNING id`,
-				id.InstitutionID, email, phone, fullName, hash).Scan(&newID); err != nil {
+				id.InstitutionID, email, phone, fullName, hash, staffNo).Scan(&newID); err != nil {
 				if isUniqueViolation(err) {
 					/* NAME WHO HOLDS IT.
 
@@ -168,9 +180,10 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			   record still says. This only fills a hole. */
 			if _, err := tx.Exec(r.Context(), `
 				UPDATE users u
-				   SET email = COALESCE(u.email, NULLIF($2,'')::citext),
-				       phone = COALESCE(u.phone, NULLIF($3,''))
-				 WHERE u.id = $1`, *userID, email, phone); err != nil {
+				   SET email    = COALESCE(u.email, NULLIF($2,'')::citext),
+				       phone    = COALESCE(u.phone, NULLIF($3,'')),
+				       username = COALESCE(u.username, $4::text::citext)
+				 WHERE u.id = $1`, *userID, email, phone, staffNo); err != nil {
 				// A number that already belongs to somebody else is not a
 				// reason to refuse the login. The account keeps the identifier
 				// it has and the clash is a separate thing to fix.
