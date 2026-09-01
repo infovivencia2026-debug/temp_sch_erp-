@@ -82,7 +82,19 @@ func (s *Server) getLiveRevision(w http.ResponseWriter, r *http.Request) {
 			  -- Results appearing is the other thing a family waits for.
 			  (SELECT to_char(max(rc.published_at), 'YYYYMMDDHH24MISS')
 			     FROM report_cards rc
-			    WHERE rc.is_published AND (NOT $2 OR rc.student_id = ANY($3::uuid[])))
+			    WHERE rc.is_published AND (NOT $2 OR rc.student_id = ANY($3::uuid[]))),
+			  /* A concession decided.
+			
+			     invoices.updated_at already covers the money changing, but a
+			     decision often lands BEFORE the bill is raised — the principal
+			     approves in the morning and the office raises the demand after
+			     lunch. Without this the clerk sitting on the child's record
+			     watches a stale "pending" until they reload, and the button
+			     that raises the fee stays held against a concession that has
+			     already been approved. */
+			  (SELECT to_char(max(fc.decided_at), 'YYYYMMDDHH24MISS')
+			     FROM fee_concessions fc
+			    WHERE NOT $2 OR fc.student_id = ANY($3::uuid[]))
 			)`, id.UserID, mine, children).Scan(&rev)
 	})
 	if err != nil {
