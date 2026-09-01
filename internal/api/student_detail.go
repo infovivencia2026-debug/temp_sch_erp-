@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -53,6 +54,12 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var ok bool
+		/* A child the caller cannot see is a 403, not a 500.
+
+		   Scan returns ErrNoRows and this returned it straight up, so asking
+		   for a child in another teacher's section answered "internal server
+		   error" — which tells the person nothing and puts a stack trace in
+		   the log for something the product decided on purpose. */
 		if err := tx.QueryRow(r.Context(),
 			`SELECT true FROM students st WHERE st.id = $1 AND `+pred,
 			append([]any{sid}, args...)...).Scan(&ok); err != nil {
@@ -331,6 +338,10 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.Forbidden(w, r, "this child is not one you can see")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -65,6 +66,16 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 		}); lookupErr == nil {
 			p.Enrolment = &e
 		}
+	}
+	/* An account with no users row this scope can read is a 404, not a 500.
+
+	   Every signed-in screen calls this, so the one case where it cannot find
+	   the caller answered "internal server error" on the first page they saw —
+	   and put a stack trace in the log for a condition the product has already
+	   decided about. */
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
 	}
 	if err != nil {
 		httpx.Internal(w, r, err)

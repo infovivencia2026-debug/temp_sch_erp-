@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -798,6 +799,17 @@ func (s *Server) getMySignature(w http.ResponseWriter, r *http.Request) {
 			`SELECT signature_file_id::text FROM users WHERE id = $1`,
 			id.UserID).Scan(&file)
 	})
+	/* NO ROW IS AN ANSWER: "you have not uploaded a signature".
+
+	   It was returned as a 500. Every account whose users row this query
+	   cannot see — a platform operator, an account mid-provisioning, anyone
+	   the tenant scope excludes — got a server error on a screen asking a
+	   question whose true answer is "none yet", and the screen showed a stack
+	   trace instead of an upload button. */
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.JSON(w, http.StatusOK, map[string]any{"file_id": nil})
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

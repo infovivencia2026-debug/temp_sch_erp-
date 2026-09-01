@@ -460,6 +460,16 @@ func (s *Server) getTour(w http.ResponseWriter, r *http.Request) {
 			 WHERE u.id = $1`, id.UserID).
 			Scan(&st.Seen, &st.CompletedAt, &st.Role, &st.SchoolName, &st.IsFirstUser)
 	})
+	/* No users row is "there is no tour for you", not a server error.
+
+	   It was returned as a 500, and this endpoint is called on every sign-in —
+	   so an account the query cannot find greeted its owner with a failure on
+	   the first screen they ever saw. An empty state is the honest answer and
+	   the client already draws it. */
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.JSON(w, http.StatusOK, tourState{})
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
