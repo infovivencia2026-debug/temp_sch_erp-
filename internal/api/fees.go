@@ -878,11 +878,22 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			        WHERE fs.class_id = e.class_id
 			          AND fs.is_active
 			          AND fs.academic_year_id = e.academic_year_id))
+			   /* A CANCELLED INVOICE IS NOT A BILL, so it must not block the
+			      one that replaces it.
+			
+			      The guard against billing twice looked for any invoice at
+			      this instalment whatever its state, so cancelling a wrong
+			      one — the whole remedy for a bill raised in error — left the
+			      child permanently unbillable: the raise reported "skipped"
+			      for ever and nobody could see why. Cancelling is the ONLY
+			      way to undo a bad invoice, and it must therefore also be the
+			      way to get a good one. */
 			   AND NOT EXISTS (
 			       SELECT 1 FROM invoices i
 			        WHERE i.student_id = e.student_id
 			          AND i.academic_year_id = $1
-			          AND i.instalment_no = $3)`,
+			          AND i.instalment_no = $3
+			          AND i.status <> 'cancelled')`,
 			yearID, classID, req.InstalmentNo, nullString(req.StudentID))
 		if err != nil {
 			return err
