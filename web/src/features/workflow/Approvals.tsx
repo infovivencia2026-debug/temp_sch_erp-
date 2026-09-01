@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, CheckCheck, Inbox, IndianRupee, PencilLine } from 'lucide-react'
+import { CalendarDays, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -40,6 +40,10 @@ const KINDS: Record<string, { label: string; icon: typeof CalendarDays }> = {
   leave: { label: 'Leave', icon: CalendarDays },
   attendance_correction: { label: 'Attendance', icon: PencilLine },
   fee_concession: { label: 'Concession', icon: IndianRupee },
+  /* A new joining. The button that approved one lived on a screen only the
+     admissions desk has, so a school requiring the head's signature had a
+     head with nowhere to sign. */
+  admission: { label: 'Joining', icon: UserPlus },
 }
 
 export default function Approvals() {

@@ -176,7 +176,11 @@ type admissionDecision struct {
 	// Approved false sends it back to the desk with the note, rather than
 	// rejecting the child: the commonest answer is "not until the fee is
 	// settled", which is a delay and not a refusal.
-	Approved bool   `json:"approved"`
+	Approved bool `json:"approved"`
+	/* The shared approvals queue speaks decision:"approved"/"rejected", and
+	   this card speaks approved:true. Both, because the same decision is now
+	   made from two places and neither should have to know about the other. */
+	Decision string `json:"decision,omitempty"`
 	Note     string `json:"note,omitempty"`
 }
 
@@ -191,8 +195,9 @@ func (s *Server) decideAdmission(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
+	approved := req.Approved || req.Decision == "approved"
 	note := strings.TrimSpace(req.Note)
-	if !req.Approved && note == "" {
+	if !approved && note == "" {
 		/* Sending a joining back with no reason is the one the desk rings
 		   about, and the person answering the telephone did not make the
 		   decision. */
@@ -205,7 +210,7 @@ func (s *Server) decideAdmission(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var by any
 		var at string
-		if req.Approved {
+		if approved {
 			by, at = id.UserID, "now()"
 		} else {
 			// Cleared, so a joining sent back is waiting again rather than
@@ -234,5 +239,5 @@ func (s *Server) decideAdmission(w http.ResponseWriter, r *http.Request) {
 			"that application is not waiting on an admission decision")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"approved": req.Approved})
+	httpx.JSON(w, http.StatusOK, map[string]any{"approved": approved})
 }

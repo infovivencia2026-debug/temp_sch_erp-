@@ -704,6 +704,78 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		if id.Can("admissions.approve") {
+			/* A JOINING WAITING ON THE PRINCIPAL, in the queue the principal
+			   actually opens.
+
+			   The button that approves one sits on Fee & enrolment, and Fee &
+			   enrolment is a screen in the admissions workspace only -- the
+			   principal has no such screen. So the school could be set to
+			   require the head's signature on every admission, and the head
+			   had nowhere to sign: the desk saw "waiting on the principal" and
+			   the principal saw nothing at all. Every new admission stopped
+			   there.
+
+			   The same request is in both places now. Deciding it in either
+			   clears it from the other, because there is one row behind it. */
+			if err := scanInto(r.Context(), tx, `
+				SELECT a.id::text, concat_ws(' ', a.first_name, a.last_name),
+				       COALESCE(c.name,''), COALESCE(a.parent_name,''),
+				       COALESCE((
+				         SELECT sum(i.amount_paise)
+				           FROM fee_structure_items i
+				          WHERE i.fee_structure_id = (
+				            SELECT fs.id FROM fee_structures fs
+				             WHERE fs.is_active
+				               AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
+				             ORDER BY (fs.class_id = a.class_sought) DESC,
+				                      fs.created_at DESC
+				             LIMIT 1)), 0),
+				       COALESCE((SELECT fc.kind FROM fee_concessions fc
+				                  WHERE fc.application_id = a.id AND fc.status = 'approved'
+				                  ORDER BY fc.created_at DESC LIMIT 1), ''),
+				       to_char(COALESCE(a.decided_at, a.created_at)
+				               AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
+				  FROM applications a
+				  LEFT JOIN classes c ON c.id = a.class_sought
+				 WHERE a.status = 'offered'
+				   AND a.student_id IS NULL
+				   AND a.enrolment_approved_at IS NULL
+				 ORDER BY a.decided_at NULLS LAST`,
+				func(rows pgx.Rows) error {
+					var aid, who, class, parent, waiver, raised string
+					var fee int64
+					if err := rows.Scan(&aid, &who, &class, &parent, &fee,
+						&waiver, &raised); err != nil {
+						return err
+					}
+					detail := class
+					if parent != "" {
+						detail += ", parent " + parent
+					}
+					if fee > 0 {
+						detail += fmt.Sprintf(". Fee %d", fee/100)
+					}
+					// What the school is giving away is the reason a head asked
+					// to see these at all, so it is on the line, not behind it.
+					if waiver != "" {
+						detail += ", with an approved " +
+							strings.ReplaceAll(waiver, "_", " ") + " concession"
+					}
+					out = append(out, approvalItem{
+						ID: aid, Kind: "admission",
+						Title:    who + " joining " + class,
+						Detail:   detail,
+						RaisedAt: raised,
+						DecideURL: "/api/v1/admissions/workflow/pending-admissions/" +
+							aid + "/decide",
+					})
+					return nil
+				}); err != nil {
+				return err
+			}
+		}
+
 		if id.Can("finance.fees.write") {
 			// A concession with no approver is money the school has decided not
 			// to collect, so it belongs in the same queue as everything else.
