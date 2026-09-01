@@ -52,6 +52,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	crew := []map[string]any{}
 	activities := []map[string]any{}
 	concessions := []map[string]any{}
+	coScholastic := []map[string]any{}
 	var classID *string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -280,6 +281,39 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* ART, GAMES AND DISCIPLINE.
+
+		   Every area the school grades, with this child's grade against it
+		   where there is one — so the screen can offer the ungraded ones
+		   rather than only listing what happens to be filled in. A form that
+		   shows only what exists is a form nobody can add to. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT a.id::text, a.name,
+			       COALESCE(g.grade,''), COALESCE(g.remark,''),
+			       COALESCE(t.name,''), COALESCE(u.full_name,''),
+			       COALESCE(to_char(g.graded_at,'YYYY-MM-DD'),'')
+			  FROM co_scholastic_areas a
+			  LEFT JOIN co_scholastic_grades g
+			         ON g.area_id = a.id AND g.student_id = $1
+			  LEFT JOIN terms t ON t.id = g.term_id
+			  LEFT JOIN users u ON u.id = g.graded_by
+			 WHERE a.is_active
+			 ORDER BY a.sequence, a.name`,
+			func(rows pgx.Rows) error {
+				var aid, name, grade, remark, term, by, on string
+				if err := rows.Scan(&aid, &name, &grade, &remark, &term, &by, &on); err != nil {
+					return err
+				}
+				coScholastic = append(coScholastic, map[string]any{
+					"area_id": aid, "area": name, "grade": grade,
+					"remark": remark, "term": term, "graded_by": by,
+					"graded_on": on,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* THE WAIVERS ASKED FOR ON THIS CHILD, and what became of them.
 
 		   The concession lived on the admission form, which exists for about
@@ -411,6 +445,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"transport_crew":    crew,
 		"activities":        activities,
 		"concessions":       concessions,
+		"co_scholastic":     coScholastic,
 		// The class this child is in, so the record can quote its fee without
 		// a second round trip to work out which class that is.
 		"class_id": classID,

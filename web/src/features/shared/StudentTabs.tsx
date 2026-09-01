@@ -26,6 +26,7 @@ export interface Detail {
   transport_crew: { route: string; vehicle: string; driver: string; driver_phone: string; attendant: string; attendant_phone: string }[]
   activities: { id: string; name: string; category: string; schedule: string; fee_paise: string; status: string; enrolled_on: string; invoice_status: string; invoice_no: string; due_paise: string }[]
   class_id?: string
+  co_scholastic: { area_id: string; area: string; grade: string; remark: string; term: string; graded_by: string; graded_on: string }[]
 }
 
 /* MARKS BY SUBJECT.
@@ -533,6 +534,114 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
           )
         })}
       </Table>
+    </Card>
+  )
+}
+
+/* Art, games and discipline — the half of a report card with no marks.
+
+   Every board asks for it and the product had nowhere to put it, so a school
+   graded these on paper, typed them into the card at the end of term, and kept
+   no record: ask what a child got for Discipline last year and the answer was
+   in a cupboard.
+
+   EVERY AREA IS LISTED, graded or not. A table showing only what has been
+   filled in is a table nobody can add to, and the ungraded areas are exactly
+   the ones somebody has come here to deal with.
+
+   The grade is free text against whatever the school grades in — A/B/C,
+   Excellent, 5 — because co-scholastic assessment is not arithmetic, and a
+   number invites somebody to average it into a percentage. */
+export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
+  studentID: string
+  rows: { area_id: string; area: string; grade: string; remark: string; term: string; graded_by: string; graded_on: string }[]
+  mayEdit: boolean
+  onChanged: () => void
+}) {
+  const [editing, setEditing] = useState<string | null>(null)
+  const [grade, setGrade] = useState('')
+  const [remark, setRemark] = useState('')
+
+  const save = useMutation({
+    mutationFn: (v: { area_id: string; grade: string; remark: string }) =>
+      api.post(`/api/v1/students/${studentID}/co-scholastic`, v),
+    onSuccess: () => { setEditing(null); onChanged() },
+  })
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardHeader title="Art, games and discipline" />
+        <div className="p-6">
+          <EmptyState
+            title="No areas set up"
+            body="Add the areas this school grades under Academics — work education, art, physical education, discipline."
+          />
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Art, games and discipline"
+        description="Graded, not marked. These do not count towards any percentage."
+      />
+      <Table head={['Area', 'Grade', 'Remark', 'Graded by', '']} empty={false}>
+        {rows.map((r) => (
+          <tr key={r.area_id}>
+            <Td className="font-medium">{r.area}</Td>
+            <Td>
+              {editing === r.area_id ? (
+                <Input className="w-24" value={grade} onChange={setGrade} placeholder="A" />
+              ) : r.grade ? (
+                <Badge tone="primary">{r.grade}</Badge>
+              ) : (
+                <span className="text-muted-foreground">not graded</span>
+              )}
+            </Td>
+            <Td className="text-muted-foreground">
+              {editing === r.area_id ? (
+                <Input value={remark} onChange={setRemark} placeholder="Optional" />
+              ) : (r.remark || '—')}
+            </Td>
+            <Td className="text-muted-foreground">
+              {r.graded_by || '—'}
+              {r.graded_on && (
+                <span className="block text-[12px]">{formatDate(r.graded_on)}</span>
+              )}
+            </Td>
+            <Td>
+              {mayEdit && (editing === r.area_id ? (
+                <span className="flex flex-wrap gap-2">
+                  <Button size="sm" disabled={save.isPending}
+                    onClick={() => save.mutate({ area_id: r.area_id, grade, remark })}>
+                    Save
+                  </Button>
+                  {/* An empty grade removes it, which is how one entered
+                      against the wrong child is taken back. There is no other
+                      control for that, and a wrong grade nobody can delete is
+                      one somebody works around by writing a second. */}
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                    Cancel
+                  </Button>
+                </span>
+              ) : (
+                <Button size="sm" variant="ghost"
+                  onClick={() => {
+                    setEditing(r.area_id)
+                    setGrade(r.grade)
+                    setRemark(r.remark)
+                  }}>
+                  {r.grade ? 'Change' : 'Grade'}
+                </Button>
+              ))}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <FormNotice error={save.error} />
     </Card>
   )
 }

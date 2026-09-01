@@ -153,6 +153,10 @@ func (s *Server) Routes() http.Handler {
 			// child has been here. Split from /profile, which has to be
 			// instant because somebody is on the telephone.
 			r.Get("/{id}/detail", s.getStudentDetail)
+			// Graded by whoever marks: a class teacher signs off Discipline,
+			// the PE teacher signs off games.
+			r.With(httpx.RequirePermission(rbac.MarksWrite)).
+				Post("/{id}/co-scholastic", s.saveCoScholasticGrade)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/{id}/activities", s.enrolInActivity)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
@@ -223,6 +227,13 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/subjects", s.listSubjects)
 			/* Houses. The table and students.house_id have been in the
 			   baseline since the beginning with no screen touching either. */
+			/* The half of a report card with no marks in it. Not a subject:
+			   an area has a grade, a term and a sentence, and putting it in
+			   class_subjects would put Discipline in the timetable and in
+			   every percentage the report card computes. */
+			r.Get("/co-scholastic-areas", s.listCoScholasticAreas)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).
+				Post("/co-scholastic-areas", s.saveCoScholasticArea)
 			r.Get("/houses", s.listHouses)
 			/* Clubs, coaching and electives. Enrolling in a paid one raises a
 			   real invoice through the same numbering finance uses, so the

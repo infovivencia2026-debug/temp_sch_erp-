@@ -19,7 +19,7 @@ import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
   SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
-  TransportCrew, Activities, type Detail,
+  TransportCrew, Activities, CoScholastic, type Detail,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
@@ -1233,6 +1233,12 @@ export default function StudentProfile() {
           </Table>
         </Card>
         <SubjectMarks rows={detail.data?.subject_marks ?? []} loading={detail.isLoading} />
+        <CoScholastic
+          studentID={p.id}
+          rows={detail.data?.co_scholastic ?? []}
+          mayEdit={can('academics.marks.write')}
+          onChanged={() => detail.refetch()}
+        />
         </>
       ),
     },
