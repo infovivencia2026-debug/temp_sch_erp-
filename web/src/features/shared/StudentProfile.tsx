@@ -19,8 +19,9 @@ import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
   SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
-  TransportCrew, Activities, RecordBlock, type Detail,
+  TransportCrew, Activities, type Detail,
 } from './StudentTabs'
+import { RecordBlock } from './RecordBlock'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -298,6 +299,7 @@ export default function StudentProfile() {
      documents stay where they are and the status changes. A school asked
      about a former pupil years later must still be able to answer. */
   const [exiting, setExiting] = useState(false)
+  const [statusAction, setStatusAction] = useState('')
   const recordExit = useMutation({
     mutationFn: (v: { status: string; exit_date: string; reason: string }) =>
       api.post(`/api/v1/students/${selected}/exit`, v),
@@ -620,9 +622,6 @@ export default function StudentProfile() {
      admissions identifiers on this page. */
   const teacherOnly = role?.key === 'faculty'
 
-  // The children the current filter found, and where this one sits in them.
-  const siblings = rows
-  const myIndex = siblings.findIndex((x) => x.id === selected)
 
   const cls = p.class_name ? `${p.class_name}${p.section_name ? `-${p.section_name}` : ''}` : 'Unplaced'
   const overdue = p.invoices.filter((i) => i.status === 'overdue').length
@@ -817,31 +816,6 @@ export default function StudentProfile() {
               />
             )}
           </div>
-          {/* Stepping through the section without going back to the list.
-
-              A clerk checking a whole class was returning to the roll and
-              finding their place again between every child. The list is
-              already in hand — it is the one the filters produced — so the
-              next child is one press away, and the filter that found them
-              both is untouched. */}
-          {siblings.length > 1 && (
-            <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/20 px-4 py-2.5 text-[13px]">
-              <Button size="sm" variant="secondary"
-                disabled={myIndex <= 0}
-                onClick={() => setSelected(siblings[myIndex - 1].id)}>
-                ← Previous
-              </Button>
-              <span className="text-muted-foreground">
-                {myIndex >= 0 ? `${myIndex + 1} of ${siblings.length}` : `${siblings.length} in this list`}
-                {cls !== 'Unplaced' ? ` · ${cls}` : ''}
-              </span>
-              <Button size="sm" variant="secondary"
-                disabled={myIndex < 0 || myIndex >= siblings.length - 1}
-                onClick={() => setSelected(siblings[myIndex + 1].id)}>
-                Next →
-              </Button>
-            </div>
-          )}
           {/* STATUS, AND THE BUTTONS THAT CHANGE IT, on the page.
 
               Exit, suspension and re-admission were built and then put inside
@@ -867,41 +841,57 @@ export default function StudentProfile() {
                 </Badge>
               }
             />
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
+            <div className="flex flex-wrap items-center gap-3 px-5 pb-5">
               {can('students.write') ? (
                 <>
-                  {(p.status === 'active' || p.status === 'suspended') && (
-                    <>
-                      <Button variant="secondary" disabled={suspend.isPending}
-                        onClick={() => suspend.mutate({ suspended: p.status !== 'suspended' })}>
-                        {p.status === 'suspended' ? 'Lift the suspension' : 'Suspend'}
-                      </Button>
-                      <Button variant={exiting ? 'secondary' : 'primary'}
-                        onClick={() => setExiting(!exiting)}>
-                        {exiting ? 'Cancel' : 'Record that they have left'}
-                      </Button>
-                    </>
+                  {/* ONE DROPDOWN, not a row of buttons.
+
+                      Three buttons of equal weight sat side by side and two of
+                      them end a child's time at the school — a row where
+                      Suspend is the same size and colour as Issue a transfer
+                      certificate invites the wrong press. Choosing the thing
+                      and then confirming it is two deliberate acts. */}
+                  <div className="w-64">
+                    <Select
+                      value={statusAction}
+                      onChange={setStatusAction}
+                      placeholder="Change this status…"
+                      options={[
+                        ...(p.status === 'active'
+                          ? [{ value: 'suspend', label: 'Suspend' }]
+                          : p.status === 'suspended'
+                            ? [{ value: 'unsuspend', label: 'Lift the suspension' }]
+                            : []),
+                        ...(p.status === 'active' || p.status === 'suspended'
+                          ? [
+                              { value: 'exit', label: 'Record that they have left' },
+                              { value: 'tc', label: 'Issue a transfer certificate' },
+                            ]
+                          : [{ value: 'readmit', label: 'Put back on the roll' }]),
+                      ]}
+                    />
+                  </div>
+                  {statusAction && (
+                    <Button
+                      disabled={suspend.isPending || readmit.isPending}
+                      onClick={() => {
+                        if (statusAction === 'suspend') suspend.mutate({ suspended: true })
+                        if (statusAction === 'unsuspend') suspend.mutate({ suspended: false })
+                        if (statusAction === 'exit') setExiting(true)
+                        if (statusAction === 'readmit') readmit.mutate()
+                        if (statusAction === 'tc') go('certificates')
+                        setStatusAction('')
+                      }}
+                    >
+                      Do it
+                    </Button>
                   )}
-                  {p.status !== 'active' && p.status !== 'suspended' && (
-                    <>
-                      <Button disabled={readmit.isPending} onClick={() => readmit.mutate()}>
-                        Put back on the roll
-                      </Button>
-                      {p.exit_reason && (
-                        <span className="text-[13px] text-muted-foreground">
-                          {p.exit_reason}
-                          {p.exit_date ? ` · ${formatDate(p.exit_date)}` : ''}
-                        </span>
-                      )}
-                    </>
+                  {p.status !== 'active' && p.status !== 'suspended' && p.exit_reason && (
+                    <span className="text-[13px] text-muted-foreground">
+                      {p.exit_reason}
+                      {p.exit_date ? ` · ${formatDate(p.exit_date)}` : ''}
+                    </span>
                   )}
-                  {/* A TC is a document AND an exit — issuing one ends the
-                      child's time here and closes the enrolment. It lives on
-                      the certificates screen because it is numbered and
-                      snapshotted there; this is the way in. */}
-                  <Button variant="ghost" onClick={() => go('certificates')}>
-                    Issue a transfer certificate
-                  </Button>
                 </>
               ) : (
                 <p className="text-[13px] text-muted-foreground">
@@ -1944,15 +1934,32 @@ function GuardianPhoto({ studentID, guardian }: {
       qc.invalidateQueries({ queryKey: ['student-profile', studentID] })
     },
   })
+  /* SHOWN ONLY WHEN ASKED FOR.
+
+     The picker rendered inline on every parent, and it carries its own hint —
+     "Any document, image, recording or archive, up to 64 MB" — which in a
+     column a third of the page wide wrapped to three lines under every name.
+     Four parents made a card of file-upload advice with the phone numbers
+     somewhere underneath. */
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return (
+      <Button size="sm" variant="ghost" className="mt-0.5 px-0"
+        onClick={() => setOpen(true)}>
+        {guardian.photo_file_id ? 'Change photo' : 'Add a photo'}
+      </Button>
+    )
+  }
   return (
     <div className="mt-1">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <FilePicker
           value={file}
           onChange={(f) => { setFile(f); if (f) save.mutate(f.file_id) }}
           purpose="student_photo"
-          label={guardian.photo_file_id ? 'Replace photo' : 'Add a photo'}
+          label={guardian.photo_file_id ? 'Replace photo' : 'Choose a photo'}
         />
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
         {guardian.photo_file_id && (
           <Button size="sm" variant="ghost" disabled={save.isPending}
             onClick={() => save.mutate('')}>
