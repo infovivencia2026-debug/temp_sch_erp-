@@ -575,7 +575,9 @@ recipientGuard is one school's answer to "may this message go out".
 	is nothing beside the HTTP call that follows it.
 */
 type recipientGuard struct {
-	// Mode is 'allowlist' or 'everyone'. A school with no row is 'allowlist'.
+	// Mode is 'allowlist' or 'everyone'. A school with no row is 'everyone':
+	// holding messages back is something a school chooses, not something it
+	// has to discover it was doing.
 	Mode string
 	// allowed is the normalised set: E.164 digits for phones, lowercased
 	// addresses for email.
@@ -587,7 +589,20 @@ type recipientGuard struct {
 }
 
 func (s *Server) loadRecipientGuard(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (recipientGuard, error) {
-	g := recipientGuard{Mode: "allowlist", allowed: map[string]bool{}, unguarded: map[string]bool{}}
+	/* Everyone, unless a school has asked to be held back.
+
+	   This defaulted to allowlist, and the reasoning was sound in the
+	   abstract — a half-configured school should not mail six hundred parents
+	   by accident. In practice it was the wrong default, because the failure
+	   it produced is silent and indistinguishable from a broken mail server:
+	   every message logged as suppressed, nobody told, and days spent
+	   diagnosing SMTP that was working perfectly the whole time.
+
+	   A school that wants a pilot still sets mode = 'allowlist' and gets
+	   exactly the old behaviour. The difference is that holding messages back
+	   is now something a school chooses, rather than something it has to
+	   discover it was doing. */
+	g := recipientGuard{Mode: "everyone", allowed: map[string]bool{}, unguarded: map[string]bool{}}
 
 	var mode string
 	var unguarded []string
@@ -601,8 +616,8 @@ func (s *Server) loadRecipientGuard(ctx context.Context, tx pgx.Tx, inst uuid.UU
 			g.unguarded[ch] = true
 		}
 	case errors.Is(err, pgx.ErrNoRows):
-		// No row is not "unconfigured, therefore allow". It is the default,
-		// and the default is the safe one.
+		// No row means nobody has asked to be held back, which is the ordinary
+		// state of a school in operation.
 	default:
 		return recipientGuard{}, err
 	}
