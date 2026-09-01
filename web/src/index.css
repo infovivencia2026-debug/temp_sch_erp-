@@ -1680,19 +1680,44 @@ body[data-scroll-lock] {
 
      `:active` rather than a JS handler because the browser applies it on
      touchstart, before React has heard about anything. */
+  /* TWO SIGNALS, BECAUSE ONE OF THEM CAN BE INVISIBLE.
+
+     The first version of this scaled the pressed element and removed the
+     browser's own tap highlight, on the reasoning that two acknowledgements
+     for one press read as a glitch. That was wrong on the cards this board is
+     made of. A bento cell IS the link -- the whole card is an anchor -- and it
+     sits inside `overflow: hidden` with an opaque ground: scaling it inward by
+     three percent moves its edge by four pixels behind its own clipping box,
+     which on a phone held at arm's length is not visible at all. So the tap
+     highlight was gone and nothing replaced it: press a card and the screen
+     did nothing until the next route painted. On a school connection that is
+     several hundred milliseconds of a screen that looks broken, and it is
+     read, correctly, as "the home is not interactive".
+
+     So the press also dims. A brightness change survives clipping, does not
+     depend on the element having room to move, and is the one feedback that
+     cannot be swallowed by the layout. The scale stays for the things that do
+     have room -- buttons, the dock, the launcher -- where it is what makes a
+     press feel physical rather than merely registered.
+
+     The invented `[data-clickable]` attribute is gone with it. Nothing in this
+     codebase has ever set it, so that half of the selector matched nothing and
+     was never doing the work its name claimed. */
   button:not(:disabled):active,
   [role='button']:not([aria-disabled='true']):active,
-  a:active,
-  .bento-cell[data-clickable]:active {
+  a:active {
     transform: scale(0.97);
-    transition: transform var(--dur-phone-fast) var(--ease-phone);
+    filter: brightness(0.82);
+    transition: transform var(--dur-phone-fast) var(--ease-phone),
+                filter var(--dur-phone-fast) var(--ease-phone);
   }
-  button, [role='button'], a, .bento-cell[data-clickable] {
+  button, [role='button'], a {
     /* The release is slower than the press, which is what makes it feel
        springy rather than snapped back. */
-    transition: transform var(--dur-phone) var(--ease-phone);
-    /* No blue flash on tap: the scale above is the feedback, and two
-       acknowledgements for one press read as a glitch. */
+    transition: transform var(--dur-phone) var(--ease-phone),
+                filter var(--dur-phone) var(--ease-phone);
+    /* Our own feedback replaces the browser's blue flash -- but only because
+       there now demonstrably IS one. */
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -1727,6 +1752,7 @@ body[data-scroll-lock] {
    here that fires on every single interaction. */
 @media (prefers-reduced-motion: reduce) {
   .bento-ground > * { animation: none; }
-  button:active, [role='button']:active, a:active,
-  .bento-cell[data-clickable]:active { transform: none; }
+  /* The dimming stays. It is a state change, not motion, and it is the only
+     thing telling somebody their press landed. */
+  button:active, [role='button']:active, a:active { transform: none; }
 }
