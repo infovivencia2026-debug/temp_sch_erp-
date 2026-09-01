@@ -104,6 +104,20 @@ interface Named {
   name?: string
   registration_no?: string
   full_name?: string
+  /* What tells two children of the same name apart.
+
+     A roll with three "Rahul Iyer" on it is ordinary, and a picker showing
+     only the name asks the office to guess. Guessing here puts a child on a
+     bus that does not go to their house, and bills the fare to the wrong
+     family. The admission number is what a school already uses to settle it,
+     and it is already on every row of the table below. */
+  admission_no?: string
+}
+
+/** A name, plus whatever makes it unambiguous. */
+function pickerLabel(n: Named): string {
+  const name = n.full_name ?? n.name ?? n.id
+  return n.admission_no ? `${name} · ${n.admission_no}` : name
 }
 interface Fleet {
   id: string
@@ -911,7 +925,7 @@ function Allocations() {
                 placeholder="Choose a child"
                 options={(students.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: s.full_name ?? s.id,
+                  label: pickerLabel(s),
                 }))}
               />
             </Field>
