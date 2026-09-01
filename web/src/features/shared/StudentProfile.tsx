@@ -99,6 +99,14 @@ export default function StudentProfile() {
      searches inside 7-A. */
   const [classID, setClassID] = useState('')
   const [sectionID, setSectionID] = useState('')
+  /* ON THE ROLL, OR GONE — and on the roll is the default.
+
+     Every list defaulted to both. A clerk searching a name got the child who
+     left in 2023 above the one sitting in 7-A, distinguished only by a small
+     grey badge, and a section browsed for its roll came back with last year's
+     leavers in it. Leaving the school is a different question from being in
+     it, so it is a deliberate choice rather than a badge to notice. */
+  const [roll, setRoll] = useState<'active' | 'left' | 'all'>('active')
 
   /* Which student is open lives in the query string, not in component state.
 
@@ -134,15 +142,20 @@ export default function StudentProfile() {
   const sectionsOfClass = (sections.data?.items ?? [])
     .filter((x) => !classID || x.class_id === classID)
 
-  const browsing = !!classID || !!sectionID
+  const browsing = !!classID || !!sectionID || roll === 'left'
   const searching = search.trim().length >= 2
   const results = useQuery({
-    queryKey: ['profile-search', search, classID, sectionID],
+    queryKey: ['profile-search', search, classID, sectionID, roll],
     queryFn: () => {
       const qs = new URLSearchParams()
       if (searching) qs.set('q', search.trim())
       if (sectionID) qs.set('section_id', sectionID)
       else if (classID) qs.set('class_id', classID)
+      /* The API takes one status. "Left" is four of them — graduated,
+         transferred, withdrawn, alumni — so that view is filtered on the
+         client from everyone rather than by four round trips that would each
+         need their own paging. */
+      if (roll === 'active') qs.set('status', 'active')
       /* A whole section is forty children and a whole class is two hundred.
          Fifteen was right for "the three people called Sharma" and wrong for
          everything this filter is for, and a list silently cut at fifteen is
@@ -153,6 +166,8 @@ export default function StudentProfile() {
     enabled: (searching || browsing) && !selected,
     placeholderData: keepPreviousData,
   })
+  const rows = (results.data?.items ?? [])
+    .filter((x) => (roll === 'left' ? x.status !== 'active' : true))
 
   const profile = useQuery({
     queryKey: ['student-profile', selected],
@@ -198,6 +213,29 @@ export default function StudentProfile() {
      checks for it and the report card prints it, and all three saw an empty
      column because no screen could fill one. */
   const [photoFile, setPhotoFile] = useState<UploadedFile | null>(null)
+  /* Leaving, and coming back.
+
+     Nothing is deleted either way: the child's marks, attendance, fees and
+     documents stay where they are and the status changes. A school asked
+     about a former pupil years later must still be able to answer. */
+  const [exiting, setExiting] = useState(false)
+  const recordExit = useMutation({
+    mutationFn: (v: { status: string; exit_date: string; reason: string }) =>
+      api.post(`/api/v1/students/${selected}/exit`, v),
+    onSuccess: () => {
+      setExiting(false)
+      qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+      qc.invalidateQueries({ queryKey: ['profile-search'] })
+    },
+  })
+  const readmit = useMutation({
+    mutationFn: () => api.post(`/api/v1/students/${selected}/readmit`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+      qc.invalidateQueries({ queryKey: ['profile-search'] })
+    },
+  })
+
   const savePhoto = useMutation({
     mutationFn: (fileID: string) =>
       api.put(`/api/v1/students/${selected}/photo`, { file_id: fileID }),
@@ -344,6 +382,17 @@ export default function StudentProfile() {
           description="Search a student to see everything about them on one page."
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              <div className="w-44">
+                <Select
+                  value={roll}
+                  onChange={(v) => setRoll(v as typeof roll)}
+                  options={[
+                    { value: 'active', label: 'On the roll' },
+                    { value: 'left', label: 'Left the school' },
+                    { value: 'all', label: 'Everyone' },
+                  ]}
+                />
+              </div>
               <div className="w-40">
                 <Select
                   value={classID}
@@ -398,15 +447,17 @@ export default function StudentProfile() {
                   it was a filtered subset is the whole risk of this screen. */}
               <CardHeader
                 title={
-                  (results.data?.items ?? []).length +
-                  ((results.data?.items ?? []).length === 1 ? ' student' : ' students')
+                  rows.length + (rows.length === 1 ? ' student' : ' students') +
+                  (roll === 'left' ? ' who have left' : roll === 'active' ? ' on the roll' : '')
                 }
                 action={
                   browsing || searching ? (
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => { setClassID(''); setSectionID(''); setSearch('') }}
+                      onClick={() => {
+                        setClassID(''); setSectionID(''); setSearch(''); setRoll('active')
+                      }}
                     >
                       Clear filters
                     </Button>
@@ -414,8 +465,11 @@ export default function StudentProfile() {
                 }
               />
               <Table head={['Admission no.', 'Name', 'Class', 'Roll', 'Status', '']}
-                empty={!results.data?.items.length} emptyLabel="No student matches.">
-                {(results.data?.items ?? []).map((s) => (
+                empty={!rows.length}
+                emptyLabel={roll === 'left'
+                  ? 'Nobody has been recorded as leaving.'
+                  : 'No student matches.'}>
+                {rows.map((s) => (
                   <tr key={s.id}>
                     <Td className="font-mono text-[12px]">{s.admission_no}</Td>
                     <Td className="font-medium">{s.full_name}</Td>
@@ -483,6 +537,19 @@ export default function StudentProfile() {
     { label: 'Give this student a login', onClick: () => studentLogin.mutate({}),
       disabled: !can('students.write') || studentLogin.isPending,
       disabledReason: 'Needs permission to change student records' },
+    ...(p.status === 'active'
+      ? [{
+          label: 'Record that they have left',
+          onClick: () => setExiting(true),
+          disabled: !can('students.write'),
+          disabledReason: 'Needs the student write permission',
+        }]
+      : [{
+          label: 'Put back on the roll',
+          onClick: () => readmit.mutate(),
+          disabled: !can('students.write') || readmit.isPending,
+          disabledReason: 'Needs the student write permission',
+        }]),
     { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
       disabled: !can('students.write'),
       disabledReason: 'Needs permission to change student records' },
@@ -571,6 +638,36 @@ export default function StudentProfile() {
               </div>
             </Card>
           ) : null}
+          {p.status !== 'active' && (
+            <Card className="border-warning lg:col-span-2">
+              <CardHeader
+                title="This child has left the school"
+                description={
+                  'Their record is kept in full — marks, attendance, fees and documents. '
+                  + 'They are off the roll and out of the class lists.'
+                }
+              />
+              <dl className="divide-y text-[14px]">
+                <Field k="Status" v={p.status} />
+              </dl>
+            </Card>
+          )}
+          {exiting && (
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title="Record that this child has left"
+                description="Nothing is deleted. The record stays and can be put back on the roll if this was a mistake."
+              />
+              <div className="p-4">
+                <ExitForm
+                  saving={recordExit.isPending}
+                  error={recordExit.error}
+                  onCancel={() => setExiting(false)}
+                  onSave={(v) => recordExit.mutate(v)}
+                />
+              </div>
+            </Card>
+          )}
           {/* The photograph, above the details, because it is how somebody
               at the desk checks they have the right child in front of them. */}
           <Card>
@@ -1316,6 +1413,47 @@ function GuardianPhoto({ studentID, guardian }: {
       </div>
       {save.error && <FormNotice error={save.error} />}
     </div>
+  )
+}
+
+function ExitForm({ saving, error, onSave, onCancel }: {
+  saving: boolean
+  error: unknown
+  onSave: (v: { status: string; exit_date: string; reason: string }) => void
+  onCancel: () => void
+}) {
+  const [status, setStatus] = useState('withdrawn')
+  const [date, setDate] = useState('')
+  const [reason, setReason] = useState('')
+  return (
+    <>
+      <FormNotice error={error} />
+      <FormGrid>
+        <FormField label="How they left" required>
+          {/* Fixed choices, not free text: these feed the roll count, the
+              alumni register and the statutory returns, and "left"/"Left"/
+              "LEFT" would be three answers to one question. */}
+          <Select value={status} onChange={setStatus} options={[
+            { value: 'withdrawn', label: 'Withdrawn by the family' },
+            { value: 'transferred', label: 'Moved to another school' },
+            { value: 'graduated', label: 'Completed the final year' },
+            { value: 'alumni', label: 'Former pupil' },
+          ]} />
+        </FormField>
+        <FormField label="Last day" hint="Blank means today">
+          <Input type="date" value={date} onChange={setDate} />
+        </FormField>
+      </FormGrid>
+      <FormField label="Reason" hint="Optional, and the thing somebody asks about years later">
+        <Textarea value={reason} onChange={setReason} rows={2} />
+      </FormField>
+      <div className="mt-4 flex items-center gap-2">
+        <Button disabled={saving} onClick={() => onSave({ status, exit_date: date, reason })}>
+          {saving ? 'Saving…' : 'Record it'}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+      </div>
+    </>
   )
 }
 

@@ -119,6 +119,12 @@ func (s *Server) Routes() http.Handler {
 			// so the same scope rule applies to a family as to the child.
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Put("/{id}/guardians/{gid}/photo", s.setGuardianPhoto)
+			/* Leaving, and coming back. A transfer certificate already ends a
+			   child's time here; this is the other ways a child leaves, none
+			   of which produce a document the family ever asks for. Nothing is
+			   deleted either way — see student_exit.go. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/exit", s.recordStudentExit)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/readmit", s.readmitStudent)
 		})
 
 		/* --- Syllabus, lesson plans and coverage --------------------------
