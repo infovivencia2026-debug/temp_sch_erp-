@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Bus, BusFront, Fuel, IdCard, Route, ShieldCheck, Users } from 'lucide-react'
+import { AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, Route, ShieldCheck, Users } from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -8,6 +8,20 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
+
+/* Lazy: maplibre and its stylesheet are a few hundred kilobytes, and most
+   visits to this screen are about fuel or a driver's licence, not a stop's
+   coordinates. */
+const MapPointPicker = lazy(() => import('@/components/MapPointPicker'))
+
+/** A stop's coordinates as a point, or null while either box is empty or junk. */
+function pointOf(s: { latitude: string; longitude: string }): { lat: number; lng: number } | null {
+  const lat = Number(s.latitude)
+  const lng = Number(s.longitude)
+  if (!s.latitude.trim() || !s.longitude.trim()) return null
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
+}
 
 /* The transport office.
 
@@ -1219,6 +1233,9 @@ function Routes() {
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState({ ...BLANK_ROUTE })
   const [stops, setStops] = useState<StopForm[]>([{ ...BLANK_STOP }])
+  // Which stop's map is open, if any. One at a time: two maplibre canvases in
+  // one form is a scroll position nobody can hold on to.
+  const [picking, setPicking] = useState<number | null>(null)
 
   const list = useQuery({
     queryKey: ['transport-routes'],
@@ -1425,6 +1442,47 @@ function Routes() {
                       <Input value={s.longitude} onChange={setStop(i, 'longitude')} placeholder="78.3915" />
                     </Field>
                   </FormGrid>
+
+                  {/* Nobody knows the junction is 17.4933, 78.3915. The office
+                      was opening a maps app, long-pressing the corner, and
+                      pasting half a string into each box — and a transposed
+                      digit puts the arrival alert in another district with
+                      nothing on this screen to say so. */}
+                  <div className="mt-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setPicking(picking === i ? null : i)}
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      {picking === i
+                        ? 'Close the map'
+                        : s.latitude && s.longitude
+                          ? 'Move it on the map'
+                          : 'Choose on map'}
+                    </Button>
+                  </div>
+                  {picking === i && (
+                    <Suspense fallback={<Loading />}>
+                      <MapPointPicker
+                        value={pointOf(s)}
+                        /* Somewhere near the rest of this route, so the office
+                           is not panning across the country to find the town. */
+                        fallback={stops.map(pointOf).find((p) => p !== null) ?? null}
+                        onPick={(p) => {
+                          setStops((l) =>
+                            l.map((row, n) =>
+                              n === i
+                                ? { ...row, latitude: String(p.lat), longitude: String(p.lng) }
+                                : row,
+                            ),
+                          )
+                          setPicking(null)
+                        }}
+                        onClose={() => setPicking(null)}
+                      />
+                    </Suspense>
+                  )}
                 </div>
               ))}
             </div>
