@@ -385,3 +385,169 @@ func grantRole(ctx context.Context, tx pgx.Tx, inst, userID uuid.UUID, roleKey s
 		VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, inst, userID, roleID)
 	return err
 }
+
+/* --- one temporary-password routine ---------------------------------------
+
+   The guardian is the account holder. Not the child, not the enquiry, not the
+   application -- guardians carries no student_id and student_guardians links
+   the children on afterwards, so one adult holds one login however many
+   children and however many admissions they have here.
+
+   Three callers now want that account: the office pressing "issue login" on a
+   guardian, an enquiry being taken at the desk, and an application arriving
+   with no enquiry behind it. Each minting its own password would be three
+   places to get the hashing, the username collision and the role grant wrong,
+   and three chances to replace a password the family is already signing in
+   with. So there is one routine, and it obeys the same rule everywhere: an
+   account that exists is NAMED, never replaced.
+*/
+
+// errGuardianContactTaken is the ordinary collision: this phone or email is
+// already on somebody's account. Named so callers can say something specific
+// rather than reporting a constraint name at a clerk. (provision.go has its
+// own errContactTaken for the very different case of a school's first admin.)
+var errGuardianContactTaken = errors.New(
+	"that phone or email already belongs to another account")
+
+type guardianAccount struct {
+	UserID   uuid.UUID
+	SignInAs string
+	// Empty when the account already existed. Nothing can read a password back
+	// out of this product, so empty means "they already have one".
+	Password string
+	Existing bool
+}
+
+/*
+ensureGuardianAccount gives one guardian a login, or reports the one they have.
+
+	Runs inside the caller's transaction and writes guardians.user_id. It never
+	resets an existing password: a parent who signed in this morning to look at
+	one child's fees must not be locked out because the office pressed a button
+	about another child's application. Resetting is issueGuardianLogin's
+	?reset=true, which is a thing a person asks for by name.
+*/
+func (s *Server) ensureGuardianAccount(ctx context.Context, tx pgx.Tx,
+	inst, guardianID uuid.UUID, fullName, phone, email string) (guardianAccount, error) {
+
+	var out guardianAccount
+	var existing *uuid.UUID
+	if err := tx.QueryRow(ctx, `SELECT user_id FROM guardians WHERE id = $1`,
+		guardianID).Scan(&existing); err != nil {
+		return out, err
+	}
+	if existing != nil {
+		out.Existing = true
+		out.UserID = *existing
+		err := tx.QueryRow(ctx,
+			`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
+			*existing).Scan(&out.SignInAs)
+		return out, err
+	}
+
+	phone, email = strings.TrimSpace(phone), strings.TrimSpace(email)
+	if phone == "" && email == "" {
+		return out, errNoFamilyContact
+	}
+
+	password, err := temporaryPassword()
+	if err != nil {
+		return out, err
+	}
+	hash, err := s.Hasher.Hash(password)
+	if err != nil {
+		return out, err
+	}
+	base := fullName
+	if phone != "" {
+		base = phone
+	}
+	username, err := uniqueUsername(ctx, tx, inst, base)
+	if err != nil {
+		return out, err
+	}
+	var newID uuid.UUID
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO users (institution_id, username, email, phone, full_name,
+		                   password_hash, status)
+		VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
+		RETURNING id`,
+		inst, username, nullString(email), nullString(phone), fullName, hash).
+		Scan(&newID); err != nil {
+		if isUniqueViolation(err) {
+			return out, errGuardianContactTaken
+		}
+		return out, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE guardians SET user_id = $2 WHERE id = $1`, guardianID, newID); err != nil {
+		return out, err
+	}
+	// 'parent' rather than a role of its own, for the reason the enquiry login
+	// gives: the portal routes check the parent role, and an 'applicant' role
+	// would mean every one of them growing a second check. What keeps an
+	// applicant's parent out of an enrolled family's screens is the scope --
+	// every child screen resolves through student_guardians, which a parent
+	// with no child on the roll has no row in, so those pages are empty for
+	// them by construction rather than by a role.
+	if err := grantRole(ctx, tx, inst, newID, "parent"); err != nil {
+		return out, err
+	}
+	out.UserID = newID
+	out.SignInAs = username
+	out.Password = password
+	return out, nil
+}
+
+/*
+findOrCreateGuardian resolves the adult behind an application or enquiry.
+
+	Matched on phone or email before anything is inserted. Two rows for one
+	human is the bug that makes a family unreachable later -- messages go to
+	one row, the portal reads the other -- and it cannot be undone once both
+	have been written to. The unique index is (institution_id, phone,
+	full_name), which does not catch a parent whose name was typed differently
+	the second time, so the lookup is wider than the index.
+*/
+func findOrCreateGuardian(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
+	fullName, phone, email string) (uuid.UUID, error) {
+
+	fullName = strings.TrimSpace(fullName)
+	phone, email = strings.TrimSpace(phone), strings.TrimSpace(email)
+	if phone == "" && email == "" {
+		return uuid.Nil, errNoFamilyContact
+	}
+
+	var id uuid.UUID
+	err := tx.QueryRow(ctx, `
+		SELECT id FROM guardians
+		 WHERE (NULLIF($1,'') IS NOT NULL AND phone = $1)
+		    OR (NULLIF($2,'') IS NOT NULL AND email = $2::citext)
+		 ORDER BY (phone = $1) DESC, created_at
+		 LIMIT 1`, phone, email).Scan(&id)
+	switch {
+	case err == nil:
+		// Fill in a contact the school has now and did not have then, without
+		// overwriting one it already holds.
+		_, err = tx.Exec(ctx, `
+			UPDATE guardians
+			   SET email = COALESCE(email, NULLIF($2,'')::citext),
+			       phone = COALESCE(NULLIF(phone,''), NULLIF($3,''))
+			 WHERE id = $1`, id, email, phone)
+		return id, err
+	case !errors.Is(err, pgx.ErrNoRows):
+		return uuid.Nil, err
+	}
+
+	if fullName == "" {
+		fullName = "Parent"
+	}
+	err = tx.QueryRow(ctx, `
+		INSERT INTO guardians (institution_id, full_name, relation, phone, email)
+		VALUES ($1,$2,'father',$3,$4::citext)
+		ON CONFLICT (institution_id, phone, full_name)
+		DO UPDATE SET email = COALESCE(EXCLUDED.email, guardians.email)
+		RETURNING id`,
+		inst, fullName, phone, nullString(email)).Scan(&id)
+	return id, err
+}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/google/uuid"
@@ -137,77 +138,40 @@ func (s *Server) issueEnquiryLogin(
 
 	   A second child's enquiry, or a parent who rang twice, must land on the
 	   guardian that already exists -- that is what makes the account they hold
-	   the one this enquiry is attached to. Same conflict target as enrolment,
-	   so the two paths cannot disagree about what counts as the same person. */
-	var (
-		guardianID uuid.UUID
-		existingU  *uuid.UUID
-	)
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO guardians (institution_id, full_name, relation, phone, email)
-		VALUES ($1,$2,'father',$3,$4::citext)
-		ON CONFLICT (institution_id, phone, full_name)
-		DO UPDATE SET email = COALESCE(EXCLUDED.email, guardians.email)
-		RETURNING id, user_id`,
-		inst, fullName, phone, nullString(email)).Scan(&guardianID, &existingU); err != nil {
+	   the one this enquiry is attached to. findOrCreateGuardian is the same
+	   lookup the application path uses, so the two cannot disagree about what
+	   counts as the same person. */
+	guardianID, err := findOrCreateGuardian(ctx, tx, inst, fullName, phone, email)
+	if err != nil {
 		return abandon(couldNot)
 	}
 
-	if existingU != nil {
+	/* One temporary-password routine, in family_logins.go. An account that
+	   already exists is named, never replaced: the parent signing in today
+	   about another child must not be locked out by an enquiry taken now. */
+	acct, err := s.ensureGuardianAccount(ctx, tx, inst, guardianID, fullName, phone, email)
+	switch {
+	case errors.Is(err, errGuardianContactTaken):
+		/* Almost always the same number already on another account -- a parent
+		   enquiring about a second school year, or a staff member's own child.
+		   The enquiry stands; the login is sorted out by hand. */
+		return abandon("The enquiry is saved. That phone or email is already on " +
+			"another account, so no new login was issued.")
+	case err != nil:
+		return abandon(couldNot)
+	}
+	out.Existing = acct.Existing
+	out.SignInAs = acct.SignInAs
+	out.Password = acct.Password
+	if acct.Existing {
 		// They are already signing in today. Naming that account is useful;
 		// replacing its password would lock them out of the child they already
 		// have here.
-		out.Existing = true
-		_ = tx.QueryRow(ctx,
-			`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
-			*existingU).Scan(&out.SignInAs)
 		out.Note = "This parent already has a login and it is unchanged."
 	} else {
-		password, err := temporaryPassword()
-		if err != nil {
-			return abandon(couldNot)
-		}
-		hash, err := s.Hasher.Hash(password)
-		if err != nil {
-			return abandon(couldNot)
-		}
-		base := fullName
-		if phone != "" {
-			base = phone
-		}
-		username, err := uniqueUsername(ctx, tx, inst, base)
-		if err != nil {
-			return abandon(couldNot)
-		}
-		var newID uuid.UUID
-		if err := tx.QueryRow(ctx, `
-			INSERT INTO users (institution_id, username, email, phone, full_name,
-			                   password_hash, status)
-			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
-			RETURNING id`,
-			inst, username, nullString(email), nullString(phone), fullName, hash).
-			Scan(&newID); err != nil {
-			/* Almost always the same number already on another account -- a
-			   parent enquiring about a second school year, or a staff member's
-			   own child. The enquiry stands; the login is sorted out by hand. */
-			return abandon("The enquiry is saved. That phone or email is already on " +
-				"another account, so no new login was issued.")
-		}
-		if _, err := tx.Exec(ctx,
-			`UPDATE guardians SET user_id = $2 WHERE id = $1`, guardianID, newID); err != nil {
-			return abandon(couldNot)
-		}
-		// 'parent' rather than a role of its own. The permission this needs is
-		// the portal's own self/children scope, and inventing an 'applicant'
-		// role would mean every portal route growing a second role to check.
-		if err := grantRole(ctx, tx, inst, newID, "parent"); err != nil {
-			return abandon(couldNot)
-		}
-		existingU = &newID
-		out.SignInAs = username
-		out.Password = password
 		out.Note = "Shown once. Give it to the parent now; it cannot be read back."
 	}
+	existingU := &acct.UserID
 
 	/* Bind the account to the enquiry.
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -27,9 +28,10 @@ import (
 
    Every other portal route resolves a student first, because every other
    portal route is about a pupil. This one cannot: at enquiry there is no
-   student and there may never be one. It resolves the caller's own user id
-   against enquiries.user_id instead, which is the only claim this page needs
-   and a narrower one than the rest of the portal makes.
+   student and there may never be one. It resolves the caller's own user id to
+   the guardian rows that carry it instead, and reads the enquiries and
+   applications that belong to that person -- which is the only claim this page
+   needs and a narrower one than the rest of the portal makes.
 
    ---------------------------------------------------------------------------
    WHAT IT WILL NOT SAY
@@ -62,10 +64,16 @@ type admissionDoc struct {
 }
 
 type portalAdmission struct {
-	EnquiryID   string `json:"enquiry_id"`
-	StudentName string `json:"student_name"`
-	ClassSought string `json:"class_sought,omitempty"`
-	EnquiredOn  string `json:"enquired_on"`
+	// Empty for an application taken at the counter with no enquiry behind it.
+	// Kept as the first field, and kept in the response, because it is what
+	// this endpoint has always returned.
+	EnquiryID string `json:"enquiry_id"`
+	// The application, where one exists. Added because enquiry_id is no longer
+	// enough to identify a card: an admission may have one, the other, or both.
+	ApplicationID string `json:"application_id,omitempty"`
+	StudentName   string `json:"student_name"`
+	ClassSought   string `json:"class_sought,omitempty"`
+	EnquiredOn    string `json:"enquired_on"`
 
 	ApplicationNo string `json:"application_no,omitempty"`
 	// The raw application status, for a client that wants to say something
@@ -102,33 +110,75 @@ func (s *Server) getPortalAdmission(w http.ResponseWriter, r *http.Request) {
 	out := []portalAdmission{}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		/* The enquiries this login was issued for.
+		/* EVERY ADMISSION THAT IS THIS GUARDIAN'S.
 
-		   Joined to the application rather than read separately: the
-		   application is what carries the outcome past 'applied', which is as
-		   far as the enquiry vocabulary goes. LEFT, because the commonest
-		   state on the day the login arrives is an enquiry with no application
-		   behind it yet -- and that family is exactly who this page is for. */
+		   Keyed on the person, not on the record that happened to create their
+		   login. guardians is institution-scoped and carries no student_id: the
+		   adult is the account holder and their children -- and their
+		   applications, across classes and across years -- hang off them. A
+		   parent with an older child already on the roll and a younger one
+		   applying is ONE guardian with one login, and this is the query that
+		   has to show them both.
+
+		   Two arms, because an admission can begin in two places. The enquiry
+		   is the earlier one and is still the commonest; an application taken
+		   across the counter has no enquiry behind it and used to be invisible
+		   to the very family it was about. The second arm is restricted to
+		   applications whose enquiry the first arm did not already return, so a
+		   family sees one card per admission rather than two.
+
+		   The guardian rows are found through users.id, which came out of the
+		   session. Nothing here takes an id from the request: a parent asking
+		   for somebody else's admission has nowhere to put the question. */
 		rows, err := tx.Query(r.Context(), `
-			SELECT e.id::text,
-			       e.student_name,
+			WITH me AS (
+			    SELECT id FROM guardians WHERE user_id = $1
+			), mine AS (
+			    SELECT e.id AS enquiry_id, e.created_at AS started_at,
+			           e.student_name, e.class_sought
+			      FROM enquiries e
+			     WHERE e.user_id = $1
+			        OR e.guardian_id IN (SELECT id FROM me)
+			)
+			SELECT m.enquiry_id::text,
+			       m.student_name,
 			       COALESCE(c.name, ''),
-			       to_char(e.created_at,'YYYY-MM-DD'),
+			       to_char(m.started_at,'YYYY-MM-DD'),
 			       COALESCE(a.id::text, ''),
 			       COALESCE(a.application_no, ''),
 			       COALESCE(a.status, ''),
 			       to_char(a.created_at,'YYYY-MM-DD'),
 			       to_char(a.decided_at,'YYYY-MM-DD'),
-			       a.student_id IS NOT NULL
-			  FROM enquiries e
-			  LEFT JOIN classes c ON c.id = e.class_sought
+			       a.student_id IS NOT NULL,
+			       m.started_at
+			  FROM mine m
+			  LEFT JOIN classes c ON c.id = m.class_sought
 			  LEFT JOIN LATERAL (
 			      SELECT ap.* FROM applications ap
-			       WHERE ap.enquiry_id = e.id
+			       WHERE ap.enquiry_id = m.enquiry_id
 			       ORDER BY ap.created_at DESC LIMIT 1
 			  ) a ON true
-			 WHERE e.user_id = $1
-			 ORDER BY e.created_at DESC`, id.UserID)
+
+			UNION ALL
+
+			SELECT '',
+			       trim(concat_ws(' ', a.first_name, a.last_name)),
+			       COALESCE(c.name, ''),
+			       to_char(a.created_at,'YYYY-MM-DD'),
+			       a.id::text,
+			       COALESCE(a.application_no, ''),
+			       a.status,
+			       to_char(a.created_at,'YYYY-MM-DD'),
+			       to_char(a.decided_at,'YYYY-MM-DD'),
+			       a.student_id IS NOT NULL,
+			       a.created_at
+			  FROM applications a
+			  LEFT JOIN classes c ON c.id = a.class_sought
+			 WHERE a.guardian_id IN (SELECT id FROM me)
+			   AND (a.enquiry_id IS NULL
+			        OR a.enquiry_id NOT IN (SELECT enquiry_id FROM mine))
+
+			 ORDER BY 11 DESC`, id.UserID)
 		if err != nil {
 			return err
 		}
@@ -137,6 +187,8 @@ func (s *Server) getPortalAdmission(w http.ResponseWriter, r *http.Request) {
 		type row struct {
 			v     portalAdmission
 			appID string
+			// Only for ordering; never rendered.
+			startedAt time.Time
 			// Separated from the enquiry's own date because the two are weeks
 			// apart and the tracker shows both.
 			appliedOn, decidedOn *string
@@ -147,7 +199,7 @@ func (s *Server) getPortalAdmission(w http.ResponseWriter, r *http.Request) {
 			var rec row
 			if err := rows.Scan(&rec.v.EnquiryID, &rec.v.StudentName, &rec.v.ClassSought,
 				&rec.v.EnquiredOn, &rec.appID, &rec.v.ApplicationNo, &rec.v.Status,
-				&rec.appliedOn, &rec.decidedOn, &rec.admitted); err != nil {
+				&rec.appliedOn, &rec.decidedOn, &rec.admitted, &rec.startedAt); err != nil {
 				return err
 			}
 			found = append(found, rec)
@@ -177,6 +229,7 @@ func (s *Server) getPortalAdmission(w http.ResponseWriter, r *http.Request) {
 
 		for _, rec := range found {
 			v := rec.v
+			v.ApplicationID = rec.appID
 			if rec.appID != "" {
 				docs, err := portalAdmissionDocs(r, tx, rec.appID)
 				if err != nil {

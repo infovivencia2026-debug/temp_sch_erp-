@@ -778,6 +778,116 @@ var builtinTemplates = map[string]builtinTemplate{
 			"same login you already use.\n\nSign in as: {{sign_in_as}}\n{{portal_url}}\n\n" +
 			"Your password is unchanged.",
 	},
+	/* THE JOURNEY, SAID OUT LOUD.
+
+	   Everything between the form being handed in and the seat being decided
+	   happened to a family in silence: the office moved the application from
+	   one status to the next and the parent learned about it by ringing to
+	   ask. Eight statuses are worth a message and the rest are not -- 'draft'
+	   is a form not yet handed in, 'withdrawn' is the family's own decision.
+
+	   Email only. These are paragraphs rather than alerts, they carry an
+	   application number the family needs to quote, and a school that texts
+	   every applicant at every stage is a school whose applicants stop reading
+	   the texts. A school that wants one of these on WhatsApp writes its own
+	   row for the same code; the built-in is the floor, not the ceiling.
+
+	   Every placeholder here is filled from applicantFacts, which substitutes
+	   something readable for a field the school left blank -- an unrendered
+	   {{parent_name}} in a letter about a child's admission is the kind of
+	   mistake a family judges a school by. See admissions_notify.go. */
+	"admissions.application_received": {
+		Subject: "We have your application for {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nWe have received your application for " +
+			"{{student_name}} for {{class_sought}} at {{school_name}}. Your " +
+			"application number is {{application_no}} - please quote it when you " +
+			"contact us.\n\nYou can follow it here at any time:\n{{portal_url}}\n\n" +
+			"We will write to you as each stage is reached.",
+	},
+	"admissions.under_review": {
+		Subject: "{{school_name}}: application {{application_no}} is being reviewed",
+		Body: "Namaste {{parent_name}},\n\nThe application for {{student_name}} " +
+			"({{application_no}}) is now with the admissions committee. There is " +
+			"nothing you need to do at this stage; we will write when there is " +
+			"news.\n\n{{portal_url}}\n\n{{school_name}}",
+	},
+	/* The one message in the set the family can act on, so it says where the
+	   list of what is missing lives rather than trying to be that list -- the
+	   checklist changes as documents arrive and a message cannot. */
+	"admissions.documents_pending": {
+		Subject: "Documents still needed for {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nWe still need some papers before the " +
+			"application for {{student_name}} ({{application_no}}) can go " +
+			"forward.\n\nSign in to see exactly which ones are outstanding:\n" +
+			"{{portal_url}}\n\n{{school_name}}",
+	},
+	"admissions.test_scheduled": {
+		Subject: "Entrance test for {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nAn entrance test has been scheduled for " +
+			"{{student_name}} ({{application_no}}). The date, the time and where " +
+			"to come are on your admission page:\n{{portal_url}}\n\n{{school_name}}",
+	},
+	"admissions.interviewed": {
+		Subject: "Thank you for coming in - {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nThank you for bringing {{student_name}} " +
+			"in. The interview for application {{application_no}} is done and the " +
+			"decision now rests with the school; we will write to you as soon as " +
+			"it is made.\n\n{{portal_url}}\n\n{{school_name}}",
+	},
+	/* An offer is the message a family waits weeks for, so it says what has
+	   happened in the subject line -- a parent must not have to open it to
+	   find out. What it does not do is state a deadline or a fee: those are
+	   the school's own terms, they differ by class and by year, and a built-in
+	   that invents them would be a built-in that misinforms. */
+	"admissions.offered": {
+		Subject: "A place has been offered to {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nWe are glad to tell you that a place in " +
+			"{{class_sought}} has been offered to {{student_name}} at " +
+			"{{school_name}} against application {{application_no}}.\n\nPlease " +
+			"contact the admissions office to confirm the seat. The details are " +
+			"on your admission page:\n{{portal_url}}",
+	},
+	"admissions.accepted": {
+		Subject: "Welcome to {{school_name}}, {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nThe admission of {{student_name}} to " +
+			"{{class_sought}} at {{school_name}} is confirmed against application " +
+			"{{application_no}}.\n\nWhat happens next - the papers, the fees and " +
+			"the first day - is on your admission page:\n{{portal_url}}",
+	},
+	/* Short and without an explanation. A refusal dressed up in reasons is a
+	   refusal a parent argues with at the counter, and the reason recorded
+	   internally is the school's working note, not the family's. */
+	"admissions.rejected": {
+		Subject: "{{school_name}}: about your application for {{student_name}}",
+		Body: "Namaste {{parent_name}},\n\nWe are sorry to tell you that we are " +
+			"unable to offer {{student_name}} a place in {{class_sought}} this " +
+			"session (application {{application_no}}).\n\nThank you for " +
+			"considering {{school_name}}, and we wish {{student_name}} " +
+			"well.\n\n{{school_name}}",
+	},
+	/* Deliberately does not name a position on the list. The rank changes as
+	   families accept and decline elsewhere, and a number in an email that is
+	   wrong a week later is worse than no number -- the live one is on the
+	   school's own screen and is not the family's to hold. */
+	"admissions.waitlisted": {
+		Subject: "{{student_name}} is on the waiting list",
+		Body: "Namaste {{parent_name}},\n\n{{student_name}} has been placed on the " +
+			"waiting list for {{class_sought}} at {{school_name}} against " +
+			"application {{application_no}}. We will write to you the moment a " +
+			"place becomes available.\n\n{{portal_url}}",
+	},
+	/* The office's own words, in the school's envelope.
+
+	   /admissions/message is a clerk typing a sentence at a particular family
+	   -- "please bring the original birth certificate on Thursday". The
+	   wrapper is what makes it a letter from the school rather than an
+	   anonymous line of text: the child it is about, and who sent it. */
+	"admissions.office_message": {
+		Subject: "{{school_name}}: about {{student_name}}'s application",
+		Body: "Namaste {{parent_name}},\n\n{{message}}\n\nThis is about the " +
+			"application for {{student_name}} ({{application_no}}).\n\n" +
+			"{{portal_url}}\n\n{{school_name}}",
+	},
 	"fees.overdue": {
 		Subject: "Fees overdue for {{student_name}}",
 		Body:    "Dear parent,\n\nInvoice {{invoice_no}} for {{student_name}} shows {{amount_due}} outstanding since {{due_on}}.\n\n{{school_name}}",

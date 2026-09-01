@@ -558,7 +558,10 @@ func (s *Server) promoteWaitlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var promoted []string
+	var (
+		promoted []string
+		emailed  int
+	)
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			UPDATE applications SET status = 'offered', waitlist_rank = NULL,
@@ -569,20 +572,39 @@ func (s *Server) promoteWaitlist(w http.ResponseWriter, r *http.Request) {
 			      ORDER BY waitlist_rank NULLS LAST, created_at
 			      LIMIT $2
 			 )
-			 RETURNING concat_ws(' ', first_name, last_name)`,
+			 RETURNING id, concat_ws(' ', first_name, last_name)`,
 			class, req.Seats, id.UserID)
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		var ids []uuid.UUID
 		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err != nil {
+			var (
+				appID uuid.UUID
+				name  string
+			)
+			if err := rows.Scan(&appID, &name); err != nil {
+				rows.Close()
 				return err
 			}
+			ids = append(ids, appID)
 			promoted = append(promoted, name)
 		}
-		return rows.Err()
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		/* A promotion off the waiting list IS an offer, and the family finding
+		   out by ringing to ask is the whole reason this endpoint's work went
+		   unnoticed. Sent after the cursor is drained: queueing inside the loop
+		   would run statements on a connection still streaming rows. */
+		for _, appID := range ids {
+			if ok, _ := s.notifyApplicationStage(r.Context(), tx, id.InstitutionID,
+				appID, "offered"); ok {
+				emailed++
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -592,7 +614,10 @@ func (s *Server) promoteWaitlist(w http.ResponseWriter, r *http.Request) {
 		promoted = []string{}
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"promoted": promoted, "count": len(promoted)})
+		"promoted": promoted, "count": len(promoted),
+		// Fewer than the count means somebody has no email address on their
+		// application and has to be telephoned.
+		"emailed": emailed})
 }
 
 /*
@@ -1068,11 +1093,24 @@ func nullInt64(v int64) *int64 {
 // --- applicant communication ----------------------------------------------
 
 /*
-messageApplicants records what the office told a batch of applicants.
+messageApplicants tells a batch of applicants something, and records that it did.
 
-	The sending itself goes through the existing notification pipeline; what
-	this adds is the record against each application, because "we told you on
-	the ninth" is a claim an admissions office has to be able to support.
+	The record against each application is the point of the endpoint -- "we
+	told you on the ninth" is a claim an admissions office has to be able to
+	support -- but for a long time the record was the ONLY thing that happened.
+	The comment said the sending went through the notification pipeline and no
+	send existed anywhere in the handler, so the audit trail vouched for
+	messages nobody had received.
+
+	Now the send comes first and the record follows it. An applicant with no
+	email address, or one whose message could not be queued, gets no remark
+	saying they were told: a blank in the file is recoverable, a false entry in
+	it is not. Both are named in the response so the clerk can pick up the
+	telephone.
+
+	The status, where one is given, is applied to every chosen applicant
+	regardless -- it is the office's decision about the file, not a consequence
+	of the email -- and the family is separately sent the stage message for it.
 */
 func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -1101,26 +1139,105 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "choose at least one applicant")
 		return
 	}
+	if req.Status != "" && !oneOfStr(req.Status, "draft", "submitted", "under_review",
+		"documents_pending", "test_scheduled", "interviewed", "offered", "accepted",
+		"rejected", "withdrawn", "waitlisted") {
+		httpx.BadRequest(w, r, "unknown status "+req.Status)
+		return
+	}
 
-	var n int64
+	type skipped struct {
+		ID     string `json:"id"`
+		Name   string `json:"name,omitempty"`
+		Reason string `json:"reason"`
+	}
+	var (
+		n       int64
+		sent    int
+		notSent = []skipped{}
+	)
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		tag, err := tx.Exec(r.Context(), `
-			UPDATE applications
-			   SET remarks = concat_ws(E'\n',
-			           remarks,
-			           to_char(now(),'YYYY-MM-DD') || ': ' || $2),
-			       status = COALESCE(NULLIF($3,''), status),
-			       updated_at = now()
-			 WHERE id = ANY($1)`, ids, req.Message, req.Status)
-		if err != nil {
-			return err
+		for _, appID := range ids {
+			f, err := loadApplicantFacts(r.Context(), tx, appID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				notSent = append(notSent, skipped{
+					ID: appID.String(), Reason: "no such application"})
+				continue
+			}
+			if err != nil {
+				return err
+			}
+
+			/* The status first, because it is what the message is about.
+
+			   Applied whether or not the email leaves: a decision recorded in
+			   the file is the school's, and leaving it unrecorded because a
+			   mail server was down would be the same class of lie in the other
+			   direction. */
+			if req.Status != "" {
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE applications SET status = $2, updated_at = now()
+					 WHERE id = $1`, appID, req.Status); err != nil {
+					return err
+				}
+			}
+
+			sendErr := s.notifyApplicant(r.Context(), tx, id.InstitutionID, appID,
+				"admissions.office_message", f,
+				map[string]any{"message": strings.TrimSpace(req.Message)},
+				// No occurrence key: two sentences typed at the same family on
+				// the same day are two messages, and suppressing the second
+				// would lose the one they needed.
+				"")
+			switch {
+			case errors.Is(sendErr, errNoApplicantEmail):
+				notSent = append(notSent, skipped{ID: appID.String(),
+					Name:   f.StudentName,
+					Reason: "no email address on this application"})
+			case sendErr != nil:
+				notSent = append(notSent, skipped{ID: appID.String(),
+					Name: f.StudentName, Reason: sendErr.Error()})
+			default:
+				sent++
+				// The remark, written only where a message actually went. This
+				// is the audit trail, and it now records a send rather than an
+				// intention.
+				tag, err := tx.Exec(r.Context(), `
+					UPDATE applications
+					   SET remarks = concat_ws(E'\n',
+					           remarks,
+					           to_char(now(),'YYYY-MM-DD') || ': ' || $2),
+					       updated_at = now()
+					 WHERE id = $1`, appID, req.Message)
+				if err != nil {
+					return err
+				}
+				n += tag.RowsAffected()
+			}
+
+			// The stage message for the new status, on top of the office's own
+			// words. Deduplicated per application per stage, so a family that
+			// has already been told they are offered a place is not told twice.
+			if req.Status != "" {
+				_, _ = s.notifyApplicationStage(r.Context(), tx, id.InstitutionID, appID, req.Status)
+			}
 		}
-		n = tag.RowsAffected()
 		return nil
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, err.Error())
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"messaged": n})
+	out := map[string]any{
+		// Unchanged in name and meaning: how many applications carry a record
+		// of having been told.
+		"messaged": n,
+		"sent":     sent,
+		"not_sent": notSent,
+	}
+	if len(notSent) > 0 {
+		out["note"] = "Some applicants could not be emailed and were not recorded " +
+			"as told. They are listed in not_sent."
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }

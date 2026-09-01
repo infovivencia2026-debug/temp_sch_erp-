@@ -267,7 +267,12 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var appID, appNo string
+	var (
+		appID, appNo string
+		welcome      applicantWelcome
+		acknowledged bool
+		ackNote      string
+	)
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var instID, campusID uuid.UUID
 		if err := tx.QueryRow(r.Context(),
@@ -319,19 +324,60 @@ func (s *Server) createApplication(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if req.EnquiryID != "" {
-			_, err = tx.Exec(r.Context(),
+			if _, err = tx.Exec(r.Context(),
 				`UPDATE enquiries SET status = 'applied', updated_at = now() WHERE id = $1`,
-				req.EnquiryID)
+				req.EnquiryID); err != nil {
+				return err
+			}
 		}
-		return err
+
+		/* Submitted is the moment the parent should be able to watch.
+
+		   Not the enquiry -- an application taken at the counter often has no
+		   enquiry behind it, and that family had no way in at all. The account
+		   is the guardian's, found by phone or email before anything is
+		   created, so a parent who already signs in about an older child keeps
+		   the one login and simply gains this application on it.
+
+		   Neither of these may fail the application: a form that was handed in
+		   was handed in. Both run inside their own savepoint and report. */
+		created := uuid.MustParse(appID)
+		welcome = s.ensureApplicantLogin(r.Context(), tx, instID, created)
+		facts, ferr := loadApplicantFacts(r.Context(), tx, created)
+		if ferr != nil {
+			return ferr
+		}
+		switch err := s.notifyApplicant(r.Context(), tx, instID, created,
+			"admissions.application_received", facts, nil,
+			"stage:submitted"); {
+		case errors.Is(err, errNoApplicantEmail):
+			ackNote = "No email address on the application, so no acknowledgement " +
+				"was sent."
+		case err != nil:
+			ackNote = "The acknowledgement could not be queued: " + err.Error()
+		default:
+			acknowledged = true
+		}
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{
+	out := map[string]any{
 		"id": appID, "application_no": appNo, "status": "submitted",
-	})
+		"acknowledged": acknowledged,
+	}
+	if ackNote != "" {
+		out["note"] = ackNote
+	}
+	// The password exists nowhere else, so it is handed back to the clerk who
+	// is standing in front of the parent. Empty when the family already had a
+	// login, which is not a failure.
+	if welcome.SignInAs != "" || welcome.Note != "" {
+		out["parent_login"] = welcome
+	}
+	httpx.JSON(w, http.StatusCreated, out)
 }
 
 type assessmentRequest struct {
@@ -502,6 +548,7 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var note string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// Refuse to offer a seat that does not exist. Overselling a class is
 		// discovered on the first day of term, when it cannot be undone.
@@ -534,6 +581,11 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		if tag.RowsAffected() == 0 {
 			return pgx.ErrNoRows
 		}
+		// An offer, a rejection or a waiting-list place is the message a family
+		// has been waiting weeks for. Inside the same transaction as the
+		// decision, so a rolled-back decision cannot leave a parent already
+		// told; never able to fail it, so a mail server cannot unmake an offer.
+		_, note = s.notifyApplicationStage(r.Context(), tx, id.InstitutionID, appID, req.Decision)
 		return nil
 	})
 	if errors.Is(err, errNoSeats) {
@@ -549,7 +601,13 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"id": appID.String(), "status": req.Decision})
+	out := map[string]any{"id": appID.String(), "status": req.Decision}
+	if note != "" {
+		// The office learns on the screen that the family was not reached,
+		// rather than assuming a decision emailed itself.
+		out["note"] = note
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 var errNoSeats = errors.New("no seats available")

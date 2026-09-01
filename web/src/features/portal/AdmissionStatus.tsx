@@ -44,6 +44,10 @@ interface Doc {
 
 interface Admission {
   enquiry_id: string
+  /* Empty for an enquiry with no application yet, and enquiry_id is empty for
+     an application taken at the counter — so the key is whichever of the two
+     this admission has. One of them is always present. */
+  application_id?: string
   student_name: string
   class_sought?: string
   enquired_on: string
@@ -133,7 +137,7 @@ export default function AdmissionStatus() {
         ) : null}
 
         {rows.map((a) => (
-          <Card key={a.enquiry_id}>
+          <Card key={a.application_id || a.enquiry_id}>
             <CardHeader
               title={a.student_name}
               description={
