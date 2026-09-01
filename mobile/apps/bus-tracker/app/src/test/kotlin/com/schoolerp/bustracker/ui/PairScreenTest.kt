@@ -3,6 +3,8 @@ package com.schoolerp.bustracker.ui
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -52,7 +54,7 @@ class PairScreenTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun show(repository: com.schoolerp.bustracker.data.repo.TrackerRepository) {
-        val viewModel = PairViewModel(repository, fakeSettingsStore())
+        val viewModel = PairViewModel(repository, fakeSettingsStore(), fakeEngine())
         compose.setContent { PairScreen(viewModel) }
     }
 
@@ -62,13 +64,13 @@ class PairScreenTest {
 
         // A press with an empty password is a no-op inside the ViewModel, so
         // without this the driver gets a button that appears to do nothing.
-        compose.onNodeWithText("Pair").assertIsNotEnabled()
+        compose.onAllNodesWithText("Sign in").onLast().assertIsNotEnabled()
 
         compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
-        compose.onNodeWithText("Pair").assertIsNotEnabled()
+        compose.onAllNodesWithText("Sign in").onLast().assertIsNotEnabled()
 
         compose.onNodeWithText("Password").performTextInput("hunter2")
-        compose.onNodeWithText("Pair").assertIsEnabled()
+        compose.onAllNodesWithText("Sign in").onLast().assertIsEnabled()
     }
 
     @Test
@@ -82,7 +84,7 @@ class PairScreenTest {
         // field used to strip everything that was not a digit.
         compose.onNodeWithText("Mobile number or email").performTextInput("driver@school.example")
         compose.onNodeWithText("Password").performTextInput("Passw0rd!")
-        compose.onNodeWithText("Pair").performScrollTo().performClick()
+        compose.onAllNodesWithText("Sign in").onLast().performScrollTo().performClick()
 
         coVerify { repository.driverSignIn(any(), "driver@school.example", "Passw0rd!") }
     }
@@ -96,7 +98,7 @@ class PairScreenTest {
 
         compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
         compose.onNodeWithText("Password").performTextInput("Passw0rd!")
-        compose.onNodeWithText("Pair").performScrollTo().performClick()
+        compose.onAllNodesWithText("Sign in").onLast().performScrollTo().performClick()
 
         // The confirmation is the only chance to catch a driver who has been
         // paired to the wrong vehicle, before the wrong bus moves on the map.
@@ -116,7 +118,7 @@ class PairScreenTest {
 
         compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
         compose.onNodeWithText("Password").performTextInput("Passw0rd!")
-        compose.onNodeWithText("Pair").performScrollTo().performClick()
+        compose.onAllNodesWithText("Sign in").onLast().performScrollTo().performClick()
 
         compose.onNodeWithText(
             "No bus is assigned to you yet. Ask the office to put you against a vehicle.",
@@ -132,8 +134,8 @@ class PairScreenTest {
 
         compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
         compose.onNodeWithText("Password").performTextInput("Passw0rd!")
-        compose.onNodeWithText("Pair").performScrollTo().performClick()
-        compose.onNodeWithText("No — stop").performScrollTo().performClick()
+        compose.onAllNodesWithText("Sign in").onLast().performScrollTo().performClick()
+        compose.onNodeWithText("No, stop").performScrollTo().performClick()
 
         coVerify { repository.unpair() }
     }

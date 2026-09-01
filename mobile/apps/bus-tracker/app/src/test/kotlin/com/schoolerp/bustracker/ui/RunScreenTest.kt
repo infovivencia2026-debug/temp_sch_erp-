@@ -100,7 +100,7 @@ class RunScreenTest {
         coEvery { repository.startTrip(any(), any(), any(), any()) } returns StartOutcome.NotSignedIn
         show(repository)
 
-        compose.onNodeWithText("Start Run — Morning — Anna Nagar").performScrollTo().performClick()
+        compose.onNodeWithText("Start Run, Morning — Anna Nagar").performScrollTo().performClick()
 
         compose.onNodeWithText("Sign in before starting the run").assertExists()
         compose.onNodeWithText(
@@ -116,8 +116,8 @@ class RunScreenTest {
         coEvery { repository.signIn(any(), any()) } returns SignInOutcome.SignedIn("R. Kumar")
         show(repository)
 
-        compose.onNodeWithText("Mobile number").performTextInput("9876543210")
-        compose.onNodeWithText("PIN").performTextInput("4321")
+        compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
+        compose.onNodeWithText("Password").performTextInput("4321")
         compose.onNodeWithText("Sign in").performScrollTo().performClick()
 
         coVerify { repository.signIn("9876543210", "4321") }
@@ -132,8 +132,8 @@ class RunScreenTest {
         )
         show(repository)
 
-        compose.onNodeWithText("Mobile number").performTextInput("9876543210")
-        compose.onNodeWithText("PIN").performTextInput("0000")
+        compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
+        compose.onNodeWithText("Password").performTextInput("0000")
         compose.onNodeWithText("Sign in").performScrollTo().performClick()
 
         compose.onNodeWithText("Could not sign in").assertExists()
@@ -196,7 +196,7 @@ class RunScreenTest {
             ),
         )
 
-        compose.onNodeWithText("No signal — holding 42 fixes").assertExists()
+        compose.onNodeWithText("No signal, holding 42 fixes").assertExists()
         compose.onNodeWithText(
             "42 positions are saved on this phone and will be sent when there is signal. " +
                 "Nothing has been lost.",

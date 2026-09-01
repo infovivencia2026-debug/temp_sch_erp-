@@ -269,6 +269,32 @@ class RunViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Stop reporting now, without ending the run.
+     *
+     * There was no way to do this from the app at all: the service is a
+     * foreground service, its notification is not swipeable by design, and the
+     * only stop was End Run — which tells the school the children are off the
+     * bus. A driver who wanted the phone to stop following him at the end of
+     * his shift, or who was handed the phone to charge in the office, had the
+     * choice between a lie to the school and force-stopping the app.
+     *
+     * The run is deliberately left open. Ending it is a statement about
+     * children and belongs on the button that says so; this is a statement
+     * about the phone. The school sees the bus go stale, which is the truth —
+     * nobody is reporting where it is.
+     */
+    fun stopBackgroundTracking() {
+        TrackerServiceLauncher.stop(context)
+        engine.refreshDeviceSnapshot()
+    }
+
+    /** Start it again without touching the run. */
+    fun startBackgroundTracking() {
+        TrackerServiceLauncher.start(context)
+        engine.refreshDeviceSnapshot()
+    }
+
     fun unpair() {
         viewModelScope.launch {
             repository.unpair()

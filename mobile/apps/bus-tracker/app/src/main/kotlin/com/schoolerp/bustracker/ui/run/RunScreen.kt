@@ -6,14 +6,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.prefs.DIRECTION_DROP
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
@@ -142,28 +144,79 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     if (trip.direction == DIRECTION_DROP) "drop" else "pickup",
                 style = MaterialTheme.typography.titleLarge,
             )
-            lastArrival?.let {
-                AssistChip(onClick = {}, label = { Text("Reached $it") })
-            }
+
+            /* The one question the driver has while moving, answered first
+               and in the largest type on the screen. Everything under it is
+               reference; this is the line read at a junction. */
+            NextStopCard(stops = stops, lastArrival = lastArrival)
+
             RouteSketch(stops, modifier = Modifier.fillMaxWidth())
             StopList(stops)
 
+            /* END RUN ASKS FIRST.
+
+               It was a full-width red button directly under a scrolling list,
+               and ending a run early tells the school the children are off a
+               bus they are still on. A thumb steadying the phone over a
+               pothole is enough. The dialog costs a tap at the depot, once. */
+            var confirmEnd by remember { mutableStateOf(false) }
             Button(
-                onClick = viewModel::endRun,
+                onClick = { confirmEnd = true },
                 enabled = !busy,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
-            ) { Text("End Run") }
+                    .height(72.dp),
+            ) { Text("End Run", style = MaterialTheme.typography.titleMedium) }
             Text(
                 "End Run tells the school the children are off the bus. Only you can say that, " +
                     "if the phone simply stops, the school records the run as timed out instead.",
                 style = MaterialTheme.typography.bodySmall,
             )
+
+            if (confirmEnd) {
+                AlertDialog(
+                    onDismissRequest = { confirmEnd = false },
+                    title = { Text("End this run?") },
+                    text = {
+                        Text(
+                            "The school will be told the children are off the bus and this " +
+                                "phone stops reporting where it is.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            confirmEnd = false
+                            viewModel.endRun()
+                        }) { Text("End the run") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmEnd = false }) { Text("Keep driving") }
+                    },
+                )
+            }
         }
+
+        /* THE OFF SWITCH.
+
+           The tracker is a foreground service whose notification cannot be
+           swiped away -- that is what keeps it alive across a four-hour run --
+           so the only way to stop it was End Run, which tells the school the
+           children are off the bus. A driver parking up at the end of a shift,
+           or handing the phone to the office to charge, had the choice between
+           saying something untrue and force-stopping the app from Android's
+           settings. This is the third answer.
+
+           Below the run controls, never beside them: it is the rarer action
+           and must not be reachable by a thumb aiming at End Run. */
+        BackgroundTrackingSwitch(
+            running = status.serviceRunning,
+            runOpen = status.trip != null,
+            onStop = viewModel::stopBackgroundTracking,
+            onStart = viewModel::startBackgroundTracking,
+        )
 
         /* THE WAY BACK TO THE SIGN-IN SCREEN.
 
@@ -217,6 +270,91 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * Whether the school can see this bus, said once and unmissably.
+ *
+ * Not reporting was drawn in surfaceVariant -- the same grey as an ordinary
+ * card -- so the state that needs somebody to do something looked exactly
+ * like the state that does not. It is the error colour now, which is the one
+ * thing on this screen that has to be legible from arm's length through a
+ * windscreen's worth of glare.
+ */
+/**
+ * Stopping and restarting the reporting itself.
+ *
+ * Two different sentences depending on whether a run is open, because the
+ * consequence is different: with a run open the school loses sight of a moving
+ * bus, and the driver has to be told that in those words rather than left to
+ * infer it from a stopped service.
+ */
+@Composable
+private fun BackgroundTrackingSwitch(
+    running: Boolean,
+    runOpen: Boolean,
+    onStop: () -> Unit,
+    onStart: () -> Unit,
+) {
+    var confirmStop by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (running) {
+            OutlinedButton(
+                onClick = { confirmStop = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) { Text("Stop background tracking") }
+            Text(
+                if (runOpen) {
+                    "Stops this phone reporting where it is. The run stays open and the school " +
+                        "sees the bus stop moving on their map, so only do this once the bus is parked."
+                } else {
+                    "Stops this phone reporting where it is. Nothing is running now, so this " +
+                        "only shuts down what is left of the tracker."
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            OutlinedButton(
+                onClick = onStart,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) { Text("Start background tracking") }
+            Text(
+                "Tracking is stopped. The school cannot see this bus until this is on again.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+
+    if (confirmStop) {
+        AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text("Stop tracking?") },
+            text = {
+                Text(
+                    if (runOpen) {
+                        "The run stays open, but this phone stops sending its position. The " +
+                            "school's map will show this bus where it last was."
+                    } else {
+                        "This phone stops sending its position."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmStop = false
+                    onStop()
+                }) { Text("Stop tracking") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmStop = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
 @Composable
 private fun ReportingCard(status: TrackerStatus) {
     Card(
@@ -225,14 +363,14 @@ private fun ReportingCard(status: TrackerStatus) {
             containerColor = if (status.reporting) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.surfaceVariant
+                MaterialTheme.colorScheme.errorContainer
             },
         ),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 if (status.reporting) "The school can see this bus" else "The school cannot see this bus",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
             )
             Text(status.summary, style = MaterialTheme.typography.bodyMedium)
             if (status.bufferedFixes > 0) {
@@ -249,19 +387,106 @@ private fun ReportingCard(status: TrackerStatus) {
     }
 }
 
+/**
+ * Where the bus has got to, as one line each.
+ *
+ * The list was a column of identical body text with a tick or a bullet glued
+ * to the front of it, and finding the current position in it meant reading
+ * every line. A driver reads this at a stop, in daylight, holding a steering
+ * wheel: the three states have to separate at a glance, so done is dimmed,
+ * next is the only line in colour, and the rest are plain.
+ *
+ * The geofence radius is gone from here. It is a number the office sets and
+ * the driver can do nothing about, and it was sitting in the same type size
+ * as the name of the place they are looking for.
+ */
 @Composable
-private fun StopList(stops: List<com.schoolerp.bustracker.data.local.StopEntity>) {
+private fun StopList(stops: List<StopEntity>) {
     if (stops.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        stops.forEach { stop ->
+    val nextIndex = stops.indexOfFirst { it.arrivedAtMillis == null }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        stops.forEachIndexed { index, stop ->
+            val done = stop.arrivedAtMillis != null
+            val isNext = index == nextIndex
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 44.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    if (done) "✓" else if (isNext) "▶" else "•",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = when {
+                        done -> MaterialTheme.colorScheme.onSurfaceVariant
+                        isNext -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurface
+                    },
+                )
+                Text(
+                    stop.name,
+                    style = if (isNext) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.bodyLarge
+                    },
+                    color = when {
+                        done -> MaterialTheme.colorScheme.onSurfaceVariant
+                        isNext -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurface
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The next stop, and how much of the run is left.
+ *
+ * This did not exist. The screen showed the whole list at one weight and the
+ * driver worked out where they were by counting ticks, which is a thing done
+ * with the bus stationary. The stop being driven towards is the only piece of
+ * this screen that changes what the next two minutes look like, so it is the
+ * largest thing on it.
+ *
+ * "Reached X" stays, moved in here beside it: the confirmation that the last
+ * geofence registered belongs next to the question it answers, not floating
+ * above the sketch as a chip.
+ */
+@Composable
+private fun NextStopCard(stops: List<StopEntity>, lastArrival: String?) {
+    if (stops.isEmpty()) return
+    val done = stops.count { it.arrivedAtMillis != null }
+    val next = stops.firstOrNull { it.arrivedAtMillis == null }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                buildString {
-                    append(if (stop.arrivedAtMillis != null) "✓ " else "• ")
-                    append(stop.name)
-                    if (stop.geofenceM > 0) append("  (${stop.geofenceM} m)")
-                },
+                if (next == null) "All stops done" else "Next stop",
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                next?.name ?: "Take the bus back to school",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                "$done of ${stops.size} stops",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            LinearProgressIndicator(
+                progress = { if (stops.isEmpty()) 0f else done.toFloat() / stops.size },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            lastArrival?.let {
+                Text("Reached $it", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
