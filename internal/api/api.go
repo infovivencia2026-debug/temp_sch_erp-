@@ -131,6 +131,21 @@ func (s *Server) Routes() http.Handler {
 			// The roll in four numbers, counted server-side across everything
 			// the caller may see rather than from the page of rows on screen.
 			r.Get("/counts", s.studentCounts)
+			// The depth behind the tabs — marks by subject, the ledger by fee
+			// head, receipts, documents on file, leave, and every year the
+			// child has been here. Split from /profile, which has to be
+			// instant because somebody is on the telephone.
+			r.Get("/{id}/detail", s.getStudentDetail)
+			/* The papers a family hands in. student_documents has been in the
+			   baseline since the beginning with nothing writing to it or
+			   reading it, so the birth certificate the office took at
+			   admission was on no screen anywhere. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/documents", s.addStudentDocument)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/documents/{docID}/verify", s.verifyStudentDocument)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Delete("/{id}/documents/{docID}", s.deleteStudentDocument)
 		})
 
 		/* --- Syllabus, lesson plans and coverage --------------------------

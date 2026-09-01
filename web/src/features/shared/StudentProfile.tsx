@@ -17,6 +17,10 @@ import { useSession } from '@/lib/session'
 import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import {
+  SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
+  TransportCrew, type Detail,
+} from './StudentTabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -223,6 +227,16 @@ export default function StudentProfile() {
      one before it. React counts hooks by position: the count changed between
      renders and the whole screen came down with error #310, showing a stack
      trace instead of the child. Same fault as LostLeads, same fix. */
+  /* The depth behind the tabs, fetched once and shared by all of them.
+
+     Not folded into the profile: that call has to be instant because somebody
+     is on the telephone, and nobody opens all seven tabs. */
+  const detail = useQuery({
+    queryKey: ['student-detail', selected],
+    enabled: !!selected,
+    queryFn: () => api.get<Detail>(`/api/v1/students/${selected}/detail`),
+  })
+
   const remarks = useQuery({
     queryKey: ['student-remarks', selected],
     enabled: !!selected,
@@ -268,6 +282,16 @@ export default function StudentProfile() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['student-profile', selected] })
       qc.invalidateQueries({ queryKey: ['profile-search'] })
+    },
+  })
+
+  const [writingRemark, setWritingRemark] = useState(false)
+  const addRemark = useMutation({
+    mutationFn: (v: { kind: string; body: string; private: boolean; observed_on: string }) =>
+      api.post('/api/v1/teaching/remarks', { ...v, student_id: selected }),
+    onSuccess: () => {
+      setWritingRemark(false)
+      qc.invalidateQueries({ queryKey: ['student-remarks', selected] })
     },
   })
 
@@ -914,6 +938,7 @@ export default function StudentProfile() {
     {
       key: 'academics', label: 'Academics',
       render: () => (
+        <>
         <Card>
           <CardHeader title="Results" description="Published report cards only" />
           <Table head={['Exam', 'Percentage', 'Grade', 'Rank']} empty={!p.results.length}
@@ -928,12 +953,34 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        <SubjectMarks rows={detail.data?.subject_marks ?? []} loading={detail.isLoading} />
+        </>
       ),
     },
     {
       key: 'attendance', label: 'Attendance',
       render: () => (
         <>
+          {/* THE SUMMARY FIRST. "Is this child in trouble" is answered by four
+              numbers, and it was previously answered by counting coloured
+              squares. */}
+          <Card>
+            <CardHeader title="This year" />
+            <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+              {[
+                ['School days', String(p.attendance.total)],
+                ['Present', String(p.attendance.present)],
+                ['Absent', String(Math.max(0, p.attendance.total - p.attendance.present))],
+                ['Attendance', `${p.attendance.percent}%`],
+              ].map(([k, v]) => (
+                <div key={k} className="bg-background px-4 py-3">
+                  <p className="eyebrow text-muted-foreground">{k}</p>
+                  <p className="mt-0.5 text-[20px] font-semibold tabular-nums">{v}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <LeaveHistory rows={detail.data?.leave ?? []} />
           <Card>
             <CardHeader
               title="Last 30 marked days"
@@ -971,6 +1018,7 @@ export default function StudentProfile() {
     {
       key: 'fees', label: 'Fees', badge: overdue || undefined,
       render: () => (
+        <>
         <Card>
           <CardHeader
             title="Fee history"
@@ -991,13 +1039,26 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        <FeeLedger heads={detail.data?.fee_heads ?? []} />
+        <Receipts rows={detail.data?.payments ?? []} />
+        </>
       ),
     },
     {
       key: 'documents', label: 'Documents',
       render: () => (
+        <>
+        <StudentDocuments
+          studentID={p.id}
+          rows={detail.data?.documents ?? []}
+          mayEdit={can('students.write')}
+          onChanged={() => detail.refetch()}
+        />
         <Card>
-          <CardHeader title="Certificates issued" />
+          <CardHeader
+            title="Certificates the school issued"
+            description="What the school gave out, as opposed to what the family handed in."
+          />
           <Table head={['Serial', 'Type', 'Issued']} empty={!p.documents.length}
             emptyLabel="Nothing issued for this child yet.">
             {p.documents.map((d) => (
@@ -1009,6 +1070,7 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        </>
       ),
     },
     /* Transport came back, because there is now something to put in it.
@@ -1027,6 +1089,7 @@ export default function StudentProfile() {
     {
       key: 'transport', label: 'Transport',
       render: () => (
+        <>
         <Card>
           <CardHeader
             title="Bus route"
@@ -1059,6 +1122,8 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        <TransportCrew rows={detail.data?.transport_crew ?? []} />
+        </>
       ),
     },
     {
@@ -1068,6 +1133,13 @@ export default function StudentProfile() {
           <CardHeader
             title="What staff have written"
             action={
+              <div className="flex flex-wrap items-center gap-2">
+              {can('academics.homework.write') && (
+                <Button size="sm" variant={writingRemark ? 'secondary' : 'primary'}
+                  onClick={() => setWritingRemark(!writingRemark)}>
+                  {writingRemark ? 'Close' : 'Add a remark'}
+                </Button>
+              )}
               <ExportRows
                 rows={remarkRows}
                 name="remarks"
@@ -1081,8 +1153,19 @@ export default function StudentProfile() {
                   { header: 'Seen by family', value: (x) => (x.private ? 'no' : 'yes') },
                 ]}
               />
+              </div>
             }
           />
+          {writingRemark && (
+            <div className="border-b bg-muted/20 p-4">
+              <RemarkForm
+                saving={addRemark.isPending}
+                error={addRemark.error}
+                onCancel={() => setWritingRemark(false)}
+                onSave={(v) => addRemark.mutate(v)}
+              />
+            </div>
+          )}
           {remarks.isLoading ? (
             <Loading />
           ) : remarkRows.length === 0 ? (
@@ -1136,23 +1219,27 @@ export default function StudentProfile() {
               where a child has been was sitting there the whole time — which
               is what a class teacher is asking when they ask whether a child
               has been detained before. */}
+          {/* Read from the detail call, which also carries the remarks and
+              whether the year was reached by promotion — both already on the
+              enrolments row and both previously unread. */}
           <Table
-            head={['Year', 'Class', 'Roll', 'From', 'Outcome']}
-            empty={!p.enrolments.length}
+            head={['Year', 'Class', 'Roll', 'From', 'Outcome', 'Note']}
+            empty={!(detail.data?.enrolment_history ?? []).length}
             emptyLabel="No enrolment recorded."
           >
-            {p.enrolments.map((e, i) => (
+            {(detail.data?.enrolment_history ?? []).map((e, i) => (
               <tr key={`${e.year}-${e.from}-${i}`}>
-                <Td>{e.year}</Td>
-                <Td>
-                  {e.class}-{e.section}
-                </Td>
+                <Td>{e.year || '—'}</Td>
+                <Td>{[e.class, e.section].filter(Boolean).join('-') || '—'}</Td>
                 <Td className="tabular-nums">{e.roll_no ?? '—'}</Td>
                 <Td className="text-muted-foreground">{formatDate(e.from)}</Td>
                 <Td>
                   <Badge tone={e.status === 'active' ? 'success' : e.status === 'detained' ? 'warning' : undefined}>
                     {e.status}
                   </Badge>
+                </Td>
+                <Td className="text-muted-foreground">
+                  {e.remarks || (e.promoted ? 'Promoted from the year before' : '—')}
                 </Td>
               </tr>
             ))}
@@ -1676,6 +1763,76 @@ function QuickTile({ label, value, note, tone, swatch }: {
       <p className="mt-0.5 text-[18px] font-semibold tabular-nums">{value}</p>
       {note && <p className="text-[12px] text-muted-foreground">{note}</p>}
     </div>
+  )
+}
+
+/* Writing something down about a child.
+
+   Two decisions, and the second is the one that matters: WHO CAN SEE IT. A
+   remark a parent can read and a note kept between staff are different acts,
+   and a screen that does not ask makes somebody guess — usually wrongly, and
+   usually in the direction that gets quoted back at a meeting.
+
+   An anecdotal note is private by definition and the database enforces it, so
+   the toggle disappears rather than sitting there lying about a choice. */
+function RemarkForm({ saving, error, onSave, onCancel }: {
+  saving: boolean
+  error: unknown
+  onSave: (v: { kind: string; body: string; private: boolean; observed_on: string }) => void
+  onCancel: () => void
+}) {
+  const [kind, setKind] = useState('academic')
+  const [body, setBody] = useState('')
+  const [priv, setPriv] = useState(false)
+  const [on, setOn] = useState('')
+  const forcedPrivate = kind === 'anecdotal'
+  return (
+    <>
+      <FormNotice error={error} />
+      <FormGrid>
+        <FormField label="What kind" required>
+          <Select value={kind} onChange={setKind} options={[
+            { value: 'academic', label: 'Academic' },
+            { value: 'achievement', label: 'Achievement or appreciation' },
+            { value: 'participation', label: 'Participation' },
+            { value: 'behaviour', label: 'Behaviour' },
+            { value: 'concern', label: 'Concern' },
+            { value: 'anecdotal', label: 'Anecdotal note (staff only)' },
+          ]} />
+        </FormField>
+        <FormField label="Observed on" hint="Blank means today">
+          <Input type="date" value={on} onChange={setOn} />
+        </FormField>
+      </FormGrid>
+      <FormField label="The remark" required>
+        <Textarea value={body} onChange={setBody} rows={3}
+          placeholder="What happened, in the words you would use to the parent." />
+      </FormField>
+      <div className="mt-3">
+        {forcedPrivate ? (
+          <p className="text-[13px] text-muted-foreground">
+            An anecdotal note is never shown to the family.
+          </p>
+        ) : (
+          <Checkbox
+            label="Keep this between staff — do not show the family"
+            checked={priv}
+            onChange={setPriv}
+          />
+        )}
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          disabled={saving || !body.trim()}
+          onClick={() => onSave({
+            kind, body, private: forcedPrivate || priv, observed_on: on,
+          })}
+        >
+          {saving ? 'Saving…' : 'Save the remark'}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+      </div>
+    </>
   )
 }
 
