@@ -295,9 +295,31 @@ function AccountForm({
     },
   })
 
+  /* Two ways out of a lockout, because the school is in two situations.
+
+     A generated password is right when the admin is sitting next to the
+     person: unguessable, and unambiguous read aloud. It is wrong down a phone
+     line to a parent, or for a teacher setting up a class of thirty, and
+     schools were working around it by resetting twice or not using the button
+     at all. Typing one is the second way, and it is the same 12-200 the
+     account holder's own change is held to. */
+  const [chosen, setChosen] = useState('')
+  const [resetNote, setResetNote] = useState<string | null>(null)
   const reset = useMutation({
-    mutationFn: () => api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${user!.id}/reset-password`, {}),
-    onSuccess: (res) => setTempPassword(res?.temporary_password ?? null),
+    mutationFn: (pw: string) =>
+      api.post<{ temporary_password?: string }>(
+        `/api/v1/admin/users/${user!.id}/reset-password`,
+        pw ? { new_password: pw } : {},
+      ),
+    onSuccess: (res) => {
+      if (res?.temporary_password) {
+        setTempPassword(res.temporary_password)
+        return
+      }
+      // Not echoed back — the admin typed it. Saying so beats a blank screen.
+      setChosen('')
+      setResetNote('That password is in effect and every session of theirs is signed out.')
+    },
   })
 
   if (tempPassword) {
@@ -349,15 +371,42 @@ function AccountForm({
 
         <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
 
-        <FormNotice error={save.error ?? reset.error ?? (notice ? new Error(notice) : undefined)} />
+        {editing && (
+          <div className="border-t pt-5">
+            <Field
+              label="Set a password"
+              hint="At least 12 characters. Leave empty to have one generated and shown once instead."
+            >
+              <Input
+                type="password"
+                value={chosen}
+                onChange={(x) => { setChosen(x); setResetNote(null) }}
+                placeholder="Leave empty to generate one"
+              />
+            </Field>
+          </div>
+        )}
+
+        <FormNotice
+          error={save.error ?? reset.error ?? (notice ? new Error(notice) : undefined)}
+          ok={resetNote ?? undefined}
+        />
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => save.mutate()} disabled={save.isPending || (!editing && !f.full_name.trim())}>
             {save.isPending ? 'Saving…' : editing ? 'Save roles' : 'Create account'}
           </Button>
           {editing && (
-            <Button variant="secondary" onClick={() => reset.mutate()} disabled={reset.isPending}>
+            <Button
+              variant="secondary"
+              onClick={() => reset.mutate(chosen.trim())}
+              disabled={reset.isPending || (chosen.trim() !== '' && chosen.trim().length < 12)}
+            >
               <KeyRound className="h-3.5 w-3.5" />
-              {reset.isPending ? 'Resetting…' : 'Reset password'}
+              {reset.isPending
+                ? 'Resetting…'
+                : chosen.trim()
+                  ? 'Set this password'
+                  : 'Reset password'}
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>

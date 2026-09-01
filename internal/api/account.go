@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"net/http"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,6 +20,24 @@ import (
    that silently does nothing. Instead an administrator resets the password and
    hands over a one-time value, which is how a school office already works when
    a teacher is locked out. */
+
+/*
+An administrator may also type the new password rather than take the
+
+	generated one.
+
+	The generated value is right when the admin is next to the person: it is
+	unguessable and unambiguous read aloud. It is wrong down a phone line to a
+	parent who cannot write, for a class teacher setting up thirty children at
+	once, or for a school that wants every new account to start on one known
+	value it will make them change. Those schools were solving it by resetting
+	twice and reading the code back, or by not using the button at all.
+*/
+type resetPasswordRequest struct {
+	// Empty means generate one, which is what the button did before and
+	// still does.
+	NewPassword string `json:"new_password,omitempty"`
+}
 
 type resetPasswordResponse struct {
 	UserID            string `json:"user_id"`
@@ -37,10 +57,30 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	temp, err := temporaryPassword()
-	if err != nil {
-		httpx.Internal(w, r, err)
+	/* An empty body is still a valid reset — this endpoint took none before
+	   a chosen password was possible, and the callers that send none must
+	   keep working. */
+	var req resetPasswordRequest
+	if r.ContentLength > 0 && !httpx.Decode(w, r, &req) {
 		return
+	}
+	chosen := strings.TrimSpace(req.NewPassword)
+	// The same 12-200 the account holder's own change is held to. A password
+	// handed out by the office must not be weaker than one chosen in private.
+	if chosen != "" {
+		if n := utf8.RuneCountInString(chosen); n < 12 || n > 200 {
+			httpx.BadRequest(w, r, "new_password must be 12-200 characters")
+			return
+		}
+	}
+
+	temp := chosen
+	if temp == "" {
+		temp, err = temporaryPassword()
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
 	}
 	hash, err := s.Hasher.Hash(temp)
 	if err != nil {
@@ -72,12 +112,20 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.JSON(w, http.StatusOK, resetPasswordResponse{
-		UserID:            target.String(),
-		TemporaryPassword: temp,
-		Note: "Shown once. Give it to the user in person and ask them to change it " +
-			"from their profile. All their existing sessions have been signed out.",
-	})
+	/* A password the administrator typed is not echoed back. They already
+	   have it, and the screen that shows a one-time value is a screen left
+	   open on a desk. */
+	out := resetPasswordResponse{
+		UserID: target.String(),
+		Note: "The password you set is in effect. All their existing sessions have " +
+			"been signed out.",
+	}
+	if chosen == "" {
+		out.TemporaryPassword = temp
+		out.Note = "Shown once. Give it to the user in person and ask them to change it " +
+			"from their profile. All their existing sessions have been signed out."
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 // temporaryPassword produces something a person can read aloud once and type
