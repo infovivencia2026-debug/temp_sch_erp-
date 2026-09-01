@@ -386,7 +386,6 @@ function SmtpPanel({ provider }: { provider: Provider }) {
             <Button
               variant="secondary"
               disabled={test.isPending || !testTo.trim() || !provider.configured}
-              title={provider.configured ? undefined : (provider.reason ?? 'Not configured')}
               onClick={() => test.mutate({ to: testTo.trim() })}
             >
               {test.isPending ? 'Sending…' : 'Send a test'}
@@ -402,6 +401,44 @@ function SmtpPanel({ provider }: { provider: Provider }) {
               </ConfirmButton>
             )}
           </div>
+          {/* WHY THE BUTTON WILL NOT PRESS, ON THE SCREEN.
+
+              The reason was in a `title` attribute, which is a tooltip: it
+              needs a mouse to hover, so it does not exist on a phone or a
+              tablet at all, and on a desktop it appears only if somebody
+              already suspects the button is disabled for a reason and holds
+              still over it long enough to find out.
+
+              What that produced is a section headed "Prove it works" whose only
+              control is greyed out and silent. The commonest cause is not a
+              broken screen and not a missing password -- it is the switch at
+              the bottom of the form being off, which the server reports
+              verbatim as "configured but switched off" and which takes two
+              clicks to fix once somebody knows.
+
+              So it is said in the open, next to the control it explains, with
+              the fix named rather than implied. */}
+          {!provider.configured && (
+            <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]">
+              <span className="font-medium">Cannot send a test yet. </span>
+              {provider.reason ?? 'The mail server is not set up.'}
+              {/* Named for what the reader must do, not for what is wrong. The
+                  two states have different fixes and only one of them involves
+                  typing anything. */}
+              {/^configured but switched off$/.test(provider.reason ?? '')
+                ? ' — tick “Send email through this server” above and press Save, then test.'
+                : ' — fill in the server above and press Save, then test.'}
+            </p>
+          )}
+          {/* A change that has not been saved is not a change the test can use:
+              the button reads the SAVED provider, so filling the form in and
+              pressing Send a test tests the previous settings, or nothing. */}
+          {provider.configured && (draft || enabled !== provider.enabled) && (
+            <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]">
+              These settings have not been saved. A test sends through the saved
+              server, not what is on screen — press Save first.
+            </p>
+          )}
           <div className="mt-3">
             <FormNotice error={test.error} ok={test.data?.ok ? test.data.message : undefined} />
           </div>
