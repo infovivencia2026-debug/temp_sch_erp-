@@ -4,7 +4,7 @@ import { ChevronDown, Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
@@ -22,6 +22,46 @@ interface Circular {
   published_by?: string
   body?: string
   acknowledged_by_me?: boolean
+}
+
+/* groupByClass lays the section chips out the way a school is arranged.
+
+   The list arrives flat -- nineteen sections, each knowing its class name --
+   and rendering it flat produced a wall of chips that had to be read one by
+   one. Grouping preserves the order the server sent, which is the order a
+   school lists its classes in, rather than imposing an alphabetical one that
+   would put Class 10 before Class 2. */
+function groupByClass(items: Section[]): [string, Section[]][] {
+  const order: string[] = []
+  const byClass = new Map<string, Section[]>()
+  for (const s of items) {
+    const key = s.class_name
+    if (!byClass.has(key)) { byClass.set(key, []); order.push(key) }
+    byClass.get(key)!.push(s)
+  }
+  return order.map((k) => [k, byClass.get(k)!])
+}
+
+/* summarisePublish says who this reaches, in a sentence, before it is sent.
+
+   A circular is the one action on this screen that cannot be taken back, and
+   the controls that decide its reach are three panels apart. Restating the
+   result in one line is cheaper than making somebody re-read all three. */
+function summarisePublish(audience: string, sectionCount: number,
+                          channels: (string | false)[]): string {
+  const who = audience === 'students' ? 'students'
+    : audience === 'parents' ? 'parents'
+    : audience === 'staff' ? 'staff'
+    : audience === 'everyone' ? 'parents and staff'
+    : 'parents and students'
+  const where = sectionCount === 0
+    ? 'across the whole school'
+    : `in ${sectionCount} section${sectionCount === 1 ? '' : 's'}`
+  const extra = channels.filter(Boolean) as string[]
+  const by = extra.length === 0
+    ? 'in the portal'
+    : `in the portal and by ${extra.join(', ')}`
+  return `Goes to ${who} ${where}, ${by}.`
 }
 
 /** Circulars with targeting and read receipts. SMS goes out one queued task
@@ -200,62 +240,140 @@ export default function Circulars() {
               {fileError && <span className="text-[13px] text-destructive">{fileError}</span>}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] text-muted-foreground">Send to</span>
-              <Select
-                value={audience}
-                onChange={setAudience}
-                options={[
-                  { value: 'all', label: 'Parents and students' },
-                  { value: 'parents', label: 'Parents only' },
-                  { value: 'students', label: 'Students only' },
-                  { value: 'staff', label: 'Staff only' },
-                  { value: 'everyone', label: 'Everyone — parents and staff' },
-                ]}
-              />
-            </div>
-            <div>
-              {/* A member of staff does not belong to a section the way a
-                  child does: a subject teacher stands in five of them and the
-                  office in none. Applying the filter to staff would quietly
-                  drop the people the notice is for, so it narrows families
-                  only — said here rather than discovered afterwards. */}
-              <p className="mb-1.5 text-[13px] text-muted-foreground">
-                Sections — leave empty to reach the whole school
-                {(audience === 'staff' || audience === 'everyone') &&
-                  ' · staff are included whichever sections you pick'}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {(sections.data?.items ?? []).map((s) => (
+            {/* WHO, THEN HOW, THEN SEND.
+
+                This was one flat run of controls: an audience dropdown, then
+                nineteen identical section chips, then four bare browser
+                checkboxes on one line, then a button. Everything looked
+                equally important and nothing was grouped, so the two questions
+                a circular actually asks -- who reads this, and by what route
+                does it reach them -- had to be reassembled by eye every time.
+
+                Three panels now, in the order the questions are asked, and the
+                same chip language for both kinds of choice so a selected
+                section and a selected channel look alike because they are
+                alike: both narrow who this reaches. */}
+            <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Send to</span>
+                <Select
+                  value={audience}
+                  onChange={setAudience}
+                  options={[
+                    { value: 'all', label: 'Parents and students' },
+                    { value: 'parents', label: 'Parents only' },
+                    { value: 'students', label: 'Students only' },
+                    { value: 'staff', label: 'Staff only' },
+                    { value: 'everyone', label: 'Everyone \u2014 parents and staff' },
+                  ]}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-start gap-2">
+                <span className="w-16 shrink-0 pt-1.5 text-[13px] text-muted-foreground">Sections</span>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {/* The state of the filter, said as a sentence rather than
+                        left to be counted off the chips. "Whole school" is the
+                        empty case and is the one most likely to be published by
+                        accident, so it says so instead of showing nothing. */}
+                    <span className="text-[13px]">
+                      {sectionIds.size === 0
+                        ? 'The whole school'
+                        : `${sectionIds.size} section${sectionIds.size === 1 ? '' : 's'}`}
+                    </span>
+                    {sectionIds.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSectionIds(new Set())}
+                        className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        clear
+                      </button>
+                    )}
+                    {/* A member of staff does not belong to a section the way a
+                        child does: a subject teacher stands in five of them and
+                        the office in none. Applying the filter to staff would
+                        quietly drop the people the notice is for, so it narrows
+                        families only -- said here rather than discovered
+                        afterwards. */}
+                    {(audience === 'staff' || audience === 'everyone') && (
+                      <span className="text-[13px] text-muted-foreground">
+                        \u00b7 staff are included whichever sections you pick
+                      </span>
+                    )}
+                  </div>
+                  {/* Grouped by class, one row each.
+
+                      Nineteen chips wrapped into an undifferentiated block that
+                      had to be read left to right to find Class 8-B. A school
+                      thinks in classes and the sections within them, so the
+                      chips are laid out the way the school is: the class named
+                      once, its sections beside it. */}
+                  <div className="space-y-1">
+                    {groupByClass(sections.data?.items ?? []).map(([className, group]) => (
+                      <div key={className} className="flex flex-wrap items-center gap-1.5">
+                        <span className="w-24 shrink-0 truncate text-[12px] text-muted-foreground" title={className}>
+                          {className}
+                        </span>
+                        {group.map((sec) => (
+                          <button
+                            key={sec.id} type="button" onClick={() => toggle(sec.id)}
+                            aria-pressed={sectionIds.has(sec.id)}
+                            className={cn(
+                              'min-w-[2.25rem] rounded-md border px-2 py-1 text-[13px] transition-colors',
+                              sectionIds.has(sec.id)
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'hover:bg-accent',
+                            )}
+                          >
+                            {sec.name}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* The portal copy is not optional and never was: publishing
+                    writes it. These three are extra routes on top, which is
+                    what "also" means -- so they are shown as three things that
+                    can be switched on rather than four checkboxes of which one
+                    is a different kind of thing entirely. */}
+                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Also by</span>
+                {([
+                  ['SMS', sendSMS, setSendSMS],
+                  ['Email', sendEmail, setSendEmail],
+                  ['WhatsApp', sendWhatsApp, setSendWhatsApp],
+                ] as const).map(([label, on, set]) => (
                   <button
-                    key={s.id} type="button" onClick={() => toggle(s.id)}
-                    className={`rounded-md border px-2 py-1 text-[13px] transition-colors ${
-                      sectionIds.has(s.id) ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                    }`}
+                    key={label} type="button" onClick={() => set(!on)} aria-pressed={on}
+                    className={cn(
+                      'rounded-md border px-2.5 py-1 text-[13px] transition-colors',
+                      on ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                    )}
                   >
-                    {s.class_name}-{s.name}
+                    {label}
                   </button>
                 ))}
+                <span className="text-[13px] text-muted-foreground">
+                  The portal copy always goes.
+                </span>
               </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-[14px]">
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={requiresAck} onChange={(e) => setRequiresAck(e.target.checked)} />
-                Require acknowledgement
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={sendSMS} onChange={(e) => setSendSMS(e.target.checked)} />
-                Also send SMS
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
-                Also send email
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={sendWhatsApp} onChange={(e) => setSendWhatsApp(e.target.checked)} />
-                Also send WhatsApp
-              </label>
-            </div>
+
+            {/* Acknowledgement is not a delivery channel and no longer sits in
+                a row with three of them. It changes what the circular asks of
+                the person reading it, which is a property of the notice. */}
+            <Checkbox
+              checked={requiresAck}
+              onChange={setRequiresAck}
+              label="Require acknowledgement"
+              hint="Each recipient is asked to confirm they have read it, and the count appears below."
+            />
+
             {publish.isError && (
               <p className="text-[13px] text-destructive">
                 {publish.error instanceof Error ? publish.error.message : 'Publish failed'}
@@ -285,10 +403,25 @@ export default function Circulars() {
                 has no login yet. Issue logins on School setup → Students to reach them.
               </p>
             )}
-            <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>
-              <Send className="h-4 w-4" />
-              {publish.isPending ? 'Publishing…' : 'Publish circular'}
-            </Button>
+            {/* The action, with what it is about to do beside it.
+
+                A primary button that spends most of its life disabled reads as
+                broken unless the screen says what is missing, and "Publish" on
+                a school-wide notice is not an action to take on a guess about
+                who it reaches. Both are said here, on one line, next to the
+                button that does it. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <p className="text-[13px] text-muted-foreground">
+                {!title.trim() || !body.trim()
+                  ? 'A title and a body are needed before this can go out.'
+                  : summarisePublish(audience, sectionIds.size,
+                      [sendSMS && 'SMS', sendEmail && 'email', sendWhatsApp && 'WhatsApp'])}
+              </p>
+              <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>
+                <Send className="h-4 w-4" />
+                {publish.isPending ? 'Publishing…' : 'Publish circular'}
+              </Button>
+            </div>
           </form>
         </Card>
         )}
