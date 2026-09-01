@@ -26,6 +26,12 @@ type student struct {
 	ClassName   *string `json:"class_name,omitempty"`
 	SectionName *string `json:"section_name,omitempty"`
 	RollNo      *int32  `json:"roll_no,omitempty"`
+	/* A number to ring, on the roll itself.
+
+	   The office reads this list to find somebody and then had to open the
+	   child to get a phone number — which is one page load per call on the
+	   afternoon somebody is ringing eleven families. */
+	PrimaryPhone *string `json:"primary_phone,omitempty"`
 }
 
 type page[T any] struct {
@@ -123,7 +129,11 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 			       st.first_name, st.middle_name, st.last_name, st.gender,
 			       to_char(st.date_of_birth, 'YYYY-MM-DD'), st.status,
 			       to_char(st.admission_date, 'YYYY-MM-DD'),
-			       c.name, sec.name, en.roll_no`+where+`
+			       c.name, sec.name, en.roll_no,
+			       (SELECT g.phone FROM student_guardians sg
+			          JOIN guardians g ON g.id = sg.guardian_id
+			         WHERE sg.student_id = st.id
+			         ORDER BY sg.is_primary DESC LIMIT 1)`+where+`
 			 ORDER BY st.admission_no
 			 LIMIT $`+itoa(len(args)+1)+` OFFSET $`+itoa(len(args)+2),
 			append(args, limit, offset)...)
@@ -137,7 +147,8 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 			if err := rows.Scan(&st.ID, &st.AdmissionNo, &st.FullName,
 				&st.FirstName, &st.MiddleName, &st.LastName, &st.Gender,
 				&st.DateOfBirth, &st.Status, &st.AdmissionOn,
-				&st.ClassName, &st.SectionName, &st.RollNo); err != nil {
+				&st.ClassName, &st.SectionName, &st.RollNo,
+				&st.PrimaryPhone); err != nil {
 				return err
 			}
 			out.Items = append(out.Items, st)

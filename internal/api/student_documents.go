@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -354,6 +355,23 @@ var patchableStudentFields = map[string]string{
 	"apaar_id":                   "apaar_id",
 	"child_info_id":              "child_info_id",
 	"house_id":                   "house_id",
+	/* The name and the birthday belong here too.
+
+	   Correcting a misspelt name was only possible through the full upsert,
+	   which meant loading the whole child and sending all of it back — so the
+	   commonest correction a school office makes was the one carrying the most
+	   risk of blanking something else.
+
+	   status, campus_id and institution_id are deliberately absent and must
+	   stay absent. Moving a child between schools or off the roll is not a
+	   text field; each has its own endpoint with its own rules. */
+	"first_name":    "first_name",
+	"middle_name":   "middle_name",
+	"last_name":     "last_name",
+	"date_of_birth": "date_of_birth",
+	"gender":        "gender",
+	"medium":        "medium",
+	"admission_no":  "admission_no",
 }
 
 func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
@@ -382,6 +400,30 @@ func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
 		}
 		v = strings.TrimSpace(v)
 		switch col {
+		case "first_name":
+			// The one field a child cannot be without: everything that names
+			// them elsewhere is built from it.
+			if v == "" {
+				httpx.BadRequest(w, r, "a child needs a first name")
+				return
+			}
+		case "admission_no":
+			if v == "" {
+				httpx.BadRequest(w, r, "a child needs an admission number")
+				return
+			}
+		case "gender":
+			if v != "" && !validGenders[v] {
+				httpx.BadRequest(w, r, "gender must be male, female or other")
+				return
+			}
+		case "date_of_birth":
+			if v != "" {
+				if _, err := time.Parse(time.DateOnly, v); err != nil {
+					httpx.BadRequest(w, r, "date of birth must be YYYY-MM-DD")
+					return
+				}
+			}
 		case "category":
 			if v != "" && !validCategories[v] {
 				httpx.BadRequest(w, r, "category must be general, obc, sc, st, ews or other")
@@ -413,8 +455,11 @@ func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
 		}
 		args = append(args, nullString(v))
 		cast := ""
-		if col == "house_id" {
+		switch col {
+		case "house_id":
 			cast = "::uuid"
+		case "date_of_birth":
+			cast = "::date"
 		}
 		// Blank clears the column, which is how somebody removes a value they
 		// typed by mistake — there is no other control for it on the screen.

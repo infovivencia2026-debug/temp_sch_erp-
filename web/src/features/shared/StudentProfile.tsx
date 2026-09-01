@@ -22,6 +22,7 @@ import {
   TransportCrew, Activities, type Detail,
 } from './StudentTabs'
 import { RecordBlock } from './RecordBlock'
+import StudentEditDialog from './StudentEditDialog'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -245,7 +246,10 @@ export default function StudentProfile() {
   const record = useQuery({
     queryKey: ['student-record', selected],
     queryFn: () => api.get<StudentDetail>(`/api/v1/students/${selected}`),
-    enabled: !!selected && editing,
+    // Fetched whenever a child is open, not only while editing: the update
+    // dialog needs the name in parts and cannot wait for a second round trip
+    // after somebody has already pressed the button.
+    enabled: !!selected,
   })
 
   /* Everything written about this child, newest first.
@@ -300,6 +304,12 @@ export default function StudentProfile() {
      about a former pupil years later must still be able to answer. */
   const [exiting, setExiting] = useState(false)
   const [statusAction, setStatusAction] = useState('')
+  /* One dialog for the whole record, grouped in tabs.
+
+     Editing was in pieces — names in one form, contact in another, the
+     government codes nowhere — so "update this child", which is one job
+     somebody sits down to do, was four screens and a gap. */
+  const [updating, setUpdating] = useState(false)
   const recordExit = useMutation({
     mutationFn: (v: { status: string; exit_date: string; reason: string }) =>
       api.post(`/api/v1/students/${selected}/exit`, v),
@@ -588,17 +598,31 @@ export default function StudentProfile() {
                   ) : undefined
                 }
               />
-              <Table head={['Admission no.', 'Name', 'Class', 'Roll', 'Status', '']}
+              {/* The columns an office actually reads a roll by: who, where,
+                  their number, how old, and a phone. Admission number came
+                  first before, which is the thing you look up BY rather than
+                  the thing you look FOR. */}
+              <Table head={['Student', 'Class / sec', 'Adm no.', 'Date of birth', 'Contact', 'Status', '']}
                 empty={!rows.length}
                 emptyLabel={roll === 'left'
                   ? 'Nobody has been recorded as leaving.'
                   : 'No student matches.'}>
                 {rows.map((s) => (
                   <tr key={s.id}>
-                    <Td className="font-mono text-[12px]">{s.admission_no}</Td>
-                    <Td className="font-medium">{s.full_name}</Td>
+                    <Td className="font-medium">
+                      {s.full_name}
+                      {s.roll_no ? (
+                        <span className="block text-[12px] font-normal text-muted-foreground">
+                          Roll {s.roll_no}
+                        </span>
+                      ) : null}
+                    </Td>
                     <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
-                    <Td className="tabular-nums">{s.roll_no ?? '—'}</Td>
+                    <Td className="font-mono text-[12px]">{s.admission_no}</Td>
+                    <Td className="text-muted-foreground">
+                      {s.date_of_birth ? formatDate(s.date_of_birth) : '—'}
+                    </Td>
+                    <Td className="text-muted-foreground">{s.primary_phone ?? '—'}</Td>
                     <Td><Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge></Td>
                     <Td><Button size="sm" onClick={() => setSelected(s.id)}>Open</Button></Td>
                   </tr>
@@ -1050,9 +1074,8 @@ export default function StudentProfile() {
                 <CardHeader
                   title="Student details"
                   action={can('students.write') ? (
-                    <Button size="sm" variant={editing ? 'secondary' : 'primary'}
-                      onClick={() => setEditing(!editing)}>
-                      {editing ? 'Stop editing' : 'Edit'}
+                    <Button size="sm" onClick={() => setUpdating(true)}>
+                      Update details
                     </Button>
                   ) : undefined}
                 />
@@ -1480,6 +1503,52 @@ export default function StudentProfile() {
   return (
     <>
     {credentials}
+    {updating && (
+      <StudentEditDialog
+        student={{
+          id: p.id,
+          full_name: p.full_name,
+          admission_no: p.admission_no,
+          class_name: p.class_name,
+          section_name: p.section_name,
+          photo_file_id: p.photo_file_id,
+          date_of_birth: p.date_of_birth,
+          gender: p.gender,
+          blood_group: p.blood_group,
+          medium: p.medium,
+          mother_tongue: p.mother_tongue,
+          nationality: p.nationality,
+          category: p.category,
+          aadhaar_last4: p.aadhaar_last4,
+          apaar_id: p.apaar_id,
+          child_info_id: p.child_info_id,
+          prior_school: p.prior_school,
+          house_id: p.house_id,
+          address_line1: p.address_line1,
+          address_line2: p.address_line2,
+          city: p.city,
+          state: p.state,
+          pincode: p.pincode,
+          permanent_address: p.permanent_address,
+          emergency_contact_name: p.emergency_contact_name,
+          emergency_contact_phone: p.emergency_contact_phone,
+          emergency_contact_relation: p.emergency_contact_relation,
+          /* The name in parts, which the profile does not carry: it returns
+             full_name because that is what every screen prints, and splitting
+             it here would mangle "Meera Sai Menon" and every name that is not
+             exactly two words. The form reads them from the record endpoint. */
+          first_name: record.data?.first_name,
+          middle_name: record.data?.middle_name,
+          last_name: record.data?.last_name,
+        }}
+        onClose={() => setUpdating(false)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+          qc.invalidateQueries({ queryKey: ['student-record', selected] })
+          qc.invalidateQueries({ queryKey: ['profile-search'] })
+        }}
+      />
+    )}
     <RecordShell
       title={p.full_name}
       subtitle={`${p.admission_no} · ${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''}`}

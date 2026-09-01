@@ -132,6 +132,7 @@ export interface Student {
   first_name: string; middle_name?: string; last_name?: string
   gender?: string; date_of_birth?: string; status: string; admission_date: string
   class_name?: string; section_name?: string; roll_no?: number
+  primary_phone?: string
 }
 
 export interface Page<T> { items: T[]; total: number; limit: number; offset: number; has_more: boolean }
