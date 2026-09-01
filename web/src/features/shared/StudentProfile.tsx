@@ -642,16 +642,30 @@ export default function StudentProfile() {
 
   const actions: RecordAction[] = [
     { label: 'Record payment', onClick: () => go('fees'),
-      disabled: !can('finance.fees.collect_payment'),
+      /* THE KEY HAS TO EXIST.
+
+         These named catalogue features that are not in the catalogue —
+         finance.fees.collect_payment and
+         institution_admin.students.certificates_documents appear nowhere in
+         catalog_gen.go — so can() could never match one, the suffix fallback
+         had nothing to fall back to, and four actions sat permanently greyed
+         with "Needs the certificates permission" against a principal who holds
+         everything. The real keys are take_fee_payment and
+         certificates_transfers. */
+      disabled: !can('finance.fees.take_fee_payment'),
       disabledReason: 'Needs the fee counter permission' },
     { label: 'Issue certificate', onClick: () => go('certificates'),
-      disabled: !can('institution_admin.students.certificates_documents'),
+      disabled: !can('institution_admin.students.certificates_transfers'),
       disabledReason: 'Needs the certificates permission' },
     { label: 'Generate transfer certificate', onClick: () => go('certificates'),
-      disabled: !can('institution_admin.students.certificates_documents'),
+      disabled: !can('institution_admin.students.certificates_transfers'),
       disabledReason: 'Needs the certificates permission' },
     { label: 'Send message', onClick: () => go('announcements'),
-      disabled: !can('comms.messages.send'), disabledReason: 'Needs the messaging permission' },
+      // Same fault: comms.messages.send is not a catalogue key either. The
+      // workspaces call it <workspace>.communication.messages, and can()
+      // matches on the trailing slug across whichever the reader holds.
+      disabled: !can('institution_admin.communication.messages'),
+      disabledReason: 'Needs the messaging permission' },
     /* "Change section" was here, permanently disabled with "Not built yet"
        for its reason. A menu item that can never be clicked is not a control,
        it is an announcement; it comes back when moving a child between
@@ -1005,12 +1019,28 @@ export default function StudentProfile() {
                 mayEdit={can('students.write')}
                 onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })}
                 custom={p.custom_fields}
+                /* Each field names the column it edits, so expanding gives a
+                   real form rather than a list of dashes. The summary on the
+                   card joins the address into one line; the form takes it
+                   apart again, because "19 Green Park, Hyderabad, 500001" is
+                   one thing to read and four things to type. */
                 fields={[
-                  { k: 'Address', v: [p.address_line1, p.address_line2, p.city, p.state, p.pincode].filter(Boolean).join(', ') },
-                  { k: 'Permanent', v: p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined) },
-                  { k: 'Emergency', v: p.emergency_contact_name },
-                  { k: 'Their phone', v: p.emergency_contact_phone },
-                  { k: 'Relation', v: p.emergency_contact_relation },
+                  { k: 'Address', v: p.address_line1, field: 'address_line1',
+                    multiline: true, placeholder: 'House number and street' },
+                  { k: 'Area or landmark', v: p.address_line2, field: 'address_line2' },
+                  { k: 'City', v: p.city, field: 'city' },
+                  { k: 'State', v: p.state, field: 'state' },
+                  { k: 'Pincode', v: p.pincode, field: 'pincode', hint: 'Six digits' },
+                  { k: 'Permanent address', v: p.permanent_address,
+                    field: 'permanent_address', multiline: true,
+                    hint: 'Only if it differs from the address above' },
+                  { k: 'Emergency contact', v: p.emergency_contact_name,
+                    field: 'emergency_contact_name', placeholder: 'Enter name',
+                    hint: 'Somebody to ring when no parent answers. They get no login and no messages.' },
+                  { k: 'Their phone', v: p.emergency_contact_phone,
+                    field: 'emergency_contact_phone', placeholder: 'Enter phone number' },
+                  { k: 'Relation', v: p.emergency_contact_relation,
+                    field: 'emergency_contact_relation', placeholder: 'e.g. Uncle' },
                 ]}
               />
             </div>

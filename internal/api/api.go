@@ -157,6 +157,11 @@ func (s *Server) Routes() http.Handler {
 			// block of the record cannot wipe another's.
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/{id}/custom-fields", s.saveStudentCustomFields)
+			/* A few fields at a time. PUT /students/{id} runs the same upsert
+			   the importer uses and writes the whole record, so sending three
+			   fields through it blanks the other twenty. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Patch("/{id}/fields", s.patchStudentFields)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Post("/{id}/documents", s.addStudentDocument)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).

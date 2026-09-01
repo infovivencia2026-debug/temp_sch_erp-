@@ -316,3 +316,137 @@ func (s *Server) saveStudentCustomFields(w http.ResponseWriter, r *http.Request)
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"saved": len(set), "removed": len(drop)})
 }
+
+/* Correcting a few fields without re-sending the whole child.
+
+   The only way to change anything was PUT /students/{id}, which runs the same
+   upsert the admission form and the CSV importer use — it takes the complete
+   record and writes all of it. Sending three fields through that blanks the
+   other twenty, so every screen that wanted to fix a phone number had to load
+   the whole student, merge, and send it all back, and any field the screen did
+   not know about was lost on save.
+
+   This writes exactly the columns it is given and touches nothing else.
+
+   WHITELISTED, not reflected. A map from a JSON name to a column is a few more
+   lines than building SQL from the request, and it is the difference between
+   an endpoint that edits a child and an endpoint that edits any column of the
+   students table an attacker can name — including status, campus_id and
+   institution_id.
+*/
+var patchableStudentFields = map[string]string{
+	"address_line1":              "address_line1",
+	"address_line2":              "address_line2",
+	"city":                       "city",
+	"state":                      "state",
+	"pincode":                    "pincode",
+	"permanent_address":          "permanent_address",
+	"emergency_contact_name":     "emergency_contact_name",
+	"emergency_contact_phone":    "emergency_contact_phone",
+	"emergency_contact_relation": "emergency_contact_relation",
+	"blood_group":                "blood_group",
+	"mother_tongue":              "mother_tongue",
+	"religion":                   "religion",
+	"nationality":                "nationality",
+	"category":                   "category",
+	"aadhaar_last4":              "aadhaar_last4",
+	"prior_school":               "prior_school",
+	"apaar_id":                   "apaar_id",
+	"child_info_id":              "child_info_id",
+	"house_id":                   "house_id",
+}
+
+func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	var req map[string]string
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	if len(req) == 0 {
+		httpx.BadRequest(w, r, "nothing to change")
+		return
+	}
+
+	sets := []string{}
+	args := []any{sid}
+	for k, v := range req {
+		col, ok := patchableStudentFields[k]
+		if !ok {
+			httpx.BadRequest(w, r, k+" is not a field this endpoint can change")
+			return
+		}
+		v = strings.TrimSpace(v)
+		switch col {
+		case "category":
+			if v != "" && !validCategories[v] {
+				httpx.BadRequest(w, r, "category must be general, obc, sc, st, ews or other")
+				return
+			}
+		case "aadhaar_last4":
+			// Four digits, and the CHECK would otherwise answer with a
+			// constraint name the person typing cannot act on.
+			if v != "" && len(v) != 4 {
+				httpx.BadRequest(w, r, "record only the LAST FOUR digits of the Aadhaar number")
+				return
+			}
+		case "pincode":
+			if v != "" && len(v) != 6 {
+				httpx.BadRequest(w, r, "a pincode is six digits")
+				return
+			}
+		case "house_id":
+			if v != "" {
+				if _, err := uuid.Parse(v); err != nil {
+					httpx.BadRequest(w, r, "that is not a house")
+					return
+				}
+			}
+		}
+		if len(v) > 500 {
+			httpx.BadRequest(w, r, "keep "+k+" under 500 characters")
+			return
+		}
+		args = append(args, nullString(v))
+		cast := ""
+		if col == "house_id" {
+			cast = "::uuid"
+		}
+		// Blank clears the column, which is how somebody removes a value they
+		// typed by mistake — there is no other control for it on the screen.
+		sets = append(sets, col+" = $"+itoa(len(args))+cast)
+	}
+
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, scopeArgs := res.StudentPredicate("st", len(args)+1)
+	args = append(args, scopeArgs...)
+
+	var touched int64
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(),
+			`UPDATE students st SET `+strings.Join(sets, ", ")+
+				`, updated_at = now() WHERE st.id = $1 AND `+pred, args...)
+		if err != nil {
+			return err
+		}
+		touched = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if touched == 0 {
+		httpx.Forbidden(w, r, "this child is not one you can edit")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"changed": len(sets)})
+}
