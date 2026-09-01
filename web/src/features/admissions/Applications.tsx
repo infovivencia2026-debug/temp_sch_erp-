@@ -804,7 +804,15 @@ export default function Applications() {
                 {/* Enrol — only once the parent has accepted. Turning an
                     applicant into a student is the one irreversible step here,
                     so it appears only when it is actually the next one. */}
-                {open.status === 'accepted' && mayEnrol && (
+                {/* THE SERVER TAKES 'offered'; THIS DEMANDED 'accepted'.
+
+                    Only enrolApplicant ever sets accepted, and it sets it AS
+                    PART OF enrolling — so an offered application could never
+                    reach the form that would have accepted it. The normal path
+                    for every new admission was a deadlock, and the screen said
+                    nothing because by its own logic there was simply nothing
+                    to show. Both states now, matching the handler. */}
+                {(open.status === 'offered' || open.status === 'accepted') && mayEnrol && (
                   <div className="border-t pt-5">
                     <p className="eyebrow mb-2">Enrol</p>
                     <div className="flex flex-wrap items-end gap-3">
