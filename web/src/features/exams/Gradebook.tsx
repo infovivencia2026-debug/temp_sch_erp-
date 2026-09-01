@@ -511,7 +511,7 @@ export default function Gradebook() {
                   <tr key={r.student_id}>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
-                    {!sectionID && <Td className="text-muted">{r.section || '—'}</Td>}
+                    {!sectionID && <Td className="text-muted-foreground">{r.section || '—'}</Td>}
                     <Td>
                       <input
                         type="number" min={0} max={r.max_marks}

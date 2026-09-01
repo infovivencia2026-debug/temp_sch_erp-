@@ -532,25 +532,25 @@ function GetTheAppPanel() {
         description="Do this before generating a pairing code — the code expires in ten minutes."
       />
       <div className="space-y-3 p-5 text-[13px]">
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           On the handset that will send the messages, open a browser and go to:
         </p>
         <p className="select-all break-all font-mono text-[15px]">
           {origin}/download
         </p>
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           Download <span className="font-mono">sms-gateway-latest.apk</span> and open it.
           Android will ask permission to install from this source; that is expected for an
           app that does not come from the Play Store.
         </p>
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           Verify what you installed, if you wish. Android shows the app's signing
           certificate under its details; it should read:
         </p>
-        <p className="select-all break-all font-mono text-[12px] text-muted">
+        <p className="select-all break-all font-mono text-[12px] text-muted-foreground">
           70:11:18:A6:FF:1E:B1:E3:8A:E0:D8:6F:D2:F4:BE:A2:50:D8:D7:11:39:EF:C6:0E:D9:39:31:FD:6A:DE:28:9A
         </p>
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           Keep the phone on a charger and exempt it from battery optimisation, or Android
           will stop it overnight and the school's messages will queue until somebody notices.
         </p>
