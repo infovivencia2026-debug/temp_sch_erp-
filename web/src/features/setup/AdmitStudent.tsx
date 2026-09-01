@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import AdmissionFee from './AdmissionFee'
 import { api, type List } from '@/lib/api'
 import {
   Button, Field, FormGrid, FormNotice, Input, Select, Checkbox,
@@ -29,6 +30,9 @@ interface Section {
   id: string
   name: string
   class_name: string
+  // The fee structure is per class and this form asks for a section, so the
+  // class it belongs to has to come back with it.
+  class_id: string
   capacity?: number
   filled?: number
 }
@@ -36,6 +40,8 @@ interface Section {
 export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
   const qc = useQueryClient()
   const [admitted, setAdmitted] = useState<string | null>(null)
+  const [justAdmitted, setJustAdmitted] = useState<
+    { id: string; name: string; classID?: string } | null>(null)
 
   const sections = useQuery({
     queryKey: ['sections'],
@@ -69,6 +75,11 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
       // Everything on the page counts students, and none of it knows.
       qc.invalidateQueries()
       setAdmitted(`${named} admitted${created.admission_no ? ` · admission no. ${created.admission_no}` : ''}`)
+      /* Held so the concession agreed at the desk can be recorded against the
+         child who was just admitted. The form clears for the next in the
+         queue; this does not, because the conversation about the fee happens
+         after the admission and not before. */
+      setJustAdmitted({ id: created.id, name: named, classID: classOf(f.section_id) })
       // Cleared for the next child rather than left filled: the counter case is
       // a queue, and re-typing over somebody else's details is how two
       // siblings end up sharing a date of birth.
@@ -80,6 +91,10 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
   })
 
   const items = sections.data?.items ?? []
+  // The class the chosen section belongs to: the fee structure is per class,
+  // and the form asks for a section.
+  const classOf = (sectionID: string) =>
+    items.find((x) => x.id === sectionID)?.class_id
 
   return (
     <div className="rounded-lg border bg-card">
@@ -170,6 +185,20 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
               }))}
             />
           </Field>
+          {/* WHAT IT COSTS, WHERE THE FAMILY ASKS.
+
+              A parent at the desk asks the price, and the clerk had to open
+              the finance module to answer — so they quoted from memory or from
+              a sheet that went stale in April. This reads the same structure
+              the demand raise reads, so what the family is told is what the
+              invoice will carry. */}
+          <div className="sm:col-span-2">
+            <AdmissionFee
+              classID={justAdmitted?.classID ?? classOf(f.section_id)}
+              studentID={justAdmitted?.id}
+              studentName={justAdmitted?.name}
+            />
+          </div>
           <Field label="Roll number" hint="Leave blank to assign later.">
             <Input value={f.roll_no} onChange={set('roll_no')} />
           </Field>

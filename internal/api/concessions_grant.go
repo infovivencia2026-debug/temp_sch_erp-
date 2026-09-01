@@ -124,6 +124,18 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) mountConcessionGrant(r chi.Router) {
-	r.With(httpx.RequirePermission(rbac.FeesWrite)).
+	/* RAISING IS NOT APPROVING, and admissions may raise.
+
+	   The gate was fees.write, which admissions does not hold — so the desk
+	   where a concession is actually agreed could not record one. A family
+	   negotiates the staff-ward rate at admission, in front of the clerk
+	   admitting the child; sending them to the accounts office to have it
+	   typed in again is how it ends up on a sticky note instead.
+
+	   Nothing about the approval changes. This endpoint writes a PENDING row
+	   and can do nothing else: the decision is still fees.write, still the
+	   principal's, and an admissions clerk cannot approve their own request.
+	   The two permissions are the whole safeguard and they stay separate. */
+	r.With(httpx.RequireAnyPermission(rbac.FeesWrite, rbac.AdmissionsWrite)).
 		Post("/concessions", s.grantConcession)
 }
