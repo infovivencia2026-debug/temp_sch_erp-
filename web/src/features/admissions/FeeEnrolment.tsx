@@ -5,7 +5,6 @@ import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select,
   Input, Textarea, FormNotice, Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
-import { useNavigate } from 'react-router-dom'
 import { useCan } from '@/lib/session'
 import { formatPaise, formatDate } from '@/lib/utils'
 
@@ -32,6 +31,14 @@ import { formatPaise, formatDate } from '@/lib/utils'
    server, not by this screen, because it is the one point in the sequence
    that cannot be recovered from.
 */
+
+interface Section {
+  id: string
+  name: string
+  class_name: string
+  enrolled: number
+  capacity: number
+}
 
 interface Pending {
   id: string
@@ -142,7 +149,6 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   mayAsk: boolean
   onChanged: () => void
 }) {
-  const navigate = useNavigate()
   const can = useCan()
   /* Approving a JOINING, as distinct from approving the waiver.
 
@@ -152,7 +158,57 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
      it stops work rather than wasting a click. The switch and the screen have
      to ship together. */
   const mayApprove = can('admissions.approve')
+  const mayEnrol = can('students.write')
   const [note, setNote] = useState('')
+  const [sectionId, setSectionId] = useState('')
+  const [noInvoice, setNoInvoice] = useState(false)
+  const [routeId, setRouteId] = useState('')
+  const [pickupStopId, setPickupStopId] = useState('')
+
+  /* The bus is settled here too, with the section and the fee.
+
+     Billing a family for transport and seating the child on a bus were two
+     screens: the desk named 'transport' so the head appeared on the invoice,
+     and somebody in the transport office had to find the student again later
+     and allocate a stop. The ordinary outcome was a paid transport bill and
+     no seat -- the family believes it is arranged, the office believes it is
+     arranged, and the first anyone knows is a child waiting at a stop the
+     driver has no reason to call at. Asked once, at the moment the money is
+     agreed, because that is when the parent is being asked anyway. */
+  const routes = useQuery({
+    queryKey: ['transport-routes', 'for-admission'],
+    queryFn: () => api.get<List<{ id: string; name: string; code?: string }>>(
+      '/api/v1/ops/transport/routes'),
+  })
+  const stops = useQuery({
+    enabled: routeId !== '',
+    queryKey: ['route-stops', 'for-admission', routeId],
+    queryFn: () => api.get<List<{ id: string; name: string; pickup_time?: string }>>(
+      `/api/v1/ops/transport/routes/${routeId}/stops`),
+  })
+
+  const sections = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+  })
+
+  const enrol = useMutation({
+    mutationFn: () => api.post<{ admission_no?: string }>(
+      `/api/v1/admissions/workflow/applications/${row.id}/enrol`,
+      {
+        section_id: sectionId,
+        no_invoice: noInvoice,
+        /* Naming the service is what puts the transport head on the bill, so
+           a child who walks is never quoted a bus. */
+        ...(routeId && pickupStopId
+          ? {
+              services: ['transport'],
+              transport: { route_id: routeId, pickup_stop_id: pickupStopId },
+            }
+          : {}),
+      }),
+    onSuccess: () => onChanged(),
+  })
 
   const decide = useMutation({
     mutationFn: (approved: boolean) =>
@@ -330,25 +386,78 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 ? 'The concession is approved. Enrol from Applications and the bill is raised with it already taken off.'
                 : 'No concession has been asked for, so nothing is holding this up. Enrol from Applications whenever the family is ready.'}
             </p>
-            {/* NAVIGATE, DO NOT RELOAD.
+            {/* ENROLLING HAPPENS HERE, not on another page.
 
-                A plain href tears the whole application down and builds it
-                again: the tab strip, the session, every cached query. Inside a
-                single-page app that is a two-second white flash where a click
-                should have been instant, and it looked like the button had
-                failed and started over.
-
-                And it said "Open Applications", which is not the name of
-                anything in the sidebar. The menu item is Application Forms, so
-                that is what it is called here. */}
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-2"
-              onClick={() => navigate('/admissions/applications/application_forms')}
-            >
-              Enrol {row.name} from Application Forms
-            </Button>
+                This ended in a button to Application Forms, because that is
+                where the enrol form lives. But whoever is reading this has
+                just settled the fee for this child and wants to admit them:
+                sending them to a second screen to find the same applicant in
+                a list and open it again is three steps to reach one button,
+                and it throws away the place they were in. The form is small
+                -- a section, and whether to bill now. It belongs here. */}
+            {mayEnrol && (enrol.data ? (
+              <p className="mt-2 text-[13px] text-success">
+                {row.name} has joined{enrol.data.admission_no ? ` as ${enrol.data.admission_no}` : ''}.
+                They are in Student 360 now, with the bill and any approved
+                concession already on the record.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3 rounded-lg border p-3">
+                <FormField label="Which section" required
+                  hint="The one thing left to decide. The rest comes from the application.">
+                  <Select
+                    value={sectionId}
+                    onChange={setSectionId}
+                    placeholder="Choose a section"
+                    options={(sections.data?.items ?? [])
+                      .filter((x) => !row.class_sought || x.class_name === row.class_sought)
+                      .map((x) => ({
+                        value: x.id,
+                        label: `${x.class_name}-${x.name} (${x.enrolled}/${x.capacity})`,
+                      }))}
+                  />
+                </FormField>
+                {/* Some schools bill a whole class in one run at the start of
+                    term. Raising here as well would bill those families twice. */}
+                <label className="flex items-center gap-2 text-[13px]">
+                  <input type="checkbox" checked={noInvoice}
+                    onChange={(e) => setNoInvoice(e.target.checked)} />
+                  Do not raise the bill now — we bill the whole class together
+                </label>
+                <FormField label="Bus route"
+                  hint="Leave this alone for a child who walks or comes by car.">
+                  <Select
+                    value={routeId}
+                    onChange={(v) => { setRouteId(v); setPickupStopId('') }}
+                    placeholder="Walks or own transport"
+                    options={(routes.data?.items ?? []).map((r) => ({
+                      value: r.id,
+                      label: r.code ? `${r.name} (${r.code})` : r.name,
+                    }))}
+                  />
+                </FormField>
+                {routeId && (
+                  /* A route without a stop is a bill without a seat, so the
+                     Enrol button below stays disabled until this is answered. */
+                  <FormField label="Boards at" required>
+                    <Select
+                      value={pickupStopId}
+                      onChange={setPickupStopId}
+                      placeholder={stops.isFetching ? 'Loadingâ¦' : 'Choose the stop'}
+                      options={(stops.data?.items ?? []).map((st) => ({
+                        value: st.id,
+                        label: st.pickup_time ? `${st.name} Â· ${st.pickup_time}` : st.name,
+                      }))}
+                    />
+                  </FormField>
+                )}
+                <FormNotice error={enrol.error} />
+                <Button disabled={!sectionId || (!!routeId && !pickupStopId) || enrol.isPending}
+                  onClick={() => enrol.mutate()}>
+                  {enrol.isPending ? 'Enrolling…' : `Enrol ${row.name}`}
+                </Button>
+              </div>
+            ))}
           </>
         )}
         <p className="mt-2 text-[12px] text-muted-foreground">
