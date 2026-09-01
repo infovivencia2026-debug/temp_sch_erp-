@@ -187,7 +187,15 @@ export default function StudentProfile() {
     enabled: !selected,
   })
 
-  const browsing = !!classID || !!sectionID || roll !== 'active'
+  /* PRESSING A TILE SHOWS THE LIST.
+
+     "On the roll · 63" did nothing when pressed, because the list only
+     appeared once a class was chosen or a name typed — so the tile counting
+     sixty-three children was the one tile that could not show you them. The
+     other three worked only by accident: they set a roll other than the
+     default, which happened to be what the list was testing for. */
+  const listing = params.get('list') === '1'
+  const browsing = listing || !!classID || !!sectionID || roll !== 'active'
   const searching = search.trim().length >= 2
   const results = useQuery({
     queryKey: ['profile-search', search, classID, sectionID, roll],
@@ -557,16 +565,16 @@ export default function StudentProfile() {
                   these were exactly that, sitting beside two that worked. */}
               <RollTile label="On the roll" value={counts.data.active ?? 0}
                 note="currently studying" active={roll === 'active'}
-                onClick={() => patch({ roll: null })} />
+                onClick={() => patch({ roll: null, list: '1', class: null, section: null })} />
               <RollTile label="Left" value={counts.data.left ?? 0}
                 note="TC issued, withdrawn or graduated" active={roll === 'left'}
-                onClick={() => patch({ roll: 'left' })} />
+                onClick={() => patch({ roll: 'left', list: '1', class: null, section: null })} />
               <RollTile label="Suspended" value={counts.data.suspended ?? 0}
                 note="temporarily barred" active={roll === 'suspended'}
-                onClick={() => patch({ roll: 'suspended' })} />
+                onClick={() => patch({ roll: 'suspended', list: '1', class: null, section: null })} />
               <RollTile label="New this year" value={counts.data.new_this_year ?? 0}
                 note="admitted this academic year" active={roll === 'new'}
-                onClick={() => patch({ roll: 'new' })} />
+                onClick={() => patch({ roll: 'new', list: '1', class: null, section: null })} />
             </div>
           )}
           {!searching && !browsing ? (
@@ -590,7 +598,7 @@ export default function StudentProfile() {
                       size="sm"
                       variant="secondary"
                       onClick={() => {
-                        setClassID(''); setSectionID(''); setSearch(''); setRoll('active')
+                        patch({ class: null, section: null, q: null, roll: null, list: null })
                       }}
                     >
                       Clear filters
