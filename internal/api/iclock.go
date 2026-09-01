@@ -259,7 +259,7 @@ func (s *Server) devicePush(w http.ResponseWriter, r *http.Request) {
 
 	// Rolling the day up here rather than on a timer, so the register is
 	// correct the moment the punch lands, which is what "live" was asked for.
-	s.rollUpPunches(r, instID)
+	s.rollUpPunches(r, instID, strings.TrimSpace(r.URL.Query().Get("SN")))
 
 	text(w, fmt.Sprintf("OK: %d", accepted))
 }
@@ -299,11 +299,22 @@ rollUpPunches turns punches into a day's attendance.
 	cleverer pairing would turn that into a half day. Earliest and latest is
 	the reading a school can check against its own eyes.
 
-	Only rows this device wrote are touched. A day HR corrected by hand keeps
-	the correction — source tells them apart, and a machine must not overwrite
-	a person's judgement about a person.
+	Only rows a device wrote are touched. A day HR corrected by hand keeps the
+	correction — source tells them apart, and a machine must not overwrite a
+	person's judgement about a person.
+
+	source is 'device' and device_ref is the serial, matching the thirteen
+	thousand rows already in this table from the same reader. Inventing a
+	second word for the same fact would have split one register in two, and
+	the guard below would then have skipped every row the other path wrote.
+
+	A failure here is not fatal and is not reported. The punches are already
+	stored, this recomputes the whole recent window from them on every push,
+	and the very next punch repairs whatever this one missed. Failing the
+	upload instead would make the device replay a batch it had already
+	delivered.
 */
-func (s *Server) rollUpPunches(r *http.Request, instID string) {
+func (s *Server) rollUpPunches(r *http.Request, instID, serial string) {
 	_ = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
 			WITH days AS (
@@ -327,14 +338,14 @@ func (s *Server) rollUpPunches(r *http.Request, instID string) {
 			       -- which is true; stamping it equal to check_in would say
 			       -- they left the moment they came, which is not.
 			       CASE WHEN d.last_seen > d.first_seen THEN d.last_seen END,
-			       'biometric', 'device'
+			       'device', $2
 			  FROM days d
 			  JOIN employees e ON e.id = d.employee_id AND e.user_id IS NOT NULL
 			ON CONFLICT (user_id, on_date) DO UPDATE
 			   SET check_in  = LEAST(staff_attendance.check_in, EXCLUDED.check_in),
 			       check_out = GREATEST(staff_attendance.check_out, EXCLUDED.check_out),
 			       status    = 'present'
-			 WHERE staff_attendance.source = 'biometric'`, instID)
+			 WHERE staff_attendance.source = 'device'`, instID, serial)
 		return err
 	})
 }
