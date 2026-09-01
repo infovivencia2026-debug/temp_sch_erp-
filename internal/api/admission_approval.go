@@ -92,12 +92,13 @@ func (s *Server) setAdmissionApproval(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, admissionApprovalSetting{Required: req.Required})
 }
 
-/* The queue: children offered a place, waiting on the head to let them join.
+/*
+The queue: children offered a place, waiting on the head to let them join.
 
-   Everything the principal needs to decide is here, because the alternative
-   is opening the application, the fee structure and the concession list in
-   three tabs. What it costs and what has been waived are the two facts that
-   make this a decision rather than a rubber stamp.
+	Everything the principal needs to decide is here, because the alternative
+	is opening the application, the fee structure and the concession list in
+	three tabs. What it costs and what has been waived are the two facts that
+	make this a decision rather than a rubber stamp.
 */
 type pendingAdmission struct {
 	ID          string `json:"id"`

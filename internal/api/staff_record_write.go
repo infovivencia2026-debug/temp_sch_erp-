@@ -72,18 +72,19 @@ func (s *Server) setStaffPhoto(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"saved": true})
 }
 
-/* The papers a school holds on a teacher.
+/*
+The papers a school holds on a teacher.
 
-   employee_documents has been listable since it was written and never
-   writable, so the degree certificate, the police verification and the
-   Aadhaar copy the office takes at joining went into a drawer — and the
-   expiry the list screen warns about could only ever be warned about for
-   documents nobody could add.
+	employee_documents has been listable since it was written and never
+	writable, so the degree certificate, the police verification and the
+	Aadhaar copy the office takes at joining went into a drawer — and the
+	expiry the list screen warns about could only ever be warned about for
+	documents nobody could add.
 
-   THE EXPIRY IS THE POINT and is why this is not the student version. A
-   child's birth certificate does not lapse; a teacher's police verification,
-   medical fitness and contract all do, and the directory already has a screen
-   that counts what expires in the next sixty days.
+	THE EXPIRY IS THE POINT and is why this is not the student version. A
+	child's birth certificate does not lapse; a teacher's police verification,
+	medical fitness and contract all do, and the directory already has a screen
+	that counts what expires in the next sixty days.
 */
 type staffDocumentRequest struct {
 	DocType   string `json:"doc_type"`
@@ -138,11 +139,12 @@ func (s *Server) addStaffDocument(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{"id": out})
 }
 
-/* Removing a document takes the ROW, not the file.
+/*
+Removing a document takes the ROW, not the file.
 
-   files is shared: the same upload can be a teacher's certificate and an
-   attachment on a message, and deleting the blob because one reference went
-   away would break the other.
+	files is shared: the same upload can be a teacher's certificate and an
+	attachment on a message, and deleting the blob because one reference went
+	away would break the other.
 */
 func (s *Server) deleteStaffDocument(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -179,15 +181,16 @@ func (s *Server) deleteStaffDocument(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"deleted": true})
 }
 
-/* Fields a school invented, on a staff record.
+/*
+Fields a school invented, on a staff record.
 
-   MERGED, NOT ASSIGNED, for the reason the student version is: a screen that
-   knows about three fields must not erase a fourth it has never heard of, and
-   two screens editing different blocks of one record must not undo each other.
+	MERGED, NOT ASSIGNED, for the reason the student version is: a screen that
+	knows about three fields must not erase a fourth it has never heard of, and
+	two screens editing different blocks of one record must not undo each other.
 
-   A BLANK VALUE REMOVES THE KEY, which gives one way to say "this does not
-   belong here after all" rather than a delete endpoint with its own
-   permission and its own way of being got wrong.
+	A BLANK VALUE REMOVES THE KEY, which gives one way to say "this does not
+	belong here after all" rather than a delete endpoint with its own
+	permission and its own way of being got wrong.
 */
 func (s *Server) saveStaffCustomFields(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

@@ -111,15 +111,16 @@ type coScholasticGradeRequest struct {
 	Remark string `json:"remark,omitempty"`
 }
 
-/* Grading a child in one area, for one term.
+/*
+Grading a child in one area, for one term.
 
-   An upsert, not an insert. A second grade for the same area and term is a
-   correction — a teacher revising what they put down last week — and storing
-   both would leave the report card to choose between them.
+	An upsert, not an insert. A second grade for the same area and term is a
+	correction — a teacher revising what they put down last week — and storing
+	both would leave the report card to choose between them.
 
-   BLANK REMOVES IT, which is how a grade entered against the wrong child is
-   taken back. There is no other control for that, and a wrong grade nobody
-   can delete is one somebody works around by writing a second one.
+	BLANK REMOVES IT, which is how a grade entered against the wrong child is
+	taken back. There is no other control for that, and a wrong grade nobody
+	can delete is one somebody works around by writing a second one.
 */
 func (s *Server) saveCoScholasticGrade(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -199,16 +200,17 @@ func (s *Server) saveCoScholasticGrade(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"saved": !removed, "removed": removed})
 }
 
-/* The terms a school divides its year into.
+/*
+The terms a school divides its year into.
 
-   Needed by anything that records something "for Term 2" and by nothing else
-   until now, so it was never exposed: terms has been in the schema from the
-   beginning with no endpoint reading it. A co-scholastic grade belongs to a
-   term — Art in Term 1 and Art in Term 3 are two different judgements about
-   the same child — so the list has to be reachable.
+	Needed by anything that records something "for Term 2" and by nothing else
+	until now, so it was never exposed: terms has been in the schema from the
+	beginning with no endpoint reading it. A co-scholastic grade belongs to a
+	term — Art in Term 1 and Art in Term 3 are two different judgements about
+	the same child — so the list has to be reachable.
 
-   Ordered by sequence rather than by name, because a school that calls them
-   "Michaelmas" and "Lent" would otherwise get them alphabetically.
+	Ordered by sequence rather than by name, because a school that calls them
+	"Michaelmas" and "Lent" would otherwise get them alphabetically.
 */
 type termRow struct {
 	ID       string `json:"id"`

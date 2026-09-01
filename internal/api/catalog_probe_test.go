@@ -14,26 +14,27 @@ import (
 	"github.com/school-erp/erp/internal/rbac"
 )
 
-/* Why is a feature missing from somebody's menu?
+/*
+Why is a feature missing from somebody's menu?
 
-   "1 certificate request to issue" sat on the principal's dashboard with
-   nothing to press, and I explained it wrongly three times — each time from
-   reading the code, each time about the wrong layer. The catalogue is
-   assembled from six independent gates:
+	"1 certificate request to issue" sat on the principal's dashboard with
+	nothing to press, and I explained it wrongly three times — each time from
+	reading the code, each time about the wrong layer. The catalogue is
+	assembled from six independent gates:
 
-     the role is held; the plan includes the section's module; setup is not
-     locking everything down; the permission key is granted; the feature has
-     an implementation; and the scope has data behind it.
+	  the role is held; the plan includes the section's module; setup is not
+	  locking everything down; the permission key is granted; the feature has
+	  an implementation; and the scope has data behind it.
 
-   A feature vanishes if ANY of them says no, and the screen cannot say which
-   because by then the entry does not exist. So the answer to "why is this
-   missing" was six greps and a guess.
+	A feature vanishes if ANY of them says no, and the screen cannot say which
+	because by then the entry does not exist. So the answer to "why is this
+	missing" was six greps and a guess.
 
-   This asks the running catalogue instead, against the real database, and
-   prints the verdict of every gate for one feature key. It is a diagnostic
-   rather than an assertion: it fails only if the feature is absent AND every
-   gate it can see says yes, which is the case that means the fault is
-   somewhere none of them covers.
+	This asks the running catalogue instead, against the real database, and
+	prints the verdict of every gate for one feature key. It is a diagnostic
+	rather than an assertion: it fails only if the feature is absent AND every
+	gate it can see says yes, which is the case that means the fault is
+	somewhere none of them covers.
 */
 func TestCatalogueExplainsAMissingFeature(t *testing.T) {
 	if os.Getenv("ERP_TEST_DATABASE_URL") == "" {

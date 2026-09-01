@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 327 features. */
+/** 13 roles, 329 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -382,6 +382,8 @@ export const ROLES: Role[] = [
         workspace: 'Staff',
         features: [
           { key: 'institution_admin.attendance_devices.biometric_readers', slug: 'biometric_readers', name: 'Biometric Readers', scope: 'institution', tier: 'core', summary: 'The fingerprint readers this school runs: the serial each one reports, whether it is trusted yet, when it last spoke, and punches from a finger nobody claims.' },
+          { key: 'institution_admin.attendance_devices.staff_attendance_register', slug: 'staff_attendance_register', name: 'Staff attendance register', scope: 'institution', tier: 'core', summary: 'Who was in today and who was not, taken off the fingerprint readers above. The day the school actually had, not the one the roster planned: late arrivals, early departures, and the staff a reader recorded no punch for at all.' },
+          { key: 'institution_admin.attendance_devices.staff_attendance_reports', slug: 'staff_attendance_reports', name: 'Staff attendance reports', scope: 'institution', tier: 'core', summary: 'The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need.' },
         ],
       },
     ],

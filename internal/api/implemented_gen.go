@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 319 of the catalog's features are implemented.
+// 321 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
@@ -136,6 +136,8 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.analysis.performance_analytics":                               true,
 	"institution_admin.approvals.approvals":                                          true,
 	"institution_admin.attendance_devices.biometric_readers":                         true,
+	"institution_admin.attendance_devices.staff_attendance_register":                 true,
+	"institution_admin.attendance_devices.staff_attendance_reports":                  true,
 	"institution_admin.channel_setup.message_channels":                               true,
 	"institution_admin.channel_setup.quiet_hours_sending_limits":                     true,
 	"institution_admin.channel_setup.sender_identity":                                true,
