@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
+import { useCan } from '@/lib/session'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -1255,7 +1256,21 @@ export function Select({
   const selected = all.find((o) => o.value === value)
   const q = query.trim().toLowerCase()
   const shown = q ? all.filter((o) => o.label.toLowerCase().includes(q)) : all
-  const canAdd = !!kind && !!q && !all.some((o) => o.label.toLowerCase() === q)
+  /* OFFERED ONLY TO SOMEBODY WHO MAY DO IT.
+
+     Adding to a vocabulary writes a row every form in the school then reads,
+     so it is gated on institution.settings.write — correctly. What was wrong
+     was offering it to everyone: a clerk typing "telugu" was shown
+     "+ Add a language: telugu", pressed it, and got
+     "missing permission: institution.settings.write" in red underneath. The
+     product asked them to do a thing and then refused them for doing it.
+
+     Hidden rather than disabled. A greyed row that can never become live is
+     an advert wearing the clothes of a feature, and the person reading it
+     cannot tell it from something broken. */
+  const mayExtend = useCan()('institution.settings.write')
+  const canAdd = mayExtend && !!kind && !!q
+    && !all.some((o) => o.label.toLowerCase() === q)
 
   /* Words or records?
    *
