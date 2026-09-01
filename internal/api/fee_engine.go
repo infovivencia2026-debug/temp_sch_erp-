@@ -708,7 +708,7 @@ func (s *Server) listFineRules(w http.ResponseWriter, r *http.Request) {
 		"heads":            heads,
 		"kinds":            []string{"fixed", "per_day", "percent"},
 		"compound_periods": []string{"none", "weekly", "monthly"},
-		"concession_kinds": []string{"scholarship", "sibling", "staff_ward", "rte", "merit", "other"},
+		"concession_kinds": concessionKinds,
 	})
 }
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -52,9 +53,17 @@ type concessionGrantRequest struct {
 
 // The kinds the table's own CHECK allows. Listed here so a bad value is a 400
 // naming the alternatives rather than a 500 from the constraint.
-var concessionKinds = map[string]bool{
-	"scholarship": true, "sibling": true, "staff_ward": true,
-	"rte": true, "merit": true, "other": true,
+var concessionKinds = []string{
+	"scholarship", "sibling", "staff_ward", "rte", "merit", "other",
+	// Paying every term up front. Not who the family is, like the five above,
+	// but how they pay -- and the one discount schools give that the list
+	// could not name, so it was filed under "other" and could not be totalled
+	// at the end of the year.
+	"full_payment",
+}
+
+func concessionKindAllowed(k string) bool {
+	return slices.Contains(concessionKinds, k)
 }
 
 func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
@@ -134,9 +143,9 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		head = &h
 	}
 	kind := strings.TrimSpace(req.Kind)
-	if !concessionKinds[kind] {
+	if !concessionKindAllowed(kind) {
 		httpx.BadRequest(w, r,
-			"kind must be one of scholarship, sibling, staff_ward, rte, merit, other")
+			"kind must be one of "+strings.Join(concessionKinds, ", "))
 		return
 	}
 
