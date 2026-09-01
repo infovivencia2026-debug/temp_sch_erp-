@@ -197,15 +197,31 @@ func (s *Server) issueEnquiryLogin(
 		"portal_url":   strings.TrimSuffix(s.BaseURL, "/") + "/login",
 	}
 	eid := enquiryID
+	/* WHY A CHANNEL DID NOT GO, SAID OUT LOUD.
+
+	   These errors used to be dropped on the floor. The rule that they must
+	   not fail the enquiry is right; discarding them was not. A desk that
+	   types a parent's email address and gets back a panel listing WhatsApp
+	   and SMS has been told the email was not sent, but not that the reason is
+	   an SMTP server nobody has filled in -- so it is read as a bug in the
+	   product, reported as "email not sent", and the one screen that would fix
+	   it in a minute is never opened.
+
+	   Collected per channel and returned in the note, which is the same place
+	   every other outcome of this function already goes. */
+	var failed []string
 	for _, channel := range applicantChannels {
 		to := phone
 		if channel == "email" {
 			to = email
 		}
 		if to == "" {
+			if channel == "email" {
+				failed = append(failed, "email: no address was given")
+			}
 			continue
 		}
-		if _, err := s.QueueMessage(ctx, tx, inst, SendRequest{
+		res, err := s.QueueMessage(ctx, tx, inst, SendRequest{
 			Channel:      channel,
 			TemplateCode: code,
 			Vars:         vars,
@@ -216,12 +232,50 @@ func (s *Server) issueEnquiryLogin(
 			// funnel is: an enquiry saved twice because the page was slow must
 			// not send one family two passwords, of which only one works.
 			OccurrenceKey: "applicant_login:" + channel,
-		}); err != nil {
-			// Swallowed, never returned. See the file comment.
-			_ = err
+		})
+		if err != nil {
+			// Never returned as an error -- see the file comment -- but no
+			// longer thrown away either.
+			failed = append(failed, channel+": "+queueFailureReason(err))
+			continue
+		}
+		if res.Duplicate {
+			// Already queued for this enquiry on this channel. Counting it as
+			// a fresh send would tell the desk a password went out that this
+			// call did not send, and the one that did carried a password this
+			// response is not showing.
 			continue
 		}
 		out.SentTo = append(out.SentTo, channel)
 	}
+	if len(failed) > 0 {
+		out.Note = strings.TrimSpace(out.Note + " Not sent by " +
+			strings.Join(failed, "; ") + ".")
+	}
 	return out
+}
+
+/*
+queueFailureReason turns a QueueMessage error into something a clerk can act on.
+
+	An unconfigured provider is by far the commonest cause and is not a fault:
+	it is a school that has not filled in its mail server yet, and naming that
+	is the difference between a five-minute fix and a bug report. Anything else
+	is passed through as it stands rather than flattened into "failed", because
+	the remaining causes -- no template, a rejected address -- are each fixed
+	somewhere different.
+*/
+func queueFailureReason(err error) string {
+	if errors.Is(err, ErrProviderNotConfigured) {
+		// The wrapped text already reads "email: not configured: no SMTP host
+		// set"; the channel is named by the caller, so only the tail is wanted.
+		msg := err.Error()
+		if i := strings.LastIndex(msg, ": "); i >= 0 {
+			return strings.TrimSpace(msg[i+2:]) + " (set it up under Integrations)"
+		}
+	}
+	if errors.Is(err, ErrNoRecipient) {
+		return "no usable address or number"
+	}
+	return err.Error()
 }

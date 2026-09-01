@@ -65,6 +65,10 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 
 	var newID string
 	var applicant applicantWelcome
+	// Which channels could not carry the application link, and why. Returned
+	// rather than logged: the person who can do something about an SMTP server
+	// nobody has filled in is the one standing at this screen.
+	var linkFailed []string
 	var errUnknownClass = errors.New("unknown class")
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// class_sought is a uuid column behind a plainly-named string field, so
@@ -121,8 +125,8 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 		if perr != nil {
 			return perr
 		}
-		s.sendEnquiryApplicationLink(r.Context(), tx, id.InstitutionID, enquiryUUID,
-			req.StudentName, req.ParentName, req.Phone, req.Email)
+		linkFailed = s.sendEnquiryApplicationLink(r.Context(), tx, id.InstitutionID,
+			enquiryUUID, req.StudentName, req.ParentName, req.Phone, req.Email)
 
 		/* AND A WAY TO WATCH WHAT HAPPENS TO IT.
 
@@ -147,6 +151,10 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": newID, "status": "new",
+		// Named separately from the login's own note because the two are fixed
+		// in different places: a form nobody has opened is an admissions job, a
+		// mail server nobody has configured is an integrations one.
+		"link_not_sent": linkFailed,
 		// The password is here because it is nowhere else: nothing can read it
 		// back out afterwards, so if no message arrives this response is the
 		// only copy that ever existed -- and the parent is usually still at

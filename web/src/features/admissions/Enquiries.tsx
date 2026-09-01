@@ -79,12 +79,22 @@ export default function Enquiries() {
   const [issued, setIssued] = useState<ParentLogin | null>(null)
 
   const create = useMutation({
-    mutationFn: () => api.post<{ parent_login?: ParentLogin }>(
+    mutationFn: () => api.post<{ parent_login?: ParentLogin; link_not_sent?: string[] }>(
       '/api/v1/admissions/workflow/enquiries', form),
     onSuccess: (res) => {
       setAdding(false)
       setForm({ student_name: '', parent_name: '', phone: '', email: '', source: 'walk_in' })
-      setNote('Enquiry logged.')
+      /* Say which channels the application link could not go out on.
+       *
+       * A desk that types a parent's email address and never sees an email
+       * arrive has no way, from this screen, to tell a broken mail server from
+       * one nobody has configured — so it gets reported as "email not sent" and
+       * the integrations screen that fixes it in a minute is never opened. The
+       * server now returns the reason; this shows it. */
+      const missed = res?.link_not_sent ?? []
+      setNote(missed.length
+        ? `Enquiry logged. The application link could not be sent — ${missed.join('; ')}.`
+        : 'Enquiry logged.')
       // Only where an account was actually issued. A family that already had
       // one gets a note and no password, and showing an empty box would read
       // as a credential that failed to generate.
