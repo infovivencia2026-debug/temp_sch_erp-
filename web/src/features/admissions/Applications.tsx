@@ -204,15 +204,22 @@ export default function Applications() {
   })
 
   const decide = useMutation({
-    mutationFn: (decision: 'offered' | 'rejected' | 'waitlisted') =>
+    mutationFn: (v: { decision: string; remarks?: string }) =>
       api.post(`/api/v1/admissions/workflow/applications/${open!.id}/decision`, {
-        decision, remarks,
+        decision: v.decision, remarks: v.remarks ?? remarks,
       }),
-    onSuccess: (_r, d) => {
+    onSuccess: (_r, v) => {
       setNote(
-        d === 'offered'
+        v.decision === 'offered'
           ? 'Offer issued. The parent can be told to pay the admission fee.'
-          : d === 'waitlisted' ? 'Waitlisted.' : 'Rejected.',
+          : v.decision === 'waitlisted'
+            ? 'Waitlisted — no seat yet, and ranked against the queue.'
+            : v.decision === 'on_hold'
+              /* Said differently from waitlisted on purpose: the seat is
+                 there, and the reason is what somebody picking this up in
+                 three weeks will have to act on. */
+              ? 'On hold. The seat is held and the reason is on the record.'
+              : 'Rejected.',
       )
       after()
     },
@@ -694,7 +701,14 @@ export default function Applications() {
                 </span>
                 )
               })}
-              {terminal && <StatusPill status={open.status} className="ml-2" />}
+              {/* WHERE IT STANDS, ALWAYS.
+
+                  The pill was drawn only for a rejected or withdrawn
+                  application, so the moment somebody pressed "Offer a place"
+                  the buttons vanished and nothing appeared in their place. The
+                  screen had recorded the decision and did not say so, which
+                  reads as a button that did nothing. */}
+              <StatusPill status={open.status} className="ml-2" />
             </div>
 
             {terminal ? (
@@ -704,8 +718,16 @@ export default function Applications() {
             ) : (
               <div className="flex flex-col gap-5 p-5">
                 {/* The paperwork first: a decision taken before the birth
-                    certificate is checked is a decision taken twice. */}
-                <Documents applicationId={open.id} canWrite={mayWrite} />
+                    certificate is checked is a decision taken twice.
+
+                    AND ONLY UNTIL THE DECISION IS TAKEN. Once a place is
+                    offered the checklist has done its work, and leaving it at
+                    the top of the panel puts three inches of ticked boxes
+                    between the reader and the thing that is now next —
+                    accepting, enrolling, or chasing the family. */}
+                {stage < stageIndex('offered') && (
+                  <Documents applicationId={open.id} canWrite={mayWrite} />
+                )}
 
                 {/* Assessment — schedule or score a test or interview. */}
                 {mayWrite && (usesTest || usesInterview) && stage < stageIndex('offered') && (
@@ -750,15 +772,29 @@ export default function Applications() {
                   <div className="border-t pt-5">
                     <p className="eyebrow mb-2">Decision</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button disabled={decide.isPending} onClick={() => decide.mutate('offered')}>
+                      <Button disabled={decide.isPending} onClick={() => decide.mutate({ decision: 'offered' })}>
                         Offer a place
                       </Button>
                       <Button variant="secondary" disabled={decide.isPending}
-                        onClick={() => decide.mutate('waitlisted')}>
+                        onClick={() => decide.mutate({ decision: 'waitlisted' })}>
                         Waitlist
                       </Button>
+                      {/* HOLD IS NOT WAITLIST. Waitlisted means there is no
+                          seat and the child is ranked; a hold means the seat
+                          is there and something else is unsettled — the fee,
+                          a concession decision, a document. */}
+                      <Button variant="secondary" disabled={decide.isPending}
+                        onClick={() => {
+                          const why = window.prompt(
+                            'What is being waited on? Whoever picks this up will not have been in the room.')
+                          if (why && why.trim()) {
+                            decide.mutate({ decision: 'on_hold', remarks: why.trim() })
+                          }
+                        }}>
+                        Hold
+                      </Button>
                       <Button variant="secondary" tone="danger" disabled={decide.isPending}
-                        onClick={() => decide.mutate('rejected')}>
+                        onClick={() => decide.mutate({ decision: 'rejected' })}>
                         Reject
                       </Button>
                     </div>

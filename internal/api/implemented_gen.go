@@ -6,9 +6,8 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 319 of the catalog's features are implemented.
+// 318 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
-	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
 	"admissions.admissions.seat_allotment":                                           true,
 	"admissions.admissions.waitlist":                                                 true,

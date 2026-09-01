@@ -550,9 +550,26 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	valid := map[string]bool{"offered": true, "rejected": true, "waitlisted": true}
+	/* HOLD IS NOT WAITLIST, and the difference is the seat.
+
+	   Waitlisted means there is no place and the child is ranked against a
+	   queue. On hold means the place is there and something else is unsettled
+	   — the fee, a concession with the principal, a document not brought.
+	   Offices were using waitlisted for both, which ranked children against a
+	   queue they were never in and made the seat count wrong. */
+	valid := map[string]bool{
+		"offered": true, "rejected": true, "waitlisted": true, "on_hold": true,
+	}
+	// A hold with no reason is a note somebody leaves for themselves and
+	// cannot read back: the person who sets it is not the one who finds it.
+	if req.Decision == "on_hold" && strings.TrimSpace(req.Remarks) == "" {
+		httpx.BadRequest(w, r,
+			"say what is being waited on — the fee, a concession decision, a document")
+		return
+	}
 	if !valid[req.Decision] {
-		httpx.BadRequest(w, r, "decision must be offered, rejected or waitlisted")
+		httpx.BadRequest(w, r,
+			"decision must be offered, rejected, waitlisted or on_hold")
 		return
 	}
 
@@ -581,7 +598,14 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE applications
 			   SET status = $2, decided_by = $3, decided_at = now(),
-			       remarks = COALESCE($4, remarks), updated_at = now()
+			       remarks = COALESCE($4, remarks), updated_at = now(),
+			       /* The reason is the hold. Written on the way in and cleared
+			          on the way out: one left behind after the hold is lifted
+			          is the note somebody reads next term and acts on. */
+			       hold_reason = CASE WHEN $2 = 'on_hold'
+			                          THEN NULLIF(btrim($4), '') END,
+			       held_at = CASE WHEN $2 = 'on_hold' THEN now() END,
+			       held_by = CASE WHEN $2 = 'on_hold' THEN $3 END
 			 WHERE id = $1`, appID, req.Decision, id.UserID, nullString(req.Remarks))
 		if err != nil {
 			return err

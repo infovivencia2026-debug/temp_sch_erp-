@@ -52,13 +52,6 @@ const VIEWS: Record<string, {
     lead: 'seats',
     emptyLabel: 'Nobody has applied under RTE yet.',
   },
-  fee_enrollment: {
-    title: 'Fee & enrolment',
-    description: 'Applicants who have been offered a place or accepted one \u2014 the queue that becomes students.',
-    only: (m) => ['offered', 'accepted'].includes(m.status),
-    lead: 'merit',
-    emptyLabel: 'Nobody has been offered a place yet.',
-  },
   admission_reports: {
     title: 'Admission reports',
     description: 'Enquiries, applications and admissions with the conversion between them. Cumulative totals \u2014 every application ever raised.',

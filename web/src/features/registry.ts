@@ -160,7 +160,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'student.fees.fees': screen(() => import('./portal/Fees')),
   'admissions.admissions.seat_allotment': screen(() => import('./admissions/Pipeline')),
   'admissions.admissions.rte_quota': screen(() => import('./admissions/Pipeline')),
-  'admissions.admissions.fee_enrollment': screen(() => import('./admissions/Pipeline')),
   /* The receptionist's own workspace.
    *
    * front_office is a role a school can actually hand out — it sits in the

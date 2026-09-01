@@ -461,7 +461,24 @@ var probes = []probe{
 		},
 	},
 	{
-		Key: "certificates.requested", Needs: rbac.StudentsWrite,
+		/* GATED ON THE SCREEN, NOT ON A NEARBY PERMISSION.
+
+		   This asked for students.write, which the admissions desk holds — so
+		   the row appeared for them, pointing at Certificates & transfers,
+		   which exists only in the institution_admin workspace. Admissions has
+		   no certificates screen at all, so there was nothing for the link to
+		   resolve to and the row rendered as a line of text with no button.
+
+		   I explained that row wrongly three times, each time about a
+		   different layer, because every layer I checked was correct FOR THE
+		   PRINCIPAL. It was only ever broken for the reader who could not
+		   reach the destination.
+
+		   Feature keys live in role_permissions beside the rbac ones, so
+		   naming the screen's own key is both the permission test and the
+		   guarantee that the link has somewhere to go. */
+		Key: "certificates.requested",
+		Needs: "institution_admin.students.certificates_transfers",
 		/* The screen that issues one, not the section it lives in.
 
 		   "students" matched Student 360 first — a screen about one child,

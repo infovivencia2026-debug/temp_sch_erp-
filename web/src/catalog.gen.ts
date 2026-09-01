@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 327 features. */
+/** 13 roles, 326 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -813,7 +813,6 @@ export const ROLES: Role[] = [
           { key: 'admissions.admissions.seat_allotment', slug: 'seat_allotment', name: 'Seat Allotment', scope: 'institution', tier: 'core', summary: 'Rank the applicants on the weights the school has set — test score, sibling, distance — against the seats sanctioned for each class, and publish the list. Seats cannot be allotted past the sanctioned strength.' },
           { key: 'admissions.admissions.rte_quota', slug: 'rte_quota', name: 'RTE Quota', scope: 'institution', tier: 'core', summary: 'The 25% the Act requires: applicants claiming it, the state portal reference against each, seats filled against seats mandated, and the zero-fee tag that keeps them out of the fee run while staying on the government return.' },
           { key: 'admissions.admissions.waitlist', slug: 'waitlist', name: 'Waitlist', scope: 'institution', tier: 'core', summary: 'Who is next if a seat is given up, in order, with the date they went on.' },
-          { key: 'admissions.admissions.fee_enrollment', slug: 'fee_enrollment', name: 'Fee & Enrollment', scope: 'institution', tier: 'core', summary: 'The admission fee, the caution deposit and the first term, and the one step that turns a paid acceptance into an enrolled student with an admission number and a section — without anybody typing the child\'s details a second time.' },
         ],
       },
       {
