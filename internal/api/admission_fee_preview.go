@@ -48,6 +48,10 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 	var total int64
 	var structureName string
 	var instalments int
+	/* "No structure" and "a structure nobody activated" are different
+	   problems with different answers, and telling somebody the first when it
+	   is the second sends them to build a duplicate. */
+	var draftName string
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* The CURRENT version, which is what the demand raise uses.
@@ -67,9 +71,15 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 			 ORDER BY v.effective_from DESC NULLS LAST, v.version_no DESC
 			 LIMIT 1`, classID).Scan(&versionID, &structureName)
 		if err == pgx.ErrNoRows {
-			// No structure for this class is an ordinary answer at the start of
-			// a year, not an error. The screen says so and offers no figure,
-			// which is better than a zero that reads as "free".
+			/* Nothing live. Before saying "there is no fee structure" — which
+			   is the sentence that makes somebody build a second one — look
+			   for one that exists and has never been activated. A structure
+			   with a draft version is the commonest state on a new school and
+			   the fix is one click, not a rebuild. */
+			_ = tx.QueryRow(r.Context(), `
+				SELECT fs.name FROM fee_structures fs
+				 WHERE fs.class_id = $1 AND fs.is_active
+				 ORDER BY fs.created_at DESC LIMIT 1`, classID).Scan(&draftName)
 			return nil
 		}
 		if err != nil {
@@ -112,6 +122,9 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 		"total_paise":   total,
 		"instalments":   instalments,
 		"has_structure": len(heads) > 0,
+		// The structure that exists but is not in force, so the screen can say
+		// "activate it" rather than "create one".
+		"draft_structure": draftName,
 		/* Said on the response rather than assumed by the screen: this is what
 		   the class costs, and nothing is owed until the demand is raised. */
 		"note": "A quote from the current fee structure. Nothing is charged " +

@@ -35,6 +35,7 @@ interface Quote {
   total_paise: number
   instalments: number
   has_structure: boolean
+  draft_structure: string
   note: string
 }
 
@@ -76,10 +77,26 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
   if (quote.isLoading) return null
 
   if (!q?.has_structure) {
+    /* TWO DIFFERENT PROBLEMS, and telling somebody the wrong one costs them an
+       afternoon. A structure with no activated version is the commonest state
+       on a new school, and "no fee structure has been set" sends them to build
+       a second one beside the first. */
     return (
       <div className="rounded-lg border bg-muted/30 p-3 text-[12.5px] text-muted-foreground">
-        No fee structure has been set for this class yet, so there is nothing to
-        quote. Build one under Accounts → Fees → Class &amp; transport fee setup.
+        {q?.draft_structure ? (
+          <>
+            <span className="font-medium">{q.draft_structure}</span> exists for
+            this class but has no live version, so there is nothing to quote and
+            no demand can be raised from it. Open it under Accounts → Fees →
+            Class &amp; transport fee setup and activate a version.
+          </>
+        ) : (
+          <>
+            No fee structure has been set for this class yet, so there is
+            nothing to quote. Build one under Accounts → Fees → Class &amp;
+            transport fee setup.
+          </>
+        )}
       </div>
     )
   }
