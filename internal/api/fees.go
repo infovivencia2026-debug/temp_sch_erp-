@@ -668,6 +668,19 @@ type generateInvoicesRequest struct {
 	FeeStructureID string `json:"fee_structure_id"`
 	InstalmentNo   int    `json:"instalment_no"`
 	DueOn          string `json:"due_on"`
+	/* ONE CHILD, when that is what is wanted.
+
+	   The run was class-wide only, which is right in June and wrong every
+	   other month of the year. A child admitted in November, or one whose
+	   concession has only just been approved, needs their own bill — and
+	   raising the whole class again to get it does nothing, because everybody
+	   else is skipped as already invoiced, so it looks like a button that
+	   failed.
+
+	   Everything else is unchanged: the same structure, the same lines, the
+	   same concession arithmetic, the same guard against billing twice. This
+	   only narrows who is considered. */
+	StudentID string `json:"student_id,omitempty"`
 }
 
 // generateInvoices raises one invoice per enrolled student from a fee
@@ -706,6 +719,7 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, skipped := 0, 0
+	pendingConcessions := 0
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var instID, campusID, yearID uuid.UUID
 		var classID *uuid.UUID
@@ -766,6 +780,31 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			return errNoSuchInstalment
 		}
 
+		/* CONCESSIONS STILL WAITING ON A DECISION.
+
+		   The engine applies a concession when it builds the lines, and reads
+		   only approved ones — correctly, since an unapproved waiver is a
+		   request and not a discount. The consequence is an ordering rule
+		   nobody was told: approve after the demand is raised and the invoice
+		   already sent keeps the full amount.
+
+		   That is the wrong way round to discover. A family agrees a staff-ward
+		   rate at admission, the accountant raises the term's demand the same
+		   afternoon, and the bill goes out at full price while the concession
+		   sits approved and inert. Counted here and returned so the screen can
+		   say so BEFORE the invoices exist. */
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(DISTINCT fc.student_id)::int
+			  FROM fee_concessions fc
+			  JOIN enrollments e ON e.student_id = fc.student_id
+			 WHERE fc.status = 'pending'
+			   AND e.academic_year_id = $1
+			   AND e.status = 'active'
+			   AND ($2::uuid IS NULL OR e.class_id = $2)`,
+			yearID, classID).Scan(&pendingConcessions); err != nil {
+			return err
+		}
+
 		// Students enrolled in this year, optionally limited to the structure's
 		// class. Skipping those already invoiced for this instalment makes the
 		// whole operation safe to re-run after a partial failure.
@@ -787,6 +826,7 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			  FROM enrollments e
 			 WHERE e.academic_year_id = $1
 			   AND e.status = 'active'
+			   AND ($4::uuid IS NULL OR e.student_id = $4)
 			   AND ($2::uuid IS NULL OR e.class_id = $2)
 			   AND ($2::uuid IS NOT NULL OR NOT EXISTS (
 			       SELECT 1 FROM fee_structures fs
@@ -797,7 +837,8 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			       SELECT 1 FROM invoices i
 			        WHERE i.student_id = e.student_id
 			          AND i.academic_year_id = $1
-			          AND i.instalment_no = $3)`, yearID, classID, req.InstalmentNo)
+			          AND i.instalment_no = $3)`,
+			yearID, classID, req.InstalmentNo, nullString(req.StudentID))
 		if err != nil {
 			return err
 		}
@@ -893,6 +934,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"created": created, "skipped": skipped,
 		"instalment_no": req.InstalmentNo, "due_on": dueOn.Format(time.DateOnly),
+		/* Children billed in full whose waiver was still waiting. Reported
+		   rather than refused: the demand is usually right and a school that
+		   cannot bill until every concession is decided cannot bill. */
+		"pending_concessions": pendingConcessions,
 	})
 }
 

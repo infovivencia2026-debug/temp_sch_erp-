@@ -107,6 +107,14 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/import/template", s.getImportTemplate)
 			r.Get("/{id}", s.getStudent)
 			r.Get("/{id}/profile", s.getStudentProfile)
+			/* What a class costs, at the desk where a family asks it.
+
+			   Admitting raises no invoice on purpose, which left the clerk with
+			   nothing to say when a parent asked the one question every
+			   admission conversation contains. Read-only, and from the same
+			   structure the demand raise reads — two sources for one figure is
+			   two figures. */
+			r.Get("/fee-preview", s.admissionFeePreview)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/import", s.importStudents)

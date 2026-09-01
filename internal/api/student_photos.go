@@ -160,18 +160,20 @@ func (s *Server) importStudentPhotos(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* --- the parents' photographs ---------------------------------------------
+/*
+--- the parents' photographs ---------------------------------------------
 
-   Same shape as the child's, deliberately: one file id, empty removes it, and
-   the same scope predicate decides who may write. A different mechanism here
-   would be a second place for the "which children may this teacher touch"
-   question to be answered, and the day the two answers differ is the day a
-   teacher edits a family in another section.
+	Same shape as the child's, deliberately: one file id, empty removes it, and
+	the same scope predicate decides who may write. A different mechanism here
+	would be a second place for the "which children may this teacher touch"
+	question to be answered, and the day the two answers differ is the day a
+	teacher edits a family in another section.
 
-   Reached through the child rather than by guardian id alone. A guardian row
-   belongs to the institution, not to a section, so on its own it carries
-   nothing to check a teacher's scope against — and a guardian with two
-   children in different sections is ordinary. */
+	Reached through the child rather than by guardian id alone. A guardian row
+	belongs to the institution, not to a section, so on its own it carries
+	nothing to check a teacher's scope against — and a guardian with two
+	children in different sections is ordinary.
+*/
 func (s *Server) setGuardianPhoto(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	sid, err := uuid.Parse(chiURLParam(r, "id"))

@@ -25,6 +25,7 @@ export interface Detail {
   enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; remarks: string; promoted: boolean }[]
   transport_crew: { route: string; vehicle: string; driver: string; driver_phone: string; attendant: string; attendant_phone: string }[]
   activities: { id: string; name: string; category: string; schedule: string; fee_paise: string; status: string; enrolled_on: string; invoice_status: string; invoice_no: string; due_paise: string }[]
+  class_id?: string
 }
 
 /* MARKS BY SUBJECT.

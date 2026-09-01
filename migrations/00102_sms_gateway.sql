@@ -344,7 +344,7 @@ CREATE INDEX sms_gateway_dispatch_by_device
 COMMENT ON TABLE sms_gateway_dispatch IS
     'The claim ledger for the phone SMS gateway: one row per message, referencing message_log rather than copying it. Rows move to dispatching under FOR UPDATE SKIP LOCKED with a device id and a lease, which is what stops two paired phones sending the same message twice.';
 COMMENT ON COLUMN sms_gateway_dispatch.message_id IS
-    'The message this is about. A reference, never a copy -- body, subject and recipient live only in message_log.';
+    'The message this is about. A reference, never a copy — body, subject and recipient live only in message_log.';
 COMMENT ON COLUMN sms_gateway_dispatch.lease_expires_at IS
     'When an unconfirmed claim returns to queued. Bounded by attempt: a message that may already have left the handset is not re-sent indefinitely.';
 COMMENT ON COLUMN sms_gateway_dispatch.error IS

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, CornerDownLeft } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { aliasText } from '@/lib/search-aliases'
 
 /**
  * Command search over everything the user can reach.
@@ -38,7 +39,13 @@ export function CommandSearch() {
             summary: f.summary,
             live: f.live,
             inScope: f.in_scope,
-            haystack: `${f.name} ${section.name} ${role.name} ${f.summary}`.toLowerCase(),
+            /* The words somebody would type, not only the words the
+               product uses. See lib/search-aliases.ts: a principal hunting
+               for the screen that sends a notice types "notice", and the
+               screen is called Circulars. */
+            haystack: `${f.name} ${section.name} ${role.name} ${f.summary} ${aliasText(f.slug)}`
+              .toLowerCase(),
+            aliases: aliasText(f.slug).toLowerCase(),
           })),
         ),
       ),
@@ -51,16 +58,32 @@ export function CommandSearch() {
       // With no query, offer what actually works rather than an arbitrary slice.
       return index.filter((i) => i.live).slice(0, 8)
     }
+    /* Every word has to land somewhere, in any order.
+
+       The whole query was matched as one substring, so "send notice" and
+       "fee report" found nothing at all -- not because the feature was
+       missing but because nobody had written those two words adjacently in
+       that order. Splitting on whitespace and requiring each word to hit
+       somewhere is what makes typing a half-remembered phrase work, which is
+       how people search when they do not know what the screen is called. */
+    const words = needle.split(/\s+/).filter(Boolean)
     const scored = index
       .map((i) => {
-        // Name matches beat description matches, and a prefix beats a
-        // mid-string hit — otherwise "fee" surfaces a dozen summaries that
-        // merely mention fees before the fee counter itself.
         const n = i.name.toLowerCase()
-        let score = -1
+        // Every word must land, or this is not a hit at all.
+        if (!words.every((w) => i.haystack.includes(w))) return { i, score: -1 }
+        /* Ranked by where the match landed, best first. A name match beats a
+           description match and a prefix beats a mid-string hit -- otherwise
+           "fee" surfaces a dozen summaries that merely mention fees before
+           the fee counter itself.
+
+           An alias sits between the two: somebody typing "notice" wants
+           Circulars above every screen whose summary happens to say the word,
+           but not above a screen actually named for what they typed. */
+        let score = 3
         if (n.startsWith(needle)) score = 0
         else if (n.includes(needle)) score = 1
-        else if (i.haystack.includes(needle)) score = 2
+        else if (i.aliases.includes(needle)) score = 2
         return { i, score }
       })
       .filter((x) => x.score >= 0)

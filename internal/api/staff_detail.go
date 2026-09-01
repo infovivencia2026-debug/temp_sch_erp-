@@ -171,17 +171,18 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-/* Giving a teacher a subject, or taking one away, from their own record.
+/*
+Giving a teacher a subject, or taking one away, from their own record.
 
-   The allocation grid asks "who teaches 7-A Maths" and is right for building a
-   timetable from nothing. This asks "what does Anand teach" and is right for
-   the other half of the job: a teacher arrives in March and picks up four
-   classes, somebody goes on leave and their subjects are shared out, a head of
-   department is balancing a workload.
+	The allocation grid asks "who teaches 7-A Maths" and is right for building a
+	timetable from nothing. This asks "what does Anand teach" and is right for
+	the other half of the job: a teacher arrives in March and picks up four
+	classes, somebody goes on leave and their subjects are shared out, a head of
+	department is balancing a workload.
 
-   Both write the same row. A staff record with its own idea of who teaches
-   what would be a record that disagrees with the timetable, and the day they
-   disagree is the day somebody is sent to the wrong room.
+	Both write the same row. A staff record with its own idea of who teaches
+	what would be a record that disagrees with the timetable, and the day they
+	disagree is the day somebody is sent to the wrong room.
 */
 type staffSubjectRequest struct {
 	SectionID      string `json:"section_id"`

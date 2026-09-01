@@ -1118,6 +1118,8 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 		IDs     []string `json:"ids"`
 		Message string   `json:"message"`
 		Status  string   `json:"status,omitempty"`
+		// Required when the status is on_hold: what is being waited on.
+		HoldReason string `json:"hold_reason,omitempty"`
 	}
 	if !httpx.Decode(w, r, &req) {
 		return
@@ -1141,8 +1143,19 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Status != "" && !oneOfStr(req.Status, "draft", "submitted", "under_review",
 		"documents_pending", "test_scheduled", "interviewed", "offered", "accepted",
-		"rejected", "withdrawn", "waitlisted") {
+		"rejected", "withdrawn", "waitlisted", "on_hold") {
 		httpx.BadRequest(w, r, "unknown status "+req.Status)
+		return
+	}
+	/* A HOLD WITHOUT A REASON IS A NOTE SOMEBODY LEAVES FOR THEMSELVES.
+
+	   The whole cost of a hold is that the person who set it is not the person
+	   who finds it, three weeks later, and has to decide whether the child can
+	   now be admitted. "On hold" alone does not survive that gap. */
+	if req.Status == "on_hold" && strings.TrimSpace(req.HoldReason) == "" {
+		httpx.BadRequest(w, r,
+			"say what is being waited on — the fee, a concession decision, a "+
+				"document. Whoever picks this up will not have been in the room")
 		return
 	}
 
@@ -1176,8 +1189,16 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 			   direction. */
 			if req.Status != "" {
 				if _, err := tx.Exec(r.Context(), `
-					UPDATE applications SET status = $2, updated_at = now()
-					 WHERE id = $1`, appID, req.Status); err != nil {
+					UPDATE applications
+					   SET status = $2, updated_at = now(),
+					       /* Written on the way in and cleared on the way out.
+					          A reason left behind after the hold is lifted is
+					          the one somebody reads next term and acts on. */
+					       hold_reason = CASE WHEN $2 = 'on_hold'
+					                          THEN NULLIF(btrim($3), '') END,
+					       held_at = CASE WHEN $2 = 'on_hold' THEN now() END,
+					       held_by = CASE WHEN $2 = 'on_hold' THEN $4::uuid END
+					 WHERE id = $1`, appID, req.Status, req.HoldReason, id.UserID); err != nil {
 					return err
 				}
 			}

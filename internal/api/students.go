@@ -292,17 +292,18 @@ func nullString(s string) *string {
 // count depends on the caller's scope.
 func itoa(n int) string { return strconv.Itoa(n) }
 
-/* The roll in four numbers.
+/*
+The roll in four numbers.
 
-   Counted here rather than from the rows the list returns. That list is
-   filtered by class, capped at a few hundred and narrowed to what the caller
-   may see, so counting it would report "12 on the roll" about a section of
-   twelve and present it as the school.
+	Counted here rather than from the rows the list returns. That list is
+	filtered by class, capped at a few hundred and narrowed to what the caller
+	may see, so counting it would report "12 on the roll" about a section of
+	twelve and present it as the school.
 
-   Scoped like everything else: a class teacher's tiles count their own
-   sections, because a teacher being shown the whole school's roll on their own
-   page is a number that means nothing to them and that they should arguably
-   not have.
+	Scoped like everything else: a class teacher's tiles count their own
+	sections, because a teacher being shown the whole school's roll on their own
+	page is a number that means nothing to them and that they should arguably
+	not have.
 */
 func (s *Server) studentCounts(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

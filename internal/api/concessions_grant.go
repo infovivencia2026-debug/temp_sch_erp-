@@ -63,10 +63,36 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "student_id must be a uuid")
 		return
 	}
-	year, err := uuid.Parse(strings.TrimSpace(req.AcademicYearID))
-	if err != nil {
-		httpx.BadRequest(w, r, "academic_year_id must be a uuid")
-		return
+	/* THE CURRENT YEAR, WHEN NOBODY SAYS OTHERWISE.
+
+	   It was required, and every caller had to fetch the academic years,
+	   find the current one and send its id — for a fact the server already
+	   knows and can only have one answer to. The admissions desk granting a
+	   concession at the counter does not have that id to hand, and got
+	   "academic_year_id must be a uuid" for a field its form never showed.
+
+	   Still accepted explicitly, because backdating a concession to last year
+	   is a real thing a school does when correcting a bill. */
+	var year uuid.UUID
+	if v := strings.TrimSpace(req.AcademicYearID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "academic_year_id must be a uuid")
+			return
+		}
+		year = parsed
+	} else {
+		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(),
+				`SELECT id FROM academic_years WHERE is_current LIMIT 1`).Scan(&year)
+		}); err != nil {
+			/* A school with no current year cannot be billed at all, so this
+			   is worth saying rather than failing on a uuid parse. */
+			httpx.BadRequest(w, r,
+				"no academic year is marked current — set one under Academics "+
+					"before granting a concession")
+			return
+		}
 	}
 	var head *uuid.UUID
 	if v := strings.TrimSpace(req.FeeHeadID); v != "" {
@@ -124,6 +150,18 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) mountConcessionGrant(r chi.Router) {
-	r.With(httpx.RequirePermission(rbac.FeesWrite)).
+	/* RAISING IS NOT APPROVING, and admissions may raise.
+
+	   The gate was fees.write, which admissions does not hold — so the desk
+	   where a concession is actually agreed could not record one. A family
+	   negotiates the staff-ward rate at admission, in front of the clerk
+	   admitting the child; sending them to the accounts office to have it
+	   typed in again is how it ends up on a sticky note instead.
+
+	   Nothing about the approval changes. This endpoint writes a PENDING row
+	   and can do nothing else: the decision is still fees.write, still the
+	   principal's, and an admissions clerk cannot approve their own request.
+	   The two permissions are the whole safeguard and they stay separate. */
+	r.With(httpx.RequireAnyPermission(rbac.FeesWrite, rbac.AdmissionsWrite)).
 		Post("/concessions", s.grantConcession)
 }

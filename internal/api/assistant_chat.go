@@ -57,12 +57,14 @@ import (
 // assistantModel is Claude Opus 5. Named here so there is one line to change.
 const assistantModel = "claude-opus-5"
 
-/* Short answers on purpose, and not streamed.
+/*
+Short answers on purpose, and not streamed.
 
-   The tab does one fetch and one res.json(); it cannot render a stream, so a
-   long generation would sit behind a spinner and risk the HTTP timeout. A
-   help answer that runs past a few hundred words has stopped being an answer
-   anyway. */
+	The tab does one fetch and one res.json(); it cannot render a stream, so a
+	long generation would sit behind a spinner and risk the HTTP timeout. A
+	help answer that runs past a few hundred words has stopped being an answer
+	anyway.
+*/
 const assistantMaxTokens = 1024
 
 type assistantChatRequest struct {
@@ -76,20 +78,22 @@ type assistantChatResponse struct {
 	ConversationID string `json:"conversation_id"`
 }
 
-/* THE HISTORY, IN MEMORY AND DELIBERATELY FORGETFUL.
+/*
+THE HISTORY, IN MEMORY AND DELIBERATELY FORGETFUL.
 
-   The client sends a conversation id and one message -- never the transcript --
-   so somebody has to hold the earlier turns for a follow-up to mean anything.
+	The client sends a conversation id and one message -- never the transcript --
+	so somebody has to hold the earlier turns for a follow-up to mean anything.
 
-   In the process, not in Postgres. A chat about which screen to open is worth
-   very little an hour later and nothing after a restart, and the alternative is
-   a migration, a retention policy and a table of everything every member of
-   staff has ever asked, sitting inside a school's database. Losing it on deploy
-   is the better failure.
+	In the process, not in Postgres. A chat about which screen to open is worth
+	very little an hour later and nothing after a restart, and the alternative is
+	a migration, a retention policy and a table of everything every member of
+	staff has ever asked, sitting inside a school's database. Losing it on deploy
+	is the better failure.
 
-   One process serves this app, so a map is enough. Two would each hold half the
-   conversations and a follow-up would land on the wrong one; that is the day
-   this moves to Redis, which the app already runs. */
+	One process serves this app, so a map is enough. Two would each hold half the
+	conversations and a follow-up would land on the wrong one; that is the day
+	this moves to Redis, which the app already runs.
+*/
 type assistantMemory struct {
 	mu   sync.Mutex
 	byID map[string]*assistantThread
@@ -150,11 +154,13 @@ func (m *assistantMemory) save(id string, turns []anthropic.MessageParam) {
 	}
 }
 
-/* The screens this person can actually open, as the model's ground truth.
+/*
+The screens this person can actually open, as the model's ground truth.
 
-   Built from the same catalogue that builds the navigation, filtered to the
-   asker's roles: naming a screen a parent cannot reach is not a small error,
-   it is telling somebody the product has a door that is locked to them. */
+	Built from the same catalogue that builds the navigation, filtered to the
+	asker's roles: naming a screen a parent cannot reach is not a small error,
+	it is telling somebody the product has a door that is locked to them.
+*/
 func assistantGrounding(roles []string) string {
 	var b strings.Builder
 	b.WriteString("The screens this person can open, by workspace:\n")
@@ -290,11 +296,13 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* The failures worth telling apart.
+/*
+The failures worth telling apart.
 
-   A rate limit and a wrong key are both "the assistant did not answer" to the
-   person asking, but only one of them is worth waiting out, and only one is
-   worth telephoning the office about. */
+	A rate limit and a wrong key are both "the assistant did not answer" to the
+	person asking, but only one of them is worth waiting out, and only one is
+	worth telephoning the office about.
+*/
 func (s *Server) assistantFailure(w http.ResponseWriter, r *http.Request, err error) {
 	httpx.LogError(r, err)
 

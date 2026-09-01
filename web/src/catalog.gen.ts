@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 322 features. */
+/** 13 roles, 327 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -363,6 +363,25 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.hostel.room_inventory_checklists', slug: 'room_inventory_checklists', name: 'Room inventory checklists', scope: 'institution', tier: 'core', summary: 'What each room holds and what condition it is in — checked in, checked out.' },
           { key: 'institution_admin.hostel.hostel_visitor_log', slug: 'hostel_visitor_log', name: 'Hostel visitor log', scope: 'institution', tier: 'core', summary: 'Who came to see a boarder, when they arrived and when they left.' },
           { key: 'institution_admin.hostel.boarder_laundry', slug: 'boarder_laundry', name: 'Boarder laundry', scope: 'institution', tier: 'core', summary: 'Bundles out and back, so a missing shirt has a record rather than an argument.' },
+        ],
+      },
+      {
+        slug: 'channel_setup',
+        name: 'Channel Setup',
+        workspace: 'Communication',
+        features: [
+          { key: 'institution_admin.channel_setup.message_channels', slug: 'message_channels', name: 'Message Channels', scope: 'institution', tier: 'core', summary: 'The school\'s own email, SMS and WhatsApp senders — the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent\'s empty inbox.' },
+          { key: 'institution_admin.channel_setup.sender_identity', slug: 'sender_identity', name: 'Sender Identity', scope: 'institution', tier: 'core', summary: 'The name and address a family sees a message come from, the reply-to that reaches a real desk, and the SMS sender ID the operator has approved.' },
+          { key: 'institution_admin.channel_setup.quiet_hours_sending_limits', slug: 'quiet_hours_sending_limits', name: 'Quiet Hours & Sending Limits', scope: 'institution', tier: 'core', summary: 'When the school will not message a family, and how much it will spend in a month. An automation that loops at two in the morning is stopped by the first and paid for by the second.' },
+          { key: 'institution_admin.channel_setup.who_we_may_message', slug: 'who_we_may_message', name: 'Who We May Message', scope: 'institution', tier: 'core', summary: 'Everybody, or a named list while a school is still testing. Held-back messages are recorded with the reason, so a message that never arrived is never mistaken for a broken mail server.' },
+        ],
+      },
+      {
+        slug: 'attendance_devices',
+        name: 'Attendance Devices',
+        workspace: 'Staff',
+        features: [
+          { key: 'institution_admin.attendance_devices.biometric_readers', slug: 'biometric_readers', name: 'Biometric Readers', scope: 'institution', tier: 'core', summary: 'The fingerprint readers this school runs: the serial each one reports, whether it is trusted yet, when it last spoke, and punches from a finger nobody claims.' },
         ],
       },
     ],

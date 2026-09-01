@@ -84,12 +84,12 @@ type studentWriteRequest struct {
 	SectionID string `json:"section_id,omitempty"`
 	// AllowOverflow admits into a section that is already at capacity. A
 	// deliberate act, not a default: see the check in placement below.
-	AllowOverflow    bool   `json:"allow_overflow,omitempty"`
-	AcademicYearID   string `json:"academic_year_id,omitempty"`
-	RollNo           int    `json:"roll_no,omitempty"`
-	GuardianName     string `json:"guardian_name,omitempty"`
-	GuardianPhone    string `json:"guardian_phone,omitempty"`
-	GuardianEmail    string `json:"guardian_email,omitempty"`
+	AllowOverflow      bool   `json:"allow_overflow,omitempty"`
+	AcademicYearID     string `json:"academic_year_id,omitempty"`
+	RollNo             int    `json:"roll_no,omitempty"`
+	GuardianName       string `json:"guardian_name,omitempty"`
+	GuardianPhone      string `json:"guardian_phone,omitempty"`
+	GuardianEmail      string `json:"guardian_email,omitempty"`
 	GuardianRelation   string `json:"guardian_relation,omitempty"`
 	GuardianOccupation string `json:"guardian_occupation,omitempty"`
 }
@@ -127,12 +127,15 @@ func (s *Server) checkVocabulary(r *http.Request, req *studentWriteRequest) erro
    see checkVocabulary above and internal/api/custom_options.go — so the list
    is gone rather than left dead for somebody to wire back in. */
 
-/* nil for "the caller said nothing about extra fields", which the SQL turns
-   into an empty object on insert and, on update, merges as a no-op. Sending
-   '{}' instead would read identically on insert and be indistinguishable from
-   it on update — which is fine only because the merge is `||`; if this were
-   ever an assignment it would silently erase the school's fields on every
-   save from a screen that does not edit them. */
+/*
+nil for "the caller said nothing about extra fields", which the SQL turns
+
+	into an empty object on insert and, on update, merges as a no-op. Sending
+	'{}' instead would read identically on insert and be indistinguishable from
+	it on update — which is fine only because the merge is `||`; if this were
+	ever an assignment it would silently erase the school's fields on every
+	save from a screen that does not edit them.
+*/
 func customFieldsJSON(m map[string]string) any {
 	if len(m) == 0 {
 		return nil
@@ -201,8 +204,6 @@ func (req *studentWriteRequest) validate() error {
 var validCategories = map[string]bool{
 	"general": true, "obc": true, "sc": true, "st": true, "ews": true, "other": true,
 }
-
-
 
 // upsertStudent writes one student, their placement and their guardian.
 // Shared by the single-student form and the bulk importer so both apply

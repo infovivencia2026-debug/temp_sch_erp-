@@ -49,7 +49,7 @@ END $$;
 -- +goose StatementEnd
 
 COMMENT ON COLUMN user_display_preferences.locale IS
-    'BCP-47 language tag of the interface. Constrained to the locales that have a shipped message catalogue in web/src/locales -- storing one without a catalogue renders raw keys.';
+    'BCP-47 language tag of the interface. Constrained to the locales that have a shipped message catalogue in web/src/locales — storing one without a catalogue renders raw keys.';
 
 COMMENT ON COLUMN user_display_preferences.high_contrast IS
     'Opt-in high-contrast token override, applied as data-contrast="high" on the document root. Independent of theme: high contrast is available in both light and dark.';

@@ -96,13 +96,14 @@ func (s *Server) saveHouse(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"id": out, "name": name})
 }
 
-/* Deleting a house does not delete the children in it.
+/*
+Deleting a house does not delete the children in it.
 
-   students.house_id is ON DELETE SET NULL, so a house wound up in a
-   reorganisation leaves its members without a house rather than taking them
-   with it — which is the only acceptable behaviour for a field that is
-   decoration on a child's record and a fixture in nobody's life but the
-   sports master's.
+	students.house_id is ON DELETE SET NULL, so a house wound up in a
+	reorganisation leaves its members without a house rather than taking them
+	with it — which is the only acceptable behaviour for a field that is
+	decoration on a child's record and a fixture in nobody's life but the
+	sports master's.
 */
 func (s *Server) deleteHouse(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

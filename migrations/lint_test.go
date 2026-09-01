@@ -130,3 +130,53 @@ func TestStatementBlocksAreClosed(t *testing.T) {
 		}
 	}
 }
+
+/* TestNoCommentMarkerInsideStringLiteral
+
+   goose strips `--` comments without knowing what a string literal is. A `--`
+   inside quotes therefore truncates the statement at that point, and the rest
+   — including the closing quote and the semicolon — is thrown away. Postgres
+   is handed an unterminated query and the deploy dies at Migrate with nothing
+   applied.
+
+   This is not a theory. It failed exactly this way on 00187, whose COMMENT ON
+   COLUMN contained an em-dash written as `--` in ordinary prose:
+
+     failed to parse migration: unexpected unfinished SQL query … missing
+     semicolon?
+
+   The rule is narrow. It looks only at single-quoted strings and only for the
+   two characters that start a comment. Prose in a `--` line comment is fine
+   and always was; prose inside quotes has to avoid them.
+
+   I previously added a rule here banning semicolons inside block comments,
+   believing they caused a similar failure. They do not — thirty migrations
+   carry them and have all deployed — and that rule was removed rather than
+   kept with an exception list. This one has a failure to point at.
+*/
+func TestNoCommentMarkerInsideStringLiteral(t *testing.T) {
+	// Single-quoted strings, doubled '' escapes allowed inside.
+	lit := regexp.MustCompile(`'(?:[^']|'')*'`)
+	for _, name := range migrationFiles(t) {
+		body, err := os.ReadFile(filepath.Clean(name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		for _, line := range strings.Split(string(body), "\n") {
+			trimmed := strings.TrimSpace(line)
+			// A line that IS a comment cannot break anything.
+			if strings.HasPrefix(trimmed, "--") {
+				continue
+			}
+			for _, s := range lit.FindAllString(line, -1) {
+				if strings.Contains(s, "--") {
+					t.Errorf("%s: a string literal contains `--`: %s\n"+
+						"goose strips comments without parsing string literals, so "+
+						"this truncates the statement and the deploy fails at "+
+						"Migrate with \"unexpected unfinished SQL query\". Write the "+
+						"dash as a colon or a single hyphen.", name, s)
+				}
+			}
+		}
+	}
+}

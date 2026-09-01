@@ -23,6 +23,7 @@ import {
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
+import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 
@@ -1317,6 +1318,21 @@ export default function StudentProfile() {
             ))}
           </Table>
         </Card>
+        {/* The quote, the waivers and the bill, on the record.
+
+            All three lived on the admission panel, which exists for ninety
+            seconds and is then gone — so for every child admitted before
+            today there was nowhere to see whether a concession had been asked
+            for, and nowhere to ask for one. */}
+        <StudentFees
+          studentID={p.id}
+          classID={detail.data?.class_id}
+          mayEdit={can('students.write')}
+          onChanged={() => {
+            detail.refetch()
+            qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+          }}
+        />
         <FeeLedger heads={detail.data?.fee_heads ?? []} />
         <Receipts rows={detail.data?.payments ?? []} />
         </>
@@ -2311,10 +2327,15 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
             { value: 'other', label: 'Other' },
           ]} />
         </FormField>
-        <FormField label="Phone" hint={reachable ? undefined : 'A phone or an email is needed'}>
+        {/* ONE OF THE TWO IS REQUIRED, so both carry the star and the hint
+            says which rule applies. A field the server refuses without and the
+            form does not mark is a field somebody leaves blank and is told
+            about after pressing Save. */}
+        <FormField label="Phone" required
+          hint="A phone number or an email — every alert the school sends goes to one of them">
           <Input value={f.phone} onChange={set('phone')} />
         </FormField>
-        <FormField label="Email">
+        <FormField label="Email" required hint="Or a phone number above">
           <Input value={f.email} onChange={set('email')} />
         </FormField>
         <FormField label="Occupation">

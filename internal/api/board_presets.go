@@ -67,9 +67,12 @@ type boardPreset struct {
 	Bands      []gradeBandPreset `json:"bands"`
 }
 
-/* The nine-point scale CBSE uses at Secondary, and a great many schools use
-   because CBSE does. Bands are inclusive of min and max; 100 is the top of the
-   first band rather than 100.01, because a mark cannot exceed the paper. */
+/*
+The nine-point scale CBSE uses at Secondary, and a great many schools use
+
+	because CBSE does. Bands are inclusive of min and max; 100 is the top of the
+	first band rather than 100.01, because a mark cannot exceed the paper.
+*/
 var cbseNinePoint = []gradeBandPreset{
 	{"A1", 91, 100, 10}, {"A2", 81, 90.99, 9}, {"B1", 71, 80.99, 8},
 	{"B2", 61, 70.99, 7}, {"C1", 51, 60.99, 6}, {"C2", 41, 50.99, 5},
@@ -89,12 +92,15 @@ var divisionScale = []gradeBandPreset{
 	{"Second", 50, 59.99, 0}, {"Pass", 35, 49.99, 0}, {"Fail", 0, 34.99, 0},
 }
 
-/* Every board a school in India is likely to be affiliated to, plus the
-   international ones that operate here.
+/*
+Every board a school in India is likely to be affiliated to, plus the
 
-   The state list is the one that matters. A school in Kerala choosing "Other
-   state board" loses the only fact this field could have carried, and every
-   report grouping by board then has one enormous bucket. */
+	international ones that operate here.
+
+	The state list is the one that matters. A school in Kerala choosing "Other
+	state board" loses the only fact this field could have carried, and every
+	report grouping by board then has one enormous bucket.
+*/
 var boardPresets = []boardPreset{
 	{
 		Value: "CBSE", Label: "CBSE", Group: "National",
@@ -231,8 +237,8 @@ var boardPresets = []boardPreset{
 		Assessment: "Terminal examinations with internal marks",
 		LeavingDoc: "Transfer Certificate (TC)", Bands: letterFive},
 	{Value: "Other State Board", Label: "Another board — set the grading yourself",
-		Group:      "Other",
-		ScaleName:  "School grading scale", PassMark: 35,
+		Group:     "Other",
+		ScaleName: "School grading scale", PassMark: 35,
 		Assessment: "As your school sets it",
 		LeavingDoc: "Transfer Certificate (TC)",
 		Notes:      "Nothing is assumed. Build the grade bands your board uses, and add your board by name at the bottom of the list so reports can tell it apart.",
@@ -249,17 +255,18 @@ type applyBoardRequest struct {
 	Board string `json:"board"`
 }
 
-/* applyBoardPreset creates the grading scale a board reports in.
+/*
+applyBoardPreset creates the grading scale a board reports in.
 
-   EXPLICIT, and never a side effect of choosing a board on the setup form.
-   The school reads what it would do and presses a button; a field that
-   silently rewrote a grading scale somebody had spent an afternoon building
-   would be the worst kind of helpfulness.
+	EXPLICIT, and never a side effect of choosing a board on the setup form.
+	The school reads what it would do and presses a button; a field that
+	silently rewrote a grading scale somebody had spent an afternoon building
+	would be the worst kind of helpfulness.
 
-   It also never overwrites. A scale of the same name already present means
-   this has been done, or the school has built its own and named it the same,
-   and in both cases theirs wins — the endpoint says so rather than merging two
-   sets of bands into a scale that means neither.
+	It also never overwrites. A scale of the same name already present means
+	this has been done, or the school has built its own and named it the same,
+	and in both cases theirs wins — the endpoint says so rather than merging two
+	sets of bands into a scale that means neither.
 */
 func (s *Server) applyBoardPreset(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

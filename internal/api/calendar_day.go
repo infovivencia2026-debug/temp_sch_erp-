@@ -63,8 +63,8 @@ type dayPeriod struct {
 }
 
 type dayLesson struct {
-	ID          string  `json:"id"`
-	Status      string  `json:"status"`
+	ID     string `json:"id"`
+	Status string `json:"status"`
 	// Also nullable for the same reason, and for the same rows.
 	WeekOf      *string `json:"week_of,omitempty"`
 	TeachingDay *int    `json:"teaching_day,omitempty"`

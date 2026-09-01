@@ -250,7 +250,7 @@ CREATE INDEX loc_candidates_by_submission
     ON loc_candidates (institution_id, submission_id, serial_no);
 
 COMMENT ON TABLE loc_candidates IS
-    'A candidate as filed, copied from board_registrations at submission time. Never updated after the submission is filed -- the live record is board_registrations.';
+    'A candidate as filed, copied from board_registrations at submission time. Never updated after the submission is filed — the live record is board_registrations.';
 
 /* Why a candidate is not submittable.
 
@@ -825,9 +825,9 @@ CREATE UNIQUE INDEX child_info_portal_connectors_one_per_state
     ON child_info_portal_connectors (lower(state_code), lower(name));
 
 COMMENT ON TABLE child_info_portal_connectors IS
-    'Platform configuration for a state Child Info portal. Readable only by a platform admin -- the RLS policy has no tenant limb, deliberately. Credentials are AES-GCM sealed under CREDENTIAL_KEY and are never returned by the API.';
+    'Platform configuration for a state Child Info portal. Readable only by a platform admin — the RLS policy has no tenant limb, deliberately. Credentials are AES-GCM sealed under CREDENTIAL_KEY and are never returned by the API.';
 COMMENT ON COLUMN child_info_portal_connectors.provider IS
-    'file_exchange is implemented: export a file, import the portal extract. api is a placeholder -- no state portal exposes one to this installation, and no code pretends it does.';
+    'file_exchange is implemented: export a file, import the portal extract. api is a placeholder — no state portal exposes one to this installation, and no code pretends it does.';
 
 /* What the connector actually did, and when.
 

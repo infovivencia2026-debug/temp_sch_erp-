@@ -357,12 +357,13 @@ func (s *Server) enrolInActivity(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* Leaving an activity, and what happens to the money.
+/*
+Leaving an activity, and what happens to the money.
 
-   An unpaid bill is CANCELLED: the family never owed it for a club the child
-   attended twice. A bill already paid is left alone and the office is told to
-   refund it if they mean to — this endpoint will not silently move money that
-   has been receipted, because a refund is a decision with a person behind it.
+	An unpaid bill is CANCELLED: the family never owed it for a club the child
+	attended twice. A bill already paid is left alone and the office is told to
+	refund it if they mean to — this endpoint will not silently move money that
+	has been receipted, because a refund is a decision with a person behind it.
 */
 func (s *Server) leaveActivity(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

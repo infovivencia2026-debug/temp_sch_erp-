@@ -185,12 +185,13 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"id": guardianID, "full_name": name})
 }
 
-/* Taking a parent off a child's record UNLINKS them.
+/*
+Taking a parent off a child's record UNLINKS them.
 
-   The guardian row belongs to the institution and is very often another
-   child's parent too. Deleting it because one link went away would remove a
-   sibling's mother from their record as a side effect — and would take her
-   login, her fee reminders and her absence alerts with it.
+	The guardian row belongs to the institution and is very often another
+	child's parent too. Deleting it because one link went away would remove a
+	sibling's mother from their record as a side effect — and would take her
+	login, her fee reminders and her absence alerts with it.
 */
 func (s *Server) unlinkStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

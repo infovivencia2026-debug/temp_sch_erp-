@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS messaging_recipient_policy (
 );
 
 COMMENT ON TABLE messaging_recipient_policy IS
-    'Whether outbound messages are restricted to an allowlist. No row means allowlist with an empty list, which sends to nobody -- the safe default.';
+    'Whether outbound messages are restricted to an allowlist. No row means allowlist with an empty list, which sends to nobody — the safe default.';
 COMMENT ON COLUMN messaging_recipient_policy.mode IS
     'allowlist (default, fails closed) or everyone (guard off). Enforced in DispatchMessages for every channel that leaves the building.';
 

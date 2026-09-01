@@ -7,31 +7,32 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-/* Telling a school its timetable has changed.
+/*
+Telling a school its timetable has changed.
 
-   Publishing replaces the live grid, and nobody was told. A teacher found out
-   on Monday morning by walking to the wrong room. A parent found out when
-   their child came home and said so. Both had the new timetable in the app the
-   whole time and no reason to go and look at it — which is the specific
-   failure of a product that holds the truth and does not mention it.
+	Publishing replaces the live grid, and nobody was told. A teacher found out
+	on Monday morning by walking to the wrong room. A parent found out when
+	their child came home and said so. Both had the new timetable in the app the
+	whole time and no reason to go and look at it — which is the specific
+	failure of a product that holds the truth and does not mention it.
 
-   THREE AUDIENCES, ONE PASS, and each gets a different sentence, because
-   "the timetable has changed" means three different things:
+	THREE AUDIENCES, ONE PASS, and each gets a different sentence, because
+	"the timetable has changed" means three different things:
 
-     a teacher wants to know their own week has moved;
-     a student wants to know which room on Monday;
-     a parent wants to know their child's day has changed, mostly so they
-     know when to collect them.
+	  a teacher wants to know their own week has moved;
+	  a student wants to know which room on Monday;
+	  a parent wants to know their child's day has changed, mostly so they
+	  know when to collect them.
 
-   ONLY THE SECTIONS THE DRAFT TOUCHED. A draft usually covers part of the
-   school, and a whole-school alert about a change to two sections is how a
-   school learns to ignore this product's notifications. The people told are
-   the ones attached to the sections that actually moved.
+	ONLY THE SECTIONS THE DRAFT TOUCHED. A draft usually covers part of the
+	school, and a whole-school alert about a change to two sections is how a
+	school learns to ignore this product's notifications. The people told are
+	the ones attached to the sections that actually moved.
 
-   NO SMS, NO WHATSAPP. This is in-app only and deliberately so. A timetable
-   changes several times a term, it is not urgent on the day it changes, and a
-   school that paid to text nine hundred families about it would turn the
-   messaging budget off — and with it the absence alerts that matter.
+	NO SMS, NO WHATSAPP. This is in-app only and deliberately so. A timetable
+	changes several times a term, it is not urgent on the day it changes, and a
+	school that paid to text nine hundred families about it would turn the
+	messaging budget off — and with it the absence alerts that matter.
 */
 func announceTimetable(
 	r *http.Request, tx pgx.Tx, inst uuid.UUID, draftID uuid.UUID,
