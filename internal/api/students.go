@@ -270,3 +270,79 @@ func nullString(s string) *string {
 // itoa keeps the placeholder arithmetic readable where a query's parameter
 // count depends on the caller's scope.
 func itoa(n int) string { return strconv.Itoa(n) }
+
+/* The roll in four numbers.
+
+   Counted here rather than from the rows the list returns. That list is
+   filtered by class, capped at a few hundred and narrowed to what the caller
+   may see, so counting it would report "12 on the roll" about a section of
+   twelve and present it as the school.
+
+   Scoped like everything else: a class teacher's tiles count their own
+   sections, because a teacher being shown the whole school's roll on their own
+   page is a number that means nothing to them and that they should arguably
+   not have.
+*/
+func (s *Server) studentCounts(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 1)
+
+	out := map[string]int{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT
+			  count(*) FILTER (WHERE st.status = 'active')::int,
+			  -- Every way of being gone, in one number. A school asks "how many
+			  -- have left", not "how many are transferred versus withdrawn".
+			  count(*) FILTER (WHERE st.status IN
+			      ('transferred','withdrawn','graduated','alumni','inactive'))::int,
+			  count(*) FILTER (WHERE st.status = 'suspended')::int,
+			  /* Admitted since this academic year began. Derived from the
+			     year's own start date rather than from January: an Indian
+			     school year runs June to April, so a calendar year would count
+			     a child admitted last September as new. */
+			  count(*) FILTER (
+			      WHERE st.status = 'active'
+			        AND st.admission_date >= COALESCE(
+			            (SELECT starts_on FROM academic_years WHERE is_current LIMIT 1),
+			            date_trunc('year', CURRENT_DATE)::date))::int
+			  FROM students st WHERE `+pred, args...).
+			Scan(pgxInt(out, "active"), pgxInt(out, "left"),
+				pgxInt(out, "suspended"), pgxInt(out, "new_this_year"))
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+// pgxInt hands Scan somewhere to put a count and files it under its name, so
+// the four counts above read as four names rather than four bare variables
+// that have to stay in the same order as the SELECT.
+func pgxInt(m map[string]int, key string) any {
+	m[key] = 0
+	return &counterField{m: m, key: key}
+}
+
+type counterField struct {
+	m   map[string]int
+	key string
+}
+
+func (c *counterField) Scan(src any) error {
+	switch v := src.(type) {
+	case int64:
+		c.m[c.key] = int(v)
+	case int32:
+		c.m[c.key] = int(v)
+	case int:
+		c.m[c.key] = v
+	}
+	return nil
+}

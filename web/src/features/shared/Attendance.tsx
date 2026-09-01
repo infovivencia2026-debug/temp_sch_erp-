@@ -68,17 +68,52 @@ export default function Attendance() {
 
   const toast = useToast()
 
+  /* WHICH CHANNELS, beyond the app.
+
+     The in-app alert always goes and is not offered as a choice: it costs
+     nothing and it is the record a parent can go back to. These three cost
+     money per message, so they are the teacher's to tick — and the choice is
+     remembered, because a school that texts every absence would otherwise
+     re-tick the same boxes every morning of the year. */
+  const [channels, setChannels] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('attendance.absentChannels') ?? '[]')
+    } catch { return [] }
+  })
+  const toggleChannel = (ch: string) => {
+    const next = channels.includes(ch)
+      ? channels.filter((x) => x !== ch)
+      : [...channels, ch]
+    setChannels(next)
+    try { localStorage.setItem('attendance.absentChannels', JSON.stringify(next)) } catch { /* a private window is not an error */ }
+  }
+  // Back-filling a fortnight-old register should not text every parent about
+  // an absence they already know about.
+  const [silent, setSilent] = useState(false)
+
   const save = useMutation({
     mutationFn: (entries: { student_id: string; status: Status }[]) =>
-      api.post('/api/v1/attendance', { section_id: sectionId, on_date: onDate, entries }),
-    onSuccess: (_res, entries) => {
+      api.post<{
+        newly_absent?: number; parents_told?: number; messages_queued?: number
+      }>('/api/v1/attendance', {
+        section_id: sectionId, on_date: onDate, entries,
+        notify_channels: channels, silent,
+      }),
+    onSuccess: (res, entries) => {
       setDraft({})
       qc.invalidateQueries({ queryKey: ['attendance', sectionId, onDate] })
       // The count matters: a register saved with three of forty marked is the
       // failure a teacher discovers a week later, and silence hides it.
       const absent = entries.filter((e) => e.status === 'absent').length
+      /* What actually went out, not what was intended. A teacher who ticks
+         WhatsApp and is told "Register saved" has no way of knowing the school
+         never configured a gateway — and the families were not told. */
+      const sent: string[] = []
+      if (res?.parents_told) sent.push(`${res.parents_told} told in the app`)
+      if (res?.messages_queued) sent.push(`${res.messages_queued} messages sent`)
       toast.ok(
-        `Register saved — ${entries.length} marked${absent ? `, ${absent} absent` : ''}`,
+        `Register saved — ${entries.length} marked${absent ? `, ${absent} absent` : ''}`
+        + (sent.length ? ` · ${sent.join(', ')}` : ''),
       )
     },
   })
@@ -134,7 +169,7 @@ export default function Attendance() {
               <span className="text-xs text-muted-foreground">Mark all:</span>
               <Button variant="ghost" onClick={() => markAll('present')}>Present</Button>
               <Button variant="ghost" onClick={() => markAll('absent')}>Absent</Button>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center gap-2">
                 {save.isError && <ErrorMessage error={save.error} />}
                 {save.isSuccess && !dirty && <span className="text-xs text-success">Saved</span>}
                 <Button
@@ -146,6 +181,28 @@ export default function Attendance() {
                   {save.isPending ? 'Saving…' : `Save ${Object.keys(draft).length || ''}`.trim()}
                 </Button>
               </div>
+            </div>
+          )}
+          {can('academics.attendance.write') && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/20 px-4 py-2.5 text-[13px]">
+              <span className="text-muted-foreground">
+                Absent parents are told in the app. Also send by:
+              </span>
+              {(['whatsapp', 'sms', 'email'] as const).map((ch) => (
+                <label key={ch} className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={channels.includes(ch)}
+                    onChange={() => toggleChannel(ch)}
+                    disabled={silent}
+                  />
+                  {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
+                </label>
+              ))}
+              <label className="ml-auto flex items-center gap-1.5 text-muted-foreground">
+                <input type="checkbox" checked={silent} onChange={(e) => setSilent(e.target.checked)} />
+                Tell nobody (back-filling an old register)
+              </label>
             </div>
           )}
 

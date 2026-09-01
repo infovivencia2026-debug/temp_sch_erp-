@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -70,6 +71,19 @@ type markAttendanceRequest struct {
 		MinutesLate *int32  `json:"minutes_late,omitempty"`
 		Remarks     *string `json:"remarks,omitempty"`
 	} `json:"entries"`
+	/* Which channels to tell the family on, beyond the app.
+
+	   The in-app alert always goes and is not a choice: it costs nothing, it
+	   is the record the parent can go back to, and a school that has bought no
+	   gateway at all must still be able to tell a family their child is not in
+	   the building. SMS, WhatsApp and email cost money per message, so they
+	   are the teacher's to tick — some schools send them for every absence,
+	   some only when they have rung and got no answer. */
+	NotifyChannels []string `json:"notify_channels,omitempty"`
+	// The one case a school does want it silent: back-filling a register from
+	// a fortnight ago, where texting every parent about an absence they
+	// already know about is worse than useless.
+	Silent bool `json:"silent,omitempty"`
 }
 
 // markAttendance upserts a whole section in one transaction.
@@ -164,7 +178,10 @@ func (s *Server) markAttendance(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9, now())
 		` + conflict + upsertTail
 
+	channels := cleanChannels(req.NotifyChannels)
 	written := 0
+	told, queued := 0, 0
+	var nowAbsent []uuid.UUID
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// Derive the tenant from the section rather than the caller: a platform
 		// operator has no institution_id of their own, and the column is NOT NULL.
@@ -186,12 +203,42 @@ func (s *Server) markAttendance(w http.ResponseWriter, r *http.Request) {
 		}
 		res := tx.SendBatch(r.Context(), batch)
 		defer res.Close()
-		for range req.Entries {
+		/* WHICH CHILDREN ACTUALLY CHANGED, not which were submitted.
+
+		   The upsert ends `WHERE status IS DISTINCT FROM EXCLUDED.status`, so
+		   re-saving a register writes nothing — which is right, and it is also
+		   the only thing standing between a teacher who presses Save twice and
+		   a family that gets told twice. Notifying from req.Entries would text
+		   every absent parent again on every save; notifying from the rows the
+		   batch reports as written tells them once. */
+		for i := range req.Entries {
 			tag, err := res.Exec()
 			if err != nil {
 				return err
 			}
-			written += int(tag.RowsAffected())
+			n := int(tag.RowsAffected())
+			written += n
+			if n > 0 && req.Entries[i].Status == "absent" {
+				if sid, err := uuid.Parse(req.Entries[i].StudentID); err == nil {
+					nowAbsent = append(nowAbsent, sid)
+				}
+			}
+		}
+		if err := res.Close(); err != nil {
+			return err
+		}
+		/* Inside the same transaction as the register.
+
+		   A notification about an absence the school then failed to record is
+		   the worse of the two failures: the parent rings, and nobody at the
+		   school can see what they are ringing about. */
+		if !req.Silent && len(nowAbsent) > 0 {
+			var qerr error
+			told, queued, qerr = s.announceAbsences(
+				r, tx, instID, nowAbsent, req.OnDate, channels)
+			if qerr != nil {
+				return qerr
+			}
 		}
 		return nil
 	})
@@ -204,6 +251,12 @@ func (s *Server) markAttendance(w http.ResponseWriter, r *http.Request) {
 		"on_date":    req.OnDate,
 		"submitted":  len(req.Entries),
 		"written":    written,
+		// So the screen can say what actually happened rather than "Saved":
+		// "31 marked, 3 absent, 5 parents told, 6 messages sent".
+		"newly_absent":    len(nowAbsent),
+		"parents_told":    told,
+		"messages_queued": queued,
+		"channels":        channels,
 	})
 }
 
@@ -260,4 +313,110 @@ func (s *Server) getMyStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+/*
+Telling a family their child is not in the building.
+
+	THE WHOLE HOUSEHOLD, not the primary guardian. The manual absence run this
+	replaces joined `sg.is_primary` and sent one SMS — so a mother who was not
+	ticked as the primary contact was never told her child had not arrived, and
+	the primary contact is a billing and consent flag that somebody in the
+	office set years ago for reasons that had nothing to do with this.
+
+	The child is told too, where they have an account. A teenager who is marked
+	absent by mistake because the register was taken before they walked in is
+	the person best placed to say so, and fastest.
+
+	THE APP ALERT IS NOT OPTIONAL. It is free, it is the record the parent can
+	go back to a week later, and it is the only channel that works for a school
+	that has bought no gateway. The paid channels are the teacher's tick boxes.
+*/
+func (s *Server) announceAbsences(
+	r *http.Request, tx pgx.Tx, inst uuid.UUID,
+	students []uuid.UUID, onDate string, channels []string,
+) (told, queued int, err error) {
+
+	rows, err := tx.Query(r.Context(), `
+		SELECT st.id,
+		       concat_ws(' ', st.first_name, st.last_name),
+		       to_char($2::date, 'DD Mon'),
+		       p.user_id, p.phone, p.email::text
+		  FROM students st
+		  JOIN LATERAL (
+		      SELECT g.user_id, g.phone, g.email::text AS email
+		        FROM student_guardians sg
+		        JOIN guardians g ON g.id = sg.guardian_id
+		       WHERE sg.student_id = st.id
+		      UNION ALL
+		      -- The child's own account, where they have one.
+		      SELECT u.id, u.phone, u.email::text FROM users u WHERE u.id = st.user_id
+		  ) p ON true
+		 WHERE st.id = ANY($1)`, students, onDate)
+	if err != nil {
+		return 0, 0, err
+	}
+	type msg struct {
+		student      uuid.UUID
+		name, date   string
+		user         *uuid.UUID
+		phone, email *string
+	}
+	var all []msg
+	for rows.Next() {
+		var m msg
+		if err := rows.Scan(&m.student, &m.name, &m.date, &m.user, &m.phone, &m.email); err != nil {
+			rows.Close()
+			return 0, 0, err
+		}
+		all = append(all, m)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, 0, err
+	}
+
+	for _, m := range all {
+		title := m.name + " was marked absent"
+		body := m.name + " was marked absent on " + m.date +
+			". If this is wrong, please tell the class teacher."
+
+		if m.user != nil {
+			sid := m.student
+			if err := notify(r, tx, inst, *m.user, &sid, "attendance",
+				title, body, "/portal/attendance", "student", &sid); err != nil {
+				return told, queued, err
+			}
+			told++
+		}
+		for _, ch := range channels {
+			to := ""
+			if ch == "email" && m.email != nil {
+				to = strings.TrimSpace(*m.email)
+			} else if ch != "email" && m.phone != nil {
+				to = strings.TrimSpace(*m.phone)
+			}
+			if to == "" {
+				// No number, no address. Skipped rather than failed: the app
+				// alert has already gone, and a register must not refuse to
+				// save because one family has no mobile.
+				continue
+			}
+			if _, err := s.QueueMessage(r.Context(), tx, inst, SendRequest{
+				Channel:      ch,
+				TemplateCode: "messaging.direct",
+				Vars:         map[string]any{"text": body, "subject": title},
+				Recipient:    to,
+			}); err != nil {
+				/* A gateway the school has not configured is theirs to fix and
+				   is NOT a reason to fail the register. The teacher's actual
+				   job here is recording who was in the room; losing that
+				   because WhatsApp is misconfigured would be the product
+				   choosing the wrong one of the two to protect. */
+				continue
+			}
+			queued++
+		}
+	}
+	return told, queued, nil
 }

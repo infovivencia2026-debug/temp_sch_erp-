@@ -140,6 +140,75 @@ func (s *Server) recordStudentExit(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
+Suspension, which is not leaving.
+
+	A suspended child is still enrolled, still owes fees, still has a seat in
+	7-A and is expected back. That is why this does NOT touch the enrolment: the
+	register should go on expecting them, and the days between are absences the
+	school itself caused and must be able to account for.
+
+	Separate from recordStudentExit for exactly that reason. Folding suspension
+	into "record that they have left" would close the enrolment and take a child
+	off the roll for a fortnight's punishment.
+*/
+func (s *Server) suspendStudent(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	var req struct {
+		// False lifts the suspension. One endpoint rather than two, because
+		// the pair would drift.
+		Suspended bool   `json:"suspended"`
+		Reason    string `json:"reason,omitempty"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 3)
+
+	status := "active"
+	if req.Suspended {
+		status = "suspended"
+	}
+	var touched int64
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE students st
+			   SET status = $1, exit_reason = $2, updated_at = now()
+			 WHERE st.id = $3
+			   -- Only between the two states this endpoint owns. A child who
+			   -- has left must not be put back on the roll by a button that
+			   -- was never about them.
+			   AND st.status IN ('active','suspended')
+			   AND `+pred,
+			append([]any{status, nullString(req.Reason), sid}, args...)...)
+		if err != nil {
+			return err
+		}
+		touched = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if touched == 0 {
+		httpx.Error(w, r, http.StatusConflict, "not_suspendable",
+			"this child has left the school, or is not one you can edit")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"status": status})
+}
+
+/*
 Putting a child back on the roll.
 
 	Two real cases, and both happen at a counter. An exit recorded against the

@@ -38,6 +38,14 @@ type studentWriteRequest struct {
 	Religion     string `json:"religion,omitempty"`
 	AddressLine1 string `json:"address_line1,omitempty"`
 	AddressLine2 string `json:"address_line2,omitempty"`
+	/* NOT a guardian row, deliberately. A guardian gets a login, fee reminders
+	   and absence alerts; the neighbour who holds a spare key should get none
+	   of that, and modelling them as a guardian to store a phone number would
+	   put them on all of it. */
+	PermanentAddress  string `json:"permanent_address,omitempty"`
+	EmergencyName     string `json:"emergency_contact_name,omitempty"`
+	EmergencyPhone    string `json:"emergency_contact_phone,omitempty"`
+	EmergencyRelation string `json:"emergency_contact_relation,omitempty"`
 	/* The statutory fields the form could not reach.
 
 	   All four have been columns since the baseline and nothing ever wrote
@@ -49,6 +57,9 @@ type studentWriteRequest struct {
 	   CHECK of exactly four, and that is the right design: a school needs to
 	   match a child against a government list, which the last four does, and
 	   holding the whole number makes the school's database worth stealing. */
+	// Optional everywhere. A school with no house system never sees this, and
+	// a child with no house is not an incomplete record.
+	HouseID      string `json:"house_id,omitempty"`
 	Category     string `json:"category,omitempty"`
 	Nationality  string `json:"nationality,omitempty"`
 	AadhaarLast4 string `json:"aadhaar_last4,omitempty"`
@@ -79,7 +90,8 @@ type studentWriteRequest struct {
 	GuardianName     string `json:"guardian_name,omitempty"`
 	GuardianPhone    string `json:"guardian_phone,omitempty"`
 	GuardianEmail    string `json:"guardian_email,omitempty"`
-	GuardianRelation string `json:"guardian_relation,omitempty"`
+	GuardianRelation   string `json:"guardian_relation,omitempty"`
+	GuardianOccupation string `json:"guardian_occupation,omitempty"`
 }
 
 var validGenders = map[string]bool{"male": true, "female": true, "other": true}
@@ -215,11 +227,14 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		                      mother_tongue, religion, address_line1, city, state, pincode,
 		                      apaar_id, child_info_id, prior_school, is_rte, is_cwsn,
 		                      address_line2, category, nationality, aadhaar_last4,
-		                      custom_fields, admission_date, status)
+		                      custom_fields, house_id, permanent_address,
+		                      emergency_contact_name, emergency_contact_phone,
+		                      emergency_contact_relation, admission_date, status)
 		VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,
 		        $17,$18,$19,$20,$21,$22,$23,
 		        COALESCE($24,'Indian'),$25,
-		        COALESCE($26::jsonb,'{}'::jsonb), CURRENT_DATE,'active')
+		        COALESCE($26::jsonb,'{}'::jsonb), $27::uuid,
+		        $28,$29,$30,$31, CURRENT_DATE,'active')
 		ON CONFLICT (institution_id, admission_no) DO UPDATE SET
 		    first_name = EXCLUDED.first_name, middle_name = EXCLUDED.middle_name,
 		    last_name = EXCLUDED.last_name, date_of_birth = EXCLUDED.date_of_birth,
@@ -239,6 +254,11 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		       carried; the form sends what its user edited. Assigning would
 		       make whichever ran last delete the other's fields. */
 		    custom_fields = students.custom_fields || EXCLUDED.custom_fields,
+		    house_id = EXCLUDED.house_id,
+		    permanent_address = EXCLUDED.permanent_address,
+		    emergency_contact_name = EXCLUDED.emergency_contact_name,
+		    emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+		    emergency_contact_relation = EXCLUDED.emergency_contact_relation,
 		    updated_at = now()
 		RETURNING id::text`,
 		instID, campus, admissionNo, req.FirstName, nullString(req.MiddleName),
@@ -250,7 +270,10 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		req.IsRTE, req.IsCWSN,
 		nullString(req.AddressLine2), nullString(req.Category),
 		nullString(req.Nationality), nullString(req.AadhaarLast4),
-		customFieldsJSON(req.CustomFields)).Scan(&studentID); err != nil {
+		customFieldsJSON(req.CustomFields),
+		nullString(req.HouseID), nullString(req.PermanentAddress),
+		nullString(req.EmergencyName), nullString(req.EmergencyPhone),
+		nullString(req.EmergencyRelation)).Scan(&studentID); err != nil {
 		return "", "", err
 	}
 
@@ -320,14 +343,19 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		}
 		var guardianID string
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO guardians (institution_id, full_name, relation, phone, email)
-			VALUES ($1,$2,$3,$4,$5::citext)
+			INSERT INTO guardians (institution_id, full_name, relation, phone, email, occupation)
+			VALUES ($1,$2,$3,$4,$5::citext,$6)
 			ON CONFLICT (institution_id, phone, full_name)
 			DO UPDATE SET relation = EXCLUDED.relation,
-			              email = COALESCE(EXCLUDED.email, guardians.email)
+			              email = COALESCE(EXCLUDED.email, guardians.email),
+			              -- COALESCE, not assign: the importer's CSV rarely
+			              -- carries an occupation, and a blank column must not
+			              -- erase what the office typed on the child's page.
+			              occupation = COALESCE(EXCLUDED.occupation, guardians.occupation)
 			RETURNING id::text`,
 			instID, req.GuardianName, relation, req.GuardianPhone,
-			nullString(req.GuardianEmail)).Scan(&guardianID); err != nil {
+			nullString(req.GuardianEmail),
+			nullString(req.GuardianOccupation)).Scan(&guardianID); err != nil {
 			return "", "", err
 		}
 		if _, err := tx.Exec(r.Context(), `
@@ -825,6 +853,13 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			isRTE, isCWSN                                          bool
 			admissionDate                                          string
 			photoFileID                                            *string
+			category, nationality, aadhaar4                        *string
+			addr1, addr2, state, pincode                           *string
+			permAddr, emgName, emgPhone, emgRel                    *string
+			customFields                                           []byte
+			houseID, houseName, houseColor                         *string
+			heightCM, weightKG, bmi, measuredOn                    *string
+			allergies                                              *string
 		)
 		if err := tx.QueryRow(r.Context(), `
 			SELECT st.admission_no,
@@ -837,8 +872,28 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			         WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1),
 			       st.city, st.prior_school, st.is_rte, st.is_cwsn,
 			       to_char(st.admission_date,'YYYY-MM-DD'),
-			       st.photo_file_id::text
+			       st.photo_file_id::text,
+			       st.category, st.nationality, st.aadhaar_last4,
+			       st.address_line1, st.address_line2, st.state, st.pincode,
+			       st.permanent_address, st.emergency_contact_name,
+			       st.emergency_contact_phone, st.emergency_contact_relation,
+			       st.custom_fields, st.house_id::text, h.name, h.color,
+			       /* The last time a nurse measured them. Read from the
+			          infirmary's checkups rather than copied onto the child:
+			          height and weight are a reading on a date, and a pair of
+			          columns on students would be a number with no date that
+			          nobody would ever update. */
+			       hc.height_cm::text, hc.weight_kg::text, hc.bmi::text,
+			       to_char(hc.on_date,'YYYY-MM-DD'),
+			       sh.allergies
 			  FROM students st
+			  LEFT JOIN houses h ON h.id = st.house_id
+			  LEFT JOIN LATERAL (
+			      SELECT height_cm, weight_kg, bmi, on_date FROM health_checkups
+			       WHERE student_id = st.id AND height_cm IS NOT NULL
+			       ORDER BY on_date DESC LIMIT 1
+			  ) hc ON true
+			  LEFT JOIN student_health sh ON sh.student_id = st.id
 			  LEFT JOIN LATERAL (
 			      SELECT e.class_id, e.section_id, e.roll_no FROM enrollments e
 			       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
@@ -850,7 +905,12 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			Scan(&admissionNo, &fullName, &status, &className, &sectionName, &rollNo,
 				&gender, &dob, &medium, &blood, &motherTongue, &apaar, &childInfo,
 				&phone, &city, &priorSchl, &isRTE, &isCWSN, &admissionDate,
-				&photoFileID); err != nil {
+				&photoFileID,
+				&category, &nationality, &aadhaar4,
+				&addr1, &addr2, &state, &pincode,
+				&permAddr, &emgName, &emgPhone, &emgRel,
+				&customFields, &houseID, &houseName, &houseColor,
+				&heightCM, &weightKG, &bmi, &measuredOn, &allergies); err != nil {
 			return err
 		}
 		out["id"] = sid.String()
@@ -873,6 +933,31 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 		out["is_rte"] = isRTE
 		out["is_cwsn"] = isCWSN
 		out["admission_date"] = admissionDate
+		out["category"] = category
+		out["nationality"] = nationality
+		out["aadhaar_last4"] = aadhaar4
+		out["address_line1"] = addr1
+		out["address_line2"] = addr2
+		out["state"] = state
+		out["pincode"] = pincode
+		out["permanent_address"] = permAddr
+		out["emergency_contact_name"] = emgName
+		out["emergency_contact_phone"] = emgPhone
+		out["emergency_contact_relation"] = emgRel
+		out["house_id"] = houseID
+		out["house_name"] = houseName
+		out["house_color"] = houseColor
+		out["height_cm"] = heightCM
+		out["weight_kg"] = weightKG
+		out["bmi"] = bmi
+		out["measured_on"] = measuredOn
+		out["allergies"] = allergies
+		if len(customFields) > 0 {
+			var cf map[string]string
+			if json.Unmarshal(customFields, &cf) == nil && len(cf) > 0 {
+				out["custom_fields"] = cf
+			}
+		}
 		out["photo_file_id"] = photoFileID
 
 		var present, total int
@@ -914,19 +999,23 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			   id" — on the one screen the product tells an office to use for
 			   exactly that. */
 			SELECT g.id::text, g.full_name, g.relation, COALESCE(g.phone,''),
-			       COALESCE(g.email::text,''), sg.is_primary
+			       COALESCE(g.email::text,''), sg.is_primary,
+			       COALESCE(g.occupation,''), g.photo_file_id::text
 			  FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
 			 WHERE sg.student_id = '`+sid.String()+`'::uuid
 			 ORDER BY sg.is_primary DESC`,
 			func(rows pgx.Rows) error {
-				var gid, name, rel, ph, em string
+				var gid, name, rel, ph, em, occ string
 				var primary bool
-				if err := rows.Scan(&gid, &name, &rel, &ph, &em, &primary); err != nil {
+				var photo *string
+				if err := rows.Scan(&gid, &name, &rel, &ph, &em, &primary,
+					&occ, &photo); err != nil {
 					return err
 				}
 				guardians = append(guardians, map[string]any{
 					"id": gid, "full_name": name, "relation": rel, "phone": ph,
-					"email": em, "is_primary": primary})
+					"email": em, "is_primary": primary, "occupation": occ,
+					"photo_file_id": photo})
 				return nil
 			}); err != nil {
 			return err

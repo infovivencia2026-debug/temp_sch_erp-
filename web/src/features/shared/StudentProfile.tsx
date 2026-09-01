@@ -43,10 +43,18 @@ interface Profile {
   attendance: { present: number; total: number; percent: number; below_threshold: boolean }
   fees: { outstanding_paise: number; paid_paise: number }
   category?: string; nationality?: string; aadhaar_last4?: string
-  address_line2?: string; custom_fields?: Record<string, string>
+  address_line1?: string; address_line2?: string; state?: string; pincode?: string
+  permanent_address?: string
+  emergency_contact_name?: string; emergency_contact_phone?: string
+  emergency_contact_relation?: string
+  house_id?: string; house_name?: string; house_color?: string
+  height_cm?: string; weight_kg?: string; bmi?: string; measured_on?: string
+  allergies?: string
+  custom_fields?: Record<string, string>
   guardians: {
     id?: string; full_name: string; relation: string; phone: string
     email: string; is_primary: boolean; photo_file_id?: string
+    occupation?: string
   }[]
   recent_attendance: { date: string; status: string }[]
   results: { exam: string; percentage: string; grade: string; rank: string }[]
@@ -142,6 +150,18 @@ export default function StudentProfile() {
   const sectionsOfClass = (sections.data?.items ?? [])
     .filter((x) => !classID || x.class_id === classID)
 
+  /* The roll, in four numbers.
+
+     Counted on the server across the whole school rather than from the rows
+     on screen: the list is filtered, paged and capped, so counting what is
+     rendered would report "12 active" about a section of twelve and call it
+     the school. */
+  const counts = useQuery({
+    queryKey: ['student-counts'],
+    queryFn: () => api.get<Record<string, number>>('/api/v1/students/counts'),
+    enabled: !selected,
+  })
+
   const browsing = !!classID || !!sectionID || roll === 'left'
   const searching = search.trim().length >= 2
   const results = useQuery({
@@ -167,7 +187,12 @@ export default function StudentProfile() {
     placeholderData: keepPreviousData,
   })
   const rows = (results.data?.items ?? [])
-    .filter((x) => (roll === 'left' ? x.status !== 'active' : true))
+    /* Suspended is not left. A suspended child is still enrolled and still
+       has a seat, so they belong on the roll rather than in the list of
+       people who have gone. */
+    .filter((x) => (roll === 'left'
+      ? x.status !== 'active' && x.status !== 'suspended'
+      : true))
 
   const profile = useQuery({
     queryKey: ['student-profile', selected],
@@ -226,6 +251,16 @@ export default function StudentProfile() {
       setExiting(false)
       qc.invalidateQueries({ queryKey: ['student-profile', selected] })
       qc.invalidateQueries({ queryKey: ['profile-search'] })
+    },
+  })
+  /* Suspension leaves the enrolment open: the child is expected back, and the
+     register should go on expecting them. */
+  const suspend = useMutation({
+    mutationFn: (v: { suspended: boolean }) =>
+      api.post(`/api/v1/students/${selected}/suspend`, v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['student-profile', selected] })
+      qc.invalidateQueries({ queryKey: ['student-counts'] })
     },
   })
   const readmit = useMutation({
@@ -435,6 +470,20 @@ export default function StudentProfile() {
               <AdmitStudent onDone={() => results.refetch()} />
             </div>
           )}
+          {counts.data && (
+            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <RollTile label="On the roll" value={counts.data.active ?? 0}
+                note="currently studying" tone="success"
+                onClick={() => { setRoll('active'); setClassID(''); setSectionID('') }} />
+              <RollTile label="Left" value={counts.data.left ?? 0}
+                note="TC issued, withdrawn or graduated" tone="warning"
+                onClick={() => { setRoll('left'); setClassID(''); setSectionID('') }} />
+              <RollTile label="Suspended" value={counts.data.suspended ?? 0}
+                note="temporarily barred" tone="danger" />
+              <RollTile label="New this year" value={counts.data.new_this_year ?? 0}
+                note="admitted this academic year" tone="neutral" />
+            </div>
+          )}
           {!searching && !browsing ? (
             <EmptyState
               title="Pick a class, or search for a student"
@@ -537,19 +586,30 @@ export default function StudentProfile() {
     { label: 'Give this student a login', onClick: () => studentLogin.mutate({}),
       disabled: !can('students.write') || studentLogin.isPending,
       disabledReason: 'Needs permission to change student records' },
-    ...(p.status === 'active'
+    ...(p.status === 'active' || p.status === 'suspended'
+      ? [{
+          label: p.status === 'suspended' ? 'Lift the suspension' : 'Suspend',
+          onClick: () => suspend.mutate({ suspended: p.status !== 'suspended' }),
+          disabled: !can('students.write') || suspend.isPending,
+          disabledReason: 'Needs the student write permission',
+        }]
+      : []),
+    ...(p.status === 'active' || p.status === 'suspended'
       ? [{
           label: 'Record that they have left',
           onClick: () => setExiting(true),
           disabled: !can('students.write'),
           disabledReason: 'Needs the student write permission',
         }]
-      : [{
+      : []),
+    ...(p.status !== 'active' && p.status !== 'suspended'
+      ? [{
           label: 'Put back on the roll',
           onClick: () => readmit.mutate(),
           disabled: !can('students.write') || readmit.isPending,
           disabledReason: 'Needs the student write permission',
-        }]),
+        }]
+      : []),
     { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
       disabled: !can('students.write'),
       disabledReason: 'Needs permission to change student records' },
@@ -638,7 +698,57 @@ export default function StudentProfile() {
               </div>
             </Card>
           ) : null}
-          {p.status !== 'active' && (
+          {/* 4. QUICK STATUS — the three things somebody wants before they
+                 have finished reading the name, and the one that cannot wait.
+
+                 The allergy tag is first and is the only one that shouts. A
+                 severe allergy is the single fact on this page where being
+                 told late is the whole harm, and it was previously nowhere on
+                 the screen at all — it lived in the infirmary module, which a
+                 class teacher has no reason to open. */}
+          <div className="lg:col-span-2 flex flex-wrap gap-3">
+            {p.allergies && (
+              <div className="flex-1 basis-full rounded-xl border-2 border-danger bg-danger/5 px-4 py-3">
+                <p className="eyebrow text-danger">Medical alert</p>
+                <p className="mt-0.5 text-[14px] font-medium">{p.allergies}</p>
+              </div>
+            )}
+            <QuickTile
+              label="Attendance"
+              value={`${p.attendance.percent}%`}
+              tone={p.attendance.below_threshold ? 'danger' : 'success'}
+              note={`${p.attendance.present} of ${p.attendance.total} days`}
+            />
+            <QuickTile
+              label="Fees"
+              value={p.fees.outstanding_paise > 0
+                ? formatPaise(p.fees.outstanding_paise)
+                : 'Clear'}
+              tone={p.fees.outstanding_paise > 0 ? 'warning' : 'success'}
+              note={p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'}
+            />
+            {p.house_name && (
+              <QuickTile label="House" value={p.house_name} tone="neutral"
+                note={p.house_color ? undefined : undefined} swatch={p.house_color} />
+            )}
+            {p.height_cm && (
+              <QuickTile
+                label="Height & weight"
+                value={`${p.height_cm} cm · ${p.weight_kg} kg`}
+                tone="neutral"
+                note={p.bmi ? `BMI ${p.bmi}${p.measured_on ? ` · ${formatDate(p.measured_on)}` : ''}` : undefined}
+              />
+            )}
+          </div>
+          {p.status === 'suspended' && (
+            <Card className="border-danger lg:col-span-2">
+              <CardHeader
+                title="This child is suspended"
+                description="They are still enrolled and still on the roll — the seat, the fees and the register are unchanged. Lift the suspension when they return."
+              />
+            </Card>
+          )}
+          {p.status !== 'active' && p.status !== 'suspended' && (
             <Card className="border-warning lg:col-span-2">
               <CardHeader
                 title="This child has left the school"
@@ -731,6 +841,7 @@ export default function StudentProfile() {
               <Field k="Blood group" v={p.blood_group} />
               <Field k="Mother tongue" v={p.mother_tongue} />
               <Field k="Medium" v={p.medium} />
+              <Field k="House" v={p.house_name} />
               {/* APAAR, Child Info, the previous school and the RTE/CWSN
                   category are admissions records. The office needs them to
                   file returns; a teacher opening a child's page wants to know
@@ -745,13 +856,58 @@ export default function StudentProfile() {
                   <Field k="APAAR ID" v={p.apaar_id ?? 'not issued'} mono />
                   <Field k="Child Info ID" v={p.child_info_id ?? 'not linked'} mono />
                   <Field k="Previous school" v={p.prior_school} />
-                  <Field k="Category" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ') || 'General'} />
+                  {/* CATEGORY IS A CATEGORY. This row read the RTE and CWSN
+                      flags and printed "General" when neither was set — so a
+                      child recorded as SC showed as General, on the screen an
+                      office files the reservation return from. They are three
+                      different facts and now say so. */}
+                  <Field k="Category" v={p.category ? p.category.toUpperCase() : undefined} />
+                  <Field k="Admitted under" v={[p.is_rte && 'RTE', p.is_cwsn && 'CWSN'].filter(Boolean).join(' · ')} />
+                  <Field k="Nationality" v={p.nationality} />
+                  <Field k="Aadhaar" v={p.aadhaar_last4 ? `•••• •••• ${p.aadhaar_last4}` : undefined} mono />
                 </>
               )}
             </dl>
           </Card>
           <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
             mayEdit={can('students.write')} />
+
+          {/* 3. CONTACT & EMERGENCY.
+
+              The emergency contact is separated from the guardians on purpose:
+              a guardian gets a login, fee reminders and absence alerts, and
+              the neighbour who holds a spare key should get none of those. */}
+          <Card>
+            <CardHeader title="Contact and emergency" />
+            <dl className="divide-y text-[14px]">
+              <Field
+                k="Address"
+                v={[p.address_line1, p.address_line2, p.city, p.state, p.pincode]
+                  .filter(Boolean).join(', ') || undefined}
+              />
+              <Field
+                k="Permanent address"
+                v={p.permanent_address ?? (p.address_line1 ? 'Same as above' : undefined)}
+              />
+              <Field k="Emergency contact" v={p.emergency_contact_name} />
+              <Field k="Their phone" v={p.emergency_contact_phone} />
+              <Field k="Relation" v={p.emergency_contact_relation} />
+            </dl>
+          </Card>
+
+          {/* Whatever else this school records. Shown only when there is
+              something in it — an empty card headed "Anything else" is a
+              question mark on every child's page. */}
+          {p.custom_fields && Object.keys(p.custom_fields).length > 0 && (
+            <Card>
+              <CardHeader title="Also recorded" />
+              <dl className="divide-y text-[14px]">
+                {Object.entries(p.custom_fields).map(([k, v]) => (
+                  <Field key={k} k={k} v={v} />
+                ))}
+              </dl>
+            </Card>
+          )}
         </div>
       ),
     },
@@ -1138,7 +1294,9 @@ function Guardians({ p, onIssue, mayEdit }: {
                       {g.full_name}
                       {g.is_primary && <Badge tone="primary">primary</Badge>}
                     </p>
-                    <p className="text-[13px] text-muted-foreground">{g.relation}</p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {[g.relation, g.occupation].filter(Boolean).join(' · ')}
+                    </p>
                     {mayEdit && g.id && (
                       <GuardianPhoto studentID={p.id} guardian={g} />
                     )}
@@ -1218,6 +1376,11 @@ function StudentForm({
     category: student.category ?? profile.category ?? '',
     nationality: student.nationality ?? profile.nationality ?? '',
     aadhaar_last4: student.aadhaar_last4 ?? profile.aadhaar_last4 ?? '',
+    house_id: profile.house_id ?? '',
+    permanent_address: profile.permanent_address ?? '',
+    emergency_contact_name: profile.emergency_contact_name ?? '',
+    emergency_contact_phone: profile.emergency_contact_phone ?? '',
+    emergency_contact_relation: profile.emergency_contact_relation ?? '',
     city: student.city ?? '',
     state: student.state ?? '',
     pincode: student.pincode ?? '',
@@ -1230,6 +1393,10 @@ function StudentForm({
      Held as a list of pairs rather than an object so the field being renamed
      keeps its position and its value while somebody is halfway through typing
      the new name — an object keyed by the name loses both on every keystroke. */
+  const houses = useQuery({
+    queryKey: ['academics', 'houses'],
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/houses'),
+  }).data?.items ?? []
   const [extra, setExtra] = useState<{ k: string; v: string }[]>(
     Object.entries(student.custom_fields ?? profile.custom_fields ?? {})
       .map(([k, v]) => ({ k, v: String(v) })))
@@ -1279,6 +1446,14 @@ function StudentForm({
         <FormField label="Aadhaar (last 4 digits)" hint="Only the last four are stored, on purpose">
           <Input value={f.aadhaar_last4} onChange={set('aadhaar_last4')} placeholder="••••" />
         </FormField>
+        {/* HOUSES ARE OPTIONAL AND UNNAMED BY US. A school's houses are
+            named after its founders, local rivers, saints, colours or birds —
+            there is no default that is not wrong somewhere. A school with no
+            house system sees an empty dropdown and ignores it. */}
+        <FormField label="House" hint={houses.length ? undefined : 'No houses set up — Academics → Houses'}>
+          <Select value={f.house_id} onChange={set('house_id')} placeholder="Not in a house"
+            options={houses.map((h) => ({ value: h.id, label: h.name }))} />
+        </FormField>
         <FormField label="City"><Input value={f.city} onChange={set('city')} /></FormField>
         <FormField label="State"><Input value={f.state} onChange={set('state')} /></FormField>
         <FormField label="Pincode" hint="Six digits"><Input value={f.pincode} onChange={set('pincode')} /></FormField>
@@ -1293,6 +1468,26 @@ function StudentForm({
       <FormField label="Address (second line)" hint="Landmark, area — optional">
         <Input value={f.address_line2} onChange={set('address_line2')} />
       </FormField>
+      <FormField label="Permanent address" hint="Only if it differs from the address above">
+        <Textarea value={f.permanent_address} onChange={set('permanent_address')} rows={2} />
+      </FormField>
+
+      <div className="mt-4 border-t pt-4">
+        <p className="eyebrow mb-1">Emergency contact</p>
+        {/* NOT A GUARDIAN. A guardian gets a login, fee reminders and absence
+            alerts; the neighbour who holds a spare key should get none of
+            them, so this is three plain fields rather than another parent. */}
+        <p className="mb-3 text-[12.5px] text-muted-foreground">
+          Somebody to ring when no parent answers. They get no login and no messages.
+        </p>
+        <FormGrid>
+          <FormField label="Name"><Input value={f.emergency_contact_name} onChange={set('emergency_contact_name')} /></FormField>
+          <FormField label="Phone"><Input value={f.emergency_contact_phone} onChange={set('emergency_contact_phone')} /></FormField>
+          <FormField label="Relation" hint="Neighbour, aunt, family friend">
+            <Input value={f.emergency_contact_relation} onChange={set('emergency_contact_relation')} />
+          </FormField>
+        </FormGrid>
+      </div>
 
       {/* ANYTHING ELSE THIS SCHOOL KEEPS.
 
@@ -1412,6 +1607,74 @@ function GuardianPhoto({ studentID, guardian }: {
         )}
       </div>
       {save.error && <FormNotice error={save.error} />}
+    </div>
+  )
+}
+
+/* A count, and a way in.
+
+   Each tile is the filter it describes, so "1 left" is a click away from the
+   list of who they are — a number somebody cannot act on is a number they
+   have to go and re-derive somewhere else. */
+function RollTile({ label, value, note, tone, onClick }: {
+  label: string
+  value: number
+  note: string
+  tone: 'success' | 'warning' | 'danger' | 'neutral'
+  onClick?: () => void
+}) {
+  const dot = {
+    success: 'bg-success', warning: 'bg-warning',
+    danger: 'bg-danger', neutral: 'bg-primary',
+  }[tone]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={cn(
+        'rounded-xl border bg-background px-4 py-3 text-left',
+        onClick && 'hover:border-primary/50',
+      )}
+    >
+      <p className="eyebrow flex items-center gap-1.5 text-muted-foreground">
+        <span className={cn('inline-block h-2 w-2 rounded-full', dot)} />
+        {label}
+      </p>
+      <p className="mt-1 text-[26px] font-semibold leading-none tabular-nums">{value}</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">{note}</p>
+    </button>
+  )
+}
+
+/* One number, said once.
+
+   Deliberately not a chart. The question these answer — is this child in
+   trouble on attendance, does the family owe money — is answered by a number
+   and a colour, and anything more is decoration on a page somebody is reading
+   with a parent on the phone. */
+function QuickTile({ label, value, note, tone, swatch }: {
+  label: string
+  value: string
+  note?: string
+  tone: 'success' | 'warning' | 'danger' | 'neutral'
+  swatch?: string
+}) {
+  const ring = {
+    success: 'border-success/40', warning: 'border-warning/50',
+    danger: 'border-danger/50', neutral: 'border-border',
+  }[tone]
+  return (
+    <div className={cn('min-w-[10rem] flex-1 rounded-xl border bg-background px-4 py-3', ring)}>
+      <p className="eyebrow flex items-center gap-1.5 text-muted-foreground">
+        {swatch && (
+          <span className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: swatch }} />
+        )}
+        {label}
+      </p>
+      <p className="mt-0.5 text-[18px] font-semibold tabular-nums">{value}</p>
+      {note && <p className="text-[12px] text-muted-foreground">{note}</p>}
     </div>
   )
 }

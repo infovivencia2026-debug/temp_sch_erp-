@@ -125,6 +125,12 @@ func (s *Server) Routes() http.Handler {
 			   deleted either way — see student_exit.go. */
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/exit", s.recordStudentExit)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/readmit", s.readmitStudent)
+			// Suspension is not leaving: it leaves the enrolment open, because
+			// the child is expected back.
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/suspend", s.suspendStudent)
+			// The roll in four numbers, counted server-side across everything
+			// the caller may see rather than from the page of rows on screen.
+			r.Get("/counts", s.studentCounts)
 		})
 
 		/* --- Syllabus, lesson plans and coverage --------------------------
@@ -170,6 +176,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/classes", s.listClasses)
 			r.Get("/sections", s.listSections)
 			r.Get("/subjects", s.listSubjects)
+			/* Houses. The table and students.house_id have been in the
+			   baseline since the beginning with no screen touching either. */
+			r.Get("/houses", s.listHouses)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/houses", s.saveHouse)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/houses/{id}", s.deleteHouse)
 		})
 
 		r.Route("/timetable", func(r chi.Router) {
