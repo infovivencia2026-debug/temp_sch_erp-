@@ -1,0 +1,237 @@
+package api
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/httpx"
+)
+
+/* Adding and correcting a child's parents.
+
+   A guardian could be created exactly once — in the admission form, one of
+   them, at the moment the child was admitted. After that the record was
+   frozen: a mother who was not entered on the first day could never be added,
+   a father who changed his number had to be corrected by somebody with
+   database access, and a grandmother who took over raising the child could
+   not be put on the record at all.
+
+   That is not a small gap. Every absence alert, fee reminder and message this
+   product sends goes to guardians, so a parent who is not on the record is a
+   parent the school cannot reach — and the screen that shows the family is the
+   screen where somebody notices.
+
+   MATCHED ON PHONE AND NAME, not created blindly. guardians has a unique index
+   on (institution_id, phone, full_name) because one parent has several
+   children at the school, and a second row would mean the mother of three gets
+   told about one of them. Adding an existing parent to another child links the
+   guardian that is already there.
+
+   REMOVING UNLINKS, IT DOES NOT DELETE. The row belongs to the institution and
+   may be another child's parent; taking a guardian off this child removes the
+   link and leaves the person. A separated parent removed from one child's
+   record must not vanish from their sibling's.
+*/
+
+type guardianWriteRequest struct {
+	// Present when correcting an existing guardian rather than adding one.
+	ID         string `json:"id,omitempty"`
+	FullName   string `json:"full_name"`
+	Relation   string `json:"relation"`
+	Phone      string `json:"phone,omitempty"`
+	Email      string `json:"email,omitempty"`
+	Occupation string `json:"occupation,omitempty"`
+	// Who the school rings first, and whose consent the office records. One
+	// per child: setting it clears the flag on the others.
+	IsPrimary bool `json:"is_primary"`
+}
+
+var guardianRelations = map[string]bool{
+	"father": true, "mother": true, "guardian": true, "other": true,
+}
+
+func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	var req guardianWriteRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	name := strings.TrimSpace(req.FullName)
+	if name == "" {
+		httpx.BadRequest(w, r, "a parent needs a name")
+		return
+	}
+	relation := strings.ToLower(strings.TrimSpace(req.Relation))
+	if relation == "" {
+		relation = "guardian"
+	}
+	if !guardianRelations[relation] {
+		httpx.BadRequest(w, r, "relation must be father, mother, guardian or other")
+		return
+	}
+	phone := strings.TrimSpace(req.Phone)
+	email := strings.TrimSpace(req.Email)
+	/* A guardian with neither a number nor an address is a name the school
+	   cannot reach, on the record that exists to say who to reach. Refused
+	   here rather than accepted and discovered on the morning a child is hurt. */
+	if phone == "" && email == "" {
+		httpx.BadRequest(w, r,
+			"give a phone number or an email — a parent with neither is one the "+
+				"school cannot contact")
+		return
+	}
+
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 2)
+
+	var guardianID string
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var allowed bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT true FROM students st WHERE st.id = $1 AND `+pred,
+			append([]any{sid}, args...)...).Scan(&allowed); err != nil {
+			return err
+		}
+
+		if req.ID != "" {
+			gid, err := uuid.Parse(req.ID)
+			if err != nil {
+				return err
+			}
+			/* Only a guardian of THIS child. Without the link check, any
+			   guardian id in the school could be edited by anybody who can
+			   edit any one child. */
+			if err := tx.QueryRow(r.Context(), `
+				UPDATE guardians g
+				   SET full_name = $2, relation = $3,
+				       phone = NULLIF($4,''), email = NULLIF($5,'')::citext,
+				       occupation = NULLIF($6,'')
+				 WHERE g.id = $1
+				   AND EXISTS (SELECT 1 FROM student_guardians sg
+				                WHERE sg.guardian_id = g.id AND sg.student_id = $7)
+				RETURNING g.id::text`,
+				gid, name, relation, phone, email, req.Occupation, sid).
+				Scan(&guardianID); err != nil {
+				return err
+			}
+		} else {
+			// ON CONFLICT rather than a fresh row: one parent has several
+			// children here, and a duplicate means the mother of three is told
+			// about one of them.
+			if err := tx.QueryRow(r.Context(), `
+				INSERT INTO guardians (institution_id, full_name, relation, phone,
+				                       email, occupation)
+				VALUES ($1,$2,$3,NULLIF($4,''),NULLIF($5,'')::citext,NULLIF($6,''))
+				ON CONFLICT (institution_id, phone, full_name)
+				DO UPDATE SET relation = EXCLUDED.relation,
+				              email = COALESCE(EXCLUDED.email, guardians.email),
+				              occupation = COALESCE(EXCLUDED.occupation, guardians.occupation)
+				RETURNING id::text`,
+				id.InstitutionID, name, relation, phone, email, req.Occupation).
+				Scan(&guardianID); err != nil {
+				return err
+			}
+			/* Linked as NOT primary whatever was asked for, and promoted
+			   below if it was. student_guardians_one_primary is a unique index
+			   on (student_id) WHERE is_primary, so inserting a second primary
+			   before clearing the first fails the whole save — and the person
+			   adding a mother would be told the database was broken. */
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO student_guardians (student_id, guardian_id, institution_id, is_primary)
+				VALUES ($1,$2::uuid,$3,false)
+				ON CONFLICT (student_id, guardian_id) DO NOTHING`,
+				sid, guardianID, id.InstitutionID); err != nil {
+				return err
+			}
+		}
+
+		if req.IsPrimary {
+			// One primary per child. Cleared first, so the flag cannot end up
+			// on two people and leave "who do we ring" ambiguous.
+			if _, err := tx.Exec(r.Context(),
+				`UPDATE student_guardians SET is_primary = false WHERE student_id = $1`,
+				sid); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE student_guardians SET is_primary = true
+				 WHERE student_id = $1 AND guardian_id = $2::uuid`,
+				sid, guardianID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err == pgx.ErrNoRows {
+		httpx.Forbidden(w, r, "this family is not one you can edit")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"id": guardianID, "full_name": name})
+}
+
+/* Taking a parent off a child's record UNLINKS them.
+
+   The guardian row belongs to the institution and is very often another
+   child's parent too. Deleting it because one link went away would remove a
+   sibling's mother from their record as a side effect — and would take her
+   login, her fee reminders and her absence alerts with it.
+*/
+func (s *Server) unlinkStudentGuardian(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	gid, err := uuid.Parse(chiURLParam(r, "gid"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid guardian id")
+		return
+	}
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 3)
+
+	var touched int64
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `
+			DELETE FROM student_guardians sg
+			 WHERE sg.student_id = $1 AND sg.guardian_id = $2
+			   AND EXISTS (SELECT 1 FROM students st
+			                WHERE st.id = sg.student_id AND `+pred+`)`,
+			append([]any{sid, gid}, args...)...)
+		if err != nil {
+			return err
+		}
+		touched = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if touched == 0 {
+		httpx.Forbidden(w, r, "that family is not one you can edit")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"unlinked": true})
+}

@@ -894,7 +894,8 @@ export default function StudentProfile() {
             </dl>
           </Card>
           <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
-            mayEdit={can('students.write')} />
+            mayEdit={can('students.write')}
+            onChanged={() => qc.invalidateQueries({ queryKey: ['student-profile', selected] })} />
 
           {/* 3. CONTACT & EMERGENCY.
 
@@ -1309,11 +1310,24 @@ interface IssuedLogin {
 }
 
 /** Who to call. First thing anyone needs when a child is the subject. */
-function Guardians({ p, onIssue, mayEdit }: {
+function Guardians({ p, onIssue, mayEdit, onChanged }: {
   p: Profile
   onIssue?: (g: Profile['guardians'][number]) => void
   mayEdit?: boolean
+  onChanged?: () => void
 }) {
+  /* '' means "adding a new one"; a guardian id means "correcting that one".
+     null means the form is closed. */
+  const [editing, setEditing] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: (v: Record<string, unknown>) =>
+      api.post(`/api/v1/students/${p.id}/guardians`, v),
+    onSuccess: () => { setEditing(null); onChanged?.() },
+  })
+  const unlink = useMutation({
+    mutationFn: (gid: string) => api.del(`/api/v1/students/${p.id}/guardians/${gid}`),
+    onSuccess: () => onChanged?.(),
+  })
   return (
     <Card>
       {/* The block a teacher opens this page for. Father and mother first,
@@ -1327,7 +1341,26 @@ function Guardians({ p, onIssue, mayEdit }: {
           usually nothing at all. Email stays optional — a phone number is the
           contact that matters and a parent without an address is not a
           record with something missing from it. */}
-      <CardHeader title="Parents and guardians" description="Father and mother first" />
+      <CardHeader
+        title="Parents and guardians"
+        description="Father and mother first"
+        action={mayEdit ? (
+          <Button size="sm" variant={editing === '' ? 'secondary' : 'primary'}
+            onClick={() => setEditing(editing === '' ? null : '')}>
+            {editing === '' ? 'Close' : 'Add a parent'}
+          </Button>
+        ) : undefined}
+      />
+      {editing === '' && mayEdit && (
+        <div className="border-b bg-muted/20 p-4">
+          <GuardianForm
+            saving={save.isPending}
+            error={save.error}
+            onCancel={() => setEditing(null)}
+            onSave={(v) => save.mutate(v)}
+          />
+        </div>
+      )}
       {p.guardians.length === 0 ? (
         <div className="p-6">
           <EmptyState title="No guardian on record"
@@ -1354,6 +1387,17 @@ function Guardians({ p, onIssue, mayEdit }: {
                   viewport breakpoint would be the wrong instrument: this card
                   is narrow because it is in a two-up grid, not because the
                   window is. */}
+              {editing === g.id && mayEdit && (
+                <div className="mb-3 rounded-lg border bg-muted/20 p-3">
+                  <GuardianForm
+                    guardian={g}
+                    saving={save.isPending}
+                    error={save.error}
+                    onCancel={() => setEditing(null)}
+                    onSave={(v) => save.mutate({ ...v, id: g.id })}
+                  />
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                 <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
                   {/* OPTIONAL, AND SILENT WHEN EMPTY.
@@ -1394,6 +1438,23 @@ function Guardians({ p, onIssue, mayEdit }: {
                     <Button size="sm" variant="secondary" onClick={() => onIssue(g)}>
                       Give a login
                     </Button>
+                  )}
+                  {mayEdit && g.id && (
+                    <>
+                      <Button size="sm" variant="ghost"
+                        onClick={() => setEditing(editing === g.id ? null : g.id!)}>
+                        {editing === g.id ? 'Close' : 'Edit'}
+                      </Button>
+                      {/* UNLINKS, and says so. The person is very often a
+                          sibling's parent too, and deleting them would take a
+                          mother off another child's record — with her login,
+                          her fee reminders and her absence alerts. */}
+                      <Button size="sm" variant="ghost"
+                        disabled={unlink.isPending}
+                        onClick={() => unlink.mutate(g.id!)}>
+                        Remove
+                      </Button>
+                    </>
                   )}
                   {g.phone && (
                     <a href={`tel:${g.phone}`} className="inline-flex items-center gap-1 text-primary">
@@ -1763,6 +1824,74 @@ function QuickTile({ label, value, note, tone, swatch }: {
       <p className="mt-0.5 text-[18px] font-semibold tabular-nums">{value}</p>
       {note && <p className="text-[12px] text-muted-foreground">{note}</p>}
     </div>
+  )
+}
+
+/* One parent, added or corrected.
+
+   A phone number or an email is required and the form says why: every alert
+   this product sends goes to guardians, so a parent with neither is a name on
+   a record the school cannot act on — and the morning that matters is the
+   morning a child is hurt. */
+function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
+  guardian?: Profile['guardians'][number]
+  saving: boolean
+  error: unknown
+  onSave: (v: Record<string, unknown>) => void
+  onCancel: () => void
+}) {
+  const [f, setF] = useState({
+    full_name: guardian?.full_name ?? '',
+    relation: guardian?.relation ?? 'father',
+    phone: guardian?.phone ?? '',
+    email: guardian?.email ?? '',
+    occupation: guardian?.occupation ?? '',
+  })
+  const [primary, setPrimary] = useState(guardian?.is_primary ?? false)
+  const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
+  const reachable = f.phone.trim() !== '' || f.email.trim() !== ''
+  return (
+    <>
+      <FormNotice error={error} />
+      <FormGrid>
+        <FormField label="Name" required>
+          <Input value={f.full_name} onChange={set('full_name')} />
+        </FormField>
+        <FormField label="Relation" required>
+          <Select value={f.relation} onChange={set('relation')} options={[
+            { value: 'father', label: 'Father' },
+            { value: 'mother', label: 'Mother' },
+            { value: 'guardian', label: 'Guardian' },
+            { value: 'other', label: 'Other' },
+          ]} />
+        </FormField>
+        <FormField label="Phone" hint={reachable ? undefined : 'A phone or an email is needed'}>
+          <Input value={f.phone} onChange={set('phone')} />
+        </FormField>
+        <FormField label="Email">
+          <Input value={f.email} onChange={set('email')} />
+        </FormField>
+        <FormField label="Occupation">
+          <Input value={f.occupation} onChange={set('occupation')} />
+        </FormField>
+      </FormGrid>
+      <div className="mt-3">
+        <Checkbox
+          label="Ring this parent first"
+          checked={primary}
+          onChange={setPrimary}
+        />
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          disabled={saving || !f.full_name.trim() || !reachable}
+          onClick={() => onSave({ ...f, is_primary: primary })}
+        >
+          {saving ? 'Saving…' : guardian ? 'Save changes' : 'Add them'}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+      </div>
+    </>
   )
 }
 

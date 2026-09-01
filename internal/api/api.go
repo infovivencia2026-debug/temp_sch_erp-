@@ -119,6 +119,15 @@ func (s *Server) Routes() http.Handler {
 			// so the same scope rule applies to a family as to the child.
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
 				Put("/{id}/guardians/{gid}/photo", s.setGuardianPhoto)
+			/* Adding and correcting a child's parents. A guardian could be
+			   created exactly once — one of them, in the admission form, on
+			   the day the child was admitted — and never again. Every alert
+			   this product sends goes to guardians, so a parent not on the
+			   record is a parent the school cannot reach. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Post("/{id}/guardians", s.saveStudentGuardian)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Delete("/{id}/guardians/{gid}", s.unlinkStudentGuardian)
 			/* Leaving, and coming back. A transfer certificate already ends a
 			   child's time here; this is the other ways a child leaves, none
 			   of which produce a document the family ever asks for. Nothing is
