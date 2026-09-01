@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, KeyRound, Pencil, ShieldCheck, UserPlus, UserX, UserCheck, X } from 'lucide-react'
+import { ArrowRightLeft, KeyRound, Pencil, ShieldCheck, SlidersHorizontal, UserPlus, UserX, UserCheck, X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -49,6 +49,7 @@ export default function Users() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [handingOver, setHandingOver] = useState<AdminUser | null>(null)
+  const [custom, setCustom] = useState(false)
 
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -105,6 +106,8 @@ export default function Users() {
           />
         )}
 
+        {custom && <CustomAccount onClose={() => setCustom(false)} />}
+
         {handingOver && (
           <HandOver
             from={handingOver}
@@ -119,6 +122,14 @@ export default function Users() {
             description={`${users.length} user${users.length === 1 ? '' : 's'}`}
             action={
               <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => { setCreating(false); setEditing(null); setHandingOver(null); setCustom((v) => !v) }}
+                  title="An account with a role of its own, dialled to exactly what it should see"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> Custom account
+                </Button>
                 <Input value={search} onChange={setSearch} placeholder="Name, email or phone" />
                 <Select
                   value={status}
@@ -487,6 +498,157 @@ function HandOver({
                 : `${picked.length} role${picked.length === 1 ? '' : 's'} from ${from.full_name} to ${toName}.`}
           </span>
         </div>
+      </div>
+    </Card>
+  )
+}
+
+interface RoleTemplate {
+  key: string
+  name: string
+  description?: string
+  permissions: number
+  installed: boolean
+}
+
+interface GenericResult {
+  user_id: string
+  role_id: string
+  role_name: string
+  copied_permissions: number
+  temporary_password: string
+  note: string
+  password_note: string
+}
+
+/* An account whose job is decided afterwards.
+
+   Every school has somebody the built-in roles do not describe — a
+   correspondent who sees fees but not marks, a trustee who sees everything and
+   changes nothing. Making one took three screens, and the third, attaching the
+   role to the account, is the one that gets forgotten.
+
+   One press here: a role of its own, an account holding it, a password to hand
+   over. What it may see and change is then the role grid, which says the two
+   things that matter per feature — the level, and how far the data reaches.
+
+   It starts at nothing unless a preset is chosen. An account that begins able
+   to see everything is one somebody forgets to restrict, and the forgetting is
+   silent. */
+function CustomAccount({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [f, setF] = useState({ full_name: '', email: '', phone: '', role_name: '' })
+  const [copyFrom, setCopyFrom] = useState('')
+  const [made, setMade] = useState<GenericResult | null>(null)
+
+  const templates = useQuery({
+    queryKey: ['role-templates'],
+    queryFn: () => api.get<List<RoleTemplate>>('/api/v1/admin/roles/templates'),
+  })
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.post<GenericResult>('/api/v1/admin/users/generic', {
+        ...f,
+        role_name: f.role_name || undefined,
+        copy_from: copyFrom || undefined,
+      }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      setMade(res)
+    },
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title="Custom account"
+        description="An account with a role of its own. Start from a preset or from nothing, then dial exactly what it can see and edit on the role grid."
+        action={
+          <Button size="sm" variant="ghost" onClick={onClose} title="Close">
+            <X className="h-4 w-4" />
+          </Button>
+        }
+      />
+      <div className="space-y-4 px-5 py-4">
+        {made ? (
+          <>
+            <FormNotice ok={made.note} />
+            <FormGrid>
+              <Field label="Temporary password" hint={made.password_note}>
+                <Input value={made.temporary_password} onChange={() => {}} />
+              </Field>
+              <Field label="Its role" hint={`${made.copied_permissions} permissions to start with.`}>
+                <Input value={made.role_name} onChange={() => {}} />
+              </Field>
+            </FormGrid>
+            <p className="text-[13px] text-muted-foreground">
+              Open Roles &amp; permissions and pick <strong>{made.role_name}</strong> to set what
+              it can see and how far that reaches.
+            </p>
+          </>
+        ) : (
+          <>
+            <FormGrid>
+              <Field label="Name" required>
+                <Input
+                  value={f.full_name}
+                  onChange={(v) => setF({ ...f, full_name: v })}
+                  placeholder="e.g. Correspondent"
+                />
+              </Field>
+              <Field label="Email">
+                <Input value={f.email} onChange={(v) => setF({ ...f, email: v })} />
+              </Field>
+              <Field label="Phone" hint="An email or a phone — it needs something to sign in with.">
+                <Input value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+              </Field>
+              <Field label="Call the role" hint="Defaults to the person’s name.">
+                <Input
+                  value={f.role_name}
+                  onChange={(v) => setF({ ...f, role_name: v })}
+                  placeholder="e.g. Correspondent"
+                />
+              </Field>
+            </FormGrid>
+
+            <Field
+              label="Start from a preset"
+              hint="Accounts, HR and the rest are starting points, not the only shapes a school can have. Leave this empty and the account starts able to see nothing."
+            >
+              <Select
+                value={copyFrom}
+                onChange={setCopyFrom}
+                placeholder="Start from nothing"
+                options={(templates.data?.items ?? []).map((t) => ({
+                  value: t.key,
+                  label: `${t.name} · ${t.permissions} permissions`,
+                }))}
+              />
+            </Field>
+
+            <FormNotice error={create.error} />
+
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => create.mutate()}
+                disabled={
+                  !f.full_name.trim() ||
+                  (!f.email.trim() && !f.phone.trim()) ||
+                  create.isPending
+                }
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                {create.isPending ? 'Creating…' : 'Create account and role'}
+              </Button>
+              <span className="text-[13px] text-muted-foreground">
+                {copyFrom
+                  ? 'Starts with that preset’s permissions, and every one of them can be changed.'
+                  : 'Starts able to sign in and see nothing.'}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </Card>
   )

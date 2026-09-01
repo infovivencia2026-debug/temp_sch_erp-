@@ -1040,6 +1040,13 @@ func (s *Server) Routes() http.Handler {
 			// Handing a job over: grant and revoke in one transaction, so the
 			// school is never left with two bursars or none.
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/users/roles/transfer", s.transferRoles)
+			// An account with a role of its own, created empty and dialled up on
+			// the grid, for the job the built-in roles do not describe.
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/users/generic", s.createGenericAccount)
+			// The built-ins as starting points. They cannot be edited in place —
+			// the seeder restores them — so copying is the move, and this names
+			// what each copy would give.
+			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/templates", s.listRoleTemplates)
 			// Gated in the handler, not here: appointing somebody requires
 			// choosing their role, so hr.employees.write has to be able to
 			// read the list. Requiring roles.read meant an HR manager with

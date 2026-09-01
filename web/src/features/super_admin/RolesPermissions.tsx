@@ -208,8 +208,9 @@ export default function RolesPermissions() {
                 <div className="flex flex-col gap-2 border-b px-5 py-4">
                   <Input value={newName} onChange={setNewName} placeholder="e.g. Senior Accountant" />
                   <p className="text-[12px] text-muted-foreground">
-                    Starts as a copy of the role selected on the left, so you adjust rather than
-                    build from nothing.
+                    Starts from the role selected on the left, so you adjust rather than build
+                    from nothing. Every built-in is a preset this way — Accounts, HR and the
+                    rest are starting points, and the copy is yours to change.
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -331,7 +332,7 @@ export default function RolesPermissions() {
                         className="ml-1 h-auto px-1 py-0 align-baseline"
                         onClick={() => setCreating(true)}
                       >
-                        Copy this role
+                        Start from this preset
                       </Button>
                     </div>
                   </div>

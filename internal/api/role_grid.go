@@ -50,10 +50,13 @@ type gridGroup struct {
 }
 
 type roleGrid struct {
-	ID        string      `json:"id"`
-	Key       string      `json:"key"`
-	Name      string      `json:"name"`
-	IsSystem  bool        `json:"is_system"`
+	ID       string `json:"id"`
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	IsSystem bool   `json:"is_system"`
+	// A built-in, offered as a starting point rather than a fixture. Same
+	// condition as IsSystem, named for what a school should do with it.
+	IsPreset  bool        `json:"is_preset"`
 	IsDefault bool        `json:"is_default"`
 	Editable  bool        `json:"editable"`
 	LockNote  string      `json:"lock_note,omitempty"`
@@ -153,13 +156,25 @@ func (s *Server) getRoleGrid(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out.Editable = !out.IsSystem
+	out.IsPreset = out.IsSystem
 	if out.IsSystem {
-		// Editing a seeded role looks like it works and does not last: the next
-		// migration re-runs the seeder, which replaces the role's grants with
-		// the ones in code. Saying so here is the difference between a rule and
-		// a silent reversion three weeks later.
-		out.LockNote = "This is a built-in role. Its permissions are restored on every " +
-			"upgrade, so changes here would not survive. Copy it to a custom role instead."
+		/* A built-in is a preset, not a fixture.
+
+		   It cannot be edited in place, and the reason is real rather than
+		   arbitrary: the seeder re-runs on every upgrade and restores this
+		   role's grants from code, so an edit here would appear to work and
+		   silently revert three weeks later. Saying so is the difference
+		   between a rule and a mystery.
+
+		   But "locked" was the wrong word for what a school should do next.
+		   Every built-in is a starting position — HR, Accounts, Librarian are
+		   sensible bundles, not the only shapes a school may have — and a copy
+		   of one is an ordinary role that can be dialled anywhere on this
+		   grid. So the note names the move rather than the restriction. */
+		out.LockNote = "Accounts, HR and the rest are presets — sensible starting points, " +
+			"not the only shapes a school can have. This one cannot be changed in place " +
+			"because every upgrade restores it from code. Start from it instead: the copy " +
+			"is yours, and every control on this grid works on it."
 	}
 	out.Groups = describeGroups(rbac.Read(caps))
 	httpx.JSON(w, http.StatusOK, out)
