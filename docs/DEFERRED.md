@@ -265,3 +265,67 @@ with pastoral and record callers moved onto it and finance left alone.
   a new key such as `institution_admin.communication.sms_gateway_phone` is
   probably warranted. Deliberately not minted; catalogue keys move the
   completeness count.
+
+---
+
+## Agreed after the MyClassboard comparison (1 Sep 2026)
+
+Both are approved in principle and deliberately NOT started. Wait to be asked.
+
+### 1. Concessions and scholarships — catalogue what already exists
+
+The cheapest real win of the comparison. MCB ships manage/assign/report for
+concessions and scholarships, plus staff-kid and sibling concessions. Our
+catalogue has **zero** features matching `concession|scholar` — but the API
+already serves `/concessions/scholarships/imports` and
+`/concessions/scholarships/imports/`, and `concessions.go` exists.
+
+So this is mostly a WIRING gap, not a build: backend without a catalogued
+feature, which means it is unreachable from navigation and invisible to search.
+
+When picked up:
+- Read `internal/api/concessions.go` first and establish what is genuinely
+  served before minting any key — the endpoint list is not proof of a complete
+  feature.
+- Minting catalogue keys moves the completeness count, so mint only what is
+  actually reachable, and check `implemented_gen.go` afterwards.
+- Likely home: `finance.*` and/or `institution_admin.fees.*`.
+- Fee concessions touch money. Every figure must name its population the way
+  the collected/outstanding/billed trio now does — a concession applied to
+  "this year's bills" is not the same measure as one applied to arrears.
+
+### 2. Board-specific grade books — ship every board, reveal one
+
+MCB carries separate grade-book structures for CBSE/State, IB, Cambridge,
+ICSE and Pre-School, plus Blooms Taxonomy and subject outcomes. We have ONE
+generic exam model and no board-specific structure at all, so an IB or
+Cambridge school cannot use the product as it stands.
+
+**The explicit instruction: build all the boards, but do not show them all.
+The school picks its board during setup and sees only that one.**
+
+That shape matters — it is the difference between a product that supports five
+boards and a menu with five boards in it. The other four should be invisible,
+not merely unused.
+
+When picked up:
+- The board is already on `institutions` (`education_board`, referenced by the
+  setup checklist's `profile` step), so the selector likely exists; check
+  before adding a second source of truth for the same fact.
+- Setup step 1 "Confirm the school's details" is where the choice belongs —
+  it is already blocking, and everything academic depends on it.
+- Grading scales are already a setup step (`grading`, non-blocking): "Marks
+  cannot become grades without it." Board structures must build on that rather
+  than beside it.
+- Scope: large. Worth it only when chasing IB/Cambridge schools — say so at the
+  time rather than assuming the reason still holds.
+
+### Deliberately NOT copied from MCB
+
+Recorded so a future pass does not treat the gap as a to-do:
+
+- **The report sprawl.** MCB has 15+ fee-due reports (Classwise, Branchwise,
+  Aging, Batchwise, Month wise, All year, Previous AY…) — the same question
+  answered fifteen times because nobody could filter. One filtered view.
+- **A "Reports" sub-menu under every module.**
+- **Per-branch duplicates** of reports that a filter would cover.
