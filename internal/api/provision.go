@@ -176,6 +176,28 @@ func provisionSchool(ctx context.Context, tx pgx.Tx, hasher *auth.Hasher, p prov
 		return out, err
 	}
 
+	/* The departments a leaver is signed out of.
+	
+	   Seeded here rather than left to the school, because both exit gates are
+	   counts of what is unsigned: with no departments the count is zero, and
+	   the rule that stops a final settlement outrunning the library reads as
+	   "nothing outstanding" and pays. A school that has no hostel switches
+	   that row off; a school that has no rows at all cannot tell an empty
+	   checklist from a completed one. */
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO clearance_departments (institution_id, code, name, sequence)
+		VALUES ($1, 'library',   'Library',              10),
+		       ($1, 'lab',       'Science laboratories', 20),
+		       ($1, 'it',        'IT and devices',       30),
+		       ($1, 'stores',    'Stores and stationery',40),
+		       ($1, 'hostel',    'Hostel',               50),
+		       ($1, 'transport', 'Transport',            60),
+		       ($1, 'finance',   'Accounts',             70),
+		       ($1, 'hr',        'HR and records',       80)
+		ON CONFLICT DO NOTHING`, out.InstitutionID); err != nil {
+		return out, err
+	}
+
 	if p.PlanCode != "" {
 		if err := startSubscription(ctx, tx, out.InstitutionID, p); err != nil {
 			return out, err
