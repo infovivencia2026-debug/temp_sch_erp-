@@ -697,6 +697,9 @@ type enrolRequest struct {
 // optionally the first invoice. Doing this in steps is how schools end up with
 // a student who has no enrolment, or an enrolment with no fee demand — both of
 // which surface weeks later as "this child is not on any list".
+// errConcessionPending refuses an enrolment whose fee is not settled yet.
+var errConcessionPending = errors.New("a concession is still waiting on a decision")
+
 func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	appID, err := uuid.Parse(chiURLParam(r, "id"))
@@ -734,6 +737,27 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	var studentID, admissionNo string
 	var welcome admissionWelcome
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* THE FEE IS AGREED BEFORE THE CHILD JOINS.
+
+		   A concession asked for on this applicant and still waiting means the
+		   money is not settled, and enrolling now bills the family at full
+		   price — the engine reads only approved concessions when it builds
+		   the lines, so a waiver approved an hour later cannot be applied and
+		   the only remedy is a credit note.
+
+		   Refused rather than warned. This is the one moment where the order
+		   cannot be recovered from, and a warning at the moment somebody
+		   presses Enrol is a warning nobody reads. */
+		var waiting int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT count(*)::int FROM fee_concessions
+			 WHERE application_id = $1 AND status = 'pending'`, appID).Scan(&waiting); err != nil {
+			return err
+		}
+		if waiting > 0 {
+			return errConcessionPending
+		}
+
 		var (
 			instID, campusID, classID uuid.UUID
 			first, parentName, phone  string
@@ -890,6 +914,26 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 			}
+			/* THE WAIVER FOLLOWS THE CHILD, and does it BEFORE the invoice.
+
+			   The concession was agreed while they were an applicant, so it
+			   hangs off the application. Pointing it at the new student here
+			   means the invoice built below finds it exactly as it would for
+			   any other child — and every existing query, the fee engine
+			   included, goes on matching student_id and knows nothing about
+			   applications.
+
+			   application_id stays: it is the record of a fee agreed before
+			   admission, which is the thing an auditor asks to see. */
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE fee_concessions
+				   SET student_id = $2::uuid,
+				       academic_year_id = COALESCE(academic_year_id, $3::uuid)
+				 WHERE application_id = $1 AND student_id IS NULL`,
+				appID, studentID, yearID); err != nil {
+				return err
+			}
+
 			if structureID != "" {
 				invoiceNo, err := fees.NextNumber(r.Context(), tx, instID, "invoice")
 				if err != nil {
@@ -1005,6 +1049,17 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, errNotOffered) {
 		httpx.BadRequest(w, r, "only an offered application can be enrolled")
+		return
+	}
+	if errors.Is(err, errConcessionPending) {
+		/* Named as the thing to do next rather than as a refusal. The person
+		   pressing Enrol is not usually the person who decides the waiver, and
+		   "a concession is pending" without saying whose decision it is
+		   becomes a telephone call. */
+		httpx.Error(w, r, http.StatusConflict, "concession_pending",
+			"the fee is not settled: a concession on this applicant is still "+
+				"waiting on the principal. Enrolling now would bill the family "+
+				"in full, and the waiver could not be applied afterwards")
 		return
 	}
 	if errors.Is(err, pgx.ErrNoRows) {

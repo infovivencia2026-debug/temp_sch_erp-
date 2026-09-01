@@ -34,7 +34,14 @@ Granting a concession.
 */
 
 type concessionGrantRequest struct {
-	StudentID      string `json:"student_id"`
+	StudentID string `json:"student_id"`
+	/* An APPLICANT, before there is a student to hang this on.
+
+	   The fee is agreed as part of deciding whether to come at all — nobody
+	   accepts a place and then finds out what it costs — so the waiver has to
+	   exist before acceptance. Acceptance fills in student_id and leaves this
+	   for the history. */
+	ApplicationID  string `json:"application_id,omitempty"`
 	AcademicYearID string `json:"academic_year_id"`
 	FeeHeadID      string `json:"fee_head_id,omitempty"`
 	Kind           string `json:"kind"`
@@ -58,9 +65,28 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	student, err := uuid.Parse(strings.TrimSpace(req.StudentID))
-	if err != nil {
-		httpx.BadRequest(w, r, "student_id must be a uuid")
+	/* One owner or the other, never both and never neither — the same rule
+	   the CHECK constraint enforces, said here so the answer is a sentence
+	   rather than a constraint name. */
+	var student, application *uuid.UUID
+	if v := strings.TrimSpace(req.StudentID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "student_id must be a uuid")
+			return
+		}
+		student = &parsed
+	}
+	if v := strings.TrimSpace(req.ApplicationID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "application_id must be a uuid")
+			return
+		}
+		application = &parsed
+	}
+	if student == nil && application == nil {
+		httpx.BadRequest(w, r, "say which child or applicant this is for")
 		return
 	}
 	/* THE CURRENT YEAR, WHEN NOBODY SAYS OTHERWISE.
@@ -85,7 +111,9 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 			return tx.QueryRow(r.Context(),
 				`SELECT id FROM academic_years WHERE is_current LIMIT 1`).Scan(&year)
-		}); err != nil {
+		}); err != nil && student != nil {
+			// An APPLICANT needs no year: they are not enrolled in one. It is
+			// filled in at acceptance along with the student.
 			/* A school with no current year cannot be billed at all, so this
 			   is worth saying rather than failing on a uuid parse. */
 			httpx.BadRequest(w, r,
@@ -129,17 +157,29 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* uuid.Nil is not NULL.
+
+	   year is a value type, so an applicant with no year would insert
+	   00000000-…-000000000000 into a nullable column — a foreign key to
+	   nothing, which the constraint would refuse and which would read as a
+	   real year if it did not. */
+	var yearArg any
+	if year != uuid.Nil {
+		yearArg = year
+	}
+
 	var newID uuid.UUID
-	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
-			INSERT INTO fee_concessions (institution_id, student_id, academic_year_id,
-			        fee_head_id, kind, percent, amount_paise, reason, requested_by)
+			INSERT INTO fee_concessions (institution_id, student_id, application_id,
+			        academic_year_id, fee_head_id, kind, percent, amount_paise,
+			        reason, requested_by)
 			-- Who asked, as against who decides. The decider has been recorded
 			-- from the beginning; the person who raised it was nowhere, so the
 			-- decision could not be sent back to them.
-			VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::numeric,$7,NULLIF($8,''),$9)
+			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,'')::numeric,$8,NULLIF($9,''),$10)
 			RETURNING id`,
-			id.InstitutionID, student, year, head, kind, percent,
+			id.InstitutionID, student, application, yearArg, head, kind, percent,
 			req.AmountPaise, strings.TrimSpace(req.Reason), id.UserID).Scan(&newID)
 	})
 	if err != nil {
