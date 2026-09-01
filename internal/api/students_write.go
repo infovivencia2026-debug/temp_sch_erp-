@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -36,6 +37,21 @@ type studentWriteRequest struct {
 	MotherTongue string `json:"mother_tongue,omitempty"`
 	Religion     string `json:"religion,omitempty"`
 	AddressLine1 string `json:"address_line1,omitempty"`
+	AddressLine2 string `json:"address_line2,omitempty"`
+	/* The statutory fields the form could not reach.
+
+	   All four have been columns since the baseline and nothing ever wrote
+	   them, so a school filing an RTE or a scholarship return had the category
+	   nowhere on the child's record and kept it in a spreadsheet beside the
+	   ERP — which is the thing an ERP exists to stop.
+
+	   AADHAAR IS FOUR DIGITS, DELIBERATELY. The column is aadhaar_last4 with a
+	   CHECK of exactly four, and that is the right design: a school needs to
+	   match a child against a government list, which the last four does, and
+	   holding the whole number makes the school's database worth stealing. */
+	Category     string `json:"category,omitempty"`
+	Nationality  string `json:"nationality,omitempty"`
+	AadhaarLast4 string `json:"aadhaar_last4,omitempty"`
 	City         string `json:"city,omitempty"`
 	State        string `json:"state,omitempty"`
 	Pincode      string `json:"pincode,omitempty"`
@@ -44,6 +60,14 @@ type studentWriteRequest struct {
 	PriorSchool  string `json:"prior_school,omitempty"`
 	IsRTE        bool   `json:"is_rte"`
 	IsCWSN       bool   `json:"is_cwsn"`
+	/* Whatever else this school keeps about a child.
+
+	   Schools differ in ways no fixed column list survives: a bus stop name, a
+	   sibling's admission number, a scholarship reference, the parent's
+	   employer. custom_fields has been on the table since the baseline with
+	   nothing writing to it, so the answer to "can we record X" was no. Now it
+	   is yes, without a migration per school. */
+	CustomFields map[string]string `json:"custom_fields,omitempty"`
 	// Placement and guardian are accepted alongside the student so one form
 	// produces a complete, contactable, enrolled child.
 	SectionID string `json:"section_id,omitempty"`
@@ -91,6 +115,23 @@ func (s *Server) checkVocabulary(r *http.Request, req *studentWriteRequest) erro
    see checkVocabulary above and internal/api/custom_options.go — so the list
    is gone rather than left dead for somebody to wire back in. */
 
+/* nil for "the caller said nothing about extra fields", which the SQL turns
+   into an empty object on insert and, on update, merges as a no-op. Sending
+   '{}' instead would read identically on insert and be indistinguishable from
+   it on update — which is fine only because the merge is `||`; if this were
+   ever an assignment it would silently erase the school's fields on every
+   save from a screen that does not edit them. */
+func customFieldsJSON(m map[string]string) any {
+	if len(m) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil
+	}
+	return string(b)
+}
+
 // errSectionFull is a refusal the caller can act on: waitlist the child,
 // choose another section, or re-send with allow_overflow.
 var errSectionFull = errors.New("section is full")
@@ -113,8 +154,43 @@ func (req *studentWriteRequest) validate() error {
 	if req.Pincode != "" && len(req.Pincode) != 6 {
 		return errors.New("pincode must be 6 digits")
 	}
+	if req.Category != "" && !validCategories[req.Category] {
+		return errors.New("category must be general, obc, sc, st, ews or other")
+	}
+	/* Refused here rather than left to the CHECK constraint, which would come
+	   back as a 500 and a constraint name. The rule is the same either way;
+	   only one of them is readable by the person typing. */
+	if req.AadhaarLast4 != "" {
+		if len(req.AadhaarLast4) != 4 {
+			return errors.New("record only the LAST FOUR digits of the Aadhaar number")
+		}
+		for _, c := range req.AadhaarLast4 {
+			if c < '0' || c > '9' {
+				return errors.New("the Aadhaar last four must be digits")
+			}
+		}
+	}
+	// A field name that is blank or enormous is a mistake, not a school's
+	// vocabulary, and both make an unreadable record.
+	if len(req.CustomFields) > 40 {
+		return errors.New("that is more extra fields than one child's record should carry")
+	}
+	for k, v := range req.CustomFields {
+		if strings.TrimSpace(k) == "" {
+			return errors.New("an extra field needs a name")
+		}
+		if len(k) > 60 || len(v) > 500 {
+			return errors.New("keep an extra field's name under 60 characters and its value under 500")
+		}
+	}
 	return nil
 }
+
+var validCategories = map[string]bool{
+	"general": true, "obc": true, "sc": true, "st": true, "ews": true, "other": true,
+}
+
+
 
 // upsertStudent writes one student, their placement and their guardian.
 // Shared by the single-student form and the bulk importer so both apply
@@ -138,9 +214,12 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		                      last_name, date_of_birth, gender, blood_group, medium,
 		                      mother_tongue, religion, address_line1, city, state, pincode,
 		                      apaar_id, child_info_id, prior_school, is_rte, is_cwsn,
-		                      admission_date, status)
+		                      address_line2, category, nationality, aadhaar_last4,
+		                      custom_fields, admission_date, status)
 		VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-		        $17,$18,$19,$20,$21, CURRENT_DATE,'active')
+		        $17,$18,$19,$20,$21,$22,$23,
+		        COALESCE($24,'Indian'),$25,
+		        COALESCE($26::jsonb,'{}'::jsonb), CURRENT_DATE,'active')
 		ON CONFLICT (institution_id, admission_no) DO UPDATE SET
 		    first_name = EXCLUDED.first_name, middle_name = EXCLUDED.middle_name,
 		    last_name = EXCLUDED.last_name, date_of_birth = EXCLUDED.date_of_birth,
@@ -151,7 +230,16 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		    apaar_id = COALESCE(EXCLUDED.apaar_id, students.apaar_id),
 		    child_info_id = COALESCE(EXCLUDED.child_info_id, students.child_info_id),
 		    prior_school = EXCLUDED.prior_school, is_rte = EXCLUDED.is_rte,
-		    is_cwsn = EXCLUDED.is_cwsn, updated_at = now()
+		    is_cwsn = EXCLUDED.is_cwsn,
+		    address_line2 = EXCLUDED.address_line2,
+		    category = EXCLUDED.category,
+		    nationality = EXCLUDED.nationality,
+		    aadhaar_last4 = EXCLUDED.aadhaar_last4,
+		    /* MERGED, NOT REPLACED. The importer sends the two columns its CSV
+		       carried; the form sends what its user edited. Assigning would
+		       make whichever ran last delete the other's fields. */
+		    custom_fields = students.custom_fields || EXCLUDED.custom_fields,
+		    updated_at = now()
 		RETURNING id::text`,
 		instID, campus, admissionNo, req.FirstName, nullString(req.MiddleName),
 		nullString(req.LastName), nullString(req.DateOfBirth), nullString(req.Gender),
@@ -159,7 +247,10 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		nullString(req.MotherTongue), nullString(req.Religion), nullString(req.AddressLine1),
 		nullString(req.City), nullString(req.State), nullString(req.Pincode),
 		nullString(req.APAARID), nullString(req.ChildInfoID), nullString(req.PriorSchool),
-		req.IsRTE, req.IsCWSN).Scan(&studentID); err != nil {
+		req.IsRTE, req.IsCWSN,
+		nullString(req.AddressLine2), nullString(req.Category),
+		nullString(req.Nationality), nullString(req.AadhaarLast4),
+		customFieldsJSON(req.CustomFields)).Scan(&studentID); err != nil {
 		return "", "", err
 	}
 

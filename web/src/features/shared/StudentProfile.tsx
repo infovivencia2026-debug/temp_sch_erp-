@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List, type Page, type Student, type Klass, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
   Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState,
@@ -26,7 +26,10 @@ import { useToast } from '@/components/Toast'
    than from casts that lie about what the response contains. */
 interface StudentDetail extends Student {
   blood_group?: string; religion?: string; nationality?: string
-  address_line1?: string; city?: string; state?: string; pincode?: string
+  address_line1?: string; address_line2?: string
+  city?: string; state?: string; pincode?: string
+  category?: string; aadhaar_last4?: string
+  custom_fields?: Record<string, string>
 }
 
 interface Profile {
@@ -39,7 +42,12 @@ interface Profile {
   photo_file_id?: string
   attendance: { present: number; total: number; percent: number; below_threshold: boolean }
   fees: { outstanding_paise: number; paid_paise: number }
-  guardians: { id?: string; full_name: string; relation: string; phone: string; email: string; is_primary: boolean }[]
+  category?: string; nationality?: string; aadhaar_last4?: string
+  address_line2?: string; custom_fields?: Record<string, string>
+  guardians: {
+    id?: string; full_name: string; relation: string; phone: string
+    email: string; is_primary: boolean; photo_file_id?: string
+  }[]
   recent_attendance: { date: string; status: string }[]
   results: { exam: string; percentage: string; grade: string; rank: string }[]
   invoices: { date: string; invoice_no: string; net_paise: number; paid_paise: number; status: string }[]
@@ -81,6 +89,16 @@ interface Remark {
 
 export default function StudentProfile() {
   const [search, setSearch] = useState('')
+  /* BROWSE, NOT ONLY SEARCH.
+
+     The screen answered exactly one question — "what is the name" — and a
+     clerk who has a section in front of them and wants the eleven children in
+     it had to know a name before the page would show them anything. Both ways
+     in now: pick a class and section to see who is in it, or type a name or
+     admission number. They compose, so a name typed while 7-A is chosen
+     searches inside 7-A. */
+  const [classID, setClassID] = useState('')
+  const [sectionID, setSectionID] = useState('')
 
   /* Which student is open lives in the query string, not in component state.
 
@@ -101,10 +119,38 @@ export default function StudentProfile() {
     setParams(next, { replace: !id })
   }
 
+  const classes = useQuery({
+    queryKey: ['academics', 'classes'],
+    queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
+    enabled: !selected,
+  })
+  const sections = useQuery({
+    queryKey: ['academics', 'sections'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+    enabled: !selected,
+  })
+  // Only the sections of the chosen class, so the second dropdown is never a
+  // list of every section in the school with six of them relevant.
+  const sectionsOfClass = (sections.data?.items ?? [])
+    .filter((x) => !classID || x.class_id === classID)
+
+  const browsing = !!classID || !!sectionID
+  const searching = search.trim().length >= 2
   const results = useQuery({
-    queryKey: ['profile-search', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
-    enabled: search.trim().length >= 2 && !selected,
+    queryKey: ['profile-search', search, classID, sectionID],
+    queryFn: () => {
+      const qs = new URLSearchParams()
+      if (searching) qs.set('q', search.trim())
+      if (sectionID) qs.set('section_id', sectionID)
+      else if (classID) qs.set('class_id', classID)
+      /* A whole section is forty children and a whole class is two hundred.
+         Fifteen was right for "the three people called Sharma" and wrong for
+         everything this filter is for, and a list silently cut at fifteen is
+         one somebody reads as the complete roll. */
+      qs.set('limit', browsing ? '300' : '15')
+      return api.get<Page<Student>>(`/api/v1/students?${qs.toString()}`)
+    },
+    enabled: (searching || browsing) && !selected,
     placeholderData: keepPreviousData,
   })
 
@@ -298,6 +344,29 @@ export default function StudentProfile() {
           description="Search a student to see everything about them on one page."
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              <div className="w-40">
+                <Select
+                  value={classID}
+                  onChange={(v) => { setClassID(v); setSectionID('') }}
+                  options={[
+                    { value: '', label: 'All classes' },
+                    ...(classes.data?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                />
+              </div>
+              <div className="w-40">
+                <Select
+                  value={sectionID}
+                  onChange={setSectionID}
+                  options={[
+                    { value: '', label: classID ? 'All sections' : 'Section' },
+                    ...sectionsOfClass.map((x) => ({
+                      value: x.id,
+                      label: `${x.class_name}-${x.name}`,
+                    })),
+                  ]}
+                />
+              </div>
               <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
               {can('students.write') && (
                 <Button variant={admitting ? 'secondary' : 'primary'} onClick={() => setAdmitting(!admitting)}>
@@ -317,19 +386,41 @@ export default function StudentProfile() {
               <AdmitStudent onDone={() => results.refetch()} />
             </div>
           )}
-          {search.trim().length < 2 ? (
-            <EmptyState title="Search for a student" body="Type at least two characters." />
+          {!searching && !browsing ? (
+            <EmptyState
+              title="Pick a class, or search for a student"
+              body="Choose a class and section to see who is in it, or type at least two characters of a name or admission number." />
           ) : results.isLoading ? (
             <Loading />
           ) : (
             <Card>
-              <Table head={['Admission no.', 'Name', 'Class', 'Status', '']}
+              {/* What the list is, said plainly: a roll read as complete when
+                  it was a filtered subset is the whole risk of this screen. */}
+              <CardHeader
+                title={
+                  (results.data?.items ?? []).length +
+                  ((results.data?.items ?? []).length === 1 ? ' student' : ' students')
+                }
+                action={
+                  browsing || searching ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => { setClassID(''); setSectionID(''); setSearch('') }}
+                    >
+                      Clear filters
+                    </Button>
+                  ) : undefined
+                }
+              />
+              <Table head={['Admission no.', 'Name', 'Class', 'Roll', 'Status', '']}
                 empty={!results.data?.items.length} emptyLabel="No student matches.">
                 {(results.data?.items ?? []).map((s) => (
                   <tr key={s.id}>
                     <Td className="font-mono text-[12px]">{s.admission_no}</Td>
                     <Td className="font-medium">{s.full_name}</Td>
                     <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
+                    <Td className="tabular-nums">{s.roll_no ?? '—'}</Td>
                     <Td><Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge></Td>
                     <Td><Button size="sm" onClick={() => setSelected(s.id)}>Open</Button></Td>
                   </tr>
@@ -562,7 +653,8 @@ export default function StudentProfile() {
               )}
             </dl>
           </Card>
-          <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined} />
+          <Guardians p={p} onIssue={mayIssue ? issueGuardian : undefined}
+            mayEdit={can('students.write')} />
         </div>
       ),
     },
@@ -877,7 +969,11 @@ interface IssuedLogin {
 }
 
 /** Who to call. First thing anyone needs when a child is the subject. */
-function Guardians({ p, onIssue }: { p: Profile; onIssue?: (g: Profile['guardians'][number]) => void }) {
+function Guardians({ p, onIssue, mayEdit }: {
+  p: Profile
+  onIssue?: (g: Profile['guardians'][number]) => void
+  mayEdit?: boolean
+}) {
   return (
     <Card>
       {/* The block a teacher opens this page for. Father and mother first,
@@ -919,14 +1015,37 @@ function Guardians({ p, onIssue }: { p: Profile; onIssue?: (g: Profile['guardian
                   is narrow because it is in a two-up grid, not because the
                   window is. */}
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-                <div className="min-w-0 flex-1 basis-48">
-                  {/* gap-1.5 rather than nothing: the badge butted straight
-                      against the last character of the name. */}
-                  <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium">
-                    {g.full_name}
-                    {g.is_primary && <Badge tone="primary">primary</Badge>}
-                  </p>
-                  <p className="text-[13px] text-muted-foreground">{g.relation}</p>
+                <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
+                  {/* OPTIONAL, AND SILENT WHEN EMPTY.
+
+                      Most schools photograph the child and not the parents,
+                      so a blank frame on every row would be a column of empty
+                      boxes reading as missing data. The frame appears when
+                      there is a face in it, or when somebody who may edit is
+                      looking — and then only as a small button. */}
+                  {(g.photo_file_id || (mayEdit && g.id)) && (
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted/30">
+                      {g.photo_file_id && (
+                        <img
+                          src={`/api/v1/files/${g.photo_file_id}`}
+                          alt={`Photograph of ${g.full_name}`}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    {/* gap-1.5 rather than nothing: the badge butted straight
+                        against the last character of the name. */}
+                    <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium">
+                      {g.full_name}
+                      {g.is_primary && <Badge tone="primary">primary</Badge>}
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">{g.relation}</p>
+                    {mayEdit && g.id && (
+                      <GuardianPhoto studentID={p.id} guardian={g} />
+                    )}
+                  </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-3 text-[13px]">
                   {onIssue && (
@@ -998,6 +1117,10 @@ function StudentForm({
     mother_tongue: profile.mother_tongue ?? '',
     religion: student.religion ?? '',
     address_line1: student.address_line1 ?? '',
+    address_line2: student.address_line2 ?? '',
+    category: student.category ?? profile.category ?? '',
+    nationality: student.nationality ?? profile.nationality ?? '',
+    aadhaar_last4: student.aadhaar_last4 ?? profile.aadhaar_last4 ?? '',
     city: student.city ?? '',
     state: student.state ?? '',
     pincode: student.pincode ?? '',
@@ -1005,6 +1128,14 @@ function StudentForm({
     child_info_id: profile.child_info_id ?? '',
     prior_school: profile.prior_school ?? '',
   })
+  /* Whatever else this school keeps about a child.
+
+     Held as a list of pairs rather than an object so the field being renamed
+     keeps its position and its value while somebody is halfway through typing
+     the new name — an object keyed by the name loses both on every keystroke. */
+  const [extra, setExtra] = useState<{ k: string; v: string }[]>(
+    Object.entries(student.custom_fields ?? profile.custom_fields ?? {})
+      .map(([k, v]) => ({ k, v: String(v) })))
   const [rte, setRte] = useState(profile.is_rte)
   const [cwsn, setCwsn] = useState(profile.is_cwsn)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
@@ -1036,6 +1167,21 @@ function StudentForm({
         <FormField label="Religion">
           <Select kind="religion" addLabel="Add one" value={f.religion} onChange={set('religion')} placeholder="Not recorded" options={[]} />
         </FormField>
+        <FormField label="Category" hint="For RTE, scholarship and statutory returns">
+          <Select value={f.category} onChange={set('category')} placeholder="Not recorded"
+            options={[
+              { value: 'general', label: 'General' }, { value: 'obc', label: 'OBC' },
+              { value: 'sc', label: 'SC' }, { value: 'st', label: 'ST' },
+              { value: 'ews', label: 'EWS' }, { value: 'other', label: 'Other' },
+            ]} />
+        </FormField>
+        <FormField label="Nationality"><Input value={f.nationality} onChange={set('nationality')} placeholder="Indian" /></FormField>
+        {/* FOUR DIGITS, NOT TWELVE. The column holds the last four and checks
+            it, which is enough to match a child against a government list and
+            leaves the school holding nothing worth stealing. */}
+        <FormField label="Aadhaar (last 4 digits)" hint="Only the last four are stored, on purpose">
+          <Input value={f.aadhaar_last4} onChange={set('aadhaar_last4')} placeholder="••••" />
+        </FormField>
         <FormField label="City"><Input value={f.city} onChange={set('city')} /></FormField>
         <FormField label="State"><Input value={f.state} onChange={set('state')} /></FormField>
         <FormField label="Pincode" hint="Six digits"><Input value={f.pincode} onChange={set('pincode')} /></FormField>
@@ -1047,6 +1193,48 @@ function StudentForm({
       <FormField label="Address">
         <Textarea value={f.address_line1} onChange={set('address_line1')} rows={2} />
       </FormField>
+      <FormField label="Address (second line)" hint="Landmark, area — optional">
+        <Input value={f.address_line2} onChange={set('address_line2')} />
+      </FormField>
+
+      {/* ANYTHING ELSE THIS SCHOOL KEEPS.
+
+          Schools differ in ways no fixed column list survives — a bus stop, a
+          sibling's admission number, a scholarship reference, the parent's
+          employer. The alternative was a migration per school, so the answer
+          to "can we record X" was always no. */}
+      <div className="mt-5 border-t pt-4">
+        <p className="eyebrow mb-1">Anything else this school records</p>
+        <p className="mb-3 text-[12.5px] text-muted-foreground">
+          Optional. Add whatever this school keeps that the fields above do not cover.
+        </p>
+        <div className="space-y-2">
+          {extra.map((row, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                className="w-56"
+                value={row.k}
+                placeholder="Field name"
+                onChange={(v) => setExtra(extra.map((x, j) => (j === i ? { ...x, k: v } : x)))}
+              />
+              <Input
+                className="flex-1"
+                value={row.v}
+                placeholder="Value"
+                onChange={(v) => setExtra(extra.map((x, j) => (j === i ? { ...x, v } : x)))}
+              />
+              <Button size="sm" variant="secondary"
+                onClick={() => setExtra(extra.filter((_, j) => j !== i))}>
+                Remove
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button size="sm" variant="secondary" className="mt-2"
+          onClick={() => setExtra([...extra, { k: '', v: '' }])}>
+          Add a field
+        </Button>
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-4">
         <Checkbox label="Admitted under RTE" checked={rte} onChange={setRte} />
@@ -1056,7 +1244,16 @@ function StudentForm({
       <div className="mt-4 flex items-center gap-2">
         <Button
           disabled={saving || !f.first_name.trim()}
-          onClick={() => onSave({ ...f, is_rte: rte, is_cwsn: cwsn })}
+          onClick={() => onSave({
+            ...f,
+            is_rte: rte,
+            is_cwsn: cwsn,
+            // A half-typed row is not a field yet. Sending it would store a
+            // blank name the server refuses, failing the whole save over a
+            // row the person had not finished.
+            custom_fields: Object.fromEntries(
+              extra.filter((x) => x.k.trim()).map((x) => [x.k.trim(), x.v])),
+          })}
         >
           {saving ? 'Saving…' : 'Save changes'}
         </Button>
@@ -1078,6 +1275,50 @@ function StudentForm({
  * Unknown relations sort last rather than being hidden. A grandmother who is
  * raising the child is exactly the person somebody needs to reach.
  */
+/* One parent's photograph.
+
+   A picker per row rather than one shared dialog: the thing being edited is
+   "the father's photograph", and a dialog that asks which parent afterwards
+   is a question the row already answered.
+
+   Saved on upload, like the child's. A photograph chosen and then left
+   unsaved is the commonest way one of these columns stays empty. */
+function GuardianPhoto({ studentID, guardian }: {
+  studentID: string
+  guardian: Profile['guardians'][number]
+}) {
+  const qc = useQueryClient()
+  const [file, setFile] = useState<UploadedFile | null>(null)
+  const save = useMutation({
+    mutationFn: (fileID: string) =>
+      api.put(`/api/v1/students/${studentID}/guardians/${guardian.id}/photo`,
+        { file_id: fileID }),
+    onSuccess: () => {
+      setFile(null)
+      qc.invalidateQueries({ queryKey: ['student-profile', studentID] })
+    },
+  })
+  return (
+    <div className="mt-1">
+      <div className="flex items-center gap-2">
+        <FilePicker
+          value={file}
+          onChange={(f) => { setFile(f); if (f) save.mutate(f.file_id) }}
+          purpose="student_photo"
+          label={guardian.photo_file_id ? 'Replace photo' : 'Add a photo'}
+        />
+        {guardian.photo_file_id && (
+          <Button size="sm" variant="ghost" disabled={save.isPending}
+            onClick={() => save.mutate('')}>
+            Remove
+          </Button>
+        )}
+      </div>
+      {save.error && <FormNotice error={save.error} />}
+    </div>
+  )
+}
+
 function rankRelation(relation: string): number {
   const r = (relation || '').trim().toLowerCase()
   if (r.startsWith('father') || r === 'dad') return 0

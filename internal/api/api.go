@@ -115,6 +115,10 @@ func (s *Server) Routes() http.Handler {
 			   a column no screen could fill. */
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}/photo", s.setStudentPhoto)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/photos/import", s.importStudentPhotos)
+			// The parents' photographs, optional and reached through the child
+			// so the same scope rule applies to a family as to the child.
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).
+				Put("/{id}/guardians/{gid}/photo", s.setGuardianPhoto)
 		})
 
 		/* --- Syllabus, lesson plans and coverage --------------------------

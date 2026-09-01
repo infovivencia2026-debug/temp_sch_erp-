@@ -159,3 +159,78 @@ func (s *Server) importStudentPhotos(w http.ResponseWriter, r *http.Request) {
 		"matched": matched, "unmatched": unmatched,
 	})
 }
+
+/* --- the parents' photographs ---------------------------------------------
+
+   Same shape as the child's, deliberately: one file id, empty removes it, and
+   the same scope predicate decides who may write. A different mechanism here
+   would be a second place for the "which children may this teacher touch"
+   question to be answered, and the day the two answers differ is the day a
+   teacher edits a family in another section.
+
+   Reached through the child rather than by guardian id alone. A guardian row
+   belongs to the institution, not to a section, so on its own it carries
+   nothing to check a teacher's scope against — and a guardian with two
+   children in different sections is ordinary. */
+func (s *Server) setGuardianPhoto(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid student id")
+		return
+	}
+	gid, err := uuid.Parse(chiURLParam(r, "gid"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid guardian id")
+		return
+	}
+	var req studentPhotoRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	var file *uuid.UUID
+	if v := strings.TrimSpace(req.FileID); v != "" {
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			httpx.BadRequest(w, r, "file_id must be a uuid")
+			return
+		}
+		file = &parsed
+	}
+
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	pred, args := res.StudentPredicate("st", 3)
+
+	var touched int64
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// The guardian must actually be this child's, or the child id would be
+		// decoration and any guardian in the school could be edited by naming
+		// a section the caller happens to teach.
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE guardians g SET photo_file_id = $1
+			 WHERE g.id = $2
+			   AND EXISTS (SELECT 1 FROM student_guardians sg
+			               JOIN students st ON st.id = sg.student_id
+			              WHERE sg.guardian_id = g.id AND st.id = $3
+			                AND `+pred+`)`,
+			append([]any{file, gid, sid}, args...)...)
+		if err != nil {
+			return err
+		}
+		touched = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if touched == 0 {
+		httpx.Forbidden(w, r, "this family is not one you can edit")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"saved": true})
+}
