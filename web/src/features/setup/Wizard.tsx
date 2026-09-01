@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Check, ChevronRight, Lock, PartyPopper } from 'lucide-react'
+import { Building2, Check, ChevronRight, Lock } from 'lucide-react'
 import { actingInstitution, api, setActingInstitution, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Loading, ErrorState, Button, Select, EmptyState,
+  PageHead, PageBody, Card, Loading, ErrorState, Button, Select, Reload, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { PANELS, type PanelProps } from './panels'
@@ -70,7 +70,7 @@ export default function Wizard() {
     qc.invalidateQueries()
   }
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['setup-status', acting],
     queryFn: () => api.get<Status>('/api/v1/setup/status'),
     // Asking before a school is chosen would only produce the error that
@@ -172,42 +172,48 @@ export default function Wizard() {
   return (
     <>
       <PageHead
-        eyebrow="Getting started"
-        title={d.ready ? 'Your school is running' : 'Set up your school'}
+        eyebrow={d.ready ? 'School' : 'Getting started'}
+        title={d.ready ? 'School details' : 'Set up your school'}
         description={
           d.ready
-            ? 'Everything required is in place. The remaining steps unlock fees, grading and examinations.'
+            ? 'The classes, sections, subjects, staff, fee heads and the school day — all of it, editable. Pick a section on the left and change what needs changing.'
             : `${d.blocking_remaining} required ${d.blocking_remaining === 1 ? 'step' : 'steps'} left. Each one takes a minute, and the form is on this page.`
         }
         actions={
           <>
             {picker}
-            <div className="w-44">
-              <div className="flex items-baseline justify-between text-[13px]">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="tabular-nums">{pct}%</span>
+            <Reload onClick={() => refetch()} busy={isFetching} label="Re-read the school" />
+            {/* A progress bar is a promise that this ends. Once it has, the bar
+                is not just useless but wrong: a school opening this to change a
+                fee head is not 93% of the way through anything. */}
+            {!d.ready && (
+              <div className="w-44">
+                <div className="flex items-baseline justify-between text-[13px]">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className="tabular-nums">{pct}%</span>
+                </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
-              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
+            )}
           </>
         }
       />
       <PageBody>
-        {d.ready && <ReadyBanner />}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] lg:items-start">
-          <Spine steps={d.steps} active={current.key} onPick={setActive} />
+          <Spine steps={d.steps} active={current.key} onPick={setActive} settled={d.ready} />
 
           <Card>
             <div className="border-b px-5 py-4">
               <p className="eyebrow">
-                Step {idx + 1} of {d.steps.length}
-                {current.blocking ? ' · required' : ' · optional'}
+                {d.ready
+                  ? 'Section'
+                  : `Step ${idx + 1} of ${d.steps.length}${current.blocking ? ' · required' : ' · optional'}`}
               </p>
               <h3 className="mt-1 text-[17px] tracking-tight">{current.label}</h3>
               <p className="mt-1 text-[14px] text-muted-foreground">{current.detail}</p>
@@ -229,45 +235,36 @@ export default function Wizard() {
                 without pressing something that reads like giving up. They are
                 two buttons now, always in the same two places. */}
             <div className="flex flex-wrap items-center gap-3 border-t px-5 py-3">
-              <Button variant="ghost" size="sm" onClick={advance}>
-                Skip for now
-              </Button>
+              {!d.ready && (
+                <Button variant="ghost" size="sm" onClick={advance}>
+                  Skip for now
+                </Button>
+              )}
               <span className="text-[13px] text-muted-foreground">
-                {current.done
-                  ? current.count > 0
-                    ? `${current.count} already added`
-                    : 'Done'
-                  : 'Not done yet'}
+                {current.count > 0
+                  ? `${current.count} on record`
+                  : d.ready
+                    ? 'Nothing here yet'
+                    : current.done
+                      ? 'Done'
+                      : 'Not done yet'}
               </span>
-              <Button
-                variant={current.done ? 'primary' : 'secondary'}
-                size="sm"
-                className="ml-auto"
-                onClick={advance}
-              >
-                Next step
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              {!d.ready && (
+                <Button
+                  variant={current.done ? 'primary' : 'secondary'}
+                  size="sm"
+                  className="ml-auto"
+                  onClick={advance}
+                >
+                  Next step
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </Card>
         </div>
       </PageBody>
     </>
-  )
-}
-
-function ReadyBanner() {
-  return (
-    <Card className="flex items-start gap-3 border-success/40 bg-success/[0.06] p-5">
-      <PartyPopper className="mt-0.5 h-[18px] w-[18px] shrink-0 text-success" />
-      <div>
-        <p className="text-[14px] font-medium">Your school can be operated today.</p>
-        <p className="mt-1 text-[14px] text-muted-foreground">
-          Teachers can mark attendance, the office can admit a student and the counter can take a
-          fee. Anything still unticked below adds capability rather than unblocking the basics.
-        </p>
-      </div>
-    </Card>
   )
 }
 
@@ -280,10 +277,13 @@ function Spine({
   steps,
   active,
   onPick,
+  settled,
 }: {
   steps: Step[]
   active: string
   onPick: (k: string) => void
+  /** True once nothing is owed: the list is sections, not remaining steps. */
+  settled?: boolean
 }) {
   return (
     <Card className="lg:sticky lg:top-4">
@@ -314,7 +314,7 @@ function Spine({
                         : 'border-border bg-card text-muted-foreground',
                   )}
                 >
-                  {s.done ? <Check className="h-3 w-3" strokeWidth={3} /> : i + 1}
+                  {s.done ? <Check className="h-3 w-3" strokeWidth={3} /> : settled ? '·' : i + 1}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span
@@ -326,7 +326,7 @@ function Spine({
                     {s.label}
                   </span>
                 </span>
-                {!s.done && s.blocking && (
+                {!settled && !s.done && s.blocking && (
                   <Lock className="h-3 w-3 shrink-0 text-warning" aria-label="required" />
                 )}
                 {s.count > 0 && (

@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, Upload } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Badge, Select, Reload, Loading, ErrorState, EmptyState,
+  Card, CardHeader, Table, Td, Badge, Button, Select, Reload, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The year plan, drawn as the timeline it is.
@@ -63,6 +63,15 @@ interface SubjectOption {
 }
 
 export default function YearPlan() {
+  return (
+    <>
+      <ImportPlan />
+      <PlanTimeline />
+    </>
+  )
+}
+
+function PlanTimeline() {
   const [subject, setSubject] = useState('')
 
   // The subjects this school runs, so the plan can be picked rather than typed.
@@ -216,4 +225,151 @@ export default function YearPlan() {
 function monthLabel(months: Month[], key?: string) {
   if (!key) return '—'
   return months.find((m) => m.month === key)?.label ?? key
+}
+
+interface ImportSheet {
+  subject: string
+  sheet: string
+  grade?: string
+  class_name?: string
+  subject_name?: string
+  why?: string
+  units: { title: string; planned_periods: number }[]
+  planned_periods: number
+  applied?: boolean
+}
+
+interface ImportResult {
+  applied: boolean
+  matched: ImportSheet[]
+  unmatched: ImportSheet[]
+  summary: {
+    sheets_matched: number
+    sheets_unmatched: number
+    chapters: number
+    subjects_written: number
+  }
+}
+
+/* Reading the school's own workbook instead of retyping it.
+
+   Previewing is the default and applying is a second, explicit press, because
+   applying replaces a chapter list — and a school should see what it is about
+   to replace. A sheet that cannot be resolved to a class this school runs is
+   named with the reason rather than dropped, so the answer to "why is Class 7
+   Hindi empty" is on the screen and not in a log. */
+function ImportPlan() {
+  const qc = useQueryClient()
+  const [csv, setCsv] = useState('')
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const file = useRef<HTMLInputElement>(null)
+
+  const run = useMutation({
+    mutationFn: (apply: boolean) =>
+      api.post<ImportResult>('/api/v1/academics/admin/year-plan/import', { csv, apply }),
+    onSuccess: (res) => {
+      setResult(res)
+      if (res.applied) qc.invalidateQueries({ queryKey: ['year-plan'] })
+    },
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title="Import a year plan"
+        description="The workbook a school already keeps, read rather than retyped. Export it as CSV — one row per spreadsheet row — and drop it here."
+        action={
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => file.current?.click()}
+            title="Choose a CSV export of the year-plan workbook"
+          >
+            <Upload className="h-3.5 w-3.5" /> Choose file
+          </Button>
+        }
+      />
+      <div className="space-y-3 px-5 py-4">
+        <input
+          ref={file}
+          type="file"
+          accept=".csv,text/csv"
+          className="sr-only"
+          onChange={async (e) => {
+            const f = e.target.files?.[0]
+            if (!f) return
+            setResult(null)
+            setCsv(await f.text())
+          }}
+        />
+        {csv && (
+          <p className="text-[13px] text-muted-foreground">
+            {csv.split('\n').length.toLocaleString()} rows loaded, nothing written yet.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={!csv || run.isPending} onClick={() => run.mutate(false)}>
+            {run.isPending && !result ? 'Reading…' : 'Preview'}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!result || result.applied || run.isPending}
+            onClick={() => run.mutate(true)}
+          >
+            Apply {result ? `${result.summary.sheets_matched} sheets` : ''}
+          </Button>
+          {result && (
+            <span className="text-[13px] text-muted-foreground">
+              {result.summary.sheets_matched} matched · {result.summary.chapters} chapters ·{' '}
+              {result.summary.sheets_unmatched} could not be placed
+              {result.applied && ` · ${result.summary.subjects_written} written`}
+            </span>
+          )}
+        </div>
+
+        {run.error && <ErrorState error={run.error} />}
+
+        {result && result.matched.length > 0 && (
+          <Table head={['Sheet', 'Goes to', 'Chapters', 'Periods', '']}>
+            {result.matched.map((m) => (
+              <tr key={`${m.subject}-${m.sheet}`}>
+                <Td className="whitespace-nowrap font-medium">
+                  {m.subject} · {m.sheet}
+                </Td>
+                <Td className="whitespace-nowrap">
+                  {m.class_name} · {m.subject_name}
+                </Td>
+                <Td className="tabular-nums">{m.units.length}</Td>
+                <Td className="tabular-nums">{m.planned_periods}</Td>
+                <Td>
+                  {m.applied ? (
+                    <Badge tone="success">Written</Badge>
+                  ) : (
+                    <Badge tone="neutral">Ready</Badge>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+
+        {result && result.unmatched.length > 0 && (
+          <>
+            <p className="pt-2 text-[13px] font-medium">Not placed</p>
+            <Table head={['Sheet', 'Why']}>
+              {result.unmatched.map((m) => (
+                <tr key={`u-${m.subject}-${m.sheet}`}>
+                  <Td className="whitespace-nowrap font-medium">
+                    {m.subject} · {m.sheet}
+                  </Td>
+                  <Td className="text-muted-foreground">{m.why}</Td>
+                </tr>
+              ))}
+            </Table>
+          </>
+        )}
+      </div>
+    </Card>
+  )
 }

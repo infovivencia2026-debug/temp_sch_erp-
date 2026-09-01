@@ -1037,6 +1037,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/users/{id}/roles", s.setRoles)
+			// Handing a job over: grant and revoke in one transaction, so the
+			// school is never left with two bursars or none.
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/users/roles/transfer", s.transferRoles)
 			// Gated in the handler, not here: appointing somebody requires
 			// choosing their role, so hr.employees.write has to be able to
 			// read the list. Requiring roles.read meant an HR manager with

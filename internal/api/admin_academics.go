@@ -75,6 +75,9 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	// The chapter order and the calendar, poured into one another. Chapters are
 	// edited through the syllabus endpoints; no month is stored.
 	r.Get("/admin/year-plan", s.getYearPlan)
+	// The school's own workbook, read rather than retyped. Previews unless told
+	// to apply, because applying replaces a chapter list.
+	r.With(academics).Post("/admin/year-plan/import", s.importYearPlan)
 	r.With(academics).Post("/admin/calendar", s.saveCalendarEntry)
 	r.With(academics).Delete("/admin/calendar/{id}", s.deleteCalendarEntry)
 

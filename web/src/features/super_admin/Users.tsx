@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Pencil, ShieldCheck, UserPlus, UserX, UserCheck, X } from 'lucide-react'
+import { ArrowRightLeft, KeyRound, Pencil, ShieldCheck, UserPlus, UserX, UserCheck, X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Loading, ErrorState,
+  Table, Td, Badge, Button, Select, Input, Reload, Loading, ErrorState,
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
@@ -40,7 +40,7 @@ export default function Users() {
   if (search.trim()) params.set('q', search.trim())
   if (status) params.set('status', status)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['admin-users', params.toString()],
     queryFn: () => api.get<List<AdminUser>>(`/api/v1/admin/users?${params}`),
   })
@@ -48,6 +48,7 @@ export default function Users() {
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [handingOver, setHandingOver] = useState<AdminUser | null>(null)
 
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -104,6 +105,14 @@ export default function Users() {
           />
         )}
 
+        {handingOver && (
+          <HandOver
+            from={handingOver}
+            candidates={users.filter((u) => u.id !== handingOver.id)}
+            onClose={() => setHandingOver(null)}
+          />
+        )}
+
         <Card>
           <CardHeader
             title="Directory"
@@ -122,6 +131,7 @@ export default function Users() {
                     { value: 'archived', label: 'Archived' },
                   ]}
                 />
+                <Reload onClick={() => refetch()} busy={isFetching} label="Re-read the directory" />
               </>
             }
           />
@@ -171,6 +181,16 @@ export default function Users() {
                     >
                       <Pencil className="h-3.5 w-3.5" /> Roles
                     </Button>
+                    {u.role_keys.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Hand this account's roles to somebody else"
+                        onClick={() => { setCreating(false); setEditing(null); setHandingOver(u) }}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" /> Hand over
+                      </Button>
+                    )}
                     {u.status === 'active' ? (
                       <Button
                         size="sm"
@@ -332,6 +352,140 @@ function AccountForm({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/* Handing a job over.
+
+   Two edits used to do this: grant to the joiner, revoke from the leaver. The
+   gap between them is a school with two bursars, and a forgotten second edit
+   is a school with two bursars for good — which is the failure that actually
+   happens, because the satisfying half of the job is done after the first
+   edit and nobody is chasing the second.
+
+   One press, one transaction. The server refuses to strip a school's last
+   administrator, so the dangerous case comes back as a sentence rather than
+   an unrecoverable school. */
+function HandOver({
+  from,
+  candidates,
+  onClose,
+}: {
+  from: AdminUser
+  candidates: AdminUser[]
+  onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [to, setTo] = useState('')
+  // Every role by default: "they have left, give their job to this person" is
+  // the ordinary case, and picking a subset is the exception.
+  const [picked, setPicked] = useState<string[]>(from.role_keys)
+  const [leaverStatus, setLeaverStatus] = useState('')
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const move = useMutation({
+    mutationFn: () =>
+      api.post<{ note?: string }>('/api/v1/admin/users/roles/transfer', {
+        from_user_id: from.id,
+        to_user_id: to,
+        role_keys: picked,
+        leaver_status: leaverStatus || undefined,
+      }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      setNotice(res?.note ?? 'Handed over.')
+    },
+    onError: (e: unknown) => setNotice(e instanceof Error ? e.message : 'Could not hand over.'),
+  })
+
+  const toName = candidates.find((c) => c.id === to)?.full_name
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Hand over ${from.full_name}’s roles`}
+        description="The joiner gains the role exactly when the leaver loses it — one action, so the school is never left with two people holding the same job, or none."
+        action={
+          <Button size="sm" variant="ghost" onClick={onClose} title="Close">
+            <X className="h-4 w-4" />
+          </Button>
+        }
+      />
+      <div className="space-y-4 px-5 py-4">
+        <FormGrid>
+          <Field label="Hand over to" required>
+            <Select
+              value={to}
+              onChange={setTo}
+              placeholder="Pick the person taking over"
+              options={candidates.map((c) => ({
+                value: c.id,
+                label: `${c.full_name}${c.status === 'active' ? '' : ` (${c.status})`}`,
+              }))}
+            />
+          </Field>
+          <Field
+            label="Leave the outgoing account"
+            hint="Somebody handing over one hat of three is still on the staff, so this is optional."
+          >
+            <Select
+              value={leaverStatus}
+              onChange={setLeaverStatus}
+              placeholder="As it is"
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'suspended', label: 'Suspended' },
+                { value: 'archived', label: 'Archived' },
+              ]}
+            />
+          </Field>
+        </FormGrid>
+
+        <div>
+          <p className="text-[13px] font-medium">Roles moving</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {from.role_keys.map((k, i) => {
+              const on = picked.includes(k)
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() =>
+                    setPicked(on ? picked.filter((p) => p !== k) : [...picked, k])
+                  }
+                  className={
+                    on
+                      ? 'rounded-full border border-primary bg-primary px-3 py-1 text-[13px] text-primary-foreground'
+                      : 'rounded-full border border-border px-3 py-1 text-[13px] text-muted-foreground'
+                  }
+                >
+                  {from.roles[i] ?? k}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {notice && <FormNotice ok={notice} />}
+
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => move.mutate()}
+            disabled={!to || picked.length === 0 || move.isPending}
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5" />
+            {move.isPending ? 'Handing over…' : 'Hand over'}
+          </Button>
+          <span className="text-[13px] text-muted-foreground">
+            {picked.length === 0
+              ? 'Pick at least one role.'
+              : !to
+                ? 'Pick who is taking over.'
+                : `${picked.length} role${picked.length === 1 ? '' : 's'} from ${from.full_name} to ${toName}.`}
+          </span>
         </div>
       </div>
     </Card>

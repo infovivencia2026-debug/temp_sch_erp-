@@ -471,3 +471,57 @@ func yearElapsedPercent(now time.Time) int {
 		return int(elapsed / yearDays * 100)
 	}
 }
+
+/*
+replaceSyllabusUnits is the one write behind both a typed chapter list and an
+imported one.
+
+	Extracted from setSyllabusUnits so the importer cannot grow a second,
+	subtly different way of storing a syllabus. In particular it keeps the rule
+	that matters: a chapter some class has already been taught is never
+	deleted, because deleting it would silently reduce the coverage that class
+	has already earned — and an import is exactly the moment somebody would
+	otherwise wipe a term's progress by loading last year's workbook.
+*/
+func replaceSyllabusUnits(r *http.Request, tx pgx.Tx, classSubjectID string,
+	units []planUnit) error {
+
+	id := httpx.IdentityFrom(r.Context())
+	var kept int
+	if err := tx.QueryRow(r.Context(), `
+		WITH doomed AS (
+		  DELETE FROM syllabus_units u
+		   WHERE u.class_subject_id = $1::uuid
+		     AND NOT EXISTS (SELECT 1 FROM lesson_plan_units lpu
+		                       JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
+		                      WHERE lpu.syllabus_unit_id = u.id
+		                        AND lp.delivered_on IS NOT NULL)
+		  RETURNING 1)
+		SELECT (SELECT count(*) FROM syllabus_units WHERE class_subject_id = $1::uuid
+		         AND EXISTS (SELECT 1 FROM lesson_plan_units lpu
+		                       JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
+		                      WHERE lpu.syllabus_unit_id = syllabus_units.id
+		                        AND lp.delivered_on IS NOT NULL))::int
+		  FROM (SELECT count(*) FROM doomed) x`, classSubjectID).Scan(&kept); err != nil {
+		return err
+	}
+
+	for i, u := range units {
+		title := strings.TrimSpace(u.Title)
+		if title == "" {
+			continue
+		}
+		periods := u.Periods
+		if periods <= 0 {
+			periods = 1
+		}
+		if _, err := tx.Exec(r.Context(), `
+			INSERT INTO syllabus_units (institution_id, class_subject_id, sequence,
+			                            title, planned_periods)
+			VALUES ($1,$2::uuid,$3,$4,$5)`,
+			id.InstitutionID, classSubjectID, kept+i+1, title, periods); err != nil {
+			return err
+		}
+	}
+	return nil
+}
