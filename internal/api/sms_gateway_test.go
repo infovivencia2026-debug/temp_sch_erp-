@@ -119,6 +119,31 @@ The pair code is nine digits, and nothing but digits.
 	length is what buys it back. See the comment on the alphabet for why thirty
 	bits is safe against this endpoint's rate limit and ten-minute window.
 */
+/*
+What the console mints is what the claim will accept.
+
+	These two drifted apart: the code became nine digits so it could be typed
+	on a phone's number pad, and the claim went on demanding eight. Every
+	pairing was refused before the lookup ran, the school was told its
+	ten-second-old code was "not usable", and the suite said nothing — the one
+	test that claims a real code needs a database and skips without one. This
+	one needs nothing.
+*/
+func TestSMSGatewayMintedCodePassesTheClaimGate(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		code, err := newSMSGatewayPairCode()
+		if err != nil {
+			t.Fatalf("mint: %v", err)
+		}
+		if !smsGatewayCodeWellFormed(code) {
+			t.Fatalf("the claim gate refuses %q, which the console just printed", code)
+		}
+	}
+	if smsGatewayCodeWellFormed("") || smsGatewayCodeWellFormed("12345678901234") {
+		t.Error("the gate accepts a code of the wrong length")
+	}
+}
+
 func TestSMSGatewayPairCodeIsUnambiguous(t *testing.T) {
 	seen := map[string]bool{}
 	for i := 0; i < 200; i++ {

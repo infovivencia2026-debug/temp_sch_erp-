@@ -560,6 +560,19 @@ func newSMSGatewayPairCode() (string, error) {
 	return string(out), nil
 }
 
+/*
+The shape a claim must have before the database is asked about it.
+
+	A function rather than a comparison at the call site so that a test with no
+	database can hold the mint and the gate against each other. The mismatch
+	this replaces — nine digits minted, eight demanded — was invisible to the
+	suite because the only test that claims a real code needs a database and
+	skips without one.
+*/
+func smsGatewayCodeWellFormed(code string) bool {
+	return len(code) == smsGatewayCodeLength
+}
+
 func hashSMSGatewayCode(code string) []byte {
 	sum := sha256.Sum256([]byte(strings.ToUpper(strings.TrimSpace(code))))
 	return sum[:]
@@ -959,9 +972,15 @@ func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request)
 	if name == "" {
 		name = "Office phone"
 	}
-	// Length is checked before the database is touched, but the answer for a
-	// wrong length is the same refusal as for a wrong code.
-	if len(code) != 8 {
+	/* Length is checked before the database is touched, but the answer for a
+	   wrong length is the same refusal as for a wrong code.
+
+	   Against the constant, never a literal. This was hard-coded 8 while the
+	   mint moved to nine digits, so every code the console printed was
+	   refused before the lookup ran — the school saw "that pairing code is
+	   not usable" for a code that had been generated ten seconds earlier, and
+	   nothing in the logs said length. */
+	if !smsGatewayCodeWellFormed(code) {
 		smsGatewayClaimRefused(w, r)
 		return
 	}
