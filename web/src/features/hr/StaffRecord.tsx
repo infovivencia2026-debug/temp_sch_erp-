@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
-  Card, CardHeader, FormGrid, Field as FormField, Select, FormNotice,
-  Table, Td, Button, Loading, ErrorState,
+  Card, CardHeader, FormGrid, Field as FormField, Select, Input, FormNotice,
+  Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { Field } from '@/components/RecordShell'
 import { formatDate } from '@/lib/utils'
 
@@ -58,7 +59,21 @@ interface Detail {
     section_id: string; class_subject_id: string
   }[]
   class_teacher_of: { section_id: string; class: string; section: string; students: string }[]
+  documents: {
+    id: string; doc_type: string; file_id: string; uploaded_on: string
+    expires_on: string; filename: string
+  }[]
+  custom_fields?: Record<string, string>
 }
+
+/* The papers a school holds on a teacher, as suggestions rather than a fixed
+   list. More of these are statutory than for a child, and most of them lapse:
+   a police verification, a medical fitness, a contract. */
+const STAFF_DOCS = [
+  'Aadhaar card', 'PAN card', 'Degree certificate', 'Teaching qualification',
+  'Police verification', 'Medical fitness', 'Appointment letter',
+  'Previous employer relieving letter', 'Passport photograph',
+]
 
 export default function StaffRecord({ employeeID, onClose }: {
   employeeID: string
@@ -68,6 +83,13 @@ export default function StaffRecord({ employeeID, onClose }: {
   const [adding, setAdding] = useState(false)
   const [sectionID, setSectionID] = useState('')
   const [classSubjectID, setClassSubjectID] = useState('')
+  const [photo, setPhoto] = useState<UploadedFile | null>(null)
+  const [addingDoc, setAddingDoc] = useState(false)
+  const [docType, setDocType] = useState('')
+  const [docFile, setDocFile] = useState<UploadedFile | null>(null)
+  const [docExpiry, setDocExpiry] = useState('')
+  const [fieldName, setFieldName] = useState('')
+  const [fieldValue, setFieldValue] = useState('')
 
   const detail = useQuery({
     queryKey: ['staff-detail', employeeID],
@@ -107,6 +129,35 @@ export default function StaffRecord({ employeeID, onClose }: {
       detail.refetch()
       qc.invalidateQueries({ queryKey: ['staff'] })
     },
+  })
+
+  const savePhoto = useMutation({
+    mutationFn: (fileID: string) =>
+      api.put(`/api/v1/setup/employees/${employeeID}/photo`, { file_id: fileID }),
+    onSuccess: () => { setPhoto(null); detail.refetch() },
+  })
+
+  const addDoc = useMutation({
+    mutationFn: () => api.post(`/api/v1/setup/employees/${employeeID}/documents`, {
+      doc_type: docType, file_id: docFile?.file_id, expires_on: docExpiry,
+    }),
+    onSuccess: () => {
+      setAddingDoc(false); setDocType(''); setDocFile(null); setDocExpiry('')
+      detail.refetch()
+    },
+  })
+
+  const removeDoc = useMutation({
+    mutationFn: (docID: string) =>
+      api.del(`/api/v1/setup/employees/${employeeID}/documents/${docID}`),
+    onSuccess: () => detail.refetch(),
+  })
+
+  const saveField = useMutation({
+    mutationFn: (next: Record<string, string>) =>
+      api.post(`/api/v1/setup/employees/${employeeID}/custom-fields`,
+        { custom_fields: next }),
+    onSuccess: () => { setFieldName(''); setFieldValue(''); detail.refetch() },
   })
 
   const unassign = useMutation({
@@ -166,7 +217,162 @@ export default function StaffRecord({ employeeID, onClose }: {
                     v={d.experience_years ? `${d.experience_years} years` : undefined} />
                   <Field k="Emergency contact" v={d.emergency_contact_name} />
                   <Field k="Their phone" v={d.emergency_contact_phone} />
+                  {/* The school's own fields, beside the ones we thought of.
+                      employees had no custom_fields at all, so a PF number or
+                      a police-verification expiry lived in the qualification
+                      box with a comma in it. */}
+                  {Object.entries(d.custom_fields ?? {}).map(([k, v]) => (
+                    <Field key={k} k={k} v={v} />
+                  ))}
                 </dl>
+                <div className="flex flex-wrap items-end gap-2 border-t p-4">
+                  <div className="w-52">
+                    <FormField label="Add a field">
+                      <Input value={fieldName} onChange={setFieldName}
+                        placeholder="PF number" />
+                    </FormField>
+                  </div>
+                  <div className="min-w-[10rem] flex-1">
+                    <FormField label="Value">
+                      <Input value={fieldValue} onChange={setFieldValue} />
+                    </FormField>
+                  </div>
+                  <Button
+                    disabled={!fieldName.trim() || saveField.isPending}
+                    onClick={() => saveField.mutate({ [fieldName.trim()]: fieldValue })}
+                  >
+                    {saveField.isPending ? 'Saving...' : 'Add'}
+                  </Button>
+                  <FormNotice error={saveField.error} />
+                </div>
+              </Card>
+
+              <Card>
+                <CardHeader
+                  title="Photograph"
+                  description="Printed on the staff ID card."
+                />
+                <div className="flex flex-wrap items-start gap-4 p-5">
+                  <div className="h-[34mm] w-[28mm] shrink-0 overflow-hidden rounded border bg-muted/30">
+                    {d.photo_file_id && (
+                      <img src={`/api/v1/files/${d.photo_file_id}`}
+                        alt={`Photograph of ${d.full_name}`}
+                        className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-[14rem] flex-1">
+                    <FilePicker
+                      value={photo}
+                      onChange={(f) => {
+                        setPhoto(f)
+                        // Saved on upload: a photograph chosen and then left
+                        // unsaved is the commonest way this stays empty.
+                        if (f) savePhoto.mutate(f.file_id)
+                      }}
+                      purpose="staff_photo"
+                      label={d.photo_file_id ? 'Change photo' : 'Add a photo'}
+                      hint="A portrait. Passport size prints best."
+                    />
+                    {savePhoto.error && <FormNotice error={savePhoto.error} />}
+                    {d.photo_file_id && (
+                      <Button variant="ghost" disabled={savePhoto.isPending}
+                        onClick={() => savePhoto.mutate('')}>
+                        Remove it
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* THE PAPERS, AND WHAT LAPSES. More of a teacher's file is
+                  statutory than a child's and most of it expires, which is why
+                  the directory counts what lapses in sixty days -- and why it
+                  was counting documents nobody could add. */}
+              <Card>
+                <CardHeader
+                  title="Documents"
+                  description="What the school holds, and when it expires."
+                  action={
+                    <Button size="sm" variant={addingDoc ? 'secondary' : 'primary'}
+                      onClick={() => setAddingDoc(!addingDoc)}>
+                      {addingDoc ? 'Close' : 'Add a document'}
+                    </Button>
+                  }
+                />
+                {addingDoc && (
+                  <div className="space-y-3 border-b bg-muted/20 p-4">
+                    <FormGrid>
+                      <FormField label="What is it" required>
+                        <Select
+                          value={STAFF_DOCS.includes(docType) ? docType : ''}
+                          onChange={setDocType}
+                          placeholder="Choose one, or type your own beside it"
+                          options={STAFF_DOCS.map((x) => ({ value: x, label: x }))}
+                        />
+                      </FormField>
+                      <FormField label="Or something else">
+                        <Input value={docType} onChange={setDocType} />
+                      </FormField>
+                      <FormField label="Expires on"
+                        hint="Leave blank for a document that does not lapse">
+                        <Input type="date" value={docExpiry} onChange={setDocExpiry} />
+                      </FormField>
+                    </FormGrid>
+                    <FilePicker
+                      value={docFile}
+                      onChange={setDocFile}
+                      purpose="staff_document"
+                      label={docFile ? 'Choose a different file' : 'Choose the scan'}
+                    />
+                    <FormNotice error={addDoc.error} />
+                    <Button
+                      disabled={!docType.trim() || !docFile || addDoc.isPending}
+                      onClick={() => addDoc.mutate()}
+                    >
+                      {addDoc.isPending ? 'Saving...' : 'Add it'}
+                    </Button>
+                  </div>
+                )}
+                <Table
+                  head={['Document', 'Added', 'Expires', '']}
+                  empty={!d.documents.length}
+                  emptyLabel="Nothing on file for this member of staff."
+                >
+                  {d.documents.map((x) => (
+                    <tr key={x.id}>
+                      <Td className="font-medium">
+                        {x.doc_type}
+                        {x.filename && (
+                          <span className="block text-[12px] font-normal text-muted-foreground">
+                            {x.filename}
+                          </span>
+                        )}
+                      </Td>
+                      <Td className="text-muted-foreground">{formatDate(x.uploaded_on)}</Td>
+                      <Td>
+                        {x.expires_on ? (
+                          <Badge tone={new Date(x.expires_on) < new Date() ? 'danger' : 'neutral'}>
+                            {formatDate(x.expires_on)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">does not expire</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <a href={`/api/v1/files/${x.file_id}`} target="_blank"
+                            rel="noreferrer" className="text-[13px] text-primary">
+                            View
+                          </a>
+                          <Button size="sm" variant="ghost" disabled={removeDoc.isPending}
+                            onClick={() => removeDoc.mutate(x.id)}>
+                            Remove
+                          </Button>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </Table>
               </Card>
 
               {/* Being a class teacher is a different job from teaching a

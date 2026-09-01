@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -38,6 +39,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{}
 	teaching := []map[string]any{}
 	classTeacherOf := []map[string]any{}
+	documents := []map[string]any{}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var (
@@ -49,6 +51,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			experience                               *int
 			userID                                   *string
 			emgName, emgPhone, pan, bankAcct, bankIF *string
+			customFields                             []byte
 		)
 		if err := tx.QueryRow(r.Context(), `
 			SELECT e.employee_code, e.first_name, e.last_name, e.phone,
@@ -61,7 +64,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			       e.address, e.photo_file_id::text, e.experience_years,
 			       e.user_id::text,
 			       e.emergency_contact_name, e.emergency_contact_phone,
-			       e.pan, e.bank_account, e.bank_ifsc
+			       e.pan, e.bank_account, e.bank_ifsc, e.custom_fields
 			  FROM employees e
 			  LEFT JOIN departments d ON d.id = e.department_id
 			  LEFT JOIN designations dg ON dg.id = e.designation_id
@@ -69,7 +72,8 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			Scan(&code, &first, &last, &phone, &email, &qualification,
 				&dept, &desig, &deptID, &desigID, &empType, &status, &joined,
 				&confirmed, &relieved, &address, &photo, &experience, &userID,
-				&emgName, &emgPhone, &pan, &bankAcct, &bankIF); err != nil {
+				&emgName, &emgPhone, &pan, &bankAcct, &bankIF,
+				&customFields); err != nil {
 			return err
 		}
 		out["id"] = eid.String()
@@ -98,6 +102,40 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 		out["pan"] = pan
 		out["bank_account"] = bankAcct
 		out["bank_ifsc"] = bankIF
+		if len(customFields) > 0 {
+			var cf map[string]string
+			if json.Unmarshal(customFields, &cf) == nil && len(cf) > 0 {
+				out["custom_fields"] = cf
+			}
+		}
+
+		/* THE PAPERS THE SCHOOL HOLDS, with what lapses and when.
+
+		   A teacher's police verification, medical fitness and contract all
+		   expire, which is why the directory counts what lapses in sixty days
+		   — and until now it counted documents nobody could add. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT d.id::text, d.doc_type, d.file_id::text,
+			       to_char(d.created_at,'YYYY-MM-DD'),
+			       COALESCE(to_char(d.expires_on,'YYYY-MM-DD'),''),
+			       COALESCE(f.original_name,'')
+			  FROM employee_documents d
+			  LEFT JOIN files f ON f.id = d.file_id
+			 WHERE d.employee_id = $1
+			 ORDER BY d.expires_on NULLS LAST, d.created_at DESC`,
+			func(rows pgx.Rows) error {
+				var did, kind, file, on, expires, name string
+				if err := rows.Scan(&did, &kind, &file, &on, &expires, &name); err != nil {
+					return err
+				}
+				documents = append(documents, map[string]any{
+					"id": did, "doc_type": kind, "file_id": file,
+					"uploaded_on": on, "expires_on": expires, "filename": name,
+				})
+				return nil
+			}, eid); err != nil {
+			return err
+		}
 
 		/* WHAT THEY TEACH, read from the allocation the timetable already uses.
 
@@ -166,6 +204,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	out["documents"] = documents
 	out["teaching"] = teaching
 	out["class_teacher_of"] = classTeacherOf
 	httpx.JSON(w, http.StatusOK, out)

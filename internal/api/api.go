@@ -392,6 +392,18 @@ func (s *Server) Routes() http.Handler {
 			// PIN, and access.users.write would also let HR reset the
 			// principal's password.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees/{id}/pin", s.issueStaffPIN)
+			/* The staff record, brought level with the child's: a photograph,
+			   the papers the school holds, and fields it invents. employees
+			   carried photo_file_id with nothing writing it, and
+			   employee_documents could be listed and not added. */
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Put("/employees/{id}/photo", s.setStaffPhoto)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Post("/employees/{id}/documents", s.addStaffDocument)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Delete("/employees/{id}/documents/{docID}", s.deleteStaffDocument)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Post("/employees/{id}/custom-fields", s.saveStaffCustomFields)
 			// Assigning a class from the teacher's own record, writing the same
 			// row the allocation grid writes — a staff record with its own idea
 			// of who teaches what is one that disagrees with the timetable.
