@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarClock } from 'lucide-react'
 import { api } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Input, Loading, ErrorState, EmptyState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Input, Reload, Loading, ErrorState, EmptyState } from '@/components/ui'
 
 /* The day, rather than the year.
 
@@ -82,7 +82,10 @@ export default function CalendarDay() {
         title="The day"
         description="Periods, who teaches them and the lesson plan for each — the timetable, the plan and the almanac read together."
         action={
-          <Input type="date" value={date} onChange={setDate} className="w-auto" />
+          <div className="flex items-center gap-2">
+            <Input type="date" value={date} onChange={setDate} className="w-auto" />
+            <Reload onClick={() => day.refetch()} busy={day.isFetching} label="Re-read this day" />
+          </div>
         }
       />
 

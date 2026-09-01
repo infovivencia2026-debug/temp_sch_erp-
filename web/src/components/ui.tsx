@@ -5,7 +5,7 @@ import {
 import { createPortal } from 'react-dom'
 import {
   CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff,
-  Maximize2, Printer, X,
+  Maximize2, Printer, RefreshCw, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -1827,4 +1827,33 @@ export function useRange(): [ActiveRange, (r: ActiveRange) => void] {
     }
   }
   return [range, set]
+}
+
+/*
+Reload re-fetches what a screen is showing, on demand.
+
+	Every screen here reads a cache, and a cache is right until somebody else
+	changes the thing. A teacher who has just been told the timetable moved
+	wants to see it moved, and had no way to ask short of reloading the whole
+	page and losing whatever was on screen. This asks the one query again.
+
+	`busy` spins the icon and disables the press, so a slow refetch reads as
+	working rather than broken, and so an impatient second press cannot queue a
+	third request behind the first.
+*/
+export function Reload({
+  onClick,
+  busy,
+  label = 'Reload',
+}: {
+  onClick: () => void
+  busy?: boolean
+  /** Overridden when a screen refetches something narrower than the page. */
+  label?: string
+}) {
+  return (
+    <Button variant="ghost" size="sm" onClick={onClick} disabled={busy} title={label}>
+      <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin')} aria-hidden />
+    </Button>
+  )
 }

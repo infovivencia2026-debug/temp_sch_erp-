@@ -70,6 +70,11 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	r.Get("/admin/calendar", s.getAcademicCalendar)
 	// One date, with its periods, their lesson plans and the almanac around it.
 	r.Get("/admin/calendar/day", s.getCalendarDay)
+
+	// --- the year plan ------------------------------------------------------
+	// The chapter order and the calendar, poured into one another. Chapters are
+	// edited through the syllabus endpoints; no month is stored.
+	r.Get("/admin/year-plan", s.getYearPlan)
 	r.With(academics).Post("/admin/calendar", s.saveCalendarEntry)
 	r.With(academics).Delete("/admin/calendar/{id}", s.deleteCalendarEntry)
 

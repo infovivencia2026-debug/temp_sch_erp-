@@ -5,10 +5,11 @@ import { api } from '@/lib/api'
 import { MonthGrid, type CalendarEntry } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, Reload, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import CalendarDay from './CalendarDay'
+import YearPlan from './YearPlan'
 
 /* The school year on one page.
 
@@ -136,17 +137,22 @@ export default function AcademicCalendar() {
 
         <CalendarDay />
 
+        <YearPlan />
+
         <Card>
           <CardHeader
             title="The year"
             description="Exams and terms are shown as they are set elsewhere; only the school’s own entries can be changed here."
             action={
-              <Select
-                value={kind}
-                onChange={setKind}
-                options={KINDS}
-                placeholder="Every kind"
-              />
+              <div className="flex items-center gap-2">
+                <Select
+                  value={kind}
+                  onChange={setKind}
+                  options={KINDS}
+                  placeholder="Every kind"
+                />
+                <Reload onClick={() => cal.refetch()} busy={cal.isFetching} label="Re-read the year" />
+              </div>
             }
           />
           {rows.length === 0 ? (
