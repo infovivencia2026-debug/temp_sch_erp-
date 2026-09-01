@@ -346,15 +346,14 @@ export function WeekCell({
   )
 
   const sr = t('bento.parent_week.trend_sr', { name: s.full_name, weeks: weeks.length })
+  /* Said once. The note under the figure already carries this exact sentence
+     when there is no register -- see the same fix on the days-absent and
+     days-present cards. */
   const trend =
     days === null ? (
       <Say>{t('bento.parent_week.register_unread', { name: s.full_name })}</Say>
     ) : points.length < 2 ? (
-      <Say>
-        {days.length === 0
-          ? t('bento.parent_week.no_register', { name: s.full_name })
-          : t('bento.parent_week.too_short')}
-      </Say>
+      days.length === 0 ? null : <Say>{t('bento.parent_week.too_short')}</Say>
     ) : wide ? (
       <Area points={points} srLabel={sr} />
     ) : (
