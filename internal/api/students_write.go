@@ -637,6 +637,19 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	   Replaces the index rather than adding to it: a field deliberately left
 	   unmapped must not still be read from a same-named column, because
 	   leaving it unmapped is a statement that the file does not carry it. */
+	/* A COLUMN WE HAVE NO FIELD FOR IS STILL THE SCHOOL'S DATA.
+
+	   Every school keeps something we did not think of -- a bus stop, a
+	   scholarship number, a house, a parent's occupation code. Until now the
+	   only answers were to lose that column or to wait for us to add a field
+	   to the product, which is a school waiting on a release to import a
+	   spreadsheet it already has.
+
+	   Mapped as custom:<the label they want>, the column is imported into the
+	   child's own extra fields and appears on their page beside everything
+	   else. The label is kept exactly as typed, because "Bus stop" and
+	   "bus_stop" are the same word to us and not to the office reading it. */
+	customCols := map[string]int{}
 	if m := columnMapFrom(r); len(m) > 0 {
 		remapped := map[string]int{}
 		for ours, theirs := range m {
@@ -644,9 +657,17 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			key := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(theirs, "\ufeff")))
-			if i, ok := col[key]; ok {
-				remapped[strings.ToLower(strings.TrimSpace(ours))] = i
+			i, ok := col[key]
+			if !ok {
+				continue
 			}
+			if label, isCustom := strings.CutPrefix(ours, "custom:"); isCustom {
+				if label = strings.TrimSpace(label); label != "" {
+					customCols[label] = i
+				}
+				continue
+			}
+			remapped[strings.ToLower(strings.TrimSpace(ours))] = i
 		}
 		col = remapped
 	}
@@ -709,6 +730,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			APAARID:      get(rec, "apaar_id"),
 			ChildInfoID:  get(rec, "child_info_id"),
 			PriorSchool:  get(rec, "prior_school"),
+			CustomFields: customValues(rec, customCols),
 			// Optional, like every column but the name: a school that keeps
 			// none of this imports exactly as well without them.
 			AdmissionDate:    normaliseDate(get(rec, "admission_date")),
@@ -878,6 +900,30 @@ func isTruthy(v string) bool {
 }
 
 // getImportTemplate returns the CSV header a school should fill in.
+
+// customValues reads the columns a clerk chose to keep as extra fields.
+//
+// A blank cell is left out rather than stored as an empty string: an extra
+// field that exists on every child and says nothing on most of them is a
+// column of dashes on the record, which is worse than not having it at all.
+func customValues(rec []string, cols map[string]int) map[string]string {
+	if len(cols) == 0 {
+		return nil
+	}
+	out := map[string]string{}
+	for label, i := range cols {
+		if i < len(rec) {
+			if v := strings.TrimSpace(rec[i]); v != "" {
+				out[label] = v
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // studentImportFields is the list the mapping screen asks about, in the order
 // a school reads them. Only the name is required -- every other column is
 // optional by design, so a sheet with six columns imports as well as one with

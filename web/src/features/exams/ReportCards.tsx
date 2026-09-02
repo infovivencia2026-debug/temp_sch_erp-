@@ -465,6 +465,17 @@ export default function ReportCards() {
   const awaiting = all.filter((r) => r.status === 'submitted')
   const sendable = all.filter((r) => r.status === 'draft' || r.status === 'returned')
   const ticked = all.filter((r) => picked[r.id])
+  /* SELECTION ONLY WHERE IT CAN DO SOMETHING.
+
+     Ticking a card means "send or approve these, not the whole section". Once
+     every card in a section is published there is nothing left to send or
+     approve, and the column went on offering a choice that led to no button --
+     a control that does nothing is worse than no control, because somebody
+     ticks eight rows and looks for what to press next.
+
+     So the face is a plain photograph when the section is finished, and the
+     photograph is a control while there is still work in it. */
+  const canAct = sendable.length > 0 || awaiting.length > 0
   /* Nothing ticked means the whole section — "approve all" and "approve the
      ones I picked" are the same action with a different list, so there is one
      button rather than two that disagree about what "all" meant. */
@@ -1034,8 +1045,10 @@ export default function ReportCards() {
                           name={r.full_name}
                           photoFileId={r.photo_file_id}
                           seed={r.student_id}
-                          selected={!!picked[r.id]}
-                          onSelect={(next) => setPicked({ ...picked, [r.id]: next })}
+                          selected={canAct && !!picked[r.id]}
+                          onSelect={canAct
+                            ? (next) => setPicked({ ...picked, [r.id]: next })
+                            : undefined}
                         />
                       </Td>
                     )}
