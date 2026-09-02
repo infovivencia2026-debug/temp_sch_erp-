@@ -95,7 +95,9 @@ func run() error {
 	   Inspector and Storage stay nil rather than being constructed to look
 	   complete. A worker that could serve HTTP would be a second web process
 	   nobody meant to deploy. */
-	handlers := &queue.Handlers{DB: db, Messaging: &api.Server{DB: db}}
+	transport := &api.Server{DB: db}
+	handlers := &queue.Handlers{DB: db, Messaging: transport}
+	mux := handlers.Mux()
 
 	scheduler, err := queue.NewScheduler(cfg.RedisURL, schedulerTimezone(ctx, db))
 	if err != nil {
@@ -105,6 +107,17 @@ func run() error {
 		if err := scheduler.Register(inst); err != nil {
 			return err
 		}
+	}
+	/* THE SWEEPS THAT CLOSE A RUN NOBODY IS ON.
+
+	   Registered here, after the per-school entries and before Start, because
+	   both sweep every institution in a single pass -- putting them in
+	   scheduler.Register would run one identical global sweep per school on
+	   every tick. Missing this line was why a trip stayed open for two days
+	   with its last fix forty hours old: the office saw a bus mid-run that had
+	   finished, and the next driver was refused with "a run is already open". */
+	if err := transport.RegisterBusTrackerJobs(mux, scheduler.Raw()); err != nil {
+		return err
 	}
 	if err := scheduler.Start(); err != nil {
 		return err
@@ -118,7 +131,7 @@ func run() error {
 	}()
 
 	slog.Info("worker started", "concurrency", 4, "queues", queue.Priorities)
-	return srv.Run(handlers.Mux())
+	return srv.Run(mux)
 }
 
 // schedulerTimezone reads the tenant timezone so nightly jobs fire at local

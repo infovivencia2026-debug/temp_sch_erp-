@@ -136,5 +136,14 @@ func schedulerEntries(env Envelope) []cronEntry {
 	}
 }
 
+/* Raw hands out the asynq scheduler underneath.
+
+   Wanted by exactly one caller: the bus-tracker sweeps, which are registered
+   once for the whole installation rather than once per school, so they cannot
+   go through Register above. Without this they were simply never registered --
+   the sweeps existed, were tested, and had never run in production, and a bus
+   that stopped reporting stayed "on its way" on the parents' map for days. */
+func (s *Scheduler) Raw() *asynq.Scheduler { return s.s }
+
 func (s *Scheduler) Start() error { return s.s.Start() }
 func (s *Scheduler) Shutdown()    { s.s.Shutdown() }
