@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 332 features. */
+/** 13 roles, 333 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -663,6 +663,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'transport_manager.transport.vehicle_master_registry', slug: 'vehicle_master_registry', name: 'Vehicle Master Registry', scope: 'campus', tier: 'core', summary: 'Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.' },
           { key: 'transport_manager.transport.driver_attendant_profiles', slug: 'driver_attendant_profiles', name: 'Driver & Attendant Profiles', scope: 'campus', tier: 'core', summary: 'Store driver licenses, police verification docs, phone numbers, and assigned bus routes.' },
+          { key: 'transport_manager.transport.driver_phone_tracker', slug: 'driver_phone_tracker', name: 'Driver Phone Tracker', scope: 'institution', tier: 'core', summary: 'Turn a driver\'\'s own phone into the bus\'\'s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login — there is no hardware to buy.' },
           { key: 'transport_manager.transport.route_pickup_stop_mapping', slug: 'route_pickup_stop_mapping', name: 'Route & Pickup Stop Mapping', scope: 'campus', tier: 'core', summary: 'Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.' },
           { key: 'transport_manager.transport.student_route_assignment', slug: 'student_route_assignment', name: 'Student Route Assignment', scope: 'campus', tier: 'core', summary: 'Assign students to specific bus routes and pick-up stops with automated fee mapping.' },
           { key: 'transport_manager.transport.route_distance_fee_slabs', slug: 'route_distance_fee_slabs', name: 'Route Distance Fee Slabs', scope: 'campus', tier: 'core', summary: 'Define transport fee slabs by route distance and auto-apply them to the student\'s fee structure.' },

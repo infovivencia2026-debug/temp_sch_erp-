@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 13 roles, 332 features.
+// Roles is the catalog: 13 roles, 333 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -710,6 +710,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "transport_manager.transport.vehicle_master_registry", Slug: "vehicle_master_registry", Name: "Vehicle Master Registry", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs."},
 					{Key: "transport_manager.transport.driver_attendant_profiles", Slug: "driver_attendant_profiles", Name: "Driver & Attendant Profiles", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Store driver licenses, police verification docs, phone numbers, and assigned bus routes."},
+					{Key: "transport_manager.transport.driver_phone_tracker", Slug: "driver_phone_tracker", Name: "Driver Phone Tracker", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Turn a driver''s own phone into the bus''s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login — there is no hardware to buy."},
 					{Key: "transport_manager.transport.route_pickup_stop_mapping", Slug: "route_pickup_stop_mapping", Name: "Route & Pickup Stop Mapping", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees."},
 					{Key: "transport_manager.transport.student_route_assignment", Slug: "student_route_assignment", Name: "Student Route Assignment", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Assign students to specific bus routes and pick-up stops with automated fee mapping."},
 					{Key: "transport_manager.transport.route_distance_fee_slabs", Slug: "route_distance_fee_slabs", Name: "Route Distance Fee Slabs", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Define transport fee slabs by route distance and auto-apply them to the student's fee structure."},

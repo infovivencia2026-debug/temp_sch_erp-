@@ -17,4 +17,10 @@ import { screen } from '@/lib/screen'
  */
 export const trackerKeys = {
   'super_admin.payments_devices.gps_hardware_integration': screen(() => import('./TrackerPairing')),
+  /* The same screen for the person who actually runs the buses.
+
+     Pairing a driver's handset was reachable only from the vendor console, so
+     the transport manager — who knows which driver is on which bus, and is
+     standing next to the phone — had to ask somebody else to issue a code. */
+  'transport_manager.transport.driver_phone_tracker': screen(() => import('./TrackerPairing')),
 }
