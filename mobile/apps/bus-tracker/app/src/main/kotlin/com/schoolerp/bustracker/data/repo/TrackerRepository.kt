@@ -130,7 +130,16 @@ class TrackerRepository @Inject constructor(
             if (response.routes.isNotEmpty()) {
                 settingsStore.saveRouteBook(response.routes.map { SavedRoute(it.id, it.name) })
             }
-            _awaitingConfirmation.value = true
+            /* Confirm a bus only when there is one to confirm.
+
+               The card asks "is this your bus?" and shows the registration the
+               server echoed. A code that registers the phone rather than a bus
+               echoes nothing, so the card had nothing to draw: the screen
+               cleared, the app stayed on pairing, and the driver was left on a
+               form that had already succeeded. Nothing to confirm means
+               straight through to the run screen, where he scans the bus he is
+               actually in. */
+            _awaitingConfirmation.value = response.vehicle.registrationNo.isNotBlank()
             tokenStore.save(response.deviceId, response.deviceToken)
             if (response.sessionToken.isNotEmpty()) {
                 tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
@@ -177,7 +186,8 @@ class TrackerRepository @Inject constructor(
                     response.routes.map { SavedRoute(it.id, it.name) },
                 )
             }
-            _awaitingConfirmation.value = true
+            // Same rule as above: nothing to confirm, nothing to ask.
+            _awaitingConfirmation.value = response.vehicle.registrationNo.isNotBlank()
             tokenStore.save(response.deviceId, response.deviceToken)
             /* The shift as well as the handset.
              *
@@ -235,7 +245,9 @@ class TrackerRepository @Inject constructor(
             // The token is stored last. If anything above fails the app is still
             // unpaired and the driver retries, rather than holding a credential
             // it has no configuration to use.
-            _awaitingConfirmation.value = true
+            // Nothing to confirm when the code named no bus: the driver scans
+            // one at the start of his run instead. See the note above.
+            _awaitingConfirmation.value = response.vehicle.registrationNo.isNotBlank()
             tokenStore.save(response.deviceId, response.deviceToken)
             PairOutcome.Paired(response.vehicle.registrationNo, response.institution?.name)
         } catch (failure: ApiFailure) {

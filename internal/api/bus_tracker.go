@@ -487,6 +487,7 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 		// now the ordinary case: the driver scans a sticker at each run.
 		vehicle      *uuid.UUID
 		registration string
+		schoolName   string
 		ping         int
 	)
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
@@ -529,6 +530,11 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 				 WHERE vehicle_id = $1 AND revoked_at IS NULL`, *vehicle); err != nil {
 				return err
 			}
+		}
+
+		if err := tx.QueryRow(r.Context(),
+			`SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName); err != nil {
+			return err
 		}
 
 		policy, err := trackingPolicyFor(r.Context(), tx, inst)
@@ -595,7 +601,17 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"device_id":    deviceID.String(),
 		"device_token": token,
-		"institution":  inst.String(),
+		/* The school's NAME, not its id.
+
+		   This sent a bare uuid, and the app draws whatever it is given as the
+		   heading under the bus — so a driver's screen read
+		   a64a713c-83d7-4d7f-b956-2e0dc6270fa. The app's serialiser has always
+		   accepted either a string or an {id,name} object; it was only ever
+		   given the useless one. */
+		"institution": map[string]any{
+			"id":   inst.String(),
+			"name": schoolName,
+		},
 		/* Empty when the code registered a phone rather than a bus. The app
 		   shows nothing for it and asks for a sticker at the first run, which
 		   is the whole point of pairing without one. */
