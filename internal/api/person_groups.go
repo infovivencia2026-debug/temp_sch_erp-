@@ -61,15 +61,17 @@ type personGroup struct {
 	Picked int `json:"picked"`
 }
 
-/* THE FIELDS A RULE MAY NAME, and the SQL each one is.
+/*
+THE FIELDS A RULE MAY NAME, and the SQL each one is.
 
-   A map, not a string built from what arrived: the value is parameterised, and
-   the column is looked up here or the rule is refused. Nothing a caller sends
-   ever reaches the query as text.
+	A map, not a string built from what arrived: the value is parameterised, and
+	the column is looked up here or the rule is refused. Nothing a caller sends
+	ever reaches the query as text.
 
-   The expressions are written against the aliases the member query below
-   establishes (st, c, sec for a child; e, d, g for a member of staff), so the
-   two have to move together — hence the table names in the comments. */
+	The expressions are written against the aliases the member query below
+	establishes (st, c, sec for a child; e, d, g for a member of staff), so the
+	two have to move together — hence the table names in the comments.
+*/
 var studentGroupFields = map[string]string{
 	"class":         "c.name",
 	"section":       "sec.name",

@@ -297,6 +297,19 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+		/* One line, naming every input to the choice.
+
+		   Four attempts have been spent reasoning about this from the outside
+		   and each was wrong, because the only observable was which channel
+		   came out. What decides it is three facts nobody could see: whether
+		   the account carries an address, whether it carries a mobile, and what
+		   the school has switched on. */
+		slog.Info("password reset: choosing a channel",
+			"institution", *instID, "asked", channel,
+			"has_email", mail != "", "has_mobile", mobile != "",
+			"enabled_email", enabled["email"], "enabled_whatsapp", enabled["whatsapp"],
+			"picked", ch)
+
 		if to == "" {
 			// Nothing the school can send through. Queue on whichever contact
 			// exists so the row is an honest record of the attempt, and let the
