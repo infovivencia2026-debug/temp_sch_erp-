@@ -640,10 +640,15 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		          so entering a later exam renamed every card already printed
 		          for an earlier one. A card belongs to a term; the exam named
 		          is one sat in that term. */
-		       (SELECT ex.name FROM exams ex
-		         WHERE ex.academic_year_id = rc.academic_year_id
-		           AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
-		         ORDER BY ex.created_at DESC LIMIT 1),
+		       /* The exam this card is for, now that a card has one.
+		
+		          A card with no exam is a school's year-wide document, which
+		          is a real thing many schools print; it names its term, or the
+		          year, rather than borrowing an exam's name. */
+		       COALESCE(
+		         (SELECT ex.name FROM exams ex WHERE ex.id = rc.exam_id),
+		         (SELECT t.name FROM terms t WHERE t.id = rc.term_id),
+		         ''),
 		       ay.name,
 		       /* Who actually signed, not who holds the post.
 
@@ -747,9 +752,14 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		  JOIN class_subjects cs ON cs.class_id = e.class_id
 		  JOIN subjects sub      ON sub.id = cs.subject_id
 		  JOIN exam_subjects es  ON es.class_subject_id = cs.id
+		  /* This card's own exam where it has one. Where it has none -- the
+		     school's year-wide card -- everything in its term, which is what
+		     such a card is for. */
 		  JOIN exams ex          ON ex.id = es.exam_id
 		                        AND ex.academic_year_id = rc.academic_year_id
-		                        AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
+		                        AND (rc.exam_id IS NULL OR es.exam_id = rc.exam_id)
+		                        AND (rc.exam_id IS NOT NULL OR rc.term_id IS NULL
+		                             OR ex.term_id = rc.term_id)
 		  LEFT JOIN marks m      ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
 		 WHERE rc.id = $1
 		 ORDER BY sub.name`, cardID)

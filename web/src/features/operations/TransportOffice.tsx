@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, Route, ShieldCheck, Users } from 'lucide-react'
+import {
+  AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
+} from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -8,11 +10,14 @@ import {
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
+import { useSession } from '@/lib/session'
 
 /* Lazy: maplibre and its stylesheet are a few hundred kilobytes, and most
    visits to this screen are about fuel or a driver's licence, not a stop's
    coordinates. */
 const MapPointPicker = lazy(() => import('@/components/MapPointPicker'))
+// qrcode and a canvas, only for the office that actually opens a sticker.
+const BusSticker = lazy(() => import('@/components/BusSticker'))
 
 /** A stop's coordinates as a point, or null while either box is empty or junk. */
 function pointOf(s: { latitude: string; longitude: string }): { lat: number; lng: number } | null {
@@ -136,6 +141,10 @@ function pickerLabel(n: Named): string {
 interface Fleet {
   id: string
   registration_no: string
+  /* The six digits on the sticker in the cab, issued with the bus. What the
+     driver scans or types to say which bus he is in today, because he is not
+     on the same one every morning. */
+  bus_code?: string
   model?: string
   capacity?: number
   route?: string
@@ -1662,8 +1671,12 @@ function Buses() {
     value: e.id,
     label: e.full_name ?? e.name ?? e.id,
   }))
+  const session = useSession()
   const rows = list.data?.items ?? []
   const driverless = rows.filter((v) => !v.driver && v.status === 'active')
+  // Whose sticker is open. One at a time: these are printed one bus at a time
+  // and two QR codes on a page is a sticker in the wrong windscreen.
+  const [sticker, setSticker] = useState<string | null>(null)
 
   const edit = (v: Fleet) => {
     setEditing(v.id)
@@ -1816,6 +1829,7 @@ function Buses() {
             <Table
               head={[
                 { label: 'Bus' },
+                { label: 'Bus code' },
                 { label: 'Driver' },
                 { label: 'Route' },
                 { label: 'Seats' },
@@ -1832,6 +1846,15 @@ function Buses() {
                       <span className="font-mono text-[13px]">{v.registration_no}</span>
                       {v.model && (
                         <div className="text-[12px] font-normal text-muted-foreground">{v.model}</div>
+                      )}
+                    </Td>
+                    <Td>
+                      {v.bus_code ? (
+                        <span className="font-mono text-[15px] font-semibold tabular-nums">
+                          {v.bus_code}
+                        </span>
+                      ) : (
+                        <span className="text-[13px] text-muted-foreground">—</span>
                       )}
                     </Td>
                     <Td>
@@ -1864,14 +1887,44 @@ function Buses() {
                       </Badge>
                     </Td>
                     <Td>
-                      <Button size="sm" variant="ghost" onClick={() => edit(v)}>
-                        Edit
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {v.bus_code && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSticker(sticker === v.id ? null : v.id)}
+                          >
+                            <QrCode className="h-3.5 w-3.5" />
+                            {sticker === v.id ? 'Hide' : 'Sticker'}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => edit(v)}>
+                          Edit
+                        </Button>
+                      </div>
                     </Td>
                   </tr>
                 )
               })}
             </Table>
+            {/* Under the table rather than in a dialog: printing is the point,
+                and a print of a modal is a print of a modal. */}
+            {sticker && (
+              <div className="border-t p-5">
+                <Suspense fallback={<Loading />}>
+                  {(() => {
+                    const bus = rows.find((v) => v.id === sticker)
+                    return bus?.bus_code ? (
+                      <BusSticker
+                        code={bus.bus_code}
+                        registration={bus.registration_no}
+                        schoolName={session.institution?.name}
+                      />
+                    ) : null
+                  })()}
+                </Suspense>
+              </div>
+            )}
           </>
         )}
       </Card>

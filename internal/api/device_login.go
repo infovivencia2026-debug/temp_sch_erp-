@@ -63,11 +63,24 @@ const staffSessionTTL = 30 * 24 * time.Hour
 
 const staffSessionTokenPrefix = "sess"
 
-// PIN lockout. Four digits is 10,000 possibilities, which is nothing against
-// an unthrottled endpoint and weeks of work against this one.
+/* PIN lockout, and how long a PIN is.
+
+   Six digits, which is what the rest of this product settled on: the pairing
+   codes are digits, the bus sticker is digits, and a school that has to
+   remember "the PIN is four but the bus code is six" gets one of them wrong at
+   the counter. It is also a million possibilities instead of ten thousand,
+   which against five attempts and a fifteen-minute lock is the difference
+   between an afternoon of guessing and a year of it.
+
+   Issuing is held to exactly six. Verifying is not: it compares a hash, and a
+   four-digit PIN handed out before this change goes on working until somebody
+   reissues it. Rejecting short PINs at sign-in would lock out every driver on
+   the day this deployed, which is a security improvement nobody would thank us
+   for at six in the morning. */
 const (
 	pinMaxFailures = 5
 	pinLockFor     = 15 * time.Minute
+	pinDigits      = 6
 	pinMinDigits   = 4
 	pinMaxDigits   = 8
 )
@@ -966,8 +979,8 @@ var errNoPhoneForPIN = errors.New(
 // reads as if it might not be, and not a modulo of a byte, which is biased
 // toward the low digits.
 func temporaryPIN() (string, error) {
-	b := make([]byte, 4)
-	out := make([]byte, 4)
+	b := make([]byte, pinDigits)
+	out := make([]byte, pinDigits)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}

@@ -682,6 +682,13 @@ type vehicleRow struct {
 	Driver       *string `json:"driver,omitempty"`
 	NextExpiry   *string `json:"next_expiry,omitempty"`
 	Status       string  `json:"status"`
+	/* The six digits on the sticker in the cab.
+	
+	   A driver is not permanent on a bus, so the app asks which one he is in
+	   today and this is what he scans or types. Read-only here: it is issued
+	   with the vehicle and never changes, because a code that changes is a
+	   sticker somebody has to go and replace. */
+	BusCode *string `json:"bus_code,omitempty"`
 
 	/* THE FIELDS AN EDIT FORM NEEDS.
 
@@ -718,7 +725,8 @@ func (s *Server) listVehicles(w http.ResponseWriter, r *http.Request) {
 		       to_char(v.insurance_expiry, 'YYYY-MM-DD'),
 		       to_char(v.fitness_expiry,   'YYYY-MM-DD'),
 		       to_char(v.permit_expiry,    'YYYY-MM-DD'),
-		       to_char(v.puc_expiry,       'YYYY-MM-DD')
+		       to_char(v.puc_expiry,       'YYYY-MM-DD'),
+		       v.bus_code
 		  FROM vehicles v
 		  LEFT JOIN employees e ON e.id = v.driver_employee_id
 		 ORDER BY v.registration_no`, nil,
@@ -728,7 +736,7 @@ func (s *Server) listVehicles(w http.ResponseWriter, r *http.Request) {
 			if err := rows.Scan(&v.ID, &v.Registration, &v.Model, &v.Capacity,
 				&v.Route, &driver, &v.NextExpiry, &v.Status,
 				&v.RouteID, &v.DriverID, &v.AttendantID,
-				&v.Insurance, &v.Fitness, &v.Permit, &v.PUC); err != nil {
+				&v.Insurance, &v.Fitness, &v.Permit, &v.PUC, &v.BusCode); err != nil {
 				return v, err
 			}
 			// concat_ws returns '' rather than NULL when both names are NULL.

@@ -436,7 +436,7 @@ export default function Employees() {
                         size="sm"
                         variant="ghost"
                         disabled={pinning === e.id}
-                        title="A 4-digit PIN for the bus tracker and other handset apps"
+                        title="A 6-digit PIN for the bus tracker and other handset apps"
                         onClick={() => issuePin.mutate(e)}
                       >
                         {pinning === e.id ? 'PIN…' : 'Handset PIN'}

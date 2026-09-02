@@ -634,10 +634,11 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			    FROM totals
 			)
 			INSERT INTO report_cards (institution_id, student_id, academic_year_id, enrollment_id,
+			                          exam_id,
 			                          total_marks, max_marks, percentage, grade,
 			                          rank_in_section, attendance_percent, is_published, published_at,
 			                          status)
-			SELECT $3, r.student_id, r.academic_year_id, r.enrollment_id,
+			SELECT $3, r.student_id, r.academic_year_id, r.enrollment_id, $1,
 			       r.total, r.max_total, r.pct,
 			       (SELECT gb.grade FROM grade_bands gb
 			         WHERE gb.grading_scale_id = (SELECT grading_scale_id FROM exams WHERE id = $1)
@@ -648,9 +649,15 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			       -- constraint that says so; writing one without the other fails.
 			       CASE WHEN $4 THEN 'published' ELSE 'draft' END
 			  FROM ranked r
-			-- term_id is NULL for an annual card, and NULLs do not conflict, so
-			-- the target must be the partial index that excludes it.
-			ON CONFLICT (student_id, academic_year_id) WHERE term_id IS NULL DO UPDATE
+			/* ONE CARD PER CHILD PER EXAM.
+			
+			   The conflict target was (student, academic_year), so a school
+			   that ran FA1, printed the cards and then ran FA2 did not get a
+			   second set: it got the first set overwritten in place, with
+			   nothing recording that FA1 had ever been carded. Regenerating
+			   the same exam still updates its own card, which is the point of
+			   the upsert -- a corrected mark reprints rather than duplicates. */
+			ON CONFLICT (student_id, exam_id) WHERE exam_id IS NOT NULL DO UPDATE
 			   SET total_marks = EXCLUDED.total_marks,
 			       max_marks   = EXCLUDED.max_marks,
 			       percentage  = EXCLUDED.percentage,
@@ -1010,7 +1017,12 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 		               how the same subject appeared twice with two different
 		               maximums. */
 		            AND ex.academic_year_id = rc.academic_year_id
-		            AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
+		            /* The card's own exam where it has one; everything in its
+		               term where it does not, which is the school's year-wide
+		               card. Either way, never another year's paper. */
+		            AND (rc.exam_id IS NULL OR es.exam_id = rc.exam_id)
+		            AND (rc.exam_id IS NOT NULL OR rc.term_id IS NULL
+		                 OR ex.term_id = rc.term_id)
 		       ), '[]'::json)
 		  FROM report_cards rc
 		  JOIN students st ON st.id = rc.student_id
