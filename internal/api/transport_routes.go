@@ -37,6 +37,14 @@ type routeStopRequest struct {
 	Latitude   *string `json:"latitude,omitempty"`
 	Longitude  *string `json:"longitude,omitempty"`
 	FarePaise  *int64  `json:"fare_paise,omitempty"`
+	/* How near counts as "the bus is here", in metres.
+
+	   Every stop in the product carried a null, so arrival was decided
+	   entirely by the school-wide default and no office could widen the circle
+	   for the one stop on a dual carriageway where the bus pulls in fifty
+	   metres past the shelter. Absent still means "use the default" -- this is
+	   the exception, not a field every stop must carry. */
+	GeofenceM *int `json:"geofence_m,omitempty"`
 }
 
 type routeRequest struct {
@@ -229,11 +237,12 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 						       drop_time   = NULLIF($6,'')::time,
 						       latitude    = NULLIF($7,'')::numeric,
 						       longitude   = NULLIF($8,'')::numeric,
-						       fare_paise  = COALESCE($9, fare_paise)
+						       fare_paise  = COALESCE($9, fare_paise),
+						       geofence_m  = COALESCE($10, geofence_m)
 						 WHERE id = $1 AND route_id = $2
 						RETURNING id`,
 						existing, rid, name, seq, st.PickupTime, st.DropTime,
-						lat, lon, st.FarePaise).Scan(&got); err == nil {
+						lat, lon, st.FarePaise, st.GeofenceM).Scan(&got); err == nil {
 						kept = append(kept, got)
 						out.Stops++
 						continue
@@ -249,13 +258,14 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 				if err := tx.QueryRow(r.Context(), `
 					INSERT INTO route_stops (institution_id, route_id, name, sequence,
 					                         pickup_time, drop_time, latitude, longitude,
-					                         fare_paise)
+					                         fare_paise, geofence_m)
 					VALUES ($1,$2,$3,$4,
 					        NULLIF($5,'')::time, NULLIF($6,'')::time,
-					        NULLIF($7,'')::numeric, NULLIF($8,'')::numeric, $9)
+					        NULLIF($7,'')::numeric, NULLIF($8,'')::numeric, $9, $10)
 					RETURNING id`,
 					id.InstitutionID, rid, name, seq,
-					st.PickupTime, st.DropTime, lat, lon, st.FarePaise).Scan(&made); err != nil {
+					st.PickupTime, st.DropTime, lat, lon, st.FarePaise,
+					st.GeofenceM).Scan(&made); err != nil {
 					return err
 				}
 				kept = append(kept, made)

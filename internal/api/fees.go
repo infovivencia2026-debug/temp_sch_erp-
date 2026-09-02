@@ -983,6 +983,62 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				return fmt.Errorf("create invoice lines: %w", err)
 			}
 
+			/* THE BUS, WHICH WAS NEVER BILLED.
+
+			   A child was put on a route, the office was shown the fare for
+			   the stop, and that was the last anyone heard of it: the fare
+			   lived on route_stops, the allocation recorded which stop, and no
+			   invoice ever carried a transport line. Schools were running
+			   buses and collecting nothing for them through this product.
+
+			   Its own line rather than folded into the structure, because the
+			   fare belongs to the stop the child boards at and not to the
+			   class: two children in the same class on different routes owe
+			   different amounts, which a fee structure cannot express.
+
+			   The head is found or created once per school. A school that has
+			   never priced a stop never reaches this and never gets an empty
+			   head it did not ask for. */
+			if _, err := tx.Exec(r.Context(), `
+				WITH fare AS (
+				    SELECT rs.fare_paise, rt.name AS route_name, rs.name AS stop_name
+				      FROM transport_allocations ta
+				      JOIN route_stops rs
+				        ON rs.id = COALESCE(ta.pickup_stop_id, ta.drop_stop_id)
+				      JOIN routes rt ON rt.id = ta.route_id
+				     WHERE ta.student_id = $3
+				       AND ta.academic_year_id = $4
+				       AND ta.valid_from <= CURRENT_DATE
+				       AND (ta.valid_to IS NULL OR ta.valid_to >= CURRENT_DATE)
+				       AND rs.fare_paise IS NOT NULL
+				       AND rs.fare_paise > 0
+				     LIMIT 1
+				), head AS (
+				    INSERT INTO fee_heads (institution_id, campus_id, name, code,
+				                           is_refundable, is_recurring)
+				    SELECT $1, $5, 'Transport', 'TRANSPORT', false, true
+				     WHERE EXISTS (SELECT 1 FROM fare)
+				       AND NOT EXISTS (SELECT 1 FROM fee_heads
+				                        WHERE institution_id = $1 AND code = 'TRANSPORT')
+				    RETURNING id
+				), head_id AS (
+				    SELECT id FROM head
+				    UNION ALL
+				    SELECT id FROM fee_heads
+				     WHERE institution_id = $1 AND code = 'TRANSPORT'
+				    LIMIT 1
+				)
+				INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id,
+				                           description, amount_paise, discount_paise)
+				SELECT $1, $2, (SELECT id FROM head_id),
+				       'Transport — ' || fare.route_name || ', ' || fare.stop_name,
+				       fare.fare_paise, 0
+				  FROM fare
+				 WHERE (SELECT id FROM head_id) IS NOT NULL`,
+				instID, invoiceID, sid, yearID, campusID); err != nil {
+				return fmt.Errorf("bill transport for %s: %w", sid, err)
+			}
+
 			// Roll the lines up into the header. net_paise is generated from
 			// gross/discount/fine, so only the inputs are written.
 			if _, err := tx.Exec(r.Context(), `

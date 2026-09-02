@@ -1290,6 +1290,7 @@ interface StopRow {
   latitude?: string
   longitude?: string
   fare_paise: number
+  geofence_m?: number
   riders: number
 }
 interface StopForm {
@@ -1298,9 +1299,16 @@ interface StopForm {
   drop_time: string
   latitude: string
   longitude: string
+  /* How near the bus has to be for the school to call it arrived. Blank means
+     the school-wide default, which is what every stop in the product used to
+     be stuck with: there was nowhere to widen the circle for the one stop on a
+     dual carriageway where the bus pulls in fifty metres past the shelter. */
+  geofence_m: string
 }
 
-const BLANK_STOP: StopForm = { name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '' }
+const BLANK_STOP: StopForm = {
+  name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '', geofence_m: '',
+}
 const BLANK_ROUTE = { name: '', code: '', vehicle_id: '', distance_km: '' }
 
 function Routes() {
@@ -1347,6 +1355,9 @@ function Routes() {
             drop_time: s.drop_time,
             latitude: s.latitude.trim(),
             longitude: s.longitude.trim(),
+            // Absent, not zero, when the office left it blank: a zero radius
+            // is a stop the bus can never be said to have reached.
+            geofence_m: s.geofence_m.trim() === '' ? undefined : Number(s.geofence_m),
           })),
       }
       return editing
@@ -1413,6 +1424,9 @@ function Routes() {
         drop_time: s.drop_time ?? '',
         latitude: s.latitude ?? '',
         longitude: s.longitude ?? '',
+        // Blank, not "0", when the stop uses the school default: an editor
+        // that reads a null back as a zero saves a circle nothing can enter.
+        geofence_m: s.geofence_m != null ? String(s.geofence_m) : '',
       })),
       { ...BLANK_STOP },
     ])
@@ -1517,6 +1531,20 @@ function Routes() {
                     </Field>
                     <Field label="Longitude">
                       <Input value={s.longitude} onChange={setStop(i, 'longitude')} placeholder="78.3915" />
+                    </Field>
+                    {/* Left blank for almost every stop. It exists for the one
+                        on a dual carriageway where the bus pulls in fifty
+                        metres past the shelter and the school-wide circle
+                        never quite catches it. */}
+                    <Field
+                      label="Arrival circle (m)"
+                      hint="Leave blank to use the school's default."
+                    >
+                      <Input
+                        value={s.geofence_m}
+                        onChange={setStop(i, 'geofence_m')}
+                        placeholder="120"
+                      />
                     </Field>
                   </FormGrid>
 

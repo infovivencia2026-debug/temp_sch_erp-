@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
+import com.schoolerp.bustracker.data.remote.RollChild
 import com.schoolerp.bustracker.data.prefs.SettingsStore
 import com.schoolerp.bustracker.data.repo.EndOutcome
 import com.schoolerp.bustracker.data.repo.SignInOutcome
@@ -176,6 +177,45 @@ class RunViewModel @Inject constructor(
                 )
             }
             _busy.value = false
+        }
+    }
+
+    /* THE REGISTER FOR THE OPEN RUN.
+
+       Empty until the driver opens it: the roll is a list of children's names,
+       and a phone on a dashboard should not be showing one until somebody asks
+       it to. Refreshed on open rather than polled, because a bus with an
+       attendant's second handset would otherwise fight over the same rows. */
+    private val _roll = MutableStateFlow<List<RollChild>>(emptyList())
+    val roll: StateFlow<List<RollChild>> = _roll.asStateFlow()
+
+    fun refreshRoll() {
+        viewModelScope.launch {
+            val tripId = repository.settings.first().activeTrip?.tripId ?: return@launch
+            repository.roll(tripId)?.let { _roll.value = it }
+        }
+    }
+
+    /* Marked optimistically, then reconciled.
+
+       A driver at a stop taps three names in four seconds on a connection that
+       is a bar of 3G on a bypass. Waiting for each round trip before the tick
+       appears is how the fourth child gets marked twice and the fifth not at
+       all. The refresh afterwards is what makes the screen honest again if the
+       school refused any of them. */
+    fun markChild(studentId: String, status: String) {
+        _roll.value = _roll.value.map {
+            if (it.studentId == studentId) it.copy(status = status) else it
+        }
+        viewModelScope.launch {
+            val tripId = repository.settings.first().activeTrip?.tripId ?: return@launch
+            if (!repository.markChild(tripId, studentId, status)) {
+                _alert.value = DriverAlert(
+                    "That did not reach the school",
+                    "The child is still shown as not marked. Try again when you have signal.",
+                )
+                repository.roll(tripId)?.let { _roll.value = it }
+            }
         }
     }
 

@@ -40,6 +40,7 @@ import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.prefs.DIRECTION_DROP
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
+import com.schoolerp.bustracker.data.remote.RollChild
 import com.schoolerp.bustracker.engine.TrackerStatus
 import com.schoolerp.bustracker.ui.LocationPermissionPrompt
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +64,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val stops by viewModel.stops.collectAsStateWithLifecycle()
     val routes by viewModel.routeBook.collectAsStateWithLifecycle()
     val scannedBus by viewModel.scannedBus.collectAsStateWithLifecycle()
+    val roll by viewModel.roll.collectAsStateWithLifecycle()
     val alert by viewModel.alert.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
@@ -191,6 +193,21 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
 
             RouteSketch(stops, modifier = Modifier.fillMaxWidth())
             StopList(stops)
+
+            /* WHO IS ON THE BUS.
+
+               transport_attendance had one writer -- a screen in the office,
+               typed up from what the driver remembered -- so it sat empty
+               while the product knew the bus's position to the metre. The
+               question a parent rings about is not where the bus is; it is
+               whether their child is on it, and this is the only place that
+               can honestly be answered. */
+            RollCard(
+                children = roll,
+                onOpen = viewModel::refreshRoll,
+                onMark = viewModel::markChild,
+                enabled = !busy,
+            )
 
             /* END RUN ASKS FIRST.
 
@@ -784,5 +801,87 @@ private fun DriverSignIn(
                 .fillMaxWidth()
                 .height(56.dp),
         ) { Text("Sign in") }
+    }
+}
+
+
+/**
+ * The children this run stops for, and one tap each.
+ *
+ * Collapsed by default. A phone wedged on a dashboard should not be sitting
+ * there displaying a list of children's names to everyone who walks past the
+ * open door, and the driver only wants it at a stop.
+ *
+ * Three states, not two. "Absent" is the one that matters most at a stop the
+ * bus waited at and nobody came out to: a run with three absents recorded is
+ * worth far more to an office at nine o'clock than a run with three blanks,
+ * because only one of them tells you somebody should ring a house.
+ */
+@Composable
+private fun RollCard(
+    children: List<RollChild>,
+    onOpen: () -> Unit,
+    onMark: (String, String) -> Unit,
+    enabled: Boolean,
+) {
+    var open by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                open = !open
+                if (open) onOpen()
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) { Text(if (open) "Hide the children" else "Who is on the bus") }
+
+        if (!open) return@Column
+
+        if (children.isEmpty()) {
+            Text(
+                "Nobody is allocated to this route yet, or the school could not be reached. " +
+                    "The run still tracks either way.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@Column
+        }
+
+        children.forEach { child ->
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(child.name, style = MaterialTheme.typography.titleMedium)
+                if (child.stopName.isNotBlank()) {
+                    Text(
+                        child.stopName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        "boarded" to "On",
+                        "alighted" to "Off",
+                        "absent" to "Absent",
+                    ).forEach { (value, label) ->
+                        if (child.status == value) {
+                            Button(
+                                onClick = { },
+                                enabled = false,
+                                modifier = Modifier.weight(1f),
+                            ) { Text(label) }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onMark(child.studentId, value) },
+                                enabled = enabled,
+                                modifier = Modifier.weight(1f),
+                            ) { Text(label) }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

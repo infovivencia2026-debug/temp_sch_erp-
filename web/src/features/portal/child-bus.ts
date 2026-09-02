@@ -27,6 +27,11 @@ export interface ChildBusRow {
   stop_longitude?: number
   age_seconds?: number
   metres_away?: number
+  /* Minutes to the stop. Absent when the bus is not moving on a run, or when
+     the fix carried no speed to build it from — see etaMinutes on the server,
+     which refuses to invent one rather than print a confident wrong number. */
+  eta_minutes?: number
+  speed_kmph?: number
   state: BusState
   refresh_seconds: number
   proximity_m: number

@@ -350,3 +350,51 @@ data class BusRoutesResponse(
     @SerialName("registration_no") val registrationNo: String = "",
     val routes: List<AssignedRoute> = emptyList(),
 )
+
+
+/**
+ * One child the bus stops for, and whether the driver has marked them yet.
+ *
+ * The register used to live only in the office, typed up from what the driver
+ * remembered; this is the same row, filled in where the children are.
+ */
+@Serializable
+data class RollChild(
+    @SerialName("student_id") val studentId: String,
+    val name: String,
+    @SerialName("stop_name") val stopName: String = "",
+    val sequence: Int = 0,
+    val status: String = "not_marked",
+)
+
+@Serializable
+data class RollResponse(val children: List<RollChild> = emptyList())
+
+@Serializable
+data class MarkChildRequest(
+    @SerialName("student_id") val studentId: String,
+    val status: String,
+)
+
+/**
+ * The pre-trip check, signed off next to the bus.
+ *
+ * Every field is a thing the driver can see or touch on the vehicle. The
+ * server derives "cleared" from them and never takes it from here: a handset
+ * must not be able to assert a pass over a failed brake check.
+ */
+@Serializable
+data class TripCheckRequest(
+    @SerialName("bus_code") val busCode: String? = null,
+    @SerialName("route_id") val routeId: String? = null,
+    val direction: String = "pickup",
+    @SerialName("brakes_ok") val brakes: Boolean = false,
+    @SerialName("tyres_ok") val tyres: Boolean = false,
+    @SerialName("lights_ok") val lights: Boolean = false,
+    @SerialName("first_aid_ok") val firstAid: Boolean = false,
+    @SerialName("extinguisher_ok") val extinguisher: Boolean = false,
+    @SerialName("doors_ok") val doors: Boolean = false,
+)
+
+@Serializable
+data class TripCheckResponse(val cleared: Boolean = false)

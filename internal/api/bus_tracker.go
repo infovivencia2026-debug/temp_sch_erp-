@@ -742,33 +742,15 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   school matches nothing. Both the sticker's bus_code and a typed
 		   registration are accepted, for the same reason enrolment accepts
 		   both. */
-		var tripVehicle uuid.UUID
-		if dev.Vehicle != nil {
-			tripVehicle = *dev.Vehicle
-		}
-		if code := strings.ToUpper(strings.TrimSpace(req.BusCode)); code != "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id FROM vehicles
-				 WHERE institution_id = $1
-				   AND (upper(bus_code) = $2
-				        OR upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2)
-				   AND status <> 'retired'
-				 LIMIT 1`, dev.Institution, code).Scan(&tripVehicle); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					return errBusNotFound
-				}
-				return err
-			}
-		}
-
-		/* No bus at all is not a run.
-
-		   A handset registered to a driver has no vehicle of its own, so
-		   without a scan there is nothing to file positions against. Refused
-		   here with a sentence rather than inserting a trip on the zero uuid,
-		   which the foreign key would reject as something nobody could read. */
-		if tripVehicle == uuid.Nil {
-			return errNoBusForTrip
+		/* Shared with the safety check, so a check signed off on the relief
+		   bus and a run opened on the paired one cannot both be filed for the
+		   same morning. It also raises errNoBusForTrip for a handset with no
+		   pairing vehicle and no scan: a driver-registered phone has no bus of
+		   its own, and without a scan there is nothing to file positions
+		   against. See resolveTripVehicle. */
+		tripVehicle, err := resolveTripVehicle(r.Context(), tx, dev, req.BusCode)
+		if err != nil {
+			return err
 		}
 
 		if routeVehicle != nil && *routeVehicle != tripVehicle {
@@ -1181,7 +1163,19 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 			policy, fixesAsPoints(fixes)); err != nil {
 			return err
 		}
-		return s.trackSpeeding(r.Context(), tx, dev, tripID, policy, fixesAsPoints(fixes))
+		if err := s.trackSpeeding(r.Context(), tx, dev, tripID, policy,
+			fixesAsPoints(fixes)); err != nil {
+			return err
+		}
+		/* Last, and it returns nothing.
+
+		   A parent being told their bus is near is worth less than the bus
+		   being on the map at all, so this runs after everything that files
+		   the position, and it swallows its own failures rather than rolling
+		   the batch back. See notifyApproaching. */
+		s.notifyApproaching(r.Context(), tx, dev, tripID, route, direction,
+			fixesAsPoints(fixes))
+		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.Error(w, r, http.StatusNotFound, "no_such_trip",
@@ -1532,6 +1526,21 @@ func (s *Server) mountBusTrackerDevice(r chi.Router) {
 		// map, and the trip already records the driver who opened it.
 		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips", s.startBusTrackerTrip)
 		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips/{id}/end", s.endBusTrackerTrip)
+
+		/* THE REGISTER, on the bus rather than typed up afterwards.
+
+		   The roll is device-authenticated: it is the list of children this
+		   run stops for, and reading it does not name anybody. Marking a child
+		   requires a signed-in driver, because that row is a named adult
+		   saying they saw a named child get on. */
+		r.Get("/bus-tracker/trips/{id}/roll", s.busTrackerRoll)
+
+		// The brakes, the tyres, the doors: signed off by the driver standing
+		// next to the bus, which is the only place the check can honestly be
+		// made. See busTrackerRecordCheck.
+		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/checks", s.busTrackerRecordCheck)
+		r.With(s.requireBusTrackerDriver).
+			Post("/bus-tracker/trips/{id}/roll", s.busTrackerMarkChild)
 
 		/* Which lines this bus runs, asked once the sticker has been read.
 		   Device-authenticated only: choosing a bus is not naming a person. */

@@ -725,6 +725,22 @@ type builtinTemplate struct {
 }
 
 var builtinTemplates = map[string]builtinTemplate{
+	/* THE BUS IS NEARLY AT THE STOP.
+
+	   The one message this product exists to send, and the one it never sent.
+	   A parent set an alert distance, the preference was stored, and nothing
+	   on the server ever read it: the alert fired only in a browser tab that
+	   happened to be open on the live map, which is not where a parent is at
+	   ten past seven in the morning.
+
+	   Short, because it goes over SMS as well, and because there is exactly
+	   one thing to say. The distance is the parent's own setting read back, so
+	   a parent who set five hundred metres and gets a message four minutes out
+	   can see why. */
+	"transport.bus_approaching": {
+		Subject: "{{student_name}}'s bus is nearly at {{stop_name}}",
+		Body:    "{{student_name}}'s bus is about {{distance_m}} m from {{stop_name}}.\n\n{{school_name}}",
+	},
 	"attendance.absent": {
 		Subject: "{{student_name}} was marked absent",
 		Body:    "Dear parent,\n\n{{student_name}} was marked absent on {{on_date}} at {{school_name}}.\n\nIf this is unexpected, please contact the school office.",

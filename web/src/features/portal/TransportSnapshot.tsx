@@ -132,6 +132,16 @@ function SnapshotCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: numbe
                   : undefined
             }
           />
+          {/* The number a parent is actually waiting for. It was the one thing
+              this screen could not say, on a screen that knew the bus to the
+              metre. */}
+          {!row.arrived_at && row.eta_minutes != null && (
+            <Fact
+              label="Arrives in about"
+              value={`${row.eta_minutes} min`}
+              note="At the speed the bus is doing now, in a straight line. Traffic and turns make it longer."
+            />
+          )}
         </dl>
 
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-muted-foreground">

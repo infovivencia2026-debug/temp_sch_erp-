@@ -117,6 +117,45 @@ class TrackerApi(
         }
     }
 
+    /** The children this run stops for, in the order the bus reaches them. */
+    suspend fun roll(
+        baseUrl: BaseUrl,
+        token: String,
+        tripId: String,
+    ): RollResponse = call {
+        client.get(baseUrl.resolve(pathRoll(tripId))) { bearer(token) }
+    }
+
+    /** One child, marked on or off by the driver who watched them do it. */
+    suspend fun markChild(
+        baseUrl: BaseUrl,
+        token: String,
+        session: String,
+        tripId: String,
+        request: MarkChildRequest,
+    ): Unit = call {
+        client.post(baseUrl.resolve(pathRoll(tripId))) {
+            bearer(token)
+            staffSession(session)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    suspend fun recordCheck(
+        baseUrl: BaseUrl,
+        token: String,
+        session: String,
+        request: TripCheckRequest,
+    ): TripCheckResponse = call {
+        client.post(baseUrl.resolve(PATH_CHECKS)) {
+            bearer(token)
+            staffSession(session)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
     suspend fun startTrip(
         baseUrl: BaseUrl,
         token: String,
@@ -224,6 +263,8 @@ class TrackerApi(
         const val PATH_ENROL = "/api/v1/public/bus-tracker/enrol"
         const val PATH_TRIPS = "/api/v1/bus-tracker/trips"
         const val PATH_ROUTES = "/api/v1/bus-tracker/routes"
+        const val PATH_CHECKS = "/api/v1/bus-tracker/checks"
+        fun pathRoll(tripId: String) = "$PATH_TRIPS/$tripId/roll"
         const val PATH_POSITIONS = "/api/v1/bus-tracker/positions"
         const val PATH_HEARTBEAT = "/api/v1/bus-tracker/heartbeat"
         const val PATH_DRIVER_SIGNIN = "/api/v1/public/bus-tracker/driver-signin"

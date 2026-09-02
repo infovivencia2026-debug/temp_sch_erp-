@@ -88,7 +88,7 @@ func (s *Server) listLiveVehicles(w http.ResponseWriter, r *http.Request) {
 		SELECT v.id::text, v.registration_no,
 		       rt.name, rt.id::text, t.direction, t.id::text,
 		       concat_ws(' ', e.first_name, e.last_name), e.phone,
-		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8,
+		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8, lp.speed_kmph::float8,
 		       lp.heading_deg,
 		       to_char(lp.recorded_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD"T"HH24:MI:SS'),
 		       EXTRACT(epoch FROM now() - lp.recorded_at)::int,
@@ -166,6 +166,13 @@ type childBusRow struct {
 	StopLon     *float64 `json:"stop_longitude,omitempty"`
 	AgeSeconds  *int     `json:"age_seconds,omitempty"`
 	MetresAway  *int     `json:"metres_away,omitempty"`
+	/* Minutes to the stop, and how it was arrived at.
+
+	   A parent watching a dot move asks one question and this product could
+	   not answer it: nothing anywhere computed a time. The number is
+	   deliberately coarse and the basis says so -- see etaMinutes. */
+	EtaMinutes *int   `json:"eta_minutes,omitempty"`
+	SpeedKmph  *float64 `json:"speed_kmph,omitempty"`
 	State       string   `json:"state"`
 	RefreshSecs int      `json:"refresh_seconds"`
 	ProximityM  int      `json:"proximity_m"`
@@ -248,7 +255,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 			var v childBusRow
 			return v, rows.Scan(&v.StudentID, &v.StudentName, &v.Route, &v.Registration,
 				&v.Direction, &v.Driver, &v.DriverPhone, &v.StopName, &v.ScheduledAt,
-				&v.ArrivedAt, &v.Latitude, &v.Longitude, &v.StopLat, &v.StopLon,
+				&v.ArrivedAt, &v.Latitude, &v.Longitude, &v.SpeedKmph, &v.StopLat, &v.StopLon,
 				&v.AgeSeconds, &v.RefreshSecs, &v.ProximityM)
 		})
 	if err != nil {
@@ -268,6 +275,13 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 			it.MetresAway = &m
 		}
 
+		/* The time, computed only where it means something.
+
+		   After the state is decided, because a stale fix's distance is a
+		   distance the bus left ten minutes ago and a minutes figure built on
+		   it is a lie with a decimal point. Set below, once the state is
+		   known. */
+
 		switch {
 		case !policy.ParentsMayWatch:
 			// The school has not switched this on. Said plainly rather than
@@ -284,6 +298,10 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 			it.State = "stale"
 		default:
 			it.State = "running"
+		}
+
+		if it.State == "running" && it.MetresAway != nil {
+			it.EtaMinutes = etaMinutes(*it.MetresAway, it.SpeedKmph)
 		}
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
@@ -484,4 +502,37 @@ func (s *Server) mountBusTracking(r chi.Router) {
 
 	r.With(self).Get("/me/child-bus", s.getChildBus)
 	r.With(self).Post("/me/child-bus/prefs", s.saveWatchPrefs)
+}
+
+
+/*
+etaMinutes turns a distance and a speed into the one number a parent actually
+wants, and refuses to invent it when it cannot.
+
+	Crow-flies, like the distance it is built from, and rounded up to the
+	minute: the road is longer than the straight line, so a figure that errs
+	early is the wrong way to err. A parent who comes down two minutes late
+	has missed the bus.
+
+	The speed is the last fix's, floored at a walking-pace crawl. Without the
+	floor a bus stopped at a signal divides by zero and a parent is told their
+	child's bus is four hundred minutes away; with it, a stopped bus reads as a
+	slow one, which is what a bus at a signal is. A fix that carried no speed
+	at all gets no estimate rather than a made-up one -- the chip is saying it
+	does not know, and passing that on is more use than a confident number
+	drawn from nothing.
+*/
+func etaMinutes(metres int, speedKmph *float64) *int {
+	if speedKmph == nil || metres < 0 {
+		return nil
+	}
+	// 8 km/h: slower than any bus that is moving, faster than the zero a
+	// stationary one reports. See the note above.
+	const crawlKmph = 8.0
+	speed := *speedKmph
+	if speed < crawlKmph {
+		speed = crawlKmph
+	}
+	mins := int(float64(metres)/(speed*1000/60)) + 1
+	return &mins
 }

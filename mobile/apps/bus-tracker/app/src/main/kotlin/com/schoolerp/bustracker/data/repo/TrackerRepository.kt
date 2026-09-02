@@ -16,6 +16,9 @@ import com.schoolerp.bustracker.data.prefs.TokenStore
 import com.schoolerp.bustracker.data.prefs.TrackerSettings
 import com.schoolerp.bustracker.data.remote.ApiFailure
 import com.schoolerp.bustracker.data.remote.ClaimRequest
+import com.schoolerp.bustracker.data.remote.MarkChildRequest
+import com.schoolerp.bustracker.data.remote.RollChild
+import com.schoolerp.bustracker.data.remote.TripCheckRequest
 import com.schoolerp.bustracker.data.remote.DriverSignInRequest
 import com.schoolerp.bustracker.data.remote.EnrolRequest
 import com.schoolerp.bustracker.data.remote.EndTripRequest
@@ -298,6 +301,44 @@ class TrackerRepository @Inject constructor(
         return try {
             api.routesForBus(ctx.baseUrl, ctx.token, busCode)
                 .routes.map { SavedRoute(it.id, it.name) }
+        } catch (failure: ApiFailure) {
+            null
+        }
+    }
+
+    /* THE REGISTER, ON THE BUS.
+
+       Read fresh each time rather than cached: two adults on one run -- a
+       driver and an attendant with a second handset -- must not each be
+       working from their own idea of who is already aboard. */
+    suspend fun roll(tripId: String): List<RollChild>? {
+        val ctx = requireContext() ?: return null
+        return try {
+            api.roll(ctx.baseUrl, ctx.token, tripId).children
+        } catch (failure: ApiFailure) {
+            null
+        }
+    }
+
+    /** Returns true when the school accepted the mark. */
+    suspend fun markChild(tripId: String, studentId: String, status: String): Boolean {
+        val ctx = requireContext() ?: return false
+        val session = tokenStore.session() ?: return false
+        return try {
+            api.markChild(ctx.baseUrl, ctx.token, session, tripId,
+                MarkChildRequest(studentId = studentId, status = status))
+            true
+        } catch (failure: ApiFailure) {
+            false
+        }
+    }
+
+    /** The pre-trip check. Null means the school never heard it. */
+    suspend fun recordCheck(request: TripCheckRequest): Boolean? {
+        val ctx = requireContext() ?: return null
+        val session = tokenStore.session() ?: return null
+        return try {
+            api.recordCheck(ctx.baseUrl, ctx.token, session, request).cleared
         } catch (failure: ApiFailure) {
             null
         }

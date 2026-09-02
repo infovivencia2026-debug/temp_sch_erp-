@@ -79,6 +79,10 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
             label="Straight-line distance"
             value={row.metres_away != null ? `${row.metres_away} m` : '—'}
           />
+          <Fact
+            label="Arrives in about"
+            value={row.eta_minutes != null ? `${row.eta_minutes} min` : '—'}
+          />
           <Fact label="Last position" value={ageText(row.age_seconds)} />
         </dl>
 
@@ -136,6 +140,9 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
         {row.state === 'running' && row.metres_away != null && (
           <p className="text-[12.5px] text-muted-foreground">
             {row.metres_away} m is measured in a straight line across the map, not along the road.
+            {row.eta_minutes != null
+              ? ` The ${row.eta_minutes} minutes is that distance at the speed the bus is doing now, so traffic and the turns it still has to make will both make it longer.`
+              : ''}
             The bus may have turns, traffic and other stops to make first, so this is a distance,
             not an arrival time. You will be alerted when it comes within {row.proximity_m} m.
           </p>
