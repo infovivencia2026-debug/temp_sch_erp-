@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly dump of every tenant database
+After=postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/temperp-backup
+# A dump is IO bound and this box has one vCPU serving a live school. Niced so
+# a backup running long never competes with a parent loading the bus map.
+Nice=10
+IOSchedulingClass=idle

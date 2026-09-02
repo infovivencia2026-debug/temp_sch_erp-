@@ -1,0 +1,14 @@
+[Unit]
+Description=Nightly database backup
+
+[Timer]
+# 19:30 UTC is 01:00 in Asia/Kolkata, which is after the day's last activity
+# and before the 03:20 position-retention sweep, so the two never overlap on
+# a single vCPU.
+OnCalendar=*-*-* 19:30:00
+# A box that was off at 19:30 still gets its backup when it comes back, which
+# is the difference between a schedule and a hope.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
