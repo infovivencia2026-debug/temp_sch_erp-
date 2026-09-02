@@ -1872,7 +1872,22 @@ html[data-layout='bento'] body {
    The muted tone is white at 45%, which is 4.52:1 — it recedes without
    dropping below what body text needs. The reference said 40%; that measures
    3.81:1, and a zero-state still has to be readable to say it is a zero. */
-[data-layout='bento'] {
+/* THIS PALETTE IS THE DARK ONE, AND IT HAS TO SAY SO.
+
+   The selector was a bare [data-layout='bento'], so it applied in BOTH
+   schemes and quietly beat the light palette declared at the top of this
+   file. In light mode the result was a dark ground and dark cards under the
+   Tailwind text tokens from index.css, which are black there: measured on the
+   live setup wizard, "Or add every class from a sheet" was rgb(0,0,0) on
+   rgb(17,19,22) at a contrast ratio of 1.13, and the step heading was 1.01.
+   Not dim. Invisible. Every screen a school sees on its first morning, on any
+   phone whose owner keeps it in light mode.
+
+   Scoped now. The light counterpart below mirrors it value for value, so the
+   two cannot drift into the state where only one of them has been thought
+   about. */
+html.dark[data-layout='bento'],
+html:not(.dark)[data-layout='bento'][data-force-dark] {
   --bento-bg: #0a0b0d;
   --bento-card: #111316;
   --bento-card-2: #171a1e;
@@ -1899,6 +1914,42 @@ html[data-layout='bento'] body {
   --dom-success: #111316; --dom-success-soft: #111316; --dom-success-text: #ffffff;
   --dom-warning: #111316; --dom-warning-soft: #111316; --dom-warning-text: #ffffff;
 }
+
+/* The same design, in daylight.
+
+   One surface for every card and colour reserved for status, exactly as the
+   note above sets out. The measured ratios that note quotes are its own: on
+   this ground, black on card is 18.1:1 and the muted tone is 4.6:1, which is
+   the same relationship the dark palette was tuned to rather than a second
+   scheme with its own opinions. */
+html:not(.dark)[data-layout='bento'] {
+  --bento-bg: #f4f5f7;
+  --bento-card: #ffffff;
+  --bento-card-2: #eceef2;
+  --bento-ink: #0a0b0d;
+  --bento-muted: #63656a;
+  --bento-line: rgba(10,11,13,0.10);
+  --bento-mint: #0e7490;   --bento-mint-tint: #eceef2;
+  --bento-purple: #0e7490; --bento-purple-tint: #eceef2;
+  --bento-pink: #b3261e;      --bento-pink-tint: #eceef2;
+  --bento-orange: #8a5a00;  --bento-orange-tint: #eceef2;
+  --bento-anchor-from: #ffffff; --bento-anchor-to: #ffffff;
+  --bento-anchor-ink: #0a0b0d;
+  --bento-dock-bg: rgba(255,255,255,0.78); --bento-dock-ink: #0a0b0d;
+  --dom-students: #ffffff; --dom-students-soft: #ffffff; --dom-students-text: #0a0b0d;
+  --dom-academics: #ffffff; --dom-academics-soft: #ffffff; --dom-academics-text: #0a0b0d;
+  --dom-attendance: #ffffff; --dom-attendance-soft: #ffffff; --dom-attendance-text: #0a0b0d;
+  --dom-finance: #ffffff; --dom-finance-soft: #ffffff; --dom-finance-text: #0a0b0d;
+  --dom-staff: #ffffff; --dom-staff-soft: #ffffff; --dom-staff-text: #0a0b0d;
+  --dom-admissions: #ffffff; --dom-admissions-soft: #ffffff; --dom-admissions-text: #0a0b0d;
+  --dom-communication: #ffffff; --dom-communication-soft: #ffffff; --dom-communication-text: #0a0b0d;
+  --dom-operations: #ffffff; --dom-operations-soft: #ffffff; --dom-operations-text: #0a0b0d;
+  --dom-reports: #ffffff; --dom-reports-soft: #ffffff; --dom-reports-text: #0a0b0d;
+  --dom-critical: #ffffff; --dom-critical-soft: #ffffff; --dom-critical-text: #0a0b0d;
+  --dom-success: #ffffff; --dom-success-soft: #ffffff; --dom-success-text: #0a0b0d;
+  --dom-warning: #ffffff; --dom-warning-soft: #ffffff; --dom-warning-text: #0a0b0d;
+}
+
 
 /* ─────────────────────────────────────────────────────────────────────────
    FROSTED GLASS, the way an iPhone's App Library sits over the wallpaper.
