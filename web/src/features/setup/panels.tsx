@@ -2549,6 +2549,107 @@ function UDISEPanel({ onDone }: PanelProps) {
   )
 }
 
+/* EMPTYING THE SCHOOL SO REAL DATA CAN GO IN.
+ *
+ * A school evaluates this with invented children, invented staff and invented
+ * fees, decides to use it, and then cannot get rid of any of it. Every guard
+ * that protects live data works exactly as well against test data: a class
+ * will not delete because it has sections, a section because it has a
+ * register, a teacher because they are assigned to a class. Undoing an upload
+ * of twenty-two staff removed three and kept eight, every one for a good
+ * reason.
+ *
+ * So the alternatives were to unpick a school by hand in exact reverse order,
+ * or to start again on a new one and lose the week of setup that made them
+ * want to keep it. This is the third answer.
+ */
+function ResetPanel({ onDone }: PanelProps) {
+  const [typed, setTyped] = useState('')
+  const [done, setDone] = useState<{ deleted: number; could_not_clear: string[] } | null>(null)
+
+  const school = useQuery({
+    queryKey: ['institution'],
+    // The same call the profile step makes. Written from memory the first
+    // time as /setup/profile, which is not a route -- so the school's name
+    // never arrived and the confirmation could never be satisfied, leaving a
+    // button permanently disabled with nothing on screen explaining why.
+    queryFn: () => api.get<{ name: string }>('/api/v1/setup/institution'),
+  })
+  const name = school.data?.name ?? ''
+
+  const reset = useMutation({
+    mutationFn: () => api.post<{ deleted: number; could_not_clear: string[] }>(
+      '/api/v1/setup/reset', { confirm: typed }),
+    onSuccess: (res) => { setDone(res); setTyped(''); onDone?.() },
+  })
+
+  if (done) {
+    return (
+      <div className="space-y-2 text-[14px]">
+        <p className="font-medium text-success">
+          {done.deleted.toLocaleString()} records removed. The school is empty.
+        </p>
+        <p className="text-muted-foreground">
+          Your login, the school's details, its campuses and its academic years
+          are as they were. Start again from the first step.
+        </p>
+        {done.could_not_clear.length > 0 && (
+          /* Named rather than hidden. A school told "done" that still has rows
+             somewhere finds out when a list is not empty, and by then it does
+             not trust the button. */
+          <p className="text-[13px] text-warning">
+            Still holding records: {done.could_not_clear.join(', ')}. Tell us and
+            we will look.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 text-[14px]">
+      <p className="text-muted-foreground">
+        For a school that has finished trying this out and wants to put its real
+        records in. Nothing here is needed by a school that is simply setting up.
+      </p>
+
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+        <p className="text-[13px] font-medium text-destructive">
+          This deletes everything this school has recorded.
+        </p>
+        <p className="mt-1 text-[12.5px]">
+          Children, staff, classes, sections, subjects, the timetable, marks,
+          report cards, attendance, fees, payments, admissions and messages. It
+          cannot be undone and no copy is kept.
+        </p>
+        {/* What survives, said as plainly as what does not -- somebody about to
+            press this needs to know they are not deleting their own way back
+            in, and that the week they spent on settings is not going with it. */}
+        <p className="mt-2 text-[12.5px] text-muted-foreground">
+          Kept: your login and everyone else's, the school's own details, its
+          campuses, and its academic years.
+        </p>
+      </div>
+
+      <Field
+        label={`Type ${name || "the school's name"} to confirm`}
+        hint="Typed rather than ticked, because a tick is a reflex and this is a decision."
+      >
+        <Input value={typed} onChange={setTyped} placeholder={name} />
+      </Field>
+
+      <FormNotice error={reset.error} />
+      <Button
+        className="bg-destructive text-white hover:bg-destructive/90"
+        disabled={reset.isPending || typed.trim().toLowerCase() !== name.trim().toLowerCase() || !name}
+        onClick={() => reset.mutate()}
+      >
+        {reset.isPending ? 'Deleting…' : 'Delete everything and start again'}
+      </Button>
+    </div>
+  )
+}
+
 // --- registry ---------------------------------------------------------------
 
 export const PANELS: Record<string, ComponentType<PanelProps>> = {
@@ -2567,6 +2668,7 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   exams: ExamsPanel,
   history: HistoryPanel,
   udise: UDISEPanel,
+  reset: ResetPanel,
 }
 
 /**

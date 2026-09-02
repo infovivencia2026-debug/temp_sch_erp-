@@ -848,6 +848,7 @@ function Drivers({ rows }: { rows: Staff[] }) {
               { label: 'Licence' },
               { label: 'Police check' },
               { label: 'Next lapse' },
+              { label: 'Sign-in' },
             ]}
           >
             {rows.map((s) => (
@@ -884,12 +885,79 @@ function Drivers({ rows }: { rows: Staff[] }) {
                     </span>
                   )}
                 </Td>
+                <Td>
+                  <DriverSignIn staff={s} />
+                </Td>
               </tr>
             ))}
           </Table>
         )}
       </Card>
     </>
+  )
+}
+
+/* WHAT THE DRIVER TYPES INTO THE HANDSET.
+
+   This table knew everything about a driver except the one thing the office is
+   asked for at six in the morning: what he signs in with. The endpoint to issue
+   a PIN has existed all along and no screen called it, so the answer was "ring
+   somebody who can open the staff record".
+
+   The number is the sign-in name — bus_driver_signin.go matches phone, email or
+   username — so it is shown as such rather than as another contact detail. A
+   driver with no number cannot be issued one at all, and says so here rather
+   than failing when the button is pressed.
+
+   Shown once, like every other credential in this product: nothing can read a
+   PIN back out, so it stays on screen until dismissed rather than flashing
+   past. */
+function DriverSignIn({ staff }: { staff: Staff }) {
+  const [pin, setPin] = useState<string | null>(null)
+  const issue = useMutation({
+    mutationFn: () =>
+      api.post<{ pin: string }>(`/api/v1/setup/employees/${staff.employee_id}/pin`, {}),
+    onSuccess: (res) => setPin(res.pin),
+  })
+
+  if (!staff.phone) {
+    return (
+      <span className="text-[13px] text-muted-foreground">
+        No mobile on record
+      </span>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="font-mono text-[13px]">{staff.phone}</div>
+      {pin ? (
+        <div className="text-[13px]">
+          PIN <span className="font-mono font-semibold">{pin}</span>
+          <button
+            type="button"
+            onClick={() => setPin(null)}
+            className="ml-2 text-[12px] text-muted-foreground underline underline-offset-2"
+          >
+            done
+          </button>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={issue.isPending}
+          onClick={() => issue.mutate()}
+        >
+          {issue.isPending ? 'Issuing…' : 'Issue PIN'}
+        </Button>
+      )}
+      {issue.error && (
+        <div className="text-[12px] text-destructive">
+          {issue.error instanceof Error ? issue.error.message : 'Could not issue a PIN'}
+        </div>
+      )}
+    </div>
   )
 }
 

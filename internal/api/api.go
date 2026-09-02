@@ -500,6 +500,14 @@ func (s *Server) Routes() http.Handler {
 			// to point each field at a column of their own file.
 			r.Get("/import/{entity}/fields", s.getImportFields)
 			r.Post("/import/{entity}", s.bulkImport)
+
+			/* Emptying the school so real data can go in.
+
+			   Under /setup because starting again is part of setting up, and
+			   on the settings permission because it is the head's decision and
+			   nobody else's. */
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).
+				Post("/reset", s.resetSchool)
 		})
 
 		// --- Institution Admin / Principal --------------------------------
