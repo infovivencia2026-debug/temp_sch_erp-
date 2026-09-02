@@ -131,11 +131,28 @@ export function CardShell({
      first. Where there is no drawing at all there is no fraction, and the card
      sits to its natural height rather than reserving 26px for nothing. */
   const note = change && !delta
+  /* THE SENTENCE IS NOT ALLOWED TO SHRINK, AND THE DRAWING NO LONGER HAS A
+     FLOOR IT CANNOT GIVE UP.
+
+     Measured on a live phone board: the cell is 119px, and header 43 plus
+     figure 20 plus sentence 19 plus a 26px drawing floor plus three 6px gaps
+     comes to 126. Seven pixels short. An `auto` track is allowed to shrink
+     below its content when the grid is over-constrained, and the sentence is
+     what shrank: 15px of box around 19px of text, so every card's last line
+     was cut through the middle of its own letters.
+
+     `min-content` refuses that. The drawing takes `minmax(0,1fr)` instead of a
+     26px minimum, so it is the row that gives way, which is what the note
+     above this one has always said should happen and what the floor quietly
+     prevented. A chart squeezed to nothing on a very short cell is a chart
+     nobody was reading at 26px either; a sentence cut in half is a card that
+     looks broken. Above phone height the fraction is generous and both fit,
+     so this changes nothing where nothing was wrong. */
   const rows = [
     'auto',
     'auto',
-    ...(note ? ['auto'] : []),
-    ...(children ? ['minmax(clamp(26px,20cqh,220px),1fr)'] : []),
+    ...(note ? ['min-content'] : []),
+    ...(children ? ['minmax(0,1fr)'] : []),
   ].join(' ')
   return (
     /* FOUR rows: header, figure, drawing, action.
