@@ -712,12 +712,20 @@ function History({
    * a corrected re-upload edits rows that were already there and undoing it
    * must not remove a class somebody typed in by hand. Rows something else now
    * depends on are kept and counted rather than cascaded away. */
+  /* A BROWSER CONFIRM IS NOT A WARNING.
+   *
+   * This is the one control in the product that destroys records outright,
+   * and it asked through window.confirm -- a grey box people dismiss without
+   * reading, that cannot say which children are about to go, and that some
+   * browsers suppress entirely after a few appearances.
+   *
+   * So the warning is part of the page: it names the file, counts exactly what
+   * will be destroyed, says plainly that it cannot be undone, and puts the
+   * destructive answer on the right where a mis-click lands on Cancel. */
+  const [confirming, setConfirming] = useState<ImportRun | null>(null)
+
   const undo = async (run: ImportRun) => {
-    if (!confirm(
-      `Remove the ${run.created_rows} ${run.created_rows === 1 ? 'record' : 'records'} ` +
-      `that ${run.filename ?? 'this upload'} created? ` +
-      'Anything it only updated, and anything now in use, is left alone.'
-    )) return
+    setConfirming(null)
     setUndoing(run.id)
     setOutcome('')
     try {
@@ -831,10 +839,10 @@ function History({
                     <button
                       type="button"
                       disabled={undoing === r.id}
-                      onClick={() => undo(r)}
+                      onClick={() => setConfirming(r)}
                       className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
                     >
-                      {undoing === r.id ? 'removing…' : `delete these ${r.created_rows}`}
+                      {undoing === r.id ? 'deleting\u2026' : `delete these ${r.created_rows}`}
                     </button>
                   ) : (
                     <span
@@ -850,6 +858,51 @@ function History({
           </tbody>
         </table>
       </div>
+      {confirming && (
+        <div className="mt-3 rounded-md border border-destructive/50 bg-destructive/5 p-3">
+          <p className="text-[13px] font-medium text-destructive">
+            Delete {confirming.created_rows}{' '}
+            {confirming.created_rows === 1 ? 'record' : 'records'} permanently?
+          </p>
+          <p className="mt-1 text-[12.5px]">
+            Everything <span className="font-medium">{confirming.filename ?? 'this upload'}</span>{' '}
+            created is removed from the database. This cannot be undone, and
+            there is no copy kept.
+          </p>
+          {/* The limits, said before rather than discovered after. Somebody
+              deleting an upload usually believes it will put the school back
+              exactly as it was, and on two counts it will not. */}
+          <ul className="mt-1.5 list-disc pl-4 text-[12.5px] text-muted-foreground">
+            <li>
+              Records this upload only <span className="italic">changed</span> keep
+              their new values. The old ones are not restored.
+            </li>
+            <li>
+              Anything now in use \u2014 a child with attendance, a class with a
+              timetable \u2014 is kept and counted, not deleted.
+            </li>
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setConfirming(null)}>
+              Cancel
+            </Button>
+            {/* The destructive answer is second, so the reflex click lands on
+                Cancel rather than on the deletion. */}
+            <Button
+              size="sm"
+              /* The button palette has no destructive variant, so the
+                 danger is carried by the panel around it and by the words on
+                 it. Better than inventing a red button that exists nowhere
+                 else in the product. */
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={undoing === confirming.id}
+              onClick={() => undo(confirming)}
+            >
+              Yes, delete permanently
+            </Button>
+          </div>
+        </div>
+      )}
       {failedRun && <p className="mt-2 text-[12.5px] text-muted-foreground">{failedRun}</p>}
       {outcome && <p className="mt-2 text-[12.5px] text-muted-foreground">{outcome}</p>}
     </div>

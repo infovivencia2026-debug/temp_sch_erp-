@@ -71,7 +71,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T
 
   const text = await res.text()
-  const body = text ? JSON.parse(text) : null
+  /* NOT EVERYTHING THAT ANSWERS IS JSON.
+   *
+   * A request to a path the router does not have gets chi's plain
+   * "404 page not found", and JSON.parse of that throws
+   * "Unexpected non-whitespace character after JSON at position 4" -- it
+   * parses the 404 as a number and chokes on the space. That string was
+   * shown to a person trying to delete a class, and it says nothing about a
+   * missing route, a wrong path or anything they could act on.
+   *
+   * Same for a proxy's HTML error page or an empty 500. A body we cannot read
+   * becomes an error about the request, which is what it is. */
+  let body: any = null
+  if (text) {
+    try {
+      body = JSON.parse(text)
+    } catch {
+      throw new ApiError(
+        res.status,
+        res.ok ? 'bad_response' : 'unexpected_response',
+        res.ok
+          ? 'The server answered in a form this screen cannot read.'
+          : `The server said: ${text.trim().slice(0, 120)}`,
+      )
+    }
+  }
 
   if (!res.ok) {
     const e = body?.error

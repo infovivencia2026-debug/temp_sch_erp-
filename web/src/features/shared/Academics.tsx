@@ -98,7 +98,7 @@ function Sections() {
               <EditRow
                 key={s.id}
                 cols={7}
-                path={`/api/v1/academics/sections/${s.id}`}
+                path={`/api/v1/setup/sections/${s.id}`}
                 invalidate="sections"
                 onClose={() => setEditing(null)}
                 deletable={s.enrolled === 0}
@@ -147,7 +147,7 @@ function Classes() {
             <EditRow
               key={c.id}
               cols={4}
-              path={`/api/v1/academics/classes/${c.id}`}
+              path={`/api/v1/setup/classes/${c.id}`}
               invalidate="classes"
               onClose={() => setEditing(null)}
               deletable
@@ -189,7 +189,7 @@ function Subjects() {
             <EditRow
               key={s.id}
               cols={4}
-              path={`/api/v1/academics/subjects/${s.id}`}
+              path={`/api/v1/setup/subjects/${s.id}`}
               invalidate="subjects"
               onClose={() => setEditing(null)}
               deletable
@@ -234,7 +234,7 @@ function Years() {
             <EditRow
               key={y.id}
               cols={5}
-              path={`/api/v1/academics/academic-years/${y.id}`}
+              path={`/api/v1/setup/academic-years/${y.id}`}
               invalidate="years"
               onClose={() => setEditing(null)}
               fields={[
