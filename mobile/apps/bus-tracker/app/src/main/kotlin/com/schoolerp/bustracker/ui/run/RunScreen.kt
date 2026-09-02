@@ -161,7 +161,17 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                 onAddRoute = viewModel::addRoute,
                 onRemoveRoute = viewModel::removeRoute,
             )
-        } else {
+        }
+
+        /* THE RUN ITSELF, and its own branch rather than an else.
+
+           This was the `else` of "no run and signed in", so it also caught the
+           driver who had not signed in yet: the compiler stopped it, because
+           trip is nullable there and every line below reads it. Splitting the
+           three states apart is what the screen was restructured for in the
+           first place - sign in, then start, then drive - and an else could
+           only ever express two of them. */
+        if (trip != null) {
             Text(
                 "${trip.routeName.ifBlank { "Route" }}, " +
                     if (trip.direction == DIRECTION_DROP) "drop" else "pickup",
