@@ -193,7 +193,7 @@ export function CardShell({
                    enough to keep the capitals from touching, and no more. */
                 'mt-1 truncate opacity-55',
                 isLatin(sub)
-                  ? 'font-normal uppercase leading-none tracking-[0.04em] text-[length:calc(var(--card-sub,10px)*0.92)]'
+                  ? 'font-normal uppercase leading-none tracking-[0.04em] text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.92))]'
                   : 'font-normal leading-tight text-[length:var(--card-sub,10px)]',
               )}
             >
@@ -248,7 +248,7 @@ export function CardShell({
             {deltaNote && (
               <span className="mt-0.5 block whitespace-nowrap font-normal uppercase
                                leading-none tracking-[0.06em] opacity-55
-                               text-[length:calc(var(--card-sub,10px)*0.9)]">
+                               text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.9))]">
                 {deltaNote}
               </span>
             )}

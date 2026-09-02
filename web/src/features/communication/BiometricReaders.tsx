@@ -56,16 +56,16 @@ export default function BiometricReaders() {
 
   const devices = useQuery({
     queryKey: ['biometric-devices'],
-    queryFn: () => api.get<List<Device>>('/api/v1/admin/biometric-devices'),
+    queryFn: () => api.get<List<Device>>('/api/v1/setup/biometric-devices'),
   })
   const unclaimed = useQuery({
     queryKey: ['biometric-unclaimed'],
-    queryFn: () => api.get<List<Unclaimed>>('/api/v1/admin/biometric-devices/unclaimed'),
+    queryFn: () => api.get<List<Unclaimed>>('/api/v1/setup/biometric-devices/unclaimed'),
   })
 
   const save = useMutation({
     mutationFn: (body: { serial: string; name: string; is_active?: boolean }) =>
-      api.post<{ note?: string }>('/api/v1/admin/biometric-devices', body),
+      api.post<{ note?: string }>('/api/v1/setup/biometric-devices', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['biometric-devices'] })
       setAdding(false)

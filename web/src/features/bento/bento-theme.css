@@ -1750,6 +1750,72 @@ html[data-layout='bento'] body {
   --card-action: calc(clamp(13px, 3.2cqh, 15px) * var(--bento-text, 1));
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   THE PHONE GETS A TYPE SCALE, NOT A SHRUNK ONE.
+
+   Every size above is a fraction of the CELL'S OWN HEIGHT -- clamp(min, N cqh,
+   max). That is the right instrument on a desktop board, where fifteen cells
+   divide one screen and a cell may be 120px or 400px tall depending on where a
+   person dropped it: the type has to follow the box or a tall card looks empty
+   and a short one overflows.
+
+   A phone has none of that. The board is one column, every card is the same
+   200px, and so every one of those clamps lands on its FLOOR — floors chosen
+   for a dense desktop grid. Measured on a Pixel 5: the title 11px, the note
+   8.5px, the figure's change line 9.5px, the subtitle 7px, and the line naming
+   the child 6.4px. Six point four. That is not a small font, it is a font
+   nobody can read, and it is the single reason this board looks like a desktop
+   screenshot that has been scaled down rather than an application built for a
+   phone.
+
+   So below the desktop board's own breakpoint the container-query scale is
+   dropped entirely and replaced with fixed sizes. Fixed is right here for the
+   same reason variable was right there: there is only one card size, so there
+   is nothing to respond to. The values are ordinary phone-reading sizes — 15px
+   for a title, 13px for prose, 12px for a label — and they keep the ratio the
+   scale above was built around: the figure still dwarfs everything, at roughly
+   36 against 15, so a card still reads as a number with labels round it.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  [data-layout='bento'] .bento-cell {
+    --card-title:  calc(15px * var(--bento-text, 1));
+    --card-sub:    calc(12px * var(--bento-text, 1));
+    /* Still the loudest thing on the card, and still allowed to grow with the
+       cell on a tablet, where cells do differ in height. */
+    --card-fig:    calc(clamp(34px, 20cqh, 56px) * var(--bento-text, 1));
+    --card-change: calc(13px * var(--bento-text, 1));
+    --card-note:   calc(13px * var(--bento-text, 1));
+    --card-action: calc(14px * var(--bento-text, 1));
+  }
+
+  /* The 0.92 shaved off the who-line was a desktop nicety -- nine and a half
+     points down to eight and three quarters is a texture change nobody reads
+     as smaller. Off a seven-point base it produced the 6.4px line naming the
+     child. At a fixed 12px base there is nothing to shave. */
+  [data-layout='bento'] .bento-cell { --card-sub-mult: 1; }
+
+  /* ROOM TO BREATHE, AND A TARGET A FINGER CAN FIND.
+
+     The cell's padding is p-4 with a lg:p-3 tightening for the desktop grid,
+     which on a phone leaves type sitting close to a hairline border on a
+     surface that is now carrying 15px text rather than 11px. A couple of extra
+     pixels is the difference between a card and a table row.
+
+     The corner cue is a 40px box. Forty is under the 44 every platform asks
+     for and, more to the point, it is the ONLY control on most of these cards
+     -- the whole cell is a link, but the cue is what the eye aims at. It gets
+     the full 44 here, where the pointer is a fingertip. */
+  [data-layout='bento'] .bento-cell { padding: 1.125rem; }
+  [data-layout='bento'] .bento-cue { width: 2.75rem; height: 2.75rem; }
+
+  /* A LINE LENGTH, NOT A COLUMN WIDTH.
+
+     leading-tight is right for a 9px note squeezed under a figure and wrong
+     for 13px prose a parent actually reads: at phone sizes the lines close up
+     and the card reads as a block rather than as sentences. */
+  [data-layout='bento'] .bento-cell p { line-height: 1.45; }
+}
+
 /* ── THE DEFAULT PALETTE — one material, one accent ─────────────────────
    Seven saturated card hues carried no meaning: crimson was BOTH 'fee
    defaulters: 30' (act on this) and 'pending approvals: 0' (nothing to do).
