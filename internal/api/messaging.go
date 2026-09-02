@@ -1114,7 +1114,19 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		return SendResult{}, err
 	}
 	if !found {
-		return SendResult{}, fmt.Errorf("no template %q for %s, and no built-in", req.TemplateCode, req.Channel)
+		/* Named for what to do, not for what is absent.
+
+		   This read: no template "admissions.offer" for sms, and no built-in.
+		   Every word of that is true and none of it helps — it names an
+		   internal code the reader has never seen, on a screen with no way to
+		   act on it, and "no built-in" is a fact about this codebase rather
+		   than about the school. Somebody reading it can only conclude the
+		   product is broken.
+
+		   There is now a screen for exactly this, so the error points at it. */
+		return SendResult{}, fmt.Errorf(
+			"there is no %s wording for %q yet — add it under Communication → "+
+				"Message channels → Wording", req.Channel, req.TemplateCode)
 	}
 	subject = renderTemplate(subject, req.Vars)
 	body = renderTemplate(body, req.Vars)

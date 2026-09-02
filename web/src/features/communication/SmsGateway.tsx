@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AlertTriangle, BatteryLow, Signal, Smartphone, UserCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { AlertTriangle, BatteryLow, RefreshCw, Signal, Smartphone, UserCheck } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Checkbox, Field, FormGrid, FormNotice,
@@ -59,9 +60,33 @@ export default function SmsGateway() {
         title="SMS Gateway (school phone)"
         description="A spare Android handset with a SIM, acting as this school's SMS sender."
         actions={
-          <Button disabled={pair.isPending} onClick={() => pair.mutate()}>
-            {pair.isPending ? 'Generating…' : 'Pair a phone'}
-          </Button>
+          <>
+            {/* CHECK AGAIN, BY HAND.
+
+                The query already refetches every thirty seconds, which is the
+                right cadence for noticing a phone go quiet on its own. It is
+                the wrong cadence for the moment somebody is standing over the
+                handset doing something about it: they plug it in, open the
+                app, watch this screen, and have no way to ask "well?" — so
+                they reload the whole page, which throws away the pair code
+                panel if one is open. Half a minute of not knowing is a long
+                time when the fix is in your hand.
+
+                isFetching rather than isLoading: the data is already there and
+                this is a refresh, so the screen must not blank itself. */}
+            <Button
+              variant="secondary"
+              disabled={gateway.isFetching}
+              onClick={() => gateway.refetch()}
+              title="Ask the server for the gateway's status now"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', gateway.isFetching && 'animate-spin')} />
+              {gateway.isFetching ? 'Checking…' : 'Check now'}
+            </Button>
+            <Button disabled={pair.isPending} onClick={() => pair.mutate()}>
+              {pair.isPending ? 'Generating…' : 'Pair a phone'}
+            </Button>
+          </>
         }
       />
       <PageBody>

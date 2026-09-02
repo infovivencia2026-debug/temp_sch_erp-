@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Mail, MessageSquare, Phone } from 'lucide-react'
+import { FileText, Mail, MessageSquare, Phone } from 'lucide-react'
 import { PageHead, PageBody, Card, Loading } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 const EmailServer = lazy(() => import('../super_admin/EmailServer'))
 const SmsGateway = lazy(() => import('./SmsGateway'))
 const WhatsAppApi = lazy(() => import('../super_admin/WhatsAppApi'))
+const MessageTemplates = lazy(() => import('./MessageTemplates'))
 
 const TABS = [
   {
@@ -46,6 +47,12 @@ const TABS = [
     label: 'WhatsApp',
     icon: Phone,
     blurb: 'Read more than either, and the strictest: outside a 24-hour window only approved templates send.',
+  },
+  {
+    id: 'templates',
+    label: 'Wording',
+    icon: FileText,
+    blurb: 'What every message actually says. The product ships defaults; editing one makes it this school\u2019s own, on that channel only.',
   },
 ] as const
 
@@ -102,6 +109,7 @@ export default function ChannelSetup() {
           {active === 'email' && <EmailServer />}
           {active === 'sms' && <SmsGateway />}
           {active === 'whatsapp' && <WhatsAppApi />}
+          {active === 'templates' && <MessageTemplates />}
         </Suspense>
       </PageBody>
     </>
