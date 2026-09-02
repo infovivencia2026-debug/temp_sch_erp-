@@ -1307,6 +1307,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		Campuses, Years, Classes, Sections, Subjects, Periods int
 		ClassSubjects, Teachers, Students, FeeHeads           int
 		FeeStructures, GradingScales, Exams                   int
+		History                                               int
 		ProfileDone, HasUDISE                                 bool
 	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -1332,6 +1333,11 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			       (SELECT count(*) FROM fee_structures)::int,
 			       (SELECT count(*) FROM grading_scales)::int,
 			       (SELECT count(*) FROM exams)::int,
+			       -- Years carried across from before this system: a child's
+			       -- and a teacher's, counted together, because the step is
+			       -- one job and a school that did neither has not done it.
+			       ((SELECT count(*) FROM student_year_history)
+			        + (SELECT count(*) FROM employee_year_history))::int,
 			       -- The school's own identity. Blank district and board mean
 			       -- every report card and receipt prints an incomplete header.
 			       COALESCE((SELECT district IS NOT NULL AND state IS NOT NULL
@@ -1342,7 +1348,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			id.InstitutionID).
 			Scan(&c.Campuses, &c.Years, &c.Classes, &c.Sections, &c.Subjects, &c.Periods,
 				&c.ClassSubjects, &c.Teachers, &c.Students, &c.FeeHeads,
-				&c.FeeStructures, &c.GradingScales, &c.Exams,
+				&c.FeeStructures, &c.GradingScales, &c.Exams, &c.History,
 				&c.ProfileDone, &c.HasUDISE)
 	})
 	if err != nil {
@@ -1380,6 +1386,17 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			"What each class pays, and when.", false},
 		{"exams", "Schedule an exam", c.Exams > 0, c.Exams,
 			"Papers can be generated for every class at once.", false},
+		/* THE STEP FOR A SCHOOL THAT IS NOT NEW.
+
+		   Every step above assumes a school starting from nothing. Most are
+		   not: they have been running for twenty years and are moving, and
+		   the thing they ask first is whether their records come with them.
+		   Never blocking -- a genuinely new school has no history and must not
+		   be shown an outstanding task it can never complete. */
+		{"history", "Carry your past years across", c.History > 0, c.History,
+			"Optional, and only for a school that was running before this. " +
+				"Past results, attendance and fees for children and staff, " +
+				"uploaded once per file however many years it covers.", false},
 		{"udise", "Record the UDISE+ code", c.HasUDISE, 0,
 			"Eleven digits. Required before the annual return can be filed.", false},
 	}

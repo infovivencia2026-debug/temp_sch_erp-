@@ -1579,6 +1579,68 @@ function StudentsPanel({ onDone }: PanelProps) {
   )
 }
 
+
+/* THE STEP FOR A SCHOOL THAT IS NOT NEW.
+
+   Every other step in this wizard assumes a school starting from nothing.
+   Most are not: they have been running twenty years, they are moving, and the
+   first thing they ask is whether their records come with them.
+
+   The order below is the whole point of putting it here rather than leaving
+   four importers loose in the application. Each one needs the one above it --
+   marks need the child and the subject, a service record needs the person --
+   and until now that order existed only inside the error messages you got for
+   guessing it wrongly.
+
+   Every file takes as many years as it covers. Three years is three rows per
+   child, in one upload; the years and exams named in it are created once
+   however many rows mention them. */
+function HistoryPanel({ onDone }: PanelProps) {
+  return (
+    <div className="space-y-4 text-[14px]">
+      <p className="text-muted-foreground">
+        Only for a school that was running before it came here. A new school
+        should skip this entirely — nothing below is required, and the step
+        never blocks you.
+      </p>
+
+      <div className="rounded-lg border bg-muted/20 p-3 text-[13px]">
+        <p className="font-medium">Upload in this order</p>
+        {/* Said once, plainly, because getting it wrong is the commonest way
+            an import fails: marks for a child who has not been imported yet
+            is rejected row by row, and reads as the file being wrong when it
+            is only early. */}
+        <p className="mt-1 text-muted-foreground">
+          Students and staff first — the steps above this one — then their
+          history, then results. Each file is checked and shown to you before
+          anything is written, and any upload can be taken back out afterwards.
+        </p>
+      </div>
+
+      <BulkImport
+        entity="student_history"
+        title="Each child's past years"
+        hint="One row per child per year: the class, attendance as a total, and what was billed, paid and waived. Held apart from this year's registers and collection, so a closed year is never counted as today's."
+        onDone={onDone}
+      />
+
+      <BulkImport
+        entity="marks"
+        title="Past exam results"
+        hint="One row per child, per exam, per subject. These go into the real exam tables, so a report card for that year prints exactly as it did before. Exams and years named here are created for you; children and subjects are not."
+        onDone={onDone}
+      />
+
+      <BulkImport
+        entity="staff_history"
+        title="Staff service before this system"
+        hint="One row per person per year: designation, attendance and leave. What the school reads when it writes an experience certificate or settles seniority."
+        onDone={onDone}
+      />
+    </div>
+  )
+}
+
 function GradingPanel({ onDone }: PanelProps) {
   /* The numbers are held as text while they are being typed.
 
@@ -2376,6 +2438,7 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   fee_heads: FeeHeadsPanel,
   fee_structures: FeeStructuresPanel,
   exams: ExamsPanel,
+  history: HistoryPanel,
   udise: UDISEPanel,
 }
 
