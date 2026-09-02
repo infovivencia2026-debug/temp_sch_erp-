@@ -1,11 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { shortcutLabel } from '@/lib/platform'
 import { useNavigate } from 'react-router-dom'
-import { Search, CornerDownLeft } from 'lucide-react'
+import { Search, CornerDownLeft, GraduationCap, UserRound } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { aliasText } from '@/lib/search-aliases'
+import { api } from '@/lib/api'
+import { useSession } from '@/lib/session'
+
+/* A child or a parent, found by name, admission number or mobile.
+
+   The palette searched 470 screens and no people, so the commonest question in
+   a school office — "find Anika Goud" — meant knowing which screen holds
+   children and searching again inside it. A parent was worse: guardians were
+   reachable only through a child, so a mother at the counter with nothing but
+   her phone number had no answer at all.
+
+   Server-side, because a school's roll does not belong in the browser and
+   because the match has to cover an admission number and a mobile, which no
+   client-side index of screen names ever could. */
+interface PersonHit {
+  kind: 'student' | 'guardian'
+  id: string
+  name: string
+  detail: string
+  student_id: string
+}
 
 /**
  * Command search over everything the user can reach.
@@ -51,6 +73,26 @@ export function CommandSearch() {
       ),
     [catalog],
   )
+
+  /* Only for desks that may read a child. A parent signed in here would
+     otherwise fire a search on every keystroke that comes back 403, and see a
+     permanent error under a box they were only using to find a screen. */
+  const session = useSession()
+  const mayReadPeople = session.permissions.includes('students.read')
+
+  const needleForPeople = q.trim()
+  const people = useQuery({
+    queryKey: ['people-search', needleForPeople],
+    queryFn: () =>
+      api.get<{ items: PersonHit[] }>(
+        `/api/v1/people/search?q=${encodeURIComponent(needleForPeople)}`,
+      ),
+    enabled: mayReadPeople && needleForPeople.length >= 2,
+    // The roll does not change while somebody types, and a palette reopened a
+    // second later should not re-ask.
+    staleTime: 30_000,
+  })
+  const peopleHits = people.data?.items ?? []
 
   const hits = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -142,6 +184,14 @@ export function CommandSearch() {
     setOpen(false)
   }
 
+  /* Both kinds open the child's own screen — a student because that is who was
+     asked for, a guardian because a parent's record IS a page of their child's.
+     The 360 screen reads ?student= and opens straight on that record. */
+  const goPerson = (p: PersonHit) => {
+    navigate(`/institution_admin/students/student_360?student=${p.student_id}`)
+    setOpen(false)
+  }
+
   /* Rendered into the body, not where it is mounted.
 
      This component lives inside the Bento dock, and the dock carries
@@ -174,13 +224,43 @@ export function CommandSearch() {
                 if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)) }
                 if (e.key === 'Enter' && hits[cursor]) { e.preventDefault(); go(hits[cursor]) }
               }}
-              placeholder="Search every screen — try “transfer certificate” or “defaulters”"
+              placeholder="Search screens, children and parents — a name, an admission number or a mobile"
               className="h-12 w-full bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
             />
           </div>
 
           <ul className="max-h-[52vh] overflow-y-auto py-1">
-            {hits.length === 0 && (
+            {peopleHits.length > 0 && (
+              <>
+                <li className="px-4 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  People
+                </li>
+                {peopleHits.map((p) => (
+                  <li key={`${p.kind}-${p.id}`}>
+                    <button
+                      onClick={() => goPerson(p)}
+                      className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
+                    >
+                      {p.kind === 'student' ? (
+                        <GraduationCap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <UserRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px]">{p.name}</span>
+                        {p.detail && (
+                          <span className="block truncate text-[12px] text-muted-foreground">
+                            {p.detail}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                <li className="mx-4 my-1 border-t" aria-hidden />
+              </>
+            )}
+            {hits.length === 0 && peopleHits.length === 0 && (
               <li className="px-4 py-6 text-center text-[14px] text-muted-foreground">
                 Nothing matches “{q}”.
               </li>
