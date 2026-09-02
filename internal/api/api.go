@@ -100,6 +100,14 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Post("/password", s.changePassword)
 		})
 
+		/* Finding a person, as against finding a screen.
+
+		   Beside /students rather than inside it because it answers for
+		   guardians too, and the office searching for a mother by her phone
+		   number does not know which table she is in. Same permission: a desk
+		   that may read a child may read who to ring about that child. */
+		r.With(httpx.RequirePermission(rbac.StudentsRead)).Get("/people/search", s.searchPeople)
+
 		r.Route("/students", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.StudentsRead))
 			/* The conduct file and the accommodations agreed for a child who
