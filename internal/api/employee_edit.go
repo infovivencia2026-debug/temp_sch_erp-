@@ -218,20 +218,49 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 		   sign in with an employee code — and every role is meant to be
 		   reachable by either an email or a number.
 
-		   COALESCE, so this only fills a hole. An account whose email was
-		   changed deliberately is not dragged back to whatever the staff
-		   record says. A clash with somebody else's number is ignored rather
-		   than failing the edit: the correction the office came here to make
-		   is still valid, and the duplicate is a separate thing to fix. */
+		   IT FOLLOWS A CORRECTION, not only a blank. This filled holes and
+		   stopped there, which is the same bug the family screen had: a
+		   teacher who changes her number has it corrected on the staff record
+		   and goes on signing in — and being found — by the old one, with
+		   every screen in the building showing the new one. Nobody in the
+		   office can see the number she is actually using.
+
+		   The username moves only when it still IS the old contact. A school
+		   that gave somebody a deliberate sign-in name chose that, and a
+		   change of telephone must not quietly take it away.
+
+		   A clash with somebody else's number leaves the account alone and
+		   lets the staff edit stand: the correction the office came here to
+		   make is still valid, and two people on one number is a separate
+		   thing to fix. */
 		if req.Phone != nil || req.Email != nil {
-			if _, err := tx.Exec(r.Context(), `
+			sp, berr := tx.Begin(r.Context())
+			if berr != nil {
+				return berr
+			}
+			_, serr := sp.Exec(r.Context(), `
 				UPDATE users u
-				   SET email = COALESCE(u.email, NULLIF($2,'')::citext),
-				       phone = COALESCE(u.phone, NULLIF($3,''))
+				   SET email = CASE WHEN $2::text IS NULL THEN u.email
+				                    ELSE NULLIF($2,'')::citext END,
+				       phone = CASE WHEN $3::text IS NULL THEN u.phone
+				                    ELSE NULLIF($3,'') END,
+				       username = CASE
+				           WHEN NULLIF($3,'') IS NOT NULL AND u.username = e.phone::citext
+				                THEN NULLIF($3,'')::citext
+				           WHEN NULLIF($2,'') IS NOT NULL AND u.username = e.email
+				                THEN NULLIF($2,'')::citext
+				           ELSE u.username END,
+				       updated_at = now()
 				  FROM employees e
 				 WHERE e.id = $1 AND u.id = e.user_id`,
-				empID, req.Email, req.Phone); err != nil && !isUniqueViolation(err) {
-				return err
+				empID, req.Email, req.Phone)
+			if serr != nil {
+				_ = sp.Rollback(r.Context())
+				if !isUniqueViolation(serr) {
+					return serr
+				}
+			} else if cerr := sp.Commit(r.Context()); cerr != nil {
+				return cerr
 			}
 		}
 		return nil

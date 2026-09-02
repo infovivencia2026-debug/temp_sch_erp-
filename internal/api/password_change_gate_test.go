@@ -40,17 +40,29 @@ func TestPasswordChangeGateAllowsOnlyTheWayOut(t *testing.T) {
 		return w.Code
 	}
 
-	// The two the screen itself needs.
 	if got := call("GET", "/session", true); got != http.StatusOK || !reached {
 		t.Errorf("reading the session was refused: %d", got)
 	}
-	if got := call("POST", "/profile/password", true); got != http.StatusOK || !reached {
-		t.Errorf("setting a new password was refused: %d", got)
+	/* The way out, at the path the request actually carries.
+
+	   This asked for "/profile/password" and passed while production served
+	   "/api/v1/profile/password" and refused it — so the one call that clears
+	   the flag was blocked by the flag, and every new parent was stuck on the
+	   screen telling them to set a password. Both forms are asserted now:
+	   which one arrives depends on where the API is mounted, and that is not
+	   this middleware's business. */
+	for _, path := range []string{"/profile/password", "/api/v1/profile/password"} {
+		if got := call("POST", path, true); got != http.StatusOK || !reached {
+			t.Errorf("setting a new password at %s was refused: %d", path, got)
+		}
 	}
 
 	// Everything else, including the reads that look harmless. A parent's
 	// child list is exactly what the guessed password is worth stealing.
-	for _, path := range []string{"/students", "/transport/live", "/profile", "/fees/invoices"} {
+	for _, path := range []string{
+		"/students", "/api/v1/students", "/transport/live",
+		"/profile", "/api/v1/profile", "/fees/invoices",
+	} {
 		if got := call("GET", path, true); got != http.StatusForbidden {
 			t.Errorf("%s answered %d, want 403", path, got)
 		}

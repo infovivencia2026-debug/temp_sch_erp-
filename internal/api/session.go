@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -82,11 +83,19 @@ func (s *Server) requirePasswordChanged(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/session":
-			next.ServeHTTP(w, r)
-			return
-		case r.Method == http.MethodPost && r.URL.Path == "/profile/password":
+		/* Matched on the suffix, not on the whole path.
+
+		   This compared r.URL.Path to "/profile/password" and the API is
+		   mounted under /api/v1, so it never matched: the only call that can
+		   clear the flag was refused by the flag, and a parent signing in for
+		   the first time was locked inside the screen telling them to set a
+		   password. /session looked fine and hid it — that route is registered
+		   outside this group and never reaches here at all.
+
+		   The suffix is exact and the method is checked with it, so nothing
+		   else slips through: a route ending /profile/password is that route
+		   wherever the API is mounted. */
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/profile/password") {
 			next.ServeHTTP(w, r)
 			return
 		}
