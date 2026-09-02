@@ -698,7 +698,7 @@ var importSpecs = map[string]importSpec{
 			"Class teacher, Grade 5-A"},
 		Check: func(row map[string]string) error {
 			for _, k := range []string{"days_present", "days_total", "leaves_taken"} {
-				v := strings.TrimSpace(row[k])
+				v := strings.TrimSpace(strings.ReplaceAll(row[k], ",", ""))
 				if v == "" {
 					continue
 				}
@@ -707,7 +707,8 @@ var importSpecs = map[string]importSpec{
 					return fmt.Errorf("%s must be a whole number that is not negative", k)
 				}
 			}
-			pres, total := strings.TrimSpace(row["days_present"]), strings.TrimSpace(row["days_total"])
+			pres := strings.TrimSpace(strings.ReplaceAll(row["days_present"], ",", ""))
+			total := strings.TrimSpace(strings.ReplaceAll(row["days_total"], ",", ""))
 			if pres != "" && total != "" {
 				a, _ := strconv.Atoi(pres)
 				b, _ := strconv.Atoi(total)
@@ -899,13 +900,22 @@ var importSpecs = map[string]importSpec{
 		Sample: []string{"ADM0001", "2025-26", "Grade 5", "187", "210",
 			"35500", "35500", "0", "Promoted with distinction"},
 		Check: func(row map[string]string) error {
+			/* THE CHECK HAS TO ACCEPT WHAT THE WRITER ACCEPTS.
+
+			   This read the raw string while the writer strips thousands
+			   separators, so a sheet that says 28,000 -- which is how every
+			   school writes money -- was refused by the validator for a value
+			   the importer would have stored correctly. A dry run that
+			   rejects good rows is worse than one that misses bad ones: the
+			   clerk edits a file that was right, and learns not to trust the
+			   screen. */
 			for _, k := range []string{"days_present", "days_total",
 				"fee_billed", "fee_paid", "fee_waived"} {
 				v := strings.TrimSpace(row[k])
 				if v == "" {
 					continue
 				}
-				n, err := strconv.ParseFloat(v, 64)
+				n, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", ""), 64)
 				if err != nil || n < 0 {
 					return fmt.Errorf("%s must be a number that is not negative", k)
 				}
@@ -915,8 +925,8 @@ var importSpecs = map[string]importSpec{
 			// certificate as an attendance above 100 per cent.
 			pres, ptotal := strings.TrimSpace(row["days_present"]), strings.TrimSpace(row["days_total"])
 			if pres != "" && ptotal != "" {
-				a, _ := strconv.ParseFloat(pres, 64)
-				b, _ := strconv.ParseFloat(ptotal, 64)
+				a, _ := strconv.ParseFloat(strings.ReplaceAll(pres, ",", ""), 64)
+				b, _ := strconv.ParseFloat(strings.ReplaceAll(ptotal, ",", ""), 64)
 				if b > 0 && a > b {
 					return errors.New("days_present is more than days_total")
 				}
@@ -1166,7 +1176,7 @@ func intOrNil(v string) any {
 	if t == "" {
 		return nil
 	}
-	n, err := strconv.Atoi(t)
+	n, err := strconv.Atoi(strings.ReplaceAll(t, ",", ""))
 	if err != nil {
 		return nil
 	}
