@@ -139,7 +139,20 @@ const defaultReportCardHTML = `<div class="card">
 // design. A school that imports its own brings its own styling; injecting this
 // underneath would fight it.
 const defaultReportCardCSS = `
-.card { width: 190mm; margin: 0 auto; padding: 8mm; box-sizing: border-box;
+/* A CARD MEASURED AGAINST THE PAPER, NOT AGAINST A GUESS ABOUT IT.
+
+   This was 190mm, which is A4 less two 10mm margins -- correct, against a
+   10mm margin. The application prints everything at @page margin 14mm, so
+   there are 182mm of paper. The card was 8mm wider than the sheet it goes on,
+   and what falls off the right-hand edge is the last column: the grade, on a
+   document whose subject is the grade. The frame lost its right side with it.
+
+   Fluid now, with 190mm only as a ceiling, so it fits whatever margin is in
+   force -- the app's, the browser's default, or one somebody sets in the
+   print dialogue. No number here has to agree with a number somewhere else,
+   which is what made the old one wrong. */
+.card { width: 100%; max-width: 190mm; margin: 0 auto; padding: 8mm;
+        box-sizing: border-box;
         border: 2px solid #1e3a5f;
         /* The face is the school's choice, substituted below. A fallback chain
            would have meant the card printed in whichever of the three happened
@@ -165,9 +178,17 @@ const defaultReportCardCSS = `
                display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .card .photo img { width: 100%; height: 100%; object-fit: cover; }
 .card .facts { flex: 1; border-collapse: collapse; font-size: 10pt; }
+/* One hairline under each fact, run right across the table.
+
+   The rule is on the row and the table collapses its borders, so the line is
+   continuous instead of stopping at the gap between the label and the value.
+   The last row has none: a line under the final fact is a line under nothing,
+   and it reads as a row that failed to print. */
+.card .facts tr { border-bottom: 1px solid #dbe2ea; }
+.card .facts tr:last-child { border-bottom: none; }
 .card .facts th { text-align: left; font-weight: normal; color: #4a5568;
-                  padding: 1mm 4mm 1mm 0; white-space: nowrap; }
-.card .facts td { font-weight: bold; padding: 1mm 0; }
+                  padding: 1.4mm 4mm 1.4mm 0; white-space: nowrap; }
+.card .facts td { font-weight: bold; padding: 1.4mm 0; }
 .card table.marks { width: 100%; border-collapse: collapse; font-size: 10pt; }
 .card table.marks th, .card table.marks td { border: 1px solid #99a; padding: 1.6mm 2mm; }
 .card table.marks thead th, .card table.marks tfoot th {
@@ -214,7 +235,18 @@ const defaultReportCardCSS = `
                           margin-bottom: 1mm; }
 .card footer .sign em { display: block; font-style: normal; font-size: 8.5pt; color: #4a5568; }
 .card footer .issued { color: #4a5568; }
-@media print { .card { border: none; padding: 0; } }
+/* On paper the page's own margin is the card's margin, so the frame and the
+   padding come off -- and the width becomes the paper's, not a number. */
+@media print {
+  .card { border: none; padding: 0; width: auto; max-width: 100%; }
+  /* A long subject name must wrap inside its cell rather than widen the
+     table: one Environmental Studies is enough to push the grade column off
+     the sheet, and the column that gets pushed off is the one the card is
+     about. */
+  .card table.marks { table-layout: fixed; }
+  .card table.marks td:first-child, .card table.marks th:first-child {
+    word-break: break-word; }
+}
 `
 
 /*
