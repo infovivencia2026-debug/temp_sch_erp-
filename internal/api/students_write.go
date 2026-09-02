@@ -704,7 +704,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	if !hasFull && !hasFirst {
 		httpx.BadRequest(w, r,
 			"nothing is pointed at the child's name, and a row cannot be built "+
-				"without it. Choose which of your columns holds it â everything "+
+				"without it. Choose which of your columns holds it. Everything "+
 				"else is optional.")
 		return
 	}
