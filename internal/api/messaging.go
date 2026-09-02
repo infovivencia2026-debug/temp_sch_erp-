@@ -727,9 +727,11 @@ var builtinTemplates = map[string]builtinTemplate{
 	   The password is in the body because there is nowhere else to put it: no
 	   password can be read back out of this product, so a message that says
 	   "sign in" without saying how is a message that sends the parent to the
-	   desk. It is a temporary password on a first sign-in, not a lasting
-	   secret, and it goes to the number the school already texts about
-	   absences.
+	   desk. The password is the parent's own mobile number: the one credential
+	   a family cannot mistype off a phone screen at eleven at night, and one
+	   nobody has to keep a printed list of. It is not a secret -- it is on the
+	   class list -- so the account reaches nothing but the change-password
+	   screen until they set their own. See requirePasswordChanged.
 
 	   Short, because it goes over SMS where a long message is billed as
 	   several. */
@@ -738,7 +740,8 @@ var builtinTemplates = map[string]builtinTemplate{
 		Body: "Namaste {{parent_name}}, welcome to {{school_name}}.\n\n" +
 			"You can now see fees, attendance, homework and the bus here:\n{{portal_url}}\n\n" +
 			"Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n" +
-			"Please change the password after your first sign-in.",
+			"That is your own mobile number, so anyone could guess it - the app " +
+			"asks you to set your own password the first time you sign in.",
 	},
 	/* The same moment, for a family that already has an account.
 
@@ -761,7 +764,8 @@ var builtinTemplates = map[string]builtinTemplate{
 			"at {{school_name}}.\n\nYou can follow the admission here - the form, the " +
 			"documents, the test and the decision:\n{{portal_url}}\n\n" +
 			"Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n" +
-			"Please change the password after your first sign-in.",
+			"That is your own mobile number - the app asks you to set your own " +
+			"password the first time you sign in.",
 	},
 	// The same moment for a family already on the rolls - a second child, or a
 	// parent who enquired before. Naming the account is useful; replacing the

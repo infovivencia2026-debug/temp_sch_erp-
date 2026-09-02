@@ -66,16 +66,13 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	reset := r.URL.Query().Get("reset") == "true"
 
-	password, err := temporaryPassword()
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	hash, err := s.Hasher.Hash(password)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
+	// Decided inside the transaction, once this member of staff's own number
+	// is in hand. Declared here because the response prints it afterwards.
+	var (
+		password string
+		known    bool
+		hash     string
+	)
 
 	var out staffLoginResponse
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -97,6 +94,20 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		out.FullName = fullName
 
+		/* The number or address the school already holds for them, which is
+		   what goes out in the message that hands over the login. A member of
+		   staff with only a four-digit staff number gets a generated one:
+		   there is nothing they know by heart to use, and a four-digit
+		   password would be guessable by anybody who has seen a payslip. */
+		var err error
+		password, known, err = issuedPassword(strVal(phone), strVal(email))
+		if err != nil {
+			return err
+		}
+		if hash, err = s.Hasher.Hash(password); err != nil {
+			return err
+		}
+
 		// An employee added without an email has no account at all; one is
 		// made here rather than sending the office back to the form.
 		if userID == nil {
@@ -114,10 +125,11 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			var newID uuid.UUID
 			if err := tx.QueryRow(r.Context(), `
 				INSERT INTO users (institution_id, email, phone, username,
-				                   full_name, password_hash, status)
-				VALUES ($1, $2::citext, $3, $6::text::citext, $4, $5, 'active')
+				                   full_name, password_hash, status,
+				                   must_change_password)
+				VALUES ($1, $2::citext, $3, $6::text::citext, $4, $5, 'active', $7)
 				RETURNING id`,
-				id.InstitutionID, email, phone, fullName, hash, staffNo).Scan(&newID); err != nil {
+				id.InstitutionID, email, phone, fullName, hash, staffNo, known).Scan(&newID); err != nil {
 				if isUniqueViolation(err) {
 					/* NAME WHO HOLDS IT.
 
@@ -201,8 +213,10 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			out.Existing = !invited
 			if invited || reset {
 				if _, err := tx.Exec(r.Context(), `
-					UPDATE users SET password_hash = $2, status = 'active'
-					 WHERE id = $1`, *userID, hash); err != nil {
+					UPDATE users
+					   SET password_hash = $2, status = 'active',
+					       must_change_password = $3
+					 WHERE id = $1`, *userID, hash, known); err != nil {
 					return err
 				}
 				out.Existing = false

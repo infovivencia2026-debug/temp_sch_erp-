@@ -149,7 +149,14 @@ func (s *Server) issueAdmissionLogin(
 			*userID).Scan(&out.SignInAs)
 		out.Note = "This parent already has a login and it is unchanged."
 	} else {
-		password, err := temporaryPassword()
+		/* The number the family already knows, not a code in an email.
+
+		   This is the credential a parent reads at eleven at night off a phone
+		   screen and types into a login form. A generated code is mistyped,
+		   forwarded, and rung about; their own mobile number is neither. It is
+		   also public, so the account is held on it until they set their own
+		   -- see requirePasswordChanged. */
+		password, known, err := issuedPassword(tel, addr)
 		if err != nil {
 			return abandon("The child is admitted. A parent login could not be issued.")
 		}
@@ -168,10 +175,10 @@ func (s *Server) issueAdmissionLogin(
 		var newID uuid.UUID
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO users (institution_id, username, email, phone, full_name,
-			                   password_hash, status)
-			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
+			                   password_hash, status, must_change_password)
+			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active', $7)
 			RETURNING id`,
-			inst, username, email, phone, fullName, hash).Scan(&newID); err != nil {
+			inst, username, email, phone, fullName, hash, known).Scan(&newID); err != nil {
 			/* Almost always the same phone on a second family record. Not an
 			   error the admission should carry: the child is admitted, and the
 			   office is told to sort the login out separately. */

@@ -256,16 +256,14 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	reset := r.URL.Query().Get("reset") == "true"
 
-	password, err := temporaryPassword()
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	hash, err := s.Hasher.Hash(password)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
+	/* Decided inside the transaction, once this guardian's own number is in
+	   hand: the password a school hands a parent is that number. Declared out
+	   here because the response prints it after the transaction closes. */
+	var (
+		password string
+		known    bool
+		hash     string
+	)
 
 	var out familyLoginResponse
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -285,6 +283,15 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		out.FullName = fullName
 		out.Relation = relation
 
+		var err error
+		password, known, err = issuedPassword(strVal(phone), strVal(email))
+		if err != nil {
+			return err
+		}
+		if hash, err = s.Hasher.Hash(password); err != nil {
+			return err
+		}
+
 		// Same rule as a child's: shown, not replaced, unless a reset was
 		// asked for. One guardian is often opened by several people.
 		if userID != nil {
@@ -295,8 +302,10 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 					*userID).Scan(&out.SignInAs)
 			}
 			if _, err := tx.Exec(r.Context(), `
-				UPDATE users SET password_hash = $2, status = 'active' WHERE id = $1`,
-				*userID, hash); err != nil {
+				UPDATE users
+				   SET password_hash = $2, status = 'active', must_change_password = $3
+				 WHERE id = $1`,
+				*userID, hash, known); err != nil {
 				return err
 			}
 			return tx.QueryRow(r.Context(),
@@ -324,10 +333,10 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		var newID uuid.UUID
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO users (institution_id, username, email, phone, full_name,
-			                   password_hash, status)
-			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
+			                   password_hash, status, must_change_password)
+			VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active', $7)
 			RETURNING id`,
-			id.InstitutionID, username, email, phone, fullName, hash).Scan(&newID); err != nil {
+			id.InstitutionID, username, email, phone, fullName, hash, known).Scan(&newID); err != nil {
 			if isUniqueViolation(err) {
 				return errors.New(
 					"that email or phone already belongs to another account - " +
@@ -450,7 +459,15 @@ func (s *Server) ensureGuardianAccount(ctx context.Context, tx pgx.Tx,
 		return out, errNoFamilyContact
 	}
 
-	password, err := temporaryPassword()
+	/* The number they already know, not a code they have to be sent.
+
+	   This is the account whose credentials go out in the admission email, and
+	   a generated code in that email is a string a parent copies wrongly at
+	   eleven at night and rings the office about in the morning. The phone
+	   number is the one credential a family cannot mistype. It is also public,
+	   so `known` holds the account on it until they set their own -- see
+	   requirePasswordChanged. */
+	password, known, err := issuedPassword(phone, email)
 	if err != nil {
 		return out, err
 	}
@@ -469,10 +486,10 @@ func (s *Server) ensureGuardianAccount(ctx context.Context, tx pgx.Tx,
 	var newID uuid.UUID
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO users (institution_id, username, email, phone, full_name,
-		                   password_hash, status)
-		VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active')
+		                   password_hash, status, must_change_password)
+		VALUES ($1, $2::citext, $3::citext, $4, $5, $6, 'active', $7)
 		RETURNING id`,
-		inst, username, nullString(email), nullString(phone), fullName, hash).
+		inst, username, nullString(email), nullString(phone), fullName, hash, known).
 		Scan(&newID); err != nil {
 		if isUniqueViolation(err) {
 			return out, errGuardianContactTaken
