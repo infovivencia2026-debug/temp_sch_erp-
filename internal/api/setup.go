@@ -1569,7 +1569,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"academic_year", "Open the academic year", c.Years > 0, c.Years,
 			"June to April for most Telangana schools.", true},
 		/* CLASSES AND SECTIONS ARE ONE STEP.
-		
+
 		   They were two, and the second was the one schools left half done --
 		   which leaves classes no child can be enrolled into, a state that
 		   looks finished from the class list. Nobody decides their classes
@@ -1610,6 +1610,17 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 				"uploaded once per file however many years it covers.", false},
 		{"udise", "Record the UDISE+ code", c.HasUDISE, 0,
 			"Eleven digits. Required before the annual return can be filed.", false},
+		/* THE WAY OUT OF AN EVALUATION.
+
+		   Marked done permanently, because it is not a task: a school that
+		   never presses it has not left anything unfinished, and a step that
+		   sits unticked forever makes a completed setup look incomplete. It is
+		   here because this is where somebody looks when they want to start
+		   again, and nowhere else in the product says how. */
+		{"reset", "Clear everything and start again", true, 0,
+			"For a school that has finished trying this out and wants to put " +
+				"its real records in. Deletes what the school has recorded and " +
+				"keeps the logins, the school's details and the academic year.", false},
 	}
 
 	done, blocking := 0, 0

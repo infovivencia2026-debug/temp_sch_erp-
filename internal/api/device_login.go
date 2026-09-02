@@ -522,10 +522,17 @@ func (s *Server) busTrackerSignIn(w http.ResponseWriter, r *http.Request) {
 				ExpiresAt:    expires.Format(time.RFC3339),
 				Routes:       []assignedRoute{},
 			}
+			/* The route book this handset should offer.
+
+			   Where the phone is paired to a bus, the routes that bus runs.
+			   Where it is paired to a driver — no vehicle of its own — every
+			   active route in the school, because the bus is not known until he
+			   scans one and any of them may be the run he is about to make. */
 			rows, err := tx.Query(r.Context(), `
 				SELECT id::text, name, COALESCE(code,'')
 				  FROM routes
-				 WHERE vehicle_id = $1 AND is_active
+				 WHERE is_active
+				   AND ($1::uuid IS NULL OR vehicle_id = $1)
 				 ORDER BY name`, dev.Vehicle)
 			if err != nil {
 				return err

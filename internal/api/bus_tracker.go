@@ -42,6 +42,10 @@ var errRouteOtherVehicle = errors.New("route is assigned to another vehicle")
 // another school, or a vehicle that has been retired.
 var errBusNotFound = errors.New("no bus matches that code")
 
+// errNoBusForTrip is a handset that belongs to a driver rather than a bus,
+// starting a run without having scanned one.
+var errNoBusForTrip = errors.New("no bus for this run")
+
 /* The driver's phone as the vehicle's GPS unit.
 
    Eight catalogued transport features were deferred on one sentence — "GPS
@@ -229,7 +233,11 @@ type busTrackerCtxKey struct{}
 type busTracker struct {
 	ID          uuid.UUID
 	Institution uuid.UUID
-	Vehicle     uuid.UUID
+	/* Null for a handset registered to a driver rather than to a bus, which
+	   is the ordinary case now: the bus comes from the sticker scanned at the
+	   start of each run. A school that still pairs one phone to one bus keeps
+	   a value here, and it is the fallback when nothing is scanned. */
+	Vehicle     *uuid.UUID
 	Name        string
 	PingSeconds int
 	Paused      bool
@@ -360,10 +368,26 @@ func (s *Server) pairBusTracker(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	vehicle, err := uuid.Parse(req.VehicleID)
-	if err != nil {
-		httpx.BadRequest(w, r, "vehicle_id must be a uuid")
-		return
+	/* A CODE REGISTERS A PHONE, NOT A BUS.
+
+	   This demanded a vehicle, so the office could not print a code without
+	   first deciding which bus the handset was for — and a driver taking a
+	   relief bus then reported against the vehicle somebody assigned him weeks
+	   earlier. The handset identifies the driver; which bus he is in is
+	   answered at the start of each run by scanning the sticker in its
+	   windscreen.
+
+	   A vehicle may still be named, and a school that pairs one phone to one
+	   bus should keep doing so: it becomes the fallback when no sticker is
+	   scanned. Absent is now the ordinary case rather than an error. */
+	var vehicle *uuid.UUID
+	if raw := strings.TrimSpace(req.VehicleID); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			httpx.BadRequest(w, r, "vehicle_id must be a uuid, or left out entirely")
+			return
+		}
+		vehicle = &parsed
 	}
 
 	code, err := newBusTrackerPairCode()
@@ -375,10 +399,14 @@ func (s *Server) pairBusTracker(w http.ResponseWriter, r *http.Request) {
 
 	var registration string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		if err := tx.QueryRow(r.Context(),
-			`SELECT registration_no FROM vehicles WHERE id = $1`, vehicle).
-			Scan(&registration); err != nil {
-			return err
+		// Only when one was named. The response's registration is a
+		// confirmation for the office, not something the handset needs.
+		if vehicle != nil {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT registration_no FROM vehicles WHERE id = $1`, *vehicle).
+				Scan(&registration); err != nil {
+				return err
+			}
 		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE vehicle_tracker_pair_codes SET expires_at = now()
@@ -452,11 +480,14 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 	}
 
 	var (
-		deviceID     uuid.UUID
-		token        string
-		inst         uuid.UUID
-		vehicle      uuid.UUID
+		deviceID uuid.UUID
+		token    string
+		inst     uuid.UUID
+		// Null when the code registered a phone rather than a bus, which is
+		// now the ordinary case: the driver scans a sticker at each run.
+		vehicle      *uuid.UUID
 		registration string
+		schoolName   string
 		ping         int
 	)
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
@@ -475,10 +506,12 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 
-		if err := tx.QueryRow(r.Context(),
-			`SELECT registration_no FROM vehicles WHERE id = $1`, vehicle).
-			Scan(&registration); err != nil {
-			return err
+		if vehicle != nil {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT registration_no FROM vehicles WHERE id = $1`, *vehicle).
+				Scan(&registration); err != nil {
+				return err
+			}
 		}
 
 		/* Replacing a phone must not need a revoke first.
@@ -487,11 +520,20 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 		   the new one. The unique index permits exactly one live tracker per
 		   vehicle, so the old one is retired here rather than rejecting the
 		   claim with a constraint error the driver cannot act on. */
-		if _, err := tx.Exec(r.Context(), `
-			UPDATE vehicle_trackers
-			   SET revoked_at = now(),
-			       revoked_reason = 'replaced by a newly paired phone'
-			 WHERE vehicle_id = $1 AND revoked_at IS NULL`, vehicle); err != nil {
+		// Only where the code named a bus. An unbound handset displaces
+		// nothing: a depot has one per driver and they do not compete.
+		if vehicle != nil {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE vehicle_trackers
+				   SET revoked_at = now(),
+				       revoked_reason = 'replaced by a newly paired phone'
+				 WHERE vehicle_id = $1 AND revoked_at IS NULL`, *vehicle); err != nil {
+				return err
+			}
+		}
+
+		if err := tx.QueryRow(r.Context(),
+			`SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName); err != nil {
 			return err
 		}
 
@@ -559,9 +601,27 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"device_id":    deviceID.String(),
 		"device_token": token,
-		"institution":  inst.String(),
+		/* The school's NAME, not its id.
+
+		   This sent a bare uuid, and the app draws whatever it is given as the
+		   heading under the bus — so a driver's screen read
+		   a64a713c-83d7-4d7f-b956-2e0dc6270fa. The app's serialiser has always
+		   accepted either a string or an {id,name} object; it was only ever
+		   given the useless one. */
+		"institution": map[string]any{
+			"id":   inst.String(),
+			"name": schoolName,
+		},
+		/* Empty when the code registered a phone rather than a bus. The app
+		   shows nothing for it and asks for a sticker at the first run, which
+		   is the whole point of pairing without one. */
 		"vehicle": map[string]any{
-			"id":              vehicle.String(),
+			"id": func() string {
+				if vehicle == nil {
+					return ""
+				}
+				return vehicle.String()
+			}(),
 			"registration_no": registration,
 		},
 		"ping_seconds": ping,
@@ -682,7 +742,10 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   school matches nothing. Both the sticker's bus_code and a typed
 		   registration are accepted, for the same reason enrolment accepts
 		   both. */
-		tripVehicle := dev.Vehicle
+		var tripVehicle uuid.UUID
+		if dev.Vehicle != nil {
+			tripVehicle = *dev.Vehicle
+		}
 		if code := strings.ToUpper(strings.TrimSpace(req.BusCode)); code != "" {
 			if err := tx.QueryRow(r.Context(), `
 				SELECT id FROM vehicles
@@ -696,6 +759,16 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 				}
 				return err
 			}
+		}
+
+		/* No bus at all is not a run.
+
+		   A handset registered to a driver has no vehicle of its own, so
+		   without a scan there is nothing to file positions against. Refused
+		   here with a sentence rather than inserting a trip on the zero uuid,
+		   which the foreign key would reject as something nobody could read. */
+		if tripVehicle == uuid.Nil {
+			return errNoBusForTrip
 		}
 
 		if routeVehicle != nil && *routeVehicle != tripVehicle {
@@ -793,6 +866,11 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errNoSuchRoute) {
 		httpx.Error(w, r, http.StatusNotFound, "no_such_route",
 			"that route does not belong to this school")
+		return
+	}
+	if errors.Is(err, errNoBusForTrip) {
+		httpx.Error(w, r, http.StatusBadRequest, "no_bus_scanned",
+			"scan the bus you are in before starting a run")
 		return
 	}
 	if errors.Is(err, errBusNotFound) {
@@ -914,8 +992,8 @@ func (s *Server) endBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE vehicle_trips
 			   SET ended_at = GREATEST($3, started_at), ended_reason = 'driver'
-			 WHERE id = $1 AND vehicle_id = $2 AND ended_at IS NULL`,
-			tripID, dev.Vehicle, ended)
+			 WHERE id = $1 AND tracker_id = $2 AND ended_at IS NULL`,
+			tripID, dev.ID, ended)
 		if err != nil {
 			return err
 		}
@@ -1043,14 +1121,21 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 	var ping int
 	var paused bool
 
+	// The bus that actually ran, read off the trip. See the note below.
+	var tripVehicle uuid.UUID
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		var route uuid.UUID
 		var direction string
+		/* Owned by the tracker that opened it, not by the bus the handset is
+		   paired to — with the bus now chosen per run, those are different
+		   things, and vehicle_id would refuse a driver his own trip the moment
+		   he scanned a relief bus. tripVehicle is read from the row because
+		   positions belong to the bus that ran, not to the one on the pairing. */
 		err := tx.QueryRow(r.Context(), `
-			SELECT route_id, direction, ended_at IS NULL
+			SELECT route_id, direction, ended_at IS NULL, vehicle_id
 			  FROM vehicle_trips
-			 WHERE id = $1 AND vehicle_id = $2`, tripID, dev.Vehicle).
-			Scan(&route, &direction, &tripOpen)
+			 WHERE id = $1 AND tracker_id = $2`, tripID, dev.ID).
+			Scan(&route, &direction, &tripOpen, &tripVehicle)
 		if err != nil {
 			return err
 		}
@@ -1075,7 +1160,7 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 				ON CONFLICT (trip_id, recorded_at) DO NOTHING
 				RETURNING true`,
-				dev.Institution, tripID, dev.Vehicle, p.at, p.f.Latitude, p.f.Longitude,
+				dev.Institution, tripID, tripVehicle, p.at, p.f.Latitude, p.f.Longitude,
 				p.f.SpeedKmph, p.f.HeadingDeg, p.f.AccuracyM).Scan(&stored); err != nil {
 				if !errors.Is(err, pgx.ErrNoRows) {
 					return err

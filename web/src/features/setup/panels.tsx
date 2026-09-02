@@ -66,15 +66,45 @@ function Existing({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Chip({ children, muted }: { children: ReactNode; muted?: boolean }) {
+function Chip({ children, muted, onRemove, busy }: {
+  children: ReactNode
+  muted?: boolean
+  /* A cross on the tag itself.
+   *
+   * These lists are how a school sees what it has just created, and creating
+   * them is exactly when a duplicate or a typo appears -- a class added twice,
+   * a section named B when the school calls it Blue. Reading the mistake here
+   * and having to go somewhere else to fix it is the gap people give up in.
+   *
+   * Omitted where the row cannot be removed, so a cross never appears on
+   * something that will refuse. */
+  onRemove?: () => void
+  busy?: boolean
+}) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-2 py-0.5 text-[13px]',
+        'inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[13px]',
         muted && 'text-muted-foreground',
+        busy && 'opacity-50',
       )}
     >
       {children}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={busy}
+          /* The label names what goes, because a row of identical crosses is
+             unreadable to anybody using a screen reader, and this is a
+             delete. */
+          aria-label={`Remove ${typeof children === 'string' ? children : 'this'}`}
+          className="-mr-0.5 rounded-sm px-0.5 leading-none text-muted-foreground
+                     hover:bg-destructive/10 hover:text-destructive"
+        >
+          ×
+        </button>
+      )}
     </span>
   )
 }
@@ -534,6 +564,30 @@ function ClassesPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const sections = sectionList.data?.items ?? []
+  const qc = useQueryClient()
+
+  /* Removing one of these, from the tag itself.
+   *
+   * The server refuses a class that still has sections and a section that
+   * still has a register, and its refusal names what is in the way -- "2
+   * sections and 0 mapped subjects hang off this class". That sentence is
+   * more useful than anything this screen could invent, so it is shown as it
+   * comes back rather than replaced with "could not delete". */
+  const [removing, setRemoving] = useState('')
+  const [refused, setRefused] = useState('')
+
+  const remove = async (kind: 'classes' | 'sections', id: string, label: string) => {
+    setRefused('')
+    setRemoving(id)
+    try {
+      await api.del(`/api/v1/setup/${kind}/${id}`)
+      await qc.invalidateQueries()
+    } catch (e) {
+      setRefused(`${label}: ${e instanceof Error ? e.message : 'could not be removed.'}`)
+    } finally {
+      setRemoving('')
+    }
+  }
   /* A CLASS AND ITS SECTIONS ARE ONE THOUGHT.
    *
    * Sections used to be a step of their own: name Class 1 to 10, move on, then
@@ -657,7 +711,13 @@ function ClassesPanel({ onDone }: PanelProps) {
       {existing.length > 0 && (
         <Existing label="Classes">
           {existing.map((c) => (
-            <Chip key={c.id}>{c.name}</Chip>
+            <Chip
+              key={c.id}
+              busy={removing === c.id}
+              onRemove={() => remove('classes', c.id, c.name)}
+            >
+              {c.name}
+            </Chip>
           ))}
         </Existing>
       )}
@@ -669,6 +729,10 @@ function ClassesPanel({ onDone }: PanelProps) {
           this would have removed the only place a school could rename Rose to
           Blue -- a capability quietly lost while collapsing two screens into
           one, which is the usual way tidying a product costs it something. */}
+      {refused && (
+        <p className="mt-3 text-[13px] text-destructive">{refused}</p>
+      )}
+
       {sections.length > 0 && (
         <div className="mt-4">
           <p className="eyebrow mb-1.5 text-muted-foreground">Sections</p>
@@ -2404,13 +2468,21 @@ function FeeStructureList() {
                   ₹{(f.total_paise / 100).toLocaleString('en-IN')}
                 </td>
                 <td className="px-3 py-1.5 text-right">
+                  {/* A cross, as on every other list. "remove" as a word in
+                      a right-hand column reads as a link to somewhere; the
+                      cross is the same gesture people already know from the
+                      class and section tags, and it is in the same place. */}
                   <button
                     type="button"
                     disabled={busy === f.id}
                     onClick={() => void remove(f.id, `${f.name} for ${f.class_name ?? 'every class'}`)}
-                    className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${f.name}`}
+                    title={`Remove ${f.name}`}
+                    className="rounded-sm px-1 leading-none text-[15px] text-muted-foreground
+                               hover:bg-destructive/10 hover:text-destructive
+                               disabled:opacity-50"
                   >
-                    {busy === f.id ? 'removing…' : 'remove'}
+                    {busy === f.id ? '…' : '×'}
                   </button>
                 </td>
               </tr>
@@ -2549,6 +2621,107 @@ function UDISEPanel({ onDone }: PanelProps) {
   )
 }
 
+/* EMPTYING THE SCHOOL SO REAL DATA CAN GO IN.
+ *
+ * A school evaluates this with invented children, invented staff and invented
+ * fees, decides to use it, and then cannot get rid of any of it. Every guard
+ * that protects live data works exactly as well against test data: a class
+ * will not delete because it has sections, a section because it has a
+ * register, a teacher because they are assigned to a class. Undoing an upload
+ * of twenty-two staff removed three and kept eight, every one for a good
+ * reason.
+ *
+ * So the alternatives were to unpick a school by hand in exact reverse order,
+ * or to start again on a new one and lose the week of setup that made them
+ * want to keep it. This is the third answer.
+ */
+function ResetPanel({ onDone }: PanelProps) {
+  const [typed, setTyped] = useState('')
+  const [done, setDone] = useState<{ deleted: number; could_not_clear: string[] } | null>(null)
+
+  const school = useQuery({
+    queryKey: ['institution'],
+    // The same call the profile step makes. Written from memory the first
+    // time as /setup/profile, which is not a route -- so the school's name
+    // never arrived and the confirmation could never be satisfied, leaving a
+    // button permanently disabled with nothing on screen explaining why.
+    queryFn: () => api.get<{ name: string }>('/api/v1/setup/institution'),
+  })
+  const name = school.data?.name ?? ''
+
+  const reset = useMutation({
+    mutationFn: () => api.post<{ deleted: number; could_not_clear: string[] }>(
+      '/api/v1/setup/reset', { confirm: typed }),
+    onSuccess: (res) => { setDone(res); setTyped(''); onDone?.() },
+  })
+
+  if (done) {
+    return (
+      <div className="space-y-2 text-[14px]">
+        <p className="font-medium text-success">
+          {done.deleted.toLocaleString()} records removed. The school is empty.
+        </p>
+        <p className="text-muted-foreground">
+          Your login, the school's details, its campuses and its academic years
+          are as they were. Start again from the first step.
+        </p>
+        {done.could_not_clear.length > 0 && (
+          /* Named rather than hidden. A school told "done" that still has rows
+             somewhere finds out when a list is not empty, and by then it does
+             not trust the button. */
+          <p className="text-[13px] text-warning">
+            Still holding records: {done.could_not_clear.join(', ')}. Tell us and
+            we will look.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 text-[14px]">
+      <p className="text-muted-foreground">
+        For a school that has finished trying this out and wants to put its real
+        records in. Nothing here is needed by a school that is simply setting up.
+      </p>
+
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+        <p className="text-[13px] font-medium text-destructive">
+          This deletes everything this school has recorded.
+        </p>
+        <p className="mt-1 text-[12.5px]">
+          Children, staff, classes, sections, subjects, the timetable, marks,
+          report cards, attendance, fees, payments, admissions and messages. It
+          cannot be undone and no copy is kept.
+        </p>
+        {/* What survives, said as plainly as what does not -- somebody about to
+            press this needs to know they are not deleting their own way back
+            in, and that the week they spent on settings is not going with it. */}
+        <p className="mt-2 text-[12.5px] text-muted-foreground">
+          Kept: your login and everyone else's, the school's own details, its
+          campuses, and its academic years.
+        </p>
+      </div>
+
+      <Field
+        label={`Type ${name || "the school's name"} to confirm`}
+        hint="Typed rather than ticked, because a tick is a reflex and this is a decision."
+      >
+        <Input value={typed} onChange={setTyped} placeholder={name} />
+      </Field>
+
+      <FormNotice error={reset.error} />
+      <Button
+        className="bg-destructive text-white hover:bg-destructive/90"
+        disabled={reset.isPending || typed.trim().toLowerCase() !== name.trim().toLowerCase() || !name}
+        onClick={() => reset.mutate()}
+      >
+        {reset.isPending ? 'Deleting…' : 'Delete everything and start again'}
+      </Button>
+    </div>
+  )
+}
+
 // --- registry ---------------------------------------------------------------
 
 export const PANELS: Record<string, ComponentType<PanelProps>> = {
@@ -2567,6 +2740,7 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   exams: ExamsPanel,
   history: HistoryPanel,
   udise: UDISEPanel,
+  reset: ResetPanel,
 }
 
 /**
@@ -3097,7 +3271,7 @@ function EditableSection({ section }: { section: Section }) {
 
   const save = useMutation({
     mutationFn: () =>
-      api.patch(`/api/v1/academics/sections/${section.id}`, {
+      api.patch(`/api/v1/setup/sections/${section.id}`, {
         name: name.trim(),
         capacity: Number(capacity) || section.capacity,
       }),
@@ -3106,21 +3280,46 @@ function EditableSection({ section }: { section: Section }) {
   })
 
   const remove = useMutation({
-    mutationFn: () => api.del(`/api/v1/academics/sections/${section.id}`),
+    // /setup, not /academics. The edit and delete routes for classes,
+    // sections and subjects all live under setup; /academics only lists them.
+    // This was the fourth screen today naming a path the router does not have.
+    mutationFn: () => api.del(`/api/v1/setup/sections/${section.id}`),
     onSuccess: done,
     onError: (e: unknown) => setFailed(e instanceof Error ? e.message : 'Could not delete.'),
   })
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Rename this section, or change what it holds"
-        className="inline-flex items-center rounded-sm border px-2 py-0.5 text-[13px] hover:bg-accent"
-      >
-        {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
-      </button>
+      /* The tag opens for renaming; the cross removes. Two intentions, and one
+         of them cannot be undone -- so they are two targets rather than one
+         control that behaves differently depending on where you land. */
+      <span className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[13px]">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title="Rename this section, or change what it holds"
+          className="hover:underline"
+        >
+          {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
+        </button>
+        {/* Only while it is empty. A section with children in it is refused by
+            the server anyway, and a cross that always refuses is worse than no
+            cross -- it reads as the product being broken rather than the
+            section being in use. */}
+        {section.enrolled === 0 && (
+          <button
+            type="button"
+            title={failed || 'Remove this section'}
+            onClick={() => remove.mutate()}
+            disabled={remove.isPending}
+            aria-label={`Remove section ${section.class_name}-${section.name}`}
+            className="-mr-0.5 rounded-sm px-0.5 leading-none text-muted-foreground
+                       hover:bg-destructive/10 hover:text-destructive"
+          >
+            ×
+          </button>
+        )}
+      </span>
     )
   }
 

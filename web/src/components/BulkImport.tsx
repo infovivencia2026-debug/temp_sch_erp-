@@ -845,11 +845,19 @@ function History({
                       {undoing === r.id ? 'deleting\u2026' : `delete these ${r.created_rows}`}
                     </button>
                   ) : (
+                    /* "nothing to remove" beside "139 added" reads as the
+                       delete being broken, and for two importers it was: class
+                       subjects and the timetable recorded nothing they
+                       created, so their uploads said both things at once for
+                       ever. Fixed at the source; this now distinguishes the
+                       two reasons a row has nothing of its own. */
                     <span
                       className="text-muted-foreground"
-                      title="This upload only updated records that already existed, so there is nothing of its own to remove."
+                      title={r.rows_imported > 0
+                        ? 'This upload changed records that already existed rather than creating new ones, or predates the record of what an upload created.'
+                        : 'This upload created nothing.'}
                     >
-                      nothing to remove
+                      {r.rows_imported > 0 ? 'only updated existing' : 'nothing to remove'}
                     </span>
                   )}
                 </td>
