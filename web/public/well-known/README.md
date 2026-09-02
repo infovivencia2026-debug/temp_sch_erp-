@@ -1,5 +1,16 @@
 # Digital asset links
 
+## Why this directory has no leading dot
+
+Android looks for it at `/.well-known/assetlinks.json` and this directory is
+`well-known`. That is deliberate: Vite does not copy dot directories out of
+`public/` into `dist/`, so a file written at the path Android asks for is
+silently dropped from every build, and the SPA fallback then answers the
+request with 200 and text/html, which Android reads as "this host publishes no
+asset links" rather than as a failure anybody would notice. nginx maps the
+dotted URL onto this directory; see the `location = /.well-known/assetlinks.json`
+block in scripts/deploy.sh.
+
 `assetlinks.json` is what turns the parent app's `autoVerify` intent filter from
 a hopeful declaration into a verified one. Without it Android does not believe
 the app when it claims this host, and a link in an SMS or an email opens the

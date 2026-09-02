@@ -314,6 +314,23 @@ server {
 
     location /.well-known/acme-challenge/ { root /var/www/html; }
 
+    # THE ANDROID APP'S CLAIM ON THIS HOST.
+    #
+    # Served explicitly rather than left to the SPA fallback, and from a
+    # directory without a leading dot, because Vite does not copy dot
+    # directories out of public/ into dist -- the file simply never shipped,
+    # and the fallback answered 200 with text/html, which reads to Android as
+    # "no asset links here" rather than as an error anybody would notice.
+    #
+    # The type matters as much as the body: Android refuses anything that is
+    # not application/json, and refuses a redirect, so this is an exact match
+    # with the type stated outright.
+    location = /.well-known/assetlinks.json {
+        alias ${WEBROOT}/well-known/assetlinks.json;
+        default_type application/json;
+        add_header Cache-Control "public, max-age=300";
+    }
+
     # ---- Go service -------------------------------------------------------
     location /api/    { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /healthz { include /etc/nginx/snippets/${SERVICE}-proxy.conf; access_log off; }
