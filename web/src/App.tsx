@@ -11,7 +11,8 @@ import { Shell } from '@/components/Shell'
 import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
 import { useLiveUpdates } from '@/lib/live'
 import GoTo from '@/features/shared/GoTo'
-import { PageHead, PageBody, Loading, EmptyState, UnavailableState, Button } from '@/components/ui'
+import { PageHead, PageBody, EmptyState, UnavailableState, Button } from '@/components/ui'
+import { SkeletonPage } from '@/components/Skeleton'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
 import NeedsAttention from '@/components/NeedsAttention'
@@ -239,7 +240,27 @@ function FeatureRoute() {
 
   return (
     <ChunkBoundary>
-      <Suspense fallback={<Loading />}>
+      {/* THE FALLBACK IS NOW THE SHAPE OF A SCREEN, NOT THE WORD "LOADING".
+       *
+       * This is the single most-seen loading state in the product: every
+       * feature is a lazy import, so every navigation renders this before it
+       * renders anything else. What it rendered was `<Loading />` -- the word
+       * "Loading…" centred in an otherwise empty content area, with no
+       * breadcrumb, no title and no card. Then the chunk landed and a whole
+       * page appeared at once.
+       *
+       * Measured on a 390px viewport with the module request held open: the
+       * one line of loading text sat at y=21, the real page's first line of
+       * content came in at a different y, and the page went from 844px tall
+       * to 2559px in one frame. Every navigation was a jump.
+       *
+       * `SkeletonPage` puts a breadcrumb-sized bar and a title-sized bar in
+       * the exact padding and width `PageHead` uses, so the header does not
+       * materialise out of nothing -- it resolves in place. It also waits
+       * 220ms first, which means a chunk already in the browser cache (the
+       * second visit to any screen, and every visit for anyone who has been
+       * in the product for a minute) shows no loading state whatsoever. */}
+      <Suspense fallback={<SkeletonPage />}>
         {isHome && (
           <PageBody>
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} />

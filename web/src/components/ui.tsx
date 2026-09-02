@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
+import { useDelayed } from './Skeleton'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -1746,31 +1747,49 @@ export function ErrorState({ error }: { error: unknown }) {
   )
 }
 
-export function Loading({ label = 'Loading…' }: { label?: string }) {
-  return <p className="px-5 py-12 text-center text-[14px] text-muted-foreground">{label}</p>
-}
-
 /**
- * A placeholder the shape of the thing being loaded.
+ * The word, for the waits that are only a word.
  *
- * "Loading…" centred in an empty card means the page jumps when the data
- * lands and every element moves — which is how somebody clicks the wrong row.
- * Holding the space costs nothing and keeps the layout still.
+ * This is the most-rendered thing in the product: 409 call sites, against ten
+ * for the skeleton next to it. It is a sentence in an otherwise empty block,
+ * so it cannot hold the shape of what is coming and never could -- where the
+ * shape is knowable, `Skeleton`, `SkeletonTable`, `SkeletonTiles` and
+ * `SkeletonForm` are the better answer and this one should give way to them.
+ *
+ * Two things it gained rather than a rewrite, because 409 screens is not a
+ * thing to change blind.
+ *
+ * It waits 220ms before saying anything. Nearly every one of those call sites
+ * is a react-query hook that answers from cache on a second visit, and what
+ * that used to look like was "Loading…" appearing and disappearing inside a
+ * fifth of a second on a page somebody had already seen. Two layout changes
+ * to communicate nothing. Now a fast answer just appears.
+ *
+ * And it announces itself. It was a bare `<p>`, which a screen reader passes
+ * over in silence, so somebody not looking at the screen was told nothing at
+ * all between pressing the thing and the page changing under them. `role
+ * status` with a polite live region says the sentence once, when it appears.
  */
-export function Skeleton({ rows = 5 }: { rows?: number }) {
+export function Loading({ label = 'Loading…', delay }: { label?: string; delay?: number }) {
+  const show = useDelayed(true, delay)
+  if (!show) return null
   return (
-    <div className="space-y-2 p-5" aria-hidden>
-      {Array.from({ length: rows }, (_, i) => (
-        <div
-          key={i}
-          className="h-9 animate-pulse rounded-sm bg-muted"
-          // Staggered widths so it reads as content rather than as a bar chart.
-          style={{ width: `${92 - (i % 3) * 9}%`, animationDelay: `${i * 60}ms` }}
-        />
-      ))}
-    </div>
+    <p role="status" aria-live="polite" className="px-5 py-12 text-center text-[14px] text-muted-foreground">
+      {label}
+    </p>
   )
 }
+
+/* The skeletons moved out.
+ *
+ * They were one component here -- five identical grey bars, whatever was
+ * coming -- and the reason to grow them into a family is that a placeholder
+ * is only worth anything if it is the shape of the thing it replaces. That is
+ * enough code, and enough reasoning about why each shape is the shape it is,
+ * to deserve its own file. Re-exported from here so that every screen already
+ * importing `Skeleton` from `@/components/ui` keeps working unchanged.
+ */
+export { Skeleton, SkeletonTable, SkeletonTiles, SkeletonForm, SkeletonPage, useDelayed } from './Skeleton'
 
 /**
  * Print this page.
