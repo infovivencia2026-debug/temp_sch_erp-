@@ -529,14 +529,36 @@ function ClassesPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
   })
   const existing = data?.items ?? []
-  const [rows, setRows] = useState<{ name: string; level: string }[]>([{ name: '', level: '' }])
+  const sectionList = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+  })
+  const sections = sectionList.data?.items ?? []
+  /* A CLASS AND ITS SECTIONS ARE ONE THOUGHT.
+   *
+   * Sections used to be a step of their own: name Class 1 to 10, move on, then
+   * come back and give each of the ten its A and B and a capacity. Nobody
+   * decides their classes without already knowing how many sections each has,
+   * and the second screen is the one people leave half done -- which is how a
+   * school ends up with classes no child can be enrolled into.
+   *
+   * The level is gone from the form too. It orders the school and it is
+   * already in the name: somebody typing "Grade 6" was then asked to type 6,
+   * which is asking a person to restate what they just wrote and to be blamed
+   * when the two disagree. It is read from the name on the server. */
+  type Row = { name: string; sections: string; capacity: string }
+  const [rows, setRows] = useState<Row[]>([{ name: '', sections: 'A', capacity: '40' }])
 
-  const save = useSave(async (list: { name: string; level: string }[]) => {
-    // Sequential rather than parallel: `level` orders the school and a burst
-    // of concurrent inserts makes a duplicate level harder to attribute.
+  const save = useSave(async (list: Row[]) => {
+    // Sequential rather than parallel: these create sections too, and a burst
+    // of concurrent inserts makes a failure harder to attribute to a row.
     for (const r of list) {
       if (!r.name.trim()) continue
-      await api.post('/api/v1/setup/classes', { name: r.name.trim(), level: Number(r.level) || 0 })
+      await api.post('/api/v1/setup/classes', {
+        name: r.name.trim(),
+        sections: r.sections.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean),
+        capacity: Number(r.capacity) || 40,
+      })
     }
   }, onDone)
 
@@ -544,7 +566,8 @@ function ClassesPanel({ onDone }: PanelProps) {
     setRows(
       Array.from({ length: to - from + 1 }, (_, i) => ({
         name: label(from + i),
-        level: String(from + i),
+        sections: 'A',
+        capacity: '40',
       })),
     )
 
@@ -561,10 +584,12 @@ function ClassesPanel({ onDone }: PanelProps) {
         <Preset
           onClick={() =>
             setRows([
-              { name: 'Nursery', level: '-2' },
-              { name: 'LKG', level: '-1' },
-              { name: 'UKG', level: '0' },
-              ...Array.from({ length: 5 }, (_, i) => ({ name: `Class ${i + 1}`, level: String(i + 1) })),
+              { name: 'Nursery', sections: 'A', capacity: '30' },
+              { name: 'LKG', sections: 'A', capacity: '30' },
+              { name: 'UKG', sections: 'A', capacity: '30' },
+              ...Array.from({ length: 5 }, (_, i) => ({
+                name: `Class ${i + 1}`, sections: 'A', capacity: '40',
+              })),
             ])
           }
         >
@@ -573,42 +598,49 @@ function ClassesPanel({ onDone }: PanelProps) {
       </div>
 
       <p className="mb-3 text-[14px] text-muted-foreground">
-        Level orders the school — it is what sorts Class 10 below Class 9 in every report, and what
-        promotion moves a student along.
+        Sections go in here with the class. Write them as you say them \u2014 A, B,
+        or Rose, Newton \u2014 separated by commas. The order of classes is read
+        from the name, so Class 10 sorts below Class 9 with nothing to fill in.
       </p>
 
       {/* Headers, because two time boxes side by side with nothing above them
           is a guess about which is which — and the wrong guess writes a period
           that ends before it starts. Hidden when the list is empty, where they
           would be a table header over no table. */}
+      {/* Headers, because three boxes in a row with nothing above them is a
+          guess about which is which. */}
       {rows.length > 0 && (
-        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_6rem_6rem_5rem] gap-2
+        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem] gap-2
                         px-1 text-[12px] font-medium text-muted-foreground">
-          <span>Period</span>
-          <span>Starts</span>
-          <span>Ends</span>
-          <span>Break</span>
+          <span>Class</span>
+          <span>Sections</span>
+          <span>Seats each</span>
         </div>
       )}
       <div className="space-y-2">
         {rows.map((r, i) => (
-          <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
+          <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem] gap-2">
             <Input
               value={r.name}
               onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, name: x } : v)))}
               placeholder="Class 6"
             />
             <Input
-              value={r.level}
-              onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, level: x } : v)))}
-              placeholder="Level"
+              value={r.sections}
+              onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, sections: x } : v)))}
+              placeholder="A, B"
+            />
+            <Input
+              value={r.capacity}
+              onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, capacity: x } : v)))}
+              placeholder="40"
             />
           </div>
         ))}
       </div>
       <button
         type="button"
-        onClick={() => setRows([...rows, { name: '', level: '' }])}
+        onClick={() => setRows([...rows, { name: '', sections: 'A', capacity: '40' }])}
         className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
@@ -629,137 +661,59 @@ function ClassesPanel({ onDone }: PanelProps) {
           ))}
         </Existing>
       )}
+
+      {/* THE SECTIONS THAT EXIST, ON THE STEP THAT OWNS THEM.
+
+          Renaming one, changing its seats and removing an empty one all lived
+          on the separate sections step. Folding that step in without bringing
+          this would have removed the only place a school could rename Rose to
+          Blue -- a capability quietly lost while collapsing two screens into
+          one, which is the usual way tidying a product costs it something. */}
+      {sections.length > 0 && (
+        <div className="mt-4">
+          <p className="eyebrow mb-1.5 text-muted-foreground">Sections</p>
+          <div className="space-y-1.5">
+            {existing.map((c) => {
+              const mine = sections.filter((x) => x.class_id === c.id)
+              if (!mine.length) return null
+              return (
+                <div key={c.id} className="flex flex-wrap items-center gap-1.5">
+                  <span className="w-24 flex-none text-[13px] text-muted-foreground">
+                    {c.name}
+                  </span>
+                  {mine.map((sec) => (
+                    <EditableSection key={sec.id} section={sec} />
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
           <div className="mt-5 border-t pt-5">
         <BulkImport
           entity="classes"
           title="Or add every class from a sheet"
-          hint="Two columns: name and level. Level is what orders them — Grade 6 is level 6."
+          hint="One column is enough: the name. The order is read from it, so a sheet that says Grade 6 has already said six."
           onDone={onDone}
         />
-      </div>
-</form>
-  )
-}
-
-// --- 5. sections ------------------------------------------------------------
-
-function SectionsPanel({ onDone }: PanelProps) {
-  const { data: classes } = useQuery({
-    queryKey: ['classes'],
-    queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
-  })
-  const { data: sections } = useQuery({
-    queryKey: ['sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
-  })
-  const [names, setNames] = useState('A')
-  const [capacity, setCapacity] = useState('40')
-  const [scope, setScope] = useState('all')
-  /* Which class's sections are listed below.
-   *
-   * Separate from "Apply to" on purpose: one decides what you are about to
-   * create, the other what you are looking at. A school with ten classes and
-   * four sections each was shown forty chips in one row and had to read the
-   * prefix on every one of them to find 8-C. */
-  const [filter, setFilter] = useState('all')
-
-  const save = useSave(async () => {
-    const letters = names
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-    const targets = scope === 'all' ? (classes?.items ?? []) : (classes?.items ?? []).filter((c) => c.id === scope)
-    for (const c of targets) {
-      for (const n of letters) {
-        await api.post('/api/v1/setup/sections', {
-          class_id: c.id,
-          name: n,
-          capacity: Number(capacity) || 40,
-        })
-      }
-    }
-  }, onDone)
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        save.mutate(undefined as never)
-      }}
-    >
-      <p className="mb-4 text-[14px] text-muted-foreground">
-        Adding a section to every class at once is the usual case. Come back for the extra section a
-        single crowded class needs.
-      </p>
-      <FormGrid>
-        <Field label="Apply to">
-          <Select
-            value={scope}
-            onChange={setScope}
-            options={[
-              { value: 'all', label: `Every class (${classes?.items.length ?? 0})` },
-              ...(classes?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
-            ]}
+        {/* The sections sheet stays reachable, on the step that now owns
+            sections. A school with forty of them is not typing them in, and
+            deleting the panel this lived on would have quietly taken the
+            importer with it. */}
+        <div className="mt-4">
+          <BulkImport
+            entity="sections"
+            title="And the sections from a sheet"
+            hint="Class, name, capacity. The class must exist already and is matched by its name."
+            onDone={onDone}
           />
-        </Field>
-        {/* ANY NAME, not just a letter.
-
-            The column has always been free text and the hint said "A, B, C",
-            so schools that call their sections Rose and Jasmine, or Blue and
-            Green, or Newton and Curie, believed the product could not hold it
-            and typed A and B against their own noticeboards. Nothing needed
-            building; the field needed to say what it accepts. */}
-        <Field
-          label="Section names"
-          required
-          wide
-          hint="Comma separated. Letters, or whatever this school actually calls them — Rose, Jasmine, Newton."
-        >
-          <Input value={names} onChange={setNames} placeholder="A, B — or Rose, Jasmine" />
-        </Field>
-        <Field label="Capacity" hint="Used to warn the office before a section is over-filled.">
-          <Input value={capacity} onChange={setCapacity} />
-        </Field>
-      </FormGrid>
-      <SaveRow pending={save.isPending} error={save.error} label="Create sections" />
-      {(sections?.items.length ?? 0) > 0 && (
-        <>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-[13px] text-muted-foreground">Show sections in</span>
-            <Select
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: 'all', label: `Every class (${sections?.items.length ?? 0} sections)` },
-                ...(classes?.items ?? []).map((c) => ({
-                  value: c.id,
-                  label: `${c.name} (${
-                    (sections?.items ?? []).filter((x) => x.class_id === c.id).length
-                  })`,
-                })),
-              ]}
-            />
-          </div>
-          <Existing label="Sections">
-            {sections!.items
-              .filter((s) => filter === 'all' || s.class_id === filter)
-              .map((s) => (
-                <EditableSection key={s.id} section={s} />
-              ))}
-          </Existing>
-        </>
-      )}
-          <div className="mt-5 border-t pt-5">
-        <BulkImport
-          entity="sections"
-          title="Or add sections from a sheet"
-          hint="Class, name, capacity. The class must exist already and is matched by its name."
-          onDone={onDone}
-        />
+        </div>
       </div>
 </form>
   )
 }
+
 
 // --- 6. subjects ------------------------------------------------------------
 
@@ -2602,7 +2556,6 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   campus: CampusPanel,
   academic_year: YearPanel,
   classes: ClassesPanel,
-  sections: SectionsPanel,
   subjects: SubjectsPanel,
   class_subjects: ClassSubjectsPanel,
   periods: PeriodsPanel,

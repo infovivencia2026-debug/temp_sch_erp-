@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -95,12 +96,79 @@ func (s *Server) createAcademicYear(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID, "name": req.Name})
 }
 
+/*
+classLevelFromName reads the year out of what the school calls the class.
+
+	Level orders every class list in the product and decides which government
+	norm a class is counted against, so it has to be right -- but it is almost
+	always already written in the name, and asking for it twice is asking for a
+	disagreement.
+
+	The pre-school years come before the numbered ones and have no number of
+	their own, so they are placed below 1 in the order a school says them.
+	Anything with a number takes it: "Grade 6", "Class 6", "VI-A" fails and is
+	told to add the number, which is better than guessing six and sorting a
+	school's classes wrongly for a year.
+*/
+func classLevelFromName(name string) int {
+	n := strings.ToLower(strings.TrimSpace(name))
+	// Below Grade 1, in the order a school lists them. Negative so that adding
+	// a year below later needs no renumbering of everything above.
+	for _, pre := range []struct {
+		match []string
+		level int
+	}{
+		{[]string{"pre-nursery", "pre nursery", "playgroup", "play group"}, -4},
+		{[]string{"nursery", "pre-kg", "pre kg", "prekg"}, -3},
+		{[]string{"lkg", "l.k.g", "junior kg", "jr kg"}, -2},
+		{[]string{"ukg", "u.k.g", "senior kg", "sr kg"}, -1},
+	} {
+		for _, m := range pre.match {
+			if strings.Contains(n, m) {
+				return pre.level
+			}
+		}
+	}
+	// The first run of digits. "Grade 10" is ten; "10th Standard" is ten.
+	digits := ""
+	for _, c := range n {
+		if c >= '0' && c <= '9' {
+			digits += string(c)
+			continue
+		}
+		if digits != "" {
+			break
+		}
+	}
+	if digits == "" {
+		return 0
+	}
+	v, err := strconv.Atoi(digits)
+	if err != nil || v <= 0 || v > 15 {
+		return 0
+	}
+	return v
+}
+
 // --- classes ----------------------------------------------------------------
 
 type classRequest struct {
 	Name   string `json:"name"`
 	Level  int    `json:"level"`
 	Stream string `json:"stream,omitempty"`
+	/* THE SECTIONS BELONG TO THE CLASS, so they are made with it.
+
+	   Sections were a step of their own: create Grade 1 to 10, move on, then
+	   name A and B for each of the ten and give each a capacity. Two screens
+	   for one thought -- nobody decides their classes without already knowing
+	   how many sections each has -- and the second screen is the one people
+	   leave half done, which is how a school ends up with classes no child can
+	   be enrolled into.
+
+	   Empty is allowed: a class may genuinely have no sections yet, and one
+	   can still be added on its own later. */
+	Sections []string `json:"sections,omitempty"`
+	Capacity int      `json:"capacity,omitempty"`
 }
 
 func (s *Server) createClass(w http.ResponseWriter, r *http.Request) {
@@ -113,9 +181,34 @@ func (s *Server) createClass(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "name is required")
 		return
 	}
-	if req.Level <= 0 {
-		httpx.BadRequest(w, r, "level must be a positive number. It orders every class list")
+	/* THE LEVEL IS IN THE NAME, so stop asking for it.
+
+	   Somebody typing "Grade 6" was then required to type 6, which is asking a
+	   person to restate what they have just written and to be blamed when the
+	   two disagree -- and they do disagree: a class created as "Grade 9" with
+	   level 8 sorts between the eighths and looks like a mistake in the
+	   product rather than in the form.
+
+	   The column stays and is not decorative: the statutory returns count
+	   teachers against primary and upper-primary norms by it, and learning
+	   content is gated on it. It is derived rather than dropped.
+
+	   Still accepted where it is sent, because a school with its own scheme --
+	   "Std VI", a stream that is not a year -- may need to say so, and the
+	   importer's column still works. */
+	level := req.Level
+	if level == 0 {
+		level = classLevelFromName(req.Name)
+	}
+	if level == 0 {
+		httpx.BadRequest(w, r,
+			"no year could be read from that name. Add the number, as in Grade 6")
 		return
+	}
+
+	capacity := req.Capacity
+	if capacity <= 0 {
+		capacity = 40
 	}
 
 	var newID string
@@ -124,14 +217,53 @@ func (s *Server) createClass(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO classes (institution_id, campus_id, name, level, stream)
 			VALUES ($1,$2,$3,$4,$5)
 			ON CONFLICT (institution_id, campus_id, name)
 			DO UPDATE SET level = EXCLUDED.level, stream = EXCLUDED.stream
 			RETURNING id::text`,
-			id.InstitutionID, campus, req.Name, req.Level, nullString(req.Stream)).Scan(&newID)
+			id.InstitutionID, campus, req.Name, level, nullString(req.Stream)).Scan(&newID); err != nil {
+			return err
+		}
+		if len(req.Sections) == 0 {
+			return nil
+		}
+
+		/* The sections, in the same transaction as the class.
+
+		   Separately would mean a class could exist with the sections that
+		   were meant to go in it having failed -- and the failure is silent,
+		   because the class list looks complete. */
+		var yearID string
+		if err := tx.QueryRow(r.Context(), `
+			SELECT id::text FROM academic_years
+			 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
+			return errNoAcademicYear
+		}
+		for _, raw := range req.Sections {
+			name := strings.TrimSpace(raw)
+			if name == "" {
+				continue
+			}
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO sections (institution_id, campus_id, class_id,
+				                      academic_year_id, name, capacity)
+				VALUES ($1,$2,$3::uuid,$4::uuid,$5,$6)
+				-- A re-save corrects the capacity rather than failing, which
+				-- is what somebody expects from editing a row they can see.
+				ON CONFLICT (class_id, academic_year_id, name)
+				DO UPDATE SET capacity = EXCLUDED.capacity`,
+				id.InstitutionID, campus, newID, yearID, name, capacity); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
+	if errors.Is(err, errNoAcademicYear) {
+		httpx.BadRequest(w, r, "open the academic year before adding sections to a class")
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -1436,10 +1568,16 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			"Address, and the campus every class belongs to.", true},
 		{"academic_year", "Open the academic year", c.Years > 0, c.Years,
 			"June to April for most Telangana schools.", true},
-		{"classes", "Create classes", c.Classes > 0, c.Classes,
-			"Grade 1 to 10, with a level that orders them.", true},
-		{"sections", "Add sections", c.Sections > 0, c.Sections,
-			"A, B, C. Each with a capacity.", true},
+		/* CLASSES AND SECTIONS ARE ONE STEP.
+		
+		   They were two, and the second was the one schools left half done --
+		   which leaves classes no child can be enrolled into, a state that
+		   looks finished from the class list. Nobody decides their classes
+		   without already knowing how many sections each has, so they are
+		   asked together and the step is done when both exist. */
+		{"classes", "Create classes and their sections", c.Classes > 0 && c.Sections > 0,
+			c.Classes,
+			"Class 1 to 10, each with its sections and how many seats they hold.", true},
 		{"subjects", "Add subjects", c.Subjects > 0, c.Subjects,
 			"Scholastic and co-scholastic.", true},
 		{"class_subjects", "Map subjects to classes", c.ClassSubjects > 0, c.ClassSubjects,

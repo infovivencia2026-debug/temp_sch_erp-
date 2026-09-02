@@ -179,17 +179,34 @@ func (c *importCtx) noteCreated(entity string, id uuid.UUID, inserted bool) {
 var importSpecs = map[string]importSpec{
 	"classes": {
 		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"name", "level", "stream"},
-		Required: []string{"name", "level"},
-		Sample:   []string{"Grade 6", "6", ""},
+		Columns: []string{"name", "level", "stream"},
+		// Only the name. Level is read out of it -- a sheet that says
+		// "Grade 6" has already said six, and requiring the column made a
+		// school add one to a list it already had.
+		Required: []string{"name"},
+		Sample:   []string{"Grade 6", "", ""},
 		Check: func(row map[string]string) error {
-			if n, err := strconv.Atoi(strings.TrimSpace(row["level"])); err != nil || n <= 0 {
-				return errors.New("level must be a whole number above zero. It is what orders the classes")
+			v := strings.TrimSpace(row["level"])
+			if v == "" {
+				// Derived below. Checked here so a name nothing can be read
+				// from fails during the dry run rather than at the commit.
+				if classLevelFromName(row["name"]) == 0 {
+					return errors.New("no year could be read from that name. " +
+						"Add a level column, or write it as Grade 6")
+				}
+				return nil
+			}
+			if n, err := strconv.Atoi(v); err != nil || n == 0 {
+				return errors.New("level must be a whole number. Leave it empty " +
+					"to take the year from the name")
 			}
 			return nil
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			level, _ := strconv.Atoi(strings.TrimSpace(row["level"]))
+			if strings.TrimSpace(row["level"]) == "" {
+				level = classLevelFromName(row["name"])
+			}
 			/* RETURNING with DO NOTHING yields no row on a conflict, which is
 			   exactly the signal wanted: a row came back means this INSERT
 			   created the class, and ErrNoRows means it was already there. */
