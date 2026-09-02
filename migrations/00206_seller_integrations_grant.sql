@@ -8,6 +8,11 @@
 -- school edited in the permissions grid -- so on an installation that
 -- already had a seller_admin row the key never arrived, and the new screen
 -- answered 403. This is the one row the seed would have written.
+--
+-- role_permissions is under forced row-level security and goose runs as
+-- the app role, so the platform flag is set for this transaction first.
+SELECT set_config('app.is_platform_admin', 'on', true);
+
 INSERT INTO permissions (key, module, description)
 VALUES ('institution.integrations.write', 'institution', 'Configure integrations')
 ON CONFLICT (key) DO NOTHING;
@@ -21,6 +26,8 @@ SELECT r.id, 'institution.integrations.write'
         WHERE rp.role_id = r.id AND rp.permission_key = 'institution.integrations.write');
 
 -- +goose Down
+SELECT set_config('app.is_platform_admin', 'on', true);
+
 DELETE FROM role_permissions rp
  USING roles r
  WHERE rp.role_id = r.id AND r.key = 'seller_admin' AND r.institution_id IS NULL
