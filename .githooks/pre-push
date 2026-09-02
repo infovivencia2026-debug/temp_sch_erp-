@@ -1,0 +1,12 @@
+#!/bin/sh
+# The migration version check, run against what is about to be pushed.
+#
+# Three deploys in one afternoon failed on a duplicate migration version, and
+# every time the check had passed: it runs before `git pull --rebase`, and
+# another migration claimed the number between the check and the push. goose
+# refuses duplicate versions at Migrate, so nothing applies and the deploy
+# stops -- loudly, which is the system working, but after a build and an ssh.
+#
+# Here it runs on the tree that is actually going out, which is the only
+# moment the answer cannot go stale.
+exec go test ./migrations/
