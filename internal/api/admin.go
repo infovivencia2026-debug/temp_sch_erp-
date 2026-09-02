@@ -33,6 +33,17 @@ type adminUser struct {
 	RoleKeys    []string `json:"role_keys"`
 	Institution *string  `json:"institution,omitempty"`
 	Sessions    int      `json:"active_sessions"`
+	/* Which person this login belongs to: "staff", "student", "guardian", or
+	   "none" when no such record exists any more.
+
+	   A login is not deleted when the person it was made for is. Deleting a
+	   student, a guardian link or an employee leaves the users row behind,
+	   still active, still holding its roles, still able to sign in. One school
+	   on this installation is carrying 103 such accounts, and nobody there
+	   could see them because the only screen that lists logins was on the
+	   platform operator's menu, not the principal's. Reporting the linkage per
+	   row is what makes that state visible rather than merely true. */
+	Record string `json:"record"`
 }
 
 // listUsers powers super_admin.access_security.users.
@@ -58,7 +69,18 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		                FILTER (WHERE ro.key IS NOT NULL), '{}'),
 		       i.name,
 		       (SELECT count(*) FROM sessions se
-		         WHERE se.user_id = u.id AND se.revoked_at IS NULL AND se.expires_at > now())
+		         WHERE se.user_id = u.id AND se.revoked_at IS NULL AND se.expires_at > now()),
+		       /* The person behind the login, or the absence of one.
+
+		          These three subqueries are tenant-filtered by RLS exactly as
+		          the users row above is, so a school reading this list learns
+		          nothing about another school's records. */
+		       CASE
+		         WHEN EXISTS (SELECT 1 FROM employees e WHERE e.user_id = u.id) THEN 'staff'
+		         WHEN EXISTS (SELECT 1 FROM students  st WHERE st.user_id = u.id) THEN 'student'
+		         WHEN EXISTS (SELECT 1 FROM guardians g  WHERE g.user_id = u.id) THEN 'guardian'
+		         ELSE 'none'
+		       END
 		  FROM users u
 		  LEFT JOIN user_roles ur ON ur.user_id = u.id
 		  LEFT JOIN roles ro      ON ro.id = ur.role_id
@@ -75,7 +97,8 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (adminUser, error) {
 			var v adminUser
 			return v, rows.Scan(&v.ID, &v.FullName, &v.Email, &v.Phone, &v.Status,
-				&v.MFAEnabled, &v.LastLoginAt, &v.Roles, &v.RoleKeys, &v.Institution, &v.Sessions)
+				&v.MFAEnabled, &v.LastLoginAt, &v.Roles, &v.RoleKeys, &v.Institution, &v.Sessions,
+				&v.Record)
 		})
 	respond(w, r, items, err)
 }
@@ -260,9 +283,30 @@ type sessionRow struct {
 	Revoked    bool    `json:"revoked"`
 }
 
-// listSessions powers super_admin.platform_setup.login_session_audit_logs.
+// listSessions powers super_admin.platform_setup.login_session_audit_logs and
+// the principal's own Logins & access screen.
+//
+/* The user filter exists because a school asks the question the other way
+   round.
+
+   A platform operator scans the whole session list looking for the odd one
+   out. A principal is standing in front of one row of the directory -- a
+   teacher who left last month -- and wants to know what that one account is
+   still signed in on, and to end it. Without a filter the screen had to pull
+   two hundred rows and sift them in the browser, which quietly stops working
+   at the point a school has more than two hundred sessions, which is the point
+   the question starts mattering. */
 func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 	onlyActive := r.URL.Query().Get("active") == "true"
+	var user any
+	if raw := strings.TrimSpace(r.URL.Query().Get("user")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			httpx.BadRequest(w, r, "invalid user id")
+			return
+		}
+		user = id
+	}
 	items, err := collect(s, r, `
 		SELECT se.id::text, se.user_id::text, u.full_name, host(se.ip), se.user_agent,
 		       to_char(se.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
@@ -271,9 +315,10 @@ func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 		       se.revoked_at IS NOT NULL OR se.expires_at <= now()
 		  FROM sessions se
 		  JOIN users u ON u.id = se.user_id
-		 WHERE NOT $1::bool OR (se.revoked_at IS NULL AND se.expires_at > now())
+		 WHERE (NOT $1::bool OR (se.revoked_at IS NULL AND se.expires_at > now()))
+		   AND ($2::uuid IS NULL OR se.user_id = $2)
 		 ORDER BY se.last_seen_at DESC
-		 LIMIT 200`, []any{onlyActive},
+		 LIMIT 200`, []any{onlyActive, user},
 		func(rows pgx.Rows) (sessionRow, error) {
 			var v sessionRow
 			return v, rows.Scan(&v.ID, &v.UserID, &v.FullName, &v.IP, &v.UserAgent,
@@ -290,11 +335,29 @@ func (s *Server) revokeSession(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "invalid session id")
 		return
 	}
+	/* Say so when nothing was revoked.
+
+	   The UPDATE is filtered by RLS, so a session id belonging to another
+	   school matches no row -- but the handler reported success either way,
+	   and so did a stale id for a session that had already ended. An
+	   administrator pressing "sign out" and being told it worked when it did
+	   nothing is the one outcome this screen must not produce, because the
+	   whole point of it is knowing that a login is really closed. */
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, err := tx.Exec(r.Context(),
+		tag, err := tx.Exec(r.Context(),
 			`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, sessionID)
-		return err
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return pgx.ErrNoRows
+		}
+		return nil
 	})
+	if err == pgx.ErrNoRows {
+		httpx.NotFound(w, r)
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

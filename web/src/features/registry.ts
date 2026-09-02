@@ -107,6 +107,23 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      grid asks for it. Both checks sit inside the tenant transaction, so they
      hold whatever the client sends. */
   'institution_admin.staff.roles_permissions': screen(() => import('./super_admin/RolesPermissions')),
+  /* The logins themselves, next to the roles that describe them.
+
+     Roles & permissions above answers "what may a bursar do"; it has never
+     been able to answer "who is a bursar here, and can they still sign in".
+     That second question had no screen on a school's menu at all, even though
+     institution_admin has held access.users.read, access.users.write and
+     access.sessions.revoke throughout -- the permissions were granted and the
+     door was never built, so a principal could not see their own school's
+     accounts, let alone close one.
+
+     It does not reuse super_admin/Users the way the line above reuses
+     RolesPermissions. The role grid is the same artefact for both audiences.
+     The user directory is not: it is built around a School column and a
+     cross-tenant sweep, and it says nothing about live sessions or about a
+     login whose person has been deleted, which are the two things a school
+     actually needs from it. See the file for the longer version. */
+  'institution_admin.staff.logins_access': screen(() => import('./principal/Logins')),
   'super_admin.platform_configuration.module_configuration': screen(() => import('./super_admin/ModuleConfiguration')),
   'super_admin.access_security.login_session_audit': screen(() => import('./super_admin/SessionAudit')),
   'super_admin.operations.system_health_integration_alerts': screen(() => import('./shared/Jobs')),

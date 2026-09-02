@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 333 features. */
+/** 13 roles, 334 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -341,6 +341,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
           { key: 'institution_admin.staff.roles_permissions', slug: 'roles_permissions', name: 'Roles & permissions', scope: 'institution', tier: 'core', summary: 'Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it.' },
+          { key: 'institution_admin.staff.logins_access', slug: 'logins_access', name: 'Logins & access', scope: 'institution', tier: 'core', summary: 'Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person.' },
           { key: 'institution_admin.staff.staff_groups_lists', slug: 'staff_groups_lists', name: 'Staff groups & lists', scope: 'institution', tier: 'core', summary: 'Named groups of staff — exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns.' },
         ],
       },
