@@ -550,6 +550,7 @@ var importSpecs = map[string]importSpec{
 			}
 
 			var csID uuid.UUID
+			var csNew bool
 			if err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO class_subjects (institution_id, class_id, subject_id,
 				                            max_marks, periods_per_week)
@@ -557,10 +558,19 @@ var importSpecs = map[string]importSpec{
 				ON CONFLICT (class_id, subject_id)
 				DO UPDATE SET max_marks = EXCLUDED.max_marks,
 				              periods_per_week = COALESCE($5, class_subjects.periods_per_week)
-				RETURNING id`,
-				c.inst, classID, subjectID, maxMarks, perWeek).Scan(&csID); err != nil {
+				RETURNING id, xmax = 0`,
+				c.inst, classID, subjectID, maxMarks, perWeek).Scan(&csID, &csNew); err != nil {
 				return err
 			}
+			/* Recorded, so this upload can be taken back out.
+			
+			   Two of the thirteen importers never noted what they created --
+			   this one and the timetable -- so their uploads reported "139
+			   added" and then "nothing to remove", for ever, however many rows
+			   they had put in. The school reads that as the delete being
+			   broken, which is fair: the row says it added 139 things and that
+			   there is nothing of its own to remove. */
+			c.noteCreated("class_subjects", csID, csNew)
 
 			// The teacher column is optional, and naming one attaches them to
 			// every section of that class -- which is what "who teaches Grade 6
@@ -659,15 +669,24 @@ var importSpecs = map[string]importSpec{
 				}
 				return err
 			}
-			if _, err := c.tx.Exec(c.r.Context(), `
+			/* Recorded, so a timetable uploaded by mistake can be taken back
+			   out. This importer noted nothing, so a run that placed 139
+			   allocations reported "139 added" and "nothing to remove" in the
+			   same row, for ever. A school reads that as the delete being
+			   broken, and it is right to. */
+			var alloc uuid.UUID
+			var allocNew bool
+			if err := c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO section_subject_teachers (institution_id, section_id,
 				                                      class_subject_id, teacher_user_id)
 				VALUES ($1,$2,$3,$4)
 				ON CONFLICT (section_id, class_subject_id)
-				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
-				c.inst, sectionID, csID, teacher); err != nil {
+				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id
+				RETURNING id, xmax = 0`,
+				c.inst, sectionID, csID, teacher).Scan(&alloc, &allocNew); err != nil {
 				return err
 			}
+			c.noteCreated("allocations", alloc, allocNew)
 			// Assigning somebody to teach a subject is also a statement that
 			// they teach it, which is what the dropdowns read.
 			_, err = c.tx.Exec(c.r.Context(), `
@@ -2119,6 +2138,22 @@ var undoableTables = map[string]string{
 	// priced lines under them go with the cascade, which is what a school
 	// means by "take last year's fees off".
 	"fee_structures": "fee_structures",
+	/* The two that recorded nothing and so could never be undone.
+
+	   Both are joins rather than things -- which subject a class studies, and
+	   who teaches it in which section -- and both are safe to remove, because
+	   nothing hangs off them that is not also a statement about teaching.
+	   Their absence here was not a decision; they simply were not added when
+	   undo was, and an upload of 139 allocations has been reporting "nothing
+	   to remove" ever since. */
+	"class_subjects": "class_subjects",
+	"allocations":    "section_subject_teachers",
+	// The closed-year records, which are the likeliest of all to be uploaded
+	// wrongly: a school's first attempt at a history file usually is.
+	"student_history": "student_year_history",
+	"staff_history":   "employee_year_history",
+	"marks":           "marks",
+	"marks_grid":      "marks",
 }
 
 /*

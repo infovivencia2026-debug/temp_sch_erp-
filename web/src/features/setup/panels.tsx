@@ -2468,13 +2468,21 @@ function FeeStructureList() {
                   ₹{(f.total_paise / 100).toLocaleString('en-IN')}
                 </td>
                 <td className="px-3 py-1.5 text-right">
+                  {/* A cross, as on every other list. "remove" as a word in
+                      a right-hand column reads as a link to somewhere; the
+                      cross is the same gesture people already know from the
+                      class and section tags, and it is in the same place. */}
                   <button
                     type="button"
                     disabled={busy === f.id}
                     onClick={() => void remove(f.id, `${f.name} for ${f.class_name ?? 'every class'}`)}
-                    className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${f.name}`}
+                    title={`Remove ${f.name}`}
+                    className="rounded-sm px-1 leading-none text-[15px] text-muted-foreground
+                               hover:bg-destructive/10 hover:text-destructive
+                               disabled:opacity-50"
                   >
-                    {busy === f.id ? 'removing…' : 'remove'}
+                    {busy === f.id ? '…' : '×'}
                   </button>
                 </td>
               </tr>
