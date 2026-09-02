@@ -1834,6 +1834,29 @@ html[data-layout='bento'] body {
      icons carry the meaning, so this does not need to be large; it needs to
      stop looking like a caption. */
   [data-layout='bento'] .bento-dock { --dock-label: 11.5px; }
+
+  /* A PAGED BOARD STILL NEEDS A DEFINITE HEIGHT. THIS IS A REGRESSION FIX.
+
+     The ground was `h-full overflow-hidden` at every width. That clipped the
+     parent's home board — 1307px of cards inside 631px, unreachable — so it
+     became `min-h-full` below 1024px and the work area scrolls. Right for a
+     board that is a vertical stack.
+
+     It is wrong for a paged board. The carousel is `flex: 1 1 auto` dividing
+     its parent into `repeat(4, minmax(0, 1fr))`, and a fraction of an
+     INDEFINITE height is not a fraction at all: the tracks fall back to their
+     content, the cell keeps `overflow: hidden`, and the dashboard renders as
+     four 31.5px slivers. Measured: board 144px, rows 31.5px, cells 32px,
+     content needing ~120px each. The screen was blank.
+
+     So the ceiling comes back for exactly the boards that need it, and stays
+     off for the ones that scroll. :has() rather than a class because the
+     ground does not know what kind of board it is holding until one mounts —
+     and the pager sets that attribute itself. */
+  [data-layout='bento'] .bento-ground:has(.bento-board[data-pager]) {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 /* ── THE DEFAULT PALETTE — one material, one accent ─────────────────────

@@ -955,7 +955,16 @@ export function Button({
             : 'bg-primary text-primary-foreground hover:bg-primary/90'),
         level === 'secondary' &&
           cn(
-            'border bg-card hover:bg-accent',
+            /* text-card-foreground, not inherited.
+
+               This set a background and no colour, so the label took whatever
+               an ancestor happened to be using. Inside a dark shell that is
+               black on a dark card: measured at 1.13:1 on the fee dashboard,
+               where Export by class, Print and Export CSV were readable only
+               as faint outlines. bg-card and text-card-foreground are a pair;
+               using half of a pair is what makes a control invisible in one
+               theme and fine in the other. */
+            'border bg-card text-card-foreground hover:bg-accent',
             tone === 'danger' && 'border-destructive/30 text-destructive hover:bg-destructive/5',
           ),
         level === 'ghost' &&

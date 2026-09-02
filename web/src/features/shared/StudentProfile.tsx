@@ -2204,7 +2204,9 @@ function RollTile({ label, value, note, active, onClick }: {
          two answers to one question. */
       aria-pressed={active}
       className={cn(
-        'rounded-xl border bg-background px-4 py-3 text-left transition-colors',
+        // bg-background without text-foreground: the four figures on these
+        // tiles measured 1.07:1 — black on the dark shell, i.e. invisible.
+        'rounded-xl border bg-background text-foreground px-4 py-3 text-left transition-colors',
         active ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/50',
       )}
     >
