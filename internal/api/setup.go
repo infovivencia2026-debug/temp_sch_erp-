@@ -1569,7 +1569,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"academic_year", "Open the academic year", c.Years > 0, c.Years,
 			"June to April for most Telangana schools.", true},
 		/* CLASSES AND SECTIONS ARE ONE STEP.
-		
+
 		   They were two, and the second was the one schools left half done --
 		   which leaves classes no child can be enrolled into, a state that
 		   looks finished from the class list. Nobody decides their classes

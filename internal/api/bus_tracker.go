@@ -42,6 +42,10 @@ var errRouteOtherVehicle = errors.New("route is assigned to another vehicle")
 // another school, or a vehicle that has been retired.
 var errBusNotFound = errors.New("no bus matches that code")
 
+// errNoBusForTrip is a handset that belongs to a driver rather than a bus,
+// starting a run without having scanned one.
+var errNoBusForTrip = errors.New("no bus for this run")
+
 /* The driver's phone as the vehicle's GPS unit.
 
    Eight catalogued transport features were deferred on one sentence — "GPS
@@ -229,7 +233,11 @@ type busTrackerCtxKey struct{}
 type busTracker struct {
 	ID          uuid.UUID
 	Institution uuid.UUID
-	Vehicle     uuid.UUID
+	/* Null for a handset registered to a driver rather than to a bus, which
+	   is the ordinary case now: the bus comes from the sticker scanned at the
+	   start of each run. A school that still pairs one phone to one bus keeps
+	   a value here, and it is the fallback when nothing is scanned. */
+	Vehicle     *uuid.UUID
 	Name        string
 	PingSeconds int
 	Paused      bool
@@ -718,7 +726,10 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   school matches nothing. Both the sticker's bus_code and a typed
 		   registration are accepted, for the same reason enrolment accepts
 		   both. */
-		tripVehicle := dev.Vehicle
+		var tripVehicle uuid.UUID
+		if dev.Vehicle != nil {
+			tripVehicle = *dev.Vehicle
+		}
 		if code := strings.ToUpper(strings.TrimSpace(req.BusCode)); code != "" {
 			if err := tx.QueryRow(r.Context(), `
 				SELECT id FROM vehicles
@@ -732,6 +743,16 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 				}
 				return err
 			}
+		}
+
+		/* No bus at all is not a run.
+
+		   A handset registered to a driver has no vehicle of its own, so
+		   without a scan there is nothing to file positions against. Refused
+		   here with a sentence rather than inserting a trip on the zero uuid,
+		   which the foreign key would reject as something nobody could read. */
+		if tripVehicle == uuid.Nil {
+			return errNoBusForTrip
 		}
 
 		if routeVehicle != nil && *routeVehicle != tripVehicle {
@@ -829,6 +850,11 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errNoSuchRoute) {
 		httpx.Error(w, r, http.StatusNotFound, "no_such_route",
 			"that route does not belong to this school")
+		return
+	}
+	if errors.Is(err, errNoBusForTrip) {
+		httpx.Error(w, r, http.StatusBadRequest, "no_bus_scanned",
+			"scan the bus you are in before starting a run")
 		return
 	}
 	if errors.Is(err, errBusNotFound) {
@@ -950,8 +976,8 @@ func (s *Server) endBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE vehicle_trips
 			   SET ended_at = GREATEST($3, started_at), ended_reason = 'driver'
-			 WHERE id = $1 AND vehicle_id = $2 AND ended_at IS NULL`,
-			tripID, dev.Vehicle, ended)
+			 WHERE id = $1 AND tracker_id = $2 AND ended_at IS NULL`,
+			tripID, dev.ID, ended)
 		if err != nil {
 			return err
 		}
@@ -1079,14 +1105,21 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 	var ping int
 	var paused bool
 
+	// The bus that actually ran, read off the trip. See the note below.
+	var tripVehicle uuid.UUID
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		var route uuid.UUID
 		var direction string
+		/* Owned by the tracker that opened it, not by the bus the handset is
+		   paired to — with the bus now chosen per run, those are different
+		   things, and vehicle_id would refuse a driver his own trip the moment
+		   he scanned a relief bus. tripVehicle is read from the row because
+		   positions belong to the bus that ran, not to the one on the pairing. */
 		err := tx.QueryRow(r.Context(), `
-			SELECT route_id, direction, ended_at IS NULL
+			SELECT route_id, direction, ended_at IS NULL, vehicle_id
 			  FROM vehicle_trips
-			 WHERE id = $1 AND vehicle_id = $2`, tripID, dev.Vehicle).
-			Scan(&route, &direction, &tripOpen)
+			 WHERE id = $1 AND tracker_id = $2`, tripID, dev.ID).
+			Scan(&route, &direction, &tripOpen, &tripVehicle)
 		if err != nil {
 			return err
 		}
@@ -1111,7 +1144,7 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 				ON CONFLICT (trip_id, recorded_at) DO NOTHING
 				RETURNING true`,
-				dev.Institution, tripID, dev.Vehicle, p.at, p.f.Latitude, p.f.Longitude,
+				dev.Institution, tripID, tripVehicle, p.at, p.f.Latitude, p.f.Longitude,
 				p.f.SpeedKmph, p.f.HeadingDeg, p.f.AccuracyM).Scan(&stored); err != nil {
 				if !errors.Is(err, pgx.ErrNoRows) {
 					return err

@@ -178,7 +178,7 @@ func (c *importCtx) noteCreated(entity string, id uuid.UUID, inserted bool) {
 
 var importSpecs = map[string]importSpec{
 	"classes": {
-		Perm:     rbac.AcademicsWrite,
+		Perm:    rbac.AcademicsWrite,
 		Columns: []string{"name", "level", "stream"},
 		// Only the name. Level is read out of it -- a sheet that says
 		// "Grade 6" has already said six, and requiring the column made a
