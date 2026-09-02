@@ -71,6 +71,16 @@ var redactKeys = map[string]bool{
 	"password": true, "new_password": true, "current_password": true,
 	"temporary_password": true, "csrf_token": true, "token": true,
 	"secret": true, "api_key": true, "access_key": true,
+	/* The API key issue response, which is the only payload in the product
+	   that ever contains a usable machine credential. "token" above already
+	   covers the field it is returned in; these are here because the same
+	   value travels under other names in adjacent code and a redaction list
+	   that is right only for today's field name is the kind that fails
+	   quietly. A key written into audit_log would be readable by every
+	   holder of audit.read, forever, which turns the record of who did what
+	   into a credential store. */
+	"api_token": true, "bearer": true, "authorization": true,
+	"device_token": true, "token_hash": true,
 }
 
 /*

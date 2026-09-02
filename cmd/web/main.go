@@ -98,6 +98,15 @@ func run() error {
 	r := chi.NewRouter()
 	r.Use(httpx.RequestID, httpx.RealIP, httpx.Recoverer, httpx.SecurityHeaders)
 	r.Use(sessions.Middleware) // attaches identity when a cookie is present
+	/* And the same identity from a header, for callers that are not browsers.
+
+	   Here rather than inside api.Server.Routes because AuditMiddleware wraps
+	   /api/v1 from outside and reads the identity after the handler returns:
+	   attached any further in, every write an integration made would appear in
+	   audit_log with no actor. Transparent unless the request carries an
+	   Authorization: Bearer erpk. token, so the cookie path is untouched.
+	   See internal/api/api_keys.go. */
+	r.Use(apiServer.APIKeyAuth)
 	r.Use(httpx.Logger)        // after auth so lines carry user_id
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {

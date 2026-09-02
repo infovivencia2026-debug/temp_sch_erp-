@@ -114,6 +114,14 @@ func (s *Server) Routes() http.Handler {
 		   them. See person_groups.go. */
 		s.mountPersonGroups(r)
 
+		/* Credentials for the software a school runs beside this one.
+
+		   Beside the person-shaped features rather than under /admin because
+		   they are the counterpart of a user account: see api_keys.go for why
+		   they are gated on the access.* keys and why a key may not manage
+		   keys. */
+		s.mountAPIKeys(r)
+
 		r.Route("/students", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.StudentsRead))
 			/* The conduct file and the accommodations agreed for a child who
