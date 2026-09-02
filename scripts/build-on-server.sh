@@ -188,6 +188,57 @@ rsync -a --delete "$SRC/web/dist/" "$WEBROOT/"
 # Asserted here rather than only in deploy.sh because this is the script a
 # deploy actually runs. Idempotent: present is left alone, absent is inserted,
 # and a config nginx rejects is rolled back rather than reloaded.
+# THE ANDROID APP'S CLAIM ON THIS HOST, asserted for the same reason and in
+# the same way as the assistant route below.
+#
+# The parent app's intent filter carries autoVerify, which Android only
+# believes if https://<host>/.well-known/assetlinks.json comes back as
+# application/json naming the package and its signing certificate. Two things
+# conspired to make that quietly impossible: Vite does not copy dot
+# directories out of public/ into dist, so a file written at that path was
+# dropped from every build without a word, and the request then fell through
+# to the SPA catch-all and answered 200 with text/html. Android reads that as
+# "this host publishes no asset links" rather than as an error, so the symptom
+# is only that links open the browser, which nobody traces back to a build
+# step. The file therefore lives in a directory with no dot and nginx maps the
+# dotted URL onto it.
+#
+# Exact match, and the type stated outright: Android refuses anything that is
+# not application/json and refuses a redirect.
+NGINX_SITE_AL="/etc/nginx/sites-available/${SERVICE}"
+if [ -f "$NGINX_SITE_AL" ] && ! grep -q "assetlinks.json" "$NGINX_SITE_AL"; then
+    say "Asset links route"
+    cp "$NGINX_SITE_AL" "${NGINX_SITE_AL}.bak.$(date +%s)"
+    WEBROOT="$WEBROOT" python3 - "$NGINX_SITE_AL" <<'PYEOF'
+import os, sys
+path = sys.argv[1]
+conf = open(path).read()
+anchor = "    # ---- SPA"
+if anchor not in conf:
+    sys.exit("no SPA anchor in the nginx site; leaving it alone")
+block = """    # ---- Asset links ------------------------------------------------------
+    # Android's verification of the parent app's claim on this host. Must be
+    # application/json, must not redirect, and must not fall through to the
+    # SPA. See scripts/build-on-server.sh for why the directory has no dot.
+    location = /.well-known/assetlinks.json {
+        alias %s/well-known/assetlinks.json;
+        default_type application/json;
+        add_header Cache-Control "public, max-age=300";
+    }
+
+""" % os.environ["WEBROOT"]
+open(path, "w").write(conf.replace(anchor, block + anchor, 1))
+print("  inserted /.well-known/assetlinks.json")
+PYEOF
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx
+        echo "  nginx reloaded"
+    else
+        echo "  !! nginx rejected the config; rolling back" >&2
+        mv "$(ls -t ${NGINX_SITE_AL}.bak.* | head -1)" "$NGINX_SITE_AL"
+    fi
+fi
+
 ASSISTANT_PORT="${ASSISTANT_PORT:-8001}"
 NGINX_SITE="/etc/nginx/sites-available/${SERVICE}"
 if [ -f "$NGINX_SITE" ] && ! grep -q "location /assistant/" "$NGINX_SITE"; then
