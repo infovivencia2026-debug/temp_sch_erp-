@@ -154,7 +154,18 @@ export function CardShell({
               beneath it. With the figure at 96 and the title at 18 the size
               does that work, and the weight is free to come down with
               everything else that is not the number. */}
-          <p className="truncate font-normal leading-tight text-[length:var(--card-title,13px)]">
+          {/* TWO LINES ON A PHONE, NOT AN ELLIPSIS.
+
+              A half-width phone cell is 182px and the title is the widest
+              thing on it, so "Pending approvals" arrived as "Pending approv…"
+              -- the card lost its name to save 20px of a 151px-tall card that
+              had vertical room to spare. Truncation is right where the space
+              is horizontal and scarce; here it is vertical and plentiful.
+
+              Kept to two lines. A three-line title on a four-row phone page
+              pushes the figure off the bottom of the cell, which trades a
+              readable name for an unreadable number. */}
+          <p className="line-clamp-2 font-normal leading-tight text-[length:var(--card-title,13px)]">
             {title}
           </p>
           {/* THE MICRO-LABEL. Monospace, uppercase, widely tracked and dim --
