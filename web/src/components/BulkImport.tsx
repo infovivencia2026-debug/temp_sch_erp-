@@ -336,7 +336,7 @@ export default function BulkImport({
         <a
           href={templateUrl ?? `/api/v1/setup/import/${entity}/template`}
           download
-          className="inline-flex items-center gap-1.5 text-[12.5px] underline underline-offset-2"
+          className="inline-flex items-center gap-1.5 text-[12.5px] tap-inline underline underline-offset-2"
         >
           <Download className="h-3.5 w-3.5" />
           Template
@@ -383,7 +383,7 @@ export default function BulkImport({
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="underline underline-offset-2"
+                className="tap-inline underline underline-offset-2"
               >
                 choose a file
               </button>
@@ -393,7 +393,7 @@ export default function BulkImport({
               <button
                 type="button"
                 onClick={() => setPasting(true)}
-                className="inline-flex items-center gap-1 underline underline-offset-2"
+                className="inline-flex items-center gap-1 tap-inline underline underline-offset-2"
               >
                 <ClipboardPaste className="h-3 w-3" />
                 paste the cells instead
@@ -423,7 +423,7 @@ export default function BulkImport({
             <button
               type="button"
               onClick={discard}
-              className="text-[12.5px] underline underline-offset-2 text-muted-foreground hover:text-foreground"
+              className="text-[12.5px] tap-inline underline underline-offset-2 text-muted-foreground hover:text-foreground"
             >
               cancel this file
             </button>
@@ -448,7 +448,7 @@ export default function BulkImport({
                   <button
                     type="button"
                     onClick={() => setShowAll((v) => !v)}
-                    className="text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                    className="text-[12.5px] tap-inline underline underline-offset-2 text-muted-foreground"
                   >
                     {showAll ? 'Show first 10' : `Show all ${grid.length - 1}`}
                   </button>
@@ -458,7 +458,7 @@ export default function BulkImport({
                 <button
                   type="button"
                   onClick={() => setExpanded({ title: name || 'This file', rows: grid })}
-                  className="inline-flex items-center gap-1 text-[12.5px] underline underline-offset-2 text-muted-foreground"
+                  className="inline-flex items-center gap-1 text-[12.5px] tap-inline underline underline-offset-2 text-muted-foreground"
                 >
                   <Maximize2 className="h-3 w-3" />
                   expand
@@ -815,7 +815,7 @@ function History({
                   <button
                     type="button"
                     onClick={() => openFile(r)}
-                    className="underline underline-offset-2 hover:text-primary"
+                    className="tap-inline underline underline-offset-2 hover:text-primary"
                     title="Open this file"
                   >
                     {r.filename ?? 'pasted cells'}
@@ -840,7 +840,7 @@ function History({
                       type="button"
                       disabled={undoing === r.id}
                       onClick={() => setConfirming(r)}
-                      className="underline underline-offset-2 text-muted-foreground hover:text-destructive"
+                      className="tap-inline underline underline-offset-2 text-muted-foreground hover:text-destructive"
                     >
                       {undoing === r.id ? 'deleting\u2026' : `delete these ${r.created_rows}`}
                     </button>

@@ -753,3 +753,46 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
   color: var(--secondary);
 }
+
+/* ---------------------------------------------------------------------------
+   THE TOUCH FLOOR ON THE SIGN-IN PAGE.
+
+   This page is served by the Go handler and styled by this file alone; it
+   shares nothing with the React bundle, so the 44px minimum added to the app's
+   controls stopped at the door and left the one screen every single user has
+   to get through first below it. Measured on a phone-sized viewport with a
+   coarse pointer: the identifier and password fields 40px, the reveal eye
+   40x40, the appearance toggle 34x34, Sign in 40px tall. A parent who cannot
+   reliably hit Sign in has not been let into anything.
+
+   The values are in pixels because a tap target is a physical measurement of a
+   fingertip and does not scale with anything else on the page.
+
+   `min-height` rather than `height`, so the fields and the button keep the
+   proportions they were designed with anywhere they already clear the floor,
+   and only under `pointer: coarse`, so the desk-bound admin console keeps its
+   compact form. The eye is the one exception in shape: it is stretched between
+   the field's top and bottom rather than given a height, so it inherits the
+   field's new 44px and only needs the width. */
+@media (pointer: coarse) {
+  input:not([type="hidden"]),
+  button,
+  select,
+  .theme-toggle {
+    min-height: 44px;
+  }
+
+  /* Both axes. A 44px-tall icon button 34px wide is still a target built for a
+     cursor, and these two are the square ones. */
+  button,
+  .theme-toggle {
+    min-width: 44px;
+  }
+
+  .theme-toggle { width: 44px; height: 44px; }
+
+  /* The field's right padding has to keep clearing the eye, or the last
+     characters of a typed password sit underneath it. */
+  .pw > button.pw-eye { width: 44px; }
+  .pw > input { padding-right: 46px; }
+}

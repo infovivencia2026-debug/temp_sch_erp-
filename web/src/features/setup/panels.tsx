@@ -695,7 +695,7 @@ function ClassesPanel({ onDone }: PanelProps) {
       <button
         type="button"
         onClick={() => setRows([...rows, { name: '', sections: 'A', capacity: '40' }])}
-        className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+        className="tap-inline mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
         Another class
@@ -1333,7 +1333,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
         onClick={() =>
           setRows([...rows, { name: `Period ${rows.length + 1}`, sequence: rows.length + 1, starts_at: '', ends_at: '', is_break: false }])
         }
-        className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+        className="tap-inline mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
         Another period

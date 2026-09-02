@@ -474,6 +474,60 @@ const PAGE_SIZE = 10
    are all well past it. */
 const WIDE_AT = 8
 
+/* THE BAND BETWEEN THE PHONE AND THE DESK.
+
+   Below 640px a row is a stacked card and nothing is squeezed; past about
+   900px there is room for the columns. In between is a band that belonged to
+   nobody, and it is not a rare one: a phone turned sideways, a 10-inch tablet
+   held upright, a laptop with the browser sharing the screen with a PDF.
+
+   Measured at 640px, a five-column student list with the admission numbers a
+   school actually issues broke eleven words across ten rows. "2026-27/00042"
+   came out as "2026-27/000" with "42" on the line below, and "VIII-A" as
+   "VIII-" and "A". A squeezed column does not fail by looking cramped; it
+   fails by turning one reference number into two, and a clerk reading a
+   receipt off the screen has no way to tell which half is the one to type.
+
+   The remedy is the one the wide tables already use, applied to the case that
+   was never counted as wide: stop dividing the width between the columns, let
+   them take what they need, and let the container scroll. `min-w-full` is why
+   this is cheap rather than a trade, exactly as it is above: a table that
+   already fits still fills its card, and only the ones that genuinely do not
+   fit run past it.
+
+   A width query rather than the `pointer: coarse` test COARSE_ROW uses
+   further down, and the difference is worth saying out loud because the two
+   are easy to reach for interchangeably. The pointer tests in this file are
+   all about the size of a thumb: a menu row, a button, a field. This is not
+   that. What breaks an admission number in half is the number of pixels the
+   columns have to share, and a 13-inch touchscreen laptop has as many of them
+   as any other laptop while a mouse user with the window at half width has as
+   few as a tablet. The condition that predicts the damage is the width, so
+   the width is what is asked.
+
+   Rejected: dropping `w-full` and making every table content-sized at every
+   size. It reads like the same fix and is not. On a desk `w-full` is what
+   makes a six-column register fill its card and line up with the card above
+   it, and trading that away would change every list screen in the product to
+   fix a handset. The desktop layout is good and is not what is wrong here. */
+const NARROW_WIDE = 'max-[900px]:w-max max-[900px]:min-w-full'
+
+/* Twenty pixels a side is a desk measurement.
+
+   It is the right air between columns when a table has 900px to spend, and it
+   is 40px per column of nothing when it has 640. On a five-column table that
+   is 200px, near a third of the screen, and it is the difference between a
+   table that fits and one the reader has to push sideways to finish reading.
+   NARROW_WIDE above means an over-wide table now scrolls rather than breaking
+   words, which is a rescue and not a pleasure; the cheapest way to need the
+   rescue less often is to stop paying desk padding on a handset. With the
+   padding at 12px the five-column list that was breaking words at 640px fits
+   the screen outright and never scrolls at all.
+
+   12px a side and not zero: the vertical rules this file draws between
+   columns need air on both sides, or the figures sit on the line. */
+const NARROW_PAD = 'max-[900px]:px-3'
+
 export function Table({
   head,
   children,
@@ -606,9 +660,11 @@ export function Table({
       <table
         className={cn(
           'responsive-table text-[14px]',
-          // is-wide also freezes the first column — see index.css. A table
-          // scrolled sideways must not carry away the column naming the row.
-          roomy ? 'is-wide w-max min-w-full' : 'w-full',
+          // A table scrolled sideways must not carry away the column naming
+          // the row, so is-wide freezes the first column -- see index.css.
+          // On a narrow screen index.css freezes it for every table, because
+          // NARROW_WIDE has made every table one that can scroll sideways.
+          roomy ? 'is-wide w-max min-w-full' : cn('w-full', NARROW_WIDE),
         )}
       >
         <thead>
@@ -629,6 +685,7 @@ export function Table({
                   aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                   className={cn(
                     'whitespace-nowrap px-5 py-2.5 text-[12px] font-medium text-muted-foreground',
+                    NARROW_PAD,
                     right ? 'text-right' : 'text-left',
                   )}
                 >
@@ -841,7 +898,7 @@ export function Td({
     <td
       colSpan={colSpan}
       data-label={label}
-      className={cn('px-5 [padding-block:var(--row-py)]', className)}
+      className={cn('px-5 [padding-block:var(--row-py)]', NARROW_PAD, className)}
     >
       {children}
     </td>
@@ -962,10 +1019,28 @@ export function Button({
            and making a tablet with a trackpad look clumsy.
 
            px grows with it. A 44px-tall button 20px wide is still a miss; the
-           floor applies to both axes or it applies to neither. */
+           floor applies to both axes or it applies to neither.
+
+           WRITTEN IN PIXELS, AND THAT IS THE WHOLE POINT.
+
+           The first attempt at this floor used `h-11`, which is Tailwind for
+           2.75rem, which is 44px only on a page whose root font size is the
+           browser default of 16px. This one is not: index.css pins
+           `html { font-size: 14px }` for the dense enterprise baseline, so a
+           rem here is 14px and `h-11` came out at 38.5px. The rule was in the
+           deployed stylesheet, it matched, it won the cascade, and it still
+           produced a button five and a half pixels under the floor it was
+           written to enforce -- which is the worst kind of fix, the kind that
+           looks done.
+
+           An accessibility minimum is a physical measurement of a fingertip.
+           It does not scale with the body text and it must not be expressed
+           in a unit that does. `min-h` rather than `h` so that a label which
+           does wrap grows the box instead of spilling out of it, and `min-w`
+           so a single-icon button is not a 44px-tall sliver. */
         size === 'sm'
-          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:px-4'
-          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:px-4',
+          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]'
+          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'
@@ -1732,7 +1807,24 @@ export function EmptyState({
     <Card className="empty-state p-10 text-center">
       <p className="text-[15px] font-semibold">{title}</p>
       {body && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-muted-foreground">{body}</p>}
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+      {/* A HAIRLINE, BECAUSE THE CARD IS LIGHT AND SO IS THE BUTTON.
+
+          Measured on the live site: the primary button resolved to
+          rgb(255,255,255) sitting on a card that also resolved to
+          rgb(255,255,255). White chrome on white ground - the label was
+          legible and the control was not, so it read as a bolder line of the
+          same sentence rather than as something to press.
+
+          The border is currentColor rather than a palette token for the reason
+          the bento cue uses currentColor: this card is painted light while the
+          page around it is dark, so any token naming "the" foreground can
+          resolve against the wrong one of the two. The card has already
+          settled its own ink; borrowing it cannot collapse into invisibility. */}
+      {action && (
+        <div className="mt-4 flex justify-center [&_button]:border [&_button]:border-current/25">
+          {action}
+        </div>
+      )}
     </Card>
   )
 }

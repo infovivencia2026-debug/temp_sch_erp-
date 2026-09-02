@@ -399,6 +399,37 @@
     background: hsl(var(--surface-hover));
   }
 
+  /* On a narrow screen EVERY table is a wide one.
+
+     The rule above is scoped to .is-wide on the argument that a table narrow
+     enough to fit needs no sticky anything. That argument is about a desk. A
+     five-column student list is narrow on a laptop and wider than the screen
+     on a phone turned sideways, and the Table component now lets exactly those
+     tables size to their content and scroll rather than squeezing an admission
+     number until it breaks in half. The moment a table can scroll sideways,
+     the reason for freezing the first column applies to it in full: push the
+     ledger across to reach the amount and, unfrozen, the name of the child it
+     belongs to has left the screen, so the figure on display belongs to
+     nobody.
+
+     The upper bound is the same 900px the component uses to decide the
+     scrolling in the first place, so the freeze and the scroll cannot drift
+     apart. The lower bound is the stacking breakpoint: below it there is no
+     table left to freeze a column of, each row is its own card, and a sticky
+     cell inside a block layout would cost a stacking context for nothing. */
+  @media (min-width: 640px) and (max-width: 900px) {
+    .responsive-table :where(thead th, tbody td):first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: hsl(var(--card));
+    }
+    .responsive-table thead th:first-child {
+      z-index: 3;
+      background: hsl(var(--surface-subtle));
+    }
+  }
+
   /* A figure is not a word, wherever it appears.
 
      `overflow-wrap: anywhere` stops a long email address shoving a card
@@ -1755,4 +1786,82 @@ body[data-scroll-lock] {
   /* The dimming stays. It is a state change, not motion, and it is the only
      thing telling somebody their press landed. */
   button:active, [role='button']:active, a:active { transform: none; }
+}
+
+/* THE TOUCH FLOOR, APPLIED ONCE INSTEAD OF COMPONENT BY COMPONENT.
+
+   The shared Button now carries its own 44px minimum, but the shared Button is
+   not what most of this product taps. A count of every rendered control on the
+   three screens an empty school can reach found the majority of them were
+   hand-rolled elements: the setup checklist rows at 36px, the class template
+   chips at 28.5px, the launcher's app rows at 36px, its Home and Close chips at
+   29px, the text fields at 40px, the password eye at 40px, the theme toggle at
+   34px. Every one of them is a real target a parent or a clerk is expected to
+   hit on a phone, and none of them would have been fixed by editing Button.
+
+   So the floor lives here, on the roles rather than on the components. A
+   control is a control whether it was built from the shared primitive or
+   assembled inline in a feature file, and a rule keyed on `button`, `select`
+   and the ARIA roles catches the ones written next year as well.
+
+   PIXELS, NOT REMS. `html` is pinned to 14px for the dense data baseline, so
+   `2.75rem` -- Tailwind's `h-11`, the obvious way to write this -- evaluates to
+   38.5px here. That is how the first version of this shipped: the media query
+   matched, the rule won the cascade, and the button still measured 38.5. A
+   fingertip is not proportional to the body text.
+
+   `min-height` rather than `height` so nothing that is already taller shrinks,
+   and so a label that wraps still grows its box.
+
+   Only under `pointer: coarse`. On a mouse these controls stay exactly the size
+   they are today; a 44px row height across a dense table would cost real
+   information on a desktop that never needed it. */
+@layer base {
+  @media (pointer: coarse) {
+    :where(
+      button, select, summary,
+      [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option'],
+      input:not([type='hidden']):not([type='range'])
+    ):not(.tap-inline):not(.bento-dot) {
+      min-height: 44px;
+    }
+
+    /* Both axes or neither: a 44px-tall icon button 24px wide is still a miss.
+       Text inputs are left out because they are already wide and a minimum
+       width on one inside a narrow grid column would push the layout sideways
+       to no benefit. */
+    :where(
+      button, select, summary,
+      [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option']
+    ):not(.tap-inline):not(.bento-dot) {
+      min-width: 44px;
+    }
+
+    /* THE EXCEPTION, AND HOW IT IS HANDLED RATHER THAN WAIVED.
+
+       Some controls are a word inside a sentence -- "choose a file", "paste the
+       cells instead" -- and growing them to 44px would open a gap in the middle
+       of a paragraph and stop them reading as part of it. The answer is not to
+       leave them at 19px; it is to grow the target without growing the box, the
+       same trick `.bento-dot` already uses for the pager dots, which is why
+       that class is exempt above and needs nothing here.
+
+       An absolutely positioned pseudo-element takes no space in the flow, so
+       the visible text is untouched and the tappable area around it is 44px
+       tall and at least 44px wide. It is transparent on purpose: anything
+       visible would read as a button, which is exactly what these are not. */
+    .tap-inline {
+      position: relative;
+    }
+    .tap-inline::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: 44px;
+      transform: translate(-50%, -50%);
+      border-radius: 8px;
+    }
+  }
 }
