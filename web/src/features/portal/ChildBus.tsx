@@ -94,8 +94,21 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
              can answer. The straight line to the stop and its distance are
              drawn on the map itself rather than in a second plot underneath:
              one picture, with the number sitting on the thing it measures. */
+          /* 460px WAS MORE THAN HALF A PHONE.
+
+             On an 844px handset a fixed 460px map is 54% of the screen, and
+             everything the parent came to read -- whether the bus is running,
+             how far away it is, how many minutes -- sat below the fold under
+             it. The map is the centrepiece on a desktop, where 460px is a
+             third of the window; on a phone it has to leave room for the
+             sentence that explains it.
+
+             Expressed against the viewport rather than as a smaller fixed
+             number so it stays a proportion of whatever screen it is on:
+             roughly a third of a phone, and back to 460px the moment there is
+             a window big enough to deserve it. */
           <FleetMap
-            className="h-[460px]"
+            className="h-[min(38vh,460px)] sm:h-[460px]"
             vehicles={[
               {
                 id: 'bus',

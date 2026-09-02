@@ -948,7 +948,24 @@ export function Button({
         'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm font-medium',
         'transition-colors duration-150',
         'disabled:pointer-events-none disabled:opacity-50',
-        size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-9 px-3.5 text-[14px]',
+        /* A FINGER IS NOT A MOUSE POINTER.
+
+           32px and 36px are comfortable to click and too small to tap: the
+           usual floor is 44px, and every button in this product -- Pay, Sign
+           in, Dismiss, every action in every table -- was under it on a phone.
+           A parent stabbing twice at "Pay" is not a parent with a steady hand,
+           it is a target built for a cursor.
+
+           The visible box is unchanged. The height grows only where there is a
+           coarse pointer, which is the query that asks the real question --
+           "is this being touched" -- rather than guessing from screen width
+           and making a tablet with a trackpad look clumsy.
+
+           px grows with it. A 44px-tall button 20px wide is still a miss; the
+           floor applies to both axes or it applies to neither. */
+        size === 'sm'
+          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:px-4'
+          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:px-4',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'

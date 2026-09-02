@@ -118,8 +118,12 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
   return (
     <div className="mt-2 max-w-[22rem]">
       <div className="grid grid-cols-7 gap-1 text-center">
+        {/* 11px, not 10. The cells below are 46px square and had room to
+            spare; the header naming them was the smallest text on the parent's
+            screen, set in tracked capitals at 10px in a muted grey. Nothing
+            was gained by the extra pixel it saved. */}
         {WEEKDAYS.map((w, i) => (
-          <div key={i} className="pb-1 text-[10px] font-medium uppercase text-muted-foreground">
+          <div key={i} className="pb-1 text-[11px] font-medium uppercase text-muted-foreground">
             {w}
           </div>
         ))}
