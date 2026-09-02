@@ -348,7 +348,13 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view := resetView{Channel: channel, Sent: sentTo}
-	if !queued || p.EmailReady == nil || !p.EmailReady(r, owner, channel) {
+	/* The branch itself, since every input to it has now been logged and the
+	   outcome still disagrees with them. */
+	ready := p.EmailReady != nil && p.EmailReady(r, owner, channel)
+	slog.Info("password reset: outcome",
+		"queued", queued, "have_callback", p.EmailReady != nil,
+		"ready", ready, "channel", channel, "owner", owner)
+	if !queued || !ready {
 		/* SECURITY: never show the link on screen.
 		   The previous behaviour printed a clickable reset URL whenever the
 		   school had no email provider, which let anybody who knew an
