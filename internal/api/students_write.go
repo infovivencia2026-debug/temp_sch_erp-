@@ -614,23 +614,6 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		// was given a generated one instead.
 		col[strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, "\ufeff")))] = i
 	}
-	/* One column is genuinely required and the rest are not.
-
-	   Every other column is read through get(), which answers "" for a header
-	   the file does not have — so a sheet with six columns imports exactly as
-	   well as one with eighteen, and a school that keeps no blood groups does
-	   not have to invent an empty column to satisfy a template.
-
-	   The name is the exception, because a child with no name is not a record.
-	   full_name or first_name will do: schools write one column and the older
-	   template wrote three, and both keep working. */
-	_, hasFull := col["full_name"]
-	_, hasFirst := col["first_name"]
-	if !hasFull && !hasFirst {
-		httpx.BadRequest(w, r,
-			"the CSV needs a full_name column (or first_name). Everything else is optional")
-		return
-	}
 
 	/* The clerk's own column choices, where they made any.
 
@@ -701,6 +684,29 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		customCols[label] = i
+	}
+
+	/* THE NAME, CHECKED AFTER THE MAPPING RATHER THAN BEFORE IT.
+
+	   This ran against the file's own headers, before any mapping was
+	   considered, and refused outright: "the CSV needs a full_name column".
+	   A school whose sheet says "Student Name" -- which is what a school's
+	   sheet says -- was rejected at the door, and the mapping screen that
+	   exists precisely to answer this never got the chance to.
+
+	   It is the one field a record cannot be built without, so it is still
+	   required. What changed is where it may come from: any column the person
+	   points at it. A file written from our template still works untouched,
+	   because its header already is the name.
+	*/
+	_, hasFull := col["full_name"]
+	_, hasFirst := col["first_name"]
+	if !hasFull && !hasFirst {
+		httpx.BadRequest(w, r,
+			"nothing is pointed at the child's name, and a row cannot be built "+
+				"without it. Choose which of your columns holds it â everything "+
+				"else is optional.")
+		return
 	}
 
 	get := func(rec []string, name string) string {
