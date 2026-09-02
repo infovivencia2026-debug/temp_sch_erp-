@@ -63,6 +63,14 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            /* AGP 9 does not sign a debug build unless it is told to.
+
+               Without this the APK carries nothing in META-INF but its own
+               metadata and the phone refuses it outright with
+               INSTALL_PARSE_FAILED_NO_CERTIFICATES — a build that succeeds and
+               an artefact nobody can install, which reads as a broken handset
+               rather than a missing line here. */
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = false
