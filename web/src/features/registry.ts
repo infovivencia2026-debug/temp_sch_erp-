@@ -62,6 +62,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      them. */
   'admissions.applications.student_360': screen(() => import('./shared/StudentProfile')),
   'institution_admin.students.student_photographs': screen(() => import('./students/StudentPhotos')),
+  /* One screen, two entries: the staff groups are the same thing over a
+     different set of people, and two copies would drift within a month. The
+     component reads which from the route. */
+  'institution_admin.students.groups_lists': screen(() => import('./students/PeopleGroups')),
+  'institution_admin.staff.staff_groups_lists': screen(() => import('./students/PeopleGroups')),
   /* The principal's own way in to setting the school up.
      The wizard carried every form a new school needs -- academic year,
      classes, sections, subjects, the school day, staff, students, grading,

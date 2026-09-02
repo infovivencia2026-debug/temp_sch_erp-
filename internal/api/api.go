@@ -108,6 +108,12 @@ func (s *Server) Routes() http.Handler {
 		   that may read a child may read who to ring about that child. */
 		r.With(httpx.RequirePermission(rbac.StudentsRead)).Get("/people/search", s.searchPeople)
 
+		/* The school's own groupings — the swimming squad, the 3.15 bus, the
+		   children a trust pays for. Beside the search for the same reason:
+		   they are about people, not about the module that happens to use
+		   them. See person_groups.go. */
+		s.mountPersonGroups(r)
+
 		r.Route("/students", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.StudentsRead))
 			/* The conduct file and the accommodations agreed for a child who

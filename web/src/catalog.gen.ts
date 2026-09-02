@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 329 features. */
+/** 13 roles, 331 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -257,6 +257,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.students.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from.' },
           { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
           { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
+          { key: 'institution_admin.students.groups_lists', slug: 'groups_lists', name: 'Groups & lists', scope: 'institution', tier: 'core', summary: 'The school\'s own groupings — the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.' },
         ],
       },
       {
@@ -332,6 +333,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
           { key: 'institution_admin.staff.roles_permissions', slug: 'roles_permissions', name: 'Roles & permissions', scope: 'institution', tier: 'core', summary: 'Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it.' },
+          { key: 'institution_admin.staff.staff_groups_lists', slug: 'staff_groups_lists', name: 'Staff groups & lists', scope: 'institution', tier: 'core', summary: 'Named groups of staff — exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns.' },
         ],
       },
       {
