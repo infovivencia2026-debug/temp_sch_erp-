@@ -683,7 +683,7 @@ type vehicleRow struct {
 	NextExpiry   *string `json:"next_expiry,omitempty"`
 	Status       string  `json:"status"`
 	/* The six digits on the sticker in the cab.
-	
+
 	   A driver is not permanent on a bus, so the app asks which one he is in
 	   today and this is what he scans or types. Read-only here: it is issued
 	   with the vehicle and never changes, because a code that changes is a

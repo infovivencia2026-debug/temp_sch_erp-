@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -144,10 +145,33 @@ func (s *Server) issueAdmissionLogin(
 		// A sibling's admission. Name the account they already have rather
 		// than replacing a password they are signing in with today.
 		out.Existing = true
+		/* The same three-way test ensureGuardianAccount makes, because this
+		   path issues its own credential rather than calling it: an account
+		   that has been signed into keeps its password, and one that never has
+		   is given a working one. Naming a login nobody can pair with a
+		   password leaves the office holding half a credential. */
+		var lastLogin *time.Time
 		_ = tx.QueryRow(ctx,
-			`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
-			*userID).Scan(&out.SignInAs)
-		out.Note = "This parent already has a login and it is unchanged."
+			`SELECT COALESCE(username::text, email::text, phone, ''), last_login_at
+			   FROM users WHERE id = $1`,
+			*userID).Scan(&out.SignInAs, &lastLogin)
+		if lastLogin == nil {
+			if pw, err := temporaryPassword(); err == nil {
+				if hash, err := s.Hasher.Hash(pw); err == nil {
+					if _, err := tx.Exec(ctx,
+						`UPDATE users SET password_hash = $2 WHERE id = $1`,
+						*userID, hash); err == nil {
+						out.Password = pw
+					}
+				}
+			}
+		}
+		if out.Password != "" {
+			out.Note = "This parent had a login that had never been used, so a new " +
+				"password has been issued. Shown once — give it to them now."
+		} else {
+			out.Note = "This parent already has a login and it is unchanged."
+		}
 	} else {
 		/* The number the family already knows, not a code in an email.
 

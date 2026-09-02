@@ -38,28 +38,30 @@ type applicantNote struct {
 	Body    string
 }
 
-/* THE FOUR NOTES ARE ALSO THE FOUR TEMPLATES.
+/*
+THE FOUR NOTES ARE ALSO THE FOUR TEMPLATES.
 
-   This screen sent TemplateCode "admissions." + kind — admissions.offer,
-   .documents, .test, .regret — and not one of those existed. The built-in list
-   carried admissions.offered, .documents_pending, .test_scheduled and
-   .rejected: four templates for the same four moments, under four different
-   names, written for a different set of variables ({{student_name}} against
-   this screen's {{child}}). So every send from here failed with
+	This screen sent TemplateCode "admissions." + kind — admissions.offer,
+	.documents, .test, .regret — and not one of those existed. The built-in list
+	carried admissions.offered, .documents_pending, .test_scheduled and
+	.rejected: four templates for the same four moments, under four different
+	names, written for a different set of variables ({{student_name}} against
+	this screen's {{child}}). So every send from here failed with
 
-       0 sent, 1 not sent: ... no template "admissions.offer" for sms
+	    0 sent, 1 not sent: ... no template "admissions.offer" for sms
 
-   and the office was told to fix something it had no way to fix.
+	and the office was told to fix something it had no way to fix.
 
-   The wording it needs is already right here, in applicantNotes, with the
-   right variables. Registering that as the built-in is therefore not new copy,
-   it is the removal of a second source of truth: the note a clerk previews and
-   the template that goes out are now the same object, and cannot drift into
-   disagreeing about what the school said.
+	The wording it needs is already right here, in applicantNotes, with the
+	right variables. Registering that as the built-in is therefore not new copy,
+	it is the removal of a second source of truth: the note a clerk previews and
+	the template that goes out are now the same object, and cannot drift into
+	disagreeing about what the school said.
 
-   Registered for every channel, because resolveTemplate falls back to the
-   built-in whatever the channel is, and a school that has written its own
-   admissions.offer row still overrides this — the database is checked first. */
+	Registered for every channel, because resolveTemplate falls back to the
+	built-in whatever the channel is, and a school that has written its own
+	admissions.offer row still overrides this — the database is checked first.
+*/
 func init() {
 	for kind, note := range applicantNotes() {
 		builtinTemplates["admissions."+kind] = builtinTemplate{

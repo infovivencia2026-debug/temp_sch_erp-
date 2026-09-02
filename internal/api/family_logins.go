@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -421,10 +422,17 @@ var errGuardianContactTaken = errors.New(
 type guardianAccount struct {
 	UserID   uuid.UUID
 	SignInAs string
-	// Empty when the account already existed. Nothing can read a password back
-	// out of this product, so empty means "they already have one".
+	// Empty when the account already existed AND has been signed into. Nothing
+	// can read a password back out of this product, so empty means "they have
+	// one and it still works".
 	Password string
 	Existing bool
+	// Reissued marks the third case: the account was already there, had never
+	// been used, and has been given a fresh password. Existing stays true --
+	// the account and its history are the ones that were there — so a caller
+	// that only checks Existing keeps its old behaviour and only the wording
+	// needs to know.
+	Reissued bool
 }
 
 /*
@@ -448,10 +456,56 @@ func (s *Server) ensureGuardianAccount(ctx context.Context, tx pgx.Tx,
 	if existing != nil {
 		out.Existing = true
 		out.UserID = *existing
-		err := tx.QueryRow(ctx,
-			`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
-			*existing).Scan(&out.SignInAs)
-		return out, err
+
+		/* AN ACCOUNT NOBODY HAS EVER USED IS NOT AN ACCOUNT THEY HOLD.
+
+		   This returned the sign-in name and no password, and the screen said
+		   "this parent already has a login and it is unchanged". The rule
+		   behind that is right and stays: never replace a password somebody is
+		   signing in with today, because a second child's admission must not
+		   lock a family out of the first.
+
+		   It is wrong for an account that has never been signed into. Then
+		   there is no session to protect and no secret anyone is relying on --
+		   there is only an office holding a name it cannot pair with anything,
+		   a family with no way in, and a screen telling both of them that
+		   everything is fine. Seen on a real admission: the guardian existed,
+		   last_login_at was null, active_sessions was zero, and the credential
+		   had gone to whoever read the note the first time.
+
+		   So: never used, issue a fresh one. Used at least once, leave it
+		   exactly as before. last_login_at is the whole test, and it is the
+		   honest one -- it asks whether this login has ever worked for anybody
+		   rather than guessing from how it was made. */
+		var lastLogin *time.Time
+		if err := tx.QueryRow(ctx,
+			`SELECT COALESCE(username::text, email::text, phone, ''), last_login_at
+			   FROM users WHERE id = $1`,
+			*existing).Scan(&out.SignInAs, &lastLogin); err != nil {
+			return out, err
+		}
+		if lastLogin != nil {
+			return out, nil
+		}
+
+		password, err := temporaryPassword()
+		if err != nil {
+			return out, err
+		}
+		hash, err := s.Hasher.Hash(password)
+		if err != nil {
+			return out, err
+		}
+		if _, err := tx.Exec(ctx,
+			`UPDATE users SET password_hash = $2 WHERE id = $1`, *existing, hash); err != nil {
+			return out, err
+		}
+		out.Password = password
+		// Still Existing -- the account, the username and every record hanging
+		// off it are the ones that were already there. Only the unused secret
+		// is new, and the caller's wording depends on knowing the difference.
+		out.Reissued = true
+		return out, nil
 	}
 
 	phone, email = strings.TrimSpace(phone), strings.TrimSpace(email)

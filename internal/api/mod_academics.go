@@ -882,17 +882,17 @@ type reportCardRow struct {
 	// The card itself. Everything else on this row describes a child; the
 	// approval actions act on the card, and without its id the screen has
 	// nothing to send.
-	ID          string   `json:"id"`
-	StudentID   string   `json:"student_id"`
-	AdmissionNo string   `json:"admission_no"`
-	RollNo      *int     `json:"roll_no,omitempty"`
-	FullName    string   `json:"full_name"`
+	ID          string `json:"id"`
+	StudentID   string `json:"student_id"`
+	AdmissionNo string `json:"admission_no"`
+	RollNo      *int   `json:"roll_no,omitempty"`
+	FullName    string `json:"full_name"`
 	/* The child's face, where the school has one on file.
 
 	   A class teacher checking thirty cards knows the children by sight and
 	   not by admission number, and a row of names in a table is the one place
 	   a mis-clicked child is easiest and costliest. */
-	PhotoFileID *string `json:"photo_file_id,omitempty"`
+	PhotoFileID *string  `json:"photo_file_id,omitempty"`
 	ClassName   *string  `json:"class_name,omitempty"`
 	SectionName *string  `json:"section_name,omitempty"`
 	Total       *float64 `json:"total_marks,omitempty"`

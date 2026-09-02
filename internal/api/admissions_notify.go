@@ -278,8 +278,12 @@ func (s *Server) ensureApplicantLogin(ctx context.Context, tx pgx.Tx,
 	out.SignInAs = acct.SignInAs
 	out.Password = acct.Password
 	if acct.Existing {
-		out.Note = "This parent already has a login and it is unchanged. This " +
-			"application is now on it."
+		if acct.Reissued {
+			out.Note = "This parent had a login that had never been used, so a new password has been issued. Shown once — give it to them now."
+		} else {
+			out.Note = "This parent already has a login and it is unchanged. This " +
+				"application is now on it."
+		}
 	} else {
 		out.Note = "Shown once. Give it to the parent now; it cannot be read back."
 	}

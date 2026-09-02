@@ -56,8 +56,8 @@ var (
 	// A code was typed or scanned and no active bus in this school carries it.
 	// Deliberately separate from "you are assigned to nothing": one is a
 	// mistyped sticker, the other is a conversation with the office.
-	errNoSuchBus = errors.New("no bus in this school has that code")
-	errDriverNoRecord  = errors.New("this login is not an employee record")
+	errNoSuchBus      = errors.New("no bus in this school has that code")
+	errDriverNoRecord = errors.New("this login is not an employee record")
 )
 
 type driverSignInRequest struct {
