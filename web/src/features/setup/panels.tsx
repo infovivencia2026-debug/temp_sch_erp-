@@ -66,15 +66,45 @@ function Existing({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Chip({ children, muted }: { children: ReactNode; muted?: boolean }) {
+function Chip({ children, muted, onRemove, busy }: {
+  children: ReactNode
+  muted?: boolean
+  /* A cross on the tag itself.
+   *
+   * These lists are how a school sees what it has just created, and creating
+   * them is exactly when a duplicate or a typo appears -- a class added twice,
+   * a section named B when the school calls it Blue. Reading the mistake here
+   * and having to go somewhere else to fix it is the gap people give up in.
+   *
+   * Omitted where the row cannot be removed, so a cross never appears on
+   * something that will refuse. */
+  onRemove?: () => void
+  busy?: boolean
+}) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-2 py-0.5 text-[13px]',
+        'inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[13px]',
         muted && 'text-muted-foreground',
+        busy && 'opacity-50',
       )}
     >
       {children}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={busy}
+          /* The label names what goes, because a row of identical crosses is
+             unreadable to anybody using a screen reader, and this is a
+             delete. */
+          aria-label={`Remove ${typeof children === 'string' ? children : 'this'}`}
+          className="-mr-0.5 rounded-sm px-0.5 leading-none text-muted-foreground
+                     hover:bg-destructive/10 hover:text-destructive"
+        >
+          ×
+        </button>
+      )}
     </span>
   )
 }
@@ -534,6 +564,30 @@ function ClassesPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const sections = sectionList.data?.items ?? []
+  const qc = useQueryClient()
+
+  /* Removing one of these, from the tag itself.
+   *
+   * The server refuses a class that still has sections and a section that
+   * still has a register, and its refusal names what is in the way -- "2
+   * sections and 0 mapped subjects hang off this class". That sentence is
+   * more useful than anything this screen could invent, so it is shown as it
+   * comes back rather than replaced with "could not delete". */
+  const [removing, setRemoving] = useState('')
+  const [refused, setRefused] = useState('')
+
+  const remove = async (kind: 'classes' | 'sections', id: string, label: string) => {
+    setRefused('')
+    setRemoving(id)
+    try {
+      await api.del(`/api/v1/setup/${kind}/${id}`)
+      await qc.invalidateQueries()
+    } catch (e) {
+      setRefused(`${label}: ${e instanceof Error ? e.message : 'could not be removed.'}`)
+    } finally {
+      setRemoving('')
+    }
+  }
   /* A CLASS AND ITS SECTIONS ARE ONE THOUGHT.
    *
    * Sections used to be a step of their own: name Class 1 to 10, move on, then
@@ -657,7 +711,13 @@ function ClassesPanel({ onDone }: PanelProps) {
       {existing.length > 0 && (
         <Existing label="Classes">
           {existing.map((c) => (
-            <Chip key={c.id}>{c.name}</Chip>
+            <Chip
+              key={c.id}
+              busy={removing === c.id}
+              onRemove={() => remove('classes', c.id, c.name)}
+            >
+              {c.name}
+            </Chip>
           ))}
         </Existing>
       )}
@@ -669,6 +729,10 @@ function ClassesPanel({ onDone }: PanelProps) {
           this would have removed the only place a school could rename Rose to
           Blue -- a capability quietly lost while collapsing two screens into
           one, which is the usual way tidying a product costs it something. */}
+      {refused && (
+        <p className="mt-3 text-[13px] text-destructive">{refused}</p>
+      )}
+
       {sections.length > 0 && (
         <div className="mt-4">
           <p className="eyebrow mb-1.5 text-muted-foreground">Sections</p>
@@ -3199,7 +3263,7 @@ function EditableSection({ section }: { section: Section }) {
 
   const save = useMutation({
     mutationFn: () =>
-      api.patch(`/api/v1/academics/sections/${section.id}`, {
+      api.patch(`/api/v1/setup/sections/${section.id}`, {
         name: name.trim(),
         capacity: Number(capacity) || section.capacity,
       }),
@@ -3208,21 +3272,46 @@ function EditableSection({ section }: { section: Section }) {
   })
 
   const remove = useMutation({
-    mutationFn: () => api.del(`/api/v1/academics/sections/${section.id}`),
+    // /setup, not /academics. The edit and delete routes for classes,
+    // sections and subjects all live under setup; /academics only lists them.
+    // This was the fourth screen today naming a path the router does not have.
+    mutationFn: () => api.del(`/api/v1/setup/sections/${section.id}`),
     onSuccess: done,
     onError: (e: unknown) => setFailed(e instanceof Error ? e.message : 'Could not delete.'),
   })
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Rename this section, or change what it holds"
-        className="inline-flex items-center rounded-sm border px-2 py-0.5 text-[13px] hover:bg-accent"
-      >
-        {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
-      </button>
+      /* The tag opens for renaming; the cross removes. Two intentions, and one
+         of them cannot be undone -- so they are two targets rather than one
+         control that behaves differently depending on where you land. */
+      <span className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[13px]">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title="Rename this section, or change what it holds"
+          className="hover:underline"
+        >
+          {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
+        </button>
+        {/* Only while it is empty. A section with children in it is refused by
+            the server anyway, and a cross that always refuses is worse than no
+            cross -- it reads as the product being broken rather than the
+            section being in use. */}
+        {section.enrolled === 0 && (
+          <button
+            type="button"
+            title={failed || 'Remove this section'}
+            onClick={() => remove.mutate()}
+            disabled={remove.isPending}
+            aria-label={`Remove section ${section.class_name}-${section.name}`}
+            className="-mr-0.5 rounded-sm px-0.5 leading-none text-muted-foreground
+                       hover:bg-destructive/10 hover:text-destructive"
+          >
+            ×
+          </button>
+        )}
+      </span>
     )
   }
 
