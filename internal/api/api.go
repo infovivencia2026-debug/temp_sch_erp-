@@ -276,6 +276,10 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/activities", s.saveActivity)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Post("/houses", s.saveHouse)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Delete("/houses/{id}", s.deleteHouse)
+			/* Renaming a house, and correcting or removing a club. Both were
+			   add-only, so a name spelt wrongly at setup stayed on every
+			   report card and a club typed twice stayed in every dropdown. */
+			s.mountSimpleCRUD(r, rbac.AcademicsWrite)
 		})
 
 		r.Route("/timetable", func(r chi.Router) {
