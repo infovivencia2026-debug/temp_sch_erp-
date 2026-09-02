@@ -134,6 +134,14 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/fee-preview", s.admissionFeePreview)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
+			/* Erasing a record, as against taking a child off the roll.
+
+			   Almost every departure is a leaver and keeps the record; this is
+			   for the duplicate an import made twice and the test child
+			   somebody created while learning the system, which withdrawal
+			   would leave on the roll forever. It refuses outright once money
+			   has been taken. See student_delete.go. */
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Delete("/{id}", s.deleteStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/import", s.importStudents)
 			/* The photograph. Nothing has ever written students.photo_file_id,
 			   so the ID card, the statutory return and the report card all read

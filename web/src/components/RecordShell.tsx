@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { cn } from '@/lib/utils'
+import ScrollBox from './ScrollBox'
 
 /* A record, not a screenful of features.
 
@@ -111,7 +112,12 @@ export function RecordShell({
                 <>
                   {/* Click-away, so the menu does not need a global listener. */}
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+                  {/* Bounded and scrollable. The menu grew to nine items and
+                      ran off the bottom of the viewport, so the last two —
+                      including the one that ends a child's enrolment — were
+                      cut in half with nothing to say more was there. */}
                   <div className="absolute right-0 z-50 mt-1 min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg">
+                    <ScrollBox className="max-h-[min(60vh,380px)]">
                     {actions.map((a) => (
                       <button
                         key={a.label}
@@ -145,6 +151,7 @@ export function RecordShell({
                         )}
                       </button>
                     ))}
+                    </ScrollBox>
                   </div>
                 </>
               )}

@@ -8,6 +8,7 @@ import { useCatalog, featurePath } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { aliasText } from '@/lib/search-aliases'
 import { api } from '@/lib/api'
+import ScrollBox from './ScrollBox'
 import { useSession } from '@/lib/session'
 
 /* A child or a parent, found by name, admission number or mobile.
@@ -229,7 +230,10 @@ export function CommandSearch() {
             />
           </div>
 
-          <ul className="max-h-[52vh] overflow-y-auto py-1">
+          {/* Same treatment as the record menu: a list that runs past its box
+              says so with a control, not by slicing a row in half. */}
+          <ScrollBox className="max-h-[52vh]">
+          <ul className="py-1">
             {peopleHits.length > 0 && (
               <>
                 <li className="px-4 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -296,6 +300,7 @@ export function CommandSearch() {
               </li>
             ))}
           </ul>
+          </ScrollBox>
 
           <div className="flex items-center gap-3 border-t px-4 py-2 text-[12px] text-muted-foreground">
             <span>↑↓ to move</span><span>↵ to open</span><span>esc to close</span>

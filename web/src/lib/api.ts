@@ -95,7 +95,12 @@ export const api = {
      verb that says so. */
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-  del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  /* A body on a DELETE, which is unusual and here on purpose: erasing a
+     child's record asks for the name to be typed back, and that confirmation
+     belongs in the request rather than in a query string that lands in every
+     access log beside the id it identifies. */
+  del: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 }
 
 // --- types mirroring the Go response structs --------------------------------

@@ -340,6 +340,29 @@ export default function StudentProfile() {
       qc.invalidateQueries({ queryKey: ['student-counts'] })
     },
   })
+  /* Erasing a record, which is a different act from taking a child off the
+     roll and is on a different footing.
+
+     A leaver keeps their file — the transfer certificate, the fee ledger and
+     the bonafide letter are all questions about children who have gone. This
+     is for the record that was never a child: the duplicate an import made
+     twice, the test entry somebody created while learning the screen. Those
+     cannot be withdrawn, because withdrawing them leaves a fictional pupil on
+     the roll forever, counted in every headcount. */
+  const [deleting, setDeleting] = useState(false)
+  const [typedName, setTypedName] = useState('')
+  const remove = useMutation({
+    mutationFn: () =>
+      api.del(`/api/v1/students/${selected}`, { confirm_name: typedName.trim() }),
+    onSuccess: () => {
+      setDeleting(false)
+      setTypedName('')
+      // The record is gone, so the screen cannot stay on it.
+      patch({ student: null })
+      qc.invalidateQueries({ queryKey: ['profile-search'] })
+      qc.invalidateQueries({ queryKey: ['student-counts'] })
+    },
+  })
   const readmit = useMutation({
     mutationFn: () => api.post(`/api/v1/students/${selected}/readmit`, {}),
     onSuccess: () => {
@@ -540,7 +563,17 @@ export default function StudentProfile() {
                   ]}
                 />
               </div>
-              <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
+              {/* Sized, like the three beside it.
+
+                  Input is a block element, so a bare one in this row claimed
+                  the full width, pushed itself onto a line of its own and threw
+                  the button onto a third — three ragged rows where the design
+                  is one. It keeps a sensible width on a wide screen and takes
+                  the row to itself only on a narrow one, which is where that
+                  is actually the right answer. */}
+              <div className="w-full sm:w-56">
+                <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
+              </div>
               {can('students.write') && (
                 <Button variant={admitting ? 'secondary' : 'primary'} onClick={() => setAdmitting(!admitting)}>
                   {admitting ? 'Close' : 'Admit a student'}
@@ -736,6 +769,13 @@ export default function StudentProfile() {
         }]
       : []),
     { label: editing ? 'Stop editing' : 'Edit student', onClick: () => setEditing(!editing),
+      disabled: !can('students.write'),
+      disabledReason: 'Needs permission to change student records' },
+    /* Last in the menu and the only red thing in it. Above "Record that they
+       have left" it would be the item a hurried thumb finds first, and these
+       two are the pair most easily confused. */
+    { label: 'Delete this record', onClick: () => { setTypedName(''); remove.reset(); setDeleting(true) },
+      tone: 'danger' as const,
       disabled: !can('students.write'),
       disabledReason: 'Needs permission to change student records' },
   ]
@@ -984,6 +1024,42 @@ export default function StudentProfile() {
                   onCancel={() => setExiting(false)}
                   onSave={(v) => recordExit.mutate(v)}
                 />
+              </div>
+            </Card>
+          )}
+          {deleting && (
+            <Card className="lg:col-span-2 border-destructive">
+              <CardHeader
+                title={`Delete ${p.full_name} permanently`}
+                description="The record and everything attached to it — enrolment, guardians, attendance, transport — is erased. This is not the same as a child leaving, and it cannot be undone."
+              />
+              <div className="space-y-3 p-4">
+                <p className="text-[14px] text-muted-foreground">
+                  If this child was ever on the roll, use{' '}
+                  <strong>Record that they have left</strong> instead: a school has to be able
+                  to answer questions about a pupil who has gone. Deleting is for a record that
+                  was never a child — a duplicate, or an entry somebody made while learning the
+                  screen.
+                </p>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium">
+                    Type the child's name to confirm
+                  </label>
+                  <Input value={typedName} onChange={setTypedName} placeholder={p.full_name} />
+                </div>
+                <FormNotice error={remove.error} />
+                <div className="flex items-center gap-3">
+                  <Button
+                    tone="danger"
+                    disabled={remove.isPending || typedName.trim() === ''}
+                    onClick={() => remove.mutate()}
+                  >
+                    {remove.isPending ? 'Deleting…' : 'Delete permanently'}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setDeleting(false)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </Card>
           )}
