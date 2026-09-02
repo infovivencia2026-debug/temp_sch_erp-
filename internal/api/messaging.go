@@ -3415,14 +3415,28 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel str
 		   that the installation could send, hides the link. The person is
 		   told a link is on its way and no link exists anywhere they can
 		   reach it. */
-		var cfg []byte
-		var secret string
+		/* credentials is bytea, and sealed.
+
+		   This scanned it into a string, which pgx refuses outright:
+
+		       cannot scan bytea (OID 17) in binary format into *string
+
+		   So the query errored on every school that HAS a mail server — the
+		   only ones with a credential to store — and the function returned
+		   false. The reset page then told those schools they had no delivery
+		   channel. A school with nothing configured got the honest answer by
+		   accident, which is why this never looked like a scanning bug.
+
+		   loadProviders has always read it as bytes and opened it with
+		   openSecret; this now does the same, so the two cannot disagree about
+		   whether a school can send. */
+		var cfg, sealed []byte
 		err := tx.QueryRow(r.Context(), `
-			SELECT config, COALESCE(credentials,'')
+			SELECT config, credentials
 			  FROM integrations
 			 WHERE institution_id = $1
 			   AND kind = 'messaging' AND provider = $2 AND enabled
-			 LIMIT 1`, inst, channel).Scan(&cfg, &secret)
+			 LIMIT 1`, inst, channel).Scan(&cfg, &sealed)
 		if errors.Is(err, pgx.ErrNoRows) {
 			/* Said out loud, because the page that asks this can only report
 			   "no delivery channel" and that sentence has already been wrong
@@ -3435,6 +3449,14 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel str
 		}
 		if err != nil {
 			return err
+		}
+		secret, err := openSecret(sealed)
+		if err != nil {
+			// An unreadable credential is a provider that cannot send, not a
+			// reason to fail the page: say so and answer no.
+			slog.Warn("password reset: stored credential could not be opened",
+				"institution", inst, "channel", channel, "err", err)
+			return nil
 		}
 		p := buildProvider(channel, cfg, secret)
 		ready = p.Configured()
