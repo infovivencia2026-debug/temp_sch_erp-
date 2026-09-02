@@ -3392,7 +3392,18 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel str
 	}
 	id := httpx.IdentityFrom(r.Context())
 	var ready bool
-	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+	/* Scoped to the institution, not to the platform.
+
+	   This read AsPlatform, and AsPlatform is InTenant with no institution —
+	   which routes to the CONTROL shard, where a tenant's integrations row is
+	   not. So it found nothing and reported the school had no provider, for a
+	   school whose provider was configured, enabled and sending. loadProviders
+	   has always used InTenant with the institution; this now does the same.
+
+	   The reset page is unauthenticated, but the institution is known by the
+	   time this is called — the handler has already found the user — so there
+	   is a real scope to ask under. */
+	err := s.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
 		/* The school that owns the account, and only that one.
 
 		   This used to accept any institution on the installation with SMTP

@@ -260,27 +260,14 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   rather than through the readiness callback — that opens its own
 		   connection, and doing it inside this one risks waiting on a pool
 		   this transaction is already holding. */
-		enabled := map[string]bool{}
-		{
-			rows, err := tx.Query(r.Context(), `
-				SELECT provider FROM integrations
-				 WHERE institution_id = $1 AND kind = 'messaging' AND enabled`, *instID)
-			if err != nil {
-				return err
-			}
-			for rows.Next() {
-				var ch string
-				if err := rows.Scan(&ch); err != nil {
-					rows.Close()
-					return err
-				}
-				enabled[ch] = true
-			}
-			rows.Close()
-			if err := rows.Err(); err != nil {
-				return err
-			}
-		}
+		/* Read under the institution's own scope.
+
+		   This transaction is AsPlatform, which routes to the control shard —
+		   the tenant's integrations row is not there, so asking here returned
+		   nothing and the channel fell back to whichever contact existed. A
+		   separate scoped read is the honest way to ask, and it is cheap:
+		   three rows at most, once per reset request. */
+		enabled := p.enabledChannels(r, *instID)
 
 		mail := ""
 		if email != nil {
@@ -492,4 +479,34 @@ func maskContact(v string) string {
 		return strings.Repeat("•", len(v)-5) + v[len(v)-5:]
 	}
 	return v
+}
+
+/*
+enabledChannels reports which messaging channels a school has switched on.
+
+	Its own transaction, under the institution's scope, because the caller runs
+	AsPlatform and a platform scope routes to the control shard where a tenant's
+	integrations row does not live. Failure is reported as "none": a reset that
+	cannot read the configuration must not claim a channel it has not seen.
+*/
+func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[string]bool {
+	out := map[string]bool{}
+	_ = p.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT provider FROM integrations
+			 WHERE institution_id = $1 AND kind = 'messaging' AND enabled`, inst)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var ch string
+			if err := rows.Scan(&ch); err != nil {
+				return err
+			}
+			out[ch] = true
+		}
+		return rows.Err()
+	})
+	return out
 }
