@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -1113,11 +1114,40 @@ func (c *importCtx) pastYearID(name string) (uuid.UUID, error) {
 	if id, ok := c.pastYears[key]; ok {
 		return id, nil
 	}
+	id, err := ensurePastYear(c.r.Context(), c.tx, c.inst, c.campus, name)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.pastYears[key] = id
+	return id, nil
+}
+
+/*
+ensurePastYear finds an academic year by the name a school writes, creating it
+if it is genuinely new.
+
+	Shared, because two importers had to agree about this and did not: the
+	marks sheet created a missing year and the student sheet quietly skipped
+	the row, so whether a child's previous class was recorded depended on which
+	file the school happened to upload first. Nothing said so.
+
+	Created, unlike a class or a subject, because these are the years before
+	the school used this system: by definition none of them is on file, and
+	requiring a clerk to key in nine terms by hand before uploading the marks
+	is requiring them not to bother.
+
+	Never current. One year is current at a time and it is this one; a past
+	year that marked itself current would move the whole school into it.
+*/
+func ensurePastYear(ctx context.Context, tx pgx.Tx, inst, campus uuid.UUID,
+	name string) (uuid.UUID, error) {
+
+	key := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), " ", "")
 	var id uuid.UUID
-	err := c.tx.QueryRow(c.r.Context(), `
+	err := tx.QueryRow(ctx, `
 		SELECT id FROM academic_years
 		 WHERE institution_id = $1
-		   AND replace(lower(name),' ','') = $2`, c.inst, key).Scan(&id)
+		   AND replace(lower(name),' ','') = $2`, inst, key).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		start := 0
 		if len(key) >= 4 {
@@ -1126,17 +1156,18 @@ func (c *importCtx) pastYearID(name string) (uuid.UUID, error) {
 		if start == 0 {
 			return uuid.Nil, fmt.Errorf("cannot read a year from %q. Write it as 2025-26", name)
 		}
-		err = c.tx.QueryRow(c.r.Context(), `
+		// The Indian school year around the leading number, so it sorts and
+		// reports correctly. A school whose year runs differently can correct
+		// the dates afterwards; what it must not do is fail the import.
+		err = tx.QueryRow(ctx, `
 			INSERT INTO academic_years (institution_id, campus_id, name,
 			                            starts_on, ends_on, is_current)
 			VALUES ($1,$2,$3, make_date($4,6,1), make_date($4 + 1,3,31), false)
-			RETURNING id`,
-			c.inst, c.campus, strings.TrimSpace(name), start).Scan(&id)
+			RETURNING id`, inst, campus, strings.TrimSpace(name), start).Scan(&id)
 	}
 	if err != nil {
 		return uuid.Nil, err
 	}
-	c.pastYears[key] = id
 	return id, nil
 }
 

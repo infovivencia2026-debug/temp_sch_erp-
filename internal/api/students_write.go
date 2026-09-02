@@ -372,16 +372,24 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 	   second enrolment would put the child in two classes at once and count
 	   them twice in every roll. */
 	if req.PreviousClass != "" && req.PreviousYear != "" {
-		var prevYear, prevClass uuid.UUID
+		/* The year is created if the school has never named it here, exactly
+		   as the marks sheet creates it. These two disagreed: marks made the
+		   year, this skipped the row, so whether a child's previous class was
+		   recorded depended on which file was uploaded first and nothing said
+		   so. */
+		prevYear, yerr := ensurePastYear(r.Context(), tx, instID, campus, req.PreviousYear)
+		if yerr != nil {
+			return "", "", yerr
+		}
+		var prevClass uuid.UUID
 		err := tx.QueryRow(r.Context(), `
-			SELECT y.id, c.id
-			  FROM academic_years y, classes c
-			 WHERE y.institution_id = $1 AND c.institution_id = $1
-			   AND replace(lower(y.name),' ','') = replace(lower($2),' ','')
-			   AND lower(c.name) = lower($3)
-			 LIMIT 1`, instID, req.PreviousYear, req.PreviousClass).
-			Scan(&prevYear, &prevClass)
+			SELECT id FROM classes
+			 WHERE institution_id = $1 AND lower(name) = lower($2)`,
+			instID, req.PreviousClass).Scan(&prevClass)
 		if err == nil {
+			/* Completed, not active: it is where they were, and an active
+			   second enrolment would put the child in two classes at once and
+			   count them twice in every roll. */
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO enrollments (institution_id, student_id, academic_year_id,
 				                         class_id, status)
@@ -393,6 +401,10 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return "", "", err
 		}
+		// A class the school does not have is skipped rather than fatal: the
+		// child and this year's placement are the record, and refusing a
+		// family because a historic class was spelt differently would lose
+		// what matters to protect what does not.
 	}
 
 	// Guardian. Reused across siblings via the phone+name key.
