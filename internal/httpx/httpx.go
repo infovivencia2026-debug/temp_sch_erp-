@@ -42,6 +42,22 @@ type Identity struct {
 	// reading the session and setting a new one is refused until it is false.
 	MustChangePassword bool
 	Permissions        map[string]struct{}
+	/* APIKey marks an identity that came from an Authorization: Bearer key
+	   rather than from the session cookie. Nothing about tenancy or
+	   permissions depends on it -- a key is resolved into exactly the same
+	   shape a session is, which is the whole point, so every
+	   RequirePermission gate and every RLS scope keeps working untouched.
+
+	   It exists for the two places where "a machine did this" is a different
+	   fact from "a person did this": the handful of endpoints that manage the
+	   keys themselves refuse a key-authenticated caller, and the log line can
+	   say which credential was used when somebody is working out where a
+	   write came from. */
+	APIKey bool
+	// APIKeyID is the api_keys row behind an APIKey identity. Never the secret
+	// -- that is not recoverable and must never be held in memory past the
+	// comparison that authenticated it.
+	APIKeyID uuid.UUID
 }
 
 func (i *Identity) Can(perm string) bool {
