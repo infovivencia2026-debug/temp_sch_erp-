@@ -537,6 +537,12 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/portal", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.SelfProfileRead))
 			r.Get("/students", s.listMyStudents)
+			/* The same question asked of every school this family belongs to.
+			   Separate route rather than a flag on the one above, because the
+			   two have different costs: /students is one scoped query, this
+			   fans out per school and is worth calling once per portal load
+			   rather than on every screen that needs a child id. */
+			r.Get("/students/everywhere", s.listMyChildrenEverywhere)
 			r.Get("/summary", s.getPortalSummary)
 			r.Get("/attendance", s.listPortalAttendance)
 			// What the school has written about your child. The staff screen
