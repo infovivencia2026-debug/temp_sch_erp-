@@ -109,7 +109,12 @@ const PRESETS: MailPreset[] = [
  *   same provider a fee reminder uses, and records the outcome. A test that
  *   took a different route would prove nothing about the route that matters.
  */
-export default function EmailServer() {
+/**
+ * platform: the seller's own providers rather than a school's. Same screen,
+ * same routes -- a platform account's institution is NULL, and the handlers
+ * read and write the platform's rows for it -- with the copy saying so.
+ */
+export default function EmailServer({ platform = false }: { platform?: boolean } = {}) {
   const providers = useProviders()
   const log = useMessageLog('?channel=email&limit=50')
   const dispatch = useDispatch()
@@ -125,9 +130,11 @@ export default function EmailServer() {
   return (
     <>
       <PageHead
-        eyebrow="Messaging"
-        title="Email Server (SMTP)"
-        description="Where this school's mail goes out, whether it works, and what has left the building."
+        eyebrow={platform ? 'Delivery' : 'Messaging'}
+        title={platform ? 'Password reset delivery' : 'Email Server (SMTP)'}
+        description={platform
+          ? "The seller's own mail server and SMS channel. Every school's password-reset links leave through these, whatever the school has set up."
+          : "Where this school's mail goes out, whether it works, and what has left the building."}
         actions={
           <Button
             variant="secondary"
@@ -183,7 +190,7 @@ export default function EmailServer() {
         <Card>
           <CardHeader
             title="Email dispatch log"
-            description="Every message this school has sent by email, newest first"
+            description={platform ? 'Every message sent by email from the seller, newest first' : 'Every message this school has sent by email, newest first'}
           />
           <Table
             head={['Queued', 'To', 'Subject', 'Status', 'Why / rule']}

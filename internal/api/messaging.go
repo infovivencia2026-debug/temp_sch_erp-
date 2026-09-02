@@ -583,10 +583,11 @@ loadProviders reads this school's provider configuration.
 	usable", and those are the same answer to the only question being asked.
 */
 func (s *Server) loadProviders(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (providerSet, error) {
+	// IS NOT DISTINCT FROM: uuid.Nil is the platform, whose rows carry NULL.
 	rows, err := tx.Query(ctx, `
 		SELECT provider, config, credentials, enabled, last_ok_at, last_error
 		  FROM integrations
-		 WHERE institution_id = $1 AND kind = 'messaging'`, inst)
+		 WHERE institution_id IS NOT DISTINCT FROM $1 AND kind = 'messaging'`, nullInstitution(inst))
 	if err != nil {
 		return nil, err
 	}
@@ -634,6 +635,33 @@ func (s *Server) loadProviders(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (
 		set[ch] = buildProvider(ch, row.Config, secret)
 	}
 	return set, nil
+}
+
+// nullInstitution maps the platform's all-zero institution onto SQL NULL, so
+// one query serves a school's rows and the seller's.
+func nullInstitution(inst uuid.UUID) any {
+	if inst == uuid.Nil {
+		return nil
+	}
+	return inst
+}
+
+/*
+The seller's own providers.
+
+	Read as the platform whatever scope the caller is in, because a school's
+	RLS scope cannot see a NULL-institution row and the one message that must
+	use these -- a password reset -- is dispatched inside the school's sweep.
+	A separate connection rather than the caller's tx for the same reason.
+*/
+func (s *Server) platformProviders(ctx context.Context) (providerSet, error) {
+	var set providerSet
+	err := s.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
+		var err error
+		set, err = s.loadProviders(ctx, tx, uuid.Nil)
+		return err
+	})
+	return set, err
 }
 
 // notSetUpReason distinguishes "nobody has filled this in" from "nobody can
@@ -1353,6 +1381,17 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			set, err := s.loadProviders(ctx, tx, inst)
 			if err != nil {
 				return err
+			}
+			/* A password reset leaves through the seller, not the school.
+
+			   The link was queued against the account's school and went out
+			   only if that school had configured email, which most never do.
+			   The seller keeps one mail server and one SMS channel for every
+			   school's resets, and the school need configure nothing. */
+			if code != nil && *code == "password_reset" {
+				if set, err = s.platformProviders(ctx); err != nil {
+					return err
+				}
 			}
 			p, ok := set[channel]
 			if !ok {
@@ -2441,7 +2480,7 @@ func (s *Server) listMessagingProviders(w http.ResponseWriter, r *http.Request) 
 			SELECT provider, config, enabled, octet_length(COALESCE(credentials,''::bytea)) > 0,
 			       to_char(last_ok_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', last_error
 			  FROM integrations
-			 WHERE institution_id = $1 AND kind = 'messaging'`, id.InstitutionID)
+			 WHERE institution_id IS NOT DISTINCT FROM $1 AND kind = 'messaging'`, nullInstitution(id.InstitutionID))
 		if err != nil {
 			return err
 		}
@@ -2569,15 +2608,28 @@ func (s *Server) saveMessagingProvider(w http.ResponseWriter, r *http.Request) {
 		// COALESCE on credentials is what makes an omitted secret mean "keep
 		// the stored one" rather than "erase it": editing the port must not
 		// silently clear the password and take email down at the next fee run.
-		_, err := tx.Exec(r.Context(), `
+		// The platform's rows carry NULL and are unique on provider alone,
+		// which is a different conflict target from a school's.
+		upsert := `
 			INSERT INTO integrations (institution_id, provider, kind, config, credentials, enabled)
 			VALUES ($1,$2,'messaging',$3,$4,$5)
 			ON CONFLICT (institution_id, provider) DO UPDATE
 			   SET config      = EXCLUDED.config,
 			       credentials = COALESCE(EXCLUDED.credentials, integrations.credentials),
 			       enabled     = EXCLUDED.enabled,
-			       kind        = 'messaging'`,
-			id.InstitutionID, channel, []byte(req.Settings), sealed, req.Enabled)
+			       kind        = 'messaging'`
+		if id.InstitutionID == uuid.Nil {
+			upsert = `
+			INSERT INTO integrations (institution_id, provider, kind, config, credentials, enabled)
+			VALUES (NULL,$2,'messaging',$3,$4,$5)
+			ON CONFLICT (provider) WHERE institution_id IS NULL DO UPDATE
+			   SET config      = EXCLUDED.config,
+			       credentials = COALESCE(EXCLUDED.credentials, integrations.credentials),
+			       enabled     = EXCLUDED.enabled,
+			       kind        = 'messaging'`
+		}
+		_, err := tx.Exec(r.Context(), upsert,
+			nullInstitution(id.InstitutionID), channel, []byte(req.Settings), sealed, req.Enabled)
 		return err
 	})
 	if err != nil {
@@ -2594,8 +2646,8 @@ func (s *Server) forgetMessagingProvider(w http.ResponseWriter, r *http.Request)
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
 			DELETE FROM integrations
-			 WHERE institution_id = $1 AND provider = $2 AND kind = 'messaging'`,
-			id.InstitutionID, channel)
+			 WHERE institution_id IS NOT DISTINCT FROM $1 AND provider = $2 AND kind = 'messaging'`,
+			nullInstitution(id.InstitutionID), channel)
 		return err
 	})
 	if err != nil {
@@ -2646,6 +2698,11 @@ func (s *Server) testMessagingProvider(w http.ResponseWriter, r *http.Request) {
 			notReady = true
 			return nil
 		}
+		if id.InstitutionID == uuid.Nil {
+			// The seller testing its own server: no school to name.
+			school = "EDU CLOUD"
+			return nil
+		}
 		return tx.QueryRow(r.Context(),
 			`SELECT name FROM institutions WHERE id = $1`, id.InstitutionID).Scan(&school)
 	}); err != nil {
@@ -2678,13 +2735,13 @@ func (s *Server) testMessagingProvider(w http.ResponseWriter, r *http.Request) {
 		if sendErr != nil {
 			_, err := tx.Exec(r.Context(), `
 				UPDATE integrations SET last_error = $3
-				 WHERE institution_id = $1 AND provider = $2`,
-				id.InstitutionID, channel, truncate(sendErr.Error(), 500))
+				 WHERE institution_id IS NOT DISTINCT FROM $1 AND provider = $2`,
+				nullInstitution(id.InstitutionID), channel, truncate(sendErr.Error(), 500))
 			return err
 		}
 		_, err := tx.Exec(r.Context(), `
 			UPDATE integrations SET last_ok_at = now(), last_error = NULL
-			 WHERE institution_id = $1 AND provider = $2`, id.InstitutionID, channel)
+			 WHERE institution_id IS NOT DISTINCT FROM $1 AND provider = $2`, nullInstitution(id.InstitutionID), channel)
 		return err
 	})
 
@@ -3385,100 +3442,44 @@ func (s *Server) listMessageLog(w http.ResponseWriter, r *http.Request) {
 // is yes they are told to check their inbox, and where it is no they are shown
 // the link and told plainly that nothing was delivered. Guessing either way is
 // how somebody sits waiting for a message no configured provider could send.
-func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel string) bool {
-	// Anything but the two the reset page offers is not a provider question.
-	if channel != "email" && channel != "whatsapp" {
+/* Whether the seller can carry a reset link on a channel.
+
+   Used to ask the account's own school, on the reasoning that the school is
+   who sends its people mail. Most schools never configure a provider, so
+   most people were told to telephone the office -- the thing the reset page
+   exists to prevent. Resets now leave through the seller's providers, kept
+   with institution_id NULL, and this asks those. The school argument stays
+   for the signature's sake; nothing about the school decides the answer. */
+func (s *Server) EmailProviderReady(r *http.Request, _ uuid.UUID, channel string) bool {
+	if channel != "email" && channel != "sms" && channel != "whatsapp" {
 		channel = "email"
 	}
-	id := httpx.IdentityFrom(r.Context())
-	var ready bool
-	/* Scoped to the institution, not to the platform.
-
-	   This read AsPlatform, and AsPlatform is InTenant with no institution —
-	   which routes to the CONTROL shard, where a tenant's integrations row is
-	   not. So it found nothing and reported the school had no provider, for a
-	   school whose provider was configured, enabled and sending. loadProviders
-	   has always used InTenant with the institution; this now does the same.
-
-	   The reset page is unauthenticated, but the institution is known by the
-	   time this is called — the handler has already found the user — so there
-	   is a real scope to ask under. */
-	err := s.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
-		/* The school that owns the account, and only that one.
-
-		   This used to accept any institution on the installation with SMTP
-		   configured, on the reasoning that nobody has signed in yet so there
-		   is no tenant to ask about. By the time this is called there is one:
-		   the reset handler has already found the user. The old answer was
-		   wrong in the way that strands somebody — a school with no provider
-		   queues a message nothing will ever send, while the page, satisfied
-		   that the installation could send, hides the link. The person is
-		   told a link is on its way and no link exists anywhere they can
-		   reach it. */
-		/* credentials is bytea, and sealed.
-
-		   This scanned it into a string, which pgx refuses outright:
-
-		       cannot scan bytea (OID 17) in binary format into *string
-
-		   So the query errored on every school that HAS a mail server — the
-		   only ones with a credential to store — and the function returned
-		   false. The reset page then told those schools they had no delivery
-		   channel. A school with nothing configured got the honest answer by
-		   accident, which is why this never looked like a scanning bug.
-
-		   loadProviders has always read it as bytes and opened it with
-		   openSecret; this now does the same, so the two cannot disagree about
-		   whether a school can send. */
-		var cfg, sealed []byte
-		err := tx.QueryRow(r.Context(), `
-			SELECT config, credentials
-			  FROM integrations
-			 WHERE institution_id = $1
-			   AND kind = 'messaging' AND provider = $2 AND enabled
-			 LIMIT 1`, inst, channel).Scan(&cfg, &sealed)
-		if errors.Is(err, pgx.ErrNoRows) {
-			/* Said out loud, because the page that asks this can only report
-			   "no delivery channel" and that sentence has already been wrong
-			   once: a school with a working mail server was told it had none.
-			   Which of the three reasons it was is not visible from the
-			   outside, so it goes in the log. */
-			slog.Warn("password reset: no enabled provider row",
-				"institution", inst, "channel", channel)
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		secret, err := openSecret(sealed)
-		if err != nil {
-			// An unreadable credential is a provider that cannot send, not a
-			// reason to fail the page: say so and answer no.
-			slog.Warn("password reset: stored credential could not be opened",
-				"institution", inst, "channel", channel, "err", err)
-			return nil
-		}
-		p := buildProvider(channel, cfg, secret)
-		ready = p.Configured()
-		if !ready {
-			slog.Warn("password reset: provider row found but not usable",
-				"institution", inst, "channel", channel, "why", p.Why())
-		}
-		return nil
-	})
-	_ = id
+	set, err := s.platformProviders(r.Context())
 	if err != nil {
-		/* The last silent path in this function.
-
-		   Two log lines already cover "no row" and "row I cannot use". This
-		   one — the transaction itself failing — said nothing at all, so a
-		   reset that could not even ask about the mail server was
-		   indistinguishable from a school that has none. That is the exact
-		   shape of the bug this whole chase was: a false explanation standing
-		   because the true one was never spoken. */
-		slog.Warn("password reset: could not check the provider",
-			"institution", inst, "channel", channel, "err", err)
+		slog.Warn("password reset: could not read the seller's providers", "err", err)
 		return false
 	}
-	return ready
+	p, ok := set[channel]
+	return ok && p.Configured()
+}
+
+/*
+PlatformPhoneChannel is which phone channel the seller can send a reset
+
+	link on: "sms", "whatsapp", or "" when neither is set up. SMS first: a
+	WhatsApp send resolves an approved template against the school the message
+	belongs to, which is not the seller, so it is the fallback rather than the
+	preference.
+*/
+func (s *Server) PlatformPhoneChannel(r *http.Request) string {
+	set, err := s.platformProviders(r.Context())
+	if err != nil {
+		return ""
+	}
+	for _, ch := range []string{"sms", "whatsapp"} {
+		if p, ok := set[ch]; ok && p.Configured() {
+			return ch
+		}
+	}
+	return ""
 }

@@ -146,9 +146,9 @@ func run() error {
 	// necessity: somebody who cannot sign in cannot be asked to sign in first.
 	reset := &api.PasswordReset{
 		DB: db, Tpl: tpl, Hasher: hasher, BaseURL: cfg.BaseURL,
-		// The page prints the link only where nothing can carry it. Once a
-		// school has configured email, printing it would hand a reset to
-		// whoever is standing at the keyboard.
+		// Answered by the seller's own providers, not the school's: the
+		// seller carries every school's reset links. The page never prints
+		// a link on screen; where nothing can carry it, it says so.
 		EmailReady: apiServer.EmailProviderReady,
 	}
 	r.Get("/forgot", reset.ShowForgot)

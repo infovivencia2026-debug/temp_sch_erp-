@@ -261,6 +261,11 @@ var SellerAdminPermissions = []string{
 	// Enough of a school's shape to support and bill it — its name, plan and
 	// headcount — and nothing about the people inside it.
 	InstitutionRead, ReportsRead,
+	// The seller's own mail server and SMS channel, through which every
+	// school's password-reset links are sent. A platform account reaches
+	// only the platform's rows through the integrations handlers -- its
+	// institution is NULL -- so this is not a key into any school's setup.
+	IntegrationsWrite,
 	SelfProfileRead, SelfProfileWrite,
 }
 
@@ -327,6 +332,9 @@ var SystemRoles = []Role{
 		// A joining is an academic and pastoral decision as much as a
 		// financial one, and a vice principal already carries the timetable
 		// and the roll it lands in.
+		// The approver has to be able to read what they are approving: the
+		// grid drops an approve toggle on a group the role cannot view.
+		AdmissionsRead,
 		AdmissionsApprove,
 		StudentsRead, StudentsReadAll, AcademicsRead, AcademicsWrite,
 		TimetableRead, TimetableWrite,

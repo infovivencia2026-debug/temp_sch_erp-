@@ -51,11 +51,10 @@ type PasswordReset struct {
 	// BaseURL is what goes into the email. A relative path is fine on the page
 	// that produced it and useless in a mail client.
 	BaseURL string
-	// EmailReady reports whether the account's own school can carry the link
-	// on the chosen channel. Where it can, the page stops printing the link on
-	// screen — showing it there would hand a reset to whoever is at the
-	// keyboard rather than to the account's owner. Where it cannot, the link
-	// is the only way back in and the page says so.
+	// EmailReady reports whether the seller can carry the link on the chosen
+	// channel. Resets leave through the seller's own providers rather than
+	// the account's school, which most often has none. Where nothing can
+	// carry it, the page says so rather than claiming a link is on its way.
 	EmailReady func(r *http.Request, inst uuid.UUID, channel string) bool
 }
 
@@ -122,7 +121,10 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 	   hand-typed form value is not worth an error page on the screen somebody
 	   already reached because something went wrong. */
 	channel := strings.TrimSpace(r.PostFormValue("channel"))
-	if channel != "whatsapp" {
+	switch channel {
+	case "phone", "sms", "whatsapp":
+		channel = "phone"
+	default:
 		channel = "email"
 	}
 
@@ -261,14 +263,16 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   rather than through the readiness callback — that opens its own
 		   connection, and doing it inside this one risks waiting on a pool
 		   this transaction is already holding. */
-		/* Read under the institution's own scope.
+		/* THE SELLER'S CHANNELS, NOT THE SCHOOL'S.
 
-		   This transaction is AsPlatform, which routes to the control shard —
-		   the tenant's integrations row is not there, so asking here returned
-		   nothing and the channel fell back to whichever contact existed. A
-		   separate scoped read is the honest way to ask, and it is cheap:
-		   three rows at most, once per reset request. */
-		enabled := p.enabledChannels(r, *instID)
+		   This asked the account's own school what it had switched on, and
+		   most schools have switched on nothing: the reset page then sent
+		   people to telephone the office, which is the thing it exists to
+		   prevent. The seller keeps one mail server and one SMS channel for
+		   every school's resets, held as integrations rows with no
+		   institution, and the dispatcher hands a password_reset row to
+		   those. So the question here is what the seller has on. */
+		enabled := p.enabledChannels(r)
 
 		mail := ""
 		if email != nil {
@@ -284,11 +288,14 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   the school cannot send through is worse than no use — it queues a
 		   message that will never leave and tells the person a link is coming. */
 		type route struct{ ch, to string }
+		// SMS before WhatsApp on a phone: a WhatsApp send resolves an
+		// approved template against the school the row belongs to, which is
+		// not the seller, so it is the fallback rather than the preference.
 		var routes []route
-		if channel == "whatsapp" {
-			routes = []route{{"whatsapp", mobile}, {"email", mail}}
+		if channel == "phone" {
+			routes = []route{{"sms", mobile}, {"whatsapp", mobile}, {"email", mail}}
 		} else {
-			routes = []route{{"email", mail}, {"whatsapp", mobile}}
+			routes = []route{{"email", mail}, {"sms", mobile}, {"whatsapp", mobile}}
 		}
 		to, ch := "", channel
 		for _, r := range routes {
@@ -307,8 +314,8 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		slog.Info("password reset: choosing a channel",
 			"institution", *instID, "asked", channel,
 			"has_email", mail != "", "has_mobile", mobile != "",
-			"enabled_email", enabled["email"], "enabled_whatsapp", enabled["whatsapp"],
-			"picked", ch)
+			"enabled_email", enabled["email"], "enabled_sms", enabled["sms"],
+			"enabled_whatsapp", enabled["whatsapp"], "picked", ch)
 
 		if to == "" {
 			// Nothing the school can send through. Queue on whichever contact
@@ -323,14 +330,19 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if instID != nil && to != "" {
+			// Short on a phone, where every character is billed and a long
+			// message arrives as several.
+			body := "Open this link within fifteen minutes to choose a new password:\n" +
+				base + link + "\n\nIf you did not ask for this, ignore it and nothing changes."
+			if ch != "email" {
+				body = "Reset your password within 15 minutes: " + base + link +
+					" If you did not ask for this, ignore it."
+			}
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO message_log (institution_id, channel, template_code,
 				                         recipient, user_id, subject, body, status)
 				VALUES ($1,$6,'password_reset',$2,$3,$4,$5,'queued')`,
-				*instID, to, userID, "Reset your password",
-				"Open this link within fifteen minutes to choose a new password:\n"+
-					base+link+"\n\nIf you did not ask for this, ignore it and nothing changes.",
-				ch); err != nil {
+				*instID, to, userID, "Reset your password", body, ch); err != nil {
 				return err
 			}
 			queued = true
@@ -509,12 +521,14 @@ enabledChannels reports which messaging channels a school has switched on.
 	integrations row does not live. Failure is reported as "none": a reset that
 	cannot read the configuration must not claim a channel it has not seen.
 */
-func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[string]bool {
+// enabledChannels is which messaging channels the seller has switched on:
+// the integrations rows with no institution, readable only as the platform.
+func (p *PasswordReset) enabledChannels(r *http.Request) map[string]bool {
 	out := map[string]bool{}
-	err := p.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
+	err := p.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT provider FROM integrations
-			 WHERE institution_id = $1 AND kind = 'messaging' AND enabled`, inst)
+			 WHERE institution_id IS NULL AND kind = 'messaging' AND enabled`)
 		if err != nil {
 			return err
 		}
@@ -533,7 +547,7 @@ func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[str
 	   one means the school has configured nothing, the other means we could not
 	   find out. Both now say which they are. */
 	if err != nil {
-		slog.Warn("password reset: could not read channels", "institution", inst, "err", err)
+		slog.Warn("password reset: could not read the seller's channels", "err", err)
 		return out
 	}
 	list := make([]string, 0, len(out))
@@ -541,6 +555,6 @@ func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[str
 		list = append(list, ch)
 	}
 	sort.Strings(list)
-	slog.Info("password reset: channels the school has on", "institution", inst, "channels", list)
+	slog.Info("password reset: channels the seller has on", "channels", list)
 	return out
 }

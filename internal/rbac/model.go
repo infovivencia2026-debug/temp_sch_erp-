@@ -127,9 +127,13 @@ var Groups = []Group{
 	},
 	{
 		Key: "admissions", Name: "Admissions", Band: BandCore,
-		Blurb:     "Enquiries, applications, documents and the admission decision.",
-		View:      []string{AdmissionsRead},
-		Manage:    []string{AdmissionsWrite},
+		Blurb:  "Enquiries, applications, documents and the admission decision.",
+		View:   []string{AdmissionsRead},
+		Manage: []string{AdmissionsWrite},
+		// The admission decision itself, held by the principal and the
+		// coordinator and by nobody who merely runs the pipeline. It belonged
+		// to no group, so the grid dropped it from both on the first save.
+		Approve:   []string{AdmissionsApprove},
 		Scopes:    fixed("institution"),
 		ScopeNote: "The admission pipeline is school-wide; a lead has no class yet.",
 	},
@@ -229,10 +233,22 @@ var Groups = []Group{
 		ScopeNote: "Whole-school configuration.",
 	},
 	{
-		Key: "settings", Name: "Settings & integrations", Band: BandCore,
-		Blurb:     "Module settings, numbering, payment gateway, SMS and WhatsApp.",
+		Key: "settings", Name: "Settings", Band: BandCore,
+		Blurb:     "Module settings and numbering.",
 		View:      []string{InstitutionRead},
-		Manage:    []string{SettingsWrite, IntegrationsWrite},
+		Manage:    []string{SettingsWrite},
+		Scopes:    fixed("institution"),
+		ScopeNote: "Whole-school configuration.",
+	},
+	{
+		// Split from Settings so the seller can hold the delivery channels --
+		// its own mail server and SMS gateway, through which every school's
+		// password-reset links go out -- without the module settings beside
+		// them. A built-in role that needed an extra key would be the group
+		// boundary drawn in the wrong place, and this is where it was.
+		Key: "integrations", Name: "Integrations", Band: BandCore,
+		Blurb:     "Email server, SMS gateway, WhatsApp and the payment gateway.",
+		Manage:    []string{IntegrationsWrite},
 		Scopes:    fixed("institution"),
 		ScopeNote: "Whole-school configuration.",
 	},

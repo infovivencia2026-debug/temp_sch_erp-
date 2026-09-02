@@ -126,6 +126,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // this one opened on a table of schools with the business's four numbers
   // squeezed above it as a header.
   'seller_admin.home.dashboard': screen(() => import('./seller/SellerDashboard')),
+  // The seller's own mail server and SMS channel, which carry every school's
+  // password-reset links. The school's Email Server screen, told who it is for.
+  'seller_admin.delivery.password_reset_delivery': screen(() => import('./seller/ResetDelivery')),
   'seller_admin.schools.schools': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.add_school': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.access': screen(() => import('./seller/Tenants')),

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 331 features. */
+/** 13 roles, 332 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -56,6 +56,14 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.schools.add_school', slug: 'add_school', name: 'Add School', scope: 'platform', tier: 'core', summary: 'Create a school, its first campus and its first administrator in one step, and hand over the credentials.' },
           { key: 'seller_admin.schools.access', slug: 'access', name: 'Access', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
           { key: 'seller_admin.schools.setup', slug: 'setup', name: 'Setup', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.' },
+        ],
+      },
+      {
+        slug: 'delivery',
+        name: 'Delivery',
+        workspace: 'Settings',
+        features: [
+          { key: 'seller_admin.delivery.password_reset_delivery', slug: 'password_reset_delivery', name: 'Password Reset Delivery', scope: 'platform', tier: 'core', summary: 'The seller\'s own email server and SMS channel, through which every school\'s password-reset links are sent. A school configures nothing for its staff and parents to get back in.' },
         ],
       },
       {
