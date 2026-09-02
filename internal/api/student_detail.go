@@ -49,6 +49,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	documents := []map[string]any{}
 	leave := []map[string]any{}
 	history := []map[string]any{}
+	priorYears := []map[string]any{}
 	crew := []map[string]any{}
 	activities := []map[string]any{}
 	concessions := []map[string]any{}
@@ -282,6 +283,43 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* THE YEARS BEFORE THIS SYSTEM.
+
+		   Imported from whatever the school kept: which class, how many days
+		   of how many, what was billed and what was paid. Held apart from the
+		   live tables -- these are closed years, and counting them as this
+		   year's attendance or this year's collection would be a lie in every
+		   report that reads those.
+
+		   Read here so the child's page shows one continuous life rather than
+		   beginning on the day the school started using this. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT year_name, COALESCE(class_name,''),
+			       days_present, days_total,
+			       fee_billed_paise, fee_paid_paise, fee_waived_paise,
+			       COALESCE(notes,'')
+			  FROM student_year_history
+			 WHERE student_id = $1
+			 ORDER BY year_name DESC`,
+			func(rows pgx.Rows) error {
+				var year, class, notes string
+				var present, total *int
+				var billed, paid, waived *int64
+				if err := rows.Scan(&year, &class, &present, &total,
+					&billed, &paid, &waived, &notes); err != nil {
+					return err
+				}
+				priorYears = append(priorYears, map[string]any{
+					"year": year, "class": class,
+					"days_present": present, "days_total": total,
+					"fee_billed_paise": billed, "fee_paid_paise": paid,
+					"fee_waived_paise": waived, "notes": notes,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* THE BILLS THEMSELVES, not only the ledger rolled up by head.
 
 		   The Fee & enrolment queue needs to say whether this child has been
@@ -469,6 +507,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"documents":         documents,
 		"leave":             leave,
 		"enrolment_history": history,
+		"prior_years":       priorYears,
 		"transport_crew":    crew,
 		"activities":        activities,
 		"concessions":       concessions,

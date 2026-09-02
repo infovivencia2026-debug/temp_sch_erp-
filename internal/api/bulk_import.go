@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -645,6 +646,99 @@ var importSpecs = map[string]importSpec{
 			return err
 		},
 	},
+	/* A CLOSED YEAR, AS THE SCHOOL REMEMBERS IT.
+
+	   The years before this system are not rows of the same kind: attendance
+	   is a total, not a register, and fees are a figure, not receipts. Both
+	   are held apart from the live tables, because writing them in would make
+	   money collected in 2023 appear in today's collection report and would
+	   invent register entries for dates the school can still be asked about.
+
+	   One row per child per year, so a corrected re-upload edits a history
+	   rather than doubling it. */
+	"student_history": {
+		Perm: rbac.StudentsWrite,
+		Columns: []string{"admission_no", "year", "class", "days_present",
+			"days_total", "fee_billed", "fee_paid", "fee_waived", "notes"},
+		Required: []string{"admission_no", "year"},
+		Sample: []string{"ADM0001", "2025-26", "Grade 5", "187", "210",
+			"35500", "35500", "0", "Promoted with distinction"},
+		Check: func(row map[string]string) error {
+			for _, k := range []string{"days_present", "days_total",
+				"fee_billed", "fee_paid", "fee_waived"} {
+				v := strings.TrimSpace(row[k])
+				if v == "" {
+					continue
+				}
+				n, err := strconv.ParseFloat(v, 64)
+				if err != nil || n < 0 {
+					return fmt.Errorf("%s must be a number that is not negative", k)
+				}
+			}
+			// Present days above the days the school ran is the commonest
+			// thing wrong with a hand-kept summary, and it prints on a
+			// certificate as an attendance above 100 per cent.
+			pres, ptotal := strings.TrimSpace(row["days_present"]), strings.TrimSpace(row["days_total"])
+			if pres != "" && ptotal != "" {
+				a, _ := strconv.ParseFloat(pres, 64)
+				b, _ := strconv.ParseFloat(ptotal, 64)
+				if b > 0 && a > b {
+					return errors.New("days_present is more than days_total")
+				}
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM students
+				                 WHERE institution_id = $1 AND admission_no = $2)`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("no child with admission number %q. Import the students first",
+					strings.TrimSpace(row["admission_no"]))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			var studentID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM students WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&studentID); err != nil {
+				return err
+			}
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO student_year_history (institution_id, student_id, year_name,
+				        class_name, days_present, days_total,
+				        fee_billed_paise, fee_paid_paise, fee_waived_paise, notes)
+				VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,NULLIF($10,''))
+				ON CONFLICT (student_id, year_name) DO UPDATE SET
+				    class_name = EXCLUDED.class_name,
+				    days_present = EXCLUDED.days_present,
+				    days_total = EXCLUDED.days_total,
+				    fee_billed_paise = EXCLUDED.fee_billed_paise,
+				    fee_paid_paise = EXCLUDED.fee_paid_paise,
+				    fee_waived_paise = EXCLUDED.fee_waived_paise,
+				    notes = EXCLUDED.notes,
+				    updated_at = now()
+				RETURNING id, xmax = 0`,
+				c.inst, studentID, strings.TrimSpace(row["year"]),
+				strings.TrimSpace(row["class"]),
+				intOrNil(row["days_present"]), intOrNil(row["days_total"]),
+				paiseOrNil(row["fee_billed"]), paiseOrNil(row["fee_paid"]),
+				paiseOrNil(row["fee_waived"]),
+				strings.TrimSpace(row["notes"])).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("student_history", id, inserted)
+			return nil
+		},
+	},
+
 	"staff": {
 		Perm: rbac.EmployeesWrite,
 		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
@@ -747,6 +841,36 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 	},
+}
+
+// intOrNil turns a blank column into NULL rather than into zero. A school that
+// does not keep attendance totals must not have "0 of 0" printed against every
+// child, which reads as a year in which nobody attended.
+func intOrNil(v string) any {
+	t := strings.TrimSpace(v)
+	if t == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(t)
+	if err != nil {
+		return nil
+	}
+	return n
+}
+
+// paiseOrNil reads rupees as they are written in a school's sheet -- 35500 or
+// 35500.00 -- and stores paise, because every other amount in the system is
+// paise and a second unit is how a fee becomes a hundredth of itself.
+func paiseOrNil(v string) any {
+	t := strings.TrimSpace(v)
+	if t == "" {
+		return nil
+	}
+	f, err := strconv.ParseFloat(strings.ReplaceAll(t, ",", ""), 64)
+	if err != nil {
+		return nil
+	}
+	return int64(math.Round(f * 100))
 }
 
 // getBulkTemplate hands back a CSV with the headers and one filled example

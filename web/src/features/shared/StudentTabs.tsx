@@ -23,6 +23,15 @@ export interface Detail {
   documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
   leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
   enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; remarks: string; promoted: boolean }[]
+  /* The years before this school used this system, imported from whatever it
+     kept. Deliberately not folded into enrolment_history: those are live rows
+     in the live tables, these are a summary of a closed year. */
+  prior_years?: {
+    year: string; class: string
+    days_present?: number | null; days_total?: number | null
+    fee_billed_paise?: number | null; fee_paid_paise?: number | null
+    fee_waived_paise?: number | null; notes: string
+  }[]
   transport_crew: { route: string; vehicle: string; driver: string; driver_phone: string; attendant: string; attendant_phone: string }[]
   activities: { id: string; name: string; category: string; schedule: string; fee_paise: string; status: string; enrolled_on: string; invoice_status: string; invoice_no: string; due_paise: string }[]
   class_id?: string

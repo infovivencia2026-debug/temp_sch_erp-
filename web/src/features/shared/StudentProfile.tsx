@@ -1565,6 +1565,47 @@ export default function StudentProfile() {
           <dl className="divide-y border-t text-[14px]">
             <Field k="Admitted" v={formatDate(p.admission_date)} />
           </dl>
+
+          {/* BEFORE THIS SYSTEM.
+
+              A school that moves onto this platform mid-life brings years the
+              live tables cannot hold: attendance kept as a total rather than a
+              register, fees as a figure rather than receipts. Shown here,
+              under the enrolments, so the child's page reads as one continuous
+              life instead of beginning on the day the school signed up -- and
+              kept visibly separate, because counting a closed year's money as
+              this year's collection would be wrong in every report. */}
+          {!!(detail.data?.prior_years ?? []).length && (
+            <>
+              <p className="eyebrow border-t px-5 pt-4">
+                Before this system â as the school recorded it
+              </p>
+              <Table
+                head={['Year', 'Class', 'Attendance', 'Billed', 'Paid', 'Note']}
+                empty={false}
+              >
+                {(detail.data?.prior_years ?? []).map((h) => (
+                  <tr key={h.year}>
+                    <Td className="font-medium">{h.year}</Td>
+                    <Td>{h.class || 'â'}</Td>
+                    <Td className="tabular-nums">
+                      {h.days_total
+                        ? `${h.days_present ?? 0} of ${h.days_total}` +
+                          ` (${Math.round(((h.days_present ?? 0) / h.days_total) * 100)}%)`
+                        : 'â'}
+                    </Td>
+                    <Td className="tabular-nums">
+                      {h.fee_billed_paise != null ? formatPaise(h.fee_billed_paise) : 'â'}
+                    </Td>
+                    <Td className="tabular-nums">
+                      {h.fee_paid_paise != null ? formatPaise(h.fee_paid_paise) : 'â'}
+                    </Td>
+                    <Td className="text-muted-foreground">{h.notes || 'â'}</Td>
+                  </tr>
+                ))}
+              </Table>
+            </>
+          )}
         </Card>
       ),
     },
