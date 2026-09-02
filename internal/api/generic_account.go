@@ -84,7 +84,8 @@ func (s *Server) createGenericAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	temp, err := temporaryPassword()
+	// Their own number, like every other account this system issues.
+	temp, known, err := issuedPassword(req.Phone, req.Email)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -141,11 +142,12 @@ func (s *Server) createGenericAccount(w http.ResponseWriter, r *http.Request) {
 		// The account, active with a temporary password: an invited account
 		// with no password is one more thing to remember to finish.
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO users (institution_id, email, phone, full_name, password_hash, status)
-			VALUES ($1,$2::citext,$3,$4,$5,'active')
+			INSERT INTO users (institution_id, email, phone, full_name, password_hash,
+			                   status, must_change_password)
+			VALUES ($1,$2::citext,$3,$4,$5,'active',$6)
 			RETURNING id::text`,
 			id.InstitutionID, nullString(req.Email), nullString(req.Phone),
-			name, hash).Scan(&userID); err != nil {
+			name, hash, known).Scan(&userID); err != nil {
 			return err
 		}
 

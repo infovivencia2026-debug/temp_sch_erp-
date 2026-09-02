@@ -149,13 +149,19 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* The same first password every other account on this system gets: the
+	   number or address the person signs in with. One rule for everybody, so
+	   the office never has to remember which kind of account it is looking at
+	   -- and nothing to print, carry or read down a telephone. Held on it by
+	   must_change_password until they set their own. */
 	var (
-		out  createUserResponse
-		temp string
+		out   createUserResponse
+		temp  string
+		known bool
 	)
 	if req.SetPassword {
 		var err error
-		if temp, err = temporaryPassword(); err != nil {
+		if temp, known, err = issuedPassword(req.Phone, req.Email); err != nil {
 			httpx.Internal(w, r, err)
 			return
 		}
@@ -173,17 +179,19 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO users (institution_id, email, phone, full_name, password_hash, status)
-			VALUES ($1,$2::citext,$3,$4,$5,$6)
+			INSERT INTO users (institution_id, email, phone, full_name, password_hash,
+			                   status, must_change_password)
+			VALUES ($1,$2::citext,$3,$4,$5,$6,$7)
 			ON CONFLICT (institution_id, email) WHERE email IS NOT NULL
 			DO UPDATE SET full_name = EXCLUDED.full_name,
 			              phone     = COALESCE(EXCLUDED.phone, users.phone),
 			              password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
 			              status    = EXCLUDED.status,
+			              must_change_password = EXCLUDED.must_change_password,
 			              updated_at = now()
 			RETURNING id::text, status`,
 			id.InstitutionID, nullString(req.Email), nullString(req.Phone),
-			req.FullName, hash, status).Scan(&out.ID, &out.Status); err != nil {
+			req.FullName, hash, status, known).Scan(&out.ID, &out.Status); err != nil {
 			return err
 		}
 
@@ -207,7 +215,12 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 	out.FullName = req.FullName
 	if temp != "" {
 		out.TemporaryPassword = temp
-		out.Note = "Shown once. Hand it over in person; ask them to change it from their profile."
+		if known {
+			out.Note = "Their own number is the password. They are asked to set their " +
+				"own the first time they sign in, and can do nothing until they have."
+		} else {
+			out.Note = "Shown once. Hand it over in person; ask them to change it from their profile."
+		}
 	} else {
 		out.Note = "The account is invited but has no password yet. Use Reset password to issue one."
 	}
