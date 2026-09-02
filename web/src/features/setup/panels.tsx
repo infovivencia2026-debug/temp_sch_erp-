@@ -2568,8 +2568,12 @@ function ResetPanel({ onDone }: PanelProps) {
   const [done, setDone] = useState<{ deleted: number; could_not_clear: string[] } | null>(null)
 
   const school = useQuery({
-    queryKey: ['institution-profile'],
-    queryFn: () => api.get<{ name: string }>('/api/v1/setup/profile'),
+    queryKey: ['institution'],
+    // The same call the profile step makes. Written from memory the first
+    // time as /setup/profile, which is not a route -- so the school's name
+    // never arrived and the confirmation could never be satisfied, leaving a
+    // button permanently disabled with nothing on screen explaining why.
+    queryFn: () => api.get<{ name: string }>('/api/v1/setup/institution'),
   })
   const name = school.data?.name ?? ''
 
