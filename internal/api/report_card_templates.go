@@ -466,11 +466,31 @@ imgTag renders a stored file as an image, or nothing at all.
 	column an operator types into, and anything that is not a file id would
 	otherwise become a request for a path of somebody's choosing.
 */
+/*
+imgTag renders a photograph that fits the box the template put it in.
+
+	The sizing is inline rather than left to the stylesheet, because an
+	imported design does not get the built-in CSS -- loadReportCardTemplate
+	returns a custom template with no CSS of its own, on the grounds that an
+	imported design brings its own. That is true of its type and its rules, but
+	the rule that sized `.photo img` went with it. A school that uploaded a
+	layout with a photograph box therefore got the file at its natural size: a
+	phone camera's four thousand pixels across a card meant to be 28mm wide,
+	which does not overflow the box so much as replace the page.
+
+	object-fit keeps a portrait photograph from stretching into whatever shape
+	the box happens to be, which is the difference between a passport picture
+	and a funhouse mirror on a document the family keeps.
+*/
 func imgTag(id string) string {
 	if _, err := uuid.Parse(strings.TrimSpace(id)); err != nil {
+		// No photograph on file. Empty, so the box is simply blank rather than
+		// a broken-image icon printed on every card in the section.
 		return ""
 	}
-	return `<img src="/api/v1/files/` + html.EscapeString(strings.TrimSpace(id)) + `" alt="">`
+	return `<img src="/api/v1/files/` + html.EscapeString(strings.TrimSpace(id)) +
+		`" alt="" style="width:100%;height:100%;max-width:100%;` +
+		`object-fit:cover;display:block">`
 }
 
 func stripUnknownPlaceholders(s string) string {
