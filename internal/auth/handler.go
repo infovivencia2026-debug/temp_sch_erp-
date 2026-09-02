@@ -174,77 +174,113 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // leaks which usernames exist.
 const dummyHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
 
+/*
+authenticate resolves an identifier and a password to exactly one account.
+
+	Email, phone and username are unique per institution, not across the
+	installation, so one identifier can legitimately name a person at each of
+	several schools here. That used to be refused outright, and the message
+	beside this now says so in words rather than blaming the password — which
+	was the expensive half of the bug and is fixed.
+
+	The other half is that it need not be refused at all. The parent has a
+	different password at each school, so the password already answers which
+	one she means: every candidate is verified and exactly one match signs in.
+	Only a genuine tie — two accounts sharing both a number and a password —
+	is still ambiguous, and there is nothing to choose between those two:
+	signing whichever sorted first in would put a parent inside another
+	school's records.
+
+	Bounded at five candidates. Verification is a deliberately expensive hash,
+	and an identifier shared across a dozen tenants would otherwise be a way to
+	make one unauthenticated request cost a second of CPU.
+*/
 func (h *Handler) authenticate(ctx context.Context, identifier, password string) (uuid.UUID, uuid.UUID, error) {
-	var (
+	type candidate struct {
 		userID uuid.UUID
 		instID *uuid.UUID
 		hash   *string
-	)
-	// Email, phone and username are each unique *per institution* (users_institution_email /
-	// users_institution_phone), not globally, so an identifier can legitimately
-	// match one user in each of several tenants. This deployment serves one
-	// institution per hostname and the sign-in form has no tenant selector, so
-	// rather than guess, refuse: authenticating whichever row sorted first
-	// would sign the user into the wrong school.
-	var matches int
+	}
+	const maxCandidates = 5
+
+	var candidates []candidate
 	err := h.db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `
-			SELECT count(*) FROM users
-			 WHERE status = 'active'
-			   AND (email = $1::citext OR phone = $1 OR username = $1::citext)`,
-			identifier).Scan(&matches); err != nil {
-			return err
-		}
-		if matches == 0 {
-			return errNoAccount
-		}
-		if matches > 1 {
-			// Refusing is right — see above — but it is a different fact from
-			// a wrong password and the caller has to be able to tell them
-			// apart, or the person holding a correct password is told it is
-			// wrong and gives up.
-			return errAmbiguousIdentifier
-		}
-		return tx.QueryRow(ctx, `
+		rows, err := tx.Query(ctx, `
 			SELECT id, institution_id, password_hash
 			  FROM users
 			 WHERE status = 'active'
-			   AND (email = $1::citext OR phone = $1 OR username = $1::citext)`,
-			identifier).
-			Scan(&userID, &instID, &hash)
+			   AND (email = $1::citext OR phone = $1 OR username = $1::citext)
+			 ORDER BY created_at
+			 LIMIT $2`, identifier, maxCandidates)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c candidate
+			if err := rows.Scan(&c.userID, &c.instID, &c.hash); err != nil {
+				return err
+			}
+			candidates = append(candidates, c)
+		}
+		return rows.Err()
 	})
-	if matches > 1 {
-		slog.Warn("ambiguous login identifier across tenants",
-			"identifier", identifier, "matches", matches)
-	}
-	if errors.Is(err, errAmbiguousIdentifier) {
-		// Still a constant-time path: the work below is skipped either way and
-		// the caller decides what to say.
-		_ = h.hasher.Verify(dummyHash, password)
-		return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
-	}
-	if errors.Is(err, errNoAccount) || errors.Is(err, pgx.ErrNoRows) ||
-		(err == nil && hash == nil) {
-		_ = h.hasher.Verify(dummyHash, password)
-		return uuid.Nil, uuid.Nil, errNoAccount
-	}
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
 	}
-	if err := h.hasher.Verify(*hash, password); err != nil {
-		return uuid.Nil, uuid.Nil, err
+
+	if len(candidates) == 0 {
+		// The constant-time dummy: a number nobody uses and a wrong password
+		// must cost the same, or the latency answers which numbers exist.
+		_ = h.hasher.Verify(dummyHash, password)
+		return uuid.Nil, uuid.Nil, errNoAccount
 	}
 
+	var matched []candidate
+	for _, c := range candidates {
+		if c.hash == nil {
+			// An invited account with no password yet. Nothing to verify, and
+			// nothing to sign in as.
+			continue
+		}
+		if err := h.hasher.Verify(*c.hash, password); err == nil {
+			matched = append(matched, c)
+		}
+	}
+
+	switch len(matched) {
+	case 1:
+		// The ordinary case, and the interesting one: where the identifier was
+		// ambiguous, the password has just said which school she meant.
+	case 0:
+		if len(candidates) > 1 {
+			/* Nothing matched, and there was more than one account it could
+			   have been. "Your password is wrong" is the likeliest truth, but
+			   it is not certainly the truth — she may be typing the right
+			   password for a school whose account is inactive — so the caller
+			   still gets to say the more careful thing. */
+			slog.Warn("ambiguous login identifier across tenants",
+				"identifier", identifier, "matches", len(candidates))
+			return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
+		}
+		return uuid.Nil, uuid.Nil, ErrMismatch
+	default:
+		slog.Warn("identifier and password match more than one account",
+			"identifier", identifier, "matches", len(matched))
+		return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
+	}
+
+	won := matched[0]
 	_ = h.db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `UPDATE users SET last_login_at = now() WHERE id = $1`, userID)
+		_, err := tx.Exec(ctx, `UPDATE users SET last_login_at = now() WHERE id = $1`, won.userID)
 		return err
 	})
 
 	var inst uuid.UUID
-	if instID != nil {
-		inst = *instID
+	if won.instID != nil {
+		inst = *won.instID
 	}
-	return userID, inst, nil
+	return won.userID, inst, nil
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
