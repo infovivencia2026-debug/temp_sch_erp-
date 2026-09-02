@@ -273,18 +273,24 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		// The ordinary case, and the interesting one: where the identifier was
 		// ambiguous, the password has just said which school she meant.
 	case 0:
+		/* Nothing matched. This is a wrong password and is said as one, even
+		   when the number belongs to accounts at two schools.
+
+		   It used to answer "registered at more than one school, sign in with
+		   your email instead" here, which is true of the number and irrelevant
+		   to what just happened: the password decides between those accounts
+		   now, so a person who typed the right one is already inside. Telling
+		   somebody with a mistyped password to go and find a username sends
+		   them to the office for a problem they do not have. */
 		if len(candidates) > 1 {
-			/* Nothing matched, and there was more than one account it could
-			   have been. "Your password is wrong" is the likeliest truth, but
-			   it is not certainly the truth — she may be typing the right
-			   password for a school whose account is inactive — so the caller
-			   still gets to say the more careful thing. */
-			slog.Warn("ambiguous login identifier across tenants",
-				"identifier", identifier, "matches", len(candidates))
-			return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
+			slog.Warn("no password matched an identifier held at several schools",
+				"identifier", identifier, "candidates", len(candidates))
 		}
 		return uuid.Nil, uuid.Nil, ErrMismatch
 	default:
+		/* A real tie: the same number and the same password at two schools.
+		   The only case the ambiguity message is now about, and the only one
+		   where "use your email instead" is advice somebody can act on. */
 		slog.Warn("identifier and password match more than one account",
 			"identifier", identifier, "matches", len(matched))
 		return uuid.Nil, uuid.Nil, errAmbiguousIdentifier

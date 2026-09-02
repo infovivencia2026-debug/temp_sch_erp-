@@ -93,14 +93,26 @@ func (s *Server) searchPeople(w http.ResponseWriter, r *http.Request) {
 
 				UNION ALL
 
+				/* ONE ROW PER PARENT, NAMING EVERY CHILD.
+
+				   Joined through student_guardians this listed a mother once
+				   per child, so a family with three at the school pushed
+				   everything else out of a fifteen-row result and the office
+				   still could not see that the three were siblings. A parent
+				   is one person and one login; the children are what
+				   identifies them, so they belong on the row rather than
+				   multiplying it. */
 				SELECT 'guardian',
 				       g.id::text,
 				       g.full_name,
 				       trim(concat_ws(' · ',
-				            NULLIF(initcap(g.relation) || ' of ' ||
-				                   trim(concat_ws(' ', st.first_name, st.last_name)), ''),
+				            NULLIF(initcap(g.relation), ''),
+				            NULLIF(string_agg(trim(concat_ws(' ', st.first_name, st.last_name)),
+				                              ', ' ORDER BY st.first_name), ''),
 				            NULLIF(COALESCE(g.phone, ''), ''))),
-				       st.id::text,
+				       -- The child their record opens on: the eldest link, so
+				       -- the same parent always lands on the same page.
+				       (array_agg(st.id::text ORDER BY st.admission_no))[1],
 				       CASE
 				         WHEN g.phone = (SELECT q FROM needle) THEN 0
 				         WHEN lower(g.full_name) LIKE lower((SELECT q FROM needle)) || '%' THEN 2
@@ -112,6 +124,7 @@ func (s *Server) searchPeople(w http.ResponseWriter, r *http.Request) {
 				 WHERE g.full_name ILIKE '%' || (SELECT q FROM needle) || '%'
 				    OR COALESCE(g.phone,'') ILIKE '%' || (SELECT q FROM needle) || '%'
 				    OR COALESCE(g.email::text,'') ILIKE '%' || (SELECT q FROM needle) || '%'
+				 GROUP BY g.id, g.full_name, g.relation, g.phone
 			) hits
 			 ORDER BY rank, name
 			 LIMIT 15`, q)
