@@ -67,11 +67,87 @@ type teacher struct {
 	ClassTeacherOf string `json:"class_teacher_of,omitempty"`
 }
 
-func (s *Server) listPeriods(w http.ResponseWriter, r *http.Request) {
+/*
+listPeriods returns the day a particular class actually runs to.
+
+	Every school got one set of periods and every class ran to it. A school
+	with a primary section does not work that way: the little ones start later,
+	finish earlier and take a longer lunch, and a timetable insisting Grade 1
+	changes lesson at 11:30 with Grade 10 is a timetable the primary staff
+	ignore -- after which attendance is being marked against periods nobody
+	sat.
+
+	Asked for a section or a class, this answers with that one's bell:
+	the section's own where it has one, otherwise its class's, otherwise the
+	school's default. Asked for neither, it answers with the default, which is
+	what every existing caller was getting and still gets.
+*/
+/*
+listBellSchedules names every school day this school runs, and who runs to it.
+
+	A school with a primary section has two: "Standard day" and something like
+	"Primary". Which classes belong to which is the fact somebody needs to see
+	before they change anything, and it lived nowhere -- a second schedule
+	could exist with no class pointing at it, which looks like it is in use and
+	is not.
+*/
+func (s *Server) listBellSchedules(w http.ResponseWriter, r *http.Request) {
+	type sched struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		IsDefault bool   `json:"is_default"`
+		Periods   int    `json:"periods"`
+		StartsAt  string `json:"starts_at,omitempty"`
+		EndsAt    string `json:"ends_at,omitempty"`
+		// The classes that run to it, named, because an id tells nobody
+		// whether the right children were moved.
+		Classes string `json:"classes"`
+	}
 	items, err := collect(s, r, `
-		SELECT id::text, name, sequence, to_char(starts_at,'HH24:MI'),
-		       to_char(ends_at,'HH24:MI'), is_break
-		  FROM periods ORDER BY sequence`, nil,
+		SELECT b.id::text, b.name, b.is_default,
+		       (SELECT count(*)::int FROM periods p WHERE p.bell_schedule_id = b.id),
+		       COALESCE(to_char((SELECT min(p.starts_at) FROM periods p
+		                          WHERE p.bell_schedule_id = b.id),'HH24:MI'),''),
+		       COALESCE(to_char((SELECT max(p.ends_at) FROM periods p
+		                          WHERE p.bell_schedule_id = b.id),'HH24:MI'),''),
+		       COALESCE((SELECT string_agg(c.name, ', ' ORDER BY c.level)
+		                   FROM classes c WHERE c.bell_schedule_id = b.id), '')
+		  FROM bell_schedules b
+		 ORDER BY b.is_default DESC, b.name`, nil,
+		func(rows pgx.Rows) (sched, error) {
+			var v sched
+			return v, rows.Scan(&v.ID, &v.Name, &v.IsDefault, &v.Periods,
+				&v.StartsAt, &v.EndsAt, &v.Classes)
+		})
+	respond(w, r, items, err)
+}
+
+func (s *Server) listPeriods(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	items, err := collect(s, r, `
+		WITH want AS (
+		  SELECT COALESCE(
+		    (SELECT sec.bell_schedule_id FROM sections sec WHERE sec.id = $1::uuid),
+		    (SELECT cl.bell_schedule_id FROM classes cl
+		      WHERE cl.id = COALESCE($2::uuid,
+		            (SELECT class_id FROM sections WHERE id = $1::uuid))),
+		    (SELECT b.id FROM bell_schedules b
+		      WHERE b.is_default ORDER BY b.created_at LIMIT 1)
+		  ) AS id
+		)
+		SELECT p.id::text, p.name, p.sequence, to_char(p.starts_at,'HH24:MI'),
+		       to_char(p.ends_at,'HH24:MI'), p.is_break
+		  FROM periods p, want
+		 /* A schedule with no periods of its own would otherwise show an empty
+		    day, which reads as a school that has not been set up. Falling back
+		    to whatever the school has is the honest answer while somebody is
+		    still filling it in. */
+		 WHERE p.bell_schedule_id = want.id
+		    OR (want.id IS NULL AND p.bell_schedule_id IS NULL)
+		    OR NOT EXISTS (SELECT 1 FROM periods q2, want w2
+		                    WHERE q2.bell_schedule_id = w2.id)
+		 ORDER BY p.sequence`,
+		[]any{nullUUIDText(q.Get("section_id")), nullUUIDText(q.Get("class_id"))},
 		func(rows pgx.Rows) (period, error) {
 			var v period
 			return v, rows.Scan(&v.ID, &v.Name, &v.Sequence, &v.StartsAt, &v.EndsAt, &v.IsBreak)

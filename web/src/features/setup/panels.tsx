@@ -1116,7 +1116,37 @@ function PeriodsPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<List<P & { id: string }>>('/api/v1/timetable/periods'),
   })
   const [rows, setRows] = useState<P[]>([])
-  const save = useSave((periods: P[]) => api.put('/api/v1/setup/periods', { periods }), onDone)
+  /* WHOSE DAY IS BEING EDITED.
+   *
+   * Empty means the school's own, which is what this panel has always been
+   * and what a school running one bell keeps. Named, it is a second day --
+   * primary starting later and finishing earlier, a shift, a pre-school -- and
+   * the classes ticked below run to it.
+   *
+   * The classes are asked here rather than on a screen of their own because
+   * somebody typing the primary timings is thinking about which classes are
+   * primary at that exact moment. Asking again later is how a second day gets
+   * created and never used by anybody. */
+  const [scheduleName, setScheduleName] = useState('')
+  const [forClasses, setForClasses] = useState<Record<string, boolean>>({})
+
+  const schedules = useQuery({
+    queryKey: ['bell-schedules'],
+    queryFn: () => api.get<List<{
+      id: string; name: string; is_default: boolean; periods: number
+      starts_at?: string; ends_at?: string; classes: string
+    }>>('/api/v1/timetable/bell-schedules'),
+  })
+  const classes = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
+  })
+
+  const save = useSave((periods: P[]) => api.put('/api/v1/setup/periods', {
+    periods,
+    schedule_name: scheduleName.trim() || undefined,
+    class_ids: Object.entries(forClasses).filter(([, on]) => on).map(([id]) => id),
+  }), onDone)
 
   /* THE SAVED DAY HAS TO ARRIVE IN THE FORM.
 
@@ -1134,6 +1164,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
      with this pattern: an effect keyed on `data` looks correct and silently
      reverts an edit the moment React Query revalidates. */
   const seeded = useRef(false)
+  const otherDays = (schedules.data?.items ?? []).filter((x) => !x.is_default)
   useEffect(() => {
     if (seeded.current || !data?.items?.length) return
     seeded.current = true
@@ -1187,6 +1218,71 @@ function PeriodsPanel({ onDone }: PanelProps) {
       <div className="mb-4">
         <Preset onClick={standard}>A seven-period day from 09:00</Preset>
       </div>
+
+      {/* THE SCHOOL THAT DOES NOT RUN ONE BELL.
+
+          Primary starts later, finishes earlier and takes a longer lunch. A
+          timetable that has Grade 1 changing lesson at 11:30 with Grade 10 is
+          one the primary staff ignore, and once they ignore it attendance is
+          being marked against periods nobody sat.
+
+          Left alone this is the school's own day, which is what it has always
+          been. Only a school that needs a second one has to read any of it. */}
+      <div className="mb-4 rounded-lg border p-3">
+        <FormGrid>
+          <Field
+            label="Whose day is this"
+            hint="Leave empty for the whole school. Name it — Primary, Afternoon shift — to give some classes their own timings."
+          >
+            <Input
+              value={scheduleName}
+              onChange={setScheduleName}
+              placeholder="The whole school"
+            />
+          </Field>
+        </FormGrid>
+
+        {scheduleName.trim() !== '' && (
+          <div className="mt-3">
+            <p className="eyebrow mb-1.5 text-muted-foreground">
+              Which classes run to it
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {(classes.data?.items ?? []).map((c) => (
+                <label key={c.id} className="flex items-center gap-1.5 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={!!forClasses[c.id]}
+                    onChange={(e) =>
+                      setForClasses({ ...forClasses, [c.id]: e.target.checked })}
+                  />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+            {/* A day nobody runs to looks like it is in use and is not. */}
+            {!Object.values(forClasses).some(Boolean) && (
+              <p className="mt-1.5 text-[12.5px] text-warning">
+                No class is ticked, so nothing will use these timings.
+              </p>
+            )}
+          </div>
+        )}
+
+        {otherDays.length > 0 && (
+          <div className="mt-3 border-t pt-2.5 text-[12.5px] text-muted-foreground">
+            {otherDays.map((d) => (
+              <p key={d.id}>
+                <span className="font-medium text-foreground">{d.name}</span>
+                {d.starts_at ? ` ${d.starts_at}–${d.ends_at}` : ''}
+                {' · '}
+                {d.classes || 'no class runs to it yet'}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="mb-3 text-[14px] text-muted-foreground">
         Breaks are listed too. The timetable needs them to know a teacher is free, and attendance
         needs them to know a period was not taught.

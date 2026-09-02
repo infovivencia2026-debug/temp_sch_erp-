@@ -282,6 +282,8 @@ func (s *Server) Routes() http.Handler {
 			r.Use(httpx.RequirePermission(rbac.TimetableRead))
 			r.Get("/entries", s.listTimetableEntries)
 			r.Get("/periods", s.listPeriods)
+			// The school days this school runs, and which classes run to each.
+			r.Get("/bell-schedules", s.listBellSchedules)
 			r.Get("/teachers", s.listTeachers)
 		})
 

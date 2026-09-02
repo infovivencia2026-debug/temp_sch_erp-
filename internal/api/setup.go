@@ -341,6 +341,19 @@ type periodsRequest struct {
 		EndsAt   string `json:"ends_at"`
 		IsBreak  bool   `json:"is_break"`
 	} `json:"periods"`
+	/* WHOSE DAY THIS IS.
+
+	   A school with a primary section does not run one bell. The little ones
+	   start later, finish earlier and take a longer lunch, and a timetable
+	   that has Grade 1 changing lesson at 11:30 with Grade 10 is one the
+	   primary staff ignore -- after which attendance is marked against periods
+	   nobody sat.
+
+	   Omitted, this is the school's own day, which is what every existing
+	   caller means and still gets. Named, it is a second day, and the classes
+	   listed run to it. */
+	ScheduleName string   `json:"schedule_name,omitempty"`
+	ClassIDs     []string `json:"class_ids,omitempty"`
 }
 
 // setPeriods defines the whole school day in one call.
@@ -381,19 +394,79 @@ func (s *Server) setPeriods(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		/* Which day is being written, and the conflict target that matches
+		   how periods are actually keyed.
+
+		   This upserted ON CONFLICT (institution_id, campus_id, sequence),
+		   and no such index exists -- periods are unique on
+		   (bell_schedule_id, sequence). Postgres refuses a conflict target it
+		   cannot match, so saving the school day failed outright rather than
+		   updating anything. */
+		var schedule uuid.UUID
+		name := strings.TrimSpace(req.ScheduleName)
+		if name == "" {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT id FROM bell_schedules
+				 WHERE institution_id = $1
+				 ORDER BY is_default DESC, created_at LIMIT 1`,
+				id.InstitutionID).Scan(&schedule); err != nil {
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				if err := tx.QueryRow(r.Context(), `
+					INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+					VALUES ($1,$2,'Standard day',true) RETURNING id`,
+					id.InstitutionID, campus).Scan(&schedule); err != nil {
+					return err
+				}
+			}
+		} else {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT id FROM bell_schedules
+				 WHERE institution_id = $1 AND lower(name) = lower($2)`,
+				id.InstitutionID, name).Scan(&schedule); err != nil {
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				// A second day is never the default: the school's own bell
+				// stays the fallback for every class nobody has moved.
+				if err := tx.QueryRow(r.Context(), `
+					INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+					VALUES ($1,$2,$3,false) RETURNING id`,
+					id.InstitutionID, campus, name).Scan(&schedule); err != nil {
+					return err
+				}
+			}
+		}
+
 		for _, p := range req.Periods {
 			if _, err := tx.Exec(r.Context(), `
-				INSERT INTO periods (institution_id, campus_id, name, sequence,
-				                     starts_at, ends_at, is_break)
-				VALUES ($1,$2,$3,$4,$5::time,$6::time,$7)
-				ON CONFLICT (institution_id, campus_id, sequence)
+				INSERT INTO periods (institution_id, campus_id, bell_schedule_id, name,
+				                     sequence, starts_at, ends_at, is_break)
+				VALUES ($1,$2,$3,$4,$5,$6::time,$7::time,$8)
+				ON CONFLICT (bell_schedule_id, sequence)
 				DO UPDATE SET name = EXCLUDED.name, starts_at = EXCLUDED.starts_at,
 				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break`,
-				id.InstitutionID, campus, p.Name, p.Sequence,
+				id.InstitutionID, campus, schedule, p.Name, p.Sequence,
 				p.StartsAt, p.EndsAt, p.IsBreak); err != nil {
 				return err
 			}
 			written++
+		}
+
+		/* A day nobody runs to is a day nobody notices is wrong.
+
+		   Naming the classes here rather than on a separate screen is the
+		   whole point: somebody defining the primary timings is thinking about
+		   which classes are primary at that exact moment, and asking them
+		   again later is how a second day gets created and never used. */
+		if len(req.ClassIDs) > 0 {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE classes SET bell_schedule_id = $2
+				 WHERE institution_id = $1 AND id = ANY($3::uuid[])`,
+				id.InstitutionID, schedule, req.ClassIDs); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
