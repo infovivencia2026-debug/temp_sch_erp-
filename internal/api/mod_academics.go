@@ -880,6 +880,12 @@ type reportCardRow struct {
 	AdmissionNo string   `json:"admission_no"`
 	RollNo      *int     `json:"roll_no,omitempty"`
 	FullName    string   `json:"full_name"`
+	/* The child's face, where the school has one on file.
+
+	   A class teacher checking thirty cards knows the children by sight and
+	   not by admission number, and a row of names in a table is the one place
+	   a mis-clicked child is easiest and costliest. */
+	PhotoFileID *string `json:"photo_file_id,omitempty"`
 	ClassName   *string  `json:"class_name,omitempty"`
 	SectionName *string  `json:"section_name,omitempty"`
 	Total       *float64 `json:"total_marks,omitempty"`
@@ -969,6 +975,7 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT rc.id::text, st.id::text, st.admission_no, e.roll_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		       st.photo_file_id::text,
 		       c.name, sec.name,
 		       rc.total_marks, rc.max_marks, rc.percentage, rc.grade,
 		       rc.rank_in_section, rc.attendance_percent, rc.is_published,
@@ -1007,7 +1014,7 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY e.roll_no NULLS LAST, st.admission_no`, args,
 		func(rows pgx.Rows) (reportCardRow, error) {
 			var v reportCardRow
-			return v, rows.Scan(&v.ID, &v.StudentID, &v.AdmissionNo, &v.RollNo, &v.FullName,
+			return v, rows.Scan(&v.ID, &v.StudentID, &v.AdmissionNo, &v.RollNo, &v.FullName, &v.PhotoFileID,
 				&v.ClassName, &v.SectionName,
 				&v.Total, &v.MaxMarks, &v.Percentage, &v.Grade, &v.Rank,
 				&v.Attendance, &v.Published, &v.Status, &v.ReturnNote, &v.Subjects)

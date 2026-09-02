@@ -9,6 +9,7 @@ import {
 import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
 import CardViewer from '@/components/CardViewer'
+import StudentAvatar from '@/components/StudentAvatar'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { useCan } from '@/lib/session'
 
@@ -45,6 +46,7 @@ interface SubjectMark {
 
 interface ReportCard {
   id: string; student_id: string; admission_no: string; roll_no?: number; full_name: string
+  photo_file_id?: string
   class_name?: string; section_name?: string
   total_marks?: number; max_marks?: number; percentage?: number
   grade?: string; rank_in_section?: number; attendance_percent?: number
@@ -1017,19 +1019,43 @@ export default function ReportCards() {
               {rows.map((r) => (
                 <>
                   <tr key={r.student_id}>
+                    {/* THE CHILD'S FACE AND THE TICK BOX IN ONE SQUARE.
+
+                        A teacher checking thirty cards knows the children by
+                        sight, not by admission number -- and this column held
+                        the one control where picking the wrong row publishes
+                        the wrong child's result. The photograph is the control
+                        now: it takes a tick when chosen, the way any photo grid
+                        behaves, and where no photograph is on file it shows
+                        initials rather than a grey hole. */}
                     {(mayPublish || mayGenerate) && (
                       <Td>
-                        <input
-                          type="checkbox"
-                          checked={!!picked[r.id]}
-                          onChange={(e) => setPicked({ ...picked, [r.id]: e.target.checked })}
-                          aria-label={`Select the report card for ${r.full_name}`}
+                        <StudentAvatar
+                          name={r.full_name}
+                          photoFileId={r.photo_file_id}
+                          seed={r.student_id}
+                          selected={!!picked[r.id]}
+                          onSelect={(next) => setPicked({ ...picked, [r.id]: next })}
                         />
                       </Td>
                     )}
                     <Td className="font-medium tabular-nums">{r.roll_no ?? '—'}</Td>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
-                    <Td className="font-medium">{r.full_name}</Td>
+                    <Td className="font-medium">
+                      {/* And beside the name for anybody without the selection
+                          column, who would otherwise see no face at all. */}
+                      {mayPublish || mayGenerate ? r.full_name : (
+                        <span className="flex items-center gap-2">
+                          <StudentAvatar
+                            name={r.full_name}
+                            photoFileId={r.photo_file_id}
+                            seed={r.student_id}
+                            size={26}
+                          />
+                          {r.full_name}
+                        </span>
+                      )}
+                    </Td>
                     <Td>{r.total_marks ?? '—'}{r.max_marks ? ` / ${r.max_marks}` : ''}</Td>
                     <Td>{r.percentage != null ? `${r.percentage}%` : '—'}</Td>
                     <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '—'}</Td>
