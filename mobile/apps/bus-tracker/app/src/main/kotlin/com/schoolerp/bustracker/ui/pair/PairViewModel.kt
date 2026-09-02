@@ -37,6 +37,10 @@ data class PairUiState(
     val phone: String = "",
     val pin: String = "",
     val usePairCode: Boolean = false,
+    /** The bus read off the sticker in the windscreen, if the driver scanned
+     *  one. Empty means "whichever bus HR has this driver against", which is
+     *  the ordinary case and stays the default. */
+    val scannedBus: String = "",
     /** Pair codes are a fallback for a bus with no driver assigned yet, and
      *  belong to whoever is debugging -- not to the man beside the bus. */
     val pairCodeAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
@@ -134,6 +138,20 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(pin = value.take(72), error = null)
     }
 
+    /* The sticker in the windscreen decides the bus.
+
+       Without a scan the server answers with the bus HR has this driver
+       against, which is right when a driver always takes the same one. A school
+       where they swap needs the handset to say which bus it is standing next
+       to, and the sticker is the only thing in the cab that knows. */
+    fun onBusScanned(code: String) {
+        _state.value = _state.value.copy(scannedBus = code.trim(), error = null)
+    }
+
+    fun clearScannedBus() {
+        _state.value = _state.value.copy(scannedBus = "")
+    }
+
     fun usePairCode(on: Boolean) {
         _state.value = _state.value.copy(usePairCode = on, error = null)
     }
@@ -153,10 +171,16 @@ class PairViewModel @Inject constructor(
         _state.value = current.copy(submitting = true, error = null)
 
         viewModelScope.launch {
-            val outcome = if (current.usePairCode) {
-                repository.pair(current.baseUrl, current.pairCode)
-            } else {
-                repository.driverSignIn(current.baseUrl, current.phone, current.pin)
+            val outcome = when {
+                current.usePairCode ->
+                    repository.pair(current.baseUrl, current.pairCode)
+                // A scanned bus overrides HR's assignment for this handset.
+                current.scannedBus.isNotBlank() ->
+                    repository.enrolWithBus(
+                        current.baseUrl, current.phone, current.pin, current.scannedBus,
+                    )
+                else ->
+                    repository.driverSignIn(current.baseUrl, current.phone, current.pin)
             }
             when (outcome) {
                 is PairOutcome.Paired -> {

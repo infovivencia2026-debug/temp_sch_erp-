@@ -17,6 +17,7 @@ import com.schoolerp.bustracker.data.prefs.TrackerSettings
 import com.schoolerp.bustracker.data.remote.ApiFailure
 import com.schoolerp.bustracker.data.remote.ClaimRequest
 import com.schoolerp.bustracker.data.remote.DriverSignInRequest
+import com.schoolerp.bustracker.data.remote.EnrolRequest
 import com.schoolerp.bustracker.data.remote.EndTripRequest
 import com.schoolerp.bustracker.data.remote.HeartbeatRequest
 import com.schoolerp.bustracker.data.remote.PositionFix
@@ -93,6 +94,53 @@ class TrackerRepository @Inject constructor(
      * downstream -- the service, the buffer, the trip -- a handset that signed
      * in and a handset that used a code are the same thing.
      */
+    /* ENROLLING AGAINST THE BUS IN FRONT OF THE DRIVER.
+
+       driverSignIn below asks the server which bus HR has this person
+       against, which is right for a driver who always takes the same one. A
+       school where drivers swap buses needs the other direction: the handset
+       says which bus it is standing next to, having read the sticker in the
+       windscreen, and the server binds to that.
+
+       The server retires whatever tracker that bus had, so scanning a second
+       bus moves the handset rather than leaving two live trackers on one
+       vehicle. */
+    suspend fun enrolWithBus(
+        rawBaseUrl: String,
+        phone: String,
+        pin: String,
+        bus: String,
+    ): PairOutcome {
+        val settings = settingsStore.settings.first()
+        val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
+            .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
+        return try {
+            val response = api.enrol(
+                baseUrl,
+                EnrolRequest(
+                    phone = phone.trim(),
+                    pin = pin.trim(),
+                    bus = bus.trim(),
+                    deviceModel = device.deviceModel(),
+                    androidVersion = device.androidVersion(),
+                    appVersion = device.appVersion(),
+                ),
+            )
+            settingsStore.setBaseUrl(baseUrl.value)
+            if (response.routes.isNotEmpty()) {
+                settingsStore.saveRouteBook(response.routes.map { SavedRoute(it.id, it.name) })
+            }
+            _awaitingConfirmation.value = true
+            tokenStore.save(response.deviceId, response.deviceToken)
+            if (response.sessionToken.isNotEmpty()) {
+                tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
+            }
+            PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
+        } catch (failure: ApiFailure) {
+            PairOutcome.Rejected(driverSignInMessage(failure))
+        }
+    }
+
     suspend fun driverSignIn(rawBaseUrl: String, phone: String, password: String): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)

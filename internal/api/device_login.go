@@ -1079,10 +1079,22 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		var vehicle uuid.UUID
 		var plate string
+		/* The plate, or the code on the sticker in the windscreen.
+
+		   The office prints a QR per bus and it carries bus_code, not the
+		   registration — so a driver scanning the sticker sent a value this
+		   lookup could not match, and was told the bus did not exist while
+		   holding a code the school had printed for exactly this.
+
+		   Both are unique per school and neither looks like the other, so
+		   accepting either cannot pick the wrong bus. The plate keeps its
+		   punctuation-insensitive match, because it is typed by hand; the code
+		   is compared as scanned. */
 		if err := tx.QueryRow(r.Context(), `
 			SELECT id, registration_no FROM vehicles
 			 WHERE institution_id = $1
-			   AND upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2
+			   AND (upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2
+			        OR upper(bus_code) = $2)
 			   AND status <> 'retired'
 			 LIMIT 1`, who.Institution, reg).Scan(&vehicle, &plate); err != nil {
 			return err

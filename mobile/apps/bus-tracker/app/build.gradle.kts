@@ -150,6 +150,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.zxing.embedded)
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.work)

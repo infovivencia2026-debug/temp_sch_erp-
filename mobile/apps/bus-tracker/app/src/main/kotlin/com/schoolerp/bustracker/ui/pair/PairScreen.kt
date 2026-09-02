@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material3.OutlinedButton
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.schoolerp.bustracker.core.PairCode
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -132,6 +136,50 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             )
             TextButton(onClick = { viewModel.usePairCode(false) }) {
                 Text("Use my number and PIN instead")
+            }
+        }
+
+        /* THE STICKER IN THE WINDSCREEN.
+
+           Without a scan the server answers with the bus HR has this driver
+           against, which is right where a driver always takes the same one.
+           Where they swap, the handset has to say which bus it is standing next
+           to, and the sticker is the only thing in the cab that knows.
+
+           ZXing's own activity rather than a camera preview built into this
+           screen: it is one launcher and one permission, it handles the torch
+           and the focus, and a driver at six in the morning gets the scanner
+           every other app has taught him to expect. */
+        val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+            result.contents?.let(viewModel::onBusScanned)
+        }
+
+        if (state.scannedBus.isBlank()) {
+            OutlinedButton(
+                onClick = {
+                    scanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Point at the sticker in the windscreen")
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(false),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Scan the bus QR")
+            }
+            Text(
+                "Optional. Without it you get the bus the school has you down for.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Bus ${state.scannedBus}", modifier = Modifier.weight(1f))
+                TextButton(onClick = viewModel::clearScannedBus) { Text("Change") }
             }
         }
 

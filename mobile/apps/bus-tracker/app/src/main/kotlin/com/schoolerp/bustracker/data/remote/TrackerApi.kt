@@ -55,6 +55,19 @@ class TrackerApi(
     /* The driver's own way in. No pair code, no session: the PIN is the
      * credential, and the server answers with the bus HR has this person
      * against. See internal/api/bus_driver_signin.go. */
+    /* Enrolling this handset against a scanned bus. Same shape as
+     * driverSignIn: no session, the credential is in the body, and the server
+     * answers with the vehicle it matched. */
+    suspend fun enrol(
+        baseUrl: BaseUrl,
+        request: EnrolRequest,
+    ): DriverSignInResponse = call {
+        client.post(baseUrl.resolve(PATH_ENROL)) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
     suspend fun driverSignIn(
         baseUrl: BaseUrl,
         request: DriverSignInRequest,
@@ -193,6 +206,7 @@ class TrackerApi(
 
     companion object {
         const val PATH_CLAIM = "/api/v1/public/bus-tracker/claim"
+        const val PATH_ENROL = "/api/v1/public/bus-tracker/enrol"
         const val PATH_TRIPS = "/api/v1/bus-tracker/trips"
         const val PATH_POSITIONS = "/api/v1/bus-tracker/positions"
         const val PATH_HEARTBEAT = "/api/v1/bus-tracker/heartbeat"

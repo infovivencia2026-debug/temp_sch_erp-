@@ -116,6 +116,20 @@ object InstitutionSerializer : KSerializer<Institution> {
  * it finds against that person -- which is also narrower than a pair code was,
  * because a driver cannot attach a handset to a route that is not theirs.
  */
+/* Enrolling against the bus the driver is actually standing next to.
+
+   The sticker in the windscreen carries the bus code; the same field also
+   accepts a registration typed by hand, because the server matches either. */
+@Serializable
+data class EnrolRequest(
+    val phone: String,
+    val pin: String,
+    @SerialName("registration_no") val bus: String,
+    @SerialName("device_model") val deviceModel: String? = null,
+    @SerialName("android_version") val androidVersion: String? = null,
+    @SerialName("app_version") val appVersion: String? = null,
+)
+
 @Serializable
 data class DriverSignInRequest(
     val phone: String,
