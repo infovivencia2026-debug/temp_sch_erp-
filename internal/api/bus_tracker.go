@@ -1448,6 +1448,10 @@ func (s *Server) mountBusTrackerDevice(r chi.Router) {
 		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips", s.startBusTrackerTrip)
 		r.With(s.requireBusTrackerDriver).Post("/bus-tracker/trips/{id}/end", s.endBusTrackerTrip)
 
+		/* Which lines this bus runs, asked once the sticker has been read.
+		   Device-authenticated only: choosing a bus is not naming a person. */
+		r.Get("/bus-tracker/routes", s.busTrackerRoutesForBus)
+
 		r.Post("/bus-tracker/positions", s.ingestBusTrackerPositions)
 		r.Post("/bus-tracker/heartbeat", s.busTrackerHeartbeatHandler)
 	})

@@ -599,7 +599,7 @@ private fun StartRunSection(
                     scanner.launch(
                         ScanOptions()
                             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            .setPrompt("Point at the sticker in the windscreen")
+                            .setPrompt("Point at the bus sticker")
                             .setBeepEnabled(false)
                             .setOrientationLocked(false),
                     )

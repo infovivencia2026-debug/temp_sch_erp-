@@ -281,6 +281,21 @@ class TrackerRepository @Inject constructor(
      * perfectly while the Start button returned 401 on every handset in the
      * field, and nothing in the office could see that.
      */
+    /* THE ROUTES ON THE BUS THAT WAS JUST SCANNED.
+
+       Not cached into the route book: the book is the driver's own, and the
+       bus is different every relief morning. Held for the length of the run
+       screen and thrown away with the code. */
+    suspend fun routesForBus(busCode: String): List<SavedRoute>? {
+        val ctx = requireContext() ?: return null
+        return try {
+            api.routesForBus(ctx.baseUrl, ctx.token, busCode)
+                .routes.map { SavedRoute(it.id, it.name) }
+        } catch (failure: ApiFailure) {
+            null
+        }
+    }
+
     suspend fun signIn(phone: String, pin: String): SignInOutcome {
         val ctx = requireContext() ?: return SignInOutcome.NotPaired
         return try {

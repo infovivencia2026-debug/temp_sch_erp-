@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -65,9 +66,24 @@ class RunViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val routeBook: StateFlow<List<SavedRoute>> = repository.settings
+    /* The stored book, which is what a handset still paired to one bus has. */
+    private val storedRouteBook: StateFlow<List<SavedRoute>> = repository.settings
         .map { it.routeBook }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /* The lines on the bus whose sticker was just read. Null until a code has
+       been entered and the school has answered; empty means the school
+       answered and that bus genuinely has no route yet. */
+    private val _busRoutes = MutableStateFlow<List<SavedRoute>?>(null)
+
+    /* WHAT THE DRIVER PICKS FROM.
+
+       The scanned bus wins whenever the school has answered for it. Before the
+       bus is chosen the handset has nothing to offer but the stored book, and
+       falling back to it is what keeps a one-bus driver's morning unchanged. */
+    val routeBook: StateFlow<List<SavedRoute>> =
+        combine(storedRouteBook, _busRoutes) { stored, scanned -> scanned ?: stored }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _alert = MutableStateFlow<DriverAlert?>(null)
     val alert: StateFlow<DriverAlert?> = _alert.asStateFlow()
@@ -176,8 +192,28 @@ class RunViewModel @Inject constructor(
     private val _scannedBus = MutableStateFlow("")
     val scannedBus: StateFlow<String> = _scannedBus.asStateFlow()
 
-    fun onBusScanned(code: String) { _scannedBus.value = code.trim() }
-    fun clearScannedBus() { _scannedBus.value = "" }
+    fun onBusScanned(code: String) {
+        val trimmed = code.trim()
+        _scannedBus.value = trimmed
+        /* Ask the school which lines this bus runs, the moment there is enough
+           of a code to ask about. Short of that the driver is still typing and
+           every keystroke would be a round trip. */
+        _busRoutes.value = null
+        if (trimmed.length < 4) return
+        viewModelScope.launch {
+            val fetched = repository.routesForBus(trimmed)
+            // Only if the code still stands: a slow answer for a code the
+            // driver has since retyped must not fill the list behind them.
+            if (fetched != null && _scannedBus.value == trimmed) {
+                _busRoutes.value = fetched
+            }
+        }
+    }
+
+    fun clearScannedBus() {
+        _scannedBus.value = ""
+        _busRoutes.value = null
+    }
 
     fun startRun(route: SavedRoute, direction: String = DIRECTION_PICKUP, supersede: Boolean = false) {
         if (_busy.value) return

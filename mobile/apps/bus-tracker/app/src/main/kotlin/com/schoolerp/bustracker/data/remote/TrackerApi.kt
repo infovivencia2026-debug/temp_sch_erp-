@@ -4,7 +4,9 @@ import com.schoolerp.bustracker.core.BaseUrl
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -99,6 +101,19 @@ class TrackerApi(
     ): SignOutResponse = call {
         client.post(baseUrl.resolve(PATH_SESSION_END)) {
             bearer(token)
+        }
+    }
+
+    /** The lines the office has put on this bus. Device-authenticated: naming
+     *  a bus is not naming a person, and this is asked before anybody signs in. */
+    suspend fun routesForBus(
+        baseUrl: BaseUrl,
+        token: String,
+        busCode: String,
+    ): BusRoutesResponse = call {
+        client.get(baseUrl.resolve(PATH_ROUTES)) {
+            bearer(token)
+            parameter("bus", busCode)
         }
     }
 
@@ -208,6 +223,7 @@ class TrackerApi(
         const val PATH_CLAIM = "/api/v1/public/bus-tracker/claim"
         const val PATH_ENROL = "/api/v1/public/bus-tracker/enrol"
         const val PATH_TRIPS = "/api/v1/bus-tracker/trips"
+        const val PATH_ROUTES = "/api/v1/bus-tracker/routes"
         const val PATH_POSITIONS = "/api/v1/bus-tracker/positions"
         const val PATH_HEARTBEAT = "/api/v1/bus-tracker/heartbeat"
         const val PATH_DRIVER_SIGNIN = "/api/v1/public/bus-tracker/driver-signin"

@@ -336,3 +336,17 @@ object ErrorCodes {
     const val SKEWED_CLOCK = "skewed_clock"
     const val TOO_FAST = "too_fast"
 }
+
+/**
+ * What the school knows about the bus whose sticker was just read.
+ *
+ * The handset is no longer paired to a vehicle -- the driver holds the phone
+ * account and picks the bus at the top of each run -- so the route list can no
+ * longer ride along with the pairing or the sign-in. It is asked for here, the
+ * moment a code is known.
+ */
+@Serializable
+data class BusRoutesResponse(
+    @SerialName("registration_no") val registrationNo: String = "",
+    val routes: List<AssignedRoute> = emptyList(),
+)
