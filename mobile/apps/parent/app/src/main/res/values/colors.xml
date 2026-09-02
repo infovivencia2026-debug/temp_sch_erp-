@@ -4,4 +4,10 @@
     <color name="page_bg">#F7F8FA</color>
     <color name="page_text">#000000</color>
     <color name="page_muted">#5F6368</color>
+    <!-- The ground the launcher artwork used to carry inside its own bitmap.
+         Named separately from page_bg because they answer different questions:
+         one is the colour of the page, the other is the colour behind the
+         icon, and a school rebranding the portal must not silently restyle
+         the home screen. -->
+    <color name="launcher_background">#0B0C0E</color>
 </resources>

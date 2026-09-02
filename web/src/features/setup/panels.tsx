@@ -701,8 +701,8 @@ function ClassesPanel({ onDone }: PanelProps) {
       </div>
 
       <p className="mb-4 text-[14px] text-muted-foreground">
-        Sections go in here with the class. Write them as you say them \u2014 A, B,
-        or Rose, Newton \u2014 separated by commas. The order of classes is read
+        Sections go in here with the class. Write them as you say them - A, B,
+        or Rose, Newton - separated by commas. The order of classes is read
         from the name, so Class 10 sorts below Class 9 with nothing to fill in.
       </p>
 

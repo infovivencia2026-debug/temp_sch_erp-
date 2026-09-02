@@ -2859,3 +2859,75 @@ html:not(.dark)[data-layout='bento'] {
   :root { --dock-reserve: 0px; }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE FIGURE WAS TRACKED IN TWICE ONCE THE TYPEFACE COULD DO IT ITSELF.
+
+   index.css now loads Inter's two-axis cut rather than the weight-only one,
+   so `font-optical-sizing: auto` -- which every browser has been applying all
+   along, to a file that had no such axis to apply it to -- finally does
+   something. Above 14px the letterforms are redrawn tighter and narrower as
+   they grow, which is what a display size wants and what a person otherwise
+   fakes with negative letter-spacing.
+
+   The card figure was faking it. It is set with `tracking-[-0.035em]` at its
+   call sites, a value chosen against the text drawing at a time when the text
+   drawing was all there was, and the comment beside it gives the right reason:
+   large figures set at their default spacing read as loose, because the
+   counters are already wide at this size. That reason is now the typeface's
+   job.
+
+   Measured on the live board: the figure computes 51.11px on a 1440 desktop
+   and 34px on a 390 phone -- not the 96px ceiling, which nothing on the
+   shipping boards reaches. At those sizes the axis is at or near its 32 cap,
+   and the same string set at opsz 14 against opsz free measured 472px and
+   438px: seven percent of the line, drawn by the font. On top of a further
+   -0.035em by hand, a four-figure amount with a rupee sign in front of it was
+   closing up around the comma -- the one glyph in the string that has almost
+   no ink and is doing all the grouping work.
+
+   So the manual value goes to zero and the seven percent stays. That is the
+   same call index.css makes for h1 and for .stat, and it is one rule rather
+   than three: above about twenty pixels, tightening is the typeface's job.
+
+   Two things were rejected. `font-optical-sizing: none` on the figure would
+   have kept the old drawing and the old tracking together, which is honest but
+   throws away the better letterforms at exactly the size they were cut for.
+   A smaller negative value -- -0.012em, say -- was tried on paper and is a
+   number with nothing behind it: either the font's own spacing at a display
+   size is right, or it is not, and it is.
+
+   The selector matches the utility class by name because the figure has no
+   other stable hook: it is a `p` with five utilities on it and no semantic
+   class of its own. Scoped inside `.bento-cell` so it can only ever reach the
+   card figure, and left at a single attribute selector's specificity so a call
+   site that genuinely wants its own tracking can still say so. The 15px
+   em-dash placeholder that shares the class is matched too, and is unharmed:
+   at 15px it was carrying half a pixel of tracking on a single glyph.
+   ───────────────────────────────────────────────────────────────────────── */
+[data-layout='bento'] .bento-cell [class*='tracking-[-0.035em]'],
+[data-layout='bento'] .bento-widget [class*='tracking-[-0.035em]'] {
+  letter-spacing: 0;
+}
+
+/* THE DOCK'S TOOLTIP IS SMALL TEXT, AND SMALL TEXT WANTS AIR.
+
+   The other half of the same curve. The optical axis stops adjusting at 14px
+   -- measured, an 11px string is the same width whether the axis is free or
+   pinned to 14 -- so below that the face is being used at a size it no longer
+   compensates for, and the compensation has to be added by hand. This is the
+   mirror of what the figure above just gave up, in the same one system: tight
+   at the top of the scale, a hair open at the bottom, nothing at all in the
+   middle where the type was drawn to sit.
+
+   0.01em at 11.5px is a tenth of a pixel per letter. It is not a look. It is
+   the difference between a two-line tooltip that reads at a glance and one
+   that has to be looked at, on the one piece of chrome whose entire job is
+   explaining what a glyph means to somebody who does not know yet.
+
+   Uppercase tracking is a different thing and is not being reintroduced here:
+   the labels that carry 0.06em and 0.08em are set in capitals, where the
+   letterspacing is structural rather than optical. */
+[data-layout='bento'] .bento-dock [data-tip]::after {
+  letter-spacing: 0.01em;
+}

@@ -12,8 +12,39 @@
    to another company on the way to the attendance register.
 
    The variable cut carries every weight in one file, including the 450 the
-   editorial styles use, which a static set would need four requests for. */
-@import '@fontsource-variable/inter';
+   editorial styles use, which a static set would need four requests for.
+
+   THE OPTICAL SIZE AXIS, WHICH WAS BEING PAID FOR AND NOT DELIVERED.
+
+   Inter ships two variable cuts and the bare package name resolves to the
+   wght-only one, so the second axis this typeface is built around was simply
+   absent. Measured in the running app: a 40px string set at `'opsz' 14` and
+   the same string at `'opsz' 32` came back 472.0px wide both times, which is
+   the browser telling us the axis does not exist in the loaded file. With
+   opsz.css it is present, `font-optical-sizing: auto` is already the browser
+   default, and every size in the product gets the drawing meant for it -- the
+   28px stat and the 96px bento figure lose the slack that a text cut carries
+   for legibility at 12px, and the 11px card label gains it. This is precisely
+   the correction a designer would otherwise chase by hand with letter-spacing
+   on every heading, done by the typeface instead and correct at every size in
+   between rather than at the three we happened to think about.
+
+   Verified after the switch, same string at 40px: 472.0px with opsz pinned to
+   14 against 438.0px with the axis left to follow the size, so the axis is
+   live. Same family name and same weight range, so nothing downstream
+   changes: the typeface picker's `--font-ui`, the Tailwind `sans` stack and
+   the 450 book weight all still resolve, and weight still varies across the
+   file (400 at 438.0px against 700 at 464.0px) rather than this being a
+   static cut wearing the variable name.
+
+   It is not a second download: it REPLACES the wght file rather than joining
+   it, one subset per unicode range exactly as before, and the built bundle
+   contains no wght file at all. It is a bigger one, and the paragraph above
+   about a school on a thin connection means that has to be said plainly: the
+   latin subset a normal visit fetches goes from 48.3KB to 72.9KB, so 24.6KB
+   more, once, cached from then on. That is a fifth of one of the chart
+   libraries this app already loads, for the drawing of every word in it. */
+@import '@fontsource-variable/inter/opsz.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 @import '@fontsource/ibm-plex-mono/600.css';
@@ -355,16 +386,132 @@
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    /* The Firefox half of the line above. `-webkit-font-smoothing` is Safari
+       and Chrome only, so on a Mac running Firefox this product was the one
+       app on the machine still rendering with subpixel smoothing while every
+       other window had the lighter stem weight. One property per engine is
+       the whole fix, and both are no-ops everywhere else. */
+    -moz-osx-font-smoothing: grayscale;
+    /* `text-rendering` is deliberately left at `auto`.
+       `optimizeLegibility` is the tempting-looking neighbour of these two and
+       it is a trap: it means `optimizeLegibility` to the layout engine, which
+       turns on ligatures and kerning that are already on for this typeface,
+       and in exchange it disables font hinting on some Android builds and
+       costs a measurable relayout on long documents. There is nothing to win
+       here that Inter does not already do. */
     /* Numbers line up in every table and KPI without per-component classes. */
     font-variant-numeric: tabular-nums;
   }
 
+  /* THE LINE ABOVE STOPPED AT THE EDGE OF EVERY INPUT IN THE PRODUCT.
+
+     `font-variant-numeric` inherits, so setting it on body was supposed to be
+     the end of it. Form controls are the exception: the user-agent stylesheet
+     sets the `font` SHORTHAND on input, select, textarea and button, and a
+     shorthand resets every longhand it covers -- including this one -- back to
+     `normal`. Tailwind's preflight already patches the same wound for
+     font-family, size, weight and line-height and stops there, which is why
+     nobody noticed.
+
+     Measured in the running app before this rule: every control on four pages
+     computed `font-variant-numeric: normal` -- 13 on the dashboard, 18 on fee
+     collection, 20 on the profile form, 22 on the student directory. So a fee
+     amount typed into a field was set in proportional figures directly beside
+     a table of the same amounts set in tabular ones, the 1 narrow in the box
+     and wide in the column. That is the single most visible place a school
+     compares two numbers, and it was the one place the figures did not match.
+
+     `inherit` rather than `tabular-nums`, so the rule carries whatever the
+     surrounding text is set in rather than asserting a second opinion about
+     it. That matters for the one control that is genuinely prose -- a textarea
+     holding an announcement -- which now follows the body like everything
+     else instead of being singled out. */
+  :where(input, select, textarea, button, optgroup, option) {
+    font-variant-numeric: inherit;
+  }
+
   /* Headings are semibold and only mildly tightened. The display-weight
-     letter-spacing this used to carry belongs on a marketing page. */
-  h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
-  h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.35; }
+     letter-spacing this used to carry belongs on a marketing page.
+
+     THE NUMBERS CAME DOWN WHEN THE TYPEFACE STARTED DOING THIS ITSELF.
+
+     These three tracking values were set against Inter's TEXT drawing, which
+     was all the wght-only file could offer: one set of letterforms spaced for
+     reading at 14px, worn at 24px, where it looks loose. Tracking it in by
+     hand was the correct answer to that, and it is the wrong answer now that
+     the opsz axis is loaded (see the import at the top of this file), because
+     the typeface tightens the SPACING AND redraws the letters, and the two
+     corrections stack.
+
+     Measured, same string, same weight, opsz pinned to 14 against opsz left on
+     auto: 24px went 354px to 343px, and 28px went 410px to 395px. That is
+     3.1% and 3.7% of the line, or about -0.031em and -0.037em of tracking that
+     the font is now applying on its own. Left as they were, the h1 would have
+     carried -0.05em in total -- past tight and into cramped, and worse on the
+     numerals a page title often ends with.
+
+     So h1 gives its manual tracking up entirely and lands at the -0.031em the
+     axis provides, which is within a hair of the -0.02em that was wanted plus
+     the extra a 24px line can carry. h2 keeps a third of its value because the
+     axis does proportionally less at 18px. h3 at 15px is barely inside the
+     axis's range at all -- opsz clamps at 14 -- so its number is untouched.
+     Nothing below 15px changes: measured at 14px and at 11px, opsz auto and
+     opsz 14 are the same width to the pixel, which is the axis saying it has
+     nothing to add down there. */
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: 0; line-height: 1.25; }
+  h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; }
   h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
+
+  /* A SENTENCE HAS A LENGTH, AND A SCREEN IS NOT IT.
+
+     Measured on the live school-setup page at 1920 wide: the explanatory
+     paragraph under "Classes and sections" ran 110 characters to the line at
+     14px in a 945px box, and the smaller note beside it 109 at 12.5px. Between
+     45 and 75 characters is where the eye finds the start of the next line
+     without hunting for it; at 110 the return sweep misses, the reader lands
+     on the line they just read, and the page feels tiring in a way nobody can
+     point at. This is the one typographic fault a wide monitor CREATES, which
+     is why it never showed up on the laptop the pages were written on.
+
+     Measured in ch rather than px, so the cap is expressed in the paragraph's
+     own type: the 12.5px note stops at a 496px box and the 14px prose above it
+     at 558px, and both land at the same READING length rather than the same
+     width. The text-size preference then carries the cap with it for free.
+
+     62 and not 72, because ch is the width of a ZERO and Inter's zero is about
+     15% wider than its average character. 68ch was tried first and measured
+     73 and 79 characters to the line -- still over. 62ch measures 73 and 55 on
+     the same two paragraphs, from 110 and 109.
+
+     Paragraphs only. Not `li`, because a list item is usually a phrase and a
+     capped bullet in a settings list would look ragged for no gain; not `td`,
+     because a table cell's width is the column's business and this would fight
+     it.
+
+     The centred paragraph is the case that has to be excluded, and excluding
+     it by its own class is not enough. max-width shrinks the BOX, so a capped
+     paragraph inside a centred parent still reads as centred within itself
+     while sitting off centre on the page. `text-center` is nearly always on
+     the PARENT -- the onboarding overlay's two lines are exactly this, and the
+     first version of this rule shortened both of them from 680px to 620px
+     before the sweep caught it -- so the exclusion matches an ancestor with
+     the class as well as the element itself. Also swept for a paragraph
+     carrying its own background or border, which the cap would visibly
+     shorten, across seven pages: there are none.
+
+     The whole selector including its `:not()` lives inside `:where()`. Written
+     the other way round, `:not([class*='...'] *)` would have contributed a
+     descendant selector's specificity and quietly started beating the
+     `max-w-*` utilities this rule is supposed to yield to.
+
+     `:where()` keeps this at zero specificity on purpose. Any `max-w-*` on the
+     element wins without an `!important`, so a page that has already thought
+     about its own measure keeps its answer. */
+  :where(p:not([class*='text-center'], [class*='text-right'],
+                [class*='text-center'] *, [class*='text-right'] *)) {
+    max-width: 62ch;
+  }
 
   /* Money and dates are not words, and must never be broken like one.
      `overflow-wrap: anywhere` above stops a long email address from pushing a
@@ -552,7 +699,20 @@
   .eyebrow {
     font-size: 12px;
     font-weight: 500;
-    letter-spacing: 0;
+    /* A HAIR OPEN, WHICH IS NOT THE THING THAT WAS REMOVED HERE.
+
+       What this rule threw out was an uppercase, 0.08em-tracked editorial
+       treatment, and that judgement stands: letterspaced capitals at 12px are
+       a brochure device and they cost real reading speed on a form label.
+
+       This is the opposite end of the same curve. Inter's spacing is drawn for
+       a text size, and the opsz axis stops helping below 14px -- measured, an
+       11px string is the same width whether the axis is left free or pinned,
+       so at 12px the face is being asked to do something it no longer adjusts
+       for. 0.006em is a third of a pixel at this size: not a look, just the
+       counters getting back the air that shrinking took from them, on the one
+       style that labels every field and column header in the product. */
+    letter-spacing: 0.006em;
     text-transform: none;
     color: hsl(var(--secondary-foreground));
   }
@@ -564,7 +724,16 @@
     font-size: 28px;
     font-weight: 600;
     line-height: 1.15;
-    letter-spacing: -0.02em;
+    /* Zero for the same reason h1 is zero: at 28px the opsz axis is already
+       drawing this 3.7% narrower than the text cut, measured, and -0.02em on
+       top of that is a figure whose digits touch. The tightening the original
+       value was asking for still happens; the typeface is doing it now.
+
+       `font-variant-numeric` is not restated here. It is inherited from body,
+       and a headline number is exactly what tabular figures are for: two stats
+       side by side in a row of cards have their thousands column in the same
+       place, which is what makes a dashboard scannable rather than readable. */
+    letter-spacing: 0;
   }
 
   .field {
@@ -853,6 +1022,14 @@
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11.5px;
+  /* Small text wants air, and the typeface has stopped providing it by this
+     point in the scale: measured, an 11px string is the same width with the
+     optical axis free as with it pinned to 14, which is the axis saying it has
+     nothing left to add. A tenth of a pixel per letter, on the one piece of
+     chrome whose whole job is telling somebody what an unlabelled icon means.
+     The bento dock's tooltip carries the identical value for the identical
+     reason -- the two rails are the same control wearing two skins. */
+  letter-spacing: 0.01em;
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   border: 1px solid hsl(var(--border));
@@ -1178,6 +1355,30 @@
   --motion-slow: 320ms;    /* a sheet or drawer crossing most of the screen */
   --motion-enter: 140ms;   /* the arrival of something that was not there */
 
+  /* THE PRESS AND THE RELEASE ARE NOT THE SAME EVENT, AND THEY WERE TIMED AS
+     IF THEY WERE.
+
+     Everything above this line is about how long a change takes. This one is
+     about the asymmetry inside a single press, which is the part that decides
+     whether a control feels like a surface or like a checkbox in a form.
+
+     Going down has to be instant, and --motion-press already says so. Coming
+     back up does not: a real key or a real button is pushed by a finger and
+     returned by a spring, and the return is the slower half. The file had both
+     halves at the same 90ms, so a control snapped down and snapped back with
+     the same abruptness -- correct as feedback, and completely inert as a
+     physical object.
+
+     260ms is the return, and it is on --motion-spring rather than the settle
+     curve, which is exactly the case the token comment reserves overshoot for:
+     something the person just did, resolving. The overshoot is under one
+     percent of an already three percent scale, so it is felt and not seen.
+
+     Rejected: a JavaScript spring. The whole point of doing this in :active is
+     that the browser applies it on pointerdown, before React knows a press
+     happened, and cancels it for free when the finger slides off. */
+  --motion-release: 260ms;
+
   /* TWO CURVES, AND THE DIFFERENCE BETWEEN THEM IS THE WHOLE POINT.
 
      --motion-ease is a settle: quick to leave, long and soft to arrive, no
@@ -1212,10 +1413,30 @@
 :where(a, button, summary, label, input, select, textarea, [role='button'],
        [role='tab'], [role='menuitem'], [role='option'], [role='switch'],
        .card, .cell, tr, li) {
+  /* Written out per property rather than as one value for all nine, because
+     one of them is not like the others. Colour, shadow and opacity are a
+     change of appearance and want the quick flip. `transform` is the only
+     entry here that is a movement of the object itself, and it is the one the
+     press rides on, so it gets the longer spring return described at
+     --motion-release. The lists are positional: the eighth duration and the
+     eighth curve belong to the eighth property.
+
+     `filter` is on the list because the phone press dims as well as scales,
+     and because the launcher's tiles tint themselves with one on hover. It
+     was missing, so those flipped at zero while the shadow beside them faded:
+     the same two-speeds problem this rule exists to fix. */
   transition-property: background-color, border-color, color, fill, stroke,
-                       box-shadow, opacity, transform, backdrop-filter;
-  transition-duration: var(--motion-quick);
-  transition-timing-function: var(--motion-ease);
+                       box-shadow, opacity, transform, backdrop-filter, filter;
+  transition-duration: var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-release),
+                       var(--motion-quick), var(--motion-quick);
+  transition-timing-function: var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-spring),
+                              var(--motion-ease), var(--motion-ease);
 }
 
 /* THE PRESS ITSELF, WHICH NOTHING ACKNOWLEDGED.
@@ -1383,6 +1604,39 @@ dialog[open],
      give under the finger bottomed out long after the finger had gone. That
      is the rule this comment claims to be protecting. */
   transition-duration: var(--motion-press) !important;
+}
+
+/* AND THE RELEASE SURVIVES THE OVERRIDE TOO.
+
+   The rule two blocks up hands anything carrying a Tailwind `transition-*`
+   class a flat 110ms on every property, !important, which is right for colour
+   and wrong for the one property that carries the press. Without this, the
+   spring return described at --motion-release reached only the controls that
+   happened not to name a transition in their class list, so half the buttons
+   in the product came back up in 110ms and half in 260 -- and two speeds for
+   the same gesture is the exact complaint the durations block above opens
+   with.
+
+   `:not(:active)` so the press half is untouched: while the finger is down the
+   90ms rule wins on the ground that it is the more specific state, and the
+   moment the finger lifts this one takes over and returns the control. The
+   whole list is restated because a per-property duration cannot be overridden
+   one entry at a time. */
+:is(button, [role='button'], .btn, [role='tab'], [role='switch'], summary,
+    .card, .cell, .bento-cell, .launcher-tile, .launcher-app):not(:active) {
+  transition-property: background-color, border-color, color, fill, stroke,
+                       box-shadow, opacity, transform, backdrop-filter, filter
+                       !important;
+  transition-duration: var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-quick),
+                       var(--motion-quick), var(--motion-release),
+                       var(--motion-quick), var(--motion-quick) !important;
+  transition-timing-function: var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-ease),
+                              var(--motion-ease), var(--motion-spring),
+                              var(--motion-ease), var(--motion-ease) !important;
 }
 
 /* Things that MOVE rather than merely change get the longer time: a menu
@@ -1863,5 +2117,168 @@ body[data-scroll-lock] {
       transform: translate(-50%, -50%);
       border-radius: 8px;
     }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THREE SURFACES THAT STILL ARRIVED FROM NOWHERE.
+
+   The motion section in the middle of this file closed the general case: a
+   menu, a tooltip, a listbox or a dialog now grows out of its own corner
+   instead of appearing at full opacity in one frame. What it could not know
+   is the difference between a dialog that IS the panel and a dialog that is a
+   full-screen overlay with the panel sitting inside it, and in this product
+   most of the important ones are the second kind: the appearance settings,
+   the launcher, the command palette, the full-screen table.
+
+   Those all carry role="dialog" on the overlay, so `motion-enter` scaled the
+   overlay -- which means the dim wash and, on the launcher, a backdrop-filter
+   blur pane were the things being scaled from 97 percent. Scaling a sheet of
+   dimming does nothing you can see; scaling a blur pane briefly shows the
+   unblurred wallpaper at the edges of the screen. The one thing anybody
+   actually looks at, the panel in the middle, arrived at its final size.
+
+   So the two halves are separated. The overlay fades, because a wash has no
+   size and cannot come from anywhere. The panel scales, because it does.
+   ───────────────────────────────────────────────────────────────────────── */
+@keyframes motion-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* `:not([data-side])` keeps this clear of the drawers.
+
+   The right-hand drawer is matched by [role='dialog'][data-side='right'] at
+   (0,2,0), and a bare [role='dialog'][aria-modal='true'] scores the same and
+   comes later in the file, so it would have silently taken the drawer's slide
+   away and replaced it with a fade -- the precise bug the drawer comment
+   above already records happening once. Excluding the sided dialogs by name
+   means the two rules can never both match. */
+[role='dialog'][aria-modal='true']:not([data-side]) {
+  animation: motion-overlay-in var(--motion-enter) var(--motion-ease) both;
+}
+
+/* The panel inside it, which is what the eye is on.
+
+   `:only-child` rather than `> *`, and it is not a stylistic preference. An
+   overlay with several children -- the full-screen table has a toolbar above
+   the table -- would give each child its own transform-origin and each would
+   grow about its own centre, so the parts of one panel would slide relative
+   to each other while it opened. A dialog that wraps its contents in a single
+   panel element is the shape this can be trusted on, and every dialog in this
+   product that has a visible panel is written that way.
+
+   0.96 and not the 0.97 the popovers use: a dialog is a much larger box, and
+   at 700px square three percent is a two-pixel-per-side crawl that reads as a
+   blur rather than as growth. Still nothing anybody would call an animation.
+
+   --motion, not --motion-slow. 220ms. A settings window that takes longer
+   than that is a window you are waiting for, and this one is opened to change
+   one colour. */
+@keyframes motion-panel-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+[role='dialog'][aria-modal='true']:not([data-side]) > :only-child,
+[data-appearance-dialog] {
+  animation: motion-panel-in var(--motion) var(--motion-ease) both;
+  transform-origin: center;
+}
+
+/* THE LAUNCHER OPENS UPWARD, BECAUSE THAT IS WHERE IT WAS ASKED FOR FROM.
+
+   The dock lives at the foot of the board and the launcher is opened from it,
+   so the panel growing about its own centre is the one case above where the
+   generic rule tells a small lie: the thing came from the bottom of the
+   screen and it should be seen doing so. Origin only -- no travel added, no
+   longer duration. The same 220ms scale, read from the other end.
+
+   The launcher's own content is not a single child, so it is named here
+   rather than caught by the :only-child rule above. */
+.bento-frost[role='dialog'] > * {
+  animation: motion-panel-in var(--motion) var(--motion-ease) both;
+  transform-origin: bottom center;
+}
+
+/* A CONFIRMATION THAT SLID IN FROM THE EDGE IT LIVES ON.
+
+   Toasts are the one surface in this product whose entire job is motion. They
+   are not navigated to and they are not opened; they appear beside whatever
+   the person was already looking at, to say that the thing they did worked.
+   They appeared in one frame, at full opacity, in the corner -- which on a
+   busy screen is genuinely missable, and a confirmation nobody sees is the
+   same as no confirmation. Half the "did that save?" of this product is here
+   rather than in the network.
+
+   They are pinned to the bottom of the window, so they come UP from it: the
+   travel matches the edge they belong to, the way a phone's own banners drop
+   from the top because that is their edge. 10px, which is enough to be seen
+   as arriving and short enough that the words are readable throughout.
+
+   --motion-spring, and this is the case the token comment reserves it for. A
+   toast is the direct answer to something the person just did, it is the only
+   moving thing on the screen at that moment, and a small overshoot is what
+   makes it read as landing rather than as being placed. It is also the one
+   surface here that no one opens dozens of times an hour, which is the
+   argument that took the spring off the menus. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+[aria-live='polite'] > :where([role='status'], [role='alert']) {
+  animation: toast-in var(--motion) var(--motion-spring) both;
+}
+
+/* AND EVERYTHING LEAVES THE WAY IT CAME.
+
+   The drawer got this treatment already and the comment there is the whole
+   argument: a surface that arrives over 320ms and vanishes in one frame reads
+   as a fault, not as closing. The same was true of every other surface that
+   keeps itself mounted for an exit -- the notification panel sets
+   [data-closing] and unmounts on animationend, and nothing outside the drawer
+   rule ever gave that attribute an animation to wait for.
+
+   Faster than the entrance, on the mirrored curve, and that asymmetry is
+   deliberate. An arrival is information and wants to be followed; a dismissal
+   is finished business and lingering over it is the interface admiring
+   itself. --motion-enter is 140ms, and it leaves at speed rather than
+   decelerating into nothing. */
+@keyframes motion-exit {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.98); }
+}
+
+:where(.motion-enter, [role='menu'], [role='listbox'], [role='tooltip'],
+       [role='dialog'], [popover])[data-closing]:not([data-side]) {
+  animation: motion-exit var(--motion-enter) var(--ease-phone-in) forwards;
+}
+
+/* REDUCED MOTION, PER SURFACE, THE WAY THE REST OF THIS FILE DOES IT.
+
+   Not a blanket kill and not 0.01ms: the block in the middle of the file
+   explains at length why that was wrong, and the point holds here. What goes
+   is displacement -- the panel's growth, the toast's rise, the launcher's
+   direction. What stays is the fade, because somebody who asked for less
+   movement did not ask to lose the connection between doing a thing and the
+   confirmation of it appearing.
+
+   The release spring goes too. It is a transform, however small, and it is
+   the piece here that fires on every single press. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-release: 80ms; }
+
+  @keyframes motion-panel-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes motion-exit {
+    from { opacity: 1; }
+    to   { opacity: 0; }
   }
 }

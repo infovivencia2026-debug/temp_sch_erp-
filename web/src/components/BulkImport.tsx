@@ -535,7 +535,7 @@ export default function BulkImport({
                   <p className="text-[13px] font-medium">Which columns hold marks</p>
                   <p className="mt-0.5 text-[12.5px] text-muted-foreground">
                     Name the subject each marks column belongs to. Leave the
-                    rest \u2014 Total, Rank, Attendance, Remarks \u2014 empty: they are
+                    rest - Total, Rank, Attendance, Remarks - empty: they are
                     worked out from the marks, not read from the sheet.
                   </p>
                 </div>
@@ -919,8 +919,8 @@ function History({
               their new values. The old ones are not restored.
             </li>
             <li>
-              Anything now in use \u2014 a child with attendance, a class with a
-              timetable \u2014 is kept and counted, not deleted.
+              Anything now in use - a child with attendance, a class with a
+              timetable - is kept and counted, not deleted.
             </li>
           </ul>
           <div className="mt-4 flex flex-wrap items-center gap-2">

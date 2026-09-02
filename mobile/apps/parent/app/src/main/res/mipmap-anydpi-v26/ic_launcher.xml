@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    THE ONLY APP OF THE THREE THAT WAS NOT ADAPTIVE.
+
+    The parent app shipped a single 512px PNG at one density with its dark
+    ground baked into the artwork. Android has masked launcher icons since
+    Oreo, so on One UI and on Pixel that square was pushed into a circle: the
+    corners of its own rounded-square mark were cut off, and at any density
+    other than xxxhdpi the whole thing was rescaled from one bitmap. It is the
+    first thing anybody sees, before the app is ever opened, and it was the
+    only one of our three apps that looked borrowed.
+
+    Background is the flat ground the artwork used to carry; the foreground is
+    the mark alone, sized into the 66dp safe zone so no mask can clip it.
+    Monochrome points at the same mark, which is what lets One UI and Pixel
+    tint it with the wallpaper the way they tint their own.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
