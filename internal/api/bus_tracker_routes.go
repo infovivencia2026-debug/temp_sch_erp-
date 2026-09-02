@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -29,7 +28,7 @@ busTrackerRoutesForBus answers "which lines does this bus run".
 */
 func (s *Server) busTrackerRoutesForBus(w http.ResponseWriter, r *http.Request) {
 	dev := busTrackerFrom(r.Context())
-	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("bus")))
+	code := normaliseBusCode(r.URL.Query().Get("bus"))
 	if code == "" {
 		httpx.Error(w, r, http.StatusBadRequest, "bad_bus_code",
 			"bus is required")
@@ -52,7 +51,7 @@ func (s *Server) busTrackerRoutesForBus(w http.ResponseWriter, r *http.Request) 
 		if err := tx.QueryRow(r.Context(), `
 			SELECT id, registration_no FROM vehicles
 			 WHERE institution_id = $1
-			   AND (upper(bus_code) = $2
+			   AND (upper(regexp_replace(bus_code,'[^A-Za-z0-9]','','g')) = $2
 			        OR upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2)
 			   AND status <> 'retired'
 			 LIMIT 1`, dev.Institution, code).Scan(&vehicle, &registration); err != nil {

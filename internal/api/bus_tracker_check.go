@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -69,6 +70,27 @@ func (s *Server) busTrackerRecordCheck(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* THE ROUTE HAS TO BE THIS SCHOOL'S TOO.
+
+		   resolveTripVehicle scopes the vehicle and nothing scoped the route:
+		   this runs as platform, so RLS is not standing behind it, and the FK
+		   on trip_checks.route_id is institution-agnostic. A handset could
+		   name another school's route and file a safety check that appeared on
+		   that school's register carrying this school's institution_id. */
+		if strings.TrimSpace(req.RouteID) != "" {
+			var ours bool
+			if err := tx.QueryRow(r.Context(), `
+				SELECT EXISTS (SELECT 1 FROM routes
+				                WHERE id = NULLIF($1,'')::uuid
+				                  AND institution_id = $2)`,
+				req.RouteID, dev.Institution).Scan(&ours); err != nil {
+				return err
+			}
+			if !ours {
+				return errNoSuchRoute
+			}
+		}
+
 		_, err = tx.Exec(r.Context(), `
 			INSERT INTO trip_checks
 			    (institution_id, vehicle_id, route_id, on_date, leg,
@@ -100,6 +122,11 @@ func (s *Server) busTrackerRecordCheck(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errBusNotFound) {
 		httpx.Error(w, r, http.StatusNotFound, "bus_not_found",
 			"no bus in this school carries that code")
+		return
+	}
+	if errors.Is(err, errNoSuchRoute) {
+		httpx.Error(w, r, http.StatusNotFound, "no_such_route",
+			"that route is not this school's")
 		return
 	}
 	if errors.Is(err, errNoBusForTrip) {
@@ -137,7 +164,7 @@ func resolveTripVehicle(ctx context.Context, tx pgx.Tx, dev *busTracker,
 	if err := tx.QueryRow(ctx, `
 		SELECT id FROM vehicles
 		 WHERE institution_id = $1
-		   AND (upper(bus_code) = $2
+		   AND (upper(regexp_replace(bus_code,'[^A-Za-z0-9]','','g')) = $2
 		        OR upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2)
 		   AND status <> 'retired'
 		 LIMIT 1`, dev.Institution, code).Scan(&id); err != nil {
@@ -149,10 +176,22 @@ func resolveTripVehicle(ctx context.Context, tx pgx.Tx, dev *busTracker,
 	return id, nil
 }
 
-// normaliseBusCode is how a sticker and a typed registration are made
-// comparable: upper case, and punctuation dropped from the plate. "TS36UB0001"
-// and "TS 36 UB 0001" are the same bus, and a driver typing the second must
-// not be told it is not one of ours.
+/*
+normaliseBusCode makes a sticker and a typed registration comparable.
+
+	Upper case AND punctuation dropped, on this side as well as in the SQL.
+	The query strips non-alphanumerics from registration_no and then compared
+	it against a code that had only been trimmed and upper-cased, so
+	"TS36UB0001" matched and "TS 36 UB 0001" -- the way the plate is actually
+	painted on the back of the bus, and the way a driver types it when the
+	sticker will not scan -- was answered with "no bus in this school carries
+	that code".
+
+	bus_code itself is digits, so stripping costs it nothing.
+*/
 func normaliseBusCode(code string) string {
-	return strings.ToUpper(strings.TrimSpace(code))
+	return nonAlphanumeric.ReplaceAllString(strings.ToUpper(strings.TrimSpace(code)), "")
 }
+
+// Compiled once. See normaliseBusCode.
+var nonAlphanumeric = regexp.MustCompile(`[^A-Za-z0-9]`)

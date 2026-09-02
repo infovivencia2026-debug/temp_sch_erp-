@@ -88,7 +88,7 @@ func (s *Server) listLiveVehicles(w http.ResponseWriter, r *http.Request) {
 		SELECT v.id::text, v.registration_no,
 		       rt.name, rt.id::text, t.direction, t.id::text,
 		       concat_ws(' ', e.first_name, e.last_name), e.phone,
-		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8, lp.speed_kmph::float8,
+		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8,
 		       lp.heading_deg,
 		       to_char(lp.recorded_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD"T"HH24:MI:SS'),
 		       EXTRACT(epoch FROM now() - lp.recorded_at)::int,
@@ -223,7 +223,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		       to_char(CASE WHEN t.direction = 'drop' THEN rs.drop_time
 		                    ELSE rs.pickup_time END, 'HH24:MI'),
 		       to_char(ev.occurred_at AT TIME ZONE 'Asia/Kolkata','HH24:MI'),
-		       lp.latitude::float8, lp.longitude::float8,
+		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8,
 		       rs.latitude::float8, rs.longitude::float8,
 		       EXTRACT(epoch FROM now() - lp.recorded_at)::int,
 		       COALESCE(wp.refresh_seconds, wpall.refresh_seconds, $2),

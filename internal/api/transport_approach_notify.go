@@ -65,7 +65,7 @@ func (s *Server) notifyApproaching(ctx context.Context, tx pgx.Tx, dev *busTrack
 		distance int
 	}
 
-	rows, err := tx.Query(ctx, `
+	rows, qerr := tx.Query(ctx, `
 		SELECT g.user_id, ta.student_id,
 		       COALESCE(NULLIF(TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')),''),
 		                'Your child'),
@@ -92,8 +92,8 @@ func (s *Server) notifyApproaching(ctx context.Context, tx pgx.Tx, dev *busTrack
 		   -- reads the distance with.
 		   AND COALESCE(wp.notify_approach, wpall.notify_approach, false)`,
 		dev.Institution, route, defaultApproachProximityM, direction)
-	if err != nil {
-		slog.Error("approach notice: read watchers", "error", err, "trip", trip)
+	if qerr != nil {
+		slog.Error("approach notice: read watchers", "error", qerr, "trip", trip)
 		return
 	}
 	var targets []target
@@ -113,18 +113,47 @@ func (s *Server) notifyApproaching(ctx context.Context, tx pgx.Tx, dev *busTrack
 		return
 	}
 
+	/* IN RANGE, AND NOT ALREADY TOLD.
+
+	   Both filters run before any messaging work, because the expensive part
+	   is not the insert -- it is everything QueueMessage does to get there.
+	   The occurrence index would suppress the duplicate ROW, but only at the
+	   final ON CONFLICT, after the provider set, the address lookup and the
+	   template render had all been done again. A bus that reaches the last
+	   stop with forty children inside the radius pings every twenty seconds
+	   for the rest of the run, and each ping was redoing that work for eighty
+	   guardians who had already been told. */
+	due := make([]target, 0, len(targets))
 	for _, t := range targets {
-		away := metresBetween(p.Lat, p.Lon, t.stopLat, t.stopLon)
-		if away > float64(t.distance) {
-			continue
+		if metresBetween(p.Lat, p.Lon, t.stopLat, t.stopLon) <= float64(t.distance) {
+			due = append(due, t)
 		}
+	}
+	if len(due) == 0 {
+		return
+	}
+
+	/* The provider set, read ONCE.
+
+	   QueueMessage re-reads integrations for every recipient; queueWith exists
+	   for exactly this fan-out and takes the set already loaded. With eighty
+	   targets that is eighty reads of the same three rows, inside the
+	   transaction that is holding up the position batch. */
+	set, err := s.loadProviders(ctx, tx, dev.Institution)
+	if err != nil {
+		slog.Warn("approach notice: providers", "error", err, "trip", trip)
+		return
+	}
+
+	for _, t := range due {
+		away := metresBetween(p.Lat, p.Lon, t.stopLat, t.stopLon)
 		student := t.student
 		user := t.user
 		/* Crow-flies, and the message says so by giving the distance rather
 		   than a time. The road distance is longer and the honest thing to
 		   hand a parent is the number this actually measured, not a minutes
 		   figure invented from it. */
-		if _, err := s.QueueMessage(ctx, tx, dev.Institution, SendRequest{
+		if _, err := s.queueWith(ctx, tx, dev.Institution, set, SendRequest{
 			Channel:      "in_app",
 			TemplateCode: "transport.bus_approaching",
 			ToUserID:     &user,

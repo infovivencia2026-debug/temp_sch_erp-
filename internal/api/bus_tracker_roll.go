@@ -198,6 +198,15 @@ func (s *Server) busTrackerMarkChild(w http.ResponseWriter, r *http.Request) {
 			       CASE WHEN $6 = 'alighted' THEN now() END
 			  FROM transport_allocations ta
 			 WHERE ta.institution_id = $1 AND ta.student_id = $2
+			   /* THE ROUTE THIS MARK IS FOR, not whichever allocation sorted
+			      first. A child on a morning route and an afternoon shuttle
+			      has two rows, and without this the stop written against an
+			      afternoon mark was the morning route's pickup -- a register
+			      showing a child at a stop that is not on the run they were
+			      marked on. The guard above already narrows to $3; this is the
+			      same narrowing, on the row actually read. */
+			   AND ta.route_id = $3
+			   AND ta.valid_from <= current_date
 			   AND (ta.valid_to IS NULL OR ta.valid_to >= current_date)
 			 LIMIT 1
 			ON CONFLICT (student_id, on_date, leg)

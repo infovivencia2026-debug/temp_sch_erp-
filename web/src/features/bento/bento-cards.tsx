@@ -1,4 +1,4 @@
-import { Fragment, useId, type ReactNode } from 'react'
+import { Fragment, createContext, useContext, useId, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
@@ -48,6 +48,26 @@ const isLatin = (s: string) => LATIN_ONLY.test(s)
 const MARK = ink(88)
 const TRACK = ink(10)
 const QUIET = ink(38)
+/** THE SENTENCE THE CARD HAS ALREADY SAID.
+
+    Carries the card's change note down to whatever is drawn in the drawing
+    row, so a zero state can tell that the words it was about to print are
+    already on the card an inch above it. Null when there is no note, or when
+    the note is not a plain string and so cannot be compared - a drawing that
+    cannot be sure says its own sentence, which is the safe way round.
+
+    Context rather than a prop because the drawing is passed in as `children`
+    by twenty-odd call sites: a prop would have to be threaded through every
+    one of them, and the ones that forgot would be exactly the ones that
+    duplicate. */
+const CardNote = createContext<string | null>(null)
+
+/** Is this sentence already printed as the card's change note? */
+export function useNoteAlreadySaid(text: ReactNode) {
+  const note = useContext(CardNote)
+  return typeof text === 'string' && note !== null && note === text
+}
+
 /* ── the shell ─────────────────────────────────────────────────────────── */
 /** The three-row card: header, figure, drawing.
     The drawing row is `minmax(0,1fr)` so it takes whatever is left rather than
@@ -84,6 +104,39 @@ export function CardShell({
   children?: ReactNode
   className?: string
 }) {
+  /* THE TRACKS ARE COUNTED, NOT ASSUMED.
+
+     The template was written as three tracks - header, figure, drawing - while
+     the shell has always rendered four things into it: the header, the figure
+     row, the change sentence and the drawing. The fourth child therefore fell
+     into an IMPLICIT track, which is sized `auto`, and `auto` after an `1fr`
+     gets nothing left to size against. Measured on a 390px phone, the
+     "Attendance today" cell resolved to `42.64px 19.61px 26px 15px`: the
+     sentence took the drawing's floor and the chart got fifteen pixels. Every
+     sparkline, bar row and empty measure on the phone board was a sliver, and
+     it was not a chart bug - the charts were drawing correctly into a track
+     that was never meant for them.
+
+     So the tracks are built from what is actually rendered. The sentence and
+     the drawing are each conditional, so the template is too, and the four
+     combinations of (sentence present/absent) x (drawing present/absent) each
+     get exactly as many tracks as there are children. That is also why the
+     old bare `<span />` placeholder is gone: it kept the COUNT stable at the
+     cost of a real track and a real 6px gap for a row with nothing in it, and
+     a template that matches the children needs no placeholder to stay
+     deterministic.
+
+     The drawing keeps the only fraction and the only floor, so it is still the
+     row that takes whatever height is left and still the row that gives way
+     first. Where there is no drawing at all there is no fraction, and the card
+     sits to its natural height rather than reserving 26px for nothing. */
+  const note = change && !delta
+  const rows = [
+    'auto',
+    'auto',
+    ...(note ? ['auto'] : []),
+    ...(children ? ['minmax(clamp(26px,20cqh,220px),1fr)'] : []),
+  ].join(' ')
   return (
     /* FOUR rows: header, figure, drawing, action.
        The action was in the top-right corner. It is at the foot of the card
@@ -121,13 +174,16 @@ export function CardShell({
            top of a control. The drawing row is the only fraction and is the
            one that gives way, which is the rule this shell has always stated
            and could not previously keep. */
-        /* THREE rows now, not four. The action no longer holds a band of its
-           own — see below — so the drawing gets that height back. `relative`
-           is what the corner mark is positioned against. */
+        /* The action no longer holds a band of its own — see below — so the
+           drawing gets that height back. `relative` is what the corner mark is
+           positioned against. The track list itself is built above, from the
+           rows this card actually renders, because a hard-coded count and a
+           conditional child list is what put the chart in a 15px implicit row
+           in the first place. */
         'group/cell relative grid h-full min-h-0 gap-y-1.5 overflow-hidden',
-        'grid-rows-[auto_auto_minmax(clamp(26px,20cqh,220px),1fr)]',
         className,
       )}
+      style={{ gridTemplateRows: rows }}
     >
       {/* THE RESERVE MUST EXCEED THE MARK, not equal it after subtracting the
           padding.
@@ -274,15 +330,27 @@ export function CardShell({
           stops being subordinate to it. 300 against the figure's 650 is the
           widest gap this typeface offers, and it is what leaves the number the
           only bold thing on the card. */}
-      {change && !delta ? (
+      {note && (
         <p className="line-clamp-2 font-light leading-tight opacity-70
                       text-[length:var(--card-change,11px)]">
           {change}
         </p>
-      ) : (
-        <span />
       )}
-      <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
+      {children && (
+        /* The sentence this row must not repeat.
+
+           A zero state is drawn by `Say`, which puts the card's own sentence
+           above an empty measure - and the cards that have a zero state
+           overwhelmingly pass that same sentence as `change` as well, because
+           both slots are asking the same question. The result was a card that
+           said "No register marked today" twice, once in each row, with the
+           second copy pushing the measure it was meant to introduce out of
+           sight. Handing the note down means the drawing can see that it has
+           already been said and draw the measure alone. */
+        <CardNote.Provider value={note && typeof change === 'string' ? change : null}>
+          <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
+        </CardNote.Provider>
+      )}
       {action && (
         /* THE SAME CORNER SQUARE THE CUE USES.
 
@@ -1449,9 +1517,16 @@ export function Matrix({
 export function Nil({ children, slots = 12 }: { children?: ReactNode; slots?: number }) {
   const { w, h } = useWidgetSize()
   const count = Math.max(5, Math.min(slots, densityFor(w, h, 9)))
+  /* SAID ONCE. Most cards that reach a zero state pass the same sentence to
+     the shell's change note and to the drawing here, because both slots
+     answer the same question - and the card then printed it twice, one line
+     under the other, with the second copy squeezing out the measure it was
+     there to introduce. Where the shell has already said it, this draws the
+     empty measure alone. */
+  const duplicate = useNoteAlreadySaid(children)
   return (
     <div className="flex h-full min-h-0 flex-col justify-center gap-2 overflow-hidden">
-      {children && (
+      {children && !duplicate && (
         <p className="line-clamp-3 leading-snug opacity-70 text-[length:var(--card-note,10.5px)]">
           {children}
         </p>
