@@ -356,10 +356,26 @@ func (s *Server) pairBusTracker(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	vehicle, err := uuid.Parse(req.VehicleID)
-	if err != nil {
-		httpx.BadRequest(w, r, "vehicle_id must be a uuid")
-		return
+	/* A CODE REGISTERS A PHONE, NOT A BUS.
+
+	   This demanded a vehicle, so the office could not print a code without
+	   first deciding which bus the handset was for — and a driver taking a
+	   relief bus then reported against the vehicle somebody assigned him weeks
+	   earlier. The handset identifies the driver; which bus he is in is
+	   answered at the start of each run by scanning the sticker in its
+	   windscreen.
+
+	   A vehicle may still be named, and a school that pairs one phone to one
+	   bus should keep doing so: it becomes the fallback when no sticker is
+	   scanned. Absent is now the ordinary case rather than an error. */
+	var vehicle *uuid.UUID
+	if raw := strings.TrimSpace(req.VehicleID); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			httpx.BadRequest(w, r, "vehicle_id must be a uuid, or left out entirely")
+			return
+		}
+		vehicle = &parsed
 	}
 
 	code, err := newBusTrackerPairCode()
@@ -371,10 +387,14 @@ func (s *Server) pairBusTracker(w http.ResponseWriter, r *http.Request) {
 
 	var registration string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		if err := tx.QueryRow(r.Context(),
-			`SELECT registration_no FROM vehicles WHERE id = $1`, vehicle).
-			Scan(&registration); err != nil {
-			return err
+		// Only when one was named. The response's registration is a
+		// confirmation for the office, not something the handset needs.
+		if vehicle != nil {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT registration_no FROM vehicles WHERE id = $1`, *vehicle).
+				Scan(&registration); err != nil {
+				return err
+			}
 		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE vehicle_tracker_pair_codes SET expires_at = now()
@@ -448,10 +468,12 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 	}
 
 	var (
-		deviceID     uuid.UUID
-		token        string
-		inst         uuid.UUID
-		vehicle      uuid.UUID
+		deviceID uuid.UUID
+		token    string
+		inst     uuid.UUID
+		// Null when the code registered a phone rather than a bus, which is
+		// now the ordinary case: the driver scans a sticker at each run.
+		vehicle      *uuid.UUID
 		registration string
 		ping         int
 	)
@@ -471,10 +493,12 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 
-		if err := tx.QueryRow(r.Context(),
-			`SELECT registration_no FROM vehicles WHERE id = $1`, vehicle).
-			Scan(&registration); err != nil {
-			return err
+		if vehicle != nil {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT registration_no FROM vehicles WHERE id = $1`, *vehicle).
+				Scan(&registration); err != nil {
+				return err
+			}
 		}
 
 		/* Replacing a phone must not need a revoke first.
@@ -483,12 +507,16 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 		   the new one. The unique index permits exactly one live tracker per
 		   vehicle, so the old one is retired here rather than rejecting the
 		   claim with a constraint error the driver cannot act on. */
-		if _, err := tx.Exec(r.Context(), `
-			UPDATE vehicle_trackers
-			   SET revoked_at = now(),
-			       revoked_reason = 'replaced by a newly paired phone'
-			 WHERE vehicle_id = $1 AND revoked_at IS NULL`, vehicle); err != nil {
-			return err
+		// Only where the code named a bus. An unbound handset displaces
+		// nothing: a depot has one per driver and they do not compete.
+		if vehicle != nil {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE vehicle_trackers
+				   SET revoked_at = now(),
+				       revoked_reason = 'replaced by a newly paired phone'
+				 WHERE vehicle_id = $1 AND revoked_at IS NULL`, *vehicle); err != nil {
+				return err
+			}
 		}
 
 		policy, err := trackingPolicyFor(r.Context(), tx, inst)
@@ -556,8 +584,16 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 		"device_id":    deviceID.String(),
 		"device_token": token,
 		"institution":  inst.String(),
+		/* Empty when the code registered a phone rather than a bus. The app
+		   shows nothing for it and asks for a sticker at the first run, which
+		   is the whole point of pairing without one. */
 		"vehicle": map[string]any{
-			"id":              vehicle.String(),
+			"id": func() string {
+				if vehicle == nil {
+					return ""
+				}
+				return vehicle.String()
+			}(),
 			"registration_no": registration,
 		},
 		"ping_seconds": ping,
