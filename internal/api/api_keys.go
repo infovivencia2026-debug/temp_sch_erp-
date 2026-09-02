@@ -107,12 +107,28 @@ func hashAPIKeySecret(secret string) []byte {
 	return sum[:]
 }
 
-// apiKeyHint is what a screen prints beside the name so somebody can tell two
-// keys apart without holding either. Short enough to be useless on its own:
-// eight characters of a 43-character base64 secret leaves 208 bits to guess.
+/*
+apiKeyHint is what a screen prints beside the name so somebody can tell two
+keys apart without holding either.
+
+	NO PART OF THE SECRET. It used to carry the first eight characters of it,
+	on the reasoning that 208 bits are still left to guess, which is true and
+	is not the point. Those eight characters were written to a plaintext
+	column beside the hash, printed on a screen anybody in the office can
+	photograph, and returned by an endpoint whose whole promise is that the
+	secret is unrecoverable after issue. A promise with an asterisk on it is
+	worse than a shorter promise.
+
+	The identifier alone does the job it was actually for. Every token already
+	carries its key id in the clear, the id is unique, and the row is found by
+	it, so a hint built from the id distinguishes two keys exactly as well
+	while being something we would be content to see in a log.
+*/
 func apiKeyHint(token string) string {
-	if len(token) > len(apiKeyTokenPrefix)+1+36+1+8 {
-		return token[:len(apiKeyTokenPrefix)+1+36+1+8] + "..."
+	// erpk.<uuid>. is the prefix and the id; anything after it is secret.
+	head := len(apiKeyTokenPrefix) + 1 + 36
+	if len(token) > head {
+		return token[:head] + ".…"
 	}
 	return token
 }
@@ -271,7 +287,7 @@ func (s *Server) APIKeyAuth(next http.Handler) http.Handler {
 			// One message for every reason: unknown id, wrong secret,
 			// revoked, expired, owner gone. Distinguishing them tells
 			// somebody holding a guessed id which half they got right.
-			httpx.Error(w, r, http.StatusUnauthorized, "unauthorized",
+			httpx.Error(w, r, http.StatusUnauthorized, "unauthenticated",
 				"this API key is not valid; it may have been revoked or it may have expired")
 			return
 		case err != nil:

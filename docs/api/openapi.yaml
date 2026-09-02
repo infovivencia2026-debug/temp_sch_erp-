@@ -1,0 +1,2461 @@
+openapi: 3.1.0
+info:
+  title: School ERP API
+  version: "1.0.0-draft"
+  summary: The JSON API the SPA, the mobile apps and outside integrations all speak.
+  description: |
+    This document covers the part of `/api/v1` an outside integration actually
+    plugs into. It is a **partial** description of a much larger surface: the
+    router declares roughly 1,228 routes across `internal/api`, and pretending
+    to specify all of them would produce a document nobody could trust.
+
+    ## What is covered here
+
+    - session and identity (`/session`)
+    - API keys (issue, list, revoke)
+    - academic reference data (years, classes, sections, subjects)
+    - students (list, read, create, counts)
+    - attendance (read a register, mark one)
+    - staff (the employee directory)
+    - fees and invoices (ledger, collect a payment, invoice list, defaulters)
+    - transport (routes, vehicles, the live map, tracker administration)
+    - the bus-tracker device protocol (enrol, sign in, run a trip, push fixes)
+    - messaging (templates, send one message, the dispatch log)
+
+    ## What is NOT covered here
+
+    Everything else, and it is most of the product: admissions and the
+    application funnel, examinations, marks and report cards, payroll and HR
+    lifecycle, the parent portal, hostel, library, infirmary, inventory,
+    timetabling, the statutory returns, the platform/seller consoles, the
+    Tally and banking connectors, the SMS gateway device protocol, the ADMS
+    fingerprint-reader protocol, and the report builder. Those routes exist
+    and work, but they have no contract written down, they change with the
+    screens that drive them, and an integration should not depend on them
+    without asking first.
+
+    A full machine-generated inventory of every route and the permission it
+    requires is in `docs/api/routes.md`.
+
+    ## Stability
+
+    Only the bus-tracker device protocol has an independent written contract
+    (`docs/BUS_TRACKER_CONTRACT.md`) and two implementations built against it.
+    Treat that one as stable. The rest of this document describes what the
+    handlers do today, verified against the Go source; it is accurate, but the
+    project has not yet committed to not changing it. See
+    `docs/api/README.md` for versioning.
+  license:
+    name: Proprietary
+    url: https://example.com/licence
+servers:
+  - url: https://{host}/api/v1
+    description: A school ERP deployment.
+    variables:
+      host:
+        default: erp.example.com
+
+security:
+  - sessionCookie: []
+  - apiKey: []
+
+tags:
+  - name: Session
+    description: Who the caller is and what the school has bought.
+  - name: API keys
+    description: Issuing and revoking the credential a machine authenticates with.
+  - name: Reference
+    description: Years, classes, sections and subjects. Everything else keys on these ids.
+  - name: Students
+    description: The roll.
+  - name: Attendance
+    description: Reading and marking the daily register.
+  - name: Staff
+    description: The employee directory.
+  - name: Fees
+    description: Ledgers, receipts, invoices and who owes. All amounts are integer paise.
+  - name: Transport
+    description: The office side - routes, the fleet, the live map, tracker administration.
+  - name: Bus tracker device
+    description: The wire protocol a driver's handset speaks. See docs/BUS_TRACKER_CONTRACT.md.
+  - name: Messaging
+    description: Templates, sending one message, and the dispatch log.
+
+paths:
+  /session:
+    get:
+      tags: [Session]
+      operationId: getSession
+      summary: Who am I, and what has this school bought
+      description: |
+        The only authenticated-optional endpoint. It answers `200` either way:
+        an anonymous caller gets `{"authenticated": false, "permissions": []}`
+        rather than a `401`, because the SPA branches on the field and a `401`
+        on boot is indistinguishable from a broken server.
+
+        Use it as a credential smoke test: if `authenticated` is false, your
+        cookie or key is not being sent or is not valid.
+      security:
+        - {}
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The caller's identity, permissions and subscription.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "402":
+          description: |
+            The school's subscription has lapsed. `/session` itself stays
+            open so the client can say why; almost everything else does not.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api-keys:
+    get:
+      tags: [API keys]
+      operationId: listAPIKeys
+      summary: This school's keys, live and revoked
+      description: |
+        Requires `access.users.read`, and **cannot be called with a key** -
+        only a signed-in person. No key may manage keys: one holding
+        `access.users.write` could otherwise mint further keys and revoke the
+        administrator's own, which takes the human out of the loop of who
+        holds a credential and lets a leaked key entrench itself.
+
+        Revoked keys stay in the list rather than disappearing. "This key was
+        revoked in March" is a different fact from "this key never existed",
+        and the second is what an empty list says to somebody investigating an
+        integration that stopped working.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [api_keys]
+                properties:
+                  api_keys:
+                    type: array
+                    items: { $ref: "#/components/schemas/APIKey" }
+        "403":
+          description: |
+            Missing `access.users.read`, or the caller is itself a key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      tags: [API keys]
+      operationId: issueAPIKey
+      summary: Mint a key, shown once
+      description: |
+        Requires `access.users.write`, from a signed-in person rather than
+        from a key.
+
+        The token is returned once and is unrecoverable afterwards: only the
+        SHA-256 of its secret half is stored. If it is lost, revoke it and
+        issue another.
+
+        Permissions are checked against the school's own grants inside the
+        same transaction that writes the row, and a permission the school does
+        not grant is **refused rather than silently trimmed**. A key that
+        asked for `finance.invoices.read` and quietly did not get it fails
+        later, in production, with a `403` nobody can explain.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, permissions]
+              properties:
+                name:
+                  type: string
+                  description: The only thing that says what the key is for. Unique among live keys.
+                permissions:
+                  type: array
+                  minItems: 1
+                  description: |
+                    Permission keys, as listed by `GET /session` or
+                    `docs/api/routes.md`. `platform.*` keys are refused.
+                  items: { type: string }
+                rate_per_minute:
+                  type: integer
+                  minimum: 1
+                  maximum: 6000
+                  default: 120
+                expires_at: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Created. This response is the only place the token appears.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, token, permissions, rate_per_minute, note]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  token:
+                    type: string
+                    description: "`erpk.<key-id>.<secret>`. Store it now."
+                  permissions:
+                    type: array
+                    items: { type: string }
+                  rate_per_minute: { type: integer }
+                  note: { type: string }
+        "400":
+          description: |
+            Missing name or permissions, a rate outside 1..6000, an expiry in
+            the past, or - code `invalid` - a permission this school grants to
+            no role.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`conflict` - a live key of that name already exists."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api-keys/{id}/revoke:
+    post:
+      tags: [API keys]
+      operationId: revokeAPIKey
+      summary: Take a key out of service
+      description: |
+        Requires `access.users.write`, from a signed-in person. Immediate in
+        the literal sense: the resolver reads `revoked_at` on every request
+        and holds no cache, so the next call made with that token is refused.
+        The row is updated, not deleted, so the list can still say the key
+        existed and when it stopped.
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked: { type: boolean }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /academics/years:
+    get:
+      tags: [Reference]
+      operationId: listAcademicYears
+      summary: Academic years
+      description: Requires `academics.read`. Newest first.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AcademicYear" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /academics/classes:
+    get:
+      tags: [Reference]
+      operationId: listClasses
+      summary: Classes (grades)
+      description: Requires `academics.read`. Ordered by level, then name.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Class" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /academics/sections:
+    get:
+      tags: [Reference]
+      operationId: listSections
+      summary: Sections, with live occupancy
+      description: |
+        Requires `academics.read`.
+
+        `mine=true` narrows the list to the sections the caller may write to
+        (teaches, or is class teacher of); `mine=class_teacher` narrows it
+        further to the ones they are class teacher of. Without `mine`, this is
+        the whole school's reference list, which is right for an office
+        integration and wrong for anything that will then try to write.
+      parameters:
+        - name: academic_year_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: mine
+          in: query
+          schema:
+            type: string
+            enum: ["true", class_teacher]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Section" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /academics/subjects:
+    get:
+      tags: [Reference]
+      operationId: listSubjects
+      summary: Subjects
+      description: Requires `academics.read`. `mine=true` narrows to the caller's own subjects.
+      parameters:
+        - name: mine
+          in: query
+          schema: { type: string, enum: ["true"] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subject" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /students:
+    get:
+      tags: [Students]
+      operationId: listStudents
+      summary: The roll
+      description: |
+        Requires `students.read`. Offset pagination with a total, because the
+        grid that drives it needs a pager. `limit` is clamped to 1..200 and
+        defaults to 50.
+
+        The result is narrowed twice: row-level security bounds it to the
+        caller's school, and a scope resolver bounds it again to the students
+        the caller may see. A form teacher gets their own sections, not the
+        institution.
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: q
+          in: query
+          description: Substring match on admission number or full name.
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, examples: [active] }
+        - name: section_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: class_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: academic_year_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: new_this_year
+          in: query
+          description: "`1` limits to students admitted since the current academic year began."
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: One page of the roll.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Students]
+      operationId: createStudent
+      summary: Admit a student
+      description: |
+        Requires `students.read` and `students.write`. Placement and one
+        guardian may travel with the child so that a single call produces a
+        complete, contactable, enrolled record.
+
+        `admission_no` is generated when omitted. Vocabulary fields (`medium`,
+        `blood_group`, `mother_tongue`, `religion`) are validated against the
+        school's own configured lists, not a hardcoded set, so a value another
+        school accepts may be refused here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentWrite" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, admission_no]
+                properties:
+                  id: { type: string, format: uuid }
+                  admission_no: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: |
+            A school rule refused it. Codes seen here: `apaar_already_used`,
+            `roll_no_taken`, `duplicate`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /students/counts:
+    get:
+      tags: [Students]
+      operationId: studentCounts
+      summary: The roll in four numbers
+      description: |
+        Requires `students.read`. Counted server-side over everything the
+        caller may see, so it agrees with `GET /students` rather than with
+        whatever page happens to be on screen.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active: { type: integer }
+                  left: { type: integer }
+                  suspended: { type: integer }
+                  new_this_year: { type: integer }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /students/{id}:
+    get:
+      tags: [Students]
+      operationId: getStudent
+      summary: One student, with guardians
+      description: Requires `students.read`.
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /attendance:
+    get:
+      tags: [Attendance]
+      operationId: listAttendance
+      summary: A day's register
+      description: |
+        Requires `academics.attendance.read`. `on_date` defaults to today in
+        the server's local time. Narrowed to the sections the caller may read;
+        without that a teacher would read every register in the school, since
+        row-level security admits them all as one tenant's rows.
+      parameters:
+        - name: on_date
+          in: query
+          schema: { type: string, format: date }
+        - name: section_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: student_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AttendanceRow" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Attendance]
+      operationId: markAttendance
+      summary: Mark a whole section
+      description: |
+        Requires `academics.attendance.write`, and the caller must teach the
+        section or be its class teacher. `academics.attendance.write.any`
+        lifts the section restriction.
+
+        The whole section is written in one transaction: a partial register is
+        worse than none, because nothing on the screen says where it stopped.
+        Re-marking is an update, not a duplicate. A row whose status has not
+        changed is not rewritten, which is why `written` can be smaller than
+        `submitted` and why pressing Save twice does not text a family twice.
+
+        Absences queue an in-app alert to the guardians unconditionally.
+        `notify_channels` adds the channels that cost money. `silent: true`
+        suppresses the lot, which is what back-filling a fortnight-old
+        register needs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MarkAttendanceRequest" }
+      responses:
+        "200":
+          description: What actually happened, not just "saved".
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkAttendanceResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403":
+          description: |
+            Either the permission is missing, or it is held but not for this
+            section. The message names which.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /hr/employees:
+    get:
+      tags: [Staff]
+      operationId: listEmployees
+      summary: The employee directory
+      description: |
+        Requires `hr.employees.read`. Capped at 300 rows; there is no
+        pagination on this endpoint today.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, examples: [active] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Employee" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /fees/students/{id}/ledger:
+    get:
+      tags: [Fees]
+      operationId: getStudentLedger
+      summary: One child's fee account
+      description: |
+        Deliberately outside the finance permissions. A parent reads their own
+        child's account through this same endpoint, narrowed by scope rather
+        than by a second read-only copy of the query. A cashier holding
+        `students.read.all` sees any child; a guardian sees theirs.
+
+        Every amount on this endpoint is in **paise** (1/100 of a rupee) and
+        is an integer. There are no floats anywhere in the money model.
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentLedger" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /fees/payments:
+    post:
+      tags: [Fees]
+      operationId: collectFee
+      summary: Take money and issue a numbered receipt
+      description: |
+        Requires `finance.payments.write`.
+
+        The payment, its allocation across outstanding invoices and the
+        receipt number are one transaction: a receipt handed over for money
+        that failed to allocate is worse than a failed request, because the
+        parent leaves believing they have paid.
+
+        Omit `invoice_ids` to allocate oldest-first across whatever is
+        outstanding. A cheque or DD must carry `reference_no` (the instrument
+        number) and is recorded uncleared, so `cleared` comes back false and
+        the amount sits in the ledger's `pending_paise` until
+        `POST /fees/payments/{id}/clear`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CollectFeeRequest" }
+      responses:
+        "201":
+          description: Receipt issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Receipt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /finance/invoices:
+    get:
+      tags: [Fees]
+      operationId: listInvoices
+      summary: Invoices
+      description: |
+        Requires `finance.invoices.read`. Capped at 300 rows, newest issue
+        date first. There is no pagination on this endpoint today.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [unpaid, partial, paid, overdue, cancelled] }
+        - name: overdue
+          in: query
+          description: "`true` limits to unpaid/partial/overdue invoices past their due date."
+          schema: { type: string, enum: ["true"] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Invoice" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /fees/defaulters:
+    get:
+      tags: [Fees]
+      operationId: listDefaulters
+      summary: Who owes, and who to ring
+      description: Requires `finance.invoices.read`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Defaulter" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /ops/transport/routes:
+    get:
+      tags: [Transport]
+      operationId: listTransportRoutes
+      summary: Routes, with stop and rider counts
+      description: Requires `operations.transport.read`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/TransportRoute" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /ops/transport/routes/{id}/stops:
+    get:
+      tags: [Transport]
+      operationId: listRouteStops
+      summary: The run in order
+      description: Requires `operations.transport.read`.
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/RouteStop" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /ops/transport/vehicles:
+    get:
+      tags: [Transport]
+      operationId: listVehicles
+      summary: The fleet
+      description: |
+        Requires `operations.transport.read`. `bus_code` is the six digits on
+        the sticker in the cab; it is what a driver scans, and it is issued
+        with the vehicle and never changes.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Vehicle" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /transport/live:
+    get:
+      tags: [Transport]
+      operationId: listLiveVehicles
+      summary: The office map
+      description: |
+        Requires `operations.transport.read`. Every vehicle is returned,
+        including buses that are parked and buses that have no tracker at all:
+        a map showing only what is reporting hides the four you are looking
+        for. `state` is decided here so every screen colours it the same way.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/LiveVehicle" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /transport/trackers:
+    get:
+      tags: [Transport]
+      operationId: listTrackers
+      summary: Which phones are paired, and which buses are not
+      description: |
+        Requires `operations.transport.read`. Driven from the vehicle list
+        with the tracker as the optional half, because the buses that will not
+        be on the map tomorrow morning are exactly the rows a trackers table
+        does not contain.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/TrackerAdminRow" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /transport/trackers/pair:
+    post:
+      tags: [Transport]
+      operationId: pairBusTracker
+      summary: Mint a pair code for a handset
+      description: |
+        Requires `operations.transport.write`. The code is single-use, expires
+        in ten minutes, and minting one retires every other unclaimed code for
+        the school. The phone then calls `POST /public/bus-tracker/claim`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vehicle_id]
+              properties:
+                vehicle_id: { type: string, format: uuid }
+                name: { type: string, description: What to call this handset in the console. }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pair_code, expires_at, valid_minutes, vehicle]
+                properties:
+                  pair_code: { type: string, description: Eight characters. }
+                  expires_at: { type: string, format: date-time }
+                  valid_minutes: { type: integer }
+                  vehicle: { type: string, description: "The registration number, echoed." }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /transport/trackers/{id}/approve:
+    post:
+      tags: [Transport]
+      operationId: approveBusTracker
+      summary: Let an enrolled handset start reporting
+      description: |
+        Requires `operations.transport.write`, and then narrows again inside
+        the handler to the principal or the platform. A tracker is a live map
+        of where children are during the day, which is not the same decision
+        as editing a route. There is no self-approval on this path.
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approved: { type: boolean }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /public/bus-tracker/enrol:
+    post:
+      tags: [Bus tracker device]
+      operationId: enrolBusTracker
+      summary: A driver attaches their own phone to the bus they are standing next to
+      description: |
+        Unauthenticated at the transport layer and rate limited per source
+        address (six attempts in ten minutes). The credential is the driver's
+        own phone number and six-digit PIN.
+
+        The bus is identified by the registration number painted on it, or by
+        the `bus_code` on the windscreen sticker. Punctuation and case in a
+        registration are ignored, because a driver types what they can read.
+
+        **The handset reports nothing until it is approved.** `approved` comes
+        back `false` and every device-authenticated call answers `403
+        awaiting_approval` until somebody calls
+        `POST /transport/trackers/{id}/approve`. Enrolling also retires any
+        other live tracker on that bus, so a replacement phone works without
+        the office unpairing the lost one.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, pin, registration]
+              properties:
+                phone: { type: string }
+                pin: { type: string, description: Exactly six digits. }
+                registration:
+                  type: string
+                  description: The number plate, or the bus code from the sticker.
+                device_model: { type: string }
+                android_version: { type: string }
+                app_version: { type: string }
+      responses:
+        "200":
+          description: |
+            Enrolled but not yet allowed to report. `device_token` is shown
+            once and never again; the server keeps only a sealed copy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerEnrolResponse" }
+        "400":
+          description: "`no_registration` when the plate is blank."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: "`bad_pin`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: "`no_such_vehicle` - no bus with that number at this school."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: "`rate_limited`, or `pin_locked` after too many wrong PINs."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /public/bus-tracker/claim:
+    post:
+      tags: [Bus tracker device]
+      operationId: claimBusTrackerPairCode
+      summary: Turn a pair code into a device token
+      description: |
+        The older way in, kept because a school midway through printed
+        instructions should not find they stopped working. A code minted from
+        the console is pre-approved, so unlike enrolment the handset can
+        report immediately.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pair_code]
+              properties:
+                pair_code: { type: string }
+                device_name: { type: string }
+                device_model: { type: string }
+                android_version: { type: string }
+                app_version: { type: string }
+      responses:
+        "200":
+          description: Paired.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerClaimResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /public/bus-tracker/driver-signin:
+    post:
+      tags: [Bus tracker device]
+      operationId: signInBusDriver
+      summary: Enrol and open a shift in one call
+      description: |
+        For a school where HR already records who drives which bus: the phone
+        number and the issued password (or PIN) are enough on their own, and
+        the route book comes back with the response.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string }
+                password: { type: string }
+                pin: { type: string }
+                bus_code: { type: string }
+                device_model: { type: string }
+                android_version: { type: string }
+                app_version: { type: string }
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriverSignInResponse" }
+        "401":
+          description: "`bad_pin`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: "`pin_locked` or `rate_limited`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/session:
+    post:
+      tags: [Bus tracker device]
+      operationId: busTrackerSignIn
+      summary: Put a driver behind an already-paired handset
+      description: |
+        Device-authenticated, so the bus and the school are already settled;
+        this asks only who is driving. The driver is never offered a list of
+        buses, because a driver picking the wrong line at 6am puts the wrong
+        bus on every parent's map.
+
+        The `session_token` it returns goes in `X-Staff-Session` on the calls
+        that name a person.
+      security:
+        - deviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string }
+                password: { type: string }
+                pin: { type: string }
+      responses:
+        "200":
+          description: A shift is open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceLoginResponse" }
+        "401":
+          description: "`bad_pin`, or an unusable device token."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: "`awaiting_approval`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/session/end:
+    post:
+      tags: [Bus tracker device]
+      operationId: busTrackerSignOut
+      summary: End the driver's shift
+      security:
+        - deviceToken: []
+      responses:
+        "200":
+          description: Ended.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ended: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /bus-tracker/routes:
+    get:
+      tags: [Bus tracker device]
+      operationId: busTrackerRoutesForBus
+      summary: Which lines this bus runs
+      description: |
+        Device-authenticated only. Asked once the driver has scanned the
+        sticker: choosing a bus is not naming a person.
+      security:
+        - deviceToken: []
+      parameters:
+        - name: bus
+          in: query
+          required: true
+          description: The bus code from the windscreen sticker.
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [registration_no, routes]
+                properties:
+                  registration_no: { type: string }
+                  routes:
+                    type: array
+                    items: { $ref: "#/components/schemas/AssignedRoute" }
+        "400":
+          description: "`bad_bus_code`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: "`bus_not_found`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/trips:
+    post:
+      tags: [Bus tracker device]
+      operationId: startBusTrackerTrip
+      summary: Open a run
+      description: |
+        Device token **and** a driver session, because opening a run names a
+        person.
+
+        Nothing the phone reports outside an open trip is visible to a parent.
+        The phone belongs to the driver and does not stop existing at 4pm; a
+        live map showing an employee at their own front door in the evening is
+        workplace surveillance spelled as a transport feature.
+
+        One open trip per vehicle. `supersede: true` closes an existing one
+        with reason `superseded`.
+
+        The stop list comes back with the trip so the app can evaluate
+        geofences offline: a bus in a dead zone still knows it has arrived.
+      security:
+        - deviceToken: []
+          staffSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [route_id, direction]
+              properties:
+                route_id: { type: string, format: uuid }
+                direction: { type: string, enum: [pickup, drop] }
+                bus_code:
+                  type: string
+                  description: |
+                    The bus actually being driven, read off the sticker. Empty
+                    means the one this handset is paired to. A scan wins for
+                    this trip only; the pairing is not disturbed.
+                started_at: { type: string, format: date-time }
+                supersede: { type: boolean, default: false }
+      responses:
+        "201":
+          description: Run open.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [trip_id, stops]
+                properties:
+                  trip_id: { type: string, format: uuid }
+                  stops:
+                    type: array
+                    items: { $ref: "#/components/schemas/TripStop" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: "`not_signed_in` - the device token is fine, the driver session is not."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: A run is already open on this bus and `supersede` was not set.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/trips/{id}/end:
+    post:
+      tags: [Bus tracker device]
+      operationId: endBusTrackerTrip
+      summary: Close a run
+      description: |
+        Device token and a driver session. A run the server has not heard from
+        for the school's `trip_timeout_mins` is closed automatically with
+        reason `timeout`, which is kept as a different fact: only the driver
+        ending a run means the children were dropped off.
+      security:
+        - deviceToken: []
+          staffSession: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ended_at: { type: string, format: date-time }
+                reason: { type: string, examples: [driver] }
+      responses:
+        "200":
+          description: Closed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ended: { type: boolean }
+        "404":
+          description: "`no_such_trip`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/trips/{id}/roll:
+    get:
+      tags: [Bus tracker device]
+      operationId: busTrackerRoll
+      summary: The children due on this run
+      description: |
+        Device-authenticated and narrowed to the open trip's own route, so a
+        handset cannot read another route's children by asking. Ordered by
+        stop sequence, not by name: the driver is at a stop and wants the two
+        or three names that belong to it. A child whose allocation names no
+        stop appears at the end rather than being dropped. Capped at 200.
+      security:
+        - deviceToken: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [children]
+                properties:
+                  children:
+                    type: array
+                    items: { $ref: "#/components/schemas/RollChild" }
+        "404":
+          description: "`no_such_trip`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      tags: [Bus tracker device]
+      operationId: busTrackerMarkChild
+      summary: Mark one child on or off
+      description: |
+        Device token **and** a driver session: this row says a named adult saw
+        a named child get on, and it is the record the school stands behind.
+      security:
+        - deviceToken: []
+          staffSession: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, status]
+              properties:
+                student_id: { type: string, format: uuid }
+                status: { type: string, enum: [boarded, alighted, absent] }
+      responses:
+        "200":
+          description: Marked.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  marked: { type: string, enum: [boarded, alighted, absent] }
+        "400":
+          description: "`bad_student_id` or `bad_status`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: "`not_on_this_run`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bus-tracker/positions:
+    post:
+      tags: [Bus tracker device]
+      operationId: ingestBusTrackerPositions
+      summary: Push a batch of fixes
+      description: |
+        Device-authenticated only, deliberately: a driver session that lapses
+        mid-route must never drop a moving bus off the parents' map, and the
+        trip already records who opened it.
+
+        Batched, because a bus through a dead zone must not lose its history.
+        Idempotent, because the phone will retry a batch whose response it
+        never saw; the unique index on `(trip_id, recorded_at)` decides, not
+        the handler.
+
+        **The response returns the timestamps actually stored, not a count.** A
+        count cannot tell the phone which fix to stop retrying, so a partial
+        accept degrades into an all-or-nothing retry and the phone either
+        loses history or sends it forever.
+
+        A closed trip is not an error: the server may have timed it out while
+        the bus was in a tunnel. `trip_open: false` comes back with an empty
+        `accepted` so the phone can stop rather than retry a run that is over.
+      security:
+        - deviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PositionsRequest" }
+      responses:
+        "200":
+          description: Filed, plus the configuration the phone polls for.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PositionsResponse" }
+        "400":
+          description: |
+            `bad_trip_id`, `no_fixes`, `too_many_fixes`, `bad_recorded_at` or
+            `bad_coordinates`. The codes are separate because the phone's
+            reaction differs: an empty push is a bug in its own buffering, an
+            oversized one it can fix by splitting.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: "`no_such_trip` - that run is not this bus's."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: |
+            `skewed_clock`: the phone's clock is more than a day from the
+            server's. This response carries an extra top-level `server_time`
+            alongside the usual envelope so the handset can correct itself.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      server_time: { type: string, format: date-time }
+
+  /bus-tracker/heartbeat:
+    post:
+      tags: [Bus tracker device]
+      operationId: busTrackerHeartbeat
+      summary: I am alive, and here is my battery
+      description: |
+        Device-authenticated. `location_ok: false` is the reading worth
+        sending: online, charged, reporting, and the OS is not giving it a
+        fix, so everything looks healthy and the bus is not on the map.
+      security:
+        - deviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                battery_pct: { type: integer, minimum: 0, maximum: 100 }
+                charging: { type: boolean }
+                location_ok: { type: boolean }
+                app_version: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ping_seconds, paused]
+                properties:
+                  ping_seconds: { type: integer }
+                  paused: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /messaging/templates:
+    get:
+      tags: [Messaging]
+      operationId: listMessageTemplates
+      summary: Templates, including the built-ins
+      description: |
+        Requires `institution.read`. Returns the school's own templates plus
+        the built-ins it has not overridden, so a trigger rule can name one on
+        a school's first day. `built_in: true` with `editable: false` means it
+        exists only as code today.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/MessageTemplate" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /messaging/send:
+    post:
+      tags: [Messaging]
+      operationId: sendOneMessage
+      summary: Queue one message
+      description: |
+        Requires `comms.messages.send`. This is the send contract for a caller
+        outside the Go process; inside it, features call the queue directly
+        and keep their own transaction.
+
+        Name a recipient with either `to` (a raw address or number) or
+        `to_user_id`. `occurrence_key` makes the send idempotent: a repeat
+        with the same key answers `duplicate: true` and queues nothing, which
+        is what stops a retried webhook from texting a family twice.
+
+        `dispatch: true` also drains up to ten queued messages inline instead
+        of waiting for the worker. Useful for a test; not what a bulk
+        integration should do.
+
+        A `409` here means nothing is broken: the school has not finished
+        configuring a provider for that channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendMessageRequest" }
+      responses:
+        "202":
+          description: Queued (or recognised as a duplicate).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SendMessageResponse" }
+        "400":
+          description: |
+            Bad channel, missing template code, malformed id, no recipient
+            named, or the recipient has no address on file for that channel.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`provider_not_configured`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /messaging/log:
+    get:
+      tags: [Messaging]
+      operationId: listMessageLog
+      summary: The dispatch log
+      description: |
+        Any authenticated caller in the school. A bare GET returns the most
+        recent 200, which is what somebody opening the screen wants;
+        `limit` accepts 1..500.
+      parameters:
+        - name: channel
+          in: query
+          schema: { type: string, enum: [email, sms, whatsapp, in_app] }
+        - name: status
+          in: query
+          schema: { type: string, examples: [queued] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/MessageLogRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: erp_session
+      description: |
+        The browser session. Set by `POST /login` (a form post outside
+        `/api/v1`) and carried automatically by the SPA. It works for an
+        integration, but it was built for a browser: it expires on the
+        server's schedule, it is bound to a human account, and there is no
+        supported way to mint one non-interactively.
+    apiKey:
+      type: http
+      scheme: bearer
+      description: |
+        `Authorization: Bearer erpk.<key-id>.<secret>`. **This is the path an
+        integration should use.**
+
+        A key resolves into exactly the same identity shape a session cookie
+        produces - same institution, same permission map - so every permission
+        gate and every row-level security policy applies to it unchanged, with
+        no separate machine path anybody could forget to guard.
+
+        A key is never platform staff, never carries a `platform.*`
+        permission, and holds a frozen subset of its school's grants that is
+        intersected again on every request with what that school's roles grant
+        today. Withdraw a permission from the school and its keys lose it in
+        the same instant.
+
+        A request carrying both a cookie and a key is answered as the key: the
+        explicit credential wins over the ambient one.
+
+        Keys work only under `/api/v1`. They are refused on the
+        server-rendered pages, which carry CSRF assumptions belonging to a
+        cookie.
+    deviceToken:
+      type: http
+      scheme: bearer
+      description: |
+        `Authorization: Bearer <tracker-id>.<secret>`, issued once by enrolment
+        or by claiming a pair code and never shown again. It authenticates a
+        **handset**, not a person. Separate from the API key above: it is
+        resolved against `vehicle_trackers`, it is confined to the
+        `/bus-tracker/*` routes, and a revoked or unapproved tracker is
+        refused there regardless of anything else.
+    staffSession:
+      type: apiKey
+      in: header
+      name: X-Staff-Session
+      description: |
+        Issued by `POST /bus-tracker/session`. It names the driver behind the
+        handset and is bound to that handset: a token lifted from one phone
+        does not work on another. Required only on the calls that record who
+        did something.
+
+  parameters:
+    PathID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Malformed body or parameter. Code `bad_request`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: No usable credential. Code `unauthenticated`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: |
+        Authenticated but not permitted. Code `forbidden`, and the message
+        names the missing permission.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Code `not_found`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      description: |
+        The single error envelope. Every JSON error in the API has this shape,
+        so a client never has to guess whether it got `{error}`, `{message}`
+        or a bare string.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: |
+                Stable, machine-readable. The generic ones are
+                `unauthenticated`, `forbidden`, `bad_request`, `not_found` and
+                `internal`; handlers add specific ones such as
+                `password_change_required`, `subscription_expired`,
+                `unauthorized` (an unusable API key), `rate_limited`,
+                `no_such_trip` or `provider_not_configured`.
+              examples: [forbidden]
+            message:
+              type: string
+              description: A sentence for a person. Do not match on it.
+              examples: ["missing permission: students.read"]
+            request_id:
+              type: string
+              description: |
+                Echoed from `X-Request-Id`, generated when absent. It is the
+                join key between what a user reports and the server logs.
+      examples:
+        - error:
+            code: forbidden
+            message: "missing permission: students.read"
+            request_id: 5f2f1d02-0f0c-4f0f-9a6a-2b0f6f4f6a11
+
+    SessionResponse:
+      type: object
+      required: [authenticated, permissions]
+      properties:
+        authenticated: { type: boolean }
+        user:
+          type: object
+          required: [id, full_name, roles, platform_admin]
+          properties:
+            id: { type: string, format: uuid }
+            full_name: { type: string }
+            roles:
+              type: array
+              items: { type: string }
+            platform_admin: { type: boolean }
+            must_change_password:
+              type: boolean
+              description: |
+                True while the account still holds the password the office
+                issued in bulk, which is the person's own mobile number. Until
+                it is false every call except reading the session and setting
+                a password answers `403 password_change_required`.
+        institution:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            short_name: { type: string }
+            slug: { type: string }
+            primary_color: { type: string }
+            timezone: { type: string }
+            locale: { type: string }
+        permissions:
+          type: array
+          description: Every permission key the caller holds, such as `students.read`.
+          items: { type: string }
+        modules:
+          type: array
+          items:
+            type: object
+            properties:
+              module: { type: string }
+              enabled: { type: boolean }
+        subscription:
+          type: object
+          properties:
+            active: { type: boolean }
+            code: { type: string }
+            reason: { type: string }
+            plan_code: { type: string }
+            plan_name: { type: string }
+            status: { type: string }
+            trial_ends_on: { type: string, format: date }
+            modules:
+              type: array
+              items: { type: string }
+
+    APIKey:
+      type: object
+      required: [id, name, hint, permissions, rate_per_minute, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        hint:
+          type: string
+          description: Enough of the token to recognise it, never enough to use it.
+        permissions:
+          type: array
+          items: { type: string }
+        rate_per_minute: { type: integer }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+
+    AcademicYear:
+      type: object
+      required: [id, name, starts_on, ends_on, is_current]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, examples: ["2026-27"] }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        is_current: { type: boolean }
+
+    Class:
+      type: object
+      required: [id, name, level]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, examples: ["Grade 8"] }
+        level: { type: integer }
+        stream: { type: string }
+
+    Section:
+      type: object
+      required: [id, class_id, class_name, academic_year_id, name, capacity, enrolled]
+      properties:
+        id: { type: string, format: uuid }
+        class_id: { type: string, format: uuid }
+        class_name: { type: string }
+        academic_year_id: { type: string, format: uuid }
+        name: { type: string, examples: [B] }
+        capacity: { type: integer }
+        room: { type: string }
+        class_teacher: { type: string }
+        enrolled:
+          type: integer
+          description: Live count of active enrolments, so "is 8-B full?" can be answered.
+
+    Subject:
+      type: object
+      required: [id, name, code, is_scholastic]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+        is_scholastic: { type: boolean }
+
+    Student:
+      type: object
+      required: [id, admission_no, full_name, first_name, status, admission_date]
+      properties:
+        id: { type: string, format: uuid }
+        person_code:
+          type: string
+          description: |
+            This product's own permanent identifier. `admission_no` is
+            whatever the school writes: a different format at every school,
+            sometimes text, occasionally reissued. `person_code` never
+            changes, and it is what an import can be re-run against without
+            creating a second copy of a child.
+        admission_no: { type: string }
+        full_name: { type: string }
+        first_name: { type: string }
+        middle_name: { type: string }
+        last_name: { type: string }
+        gender: { type: string, enum: [male, female, other] }
+        date_of_birth: { type: string, format: date }
+        status: { type: string, examples: [active] }
+        admission_date: { type: string, format: date }
+        class_name: { type: string }
+        section_name: { type: string }
+        roll_no: { type: integer }
+        primary_phone:
+          type: string
+          description: The primary guardian's number, carried on the roll itself.
+
+    StudentPage:
+      type: object
+      required: [items, total, limit, offset, has_more]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Student" }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        has_more: { type: boolean }
+
+    Guardian:
+      type: object
+      required: [id, full_name, relation, is_primary]
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string }
+        relation: { type: string, examples: [mother] }
+        phone: { type: string }
+        email: { type: string }
+        is_primary: { type: boolean }
+        photo_file_id: { type: string }
+
+    StudentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Student"
+        - type: object
+          required: [nationality, guardians]
+          properties:
+            blood_group: { type: string }
+            category: { type: string, enum: [general, obc, sc, st, ews, other] }
+            religion: { type: string }
+            nationality: { type: string }
+            address_line1: { type: string }
+            city: { type: string }
+            state: { type: string }
+            pincode: { type: string }
+            guardians:
+              type: array
+              items: { $ref: "#/components/schemas/Guardian" }
+
+    StudentWrite:
+      type: object
+      required: [first_name]
+      description: |
+        Unknown fields are rejected outright: the decoder runs with
+        `DisallowUnknownFields`, so a typo in a key is a `400` rather than a
+        silently dropped value. Bodies are capped at 1 MiB.
+      properties:
+        admission_no: { type: string, description: Generated when omitted. }
+        first_name: { type: string }
+        middle_name: { type: string }
+        last_name: { type: string }
+        date_of_birth: { type: string, format: date }
+        gender: { type: string, enum: [male, female, other] }
+        blood_group: { type: string, description: Validated against the school's own list. }
+        medium: { type: string, description: Validated against the school's own list. }
+        mother_tongue: { type: string, description: Validated against the school's own list. }
+        religion: { type: string, description: Validated against the school's own list. }
+        address_line1: { type: string }
+        address_line2: { type: string }
+        permanent_address: { type: string }
+        emergency_contact_name: { type: string }
+        emergency_contact_phone: { type: string }
+        emergency_contact_relation: { type: string }
+        house_id: { type: string, format: uuid }
+        category: { type: string, enum: [general, obc, sc, st, ews, other] }
+        nationality: { type: string }
+        aadhaar_last4:
+          type: string
+          pattern: "^[0-9]{4}$"
+          description: |
+            The **last four digits only**. The column is `aadhaar_last4` with a
+            CHECK of exactly four: matching a child against a government list
+            needs no more than that, and holding the whole number makes the
+            school's database worth stealing.
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string, pattern: "^[0-9]{6}$" }
+        apaar_id: { type: string, pattern: "^[0-9]{12}$" }
+        child_info_id: { type: string }
+        prior_school: { type: string }
+        admission_date:
+          type: string
+          format: date
+          description: |
+            Set it when importing an existing roll. Left unset it is today,
+            which turns fifteen years of history into a school where every
+            child joined on the morning of the import.
+        previous_class: { type: string }
+        previous_year: { type: string }
+        is_rte: { type: boolean }
+        is_cwsn: { type: boolean }
+        custom_fields:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            At most 40 entries; names under 60 characters, values under 500.
+        section_id: { type: string, format: uuid }
+        allow_overflow:
+          type: boolean
+          description: Admit into a section already at capacity. A deliberate act, not a default.
+        academic_year_id: { type: string, format: uuid }
+        roll_no: { type: integer }
+        guardian_name: { type: string }
+        guardian_phone: { type: string }
+        guardian_email: { type: string }
+        guardian_relation: { type: string }
+        guardian_occupation: { type: string }
+
+    AttendanceRow:
+      type: object
+      required: [id, student_id, student_name, admission_no, section_id, on_date, status]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        student_name: { type: string }
+        admission_no: { type: string }
+        section_id: { type: string, format: uuid }
+        on_date: { type: string, format: date }
+        status: { $ref: "#/components/schemas/AttendanceStatus" }
+        minutes_late: { type: integer }
+        remarks: { type: string }
+
+    AttendanceStatus:
+      type: string
+      description: Exactly the set the database CHECK constraint allows.
+      enum: [present, absent, late, half_day, leave, holiday]
+
+    MarkAttendanceRequest:
+      type: object
+      required: [section_id, entries]
+      properties:
+        section_id: { type: string, format: uuid }
+        on_date:
+          type: string
+          format: date
+          description: Defaults to today.
+        period_id:
+          type: string
+          format: uuid
+          description: |
+            Omit for a day-level register. With it, the register is
+            period-level and a child can be marked once per period.
+        entries:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [student_id, status]
+            properties:
+              student_id: { type: string, format: uuid }
+              status: { $ref: "#/components/schemas/AttendanceStatus" }
+              minutes_late: { type: integer }
+              remarks: { type: string }
+        notify_channels:
+          type: array
+          description: |
+            Channels beyond the in-app alert, which always goes and is not a
+            choice. These cost money per message, so they are chosen per save.
+          items: { type: string, enum: [sms, whatsapp, email] }
+        silent:
+          type: boolean
+          default: false
+          description: |
+            Suppress all notification, including the in-app alert. For
+            back-filling an old register, where texting every parent about an
+            absence they already know about is worse than useless.
+
+    MarkAttendanceResponse:
+      type: object
+      required: [section_id, on_date, submitted, written, newly_absent, parents_told, messages_queued, channels]
+      properties:
+        section_id: { type: string, format: uuid }
+        on_date: { type: string, format: date }
+        submitted: { type: integer, description: Rows you sent. }
+        written:
+          type: integer
+          description: |
+            Rows that actually changed. Re-saving an unchanged register writes
+            nothing, which is what stops a double-tap from telling a family twice.
+        newly_absent: { type: integer }
+        parents_told: { type: integer }
+        messages_queued: { type: integer }
+        channels:
+          type: array
+          items: { type: string }
+
+    Employee:
+      type: object
+      required: [id, employee_code, full_name, joined_on, status, periods_this_week]
+      properties:
+        id: { type: string, format: uuid }
+        user_id:
+          type: string
+          format: uuid
+          description: |
+            The login behind the person, when they have one. Null for somebody
+            appointed but not yet given an account. Rosters and duty key on
+            this, not on the employee id.
+        employee_code: { type: string }
+        staff_number:
+          type: integer
+          description: The four-digit number a teacher signs in with and a fingerprint reader holds.
+        device_user_id: { type: integer }
+        full_name: { type: string }
+        department: { type: string }
+        designation: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        joined_on: { type: string, format: date }
+        status: { type: string, examples: [active] }
+        periods_this_week: { type: integer }
+
+    LedgerEntry:
+      type: object
+      required: [date, kind, reference, description, debit_paise, credit_paise, status]
+      properties:
+        date: { type: string, format: date }
+        kind: { type: string, enum: [invoice, payment, refund] }
+        reference: { type: string }
+        description: { type: string }
+        debit_paise: { type: integer, format: int64 }
+        credit_paise: { type: integer, format: int64 }
+        status: { type: string }
+        mode: { type: string }
+
+    Due:
+      type: object
+      required: [invoice_id, invoice_no, issued_on, net_paise, paid_paise, balance_paise, fine_paise, status, days_overdue]
+      properties:
+        invoice_id: { type: string, format: uuid }
+        invoice_no: { type: string }
+        issued_on: { type: string, format: date }
+        due_on: { type: string, format: date }
+        net_paise: { type: integer, format: int64 }
+        paid_paise: { type: integer, format: int64 }
+        balance_paise: { type: integer, format: int64 }
+        fine_paise: { type: integer, format: int64 }
+        status: { type: string }
+        days_overdue: { type: integer }
+
+    Concession:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string }
+        percent: { type: string }
+        amount_paise: { type: integer, format: int64 }
+        reason: { type: string }
+        fee_head: { type: string }
+
+    StudentLedger:
+      type: object
+      required: [student_id, admission_no, full_name, charged_paise, paid_paise, balance_paise, pending_paise, concessions, dues, entries]
+      properties:
+        student_id: { type: string, format: uuid }
+        admission_no: { type: string }
+        full_name: { type: string }
+        class_name: { type: string }
+        section_name: { type: string }
+        charged_paise: { type: integer, format: int64 }
+        paid_paise: { type: integer, format: int64 }
+        balance_paise: { type: integer, format: int64 }
+        pending_paise:
+          type: integer
+          format: int64
+          description: Held cheques, taken but not yet cleared.
+        concessions:
+          type: array
+          items: { $ref: "#/components/schemas/Concession" }
+        dues:
+          type: array
+          items: { $ref: "#/components/schemas/Due" }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/LedgerEntry" }
+
+    CollectFeeRequest:
+      type: object
+      required: [student_id, amount_paise, mode]
+      properties:
+        student_id: { type: string, format: uuid }
+        amount_paise:
+          type: integer
+          format: int64
+          minimum: 1
+        mode:
+          type: string
+          enum: [cash, cheque, dd, neft, upi, card, netbanking, adjustment]
+        paid_on:
+          type: string
+          format: date
+          description: Defaults to today.
+        reference_no:
+          type: string
+          description: Required for `cheque` and `dd` - the instrument number.
+        bank_name: { type: string }
+        cheque_date: { type: string, format: date }
+        remarks: { type: string }
+        invoice_ids:
+          type: array
+          description: Omit to allocate across whatever is outstanding.
+          items: { type: string, format: uuid }
+
+    Receipt:
+      type: object
+      required: [payment_id, receipt_no, amount_paise, allocated, unallocated_paise, cleared, receipt_url]
+      properties:
+        payment_id: { type: string, format: uuid }
+        receipt_no: { type: string }
+        amount_paise: { type: integer, format: int64 }
+        allocated:
+          type: array
+          items:
+            type: object
+            required: [invoice_id, invoice_no, amount_paise]
+            properties:
+              invoice_id: { type: string, format: uuid }
+              invoice_no: { type: string }
+              amount_paise: { type: integer, format: int64 }
+        unallocated_paise:
+          type: integer
+          format: int64
+          description: Money taken that no outstanding invoice absorbed. It stays as credit.
+        cleared:
+          type: boolean
+          description: False for a cheque or DD until it is cleared.
+        receipt_url: { type: string }
+
+    Invoice:
+      type: object
+      required: [id, invoice_no, student_id, student_name, admission_no, issued_on, net_paise, paid_paise, due_paise, status]
+      properties:
+        id: { type: string, format: uuid }
+        invoice_no: { type: string }
+        student_id: { type: string, format: uuid }
+        student_name: { type: string }
+        admission_no: { type: string }
+        issued_on: { type: string, format: date }
+        due_on: { type: string, format: date }
+        net_paise: { type: integer, format: int64 }
+        paid_paise: { type: integer, format: int64 }
+        due_paise: { type: integer, format: int64 }
+        status: { type: string, enum: [unpaid, partial, paid, overdue, cancelled] }
+
+    Defaulter:
+      type: object
+      required: [student_id, admission_no, full_name, balance_paise, days_overdue, bucket]
+      properties:
+        student_id: { type: string, format: uuid }
+        admission_no: { type: string }
+        full_name: { type: string }
+        class_name: { type: string }
+        section_name: { type: string }
+        guardian_name: { type: string }
+        phone: { type: string }
+        balance_paise: { type: integer, format: int64 }
+        oldest_due: { type: string, format: date }
+        last_reminded: { type: string }
+        days_overdue: { type: integer }
+        bucket: { type: string }
+
+    TransportRoute:
+      type: object
+      required: [id, name, stops, riders, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+        vehicle: { type: string, description: The registration number of the bus on this route. }
+        distance_km: { type: string, description: "A decimal rendered as a string, to avoid float drift." }
+        stops: { type: integer }
+        riders: { type: integer }
+        is_active: { type: boolean }
+
+    RouteStop:
+      type: object
+      required: [id, name, sequence, fare_paise, riders]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sequence: { type: integer }
+        pickup_time: { type: string, examples: ["07:20"] }
+        drop_time: { type: string, examples: ["15:40"] }
+        fare_paise: { type: integer, format: int64 }
+        geofence_m:
+          type: integer
+          description: |
+            How near counts as "the bus is here". Absent means "use the
+            school-wide default"; this is the exception, not a field every
+            stop must carry.
+        latitude: { type: string }
+        longitude: { type: string }
+        riders: { type: integer }
+
+    Vehicle:
+      type: object
+      required: [id, registration_no, capacity, status]
+      properties:
+        id: { type: string, format: uuid }
+        registration_no: { type: string }
+        model: { type: string }
+        capacity: { type: integer }
+        route: { type: string }
+        driver: { type: string }
+        next_expiry:
+          type: string
+          format: date
+          description: The soonest of insurance, fitness, permit and PUC.
+        status: { type: string, enum: [active, maintenance, retired] }
+        bus_code: { type: string }
+        route_id: { type: string, format: uuid }
+        driver_employee_id: { type: string, format: uuid }
+        attendant_employee_id: { type: string, format: uuid }
+        insurance_expiry: { type: string, format: date }
+        fitness_expiry: { type: string, format: date }
+        permit_expiry: { type: string, format: date }
+        puc_expiry: { type: string, format: date }
+
+    LiveVehicle:
+      type: object
+      required: [vehicle_id, registration_no, state, paired]
+      properties:
+        vehicle_id: { type: string, format: uuid }
+        registration_no: { type: string }
+        route: { type: string }
+        route_id: { type: string, format: uuid }
+        direction: { type: string, enum: [pickup, drop] }
+        trip_id: { type: string, format: uuid }
+        driver: { type: string }
+        driver_phone: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        speed_kmph: { type: number, format: double }
+        heading_deg: { type: integer }
+        recorded_at: { type: string }
+        age_seconds: { type: integer }
+        state:
+          type: string
+          enum: [running, stale, idle]
+          description: |
+            `running` is an open trip with a fresh fix; `stale` an open trip
+            whose last fix has aged out; `idle` no open trip, which is a
+            parked bus and not a fault.
+        tracker: { type: string }
+        battery_pct: { type: integer }
+        charging: { type: boolean }
+        location_ok: { type: boolean }
+        tracker_last_seen: { type: string }
+        paired: { type: boolean }
+
+    TrackerAdminRow:
+      type: object
+      required: [vehicle_id, registration_no, vehicle_status, paired, pending, run_timed_out]
+      properties:
+        vehicle_id: { type: string, format: uuid }
+        registration_no: { type: string }
+        vehicle_model: { type: string }
+        vehicle_status: { type: string }
+        route: { type: string }
+        driver: { type: string }
+        tracker_id: { type: string, format: uuid }
+        tracker: { type: string }
+        device_model: { type: string }
+        app_version: { type: string }
+        last_seen_at: { type: string }
+        quiet_seconds:
+          type: integer
+          description: Seconds since the handset last said anything. Null when it never has.
+        battery_pct: { type: integer }
+        charging: { type: boolean }
+        location_ok: { type: boolean }
+        ping_seconds: { type: integer }
+        paused: { type: boolean }
+        revoked_at: { type: string }
+        revoked_reason: { type: string }
+        paired:
+          type: boolean
+          description: |
+            Has a live tracker. A vehicle whose only tracker was revoked
+            reports false and still carries the revoked row, because "unpaired
+            last Tuesday, by whom, and why" is the question that follows.
+        pending:
+          type: boolean
+          description: |
+            A handset a driver enrolled that nobody has approved. It holds a
+            real credential and reports nothing, which on a screen of
+            otherwise identical rows is indistinguishable from a parked bus.
+        enrolled_by: { type: string }
+        run_timed_out: { type: boolean }
+
+    TrackerEnrolResponse:
+      type: object
+      required: [device_id, device_token, session_token, institution, vehicle, name, ping_seconds, approved]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_token: { type: string, description: Shown once. Store it sealed. }
+        session_token: { type: string, description: For `X-Staff-Session`. }
+        institution: { type: string, description: The school's name. }
+        vehicle: { type: string, description: The registration number as recorded. }
+        name: { type: string, description: The driver's name. }
+        ping_seconds: { type: integer }
+        approved:
+          type: boolean
+          description: Always false here. Nothing reports until somebody approves it.
+
+    TrackerClaimResponse:
+      type: object
+      required: [device_id, device_token, institution, vehicle, ping_seconds]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_token: { type: string }
+        institution:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        vehicle:
+          type: object
+          description: |
+            Echoed so the app can show the driver which bus it has become
+            before it starts reporting. `id` is empty when the code registered
+            a phone rather than a bus.
+          properties:
+            id: { type: string }
+            registration_no: { type: string }
+        ping_seconds: { type: integer }
+
+    AssignedRoute:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+
+    DeviceLoginResponse:
+      type: object
+      required: [session_token, name, expires_at, routes]
+      properties:
+        session_token: { type: string }
+        name: { type: string }
+        expires_at: { type: string, format: date-time }
+        routes:
+          type: array
+          description: |
+            The route book, refreshed on every shift sign-in. Sending it only
+            at pairing meant a route added afterwards never reached a phone
+            that was already paired.
+          items: { $ref: "#/components/schemas/AssignedRoute" }
+
+    DriverSignInResponse:
+      type: object
+      required: [device_id, device_token, session_token, institution, vehicle, driver, routes]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_token: { type: string }
+        session_token: { type: string }
+        institution: { type: string, format: uuid }
+        vehicle:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            registration_no: { type: string }
+            model: { type: string }
+        driver: { type: string }
+        routes:
+          type: array
+          items: { $ref: "#/components/schemas/AssignedRoute" }
+
+    TripStop:
+      type: object
+      required: [id, name, sequence, geofence_m]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sequence: { type: integer }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        geofence_m: { type: integer }
+        scheduled_at: { type: string }
+
+    RollChild:
+      type: object
+      required: [student_id, name, sequence, status]
+      properties:
+        student_id: { type: string, format: uuid }
+        name: { type: string }
+        stop_id: { type: string }
+        stop_name: { type: string }
+        sequence:
+          type: integer
+          description: 9999 for a child whose allocation names no stop.
+        status:
+          type: string
+          enum: [not_marked, boarded, alighted, absent]
+
+    PositionFix:
+      type: object
+      required: [recorded_at, latitude, longitude]
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          description: |
+            RFC 3339 with an offset. Inside a day of the server's clock the
+            phone's time wins, because it is the clock that was there.
+        latitude: { type: number, format: double, minimum: -90, maximum: 90 }
+        longitude: { type: number, format: double, minimum: -180, maximum: 180 }
+        speed_kmph: { type: number, format: double }
+        heading_deg: { type: integer }
+        accuracy_m: { type: number, format: double }
+
+    PositionsRequest:
+      type: object
+      required: [trip_id, fixes]
+      properties:
+        trip_id: { type: string, format: uuid }
+        fixes:
+          type: array
+          minItems: 1
+          description: Ordering does not matter; the server sorts by time before filing.
+          items: { $ref: "#/components/schemas/PositionFix" }
+
+    PositionsResponse:
+      type: object
+      required: [accepted, ping_seconds, paused, trip_open]
+      properties:
+        accepted:
+          type: array
+          description: |
+            The `recorded_at` values now stored, including ones that were
+            already there. Stop retrying exactly these.
+          items: { type: string, format: date-time }
+        ping_seconds:
+          type: integer
+          description: |
+            How often to report. Returned on every push rather than in a poll
+            of its own, so the phone needs no configuration call.
+        paused: { type: boolean }
+        trip_open: { type: boolean }
+
+    MessageTemplate:
+      type: object
+      required: [code, channel, subject, body, dlt_template_id, is_active, built_in, editable]
+      properties:
+        code: { type: string }
+        channel: { type: string, enum: [email, sms, whatsapp, in_app] }
+        subject: { type: string }
+        body: { type: string }
+        dlt_template_id:
+          type: string
+          description: The Indian DLT registration id, required by SMS operators.
+        is_active: { type: boolean }
+        built_in: { type: boolean }
+        editable: { type: boolean }
+
+    SendMessageRequest:
+      type: object
+      required: [channel, template_code]
+      properties:
+        channel: { type: string, enum: [email, sms, whatsapp, in_app] }
+        template_code: { type: string }
+        to: { type: string, description: A raw address or number. }
+        to_user_id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        vars:
+          type: object
+          additionalProperties: true
+          description: Substituted into the template.
+        source_kind: { type: string }
+        source_id: { type: string, format: uuid }
+        occurrence_key:
+          type: string
+          description: |
+            Your idempotency key. A repeat with the same key answers
+            `duplicate: true` and queues nothing.
+        dispatch:
+          type: boolean
+          default: false
+          description: Also drain up to ten queued messages inline. For testing, not for bulk.
+
+    SendMessageResponse:
+      type: object
+      required: [queued, duplicate]
+      properties:
+        queued: { type: boolean }
+        duplicate: { type: boolean }
+        id: { type: string, format: uuid }
+        sent: { type: integer, description: Present only when `dispatch` was set. }
+        failed: { type: integer, description: Present only when `dispatch` was set. }
+
+    MessageLogRow:
+      type: object
+      required: [id, channel, recipient, status, attempts, queued_at]
+      properties:
+        id: { type: string, format: uuid }
+        channel: { type: string, enum: [email, sms, whatsapp, in_app] }
+        recipient: { type: string }
+        subject: { type: string }
+        status: { type: string, examples: [queued] }
+        provider: { type: string }
+        template_code: { type: string }
+        source_kind: { type: string }
+        rule: { type: string }
+        occurrence_key: { type: string }
+        error: { type: string }
+        attempts: { type: integer }
+        queued_at: { type: string, format: date-time }
+        sent_at: { type: string, format: date-time }
+        send_after: { type: string, format: date-time }
