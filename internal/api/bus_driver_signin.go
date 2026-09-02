@@ -53,6 +53,10 @@ import (
 
 var (
 	errDriverNoVehicle = errors.New("no vehicle is assigned to this driver")
+	// A code was typed or scanned and no active bus in this school carries it.
+	// Deliberately separate from "you are assigned to nothing": one is a
+	// mistyped sticker, the other is a conversation with the office.
+	errNoSuchBus = errors.New("no bus in this school has that code")
 	errDriverNoRecord  = errors.New("this login is not an employee record")
 )
 
@@ -67,6 +71,17 @@ type driverSignInRequest struct {
 	DeviceModel    string `json:"device_model,omitempty"`
 	AndroidVersion string `json:"android_version,omitempty"`
 	AppVersion     string `json:"app_version,omitempty"`
+	/* WHICH BUS, TODAY.
+
+	   The six digits on the sticker in the cab, scanned or typed. Sign-in used
+	   to take the vehicle HR had put this driver against, which assumes a
+	   driver is permanent on a bus — and no school works that way. The regular
+	   man is on leave, the spare bus goes out, two drivers swap at lunch, and
+	   the map then shows a bus that is standing in the yard.
+
+	   Optional, so a handset built before this goes on working: with no code
+	   the assigned vehicle is still used. */
+	BusCode string `json:"bus_code,omitempty"`
 }
 
 /*
@@ -130,7 +145,32 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			   points at the personnel record, and a driver has one login and one
 			   employee row. An active vehicle only -- a handset paired to a bus
 			   in the workshop reports a route nobody is driving. */
-			if qerr := tx.QueryRow(r.Context(), `
+			/* THE BUS HE SAYS HE IS ON, or the one HR put him against.
+
+			   The code wins when it is given. It is not a credential and does
+			   not need to be: the driver has already proved who he is with his
+			   own login, and what the code answers is "which of this school's
+			   buses am I sitting in" — a question the school would rather he
+			   answered by scanning the windscreen than by ringing the office
+			   because the spare bus went out this morning.
+
+			   Scoped to his own school either way, so a code read off a bus in
+			   another yard resolves to nothing. */
+			busCode := strings.TrimSpace(req.BusCode)
+			if busCode != "" {
+				if qerr := tx.QueryRow(r.Context(), `
+				SELECT v.id, v.registration_no, COALESCE(v.model,'')
+				  FROM vehicles v
+				 WHERE v.institution_id = $1
+				   AND v.bus_code = $2
+				   AND v.status = 'active'`, who.Institution, busCode).
+					Scan(&vehicleID, &registration, &vehicleModel); qerr != nil {
+					if errors.Is(qerr, pgx.ErrNoRows) {
+						return errNoSuchBus
+					}
+					return qerr
+				}
+			} else if qerr := tx.QueryRow(r.Context(), `
 			SELECT v.id, v.registration_no, COALESCE(v.model,'')
 			  FROM vehicles v
 			  JOIN employees e ON e.id = v.driver_employee_id
@@ -261,6 +301,11 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		})
 
 	switch {
+	case errors.Is(err, errNoSuchBus):
+		httpx.Error(w, r, http.StatusNotFound, "no_such_bus",
+			"no bus in this school has that code. Check the sticker in the cab, "+
+				"or ask the office which bus you are on")
+		return
 	case errors.Is(err, errDriverNoVehicle):
 		/* Named plainly, because the fix is somebody else's and the driver has
 		   to be able to repeat it down a phone line. */

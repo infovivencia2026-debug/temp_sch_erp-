@@ -222,20 +222,52 @@ func (s *Server) createVehicle(w http.ResponseWriter, r *http.Request) {
 		// campus_id is NOT NULL and most schools run one campus, so an
 		// omitted campus lands the bus on the founding one rather than
 		// making the office look up an id it does not have.
+		/* THE CODE ON THE STICKER, minted with the bus.
+
+		   Generated here rather than left for somebody to fill in, because a
+		   bus without one is a bus no driver can sign on to, and the office
+		   would find that out at six in the morning. Six digits drawn until
+		   one is free in this school -- a thousand buses in, a collision is
+		   still under one draw in a thousand, and the unique index is the
+		   thing that actually decides. */
+		var code string
+		for attempt := 0; ; attempt++ {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT lpad((floor(random() * 1000000))::int::text, 6, '0')`).
+				Scan(&code); err != nil {
+				return err
+			}
+			var taken bool
+			if err := tx.QueryRow(r.Context(), `
+				SELECT EXISTS (SELECT 1 FROM vehicles
+				                WHERE institution_id = $1 AND bus_code = $2)`,
+				id.InstitutionID, code).Scan(&taken); err != nil {
+				return err
+			}
+			if !taken {
+				break
+			}
+			// Ten thousand buses would be a different product. Bail rather
+			// than spin: a vehicle with no code is caught by the NOT NULL
+			// nothing else in this transaction can satisfy.
+			if attempt > 20 {
+				return errors.New("could not allocate a bus code")
+			}
+		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO vehicles
 			    (institution_id, campus_id, registration_no, model, capacity,
 			     driver_employee_id, attendant_employee_id, insurance_expiry,
-			     fitness_expiry, permit_expiry, puc_expiry, status)
+			     fitness_expiry, permit_expiry, puc_expiry, status, bus_code)
 			VALUES ($1,
 			        COALESCE($2::uuid, (SELECT id FROM campuses ORDER BY created_at LIMIT 1)),
 			        $3, NULLIF($4,''), $5, $6, $7,
 			        NULLIF($8,'')::date, NULLIF($9,'')::date,
-			        NULLIF($10,'')::date, NULLIF($11,'')::date, $12)
+			        NULLIF($10,'')::date, NULLIF($11,'')::date, $12, $13)
 			RETURNING id::text`,
 			id.InstitutionID, campus, req.RegistrationNo, req.Model, capacity,
 			driver, attendant, req.InsuranceExpiry, req.FitnessExpiry,
-			req.PermitExpiry, req.PucExpiry, req.Status).Scan(&newID)
+			req.PermitExpiry, req.PucExpiry, req.Status, code).Scan(&newID)
 	})
 	if vehicleWriteFailed(w, r, err) {
 		return
