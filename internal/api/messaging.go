@@ -3446,6 +3446,16 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel str
 	})
 	_ = id
 	if err != nil {
+		/* The last silent path in this function.
+
+		   Two log lines already cover "no row" and "row I cannot use". This
+		   one — the transaction itself failing — said nothing at all, so a
+		   reset that could not even ask about the mail server was
+		   indistinguishable from a school that has none. That is the exact
+		   shape of the bug this whole chase was: a false explanation standing
+		   because the true one was never spoken. */
+		slog.Warn("password reset: could not check the provider",
+			"institution", inst, "channel", channel, "err", err)
 		return false
 	}
 	return ready
