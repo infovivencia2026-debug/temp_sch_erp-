@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui'
@@ -63,6 +64,47 @@ export function RecordShell({
 }) {
   const [params, setParams] = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
+  /* WHERE THE MENU IS, IN THE PAGE RATHER THAN IN THE HEADER.
+
+     Bounding the menu's height did not fix it, because its height was never
+     what cut it off: an absolutely positioned box is clipped by the nearest
+     ancestor that scrolls or hides its overflow, and this one lives inside the
+     record header. The menu was cut at the edge of the header — no scrollbar,
+     no chevron, and no way to reach the last two items, because as far as the
+     browser was concerned they were not on the screen at all.
+
+     So it is drawn into the body at coordinates taken from the button, which
+     is the same trap and the same fix the command palette already carries a
+     comment about. Measured on open; scrolling the page closes it rather than
+     chasing it, because a menu that follows a scrolling page is a menu the
+     wrong thing gets clicked in. */
+  const trigger = useRef<HTMLDivElement | null>(null)
+  const [menuAt, setMenuAt] = useState({ top: 0, right: 0, maxHeight: 380 })
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const place = () => {
+      const el = trigger.current
+      if (!el) return
+      const box = el.getBoundingClientRect()
+      setMenuAt({
+        top: box.bottom + 4,
+        right: Math.max(8, window.innerWidth - box.right),
+        // Whatever is left below the button, less a margin, and never so
+        // little that the menu is a sliver: below that it is better to run
+        // over the button than to be unusable.
+        maxHeight: Math.max(180, window.innerHeight - box.bottom - 24),
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    const close = () => setMenuOpen(false)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [menuOpen])
 
   const active = tabs.find((t) => t.key === params.get(tabParam)) ?? tabs[0]
 
@@ -103,21 +145,20 @@ export function RecordShell({
           </div>
 
           {actions.length > 0 && (
-            <div className="relative shrink-0">
+            <div className="shrink-0" ref={trigger}>
               <Button variant="secondary" onClick={() => setMenuOpen((v) => !v)}>
                 Actions
                 <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', menuOpen && 'rotate-180')} />
               </Button>
-              {menuOpen && (
+              {menuOpen && createPortal(
                 <>
                   {/* Click-away, so the menu does not need a global listener. */}
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
-                  {/* Bounded and scrollable. The menu grew to nine items and
-                      ran off the bottom of the viewport, so the last two —
-                      including the one that ends a child's enrolment — were
-                      cut in half with nothing to say more was there. */}
-                  <div className="absolute right-0 z-50 mt-1 min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg">
-                    <ScrollBox className="max-h-[min(60vh,380px)]">
+                  <div
+                    className="fixed z-50 min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg"
+                    style={{ top: menuAt.top, right: menuAt.right }}
+                  >
+                    <ScrollBox style={{ maxHeight: menuAt.maxHeight }}>
                     {actions.map((a) => (
                       <button
                         key={a.label}
@@ -153,7 +194,8 @@ export function RecordShell({
                     ))}
                     </ScrollBox>
                   </div>
-                </>
+                </>,
+                document.body,
               )}
             </div>
           )}

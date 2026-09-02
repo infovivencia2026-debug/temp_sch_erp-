@@ -22,11 +22,15 @@ import { cn } from '@/lib/utils'
 export default function ScrollBox({
   children,
   className,
+  style,
   step = 0.8,
 }: {
   children: ReactNode
   /** Height and any padding. The overflow is set here. */
   className?: string
+  /* For a height that can only be known at open time — a menu bounded by
+     whatever room is left below the button it hangs from. */
+  style?: React.CSSProperties
   /** How much of a screenful one press moves. */
   step?: number
 }) {
@@ -78,7 +82,7 @@ export default function ScrollBox({
         </button>
       )}
 
-      <div ref={ref} onScroll={measure} className={cn('overflow-y-auto', className)}>
+      <div ref={ref} onScroll={measure} style={style} className={cn('overflow-y-auto', className)}>
         {children}
       </div>
 
