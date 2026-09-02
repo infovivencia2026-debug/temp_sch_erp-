@@ -61,6 +61,16 @@ class TrackerRepository @Inject constructor(
        is returned, and the root screen swapped to the run screen the instant
        `paired` flipped, so the "is that the bus you are driving?" card -- the
        one safeguard against a mis-pairing -- never rendered. */
+    /* THE CARD THAT READ THE BUS BACK TO THE DRIVER, AND WHY IT IS GONE.
+
+       A pairing used to name a vehicle, so the app stopped and asked the
+       driver whether the registration on screen was the bus he was standing
+       in. It no longer names one: the driver holds the phone account and the
+       bus is read off the windscreen at the top of each run, which confirms
+       the vehicle far better than a plate typed by the office and read back on
+       a card. The flag is kept only so a build that still sets it somewhere
+       cannot strand a paired phone -- nothing sets it any more, and the pair
+       screen carries no card to clear it with. */
     private val _awaitingConfirmation = MutableStateFlow(false)
     val awaitingConfirmation: StateFlow<Boolean> = _awaitingConfirmation.asStateFlow()
 
@@ -130,7 +140,6 @@ class TrackerRepository @Inject constructor(
             if (response.routes.isNotEmpty()) {
                 settingsStore.saveRouteBook(response.routes.map { SavedRoute(it.id, it.name) })
             }
-            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             if (response.sessionToken.isNotEmpty()) {
                 tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
@@ -177,7 +186,6 @@ class TrackerRepository @Inject constructor(
                     response.routes.map { SavedRoute(it.id, it.name) },
                 )
             }
-            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             /* The shift as well as the handset.
              *
@@ -235,7 +243,6 @@ class TrackerRepository @Inject constructor(
             // The token is stored last. If anything above fails the app is still
             // unpaired and the driver retries, rather than holding a credential
             // it has no configuration to use.
-            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             PairOutcome.Paired(response.vehicle.registrationNo, response.institution?.name)
         } catch (failure: ApiFailure) {
