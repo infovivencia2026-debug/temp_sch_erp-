@@ -162,7 +162,7 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 			   purpose, and a correction to a contact number must not silently
 			   take it away. */
 			if userID != nil {
-				sync := func(tx pgx.Tx, email string) error {
+				sync := func(tx pgx.Tx, phone, email string) error {
 					_, err := tx.Exec(r.Context(), `
 						UPDATE users
 						   SET full_name = $2,
@@ -180,31 +180,56 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 				   transaction in Postgres and everything after it — the
 				   primary-guardian flag below included — would die with
 				   "current transaction is aborted". */
-				sp, berr := tx.Begin(r.Context())
-				if berr != nil {
-					return berr
-				}
-				err := sync(sp, email)
-				/* A shared address must not cost the family a correction.
+				/* A SHARED CONTACT MUST NOT COST THE FAMILY A CORRECTION.
 
-				   Two parents at one school genuinely share an inbox, and
-				   users keeps email unique per school because it is a sign-in
-				   identifier. A mother given the father's address would
-				   otherwise make the whole save fail — including the phone
-				   number that was the point of the edit. The address stays on
-				   the guardian record, which is what the school reads; only
-				   the sign-in identity keeps what it had. */
-				if err != nil && email != "" && isUniqueViolation(err) {
-					_ = sp.Rollback(r.Context())
-					sp2, berr := tx.Begin(r.Context())
+				   Two parents at one school genuinely share an inbox, and just
+				   as often share a mobile — one household, one handset. users
+				   keeps both unique per school because each is a sign-in
+				   identifier, so the sync can collide on either.
+
+				   The address already had this fallback and the number did not,
+				   which is the whole of the bug: correcting a mother's spelling
+				   failed outright, and the screen told the office to go and fix
+				   somebody else's record first — for a number the school had
+				   every right to store on both parents.
+
+				   The contact always lands on the GUARDIAN record, which is
+				   what the school reads and what appears on a class list. Only
+				   the sign-in identity keeps what it had, because that is the
+				   one thing that has to stay unique for a person to be able to
+				   sign in at all. So the save succeeds and nothing is lost: at
+				   worst one parent signs in with the identifier they already
+				   had, which is the identifier they have been using.
+
+				   Tried in order, narrowing to the state that cannot collide —
+				   the identity already on the row. */
+				attempts := [][2]string{
+					{phone, email},
+					{phone, oldEmail},
+					{oldPhone, email},
+					{oldPhone, oldEmail},
+				}
+				var err error
+				var sp pgx.Tx
+				for i, a := range attempts {
+					var berr error
+					sp, berr = tx.Begin(r.Context())
 					if berr != nil {
 						return berr
 					}
-					sp = sp2
-					err = sync(sp, oldEmail)
+					err = sync(sp, a[0], a[1])
+					if err == nil {
+						break
+					}
+					_ = sp.Rollback(r.Context())
+					sp = nil
+					// Only a uniqueness clash is worth retrying; anything else
+					// is a real failure and must not be masked by a fallback.
+					if !isUniqueViolation(err) || i == len(attempts)-1 {
+						break
+					}
 				}
 				if err != nil {
-					_ = sp.Rollback(r.Context())
 					if isUniqueViolation(err) {
 						return errGuardianPhoneTaken
 					}

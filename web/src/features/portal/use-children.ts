@@ -121,23 +121,23 @@ export function readyFor(children: PortalChild[], studentId: string) {
 
 /** Options for a <Select> of the caller's children. */
 export function childOptions(children: PortalChild[]) {
-  /* The school is named only when there is more than one of them.
+  /* The school is always named.
 
-     A family at a single school does not need every picker repeating its name,
-     and a family at two needs it on every one: 'Aarav · Class 5 A' twice, in the
-     same list, with no way to tell which child is which, is worse than not
-     showing the second child at all. Adding it unconditionally would clutter
-     the ordinary case to serve the rare one; adding it never leaves the rare
-     case ambiguous, which is the more expensive mistake. */
-  const schools = new Set(children.map((c) => c.institution_name).filter(Boolean))
-  const many = schools.size > 1
+     This was conditional at first — shown only when a family's children spanned
+     more than one school, on the reasoning that a single-school family does not
+     need every picker repeating a name it already knows. That was the wrong
+     trade. The list is now merged across schools, so which school a child
+     belongs to is part of what identifies them, not decoration: a parent
+     reading 'Aarav · Class 5 A' should not have to infer from context whether
+     that is the school this session belongs to. Saying it every time costs a
+     few words and removes the inference. */
   return children.map((c) => {
     const where = c.class_name
       ? `${c.full_name} · ${c.class_name} ${c.section_name ?? ''}`.trim()
       : c.full_name
     return {
       value: c.student_id,
-      label: many && c.institution_name ? `${where} — ${c.institution_name}` : where,
+      label: c.institution_name ? `${where} — ${c.institution_name}` : where,
     }
   })
 }
