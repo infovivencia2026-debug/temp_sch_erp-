@@ -104,13 +104,66 @@ func TestDryRunCatchesWhatTheWriterWouldReject(t *testing.T) {
 	if classes.Check == nil {
 		t.Fatal("classes has no dry-run check, so a non-numeric level reports as valid")
 	}
-	for _, bad := range []string{"notanumber", "0", "-3", "six", ""} {
-		if err := classes.Check(map[string]string{"name": "Grade 8", "level": bad}); err == nil {
-			t.Errorf("level %q passed the dry run but the writer would reject it", bad)
+	/* Every value is put through both sides, because the invariant is that
+	   they agree, not that some list of literals is refused. The two sides
+	   were once two separate readings of the same cell -- the check parsed it
+	   one way, the writer called strconv.Atoi and dropped the error -- and
+	   that is exactly the shape of drift a list of literals stops catching the
+	   day somebody edits one side.
+
+	   -3 and a blank cell are good rows, not bad ones. -3 is Nursery: the
+	   pre-school years are numbered below Class 1 and a school may type them.
+	   Blank is the ordinary case -- "Grade 8" has already said eight, and the
+	   template's own example row leaves the column empty, so a check that
+	   refused it would refuse the file the product ships as the example. */
+	for _, tc := range []struct {
+		level string
+		want  int
+		ok    bool
+	}{
+		{"8", 8, true},
+		{"", 8, true},    // taken from "Grade 8"
+		{"-3", -3, true}, // Nursery
+		{"15", 15, true},
+		{"notanumber", 0, false},
+		{"six", 0, false},
+		{"0", 0, false},   // level is NOT NULL and zero is what an unparsed cell becomes
+		{"16", 0, false},  // past any school year, so it is a room number read as a class
+		{"-9", 0, false},  // below the pre-school years, so it is nothing
+		{"8.5", 0, false}, // a class is a whole year
+	} {
+		checkErr := classes.Check(map[string]string{"name": "Grade 8", "level": tc.level})
+		got, writeErr := classImportLevel(map[string]string{"name": "Grade 8", "level": tc.level})
+		if tc.ok {
+			if checkErr != nil {
+				t.Errorf("level %q is a good row and the dry run rejected it: %v", tc.level, checkErr)
+			}
+			if got != tc.want {
+				t.Errorf("level %q resolved to %d, want %d", tc.level, got, tc.want)
+			}
+		} else if checkErr == nil {
+			t.Errorf("level %q passed the dry run but the writer would reject it", tc.level)
+		}
+		if (checkErr == nil) != (writeErr == nil) {
+			t.Errorf("level %q: dry run says %v and the writer says %v, so a file that "+
+				"passed the check would fail the commit", tc.level, checkErr, writeErr)
 		}
 	}
-	if err := classes.Check(map[string]string{"name": "Grade 8", "level": "8"}); err != nil {
-		t.Errorf("a good row was rejected: %v", err)
+
+	// A name with no year in it cannot be derived from, and has to be reported
+	// while the file can still be fixed rather than at the commit.
+	if err := classes.Check(map[string]string{"name": "VI-A", "level": ""}); err == nil {
+		t.Error("a name with no year in it passed the dry run")
+	}
+
+	// The template's example row is the file most schools upload first, so it
+	// has to pass its own importer.
+	if sample := importSpecs["classes"].Sample; len(sample) == 3 {
+		if err := classes.Check(map[string]string{
+			"name": sample[0], "level": sample[1], "stream": sample[2],
+		}); err != nil {
+			t.Errorf("the classes template's own example row fails the dry run: %v", err)
+		}
 	}
 
 	sections := importSpecs["sections"]

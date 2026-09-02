@@ -110,6 +110,19 @@ classLevelFromName reads the year out of what the school calls the class.
 	told to add the number, which is better than guessing six and sorting a
 	school's classes wrongly for a year.
 */
+/* The range a class level can be in, in both directions.
+
+   Below Class 1 there are four pre-school years, numbered downwards so that a
+   school adding one below needs no renumbering above. Above, fifteen is past
+   any school year in India and a number larger than that in a name is a room
+   number or a year of admission that has been read as a class, which sorts a
+   school's class list wrongly for a year. Named here because the importer
+   validates a typed level against exactly what a name can produce. */
+const (
+	classLevelFloor   = -4
+	classLevelCeiling = 15
+)
+
 func classLevelFromName(name string) int {
 	n := strings.ToLower(strings.TrimSpace(name))
 	// Below Grade 1, in the order a school lists them. Negative so that adding
@@ -144,7 +157,7 @@ func classLevelFromName(name string) int {
 		return 0
 	}
 	v, err := strconv.Atoi(digits)
-	if err != nil || v <= 0 || v > 15 {
+	if err != nil || v <= 0 || v > classLevelCeiling {
 		return 0
 	}
 	return v

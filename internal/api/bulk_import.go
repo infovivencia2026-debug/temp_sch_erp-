@@ -176,6 +176,53 @@ func (c *importCtx) noteCreated(entity string, id uuid.UUID, inserted bool) {
 	}
 }
 
+/*
+classImportLevel is the one place the importer decides what year a class row
+
+	is in, for both the dry run and the commit.
+
+	It exists because those were two separate readings of the same cell and they
+	drifted apart. The dry run refused anything that was not a positive whole
+	number; the writer called strconv.Atoi and threw the error away, so a cell
+	the check had rejected would still have gone in as level 0 had the check
+	ever been bypassed, and a blank cell the check had accepted was derived from
+	the name by a second copy of the rule. Two readings of one cell is how a
+	file passes the dry run and fails the commit, which is the failure the
+	importer exists to avoid: the clerk is told the file is ready, uploads it,
+	and loses the afternoon to a row the check had already seen.
+
+	The accepted values are exactly the ones classLevelFromName can produce,
+	because a level typed into the column and a level read out of the name end
+	up in the same column and are counted against the same government norms.
+	That means Nursery, LKG and UKG (-3, -2, -1) are levels a school may type,
+	Class 1 to 15 are levels, and 0 is not one: level is NOT NULL and zero is
+	what an unparsed cell becomes, so accepting it would be accepting the
+	failure silently.
+*/
+func classImportLevel(row map[string]string) (int, error) {
+	v := strings.TrimSpace(row["level"])
+	if v == "" {
+		// Nothing typed, so the name has to say it. Checked during the dry run
+		// rather than at the commit, because "Grade 6" says six and a name
+		// with no year in it must be reported while the file can still be
+		// fixed.
+		level := classLevelFromName(row["name"])
+		if level == 0 {
+			return 0, errors.New("no year could be read from that name. " +
+				"Add a level column, or write it as Grade 6")
+		}
+		return level, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n == 0 || n < classLevelFloor || n > classLevelCeiling {
+		return 0, fmt.Errorf("level must be a whole number between %d and %d, "+
+			"where the negatives are the pre-school years (-3 is Nursery, -2 LKG, "+
+			"-1 UKG). Leave it empty to take the year from the name",
+			classLevelFloor, classLevelCeiling)
+	}
+	return n, nil
+}
+
 var importSpecs = map[string]importSpec{
 	"classes": {
 		Perm:    rbac.AcademicsWrite,
@@ -186,32 +233,22 @@ var importSpecs = map[string]importSpec{
 		Required: []string{"name"},
 		Sample:   []string{"Grade 6", "", ""},
 		Check: func(row map[string]string) error {
-			v := strings.TrimSpace(row["level"])
-			if v == "" {
-				// Derived below. Checked here so a name nothing can be read
-				// from fails during the dry run rather than at the commit.
-				if classLevelFromName(row["name"]) == 0 {
-					return errors.New("no year could be read from that name. " +
-						"Add a level column, or write it as Grade 6")
-				}
-				return nil
-			}
-			if n, err := strconv.Atoi(v); err != nil || n == 0 {
-				return errors.New("level must be a whole number. Leave it empty " +
-					"to take the year from the name")
-			}
-			return nil
+			_, err := classImportLevel(row)
+			return err
 		},
 		Write: func(c *importCtx, row map[string]string) error {
-			level, _ := strconv.Atoi(strings.TrimSpace(row["level"]))
-			if strings.TrimSpace(row["level"]) == "" {
-				level = classLevelFromName(row["name"])
+			/* The same resolver the dry run used, and its error is
+			   returned rather than dropped. Reading the level twice, in two
+			   places, is how the dry run and the commit came to disagree. */
+			level, err := classImportLevel(row)
+			if err != nil {
+				return err
 			}
 			/* RETURNING with DO NOTHING yields no row on a conflict, which is
 			   exactly the signal wanted: a row came back means this INSERT
 			   created the class, and ErrNoRows means it was already there. */
 			var id uuid.UUID
-			err := c.tx.QueryRow(c.r.Context(), `
+			err = c.tx.QueryRow(c.r.Context(), `
 				INSERT INTO classes (institution_id, campus_id, name, level, stream)
 				VALUES ($1,$2,$3,$4,NULLIF($5,''))
 				ON CONFLICT DO NOTHING
@@ -563,7 +600,7 @@ var importSpecs = map[string]importSpec{
 				return err
 			}
 			/* Recorded, so this upload can be taken back out.
-			
+
 			   Two of the thirteen importers never noted what they created --
 			   this one and the timetable -- so their uploads reported "139
 			   added" and then "nothing to remove", for ever, however many rows
