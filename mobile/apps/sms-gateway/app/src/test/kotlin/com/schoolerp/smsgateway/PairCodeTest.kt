@@ -24,14 +24,14 @@ class PairCodeTest {
     }
 
     @Test
-    fun `a code is complete at exactly eight characters`() {
-        assertFalse(PairCode.isComplete("ABC1234"))
-        assertTrue(PairCode.isComplete("ABCD1234"))
-        assertTrue(PairCode.isComplete("ABCD-1234"))
+    fun `a code is complete at exactly nine characters`() {
+        assertFalse(PairCode.isComplete("ABCD1234"))
+        assertTrue(PairCode.isComplete("ABCD12345"))
+        assertTrue(PairCode.isComplete("ABCD-12345"))
     }
 
     @Test
     fun `extra characters are trimmed rather than accepted`() {
-        assertEquals(8, PairCode.normalise("ABCD1234EXTRA").length)
+        assertEquals(PairCode.LENGTH, PairCode.normalise("ABCD12345EXTRA").length)
     }
 }

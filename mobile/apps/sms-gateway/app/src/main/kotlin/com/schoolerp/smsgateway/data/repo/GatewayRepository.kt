@@ -29,13 +29,20 @@ import com.schoolerp.smsgateway.engine.StatusSources
 import com.schoolerp.smsgateway.sms.DeviceStatusProvider
 import com.schoolerp.smsgateway.sms.SmsFailure
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** What a poll attempt did, in terms the service loop and the UI both use. */
 sealed interface PollOutcome {
-    data class Claimed(val count: Int, val pollSeconds: Int) : PollOutcome
+    /** [count] rows were new to this phone; [received] is how many the server sent. */
+    data class Claimed(val count: Int, val received: Int, val pollSeconds: Int) : PollOutcome
     data object NotConfigured : PollOutcome
     data object Unpaired : PollOutcome
     data class Failed(val failure: ApiFailure) : PollOutcome
@@ -60,6 +67,18 @@ class GatewayRepository @Inject constructor(
 
     override val settings: Flow<GatewaySettings> = settingsStore.settings
     override val paired = tokenStore.paired
+
+    /* True from a successful pairing until the operator has read the school's
+       name back and pressed Continue. The token is saved before the outcome
+       is returned, and the root screen swapped to the status screen the
+       instant `paired` flipped, so the confirmation card -- the only place the
+       operator could see they had paired the right school -- never rendered. */
+    private val _awaitingConfirmation = MutableStateFlow(false)
+    val awaitingConfirmation: StateFlow<Boolean> = _awaitingConfirmation.asStateFlow()
+
+    fun confirmPairing() {
+        _awaitingConfirmation.value = false
+    }
 
     // ------------------------------------------------------------- enrolment
 
@@ -88,6 +107,7 @@ class GatewayRepository @Inject constructor(
                     simOperator = deviceStatus.simOperator(),
                 ),
             )
+            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             settingsStore.setBaseUrl(baseUrl.value)
             settingsStore.recordPairing(
@@ -125,6 +145,7 @@ class GatewayRepository @Inject constructor(
                     simOperator = deviceStatus.simOperator(),
                 ),
             )
+            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             settingsStore.setBaseUrl(baseUrl.value)
             settingsStore.recordPairing(
@@ -174,6 +195,7 @@ class GatewayRepository @Inject constructor(
     }
 
     suspend fun unpair() {
+        _awaitingConfirmation.value = false
         tokenStore.clear()
         settingsStore.clearPairing()
     }
@@ -214,7 +236,7 @@ class GatewayRepository @Inject constructor(
             }
             settingsStore.applyServerDirectives(response.pollSeconds, null, response.maxPerMinute)
             settingsStore.recordPoll(now, null)
-            PollOutcome.Claimed(newRows, response.pollSeconds ?: settings.pollSeconds)
+            PollOutcome.Claimed(newRows, rows.size, response.pollSeconds ?: settings.pollSeconds)
         } catch (failure: ApiFailure) {
             settingsStore.recordPoll(timeSource.nowMillis(), failure.reason)
             if (failure is ApiFailure.Unauthorized) {
@@ -385,10 +407,25 @@ class GatewayRepository @Inject constructor(
 
     override fun observeQueueDepth(): Flow<Int> = dao.observeQueueDepth()
     override fun observePendingReceipts(): Flow<Int> = dao.observePendingReceipts()
-    override fun observeSentToday(): Flow<Int> = dao.observeSentSince(startOfLocalDay(timeSource.nowMillis()))
-    override fun observeFailedToday(): Flow<Int> = dao.observeFailedSince(startOfLocalDay(timeSource.nowMillis()))
+    override fun observeSentToday(): Flow<Int> = eachLocalDay { dao.observeSentSince(it) }
+    override fun observeFailedToday(): Flow<Int> = eachLocalDay { dao.observeFailedSince(it) }
     override fun observeRecentFailures(limit: Int): Flow<List<FailureRow>> =
-        dao.observeRecentFailures(startOfLocalDay(timeSource.nowMillis()) - TWO_DAYS, limit)
+        eachLocalDay { dao.observeRecentFailures(it - TWO_DAYS, limit) }
+
+    /* "Today" was fixed at the moment the screen subscribed, so a service that
+       ran through midnight kept counting from yesterday's boundary for as long
+       as it lived, and the morning's "sent today" still held last night's
+       total. The boundary is recomputed when the day turns. */
+    private fun <T> eachLocalDay(build: (dayStart: Long) -> Flow<T>): Flow<T> = flow {
+        while (true) {
+            val now = timeSource.nowMillis()
+            val dayStart = startOfLocalDay(now)
+            // A day and a half past midnight is always inside tomorrow, whatever
+            // the clocks did, and its own midnight is the next boundary.
+            val nextDayStart = startOfLocalDay(dayStart + DAY_AND_A_HALF)
+            withTimeoutOrNull((nextDayStart - now).coerceAtLeast(1_000L)) { emitAll(build(dayStart)) }
+        }
+    }
 
     private fun allowInsecureHttp(settings: GatewaySettings): Boolean =
         allowInsecureHttpBuild && settings.allowInsecureHttp
@@ -396,5 +433,6 @@ class GatewayRepository @Inject constructor(
     private companion object {
         const val RECEIPT_BATCH = 50
         const val TWO_DAYS = 2 * 24 * 60 * 60 * 1000L
+        const val DAY_AND_A_HALF = 36 * 60 * 60 * 1000L
     }
 }

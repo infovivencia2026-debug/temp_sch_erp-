@@ -43,7 +43,14 @@ class LocationPermissions @Inject constructor(
 
     /** The system-wide Location switch, which no permission grant overrides. */
     fun locationServicesOn(): Boolean = runCatching {
-        context.getSystemService(LocationManager::class.java)?.isLocationEnabled ?: false
+        val manager = context.getSystemService(LocationManager::class.java)
+        when {
+            manager == null -> false
+            // isLocationEnabled arrived with Android 9; minSdk is 8.0.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> manager.isLocationEnabled
+            else -> manager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
     }.getOrDefault(false)
 
     /**

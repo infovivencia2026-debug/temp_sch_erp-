@@ -189,6 +189,12 @@ class PairViewModel @Inject constructor(
      * and now, rather than leave a phone reporting as the wrong vehicle until
      * someone in the office notices two buses on one street.
      */
+    /** The driver read the registration and it is their bus. */
+    fun confirmVehicle() {
+        _state.value = _state.value.copy(pairedVehicle = null, pairedInstitution = null)
+        repository.confirmPairing()
+    }
+
     fun rejectVehicle() {
         viewModelScope.launch {
             repository.unpair()

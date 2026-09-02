@@ -76,8 +76,8 @@ type cachedSum struct {
 }
 
 // appInfo is what this repo knows about each app without looking at disk.
-// Hardcoded, and short: the page describes two apps that live in this same
-// repository, so a table in a database would be a table with two rows in it
+// Hardcoded, and short: the page describes three apps that live in this same
+// repository, so a table in a database would be a table with three rows in it
 // that nobody would remember to fill in.
 type appInfo struct {
 	Slug     string
@@ -112,6 +112,19 @@ var appCatalogue = []appInfo{
 			"Left plugged in. It works whenever the school queues a message",
 		},
 		Contract: "docs/SMS_GATEWAY_CONTRACT.md",
+	},
+	{
+		// The parent app existed and had no way to reach a parent: the
+		// catalogue named two apps, so the third could not be published to
+		// this page or downloaded from it.
+		Slug:    "parent",
+		Name:    "EDU CLOUD for Parents",
+		Tagline: "The school's own parent portal as an app: fees, the bus on a map, homework and notices. It is the same site the browser shows, so nothing in it goes out of date.",
+		Who:     "A parent's own phone.",
+		Needs: []string{
+			"Android 7.0 or newer",
+			"A data connection; it shows the school's site",
+		},
 	},
 }
 

@@ -24,6 +24,13 @@ object GatewayServiceLauncher {
     /** Deliberate operator stop: the worker is cancelled too, or it would undo it. */
     fun stop(context: Context) {
         GatewayRestartWorker.cancel(context)
-        context.startService(Intent(context, GatewayService::class.java).setAction(GatewayService.ACTION_STOP))
+        try {
+            context.startService(Intent(context, GatewayService::class.java).setAction(GatewayService.ACTION_STOP))
+        } catch (error: Exception) {
+            // Android 8+ refuses a plain start from the background, and this
+            // is reached from a ViewModel that may outlive the screen. A
+            // service that is not running has nothing to stop anyway.
+            GwLog.w("service", "stop intent refused", error)
+        }
     }
 }

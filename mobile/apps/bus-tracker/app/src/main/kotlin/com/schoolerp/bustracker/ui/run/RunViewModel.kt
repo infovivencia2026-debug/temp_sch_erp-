@@ -164,7 +164,12 @@ class RunViewModel @Inject constructor(
     }
 
     fun signOut() {
-        viewModelScope.launch { repository.signOut() }
+        if (_busy.value) return
+        _busy.value = true
+        viewModelScope.launch {
+            repository.signOut()
+            _busy.value = false
+        }
     }
 
     fun startRun(route: SavedRoute, direction: String = DIRECTION_PICKUP, supersede: Boolean = false) {
@@ -241,7 +246,10 @@ class RunViewModel @Inject constructor(
                         )
                     }
                 }
-                EndOutcome.NoTrip -> TrackerServiceLauncher.stop(context)
+                // Only if something is running: a stop intent starts the
+                // service just to kill it, and its foreground promotion can
+                // raise a false "location permission is missing" alarm.
+                EndOutcome.NoTrip -> if (engine.serviceRunning.value) TrackerServiceLauncher.stop(context)
             }
             _busy.value = false
         }
@@ -296,11 +304,19 @@ class RunViewModel @Inject constructor(
     }
 
     fun unpair() {
+        if (_busy.value) return
+        _busy.value = true
         viewModelScope.launch {
             repository.unpair()
             TrackerServiceLauncher.stop(context)
+            _busy.value = false
         }
     }
+
+    fun openNotificationSettings(): Intent =
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     fun openAppSettings(): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)

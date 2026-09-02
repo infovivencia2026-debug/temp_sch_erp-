@@ -11,11 +11,13 @@ import com.schoolerp.smsgateway.engine.EngineSignals
 import com.schoolerp.smsgateway.engine.GatewayEngine
 import com.schoolerp.smsgateway.engine.StatusAggregator
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,6 +47,12 @@ class GatewayService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var engineJob: Job? = null
 
+    /* Set by the operator's Stop and read in onDestroy. Without it the stop
+       cancelled the keepalive worker and onDestroy immediately re-created it,
+       so the gateway the clerk had just switched off came back within fifteen
+       minutes and looked as if the button had not worked. */
+    @Volatile private var stoppedByOperator = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -65,13 +73,14 @@ class GatewayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             GwLog.i("service", "stopping on operator request")
+            stoppedByOperator = true
             stopSelf()
             return START_NOT_STICKY
         }
 
         if (engineJob?.isActive != true) {
             GwLog.i("service", "starting gateway loops")
-            engineJob = scope.launch { engine.run() }
+            engineJob = scope.launch { runEngineForever() }
         }
 
         // STICKY, not REDELIVER: there is no intent worth redelivering, and the
@@ -84,9 +93,34 @@ class GatewayService : Service() {
         signals.publishServiceRunning(false)
         scope.cancel()
         // Anything that killed us — low memory, a swipe, an OEM task killer —
-        // is exactly when the safety net has to fire.
-        GatewayRestartWorker.enqueuePeriodic(applicationContext)
+        // is exactly when the safety net has to fire. The operator's own Stop
+        // is the one death that must stay dead.
+        if (stoppedByOperator) {
+            GwLog.i("service", "stopped by the operator; no restart scheduled")
+        } else {
+            GatewayRestartWorker.enqueuePeriodic(applicationContext)
+        }
         super.onDestroy()
+    }
+
+    /* A loop that threw used to die silently under a notification still
+       saying the gateway was running, because `coroutineScope` cancels every
+       sibling when one fails and nothing restarted them. Cancellation is the
+       one exception that means stop; anything else is logged and the loops
+       come back after a pause. */
+    private suspend fun runEngineForever() {
+        while (true) {
+            try {
+                engine.run()
+                return
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                GwLog.e("service", "engine loops failed; restarting in ${ENGINE_RESTART_MILLIS / 1000}s", error)
+                signals.publishServiceRunning(false)
+                delay(ENGINE_RESTART_MILLIS)
+            }
+        }
     }
 
     private fun promoteToForeground() {
@@ -108,5 +142,6 @@ class GatewayService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.schoolerp.smsgateway.STOP_SERVICE"
+        private const val ENGINE_RESTART_MILLIS = 10_000L
     }
 }

@@ -173,7 +173,7 @@ publish-apk: ## Upload one Android build: make publish-apk APK=path/to/bus-track
 	@# or sms-gateway. internal/api/apps.go reads the version out of it, and a
 	@# file named anything else is ignored rather than served as version "".
 	@test -n "$(APK)" || { echo "set APK=path/to/<slug>-<version>.apk"; exit 1; }
-	@echo "$$(basename $(APK))" | grep -Eq '^(bus-tracker|sms-gateway)-v?[0-9]+(\.[0-9]+)*\.apk$$' \
+	@echo "$$(basename $(APK))" | grep -Eq '^(bus-tracker|sms-gateway|parent)-v?[0-9]+(\.[0-9]+)*\.apk$$' \
 		|| { echo "name must be <slug>-<version>.apk, e.g. bus-tracker-1.0.0.apk"; exit 1; }
 	ssh $(HOST) 'mkdir -p $(APKDIR)'
 	rsync -az --progress $(APK) $(HOST):$(APKDIR)/

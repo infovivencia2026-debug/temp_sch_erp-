@@ -5,6 +5,7 @@ import com.schoolerp.smsgateway.core.TimeSource
 import com.schoolerp.smsgateway.data.repo.GatewayRepository
 import com.schoolerp.smsgateway.data.repo.PollOutcome
 import com.schoolerp.smsgateway.data.remote.ApiFailure
+import com.schoolerp.smsgateway.data.remote.GatewayApi
 import com.schoolerp.smsgateway.sms.DeviceStatusProvider
 import com.schoolerp.smsgateway.sms.SmsFailure
 import com.schoolerp.smsgateway.sms.SmsSendException
@@ -96,7 +97,9 @@ class GatewayEngine @Inject constructor(
                     backoff.reset()
                     if (outcome.count > 0) GwLog.i("poll", "claimed ${outcome.count} message(s)")
                     // A full batch means there is more waiting; go straight back.
-                    val wait = if (outcome.count >= 20) 0L else outcome.pollSeconds * 1000L
+                    // Judged on what the server sent, not on what was new to
+                    // us: twenty re-delivered ids is still a full page.
+                    val wait = if (outcome.received >= GatewayApi.MAX_OUTBOX_BATCH) 0L else outcome.pollSeconds * 1000L
                     delay(wait)
                 }
                 is PollOutcome.Failed -> {
@@ -139,8 +142,10 @@ class GatewayEngine @Inject constructor(
                 continue
             }
 
-            rows.forEach { row ->
-                if (!coroutineContext.isActive) return@forEach
+            for (row in rows) {
+                // `return@forEach` here was a continue, not a break: a stopping
+                // service went on handing the rest of the batch to the radio.
+                if (!coroutineContext.isActive) break
                 rateLimiter.acquire(settings.maxPerMinute)
                 dispatch(row.id, row.toAddress, repository.bodyOf(row))
             }
@@ -193,10 +198,12 @@ class GatewayEngine @Inject constructor(
     }
 
     private suspend fun upkeepLoop() {
+        // Sweep first: rows left in `sending` by the process death that just
+        // happened should not wait a further tick before they are reported.
         while (coroutineContext.isActive) {
-            delay(UPKEEP_TICK_MILLIS)
             repository.sweepStuckSends(SEND_RESULT_TIMEOUT_MILLIS)
             repository.prune(RETENTION_MILLIS)
+            delay(UPKEEP_TICK_MILLIS)
         }
     }
 

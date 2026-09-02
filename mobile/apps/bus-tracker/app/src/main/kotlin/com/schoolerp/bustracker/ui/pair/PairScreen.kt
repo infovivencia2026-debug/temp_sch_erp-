@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -181,15 +182,15 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
                         "Is that the bus you are driving today?",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    // Two answers, two buttons. "Yes" was a sentence telling the
+                    // driver to close a card that had nothing to close it with.
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = viewModel::rejectVehicle) {
                             Text("No, stop")
                         }
-                        Text(
-                            "Yes: close this and start your run.",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
+                        Button(onClick = viewModel::confirmVehicle) {
+                            Text("Yes, that's my bus")
+                        }
                     }
                 }
             }
@@ -201,7 +202,13 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (state.submitting) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                // On the button's own colour, or it is invisible: the default
+                // is `primary`, which is the filled button's background.
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp,
+                )
             } else {
                 Text("Sign in")
             }

@@ -8,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -52,10 +54,16 @@ fun RouteSketch(
     val spanMetresY = Geo.metresBetween(lats.min(), lons.min(), lats.max(), lons.min())
 
     Column(modifier) {
+        val reached = stops.count { it.arrivedAtMillis != null }
+        val next = stops.firstOrNull { it.arrivedAtMillis == null }?.name
+        val description = "Route sketch: ${stops.size} stops, $reached reached" +
+            (next?.let { ", next $it" } ?: ", all reached")
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp),
+                .height(200.dp)
+                // A canvas is nothing to TalkBack; say what it draws.
+                .semantics { contentDescription = description },
         ) {
             val padding = 24f
             val w = size.width - padding * 2

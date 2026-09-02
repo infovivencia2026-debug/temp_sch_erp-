@@ -39,7 +39,11 @@
          contacts. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
-    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+    <!-- Lint reads the line above as a request for a camera; it is the opposite. -->
+    <uses-permission
+        android:name="android.permission.CAMERA"
+        tools:node="remove"
+        tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
 
     <!-- Required, not optional: a handset with no GPS cannot be a bus tracker,

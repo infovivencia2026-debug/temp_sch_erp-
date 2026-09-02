@@ -3,6 +3,7 @@ package com.schoolerp.smsgateway.engine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +34,9 @@ class EngineSignals @Inject constructor() {
     }
 
     fun publishServiceRunning(running: Boolean) {
-        _device.value = _device.value.copy(serviceRunning = running)
+        // update, not read-then-set: a device refresh landing between the two
+        // would put the old flag back and the "service not running" blocker
+        // would never appear.
+        _device.update { it.copy(serviceRunning = running) }
     }
 }

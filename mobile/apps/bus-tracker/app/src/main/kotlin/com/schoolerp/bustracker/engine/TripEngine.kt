@@ -128,8 +128,12 @@ class TripEngine @Inject constructor(
         // Judged here, offline, from the radii that came down with the trip.
         val stops = repository.observeStops(trip.tripId).first()
         GeofenceWatcher(stops).arrivalsFor(fix).forEach { stop ->
-            repository.markStopArrived(trip.tripId, stop.stopId)
-            _events.tryEmit(EngineEvent.StopReached(stop.name))
+            // The stop list read above can be a frame behind the database, so
+            // the row itself says whether this arrival was new. Announcing on
+            // the read alone said "Reached X" twice.
+            if (repository.markStopArrived(trip.tripId, stop.stopId)) {
+                _events.tryEmit(EngineEvent.StopReached(stop.name))
+            }
         }
     }
 

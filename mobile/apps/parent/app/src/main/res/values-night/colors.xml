@@ -1,0 +1,6 @@
+<resources>
+    <!-- The portal's dark palette: ground #0A0A0A. -->
+    <color name="page_bg">#0A0A0A</color>
+    <color name="page_text">#FFFFFF</color>
+    <color name="page_muted">#9AA0A6</color>
+</resources>

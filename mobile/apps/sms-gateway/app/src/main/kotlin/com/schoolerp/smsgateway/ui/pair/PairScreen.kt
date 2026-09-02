@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -187,7 +188,13 @@ fun PairScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (state.submitting) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                // On the button's own colour, or it is invisible: the default
+                // is `primary`, which is the filled button's background.
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp,
+                )
             } else {
                 Text("Pair")
             }

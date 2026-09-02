@@ -41,6 +41,10 @@ import com.schoolerp.bustracker.ui.LocationPermissionPrompt
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import com.schoolerp.bustracker.core.BtLog
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 
@@ -59,6 +63,14 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var confirmUnpair by rememberSaveable { mutableStateOf(false) }
+
+    // Some ROMs ship without the settings screens these intents name, and an
+    // unhandled ActivityNotFoundException took the run screen down with it.
+    fun open(intent: android.content.Intent) {
+        runCatching { context.startActivity(intent) }
+            .onFailure { BtLog.w("ui", "no activity for ${intent.action}", it) }
+    }
 
     Column(
         modifier = Modifier
@@ -81,10 +93,10 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     Text(blocker.headline, style = MaterialTheme.typography.titleMedium)
                     Text(blocker.detail, style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { context.startActivity(viewModel.openAppSettings()) }) {
+                        OutlinedButton(onClick = { open(viewModel.openAppSettings()) }) {
                             Text("App permissions")
                         }
-                        OutlinedButton(onClick = { context.startActivity(viewModel.openLocationSettings()) }) {
+                        OutlinedButton(onClick = { open(viewModel.openLocationSettings()) }) {
                             Text("Location settings")
                         }
                     }
@@ -102,8 +114,28 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                             "instead of moving. Allowing it to run unrestricted fixes that.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    OutlinedButton(onClick = { context.startActivity(viewModel.requestBatteryExemption()) }) {
+                    OutlinedButton(onClick = { open(viewModel.requestBatteryExemption()) }) {
                         Text("Allow unrestricted")
+                    }
+                }
+            }
+        }
+
+        /* Every warning the service raises -- the school closed the run, the
+           token was revoked, the phone stopped reporting -- is a notification.
+           With notifications refused they went nowhere, and nothing on this
+           screen said so. */
+        if (!status.notificationsAllowed) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Notifications are switched off", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "This app tells you through a notification when the school closes a run " +
+                            "or the phone stops reporting. With them off you will not be told.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = { open(viewModel.openNotificationSettings()) }) {
+                        Text("Turn notifications on")
                     }
                 }
             }
@@ -229,10 +261,31 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
            Same call as before; the wording is what changed. "Unpair this
            phone" describes the mechanism and reads as something to avoid.
            This says what it is for. */
-        TextButton(onClick = viewModel::unpair) {
+        TextButton(onClick = { confirmUnpair = true }, enabled = !busy) {
             Text(
                 "Sign in as a different driver",
                 textDecoration = TextDecoration.Underline,
+            )
+        }
+        if (confirmUnpair) {
+            AlertDialog(
+                onDismissRequest = { confirmUnpair = false },
+                title = { Text("Take this phone off the bus?") },
+                text = {
+                    Text(
+                        "The phone forgets which bus it is and stops reporting. You will " +
+                            "sign in again with your number and password.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmUnpair = false
+                        viewModel.unpair()
+                    }) { Text("Take it off") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmUnpair = false }) { Text("Cancel") }
+                },
             )
         }
         Text(
@@ -500,7 +553,10 @@ private fun StartRunSection(
     onRemoveRoute: (String) -> Unit,
 ) {
     var direction by remember { mutableStateOf(DIRECTION_PICKUP) }
-    var showAdd by remember { mutableStateOf(routes.isEmpty()) }
+    // Keyed on the answer: the book starts empty and fills a frame later, so
+    // the office-setup form opened for every driver, routes or not.
+    var showAdd by remember(routes.isEmpty()) { mutableStateOf(routes.isEmpty()) }
+    var removing by remember { mutableStateOf<SavedRoute?>(null) }
     var newId by remember { mutableStateOf("") }
     var newLabel by remember { mutableStateOf("") }
 
@@ -527,10 +583,38 @@ private fun StartRunSection(
                     enabled = !busy,
                     modifier = Modifier
                         .weight(1f)
-                        .height(64.dp),
-                ) { Text("Start Run, ${route.label}") }
-                TextButton(onClick = { onRemoveRoute(route.routeId) }) { Text("Remove") }
+                        .defaultMinSize(minHeight = 64.dp),
+                ) {
+                    // A long office label clipped mid-word inside the fixed
+                    // height; it wraps to two lines and then ellipsises.
+                    Text(
+                        "Start Run, ${route.label}",
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                // Beside a 64dp Start button, a mis-tap deleted the route
+                // silently. It asks first.
+                TextButton(onClick = { removing = route }, enabled = !busy) { Text("Remove") }
             }
+        }
+
+        removing?.let { route ->
+            AlertDialog(
+                onDismissRequest = { removing = null },
+                title = { Text("Remove ${route.label}?") },
+                text = { Text("It goes off this phone's list. The office can put it back on.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onRemoveRoute(route.routeId)
+                        removing = null
+                    }) { Text("Remove") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { removing = null }) { Text("Keep it") }
+                },
+            )
         }
 
         if (routes.isEmpty()) {

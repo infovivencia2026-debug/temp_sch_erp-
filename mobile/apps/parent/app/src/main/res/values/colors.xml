@@ -1,0 +1,7 @@
+<resources>
+    <!-- The portal's own light palette (web/src/index.css): ground #F7F8FA.
+         The shell must match the page it wraps or every load flashes. -->
+    <color name="page_bg">#F7F8FA</color>
+    <color name="page_text">#000000</color>
+    <color name="page_muted">#5F6368</color>
+</resources>

@@ -1,9 +1,16 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- No action bar: the site draws its own header, and two of them is how a
-         wrapper announces that it is a wrapper. -->
-    <style name="Theme.Parent" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#0b0c0e</item>
-        <item name="android:navigationBarColor">#0b0c0e</item>
-        <item name="android:windowBackground">#0b0c0e</item>
+         wrapper announces that it is a wrapper.
+
+         Light here, dark in values-night. The site follows the phone's own
+         setting, and so must the frame around it: a black status bar over a
+         white page, or a black flash before every load, is the wrapper
+         showing through. -->
+    <style name="Theme.Parent" parent="android:Theme.Material.Light.NoActionBar" tools:targetApi="o_mr1">
+        <item name="android:statusBarColor">@color/page_bg</item>
+        <item name="android:navigationBarColor">@color/page_bg</item>
+        <item name="android:windowBackground">@color/page_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

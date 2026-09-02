@@ -24,8 +24,15 @@ object TrackerServiceLauncher {
     /** Deliberate stop: the worker goes too, or it would undo it. */
     fun stop(context: Context) {
         TripFlushWorker.cancel(context)
-        context.startService(
-            Intent(context, TrackerService::class.java).setAction(TrackerService.ACTION_STOP),
-        )
+        try {
+            context.startService(
+                Intent(context, TrackerService::class.java).setAction(TrackerService.ACTION_STOP),
+            )
+        } catch (error: Exception) {
+            // Android 8+ refuses a plain start from the background, and this
+            // is reached from a ViewModel that can outlive the screen. A
+            // service that is not running has nothing to stop anyway.
+            BtLog.w("service", "stop intent refused", error)
+        }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -17,6 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.schoolerp.smsgateway.core.GwLog
 import com.schoolerp.smsgateway.data.local.FailureRow
 import com.schoolerp.smsgateway.engine.Blocker
 import com.schoolerp.smsgateway.engine.ConnectionState
@@ -40,6 +45,15 @@ fun StatusScreen(
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var confirmUnpair by rememberSaveable { mutableStateOf(false) }
+
+    // Some ROMs ship without the battery or notification settings screens
+    // these intents name, and an unhandled ActivityNotFoundException took the
+    // only screen the clerk has down with it.
+    fun open(intent: android.content.Intent) {
+        runCatching { context.startActivity(intent) }
+            .onFailure { GwLog.w("ui", "no activity for ${intent.action}", it) }
+    }
 
     // Permissions can be revoked from Settings while this app is in the
     // background, so the snapshot is re-read on every resume.
@@ -60,9 +74,9 @@ fun StatusScreen(
         items(status.blockers, key = { it.name }) { blocker ->
             BlockerCard(
                 blocker = blocker,
-                onOpenAppSettings = { context.startActivity(viewModel.openAppSettings()) },
-                onOpenNotificationSettings = { context.startActivity(viewModel.openNotificationSettings()) },
-                onRequestBatteryExemption = { context.startActivity(viewModel.requestBatteryExemption()) },
+                onOpenAppSettings = { open(viewModel.openAppSettings()) },
+                onOpenNotificationSettings = { open(viewModel.openNotificationSettings()) },
+                onRequestBatteryExemption = { open(viewModel.requestBatteryExemption()) },
                 onStartService = viewModel::startService,
             )
         }
@@ -83,14 +97,21 @@ fun StatusScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                // Only the one that would do something is live, which is also
+                // the only feedback a tap on either gets.
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = viewModel::startService) { Text("Start") }
-                    OutlinedButton(onClick = viewModel::stopService) { Text("Stop") }
+                    OutlinedButton(
+                        onClick = viewModel::startService,
+                        enabled = !status.serviceRunning,
+                    ) { Text("Start") }
+                    OutlinedButton(
+                        onClick = viewModel::stopService,
+                        enabled = status.serviceRunning,
+                    ) { Text("Stop") }
                 }
-                TextButton(onClick = {
-                    viewModel.unpair()
-                    onUnpaired()
-                }) { Text("Unpair this phone") }
+                // One tap wiped the credential and every pairing setting, with
+                // nothing on screen but the status screen vanishing.
+                TextButton(onClick = { confirmUnpair = true }) { Text("Unpair this phone") }
                 Text(
                     "Polling every ${status.pollSeconds}s, at most ${status.maxPerMinute} " +
                         "messages a minute. Both are set by the school's server.",
@@ -98,6 +119,29 @@ fun StatusScreen(
                 )
             }
         }
+    }
+
+    if (confirmUnpair) {
+        AlertDialog(
+            onDismissRequest = { confirmUnpair = false },
+            title = { Text("Unpair this phone?") },
+            text = {
+                Text(
+                    "This phone stops sending the school's messages and forgets its pairing. " +
+                        "Pairing again needs a new code from the office.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmUnpair = false
+                    viewModel.unpair()
+                    onUnpaired()
+                }) { Text("Unpair") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmUnpair = false }) { Text("Keep it paired") }
+            },
+        )
     }
 }
 
@@ -158,8 +202,15 @@ private fun CountRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        // The label yields, the number never does: on a narrow handset at a
+        // large font the two used to collide.
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 

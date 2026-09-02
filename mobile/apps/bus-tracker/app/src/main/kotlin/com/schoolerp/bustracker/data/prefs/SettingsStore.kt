@@ -146,6 +146,9 @@ class SettingsStore @Inject constructor(
 
     /** Unpairing wipes the configuration and the run; a half-forgotten bus is worse. */
     suspend fun clearPairing() = edit {
+        // The route book too: the next driver on a different bus was shown
+        // the previous bus's routes and could start one.
+        it.remove(KEY_ROUTE_BOOK)
         it.remove(KEY_DEVICE_ID)
         it.remove(KEY_INSTITUTION)
         it.remove(KEY_VEHICLE_ID)

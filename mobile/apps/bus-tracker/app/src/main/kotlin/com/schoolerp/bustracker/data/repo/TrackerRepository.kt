@@ -30,6 +30,8 @@ import com.schoolerp.bustracker.device.LocationPermissions
 import com.schoolerp.bustracker.di.AllowInsecureHttpBuild
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,6 +54,18 @@ class TrackerRepository @Inject constructor(
 ) {
 
     val paired: StateFlow<Boolean> = tokenStore.paired
+
+    /* True from a successful pairing until the driver has read the
+       registration back and answered. The token is saved before the outcome
+       is returned, and the root screen swapped to the run screen the instant
+       `paired` flipped, so the "is that the bus you are driving?" card -- the
+       one safeguard against a mis-pairing -- never rendered. */
+    private val _awaitingConfirmation = MutableStateFlow(false)
+    val awaitingConfirmation: StateFlow<Boolean> = _awaitingConfirmation.asStateFlow()
+
+    fun confirmPairing() {
+        _awaitingConfirmation.value = false
+    }
 
     /** True while a driver is signed in on this handset. The run screen offers
         Sign in or Sign out from it, and startTrip refuses without it. */
@@ -115,6 +129,7 @@ class TrackerRepository @Inject constructor(
                     response.routes.map { SavedRoute(it.id, it.name) },
                 )
             }
+            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             /* The shift as well as the handset.
              *
@@ -172,6 +187,7 @@ class TrackerRepository @Inject constructor(
             // The token is stored last. If anything above fails the app is still
             // unpaired and the driver retries, rather than holding a credential
             // it has no configuration to use.
+            _awaitingConfirmation.value = true
             tokenStore.save(response.deviceId, response.deviceToken)
             PairOutcome.Paired(response.vehicle.registrationNo, response.institution?.name)
         } catch (failure: ApiFailure) {
@@ -180,6 +196,7 @@ class TrackerRepository @Inject constructor(
     }
 
     suspend fun unpair() {
+        _awaitingConfirmation.value = false
         // The buffer goes with the pairing. Those fixes belong to a school this
         // phone is no longer allowed to speak to.
         settingsStore.settings.first().activeTrip?.let { fixes.discardTrip(it.tripId) }
@@ -552,9 +569,9 @@ class TrackerRepository @Inject constructor(
 
     // ------------------------------------------------------------------ misc
 
-    suspend fun markStopArrived(tripId: String, stopId: String) {
-        stops.markArrived(tripId, stopId, time.nowMillis())
-    }
+    /** True when this call recorded the arrival; false if it was already on record. */
+    suspend fun markStopArrived(tripId: String, stopId: String): Boolean =
+        stops.markArrived(tripId, stopId, time.nowMillis()) > 0
 
     private data class CallContext(val baseUrl: BaseUrl, val token: String)
 

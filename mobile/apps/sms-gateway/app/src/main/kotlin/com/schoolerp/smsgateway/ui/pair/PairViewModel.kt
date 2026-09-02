@@ -125,5 +125,6 @@ class PairViewModel @Inject constructor(
 
     fun dismissConfirmation() {
         _state.value = _state.value.copy(pairedTo = null)
+        repository.confirmPairing()
     }
 }

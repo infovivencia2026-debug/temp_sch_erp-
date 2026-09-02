@@ -15,7 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,9 +44,12 @@ val gatewayPermissions: List<String>
 @Composable
 fun PermissionPrompt(onFinished: () -> Unit = {}) {
     val context = LocalContext.current
-    var explained by remember { mutableStateOf(false) }
+    // Saveable, or a rotation re-shows the whole rationale dialog.
+    var explained by rememberSaveable { mutableStateOf(false) }
 
-    val missing = remember {
+    // Recomputed on every composition: after a partial grant the remembered
+    // list still named permissions that were no longer missing.
+    val missing = run {
         gatewayPermissions.filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }

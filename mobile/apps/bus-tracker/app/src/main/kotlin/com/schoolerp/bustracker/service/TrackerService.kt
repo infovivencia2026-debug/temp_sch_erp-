@@ -12,11 +12,13 @@ import com.schoolerp.bustracker.engine.EngineEvent
 import com.schoolerp.bustracker.engine.StatusAggregator
 import com.schoolerp.bustracker.engine.TripEngine
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,6 +50,12 @@ class TrackerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var engineJob: Job? = null
 
+    /* Set by the driver's own stop and read in onDestroy. Without it the stop
+       cancelled the flush worker and onDestroy immediately re-created it, so
+       a tracker the driver had just switched off came back within fifteen
+       minutes and looked as if the switch had not worked. */
+    @Volatile private var stoppedByDriver = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -72,13 +80,14 @@ class TrackerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             BtLog.i("service", "stopping on driver request")
+            stoppedByDriver = true
             stopSelf()
             return START_NOT_STICKY
         }
 
         if (engineJob?.isActive != true) {
             BtLog.i("service", "starting tracking loops")
-            engineJob = scope.launch { engine.run() }
+            engineJob = scope.launch { runEngineForever() }
         }
 
         // STICKY, not REDELIVER: there is no intent worth redelivering, and the
@@ -91,9 +100,35 @@ class TrackerService : Service() {
         engine.publishServiceRunning(false)
         scope.cancel()
         // Whatever killed us — low memory, an OEM task killer, a swipe from
-        // recents — is exactly when the safety net has to fire.
-        TripFlushWorker.enqueuePeriodic(applicationContext)
+        // recents — is exactly when the safety net has to fire. The driver's
+        // own stop is the one death that must stay dead.
+        if (stoppedByDriver) {
+            BtLog.i("service", "stopped by the driver; no restart scheduled")
+        } else {
+            TripFlushWorker.enqueuePeriodic(applicationContext)
+        }
         super.onDestroy()
+    }
+
+    /* A loop that threw used to die silently under a notification still
+       saying the bus was being tracked, because `coroutineScope` cancels every
+       sibling when one fails and nothing restarted them. Cancellation is the
+       one exception that means stop; anything else is logged and the loops
+       come back after a pause. */
+    private suspend fun runEngineForever() {
+        while (true) {
+            try {
+                engine.run()
+                return
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                BtLog.e("service", "tracking loops failed; restarting in ${ENGINE_RESTART_MILLIS / 1000}s", error)
+                engine.publishServiceRunning(false)
+                delay(ENGINE_RESTART_MILLIS)
+                engine.publishServiceRunning(true)
+            }
+        }
     }
 
     private fun announce(event: EngineEvent) {
@@ -155,6 +190,7 @@ class TrackerService : Service() {
     }
 
     companion object {
+        private const val ENGINE_RESTART_MILLIS = 10_000L
         const val ACTION_STOP = "com.schoolerp.bustracker.STOP_SERVICE"
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,7 +39,8 @@ import androidx.core.content.ContextCompat
 @Composable
 fun LocationPermissionPrompt(onFinished: () -> Unit = {}) {
     val context = LocalContext.current
-    var stage by remember { mutableStateOf(Stage.EXPLAIN_FOREGROUND) }
+    // Saveable, or a rotation mid-run reset DONE and re-asked the driver.
+    var stage by rememberSaveable { mutableStateOf(Stage.EXPLAIN_FOREGROUND) }
 
     val hasForeground = remember(stage) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
