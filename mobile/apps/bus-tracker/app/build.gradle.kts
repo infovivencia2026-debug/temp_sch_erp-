@@ -64,7 +64,10 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            /* No .debug suffix, so a debug build REPLACES the app rather than
+               sitting beside it as a second icon. A school installing over USB
+               or from the download page should end up with one bus tracker on
+               the phone, not two that look identical and behave differently. */
             /* AGP 9 does not sign a debug build unless it is told to.
 
                Without this the APK carries nothing in META-INF but its own
